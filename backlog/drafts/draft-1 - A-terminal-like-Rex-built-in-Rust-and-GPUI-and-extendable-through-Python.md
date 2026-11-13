@@ -51,4 +51,5 @@ It is "personal, but assume after a few months I may want to distribute."
 - [ ] #4 A program that reports its status through Rex's Program Status Protocol shows that status in steg with no change to the program
 - [ ] #5 Nothing built for personal use has to be redone to distribute it to other people later
 - [ ] #6 An agent working in a pane can show the user a file in another pane from the CLI, such as a Markdown document with proper Markdown rendering
+- [ ] #7 Each session can have its own colour, which a running agent can change from the CLI
 <!-- AC:END -->

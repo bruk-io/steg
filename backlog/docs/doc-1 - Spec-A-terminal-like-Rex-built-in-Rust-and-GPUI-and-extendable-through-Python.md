@@ -5,7 +5,7 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:38:00Z'
+updated_date: '2026-11-13T22:41:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
@@ -240,12 +240,37 @@ These cost little now and a great deal to retrofit.
 - R62 (M2). Reference docs for the CLI, the API, and the Python package are generated
   from the API description.
 
+### 5.14 Showing things beside the terminal
+
+Claude Desktop shows documents and previews in a side panel and decides what to show and
+when. Steg gives an agent, or a person, the same ability from the CLI. These requirements
+hold whether a viewer is a packaged terminal program or a native pane (section 9).
+
+- R63 (M2). `steg open <file>` shows a file in a new pane beside the pane the command ran
+  in, choosing a viewer from the file's type. A flag puts it in a new tab instead.
+- R64 (M2). Opening a pane this way leaves keyboard focus where it was unless focus is
+  asked for, so an agent showing something does not interrupt typing.
+- R65 (M2). Steg ships viewers for Markdown, rendered with headings, lists, tables, code
+  blocks and links; for source code and plain text, with syntax highlighting; and for
+  images.
+- R66 (M2). A viewer follows its file: when the file changes on disk, the pane shows the
+  new content within a second and keeps its scroll position.
+- R67 (M2). Opening a file already shown in the same tab reuses that pane. From the CLI, a
+  viewer's content can be replaced with another file and the pane closed.
+- R68 (M2). Content can be given on standard input in place of a file, with its type
+  named, so an agent can show something that is not saved anywhere.
+- R69 (M2). Which viewer handles which file type is set in `init.py`, and an extension
+  can add or replace a viewer in Python.
+- R70 (M2). The Claude Code skill (R53) teaches the agent to open a viewer for a document
+  it has changed or wants the user to read.
+- R71 (M2). Viewers are read-only.
+
 ## 6. Releases
 
 | Release | What it proves | Requirements |
 |---|---|---|
 | M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R25, R28, R29, R32-R39, R58-R61 |
-| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62 |
+| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R71 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
 Two spikes come before M1, because they carry the most risk:
@@ -312,7 +337,22 @@ The requirements hold whichever way these go.
 
 ## 9. Open questions the intent did not ask
 
-None.
+- **How do viewers render: packaged terminal programs, or native panes?** This is
+  Bruk's call, because it decides what "proper Markdown rendering" looks like.
+  - *Terminal programs.* `steg open` splits a pane and runs a viewer that ships with
+    steg. Every pane stays a terminal, so viewers work with splits, remote hosts, shared
+    sessions and restore for free, and a Python viewer is simply a Textual app. The limit
+    is the character grid: one font size, no proportional text, and images only once the
+    terminal supports the kitty graphics protocol.
+  - *Native panes.* The app draws the content itself: real typography, heading sizes,
+    inline images, and room for web content later. The cost is a second kind of pane
+    through the kernel, the API and the app, and a harder story for Python-defined
+    viewers.
+  - *Recommendation.* Start with terminal programs behind `steg open`, and keep R12 so a
+    native Markdown pane can replace the packaged one later without the command, the
+    skill or any script changing.
+- Which other viewers matter: diffs, HTML, PDFs? HTML is the costly one under either
+  answer, since GPUI has no web view of its own.
 
 ## 10. Out of scope
 
@@ -321,7 +361,9 @@ None.
   (R55-R57) are other Macs.
 - Shared and login servers, and anything multi-user.
 - Network listeners and built-in Tailscale. SSH is the only remote transport.
-- Pane kinds other than terminals.
+- Native pane kinds other than terminals, unless the viewer question in section 9 is
+  answered that way.
+- Editing in a viewer.
 - Lua, and compatibility with Rex's API, CLI, or config.
 - Sessions surviving a server restart, an upgrade, or a reboot.
 - Signed installers, auto-update, and a Homebrew formula, until distribution is decided.

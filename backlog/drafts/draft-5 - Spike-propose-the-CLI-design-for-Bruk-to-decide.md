@@ -4,13 +4,14 @@ title: 'Spike: propose the CLI design for Bruk to decide'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:05:00Z'
+updated_date: '2026-11-13T23:57:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies: []
 parent_task_id: DRAFT-1
 type: spike
+project: bruk-io-steg
 ---
 
 ## Description

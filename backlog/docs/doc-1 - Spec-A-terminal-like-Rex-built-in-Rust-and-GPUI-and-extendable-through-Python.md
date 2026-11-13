@@ -254,8 +254,9 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 - R65 (Later). Steg packages its own viewers, Markdown and diffs first. None is built
   in M1 to M3; until then `steg open` runs whatever program `init.py` maps to the file's
   type (R69).
-- R66 (M2). A viewer follows its file: when the file changes on disk, the pane shows the
-  new content within a second and keeps its scroll position.
+- R66 (Later). A packaged viewer follows its file: when the file changes on disk, the
+  pane shows the new content within a second and keeps its scroll position. A program
+  mapped in `init.py` follows its file only if that program does.
 - R67 (M2). Opening a file already shown in the same tab reuses that pane. From the CLI, a
   viewer's content can be replaced with another file and the pane closed.
 - R68 (M2). Content can be given on standard input in place of a file, with its type
@@ -271,7 +272,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 | Release | What it proves | Requirements |
 |---|---|---|
 | M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R25, R28, R29, R32-R39, R58-R61 |
-| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R66-R71 |
+| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R71 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
 Two spikes come before M1, because they carry the most risk:

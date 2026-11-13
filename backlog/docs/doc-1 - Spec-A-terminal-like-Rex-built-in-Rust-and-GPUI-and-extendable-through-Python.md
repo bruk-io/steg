@@ -225,6 +225,9 @@ what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13
   hooks.
 - R76 (M2). A plugin cannot remove or alter built-in behaviour. It can add actions, and
   keys can be bound or rebound to them.
+- R77 (M2). Plugins are isolated from one another. A plugin cannot read or change
+  another plugin's state, call into its code, or invoke its actions. This protects
+  plugins from each other's mistakes; it is not a security sandbox (section 8).
 
 ### 5.10 Program status
 
@@ -303,7 +306,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 | Release | What it proves | Requirements |
 |---|---|---|
 | M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R25, R28, R29, R32-R39, R58-R61 |
-| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R76 |
+| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R77 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
 Two spikes come before M1, because they carry the most risk:
@@ -335,9 +338,7 @@ questions, and the decisions still to make.
   decided this on 2026-11-13: a hung handler then cannot freeze a terminal, and
   reloading the config is restarting that process. The cost is one hop between the
   server and Python for each custom action. Each plugin runs on a thread of its own, so
-  a stuck plugin does not stall the others. A hard crash, such as a native library
-  failing, still takes every plugin down together; the process is restarted and the
-  server is untouched.
+  a stuck plugin does not stall the others.
 - **Carries forward intent question 3** (terminal emulation library): `libghostty-vt` or
   `alacritty_terminal`, decided by the first spike in section 6.
 - **Answers intent question 4** (remote sessions): a later release, M3 (R55-R57). This is
@@ -359,9 +360,17 @@ The requirements hold whichever way these go.
    and the docs.
 4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-5. **Inside the Python process.** Whether steg offers a client library, and the fields of
+5. **How plugins are isolated (R77).** Threads in one interpreter share everything, so
+   they cannot meet R77. Two ways can. *An interpreter per plugin* inside the one
+   process, which Python 3.14 supports: light, but some libraries with native code do
+   not load that way, and a hard crash still takes every plugin down. *A process per
+   plugin*: any library works, a crash stops one plugin only, and each plugin can have
+   its own dependencies, at the cost of more memory and a slower start per plugin. That
+   would replace the single Python process agreed above. Recommended: a process per
+   plugin.
+6. **Inside the Python process.** Whether steg offers a client library, and the fields of
    the config dataclass.
-6. **Two clients, one pane.** What size a terminal takes when two attached clients have
+7. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 
 ## 8. Areas of concern

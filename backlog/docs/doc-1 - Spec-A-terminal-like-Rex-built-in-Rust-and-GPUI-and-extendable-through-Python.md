@@ -360,8 +360,9 @@ The requirements hold whichever way these go.
    and the docs.
 4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-5. **Python on the inside.** Whether steg offers a client library, and the fields of
-   the config dataclass.
+5. **Python on the inside.** Whether steg offers a client library, the fields of the
+   config dataclass, and how the config file is evaluated: most simply a short-lived
+   process at load and reload that hands its data to the server.
 6. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 

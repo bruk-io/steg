@@ -5,7 +5,7 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:34:00Z'
+updated_date: '2026-11-13T22:38:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
@@ -35,7 +35,8 @@ person's machines.
 
 ## 2. Who it is for
 
-- **Now:** Bruk, on a Mac, with sessions on that Mac and on Linux hosts reached over SSH.
+- **Now:** Bruk, on a Mac, with sessions on that Mac. Other Macs reached over SSH come
+  in a later release.
 - **Coding agents:** Claude Code and similar tools running inside steg terminals, driving
   the workspace through the CLI.
 - **Later:** other developers who install a release build. Nothing in v1 is built for
@@ -80,7 +81,7 @@ Each requirement is tagged with the release it belongs to (section 6).
   restores each session's layout, screen contents, and scrollback.
 - R3 (M1). The server starts on demand the first time the app or CLI needs it. It can
   also be started explicitly, in which case it stays up with no clients attached.
-- R4 (M1). The server runs on macOS and Linux as the user's own account, with no root.
+- R4 (M1). The server runs on macOS as the user's own account, with no root.
 - R5 (M1). Local clients connect over a socket only the owning user can open. The server
   opens no network port.
 - R6 (M1). Sessions can be created, labelled, reordered, listed, and destroyed.
@@ -137,8 +138,9 @@ Each requirement is tagged with the release it belongs to (section 6).
   (violet through pink to orange), in the spirit of the Superlogical site and early Arc.
   No Liquid Glass and no dependence on macOS 26 materials.
 - R26 (M2). Each session can carry its own accent colour or gradient, shown in the
-  switcher and window chrome, so sessions are told apart at a glance. This is a proposal,
-  borrowed from Arc's Spaces.
+  switcher and window chrome, so sessions are told apart at a glance. It is set
+  from the app, the CLI, and Python like any other session property, and a change shows
+  in every attached client at once.
 - R27 (M2). Terminal colour themes are selectable separately for light and dark.
 
 ### 5.6 Keyboard
@@ -208,7 +210,8 @@ Each requirement is tagged with the release it belongs to (section 6).
 ### 5.11 Agents
 
 - R53 (M2). Steg ships a skill for Claude Code that teaches the CLI, and a session-start
-  hook that tells the agent which session and pane it is in.
+  hook that tells the agent which session and pane it is in. The skill covers setting the
+  session's colour, so a running agent can change the colour of its own session.
 - R54 (M2). Using only the CLI, an agent can open a tab, split a pane, run a command in
   another pane, read that pane's screen, and wait for the command to finish.
 
@@ -230,7 +233,7 @@ These cost little now and a great deal to retrofit.
   not ask for.
 - R59 (M1). MIT licensed, with no code taken from GPL sources. Zed's terminal crates are
   GPL, so the GPUI terminal view is written fresh.
-- R60 (M1). Config, state, and sockets follow XDG paths on both platforms. Nothing is
+- R60 (M1). Config, state, and sockets follow XDG paths. Nothing is
   tied to one person's machine.
 - R61 (M1). The server and CLI ship as one binary with no runtime dependency beyond the
   operating system.
@@ -304,19 +307,18 @@ The requirements hold whichever way these go.
   acceptable for a personal tool and needs revisiting before distribution.
 - **OSC 7501 belongs to Superlogical and Rex is in beta.** The protocol may change, and
   steg follows it rather than forking it.
-- **Python on remote hosts.** Extensions on a Linux host need uv and Python there. R47
+- **Python on remote hosts.** Extensions on a remote host need uv and Python there. R47
   keeps the server itself free of that dependency.
 
 ## 9. Open questions the intent did not ask
 
-- Does the Linux server need to be exercised in M1, or only built? Assumed built and
-  tested in M1, used in earnest from M3.
-- Is a per-session accent colour (R26) wanted? It is a proposal, not something asked for.
+None.
 
 ## 10. Out of scope
 
 - Liquid Glass.
-- iOS, Windows, and FreeBSD, and a desktop app for Linux.
+- Linux, iOS, Windows, and FreeBSD, for the server and the app alike. Remote hosts
+  (R55-R57) are other Macs.
 - Shared and login servers, and anything multi-user.
 - Network listeners and built-in Tailscale. SSH is the only remote transport.
 - Pane kinds other than terminals.

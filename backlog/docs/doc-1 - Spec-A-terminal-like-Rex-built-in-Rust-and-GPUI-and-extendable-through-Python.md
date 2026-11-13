@@ -5,7 +5,7 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:48:00Z'
+updated_date: '2026-11-13T22:49:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
@@ -180,7 +180,7 @@ left to CLI design (section 7).
 
 ### 5.9 Python: config and plugins
 
-Python is kept open-ended. Inside the Python process a plugin may use any library and be
+Python is kept open-ended. Inside its own process a plugin may use any library and be
 written any way. The requirements below fix only the boundary between Python and steg:
 what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13.
 
@@ -195,8 +195,8 @@ what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13
 
 **Plugins**
 
-- R41 (M2). A plugin is a Python program whose entry point is `__main__`. The Python
-  process runs each plugin the config lists, and no others: nothing is discovered or
+- R41 (M2). A plugin is a Python program whose entry point is `__main__`. Steg runs
+  each plugin the config lists, in a process of its own, and no others: nothing is discovered or
   started by itself.
 - R42 (M2). A plugin can call anything in the public API, the same surface the CLI has,
   and can subscribe to any event and keep running to handle it.
@@ -205,9 +205,9 @@ what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13
   the CLI.
 - R44 (M2). When a plugin stops or dies, everything it registered disappears and nothing
   else is affected.
-- R45 (M2). A plugin can declare third-party dependencies, resolved by uv. The Python
-  process uses its own uv-managed Python, apart from any virtual environment active in a
-  pane.
+- R45 (M2). A plugin can declare third-party dependencies, resolved by uv. Each
+  plugin has its own environment, apart from other plugins' and from any virtual
+  environment active in a pane.
 
 **Limits**
 
@@ -327,18 +327,18 @@ questions, and the decisions still to make.
 | Server | The kernel plus its local socket. Starts on demand and outlives the app |
 | CLI | A thin client whose commands come from the API description |
 | Steg.app (GPUI) | Renders panes, handles keys, runs the palette |
-| Python process | One long-lived process beside the server, running the user's extensions through the public API |
+| Plugins | Python programs, one process each, beside the server and using the public API |
 
 ### The intent's open questions
 
 - **Carries forward intent question 1** (what Rex does not do for you beyond Python):
   only Bruk can answer it. No requirement depends on the answer, but it could add some.
-- **Answers intent question 2** (where Python runs): in one long-lived Python process
-  beside the server, speaking the public API. Nothing is embedded in the server. Bruk
-  decided this on 2026-11-13: a hung handler then cannot freeze a terminal, and
-  reloading the config is restarting that process. The cost is one hop between the
-  server and Python for each custom action. Each plugin runs on a thread of its own, so
-  a stuck plugin does not stall the others.
+- **Answers intent question 2** (where Python runs): beside the server, never inside
+  it, with each plugin in a process of its own speaking the public API. Bruk decided
+  this on 2026-11-13. A stuck or crashed plugin then cannot freeze a terminal or disturb
+  another plugin, any library works, and each plugin has its own dependencies. The cost
+  is one hop between the server and Python for each custom action, and the memory of
+  one Python process per plugin (section 8).
 - **Carries forward intent question 3** (terminal emulation library): `libghostty-vt` or
   `alacritty_terminal`, decided by the first spike in section 6.
 - **Answers intent question 4** (remote sessions): a later release, M3 (R55-R57). This is
@@ -360,17 +360,9 @@ The requirements hold whichever way these go.
    and the docs.
 4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-5. **How plugins are isolated (R77).** Threads in one interpreter share everything, so
-   they cannot meet R77. Two ways can. *An interpreter per plugin* inside the one
-   process, which Python 3.14 supports: light, but some libraries with native code do
-   not load that way, and a hard crash still takes every plugin down. *A process per
-   plugin*: any library works, a crash stops one plugin only, and each plugin can have
-   its own dependencies, at the cost of more memory and a slower start per plugin. That
-   would replace the single Python process agreed above. Recommended: a process per
-   plugin.
-6. **Inside the Python process.** Whether steg offers a client library, and the fields of
+5. **Python on the inside.** Whether steg offers a client library, and the fields of
    the config dataclass.
-7. **Two clients, one pane.** What size a terminal takes when two attached clients have
+6. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 
 ## 8. Areas of concern
@@ -381,6 +373,10 @@ The requirements hold whichever way these go.
   acceptable for a personal tool and needs revisiting before distribution.
 - **OSC 7501 belongs to Superlogical and Rex is in beta.** The protocol may change, and
   steg follows it rather than forking it.
+- **Many plugin processes.** Each plugin is a Python process, so memory grows with the
+  number of plugins. An idle plugin should cost no CPU, and its memory needs measuring
+  before a budget is set. If it proves heavy, plugins that only provide actions can be
+  started when first used instead of at launch.
 - **Python on remote hosts.** Extensions on a remote host need uv and Python there. R47
   keeps the server itself free of that dependency.
 

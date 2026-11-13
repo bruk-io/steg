@@ -153,13 +153,17 @@ Each requirement is tagged with the release it belongs to (section 6).
 
 ### 5.7 CLI
 
+These say what the CLI can do. Command names, flags, variable names and exit codes are
+left to CLI design (section 7).
+
 - R32 (M1). The `steg` CLI exposes everything the API exposes. Its commands are generated
   from the API description, so the two cannot drift.
 - R33 (M1). Inside a steg terminal the CLI acts on that session and pane by default,
-  through `STEG_SESSION`, `STEG_PANE`, and `STEG_SERVER`. Flags target anything else.
-- R34 (M1). Output is a readable table by default and JSON with `--json`. Exit statuses:
-  0 success, 1 failure, 2 bad arguments, 3 missing or ambiguous target, 4 server
-  unreachable, 130 interrupted.
+  from context the terminal's environment provides. Anything else can be targeted
+  explicitly.
+- R34 (M1). Output is readable by a person by default and available as JSON. The exit
+  status tells a script apart: success, failure, bad arguments, a missing or ambiguous
+  target, an unreachable server, and an interruption.
 - R35 (M1). The CLI can send text and keys to a pane, capture a pane's screen and
   scrollback as text, and wait for an event such as a program exiting.
 
@@ -191,8 +195,8 @@ Each requirement is tagged with the release it belongs to (section 6).
   a terminal, or stop built-in key bindings. The user sees the error and its traceback.
 - R47 (M2). The server, the app, and built-in bindings work on a host with no Python
   installed. Python is needed only once `init.py` or a script is used.
-- R48 (M2). `steg config check` validates the config without applying it. `steg config
-  reload` applies it without restarting the server or ending a session. A config with
+- R48 (M2). The config can be validated without applying it, and reloaded without
+  restarting the server or ending a session. A config with
   errors leaves the previous one in force.
 
 ### 5.10 Program status
@@ -221,7 +225,7 @@ Each requirement is tagged with the release it belongs to (section 6).
   user's existing SSH config, keys, and agent. The remote host needs only the `steg`
   binary and no listening port.
 - R56 (M3). Hosts are saved under a label. The app switches between hosts, and the CLI
-  takes `-S <label>`.
+  can target a host by its label.
 - R57 (M3). When the connection drops, the remote sessions carry on. The app reconnects
   by itself and restores them.
 
@@ -244,15 +248,15 @@ These cost little now and a great deal to retrofit.
 
 Claude Desktop shows documents and previews in a side panel and decides what to show and
 when. Steg gives an agent, or a person, the same ability from the CLI. A viewer is a
-terminal program that `steg open` runs in an ordinary pane, so every pane stays a
+terminal program that steg runs in an ordinary pane, so every pane stays a
 terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 
-- R63 (M2). `steg open <file>` shows a file in a new pane beside the pane the command ran
-  in, choosing a viewer from the file's type. A flag puts it in a new tab instead.
+- R63 (M2). One CLI command shows a file in a new pane beside the pane the command ran
+  in, choosing a viewer from the file's type. It can be put in a new tab instead.
 - R64 (M2). Opening a pane this way leaves keyboard focus where it was unless focus is
   asked for, so an agent showing something does not interrupt typing.
 - R65 (Later). Steg packages its own viewers, Markdown and diffs first. None is built
-  in M1 to M3; until then `steg open` runs whatever program `init.py` maps to the file's
+  in M1 to M3; until then R63 runs whatever program `init.py` maps to the file's
   type (R69).
 - R66 (Later). A packaged viewer follows its file: when the file changes on disk, the
   pane shows the new content within a second and keeps its scroll position. A program
@@ -315,15 +319,17 @@ questions, and the decisions still to make.
 
 The requirements hold whichever way these go.
 
-1. **Wire protocol.** Message framing, and how terminal output reaches a client: raw
+1. **CLI design.** Command names, flags, the environment variables that carry context,
+   and exit codes. Deliberately not decided in this spec.
+2. **Wire protocol.** Message framing, and how terminal output reaches a client: raw
    bytes replayed by a client-side emulator, or screen updates computed by the server.
-2. **API description.** The single source that generates the CLI, the Python package,
+3. **API description.** The single source that generates the CLI, the Python package,
    and the docs.
-3. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
+4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-4. **Python API shape.** Decorators or calls, synchronous or async handlers, and how
+5. **Python API shape.** Decorators or calls, synchronous or async handlers, and how
    `init.py` declares bindings.
-5. **Two clients, one pane.** What size a terminal takes when two attached clients have
+6. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 
 ## 8. Areas of concern

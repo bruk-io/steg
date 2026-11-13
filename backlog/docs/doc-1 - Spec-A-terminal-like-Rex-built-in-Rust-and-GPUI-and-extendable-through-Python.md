@@ -294,8 +294,8 @@ questions, and the decisions still to make.
 | Part | Role |
 |---|---|
 | Kernel (Rust library) | Session, tab, and pane state; terminals; the event stream; target resolution |
-| `steg server` | The kernel plus its local socket. Starts on demand and outlives the app |
-| `steg` CLI | A thin client whose commands come from the API description |
+| Server | The kernel plus its local socket. Starts on demand and outlives the app |
+| CLI | A thin client whose commands come from the API description |
 | Steg.app (GPUI) | Renders panes, handles keys, runs the palette |
 | Python | `init.py`, custom actions, event handlers, and standalone scripts |
 

@@ -4,13 +4,15 @@ title: 'Terminal: pass the acceptance set of full-screen programs'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
+updated_date: '2026-11-13T23:05:00Z'
 labels:
   - size-5
+milestone: m-0
 dependencies:
   - DRAFT-17
   - DRAFT-9
-type: task
 parent_task_id: DRAFT-1
+type: task
 ---
 
 ## Description

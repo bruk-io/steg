@@ -5,7 +5,7 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:43:00Z'
+updated_date: '2026-11-13T22:46:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
@@ -297,15 +297,17 @@ questions, and the decisions still to make.
 | Server | The kernel plus its local socket. Starts on demand and outlives the app |
 | CLI | A thin client whose commands come from the API description |
 | Steg.app (GPUI) | Renders panes, handles keys, runs the palette |
-| Python | `init.py`, custom actions, event handlers, and standalone scripts |
+| Python process | One long-lived process beside the server, running the user's extensions through the public API |
 
 ### The intent's open questions
 
 - **Carries forward intent question 1** (what Rex does not do for you beyond Python):
   only Bruk can answer it. No requirement depends on the answer, but it could add some.
-- **Carries forward intent question 2** (where Python runs): a design decision, listed
-  below. R46 and R47 hold either way and favour a separate supervised process over
-  CPython embedded in the server.
+- **Answers intent question 2** (where Python runs): in one long-lived Python process
+  beside the server, speaking the public API. Nothing is embedded in the server. Bruk
+  decided this on 2026-11-13: a hung handler then cannot freeze a terminal, and
+  reloading the config is restarting that process. The cost is one hop between the
+  server and Python for each custom action.
 - **Carries forward intent question 3** (terminal emulation library): `libghostty-vt` or
   `alacritty_terminal`, decided by the first spike in section 6.
 - **Answers intent question 4** (remote sessions): a later release, M3 (R55-R57). This is

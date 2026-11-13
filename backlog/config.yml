@@ -1,0 +1,17 @@
+project_name: "steg"
+default_status: "To Do"
+statuses: ["To Do", "In Progress", "In Review", "Done"]
+labels: ["size-1", "size-2", "size-3", "size-4", "size-5", "size-8", "changes-requested", "review-passed"]
+date_format: yyyy-mm-dd
+max_column_width: 20
+default_editor: "nvim"
+auto_open_browser: true
+default_port: 6420
+remote_operations: true
+auto_commit: true
+filesystem_only: false
+bypass_git_hooks: true
+check_active_branches: false
+active_branch_days: 30
+task_prefix: "task"
+types: ["intent", "task", "bug", "spike"]

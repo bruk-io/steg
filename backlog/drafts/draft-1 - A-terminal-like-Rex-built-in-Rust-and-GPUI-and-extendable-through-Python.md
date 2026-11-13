@@ -4,8 +4,11 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
+updated_date: '2026-11-13T22:34:00Z'
 labels: []
 dependencies: []
+documentation:
+  - doc-1
 type: intent
 ---
 

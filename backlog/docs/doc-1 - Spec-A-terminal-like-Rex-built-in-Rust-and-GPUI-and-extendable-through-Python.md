@@ -334,7 +334,10 @@ questions, and the decisions still to make.
   beside the server, speaking the public API. Nothing is embedded in the server. Bruk
   decided this on 2026-11-13: a hung handler then cannot freeze a terminal, and
   reloading the config is restarting that process. The cost is one hop between the
-  server and Python for each custom action.
+  server and Python for each custom action. Each plugin runs on a thread of its own, so
+  a stuck plugin does not stall the others. A hard crash, such as a native library
+  failing, still takes every plugin down together; the process is restarted and the
+  server is untouched.
 - **Carries forward intent question 3** (terminal emulation library): `libghostty-vt` or
   `alacritty_terminal`, decided by the first spike in section 6.
 - **Answers intent question 4** (remote sessions): a later release, M3 (R55-R57). This is
@@ -356,8 +359,8 @@ The requirements hold whichever way these go.
    and the docs.
 4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-5. **Inside the Python process.** Whether steg offers a client library, how one stuck
-   plugin is kept from stalling the others, and the fields of the config dataclass.
+5. **Inside the Python process.** Whether steg offers a client library, and the fields of
+   the config dataclass.
 6. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 

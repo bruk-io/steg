@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:34:00Z'
+updated_date: '2026-11-13T22:41:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -50,4 +50,5 @@ It is "personal, but assume after a few months I may want to distribute."
 - [ ] #3 Behaviour can be added and changed in Python without changing the Rust code
 - [ ] #4 A program that reports its status through Rex's Program Status Protocol shows that status in steg with no change to the program
 - [ ] #5 Nothing built for personal use has to be redone to distribute it to other people later
+- [ ] #6 An agent working in a pane can show the user a file in another pane from the CLI, such as a Markdown document with proper Markdown rendering
 <!-- AC:END -->

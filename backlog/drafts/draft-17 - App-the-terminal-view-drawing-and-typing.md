@@ -4,14 +4,16 @@ title: 'App: the terminal view, drawing and typing'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
+updated_date: '2026-11-13T23:05:00Z'
 labels:
   - size-5
+milestone: m-0
 dependencies:
   - DRAFT-16
   - DRAFT-13
   - DRAFT-2
-type: task
 parent_task_id: DRAFT-1
+type: task
 ---
 
 ## Description

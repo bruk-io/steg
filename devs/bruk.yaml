@@ -1,0 +1,6 @@
+# Bruk's asdlc preferences for this board. The format is in the asdlc repository: templates/board/devs/README.md.
+name: bruk
+prefer: []
+avoid: []
+workers: 3
+review: true

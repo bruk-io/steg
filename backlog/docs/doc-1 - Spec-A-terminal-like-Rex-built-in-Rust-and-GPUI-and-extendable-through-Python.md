@@ -5,7 +5,7 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:46:00Z'
+updated_date: '2026-11-13T22:48:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
@@ -178,26 +178,53 @@ left to CLI design (section 7).
 - R39 (M1). The protocol is versioned. A mismatched client and server either work
   together or fail with a message naming both versions.
 
-### 5.9 Python extensibility
+### 5.9 Python: config and plugins
 
-- R40 (M2). Configuration is a Python file at `$XDG_CONFIG_HOME/steg/init.py`, which can
-  import other modules.
-- R41 (M2). From Python a user can bind and unbind keys, define key modes, and define
-  custom actions with a name, a title, and typed arguments. Custom actions appear in the
-  palette, can be bound to keys, and can be invoked from the CLI.
-- R42 (M2). Python can subscribe to any event and keep running to handle it.
-- R43 (M2). Python reaches the whole API through a `steg` package with type hints,
-  generated from the API description.
-- R44 (M2). A standalone script, written as a PEP 723 uv script, uses the same package
-  and runs from anywhere the CLI works.
-- R45 (M2). Extensions can declare third-party dependencies, resolved by uv.
+Python is kept open-ended. Inside the Python process a plugin may use any library and be
+written any way. The requirements below fix only the boundary between Python and steg:
+what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13.
+
+**Config**
+
+- R40 (M2). Configuration is a Python file in steg's config directory that builds a
+  config object, a dataclass. It is data: key bindings, key modes, which viewer handles
+  which file type, and the plugins to run.
+- R48 (M2). The config can be validated without applying it, and reloaded without
+  restarting the server or ending a session. A config with errors leaves the previous
+  one in force.
+
+**Plugins**
+
+- R41 (M2). A plugin is a Python program whose entry point is `__main__`. The Python
+  process runs each plugin the config lists, and no others: nothing is discovered or
+  started by itself.
+- R42 (M2). A plugin can call anything in the public API, the same surface the CLI has,
+  and can subscribe to any event and keep running to handle it.
+- R43 (M2). A plugin can register actions and key bindings. They exist while the plugin
+  runs: the actions appear in the palette, can be bound to keys, and can be invoked from
+  the CLI.
+- R44 (M2). When a plugin stops or dies, everything it registered disappears and nothing
+  else is affected.
+- R45 (M2). A plugin can declare third-party dependencies, resolved by uv. The Python
+  process uses its own uv-managed Python, apart from any virtual environment active in a
+  pane.
+
+**Limits**
+
 - R46 (M2). An exception, hang, or crash in Python does not end a session, block input to
   a terminal, or stop built-in key bindings. The user sees the error and its traceback.
 - R47 (M2). The server, the app, and built-in bindings work on a host with no Python
-  installed. Python is needed only once `init.py` or a script is used.
-- R48 (M2). The config can be validated without applying it, and reloaded without
-  restarting the server or ending a session. A config with
-  errors leaves the previous one in force.
+  installed. Python is needed only once there is a config file or a plugin.
+- R72 (M2). No Python runs inside the server or the app.
+- R73 (M2). A key press never waits on Python. Bindings are resolved from the config's
+  data, and a plugin cannot sit in the path of typing or of terminal output. It can read
+  a screen and send input through the API.
+- R74 (M2). A plugin cannot draw in the app's own interface. What it shows is a terminal
+  pane, a session colour, a label, a status, or a notification.
+- R75 (M2). A plugin reaches nothing the public API does not offer. There are no private
+  hooks.
+- R76 (M2). A plugin cannot remove or alter built-in behaviour. It can add actions, and
+  keys can be bound or rebound to them.
 
 ### 5.10 Program status
 
@@ -241,7 +268,7 @@ These cost little now and a great deal to retrofit.
   tied to one person's machine.
 - R61 (M1). The server and CLI ship as one binary with no runtime dependency beyond the
   operating system.
-- R62 (M2). Reference docs for the CLI, the API, and the Python package are generated
+- R62 (M2). Reference docs for the CLI and the API are generated
   from the API description.
 
 ### 5.14 Showing things beside the terminal
@@ -256,17 +283,17 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 - R64 (M2). Opening a pane this way leaves keyboard focus where it was unless focus is
   asked for, so an agent showing something does not interrupt typing.
 - R65 (Later). Steg packages its own viewers, Markdown and diffs first. None is built
-  in M1 to M3; until then R63 runs whatever program `init.py` maps to the file's
+  in M1 to M3; until then R63 runs whatever program the config maps to the file's
   type (R69).
 - R66 (Later). A packaged viewer follows its file: when the file changes on disk, the
   pane shows the new content within a second and keeps its scroll position. A program
-  mapped in `init.py` follows its file only if that program does.
+  mapped in the config follows its file only if that program does.
 - R67 (M2). Opening a file already shown in the same tab reuses that pane. From the CLI, a
   viewer's content can be replaced with another file and the pane closed.
 - R68 (M2). Content can be given on standard input in place of a file, with its type
   named, so an agent can show something that is not saved anywhere.
-- R69 (M2). Which viewer handles which file type is set in `init.py`, and an extension
-  can add or replace a viewer in Python.
+- R69 (M2). Which viewer handles which file type is set in the config (R40), so a
+  viewer can be added or replaced without changing steg.
 - R70 (M2). The Claude Code skill (R53) teaches the agent to open a viewer for a document
   it has changed or wants the user to read.
 - R71 (M2). Viewers are read-only.
@@ -276,7 +303,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 | Release | What it proves | Requirements |
 |---|---|---|
 | M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R25, R28, R29, R32-R39, R58-R61 |
-| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R71 |
+| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R76 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
 Two spikes come before M1, because they carry the most risk:
@@ -325,12 +352,12 @@ The requirements hold whichever way these go.
    and exit codes. Deliberately not decided in this spec.
 2. **Wire protocol.** Message framing, and how terminal output reaches a client: raw
    bytes replayed by a client-side emulator, or screen updates computed by the server.
-3. **API description.** The single source that generates the CLI, the Python package,
+3. **API description.** The single source that generates the CLI, any Python client library,
    and the docs.
 4. **Server lifecycle on macOS.** Spawned by the first client or managed by launchd, and
    when an idle server stops.
-5. **Python API shape.** Decorators or calls, synchronous or async handlers, and how
-   `init.py` declares bindings.
+5. **Inside the Python process.** Whether steg offers a client library, how one stuck
+   plugin is kept from stalling the others, and the fields of the config dataclass.
 6. **Two clients, one pane.** What size a terminal takes when two attached clients have
    different window sizes (R7).
 

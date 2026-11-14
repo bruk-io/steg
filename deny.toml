@@ -1,0 +1,22 @@
+# Steg ships on macOS only (spec section 10); checking other platforms' dependency
+# graphs would refuse licences (and crates) that never reach a build of this project.
+[graph]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+
+# MIT project (R59): nothing GPL or AGPL. Licences not listed here are refused.
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0", # public domain dedication - no restriction, not copyleft (hexf-parse, via gpui's renderer)
+    # MPL-2.0 is file-scoped copyleft, not viral like GPL/AGPL: only the MPL file itself carries the
+    # obligation, not code that depends on it (cbindgen, a build-only dependency never linked into the
+    # binary; option-ext, a small trait extension gpui's font loading depends on via `dirs`).
+    "MPL-2.0",
+]

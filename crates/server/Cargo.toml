@@ -1,0 +1,11 @@
+[package]
+name = "steg-server"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+steg-kernel = { path = "../kernel" }

@@ -1,0 +1,12 @@
+[package]
+name = "steg"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+steg-server = { path = "../server" }
+steg-cli = { path = "../cli" }

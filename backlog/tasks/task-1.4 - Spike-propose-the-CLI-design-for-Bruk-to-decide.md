@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-14T03:57:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -320,6 +320,16 @@ Bruk gave the CLI's design direction himself on 2026-11-13: centre it on speed, 
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
 
 Plan checked against doc-1 and doc-2 by @bruk.o: ok, and the reduced scope is agreed. This task keeps the open points in doc-2 section 9, the further questions its review of doc-2 found, the Rex comparison checked against Rex's own reference, and the reading of its acceptance criteria. The speed numbers move to an orchestrator edit of doc-2 once TASK-1.3 has measured them, and the check of every command against the API is TASK-1.13's drift test. The deliverable is a board document of proposed changes; only the orchestrator, with Bruk, edits doc-2. The review found that doc-2 used --by, --with and --all without defining them: that was the orchestrator's omission and is fixed in doc-2 section 5. The points that need Bruk's choice (what -q prints, a header on lists, a command for the API's self-description, the fuller design for showing a file) are left for him.
+
+Check passed: `just check` exited 0 at 2026-11-14T03:56:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.4 on task-1.4-spike-propose-the-cli-design-for-bruk-to at 1333252480ed:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

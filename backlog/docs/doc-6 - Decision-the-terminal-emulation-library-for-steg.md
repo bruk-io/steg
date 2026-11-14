@@ -3,7 +3,7 @@ id: doc-6
 title: 'Decision: the terminal emulation library for steg'
 type: other
 created_date: '2026-11-14T05:14:00Z'
-updated_date: '2026-11-14T05:19:00Z'
+updated_date: '2026-11-14T05:23:00Z'
 ---
 - Task: TASK-1.1, the spike that answers intent question 3 for TASK-1.
 - Spec: `doc-1`. Serves R14, R19 and R59.
@@ -27,17 +27,30 @@ could not be chosen to fit the data. Applied to the evidence:
 
 | rule | what it says | outcome |
 |---|---|---|
-| 1. Gates | licence must be clearable; the terminal must work owned by one thread | **both pass** (sections 6, 7) |
+| 1. Gates | licence must be clearable; the terminal must work owned by one thread | alacritty passes outright. **Ghostty passes only if the engineer widens the licence policy** (section 6) |
 | 2. R19 is a threshold | clearing it is worth everything, being faster is worth nothing | **neither clears it as written** (section 5) |
 | 3. Work left to steg decides | count what each library drops on the app | **ghostty**: 1 item against 3, plus the whole colour palette (section 4) |
 | 4. Tie-breaks | build cost, then maintenance risk, then drawing code | **alacritty** on the first two, ghostty on the third (sections 7, 8) |
 | 5. If neither clears R19 | replace the number, and take the cheaper candidate on rule 3 | **ghostty**, with R19 replaced (section 5) |
 
-Rule 3 decides it and rule 5 confirms it. Rule 4 is the counterweight and it is a real one: if
-the engineer weighs a pure-Rust build and a better-maintained dependency above feature coverage
-and speed, the rule to change is rule 3's priority over rule 4, and the answer becomes
-`alacritty_terminal`. That is a judgement about what steg's team wants to carry, not something
-this spike can measure, so it is named here rather than decided quietly.
+Rule 3 decides it and rule 5 confirms it, **subject to one decision that is not the spike's to
+make**: TASK-1.5 landed `deny.toml` while this spike was running, and `cargo deny check
+licenses` - the repository's own gate - **passes the alacritty path and refuses the ghostty
+path**. What it refuses is `webpki-root-certs` under CDLA-Permissive-2.0, a build-only
+dependency of the crate that downloads ghostty's source (section 6). CDLA-Permissive-2.0 is a
+permissive data licence and nothing of it reaches steg's binary, so the gate can be cleared -
+but only by widening the policy, and `.claude/rules/licence.md` forbids a worker from adding an
+exception to make a check pass. So:
+
+- **If the engineer widens the policy** (allow `CDLA-Permissive-2.0`, or exclude build-only
+  dependencies from the licence check), ghostty clears rule 1 and the recommendation stands.
+- **If the engineer declines**, ghostty is out by rule 1 and the answer is `alacritty_terminal`.
+
+Rule 4 is the other counterweight and it is a real one: if the engineer weighs a pure-Rust build
+and a better-maintained dependency above feature coverage and speed, the rule to change is rule
+3's priority over rule 4, and the answer becomes `alacritty_terminal`. That is a judgement about
+what steg's team wants to carry, not something this spike can measure, so it is named here
+rather than decided quietly.
 
 **What to depend on, concretely:** `ghostty-vt = "0.8"` (bindings, Apache-2.0) over ghostty
 `1.4.0-main+83fb956` (the C library, MIT), built with Zig 0.17.x, with `GHOSTTY_SOURCE_DIR`
@@ -242,11 +255,44 @@ and comes from gpui, not from either candidate: `option-ext` 0.2.0, **MPL-2.0**,
 shipping steg under MIT, but cargo-deny's usual allow-lists refuse it, so TASK-1.5 has to decide
 it deliberately rather than discover it.
 
-**For TASK-1.5's `deny.toml`**, the allow-list these trees need is: `Apache-2.0`,
-`Apache-2.0 WITH LLVM-exception`, `MIT`, `MIT-0`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Zlib`,
-`0BSD`, `CC0-1.0`, `Unicode-3.0`, `Unlicense`, `BSL-1.0`, and a deliberate decision on
-`MPL-2.0`. Note that `cargo-deny` is **not installed on this machine**, so `just deny` could not
-be the evidence here; `cargo tree` was, and TASK-1.5 should make `just deny` real.
+### The repository's own gate, run against both trees
+
+TASK-1.5 landed `deny.toml` and `cargo-deny` while this spike was running, so the policy could
+be run against both candidates instead of compiling a list by hand. `just check` cannot do it -
+the spike is deliberately not a workspace member - so cargo-deny was pointed at each probe with
+the repository's own config:
+
+| | `cargo deny --config deny.toml check licenses` |
+|---|---|
+| alacritty path | **`licenses ok`** |
+| ghostty path | **`licenses FAILED`** |
+
+What it refuses, exactly:
+
+```
+error[rejected]: failed to satisfy license requirements
+  webpki-root-certs v1.0.12   license = "CDLA-Permissive-2.0"   rejected: license is not explicitly allowed
+    └── ureq v3.5.2
+        └── (build) ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+```
+
+That chain is worth reading twice: the refused crate is the **root-certificate bundle used by the
+HTTP client that downloads ghostty's source at build time**. It is a build dependency and never
+reaches steg's binary, and `ureq` is not feature-gated in `ghostty-vt-sys`, so it cannot be
+dropped without patching that crate. CDLA-Permissive-2.0 is a permissive licence for *data* and
+carries no copyleft, so allowing it is defensible - but `.claude/rules/licence.md` says a worker
+never adds an exception to make a check pass, so this is raised here instead.
+
+**The decision for the engineer**, if ghostty is chosen: either add `CDLA-Permissive-2.0` to
+`deny.toml`'s allow-list with the reason above, or configure the licence check to skip build-only
+dependencies, or vendor ghostty's source in-tree and carry a patched sys crate with no
+downloader. The last is the only option that removes the dependency rather than permitting it,
+and it also removes the build-time network fetch, so it may be worth the cost on its own.
+
+The existing allow-list already covers everything else both trees need: `MIT`, `Apache-2.0`,
+`Apache-2.0 WITH LLVM-exception`, `BSD-2-Clause`, `BSD-3-Clause`, `ISC`, `Unicode-3.0`, `Zlib`,
+`CC0-1.0` and `MPL-2.0`, the last with a note that already names `option-ext` for the same reason
+found here independently.
 
 Both candidates are permissively licensed and clear R59's gate. Apache-2.0 carries an
 attribution obligation (its NOTICE terms) when steg is distributed, and both candidates' own
@@ -329,10 +375,13 @@ What this says about choosing ghostty:
 
 ## 9. Findings other tasks need
 
-- **TASK-1.5** (workspace, licence, check): the `deny.toml` allow-list in section 6, including a
-  deliberate decision on `MPL-2.0` from gpui's `option-ext`; install `cargo-deny` so `just deny`
-  stops being a skip; pin `gpui = "=0.2.2"` (it builds and runs standalone from crates.io - that
-  was verified, not assumed); and if ghostty is chosen, pin Zig in `mise.toml`.
+- **TASK-1.5** (workspace, licence, check): already landed, and its `deny.toml` allow-list
+  covers both candidates except for one crate. If ghostty is chosen, `deny.toml` needs a
+  decision on `CDLA-Permissive-2.0` (`webpki-root-certs`, a build-only dependency of ghostty's
+  downloader) or the source needs vendoring instead - see section 6. Also: pin
+  `gpui = "=0.2.2"` (it builds and runs standalone from crates.io; that was verified, not
+  assumed), and if ghostty is chosen, pin Zig 0.17.x in `mise.toml` so every machine and CI
+  agree.
 - **TASK-1.8** (kernel terminals): one thread per terminal, created on that thread, fed over a
   channel, with snapshots out. Required by ghostty's `!Send` handles and good practice either
   way. Also: scrollback for ghostty is a byte budget, so R15's line limit needs converting, and

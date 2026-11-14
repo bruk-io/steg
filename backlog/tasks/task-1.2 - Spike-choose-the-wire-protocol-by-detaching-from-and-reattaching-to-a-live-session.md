@@ -570,6 +570,47 @@ handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
 handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
    and its screen and scrollback still match the server's
 ```
+
+Check passed: `spikes/task-1.2-wire-protocol/reattach-demo --mode bytes` exited 0 at 2026-11-14T04:32:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== reattach demonstration: mode=bytes framing=length lines=12000 interval=350us queue=64
+Darwin 27.0.0
+-- step 1: a pane prints 12000 numbered lines
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"pane":1}
+-- step 2: client A attaches and is killed mid-output
+   client A ready: pane=1 attachment=1 mode=bytes seq=8 snapshot_bytes=3333 scrollback_rows=0
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   client A killed with SIGKILL while the pane was at line 3412
+-- step 3: nothing is attached, and the program keeps printing
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   the pane reached line 6664 with no client attached
+-- step 4: client B attaches
+   client B ready: pane=1 attachment=2 mode=bytes seq=6702 snapshot_bytes=898322 scrollback_rows=6679
+-- step 5: the program finishes, everything quiesces, and the two are compared
+   client B: frames=5298 bytes_read=116556 resyncs=0 seq=6702 unknown_stream_frames=0
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+capture pane=1 bytes=120277 lines=10024 last=12000
+same  the reattached client and the server agree byte for byte (120277 bytes, 10024 lines)
+whole 10023 numbered lines run from 1978 to 12000 with no gap and no repeat
+last  the last line is 12000, as the program printed
+gap   every line from 3412 to 6664, printed while no client was attached, is there
+PASS
+-- the server's counters
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":156000,"resyncs":0,"ticks":1277,"wire_bytes":1355746,"wire_frames":8732}]}
+-- two clients on one pane at once, each with its own size, while output is flowing (R7 is left open)
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"pane":2}
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"attachments":[{"attachment":4,"cols":120,"rows":40},{"attachment":3,"cols":80,"rows":24}]}
+   one of the two was killed with SIGKILL
+   the client that was not killed: frames=3994 bytes_read=87868 resyncs=0 seq=6 unknown_stream_frames=0
+   it kept receiving output after the other was killed (3994 frames)
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   and its screen and scrollback still match the server's
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

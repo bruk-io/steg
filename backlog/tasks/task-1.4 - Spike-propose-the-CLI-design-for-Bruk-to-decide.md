@@ -5,13 +5,14 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:57:00Z'
+updated_date: '2026-11-14T04:07:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies: []
 documentation:
   - doc-2
+  - doc-3
 parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg

@@ -29,3 +29,9 @@ Design decision 3 in the spec. One source has to yield the server's methods, the
 <!-- AC:BEGIN -->
 - [ ] #1 A board document records the format, with one method carried end to end: defined once, served, self-described, and callable from a generated CLI command
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+<!-- SECTION:NOTES:END -->

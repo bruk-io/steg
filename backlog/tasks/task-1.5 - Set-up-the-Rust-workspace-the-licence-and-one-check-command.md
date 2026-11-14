@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-14T03:57:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -163,6 +163,16 @@ Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no 
 Plan checked against doc-1 by @bruk.o: ok, with one point for phase 2. It delivers R58, R59 and R61 and each of the eleven acceptance criteria has a proof, including refusal probes for the licence and boundary checks and a real-workspace proof of the test selection. It builds only the frame and leaves the emulation library, wire protocol, API format and command names open. For phase 2: unwrap_used set to deny also fires in tests, and .claude/rules/rust.md allows unwrap there, so the workspace needs clippy's allow-unwrap-in-tests setting or the equivalent; confirm the setting's name against the installed clippy. Put to Bruk with the plan: the boundary check's mechanism (a crate-name deny list, or an allow-table of each crate's dependencies checked in tools/), just run left out of the quiet wrapper, and a fifth crate for the single binary.
 
 Revised plan checked against doc-1 by @bruk.o: ok. The kernel boundary is now an allow list in boundaries.toml, checked by steg-boundaries in tools/ on the dependency edges cargo metadata reports, run from just check, with unit tests and a refusal probe; an unknown crate name in the table is itself a finding, so a typo cannot switch the check off. cargo deny is licences only. unwrap in tests is handled through clippy.toml. The other named decisions stand. This matches Bruk's decision of 2026-11-13.
+
+Check passed: `just check` exited 0 at 2026-11-14T03:57:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.5 on task-1.5-set-up-the-rust-workspace-the-licence at 379de80cda12:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

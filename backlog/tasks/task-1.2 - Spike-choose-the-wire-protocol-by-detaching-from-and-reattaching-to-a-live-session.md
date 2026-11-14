@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:13:00Z'
+updated_date: '2026-11-14T05:14:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -1338,6 +1338,16 @@ handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
    server capture pane=2 bytes=791818 lines=10024 last=0
      the reattached client and the server agree byte for byte (791818 bytes, 10024 lines)
    the slow client ended up with the same screen and scrollback as the server
+```
+
+Check passed: `just check` exited 0 at 2026-11-14T05:14:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at 82a05984617f:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

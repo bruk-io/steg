@@ -1116,6 +1116,29 @@ Check passed: `sh -c 'cargo deny --manifest-path spikes/task-1.1-terminal-librar
 ```text
 licenses ok
 ```
+
+Check passed: `sh -c 'cargo deny --manifest-path spikes/task-1.1-terminal-library/probe-ghostty/Cargo.toml --config deny.toml check licenses; echo "exit $? (1 = the project policy refuses something; see above)"'` exited 0 at 2026-11-14T05:22:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at bfb08fa98a47 with uncommitted changes:
+
+```text
+error[rejected]: failed to satisfy license requirements
+   ┌─ /Users/brukhabtu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-root-certs-1.0.12/Cargo.toml:26:12
+   │
+26 │ license = "CDLA-Permissive-2.0"
+   │            ━━━━━━━━━━━━━━━━━━━
+   │            │
+   │            rejected: license is not explicitly allowed
+   │
+   ├ CDLA-Permissive-2.0 - Community Data License Agreement Permissive 2.0:
+   ├   - No additional metadata available for license
+   ├ webpki-root-certs v1.0.12
+     └── ureq v3.5.2
+         └── (build) ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+             └── ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956
+                 └── probe-ghostty v0.0.0
+
+licenses FAILED
+exit 4 (1 = the project policy refuses something; see above)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

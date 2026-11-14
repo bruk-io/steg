@@ -444,6 +444,16 @@ Check passed: `spikes/api-description/carry-one-method` exited 0 at 2026-11-14T0
 one method, defined once, served, self-described, called from two generated CLIs,
 called from Python, and documented.
 ````
+
+Check passed: `just check` exited 0 at 2026-11-14T04:16:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 84c91a29dde2:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

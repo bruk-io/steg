@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:21:00Z'
+updated_date: '2026-11-14T04:25:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -26,8 +27,10 @@ asdlc_branch: task-1.3-spike-choose-the-single-description-of
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7891230c821a'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -612,6 +615,25 @@ created: 2026-11-14T04:21:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.3: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-14T04:25:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Evidence, Nit] task notes: cargo clippy and spikes/api-description/carry-one-method (the script doc-4 section 3 names as acceptance criterion 1's proof, and whose 04:12 run doc-4 section 4 quotes) are both last recorded at commit 17e1d355fc71 "with uncommitted changes," never re-recorded on the branch's final commit 84c91a29dde2. git diff 17e1d355fc71 84c91a29dde2 -- spikes/ shows the whole spikes/api-description/ tree landing as new files only in 84c91a29dde2, so the uncommitted tree those two checks ran against is the same code later committed, not a different revision. I reran both directly on 84c91a2 in a review worktree: clippy is clean and carry-one-method exits 0 with the same shape of output (candidate A: --help status 0 with no server, candidate B: status 4; ambiguous target exits 3). Substance holds, but the recorded evidence for the acceptance criterion and the lint-deny check does not point to a commit a later reader can reproduce without rerunning it themselves.
+
+No other findings. Checked: doc-4's decision follows from the evidence (doc-2 section 5's --help/--version-contact-no-server requirement decides it; the worker's own statement that speed does not decide it, including candidate B beating A on one live-call run, is reasoned correctly, not glossed over). doc-4 section 2's role field (target/flag/switch/program) is sufficient for doc-2 section 2's mechanical noun-verb transform: Param::flag() does the underscore-to-hyphen transform, args_for emits both --name and --no-name for Switch, and cli_build.rs's own test asserts the full doc-2 usage-line grammar. The diff touches only files under spikes/api-description/, with a bare [workspace] table in its Cargo.toml, so it cannot collide with any root workspace; confirmed with git diff --stat against origin/main (18 files, all under spikes/api-description/). The workspace-collision guard being unexercised (TASK-1.5 hadn't landed yet) is disclosed by the worker in doc-4 section 8 and in the task notes with the remedy named (rerun once TASK-1.5 lands); a disclosed limitation with its own remedy is not a finding.
+
+plan-matched is "no" because the notes name three real departures from the approved plan: two files not in the plan's list (src/lib.rs, measure.py), three methods in the definition instead of one, and candidate A built as a compiled-in description with the command tree built at start-up rather than code generation at build time. All three are explained in the task notes with reasons, so none is a Compliance finding, but plan-matched tracks the departure itself.
+
+Plan approval: present and valid (comment #1, "Plan approved by @bruk (7891230c821a, size-2)"); size-2, so no size/approval finding.
 
 ---
 <!-- COMMENTS:END -->

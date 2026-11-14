@@ -3,7 +3,7 @@ id: doc-4
 title: 'Decision: the one description steg''s API is defined in'
 type: specification
 created_date: '2026-11-14T04:12:00Z'
-updated_date: '2026-11-14T04:14:00Z'
+updated_date: '2026-11-14T04:16:00Z'
 ---
 - Spike: TASK-1.3. Design decision 3 in the spec (doc-1, section 7).
 - Serves R32 (the CLI's commands are generated from the API), R36 (one API for every
@@ -191,11 +191,12 @@ version changes (R39), which is the compiled-in description with extra steps.
 ### Speed does not decide it
 
 Release builds, 50 runs each after 5 discarded, whole process timed from spawn to exit,
-reported in milliseconds. Taken while another task's worktree was compiling on the same
-machine, so the absolute numbers are the honest cost on a busy developer machine and the
-comparison between the candidates is within one run.
+reported in milliseconds. Both runs below are recorded on the task. This machine was also
+building other tasks' worktrees, so the absolute numbers are the honest cost on a busy
+developer machine, and the comparison between the candidates is within one run. Each run
+records its own load average.
 
-| Measured | Candidate A | Candidate B |
+| Measured, run of 04:12 UTC | Candidate A | Candidate B |
 |---|---|---|
 | `pane split --help`, server up | 3.52 median, 3.93 at the 95th | 3.73, 4.26 |
 | `pane split`, server up | 3.61 median, 4.03 at the 95th | 3.13, 3.47 |
@@ -203,17 +204,18 @@ comparison between the candidates is within one run.
 
 **The round trip is lost in the noise of starting a process.** In the run above candidate B
 was faster than candidate A on a real call, which is nothing but run-to-run variation; in
-an earlier recorded run, under heavier load, A's median was 6.35 ms against B's 9.46 ms.
-Neither difference is a reason to choose. The requirement is.
+the earlier recorded run, taken while a larger build was running, A's median was 6.35 ms
+against B's 9.46 ms. Neither difference is a reason to choose. The requirement is.
 
-Two numbers from this that are worth carrying:
+Two things from this are worth carrying:
 
-- **doc-2 section 7's proposals hold, on an unloaded machine.** `--help` was 3.07 ms median
-  and 3.26 ms at the 95th percentile against its proposed 10 ms, and a call against a live
-  server 2.85 ms median against its proposed 20 ms. Under a load average near 14, however,
-  `--help` reached 11 ms at the 95th percentile, which is past the proposal. The 10 ms
-  figure should say that it is for a machine that is not busy compiling, or be raised; this
-  is a toy server, so the call figure will only grow.
+- **doc-2 section 7's proposals hold, with room, on a machine that is not busy building.**
+  In the recorded run above, `--help` was 3.52 ms median and 3.93 ms at the 95th percentile
+  against its proposed 10 ms, and a call against a live server 3.61 ms median and 4.03 ms
+  at the 95th against its proposed 20 ms. In the earlier recorded run, with a large build
+  running, `--help` reached 11.02 ms at the 95th percentile, past the proposal. So the
+  10 ms figure should say that it is for a machine that is not compiling, or be raised, and
+  since this is a toy server with no real work to do, the figure for a call will only grow.
 - **Building the command tree from the description at start-up costs nothing measurable.**
   That is what removes any reason to generate CLI code at build time: there is no machinery
   to add, because there is nothing to speed up.

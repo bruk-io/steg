@@ -967,6 +967,39 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 | feed | 1600 | 0.06 | 0.06 | 0.06 | 0.10 |
 | read the screen back | 200 | 0.10 | 0.10 | 0.10 | 0.11 |
 ```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghostty conformance'` exited 0 at 2026-11-14T05:19:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## ghostty-vt (0.8.0 bindings (Apache-2.0) over ghostty 1.4.0-main+83fb956 (MIT), built with zig 0.17.1)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### R14 feature matrix
+
+| feature | requirement | ghostty-vt | detail |
+|---|---|---|---|
+| truecolour (24-bit SGR) | R14 | handled | fg #ff6400, bg #001e3c for SGR 38;2;255;100;0 on 48;2;0;30;60 |
+| double-width characters | R14 | handled | cursor at column 9 (9 expected), row reads "日本語abc" |
+| alternate screen (1049) | R14 | handled | alt screen shows "alternate", primary restored to "primary", flag reported: true |
+| mouse reporting (1000/1006) | R14 | handled | after enabling: true |
+| bracketed paste (2004) | R14 | handled | after enabling: true |
+| kitty keyboard protocol | R14 | handled | after CSI > 1 u: true |
+| OSC 8 hyperlinks | R14, R17 | handled | url on the first cell: https://example.com/steg |
+| OSC 52 clipboard | R14 | handled | writes: ["steg"] |
+| OSC 7 working directory | R14, R16 | handled | pwd: file://localhost/private/tmp/steg |
+| OSC 133 prompt marks | R14, R18 | handled | prompt marks seen: true |
+| unknown OSC reaches the app (OSC 7501) | R49 | not reported | payload handed over: dropped by the library |
+| window title (OSC 0/2) | R16 | handled | title: steg title |
+| reflow on resize | R8, R20 | handled | 100 x's wrapped at 80 then widened to 120: first row holds 100 of them |
+| scrollback honours its limit | R15 | differs | a 50-line limit: 191 rows held after 200 lines, 854 after 5,000 - bounded, but not by the line count: this library's limit is a byte estimate, so steg must convert R15's 10,000 lines into bytes |
+
+14 checks: 12 handled, 1 done differently, 1 left to steg, 0 wrong
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

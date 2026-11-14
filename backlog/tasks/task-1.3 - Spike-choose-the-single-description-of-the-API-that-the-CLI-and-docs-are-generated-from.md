@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:17:00Z'
+updated_date: '2026-11-14T04:20:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -567,6 +567,29 @@ For the reviewer:
   one that is compiling (11.02 ms), so that proposal should name the condition; and
   clap's builder takes only &'static str for names, which a compiled-in description
   satisfies for free and a fetched one has to leak for.
+
+Three things the reviewer should not have to infer, added after doc-4 was first written:
+
+1. doc-4 section 1 no longer says which crate the description's module belongs to. The
+   first draft said "the kernel's API crate", which the spike never showed: it had one
+   crate. What it does constrain is that both the server and the CLI read the value
+   directly, so both must be able to depend on wherever it lives. That is TASK-1.5's
+   layout to settle, with architecture.md's line on crate dependencies that cross its
+   boundaries, and doc-4 now says so and lists it under what this leaves to others.
+2. The spike's `[workspace]` table has not met the real workspace. TASK-1.5 was still in
+   progress when this branch was pushed, so the rebase onto main picked up board commits
+   only and `just check` printed its "no Rust workspace yet" skip lines. The guard against
+   colliding with the root workspace is therefore correct by reading and unexercised; it
+   is worth re-running `cargo test --manifest-path spikes/api-description/Cargo.toml` and
+   `just check` on this branch once TASK-1.5 has landed. Noted in doc-4 section 8.
+3. doc-2 section 7 says this spike's numbers replace its proposals. Changing another task's
+   document is not this spike's to do, so the figures sit in doc-4 section 4 with the
+   condition attached: 3.93 ms at the 95th percentile for --help on a quiet machine against
+   its proposed 10 ms, and 11.02 ms on one that is compiling. doc-2 section 7 still carries
+   the superseded numbers and needs an owner.
+
+doc-4 section 3 now also names which run proves acceptance criterion 1: candidate A's, the
+candidate the decision chooses. Candidate B's run beside it is evidence for the comparison.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

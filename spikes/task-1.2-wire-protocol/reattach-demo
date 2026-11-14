@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# TASK-1.2, acceptance criterion 2: a client is killed mid-output and a new client restores the
+# same screen and scrollback.
+#
+# The oracle is fixed before the run and is code, not judgement (probe-client verify):
+#
+#   1. a pane prints numbered lines at a steady pace, past the 10,000 line scrollback limit (R15)
+#   2. client A attaches, is seen to be live, and is SIGKILLed mid-output - not a clean detach
+#   3. nothing is attached at all for a while, while the program keeps printing
+#   4. client B attaches and reconstructs, and the program then finishes and quiesces
+#   5. client B's screen and scrollback must equal the server's own capture byte for byte, the
+#      numbered lines must run with no gap and no repeat, the last line must be the last the
+#      program printed, and every line printed during step 3 must be there
+#
+# Usage: ./reattach-demo [--mode bytes|deltas] [--framing length|ndjson] [--lines N]
+#                        [--interval-us U] [--queue N]
+#
+# Exits 0 only when every check passes, for the reviewer to re-run.
+set -euo pipefail
+
+mode=deltas
+framing=length
+lines=12000
+interval_us=350
+queue=64
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --mode) mode="$2"; shift 2 ;;
+        --framing) framing="$2"; shift 2 ;;
+        --lines) lines="$2"; shift 2 ;;
+        --interval-us) interval_us="$2"; shift 2 ;;
+        --queue) queue="$2"; shift 2 ;;
+        *) echo "reattach-demo: unknown argument $1" >&2; exit 2 ;;
+    esac
+done
+
+here="$(cd "$(dirname "$0")" && pwd)"
+cargo build --release --quiet --manifest-path "$here/Cargo.toml"
+server="$here/target/release/probe-server"
+client="$here/target/release/probe-client"
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/steg-reattach.XXXXXX")"
+socket="$work/socket"
+server_pid=""
+# The server must never be left holding this script's standard output: a backgrounded process that
+# does would keep a pipe open after the script ended, and `asdlc record-check` would wait on it
+# forever. Its output goes to a log, and it is killed whichever way this script leaves.
+cleanup() {
+    if [ -n "$server_pid" ]; then
+        kill -9 "$server_pid" 2>/dev/null || true
+        wait "$server_pid" 2>/dev/null || true
+    fi
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+echo "== reattach demonstration: mode=$mode framing=$framing lines=$lines interval=${interval_us}us queue=$queue"
+uname -sr
+"$server" --socket "$socket" --framing "$framing" --queue "$queue" > "$work/server.log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 100); do [ -S "$socket" ] && break; sleep 0.05; done
+[ -S "$socket" ] || { echo "the server never opened its socket" >&2; exit 1; }
+
+call() { "$client" call --socket "$socket" --framing "$framing" "$@"; }
+capture() { "$client" capture --socket "$socket" --framing "$framing" --pane 1 "$@"; }
+capture_pane() { "$client" capture --socket "$socket" --framing "$framing" "$@"; }
+last_number() { capture --out "$1" | sed -n 's/.*last=//p'; }
+
+echo "-- step 1: a pane prints $lines numbered lines"
+call pane.open "{\"program\":\"$client\",\"args\":[\"emit\",\"--lines\",\"$lines\",\"--interval-us\",\"$interval_us\"],\"cols\":80,\"rows\":24}"
+
+# An upper bound only: client B stops when the pane has been quiet for a moment (--quiet-ms),
+# so the comparison is taken after the program has really finished rather than after a guess.
+remaining_ms=$(( lines * interval_us / 1000 + 60000 ))
+
+echo "-- step 2: client A attaches and is killed mid-output"
+"$client" attach --socket "$socket" --framing "$framing" --pane 1 --mode "$mode" \
+    --duration-ms "$remaining_ms" --ready-file "$work/a.ready" --dump "$work/a.txt" \
+    > "$work/a.log" 2>&1 &
+a_pid=$!
+for _ in $(seq 1 100); do [ -f "$work/a.ready" ] && break; sleep 0.05; done
+[ -f "$work/a.ready" ] || { echo "client A never became ready" >&2; exit 1; }
+sed -n 's/^ready/   client A ready:/p' "$work/a.log" || true
+sleep 1.5
+killed_at="$(last_number "$work/at-kill.txt")"
+kill -9 "$a_pid"
+wait "$a_pid" 2>/dev/null || true
+echo "   client A killed with SIGKILL while the pane was at line $killed_at"
+
+echo "-- step 3: nothing is attached, and the program keeps printing"
+sleep 1.5
+attached_again_at="$(last_number "$work/at-reattach.txt")"
+echo "   the pane reached line $attached_again_at with no client attached"
+
+echo "-- step 4: client B attaches"
+# In screen mode the stream carries no scrollback, so client B asks for it in pages at the end:
+# that is the design, and the comparison below holds it to the same standard either way.
+refetch=""
+[ "$mode" = screen ] && refetch="--refetch-scrollback"
+"$client" attach --socket "$socket" --framing "$framing" --pane 1 --mode "$mode" $refetch \
+    --duration-ms "$remaining_ms" --ready-file "$work/b.ready" --dump "$work/b.txt" \
+    > "$work/b.log" 2>&1 &
+b_pid=$!
+for _ in $(seq 1 200); do [ -f "$work/b.ready" ] && break; sleep 0.05; done
+[ -f "$work/b.ready" ] || { echo "client B never became ready" >&2; exit 1; }
+sed -n 's/^ready/   client B ready:/p' "$work/b.log" || true
+
+echo "-- step 5: the program finishes, everything quiesces, and the two are compared"
+# The server's own byte counter says when the program has really stopped, rather than a sleep.
+"$client" wait-quiet --socket "$socket" --framing "$framing" --pane 1 --quiet-ms 1000 \
+    2>/dev/null | sed 's/^/   /'
+# The pane has stopped, so client B is told to stop too and dump what it holds. No guessing at
+# how long a paced program takes, and no sleep that could end mid-output.
+kill -TERM "$b_pid"
+wait "$b_pid"
+sed -n 's/^done/   client B:/p' "$work/b.log" || true
+capture --out "$work/server.txt"
+
+"$client" verify --client "$work/b.txt" --server "$work/server.txt" \
+    --expect-last "$lines" --gap-from "$killed_at" --gap-to "$attached_again_at"
+verdict=$?
+
+echo "-- the server's counters"
+call server.stats
+
+echo "-- two clients on one pane at once, each with its own size, while output is flowing (R7 is left open)"
+call pane.open "{\"program\":\"$client\",\"args\":[\"emit\",\"--lines\",\"4000\",\"--interval-us\",\"500\"],\"cols\":80,\"rows\":24}"
+"$client" attach --socket "$socket" --framing "$framing" --pane 2 --mode "$mode" \
+    --cols 80 --rows 24 --duration-ms 4000 --ready-file "$work/c.ready" > "$work/c.log" 2>&1 &
+c_pid=$!
+"$client" attach --socket "$socket" --framing "$framing" --pane 2 --mode "$mode" $refetch \
+    --cols 120 --rows 40 --duration-ms 4000 --ready-file "$work/d.ready" --dump "$work/d.txt" \
+    > "$work/d.log" 2>&1 &
+d_pid=$!
+for _ in $(seq 1 100); do [ -f "$work/c.ready" ] && [ -f "$work/d.ready" ] && break; sleep 0.05; done
+call pane.attachments '{"pane":2}'
+sleep 0.5
+kill -9 "$c_pid" 2>/dev/null || true
+wait "$c_pid" 2>/dev/null || true
+echo "   one of the two was killed with SIGKILL"
+wait "$d_pid" || { echo "the surviving client did not finish cleanly" >&2; verdict=1; }
+sed -n 's/^done/   the client that was not killed:/p' "$work/d.log" || true
+# [^_] so this reads frames= and not unknown_stream_frames=.
+survivor_frames="$(sed -n 's/.*[^_]frames=\([0-9]*\).*/\1/p' "$work/d.log" | tail -1)"
+if [ "${survivor_frames:-0}" -gt 0 ]; then
+    echo "   it kept receiving output after the other was killed ($survivor_frames frames)"
+else
+    echo "FAIL  the surviving client received nothing after the other was killed" >&2
+    verdict=1
+fi
+capture_pane --pane 2 --out "$work/server2.txt" > /dev/null
+if "$client" verify --client "$work/d.txt" --server "$work/server2.txt" > "$work/verify2.log" 2>&1; then
+    echo "   and its screen and scrollback still match the server's"
+else
+    echo "   its screen and scrollback do not match the server's:"
+    sed -n 's/^/   /p' "$work/verify2.log"
+    verdict=1
+fi
+
+call server.shutdown > /dev/null 2>&1 || true
+exit "$verdict"

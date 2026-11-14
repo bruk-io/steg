@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+# TASK-1.2's measurements. Everything here is a threshold or a cost in the decision rule, not a
+# score: R19 is passed or not, and bytes on the wire and work left to the client decide the rest.
+#
+# What each number includes and excludes:
+#
+#   latency    a byte into the pty, to that byte showing on the client's own copy of the screen.
+#              It stops at the client's grid: the drawing half is TASK-1.1's measurement, and
+#              R19's 16 ms has to cover both halves added together.
+#   attach     the whole attach call, with a full 10,000 line scrollback in the snapshot.
+#   flood      a 100 MB file printed in one pane while a deliberately slow client is attached to
+#              it, with a control call and a keystroke in another pane timed throughout. This is
+#              R19's second sentence: "does not freeze the app or delay input to other panes".
+#
+# Usage: ./measure [--framing length|ndjson] [--mode bytes|deltas] [--mega-bytes N]
+#                  [--samples N] [--overflow resync|block] [--tick-ms N]
+set -euo pipefail
+
+framing=length
+mode=deltas
+mega_bytes=100
+samples=200
+overflow=resync
+tick_ms=8
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --framing) framing="$2"; shift 2 ;;
+        --mode) mode="$2"; shift 2 ;;
+        --mega-bytes) mega_bytes="$2"; shift 2 ;;
+        --samples) samples="$2"; shift 2 ;;
+        --overflow) overflow="$2"; shift 2 ;;
+        --tick-ms) tick_ms="$2"; shift 2 ;;
+        *) echo "measure: unknown argument $1" >&2; exit 2 ;;
+    esac
+done
+
+here="$(cd "$(dirname "$0")" && pwd)"
+cargo build --release --quiet --manifest-path "$here/Cargo.toml"
+server="$here/target/release/probe-server"
+client="$here/target/release/probe-client"
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/steg-measure.XXXXXX")"
+socket="$work/socket"
+fixture="$work/flood"
+server_pid=""
+cleanup() {
+    if [ -n "$server_pid" ]; then
+        kill -9 "$server_pid" 2>/dev/null || true
+        wait "$server_pid" 2>/dev/null || true
+    fi
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+echo "== measurements"
+echo "   machine: $(uname -srm), $(sysctl -n hw.ncpu 2>/dev/null || echo '?') cpus"
+echo "   rust:    $(rustc --version)"
+echo "   build:   release, opt-level 3, lto off"
+echo "   crates:  alacritty_terminal 0.26.0, tokio 1.x, tokio-util 0.7, portable-pty 0.9"
+echo "   run:     framing=$framing mode=$mode overflow=$overflow tick=${tick_ms}ms fixture=${mega_bytes}MB samples=$samples"
+
+"$server" --socket "$socket" --framing "$framing" --overflow "$overflow" --tick-ms "$tick_ms" \
+    > "$work/server.log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 100); do [ -S "$socket" ] && break; sleep 0.05; done
+[ -S "$socket" ] || { echo "the server never opened its socket" >&2; exit 1; }
+
+call() { "$client" call --socket "$socket" --framing "$framing" "$@"; }
+
+# Pane 1: a program that echoes, for the keystroke measurement.
+call pane.open '{"program":"/bin/cat","args":[],"cols":80,"rows":24}' > /dev/null
+# Pane 2: the flood, waiting for a newline before it starts.
+call pane.open "{\"program\":\"$client\",\"args\":[\"emit\",\"--file\",\"$fixture\",\"--wait\"],\"cols\":80,\"rows\":24}" > /dev/null
+# Pane 3: a steady printer, so an attach has a full scrollback to carry.
+call pane.open "{\"program\":\"$client\",\"args\":[\"emit\",\"--lines\",\"12000\",\"--interval-us\",\"80\"],\"cols\":80,\"rows\":24}" > /dev/null
+
+echo "-- 1. a byte into the pty, to that byte on the client's own screen (quiet machine)"
+"$client" latency --socket "$socket" --framing "$framing" --pane 1 --mode "$mode" \
+    --samples "$samples" 2>/dev/null | sed 's/^/   /'
+
+echo "-- 2. the cost of attaching with a full scrollback"
+"$client" wait-quiet --socket "$socket" --framing "$framing" --pane 3 --quiet-ms 500 \
+    2>/dev/null | sed 's/^/   scrollback filled: /'
+"$client" attach --socket "$socket" --framing "$framing" --pane 3 --mode "$mode" \
+    --duration-ms 0 2>/dev/null | sed -n 's/^ready/   attach/p'
+call --repeat 20 pane.scrollback '{"pane":3,"from":0,"to":100}' 2>/dev/null | sed 's/^/   page of 100 scrollback rows: /'
+call --repeat 50 pane.list 2>/dev/null | sed 's/^/   quiet server: /'
+
+echo "-- 3. the flood: ${mega_bytes}MB printed in pane 2 with a slow client attached to it"
+"$client" fixture --path "$fixture" --mega-bytes "$mega_bytes" | sed 's/^/   fixture /'
+
+"$client" attach --socket "$socket" --framing "$framing" --pane 2 --mode "$mode" \
+    --duration-ms 30000 --read-delay-us 2000 --ready-file "$work/slow.ready" \
+    --dump "$work/slow.txt" > "$work/slow.log" 2>&1 &
+slow_pid=$!
+for _ in $(seq 1 100); do [ -f "$work/slow.ready" ] && break; sleep 0.05; done
+sed -n 's/^ready/   slow client/p' "$work/slow.log"
+
+call pane.input '{"pane":2,"text":"\n"}' > /dev/null
+"$client" call --socket "$socket" --framing "$framing" --repeat 100 pane.list \
+    > "$work/control.log" 2>/dev/null &
+control_pid=$!
+"$client" latency --socket "$socket" --framing "$framing" --pane 1 --mode "$mode" \
+    --samples 100 > "$work/input.log" 2>/dev/null &
+input_pid=$!
+
+# The flood is over when the server's own byte counter for that pane stops moving.
+"$client" wait-quiet --socket "$socket" --framing "$framing" --pane 2 --quiet-ms 1000 \
+    2>/dev/null | sed 's/^/   flood /'
+
+wait "$control_pid" || true
+sed 's/^/   control calls during the flood: /' "$work/control.log"
+wait "$input_pid" || true
+sed 's/^/   keystrokes in another pane during the flood: /' "$work/input.log"
+
+echo "-- 4. what the server had to do about the slow client"
+call server.stats | sed 's/^/   /'
+wait "$slow_pid" || true
+sed -n 's/^done/   slow client/p' "$work/slow.log"
+
+echo "-- 5. and whether the slow client is still correct afterwards"
+if [ "$overflow" = block ]; then
+    echo "   with --overflow block nothing is dropped, so a slow client is behind rather than"
+    echo "   wrong: a mismatch here is the expected outcome of that policy, not a fault"
+fi
+scrollback_flag=""
+[ "$mode" = screen ] && scrollback_flag="--no-scrollback"
+"$client" capture --socket "$socket" --framing "$framing" --pane 2 $scrollback_flag \
+    --out "$work/server2.txt" 2>/dev/null | sed 's/^/   server /'
+if "$client" verify --client "$work/slow.txt" --server "$work/server2.txt" > "$work/verify.log" 2>&1; then
+    sed -n 's/^same/   /p;s/^PASS/   the slow client ended up with the same screen and scrollback as the server/p' "$work/verify.log"
+else
+    sed 's/^/   /' "$work/verify.log"
+fi
+
+call server.shutdown > /dev/null 2>&1 || true

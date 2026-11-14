@@ -4,7 +4,7 @@ title: 'App: a GPUI window with the session switcher, tabs and split panes'
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:59:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -30,3 +30,9 @@ R20: a window shows a session switcher, the current session's tabs and the curre
 - [ ] #2 Sessions, tabs and panes changed from the CLI appear in the app without a restart
 - [ ] #3 Two windows can be open at once (R20)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-1.27's worker, relayed by @bruk.o: a design canvas renders blur, materials and shadow stacks that GPUI cannot draw, so check the look in real GPUI. A gpui-app plugin in Bruk's plugin cache has a gpui-dev-loop skill and a gpuictl shot harness that screenshots a running GPUI app; it is not enabled for workers by default, so ask @bruk.o if it is needed.
+<!-- SECTION:NOTES:END -->

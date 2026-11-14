@@ -31,3 +31,12 @@ The verdict is `changes` when there is at least one Important finding, and `clea
 
 - Anything the repository's own checks already enforce: formatting, lint and type errors they catch, tests they run.
 - Wording and style preferences, unless the wording would make a reader or a model do the wrong thing.
+
+## Steg
+
+These add to the passes above for work in steg. The rules they cite are in `.claude/rules/`.
+
+- **Boundaries** (Compliance). A change that breaks a line of `.claude/rules/architecture.md` is Important unless the task's plan says why: I/O in the kernel, session state kept in a client, a client reaching the server by anything but the public API, an API method defined outside the API description, or code that assumes a pane is a terminal.
+- **Licence** (Compliance). Code copied or closely adapted from a GPL or AGPL source, Zed's terminal and editor crates above all, is Important, as is an exception added to the licence check. A new dependency or borrowed code with no source and licence named on the task is a Nit.
+- **Requirements** (Compliance). The task cites spec requirement numbers. A change that does something no cited requirement asks for, or builds a name, flag or exit status the CLI design document does not have, is a finding.
+- **Tests** (Bugs). A mocking crate used on code inside the boundary, a test that sleeps to wait, or a terminal test that inspects the emulator's internals instead of the screen, is a finding under `.claude/rules/testing-rust.md`.

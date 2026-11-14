@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:07:00Z'
+updated_date: '2026-11-14T04:11:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -21,8 +22,10 @@ asdlc_branch: task-1.5-set-up-the-rust-workspace-the-licence
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e0acb049d09a'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["licence"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -270,6 +273,33 @@ created: 2026-11-14T04:07:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.5: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-14T04:11:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: licence. The diff matches the plan.
+
+No Important findings.
+
+[Licence, Nit] deny.toml: MPL-2.0 added to the allow list (cbindgen, option-ext). AC#5 only requires excluding GPL/AGPL, which this does; R59 (doc-1) says the same ("no code taken from GPL sources"); and licence.md's enforceable bullets name GPL/AGPL only, not copyleft generally - its "one copyleft dependency" line is the file's opening rationale, not a rule. MPL-2.0 is weak/file-scoped copyleft, not viral, and the worker named the source and licence of both crates in the task notes and in a code comment, per licence.md's "say on the task where the code came from and under what licence." The approved plan said the allow list would widen to "permissive" licenses, and MPL-2.0 isn't strictly that, but review.md excuses a plan departure when the notes say what changed and why, which they do. Left as the worker flagged it: a judgement call for the engineer, not a defect.
+
+Checked and clear:
+- deny.toml's [graph] targets scoping to macOS-only matches doc-1 section 10 (Linux/Windows/FreeBSD explicitly out of scope), so it isn't an exception that weakens the check - it matches the spec.
+- No GPL/AGPL strings in the committed Cargo.lock.
+- boundaries.toml/steg-boundaries correctly enforce AC#6 today (steg-kernel's allow list is empty; no crate currently depends on the kernel at all, so no violation exists); unit tests cover violations()/unknown_rules()/format_violation/read_allow_table without mocking; the real-workspace adapter test (test_affected_real_workspace.py) proves the five real crates' edges and per-crate test selection against cargo metadata, satisfying AC#8.
+- Workspace/crate manifests match the plan exactly: edition.workspace/license.workspace/lints.workspace on every crate, gpui pinned at =0.2.2 in [workspace.dependencies] (AC#4), kernel's #![forbid(unsafe_code)] (AC#11), clippy.toml's allow-unwrap-in-tests=true confirmed against the installed clippy and exercised by the kernel's one test.
+- justfile: check runs fmt-check lint boundaries deny test test-tools (AC#1); lint uses -D warnings; the seven named clippy lints are set to "deny" in [workspace.lints.clippy] (AC#11); setup installs cargo-deny idempotently (AC#10); run stays outside {{quiet}} per the standing decision.
+- Evidence: last `just check` recorded at commit 26e880a, which is this branch's tip (confirmed via git log origin/main..HEAD) - matches, all steps ok (format check, lint, boundaries, licences, tests, tool tests).
+- Plan approved by @bruk (e0acb049d09a, size-2) before work started; "Built per the approved plan (digest e0acb049d09a)" matches.
+- Refusal probes for AC#5 and AC#6 were run and reverted as the plan specified, not left in the diff.
+
+No rule-change draft filed: asdlc board draft list is empty and there is no earlier "Review by" comment on a prior task citing the same policy to repeat a mistake from.
 
 ---
 <!-- COMMENTS:END -->

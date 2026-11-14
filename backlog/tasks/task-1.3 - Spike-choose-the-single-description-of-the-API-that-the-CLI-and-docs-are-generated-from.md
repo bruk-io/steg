@@ -7,11 +7,13 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:11:00Z'
+updated_date: '2026-11-14T01:18:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies: []
+documentation:
+  - doc-2
 parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
@@ -282,4 +284,6 @@ Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no 
 Plan checked against doc-1 by @bruk.o: ok. It serves R32, R36, R37 and R62, leaves framing to TASK-1.2 and command names to TASK-1.4 (the mechanical name transform is a flagged placeholder), keeps its throwaway code under spikes/ in its own workspace root so it cannot collide with TASK-1.5, and its proof covers the acceptance criterion with drift tests. Two points put to Bruk with the plan: where CLI names live borders TASK-1.4, and the schema-file option is weighed on paper only. The plan is large for size-2; the worker's timebox on a proc macro is the control.
 
 For phase 2, from Bruk on 2026-11-13: 'For the CLI we should keep the grammar unixy.' That bears on where CLI names live. A purely mechanical transform gives noun-verb commands (pane split); short unix-style verbs (split, ls, send) need the format to carry a name, or aliases, per method. Weigh that when the document says where names live. The names themselves stay TASK-1.4's. Recorded by @bruk.o.
+
+Supersedes the earlier note on CLI names. Bruk chose noun-verb grammar on 2026-11-13, so a command is the API method's name mechanically (pane.split is steg pane split, the target parameter is the one positional, every other parameter is a flag, a boolean is a switch): see section 2 of the CLI specification (doc-2). The mechanical transform is therefore the design, not a placeholder, and the format needs no per-method name or alias slot. It does need to say which parameter is the target and which are booleans. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->

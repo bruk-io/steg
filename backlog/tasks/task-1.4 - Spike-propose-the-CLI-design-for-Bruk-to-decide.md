@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:07:00Z'
+updated_date: '2026-11-14T04:08:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -361,6 +361,8 @@ Check passed: `git -C /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/tas
 ```text
 
 ```
+
+What the recorded checks do and do not prove: this branch changed no file, so just check at both ends is not evidence about this task's content, only that the branch moved nothing and left the repository's bar where it was (the Rust steps skip while there is no workspace; the tools' tests pass). The evidence for the deliverable is doc-3 itself and the consistency check quoted in its appendix, which anyone can re-run against doc-2. The empty git status --short is the evidence that nothing in the worktree was touched.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

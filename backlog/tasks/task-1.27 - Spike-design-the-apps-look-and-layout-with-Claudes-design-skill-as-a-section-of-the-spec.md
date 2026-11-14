@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
-updated_date: '2026-11-14T02:42:00Z'
+updated_date: '2026-11-14T03:51:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -123,6 +123,14 @@ Plan written by @bruk.w6. Three questions for Bruk, which plan approval is the c
 1. Is "a part of the spec" the app's visual design? The plan assumes it is (R20, R21, R23, R24, R25, R26, R27, R50). That reading is @bruk.o's and is unconfirmed. If it is a different part of the spec, this plan does not apply.
 2. Does steg follow bh-01, or have a look of its own? The plan proposes a look of its own, for two reasons: a worker has no Artifact tool, so bh-01's values cannot be read at all (its own skill forbids reconstructing them from memory), and bh-01's warm neutrals with one mandarin signal pull against R25's near-black base with a violet-through-pink-to-orange gradient. If the answer is bh-01, this task stops and the design has to be made in a session that can read that artifact.
 3. Is a hand-written HTML page, opened in a browser, the design Bruk wants to look at? A worker cannot publish a canvas Design artifact; the design guidance skills are reachable here but the Artifact tool is not. The plan says so rather than passing HTML off as a design tool's output, and names what has to happen in a session with the Artifact tool if Bruk wants one.
+
+---
+
+created: 2026-11-14T03:51:00Z
+
+---
+
+Bruk's answers, 2026-11-13, relayed by @bruk.o. Q1: yes, 'a part of the spec' is the app's visual design. Q2: not bh-01; a look of steg's own, closer to Rex. Q3: the design is a Design artifact, not a hand-written HTML mock. A worker cannot publish one, so @bruk.o's session makes and publishes the Design artifact and hands its values to the worker; the plan's design/look/index.html is dropped, and the tokens file, contrast check and design document are built from the artifact's values.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-14T04:24:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -326,6 +326,39 @@ skip    lint: no Rust workspace yet
 skip    licences: no Rust workspace yet
 skip    tests: no Rust workspace yet
 ok      tool tests (0.4s)
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty conformance'` exited 0 at 2026-11-14T04:24:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### R14 feature matrix
+
+| feature | requirement | alacritty_terminal | detail |
+|---|---|---|---|
+| truecolour (24-bit SGR) | R14 | handled | fg #ff6400, bg #001e3c for SGR 38;2;255;100;0 on 48;2;0;30;60 |
+| double-width characters | R14 | handled | cursor at column 9 (9 expected), row reads "日本語abc" |
+| alternate screen (1049) | R14 | handled | alt screen shows "alternate", primary restored to "primary", flag reported: true |
+| mouse reporting (1000/1006) | R14 | handled | after enabling: true |
+| bracketed paste (2004) | R14 | handled | after enabling: true |
+| kitty keyboard protocol | R14 | handled | after CSI > 1 u: true |
+| OSC 8 hyperlinks | R14, R17 | handled | url on the first cell: https://example.com/steg |
+| OSC 52 clipboard | R14 | handled | writes: ["steg"] |
+| OSC 7 working directory | R14, R16 | not reported | pwd: not reported |
+| OSC 133 prompt marks | R14, R18 | not reported | prompt marks seen: the library exposes nothing |
+| unknown OSC reaches the app (OSC 7501) | R49 | not reported | payload handed over: dropped by the library |
+| window title (OSC 0/2) | R16 | handled | title: steg title |
+| reflow on resize | R8, R20 | handled | 100 x's wrapped at 80 then widened to 120: first row holds 100 of them |
+| scrollback honours its limit | R15 | handled | a 50-line limit: 50 rows held after 200 lines, 50 after 5,000 - pruned to the line count asked for, as R15 is written |
+
+14 checks: 11 handled, 0 done differently, 3 left to steg, 0 wrong
 ```
 <!-- SECTION:NOTES:END -->
 

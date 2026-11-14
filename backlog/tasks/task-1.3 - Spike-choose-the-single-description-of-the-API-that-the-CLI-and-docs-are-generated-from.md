@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:46:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -19,6 +19,9 @@ type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.3-spike-choose-the-single-description-of
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '7891230c821a'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -289,3 +292,16 @@ Supersedes the earlier note on CLI names. Bruk chose noun-verb grammar on 2026-1
 
 For phase 2, from TASK-1.4's review of doc-2: its section 5 says --help contacts no server, and the cli-design skill says help never starts or contacts a service. That bears directly on build time against run time: a command tree built at run time cannot print help with nothing running unless the description is cached or compiled in. Treat it as a requirement the candidates are measured against, not a preference. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-14T03:56:00Z
+
+---
+
+Plan approved by @bruk (7891230c821a, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

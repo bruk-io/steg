@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:41:00Z'
+updated_date: '2026-11-14T00:52:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -30,6 +30,7 @@ It is "personal, but assume after a few months I may want to distribute."
 - A core kernel, with a server, a CLI and a UI around it.
 - Rex's Program Status Protocol is matched as it is, not reinvented.
 - No Liquid Glass. It was asked for at first and then dropped.
+- macOS only, for the server and the app. "Linux support can be ignored."
 - The product spec is based on Rex's documentation (https://www.superlogical.com/rex/docs) and takes inspiration from the text of https://www.superlogical.com/.
 - Colours: Superlogical's palette is reminiscent of the Arc browser when it came out. Noted as a direction, not a hard rule.
 

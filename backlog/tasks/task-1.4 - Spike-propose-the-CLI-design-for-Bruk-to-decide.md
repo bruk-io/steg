@@ -4,7 +4,7 @@ title: 'Spike: propose the CLI design for Bruk to decide'
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T01:10:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -27,3 +27,9 @@ Design decision 1 in the spec, which the spec deliberately leaves open. Proposes
 - [ ] #2 The document marks each point where Rex's CLI does it differently, so the difference is a choice
 - [ ] #3 Bruk has recorded his decision on the document
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From Bruk, 2026-11-13, before this was claimed: 'For the CLI we should keep the grammar unixy.' The proposal must take that as a constraint and say what it means in each choice: command shape (short verbs such as ls, split, send, capture, against generated noun-verb such as pane split), line-oriented output that pipes cleanly, silence on success, errors on stderr, standard short and long flags with -- ending options, reading standard input where a command takes content, and one way of writing a target. Recorded by @bruk.o; the reading of 'unixy' is the orchestrator's and is for Bruk to confirm in the proposal.
+<!-- SECTION:NOTES:END -->

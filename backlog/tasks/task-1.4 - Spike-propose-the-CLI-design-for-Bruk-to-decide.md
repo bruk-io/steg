@@ -331,6 +331,20 @@ skip    licences: no Rust workspace yet
 skip    tests: no Rust workspace yet
 ok      tool tests (0.4s)
 ```
+
+Built by @bruk.w5, 2026-11-14. The deliverable is doc-3, "CLI design: decisions for Bruk and the edits they imply in doc-2", linked to this task. No file in the worktree changed and the branch has no commit, so there is no pull request: everything this task produced is on the board.
+
+doc-3 holds, in five parts: A, sixteen decisions for Bruk, each with a recommendation, the alternative and what the wrong choice costs (A1 to A6 are doc-2 section 9's own open points, B1 to B10 came out of reviewing it); B, ten edits to doc-2 that need no decision; C, doc-2 section 10 checked against Rex's own documentation, with the rows to replace and ten to add; D, the three acceptance criteria read against doc-2; E, the two items that wait for TASK-1.3, with their owners.
+
+How to record Bruk's decision (acceptance criterion 3): he answers part A in one comment, and the orchestrator applies part B and part C to doc-2 with asdlc board doc update doc-2, recording each answer in doc-2 section 9 under "Decided by Bruk on <date>", in the form already used for the three decisions of 2026-11-13. That criterion cannot be closed by a worker and is not claimed closed here.
+
+Checks recorded on this task: just check before any work and again at the end (format, lint, licences and tests skip while there is no Rust workspace; the tools' tests pass), and git status --short at the end, empty, which is the evidence that this branch changed nothing.
+
+What the review should look at first: C's two corrections to doc-2 section 10, since acceptance criterion 2 would otherwise close on an unverified table (one row is misleading, one is wrong about waiting commands' exit status); A5, which is a worked design for R63 against R64, R67 and R68, where doc-2 had one line; and B3, the target resolution order, which TASK-1.7 implements and TASK-1.13 tests.
+
+Three departures from the plan, all small. The flags the plan expected to find undefined in doc-2 section 5 (--by, --with, --all) were defined by the orchestrator before the check ran, so that finding shrank to --no-zoomed and, at M2, --colour. The new document's type is "other" rather than "specification", so it cannot read as a rival to doc-2. The consistency script's first attempt mis-read section 3's three tables as one and reported every command as having an unknown verb; it was fixed to split the section by its subheadings, and the output in doc-3's appendix is from the fixed script, which anyone can re-run.
+
+Rex's documentation was read on 2026-11-14 from reference/cli.md, automate/cli.md, reference/events.md and reference/api.md under https://www.superlogical.com/rex/docs/. Its install pages are behind a Discord login; none of those four is, so every row in part C rests on text anyone can read. No Rex name was copied into steg: doc-1 section 7 answers intent question 5 with steg's own names.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

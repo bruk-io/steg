@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:16:00Z'
+updated_date: '2026-11-14T04:17:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -453,6 +453,51 @@ skip    lint: no Rust workspace yet
 skip    licences: no Rust workspace yet
 skip    tests: no Rust workspace yet
 ok      tool tests (0.1s)
+```
+
+Check passed: `cargo test --manifest-path spikes/api-description/Cargo.toml` exited 0 at 2026-11-14T04:17:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 84c91a29dde2, last 40 of 74 lines:
+
+```text
+
+     Running unittests src/bin/spike_cli_b.rs (spikes/api-description/target/debug/deps/spike_cli_b-8244f07e05531ca7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/spike_docs.rs (spikes/api-description/target/debug/deps/spike_docs-4af73df422e352d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/spike_server.rs (spikes/api-description/target/debug/deps/spike_server-a5735e7f6df91073)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drift.rs (spikes/api-description/target/debug/deps/drift-46d16e224c3291cb)
+
+running 10 tests
+test a_parameter_added_to_the_definition_reaches_the_cli_the_server_the_docs_and_the_payload ... ok
+test a_parameter_the_description_does_not_declare_is_refused_by_the_running_server ... ok
+test candidate_b_cannot_print_help_with_no_server_running ... ok
+test candidate_a_prints_help_for_a_command_with_no_server_running ... ok
+test the_json_output_carries_the_api_field_names ... ok
+test an_ambiguous_target_exits_with_the_status_the_description_gives_it ... ok
+test both_candidates_generate_the_same_command_from_the_same_description ... ok
+test every_method_in_the_description_can_be_called_through_its_generated_command ... ok
+test a_method_prints_what_the_description_says_it_returns ... ok
+test the_docs_can_be_generated_from_the_servers_own_answer ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+   Doc-tests steg_spike_api_description
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

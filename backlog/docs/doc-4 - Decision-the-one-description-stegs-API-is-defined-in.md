@@ -3,7 +3,7 @@ id: doc-4
 title: 'Decision: the one description steg''s API is defined in'
 type: specification
 created_date: '2026-11-14T04:12:00Z'
-updated_date: '2026-11-14T04:16:00Z'
+updated_date: '2026-11-14T04:20:00Z'
 ---
 - Spike: TASK-1.3. Design decision 3 in the spec (doc-1, section 7).
 - Serves R32 (the CLI's commands are generated from the API), R36 (one API for every
@@ -17,10 +17,10 @@ updated_date: '2026-11-14T04:16:00Z'
 
 ## 1. The decision
 
-**steg's API is defined once as data in Rust, in one module of the kernel's API crate.
-That value is compiled into the single binary, and the server also serves it unchanged to
-anyone who asks for it. Every other consumer reads it: nothing downstream names a method,
-a parameter, a flag, or an exit status of its own.**
+**steg's API is defined once as data in Rust, as one value in one module. That value is
+compiled into the single binary, and the server also serves it unchanged to anyone who
+asks for it. Every other consumer reads it: nothing downstream names a method, a
+parameter, a flag, or an exit status of its own.**
 
 | Consumer | How it gets the description | When |
 |---|---|---|
@@ -30,7 +30,14 @@ a parameter, a flag, or an exit status of its own.**
 | The reference docs (R62) | Rendered from it by a build step | Compiled in |
 | A Python plugin (R42, R75) | The served payload, as JSON | At the call |
 
-Two things follow, and they are the parts that matter:
+**Which crate that module belongs to is not decided here.** The spike shows only that one
+value serves all four consumers; it had a single crate and so proves nothing about steg's
+layout. The constraint it does place is that both the server and the CLI read the value
+directly, so they must both be able to depend on wherever it lives. TASK-1.5 is laying the
+crates out, and `.claude/rules/architecture.md` asks a plan to say why when a crate
+dependency crosses its boundaries, so TASK-1.5 and TASK-1.10 settle that between them.
+
+Two things follow from the decision, and they are the parts that matter:
 
 1. **The serialized payload is the contract, not the Rust types.** A plugin is a separate
    Python process on the public API, so what it reads is JSON. The Rust definition is the
@@ -170,6 +177,12 @@ generated CLIs, the method called from Python knowing only the payload, an ambig
 exiting 3, the reference docs, `--help` with no server for both candidates, and the
 timings.
 
+**Which run is the acceptance criterion's proof.** The criterion asks for one method
+defined once, served, self-described, and callable from a generated CLI command. That is
+**candidate A's run**, the candidate this decision chooses: in the script, the step
+"called through candidate A's generated command". Candidate B's run beside it is evidence
+for the comparison, not the criterion.
+
 ## 4. The evidence
 
 ### The requirement that decides it
@@ -216,6 +229,8 @@ Two things from this are worth carrying:
   running, `--help` reached 11.02 ms at the 95th percentile, past the proposal. So the
   10 ms figure should say that it is for a machine that is not compiling, or be raised, and
   since this is a toy server with no real work to do, the figure for a call will only grow.
+  doc-2 section 7 says this spike's numbers replace its proposals; changing that document
+  is not this spike's to do, so the figures above are offered for whoever owns it.
 - **Building the command tree from the description at start-up costs nothing measurable.**
   That is what removes any reason to generate CLI code at build time: there is no machinery
   to add, because there is nothing to speed up.
@@ -301,6 +316,9 @@ crate in steg will have.
   `steg <noun>` alone print help and exit 2, because no verb was given. If a bare listing
   should instead succeed, that is a line for doc-2 and a change to the generator, not to
   the format.
+- **TASK-1.5 (the workspace).** Where the description's module lives, and whether the CLI
+  depending on it crosses a boundary worth stating, as section 1 says. Also the licence
+  allow list in section 6.
 - **TASK-1.10 (the server's methods and its self-description).** Section 2 is what to
   build. Two tests from the spike are worth keeping: every method in the description has a
   body and every body is in the description, and a request naming a parameter the
@@ -335,12 +353,17 @@ Named so they are not mistaken for parts of the decision:
   well; if it stops reading well, a declarative macro over the same data is the next step,
   and it changes nothing in the payload. A proc macro was deliberately not written: the
   question did not need one.
+- The spike had one crate, so it says nothing about steg's crate layout, and its
+  `[workspace]` table has not yet met the real workspace: TASK-1.5 was still in progress
+  when this branch was pushed, so the collision it guards against has not been exercised.
 
 ## 9. Evidence
 
 Recorded on TASK-1.3 by `asdlc record-check`, each from the task's worktree:
 
-- `just check` before anything was written, and again at the end.
+- `just check` before anything was written, and again at the end. While there is no Rust
+  workspace its Rust steps print a skip line, so that check shows the tools' tests passing
+  and nothing more.
 - `cargo test --manifest-path spikes/api-description/Cargo.toml`: 31 tests. The ones that
   carry the argument are the drift tests in `tests/drift.rs`, which run the real binaries
   against a real socket: a parameter added to the definition reaches the CLI, the server,

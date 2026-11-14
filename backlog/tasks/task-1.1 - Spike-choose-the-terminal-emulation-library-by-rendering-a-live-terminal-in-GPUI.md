@@ -264,4 +264,15 @@ Board (written by `asdlc`, never by hand):
 
 <!-- SECTION:NOTES:BEGIN -->
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Facts verified by @bruk.w1 while planning (2026-11-13), so the builder does not rediscover them:
+
+- This machine: macOS 27.0.1, arm64, rustc/cargo 1.98.1, just 1.59.0, zig 0.15.2 on PATH. The display reports 120.00 Hz, so one frame is about 8.3 ms and R19's 16 ms allows roughly two frames.
+- Versions and licences on crates.io: `gpui` 0.2.2 (Apache-2.0, repository zed-industries/zed, has its own `examples/`), `alacritty_terminal` 0.26.0 (Apache-2.0 only, rust-version 1.85, and it ships its own `tty` and `event_loop` modules), `libghostty-vt` 0.2.2 and `libghostty-vt-sys` 0.2.2 (MIT OR Apache-2.0, repository github.com/uzaaft/libghostty-rs, rust-version 1.90).
+- `libghostty-vt-sys`'s `build.rs` clones github.com/ghostty-org/ghostty at pinned commit a887df42c56f6de86c0fe6da9c4eeca37931e083 and builds it with Zig; `GHOSTTY_SOURCE_DIR` and `GHOSTTY_ZIG_SYSTEM_DIR` are its escape hatches. That source is not a crate, so no crate graph and no `cargo deny` run will ever list its licence: the document names it by hand.
+- `libghostty-vt`'s README: handle types (`Terminal`, `RenderState`, `KeyEncoder`) are `!Send + !Sync` by design and must be driven from one thread.
+- `cargo deny` is not installed and there is no root workspace, so the licence inventory uses `cargo tree -e normal --format "{p} {l}"`, which was tried and works on cargo 1.98.1.
+- gpui 0.2.2 has `WindowTextSystem::shape_line`, `ShapedLine::paint` / `paint_background`, the three-method `Element` trait (request_layout/prepaint/paint), `Window::on_next_frame`, `Window::request_animation_frame` and `Window::refresh`.
+- Pty crates and licences: `portable-pty` 0.9.0 (MIT), `rustix-openpty` 0.2.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT).
+- `just check` in this worktree currently skips every Rust step, because `justfile:12` gates them on a root `Cargo.toml` that this task must not create.
 <!-- SECTION:NOTES:END -->

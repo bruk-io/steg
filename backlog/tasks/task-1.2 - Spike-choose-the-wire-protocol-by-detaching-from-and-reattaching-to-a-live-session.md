@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:15:00Z'
+updated_date: '2026-11-14T05:16:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -25,6 +25,8 @@ asdlc_branch: task-1.2-spike-choose-the-wire-protocol-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4dfe21538510'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1435,6 +1437,15 @@ created: 2026-11-14T03:56:00Z
 ---
 
 Plan approved by @bruk (4dfe21538510, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-14T05:16:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.2: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

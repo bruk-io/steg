@@ -346,6 +346,13 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check passed: `cargo clippy --manifest-path spikes/api-description/Cargo.toml --all-targets` exited 0 at 2026-11-14T04:11:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 17e1d355fc71 with uncommitted changes:
+
+```text
+    Checking steg-spike-api-description v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3/spikes/api-description)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

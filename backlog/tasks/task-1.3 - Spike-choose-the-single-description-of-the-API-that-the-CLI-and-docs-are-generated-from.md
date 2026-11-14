@@ -3,10 +3,11 @@ id: TASK-1.3
 title: >-
   Spike: choose the single description of the API that the CLI and docs are
   generated from
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T01:01:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.3-spike-choose-the-single-description-of
 ---
 
 ## Description

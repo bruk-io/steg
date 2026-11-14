@@ -317,6 +317,16 @@ Facts verified by @bruk.w1 while planning (2026-11-13), so the builder does not 
 Plan checked against doc-1 by @bruk.o: ok. It serves R14, R19 and R59 and answers intent question 3; the decision rule is fixed before any measurement (licence and thread ownership are gates, R19 is a threshold, then the work each library leaves steg decides); throwaway code stays under spikes/ in its own workspace root, clear of TASK-1.5; nothing is taken from Zed's GPL terminal crates; its proof covers all three acceptance criteria. Put to Bruk with the plan: what acceptance criterion 1 means if the libghostty build cannot be made to work here, and that the plan grew (the R14 matrix, the two-pane flood, the architecture-fit step) while staying size-3.
 
 Decided by Bruk on 2026-11-13, in answer to the worker's question on acceptance criterion 1: if the libghostty-vt candidate cannot be built on this machine after a real attempt, the spike may report that it could not be measured and why, with what was tried. A build that fragile is itself part of the answer. The criterion's wording is unchanged; read it with this. Recorded by @bruk.o.
+
+Check passed: `just check` exited 0 at 2026-11-14T03:56:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

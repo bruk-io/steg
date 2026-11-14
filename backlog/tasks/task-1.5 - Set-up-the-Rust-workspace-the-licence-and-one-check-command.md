@@ -37,3 +37,9 @@ The frame everything else lands in: crates for the kernel, for the server and CL
 - [ ] #10 just setup installs or checks what the recipes need beyond Rust itself, cargo-deny first, and is safe to run again
 - [ ] #11 The workspace is on the 2024 edition and sets its lints once in [workspace.lints], with warnings as errors, including the clippy lints .claude/rules/rust.md names as its enforcement: unwrap_used, missing_errors_doc, missing_panics_doc, undocumented_unsafe_blocks, wildcard_enum_match_arm, allow_attributes_without_reason and await_holding_lock; the kernel crate forbids unsafe code
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+<!-- SECTION:NOTES:END -->

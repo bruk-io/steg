@@ -3,15 +3,18 @@ id: TASK-1.2
 title: >-
   Spike: choose the wire protocol by detaching from and reattaching to a live
   session
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:14:00Z'
+updated_date: '2026-11-14T05:15:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies: []
+references:
+  - task-1.2-spike-choose-the-wire-protocol-by
+  - https://github.com/bruk-io/steg/pull/3
 documentation:
   - doc-5
 parent_task_id: TASK-1
@@ -1392,6 +1395,35 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Built by @bruk.w4 on 2026-11-14 against the plan Bruk approved (digest 4dfe21538510). The answer is doc-5, linked on this task. The throwaway code is spikes/task-1.2-wire-protocol/, in its own workspace root, touching no root file; TASK-1.12 deletes it.
+
+The answer, in short: a length-prefixed frame (4-byte big-endian length, then a u32 stream id and a u8 kind, 8 MiB cap) on one multiplexed connection, control before terminal data; a snapshot when a client attaches, then screen updates the server computes, with scrollback fetched in pages rather than streamed; one integer protocol version in a hello whose shape is frozen. doc-5 sections 1 and 3 are what TASK-1.9 and TASK-1.12 build from.
+
+Checks recorded on this task, all exit 0, every one re-runnable by the reviewer:
+- just check, before anything changed and again after the rebase onto origin/main. Every Rust step skips both times and just affected says none, which is the check that this branch stayed clear of TASK-1.5.
+- cargo test --manifest-path spikes/task-1.2-wire-protocol/probe-wire/Cargo.toml: 13 tests, the mechanical half (framing at arbitrary chunk boundaries, the frame cap, every handshake refusal).
+- spikes/task-1.2-wire-protocol/reattach-demo, once per data path (bytes, deltas, screen): acceptance criterion 2. Each kills a client with SIGKILL mid-output, leaves the pane unattached while it keeps printing, reattaches, and compares byte for byte against the server's own capture.
+- spikes/task-1.2-wire-protocol/gates, under both framings: the decision rule's gates (a dependency-free Python client with no emulator, the protocol over a pipe pair through a relay, the version refusals and the malformed-hello answers).
+- spikes/task-1.2-wire-protocol/measure, seven runs: the three data paths at 100 MB, plus a 1 ms tick, the NDJSON framing for both a JSON-only and a raw-byte path, and the blocking overflow policy.
+
+Three findings worth the reviewer's attention, each fixed in the spike and written into doc-5 as a rule for TASK-1.12:
+- The attach result and the attachment's first output must be ordered on the wire, not only produced atomically on the terminal's thread. With the attachment's queue registered before the result was queued, a client lost the twelve lines printed in between. The client now counts frames for streams it has not been told about, so every recorded run shows unknown_stream_frames=0.
+- Scrollback rows need absolute ids (rows_ever), not window positions: a page fetched by index stitched two different moments together.
+- A resynchronisation must not carry the scrollback. At a 1 ms tick it was 323 MB on the wire for a 100 MB flood; sending the screen alone brought the same run to 4.8 MB with latency unchanged.
+
+Departures from the approved plan, all small, with why:
+- Two files beyond the plan's list: gates (the gate runs needed a server, and folding them into measure would have mixed thresholds with gates) and probe-client's capture and verify subcommands, so the reattach oracle is code the reviewer re-runs rather than shell text work.
+- A third data representation was measured: screen deltas with scrollback on request, beside the plan's deltas-with-scrollback. The plan already called for measuring a paged scrollback request; this is that measurement made into a candidate, and it is the one recommended. The two framings and the two data paths the plan named were all built.
+- Topology T2 (a ticket and a second data connection) was weighed on paper and not built, as the plan allowed, because T1 cleared its threshold. doc-5 section 9 says what would overturn that.
+- The spike's tests run with cargo test --manifest-path, not just test (.claude/rules/testing-rust.md:15): the crate is deliberately outside the workspace, and a justfile recipe would collide with TASK-1.5 and make steg-affected select every crate. Recorded through asdlc record-check either way.
+- client.py runs with python3 rather than uv run and declares an empty PEP 723 dependency list. The point of that file is that a plugin can speak the protocol with whatever Python is already there, so the lowest floor is the strongest evidence.
+
+Not tested, and said so rather than implied: a real SSH channel. ssh to this machine is refused (no listener), so gate 2 rests on the pipe-pair run and the one-byte-at-a-time decode. lsof is unavailable here, so "no network port" rests on the code opening only a UnixListener and on the socket's mode, which the spike now sets to 0600 explicitly because what bind leaves behind depends on the umask - a finding for TASK-1.9, along with the handshake timeout the spike does not have.
+
+For Bruk, carried from the plan and unanswered: acceptance criterion 1 is worded as a binary choice, and the answer is a hybrid (a snapshot on attach is forced by criterion 2, so the two options are two choices of what follows it). doc-5 section 10 asks him to confirm the recommendation. Nothing else needs a decision before TASK-1.9 and TASK-1.12 start.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

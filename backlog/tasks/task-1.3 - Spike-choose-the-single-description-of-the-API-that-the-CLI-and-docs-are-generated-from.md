@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:08:00Z'
+updated_date: '2026-11-14T01:11:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -280,4 +280,6 @@ Two consequences for the deliverable:
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
 
 Plan checked against doc-1 by @bruk.o: ok. It serves R32, R36, R37 and R62, leaves framing to TASK-1.2 and command names to TASK-1.4 (the mechanical name transform is a flagged placeholder), keeps its throwaway code under spikes/ in its own workspace root so it cannot collide with TASK-1.5, and its proof covers the acceptance criterion with drift tests. Two points put to Bruk with the plan: where CLI names live borders TASK-1.4, and the schema-file option is weighed on paper only. The plan is large for size-2; the worker's timebox on a proc macro is the control.
+
+For phase 2, from Bruk on 2026-11-13: 'For the CLI we should keep the grammar unixy.' That bears on where CLI names live. A purely mechanical transform gives noun-verb commands (pane split); short unix-style verbs (split, ls, send) need the format to carry a name, or aliases, per method. Weigh that when the document says where names live. The names themselves stay TASK-1.4's. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->

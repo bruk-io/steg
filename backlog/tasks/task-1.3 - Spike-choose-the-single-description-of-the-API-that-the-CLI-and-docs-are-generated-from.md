@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-14T03:57:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -291,6 +291,16 @@ For phase 2, from Bruk on 2026-11-13: 'For the CLI we should keep the grammar un
 Supersedes the earlier note on CLI names. Bruk chose noun-verb grammar on 2026-11-13, so a command is the API method's name mechanically (pane.split is steg pane split, the target parameter is the one positional, every other parameter is a flag, a boolean is a switch): see section 2 of the CLI specification (doc-2). The mechanical transform is therefore the design, not a placeholder, and the format needs no per-method name or alias slot. It does need to say which parameter is the target and which are booleans. Recorded by @bruk.o.
 
 For phase 2, from TASK-1.4's review of doc-2: its section 5 says --help contacts no server, and the cli-design skill says help never starts or contacts a service. That bears directly on build time against run time: a command tree built at run time cannot print help with nothing running unless the description is cached or compiled in. Treat it as a requirement the candidates are measured against, not a preference. Recorded by @bruk.o.
+
+Check passed: `just check` exited 0 at 2026-11-14T03:57:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 17e1d355fc71:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

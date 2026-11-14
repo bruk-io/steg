@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:43:00Z'
+updated_date: '2026-11-14T02:44:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -472,4 +472,6 @@ Facts verified by @bruk.w4 while planning (2026-11-13/14), so the builder does n
 - doc-2 section 8 has `event watch` streaming one record per line and `pane capture` returning text, so the control protocol has to carry server-initiated messages and a long-lived subscription on the same connection as requests. That is a framing requirement, not a server detail.
 - `just check` in this worktree skips every Rust step while there is no root Cargo.toml (justfile:12 gates them on `path_exists("Cargo.toml")`). This task must not create one: `just deny` would then run with no deny.toml and fail. TASK-1.5 owns the root manifest.
 - The spike's tests run with `cargo test --manifest-path`, a stated departure from .claude/rules/testing-rust.md:15, for the same reason TASK-1.3 recorded: the crate is deliberately outside the workspace, and a justfile recipe would collide with TASK-1.5 and make steg-affected select every crate. Every run is recorded through `asdlc record-check`.
+
+Plan checked against doc-1 by @bruk.o: ok. It serves R1, R2, R36 and R39, keeps R7 and R55 open through its gates (two clients attached at once, and a byte stream it does not control), and proves the protocol is usable from Python as R42 and R75 need. Its starting point, that the server holds the emulator in every candidate, follows from R15, R16, pane capture in doc-2 and .claude/rules/architecture.md, so the question is what goes on the wire. The decision rule and the reattach test are fixed before any measurement. It leaves the emulation library, the API description, the CLI and the server's lifecycle to their own tasks, using alacritty_terminal only as a declared instrument. Put to Bruk with the plan: acceptance criterion 1 reads as a choice between two, and the answer will be a snapshot on attach plus one of them, whichever way the measurements fall.
 <!-- SECTION:NOTES:END -->

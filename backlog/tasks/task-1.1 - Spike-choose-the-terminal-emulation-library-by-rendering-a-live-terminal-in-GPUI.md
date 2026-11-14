@@ -672,6 +672,45 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 - the pane fed the whole file to its emulator in 0.05s (1962 MB/s through the UI)
 - the flooding pane: 5 pumps, 101.4 MB fed, largest pump 24404 KB, slowest pump 148.5 ms
 ```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghostty flood-ui 100 300'` exited 0 at 2026-11-14T05:10:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## ghostty-vt (0.8.0 bindings (Apache-2.0) over ghostty 1.4.0-main+83fb956 (MIT), built with zig 0.17.1)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### typing in one pane while the other prints 100 MB
+
+fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-104857600.txt
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..250 | 22.5 | 9.38 | 10.43 | 15.82 | 16.76 | 0 |
+| 250..300 | 4.5 | 9.43 | 10.38 | 15.81 | 16.52 | 0 |
+
+### typing while the other pane floods
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 300 | 9.39 | 10.40 | 10.93 | 11.41 |
+| key to next frame | 299 | 15.81 | 16.76 | 17.39 | 18.09 |
+| interval between frames | 362 | 90.98 | 92.25 | 117.43 | 124.84 |
+
+- dropped samples (never drawn within the deadline): 0
+- within R19's 16 ms, to the next frame: 177 of 299 (59.2%)
+
+- the typing run took 27.1s; the flooding pane had finished by then
+- the pane fed the whole file to its emulator in 0.10s (986 MB/s through the UI)
+- the flooding pane: 287 pumps, 101.4 MB fed, largest pump 14512 KB, slowest pump 18.2 ms
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

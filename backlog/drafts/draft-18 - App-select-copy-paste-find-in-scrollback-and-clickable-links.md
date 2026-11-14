@@ -4,7 +4,7 @@ title: 'App: select, copy, paste, find in scrollback, and clickable links'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:05:00Z'
+updated_date: '2026-11-14T00:06:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -12,6 +12,7 @@ dependencies:
   - DRAFT-17
 parent_task_id: DRAFT-1
 type: task
+project: bruk-io-steg
 ---
 
 ## Description

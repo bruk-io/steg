@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:12:00Z'
+updated_date: '2026-11-14T05:13:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -799,6 +799,51 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alac
 | ~
 | ~
 | ~
+| 
+
+cursor at column 0, row 0
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty program /opt/homebrew/bin/btop && spikes/task-1.1-terminal-library/target/release/probe-ghostty program /opt/homebrew/bin/tmux'` exited 0 at 2026-11-14T05:13:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes, last 40 of 92 lines:
+
+```text
+- build: release, opt-level 3, thin LTO
+
+### /opt/homebrew/bin/tmux on a pseudo-terminal
+
+0 bytes of output, 120x32 screen
+
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
 | 
 
 cursor at column 0, row 0

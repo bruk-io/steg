@@ -31,3 +31,9 @@ Design decision 2 in the spec. A server holds one terminal; a client is killed a
 - [ ] #2 The document shows a client killed mid-output and a new client restoring the same screen and scrollback
 - [ ] #3 The document says how the protocol carries a version, for R39
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+<!-- SECTION:NOTES:END -->

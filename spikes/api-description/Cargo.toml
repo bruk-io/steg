@@ -1,0 +1,52 @@
+# Throwaway code for TASK-1.3. See README.md.
+#
+# This crate is its own workspace root: the bare [workspace] table below is load-bearing.
+# TASK-1.5 adds steg's real workspace manifest at the repository root, and without this
+# table cargo would refuse this crate as soon as the two branches meet.
+[workspace]
+
+[package]
+name = "steg-spike-api-description"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+
+[dependencies]
+clap = "4.6.7"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+# The lints .claude/rules/rust.md names, so the spike is written the way steg is.
+# TASK-1.5 sets these once for the real workspace; this crate is outside it.
+[lints.clippy]
+unwrap_used = "deny"
+missing_errors_doc = "deny"
+missing_panics_doc = "deny"
+undocumented_unsafe_blocks = "deny"
+wildcard_enum_match_arm = "deny"
+allow_attributes_without_reason = "deny"
+await_holding_lock = "deny"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+# The measurements are taken on release builds, so they mean something.
+[profile.release]
+debug = false
+
+[[bin]]
+name = "spike_server"
+path = "src/bin/spike_server.rs"
+
+[[bin]]
+name = "spike_cli_a"
+path = "src/bin/spike_cli_a.rs"
+
+[[bin]]
+name = "spike_cli_b"
+path = "src/bin/spike_cli_b.rs"
+
+[[bin]]
+name = "spike_docs"
+path = "src/bin/spike_docs.rs"

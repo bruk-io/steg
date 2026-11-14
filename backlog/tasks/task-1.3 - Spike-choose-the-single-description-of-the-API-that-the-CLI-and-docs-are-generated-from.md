@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:18:00Z'
+updated_date: '2026-11-14T02:46:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -286,4 +286,6 @@ Plan checked against doc-1 by @bruk.o: ok. It serves R32, R36, R37 and R62, leav
 For phase 2, from Bruk on 2026-11-13: 'For the CLI we should keep the grammar unixy.' That bears on where CLI names live. A purely mechanical transform gives noun-verb commands (pane split); short unix-style verbs (split, ls, send) need the format to carry a name, or aliases, per method. Weigh that when the document says where names live. The names themselves stay TASK-1.4's. Recorded by @bruk.o.
 
 Supersedes the earlier note on CLI names. Bruk chose noun-verb grammar on 2026-11-13, so a command is the API method's name mechanically (pane.split is steg pane split, the target parameter is the one positional, every other parameter is a flag, a boolean is a switch): see section 2 of the CLI specification (doc-2). The mechanical transform is therefore the design, not a placeholder, and the format needs no per-method name or alias slot. It does need to say which parameter is the target and which are booleans. Recorded by @bruk.o.
+
+For phase 2, from TASK-1.4's review of doc-2: its section 5 says --help contacts no server, and the cli-design skill says help never starts or contacts a service. That bears directly on build time against run time: a command tree built at run time cannot print help with nothing running unless the description is cached or compiled in. Treat it as a requirement the candidates are measured against, not a preference. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->

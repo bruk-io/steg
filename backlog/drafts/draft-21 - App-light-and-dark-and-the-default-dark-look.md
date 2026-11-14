@@ -4,12 +4,13 @@ title: 'App: light and dark, and the default dark look'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:16:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
   - DRAFT-16
+  - DRAFT-28
 parent_task_id: DRAFT-1
 type: task
 project: bruk-io-steg

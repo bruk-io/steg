@@ -3,7 +3,7 @@ id: doc-2
 title: CLI specification
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-14T01:53:00Z'
+updated_date: '2026-11-14T02:46:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python"
 - Spec: doc-1. This document is design decision 1 in its section 7, and gives R32 to R35 and R63 their concrete form.
@@ -155,6 +155,9 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | `--scrollback` | `pane capture` | Include scrollback, not just the screen |
 | `--for <event>` | `wait` | What to wait for |
 | `--timeout <seconds>` | `wait`, `watch` | Give up after this long, with status 1 |
+| `--by <cells>` | `pane resize` | How far to move the border, in character cells |
+| `--with <target>` | `pane swap` | The pane to exchange places with |
+| `--all` | `event watch` | Every session on the host, not just the target's |
 | `--force` | `close`, `server stop` | Do it even though programs are still running |
 
 ## 6. Input, output and exit status

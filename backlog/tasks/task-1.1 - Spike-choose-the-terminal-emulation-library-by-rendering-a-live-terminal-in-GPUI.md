@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:08:00Z'
+updated_date: '2026-11-14T05:10:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -632,6 +632,45 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 
 - the typing run took 26.7s; the flooding pane had finished by then
 - printing the file in the pane took 0.08s
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty flood-ui 100 300'` exited 0 at 2026-11-14T05:10:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### typing in one pane while the other prints 100 MB
+
+fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-104857600.txt
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..250 | 22.3 | 9.31 | 10.88 | 16.71 | 18.11 | 0 |
+| 250..300 | 4.4 | 2.86 | 10.41 | 10.67 | 17.37 | 0 |
+
+### typing while the other pane floods
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 300 | 9.16 | 10.81 | 11.42 | 11.86 |
+| key to next frame | 299 | 16.45 | 18.03 | 18.63 | 18.68 |
+| interval between frames | 311 | 90.81 | 92.45 | 125.76 | 244.03 |
+
+- dropped samples (never drawn within the deadline): 0
+- within R19's 16 ms, to the next frame: 143 of 299 (47.8%)
+
+- the typing run took 26.7s; the flooding pane had finished by then
+- the pane fed the whole file to its emulator in 0.05s (1962 MB/s through the UI)
+- the flooding pane: 5 pumps, 101.4 MB fed, largest pump 24404 KB, slowest pump 148.5 ms
 ```
 <!-- SECTION:NOTES:END -->
 

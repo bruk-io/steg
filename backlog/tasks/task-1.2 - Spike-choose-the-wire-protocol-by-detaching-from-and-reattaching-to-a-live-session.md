@@ -692,6 +692,44 @@ agree     36001 bytes, 3001 lines, byte for byte
    {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":39000,"resyncs":0,"ticks":405,"wire_bytes":15382
 PASS  every gate
 ```
+
+Check FAILED: `spikes/task-1.2-wire-protocol/gates --framing ndjson` exited 1 at 2026-11-14T04:35:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== gates: framing=ndjson
+Darwin 27.0.0
+-- the socket is the owning user's only (R5), and there is no network port
+   srw-------@ 1 brukhabtu  staff  0 Nov 13 23:35 /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T//steg-gates.fAMSjw/socket
+   the server's open sockets:
+   lsof is not available here
+-- gate 1: Python, no Rust, no emulator
+   skipped: client.py implements the length framing only, which is the candidate
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+-- gate 2: the protocol over a pipe pair through a relay it does not control
+   {"api":"0.1.0","methods":[{"name":"describe","params":[],"summary":"Every method, its parameters and its documentation"}
+   a control call travelled over two pipes and a process in the middle
+   and so did a whole attachment, snapshot and updates
+-- gate 2, over SSH to this machine, when one answers
+   not tested: ssh to localhost is not available here
+   ssh: connect to host localhost port 22: Connection refused
+   the pipe-pair run above is the evidence for R55's shape instead
+-- AC #3: a mismatched protocol version
+   client 2: probe-client: steg protocol mismatch: the client speaks version 2 and this server speaks version 1
+   client 0: probe-client: steg protocol mismatch: the client speaks version 0 and this server speaks version 1
+-- AC #3: a first frame the server cannot read
+   probe-client: not-json: the server never answered and never closed: it hung
+FAIL  the server mishandled a not-json first frame
+   probe-client: wrong-magic: the server never answered and never closed: it hung
+FAIL  the server mishandled a wrong-magic first frame
+   probe-client: not-hello: the server never answered and never closed: it hung
+FAIL  the server mishandled a not-hello first frame
+   probe-client: huge: the server never answered and never closed: it hung
+FAIL  the server mishandled a huge first frame
+-- and the server is still serving after all of that
+   handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+   {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":39000,"resyncs":0,"ticks":2293,"wire_bytes":1051
+FAIL  at least one gate
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

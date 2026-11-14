@@ -3,15 +3,18 @@ id: TASK-1.1
 title: >-
   Spike: choose the terminal emulation library by rendering a live terminal in
   GPUI
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:23:00Z'
+updated_date: '2026-11-14T05:24:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies: []
+references:
+  - task-1.1-spike-choose-the-terminal-emulation
+  - https://github.com/bruk-io/steg/pull/4
 documentation:
   - doc-6
 parent_task_id: TASK-1
@@ -1150,6 +1153,58 @@ ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.2s)
 ```
+
+Built as planned, with the departures recorded in the notes above. The answer is doc-6, linked
+on this task.
+
+Recommendation: ghostty's VT engine (`ghostty-vt = "0.8"` over ghostty 1.4.0-main+83fb956, built
+with Zig 0.17.x), by the decision rule fixed on the plan before any measurement existed. Rule 3
+decided it, rule 5 confirmed it.
+
+Two things the reviewer must judge rather than discover, both in doc-6 section 1:
+
+1. TASK-1.5 landed `deny.toml` and cargo-deny while this spike ran, so the repository's own gate
+   could be run against both trees. It PASSES the alacritty path and REFUSES the ghostty path:
+   `webpki-root-certs` under CDLA-Permissive-2.0, a build-only dependency of the crate that
+   downloads ghostty's source. Permissive, never linked into the binary, and `ureq` is not
+   feature-gated so it cannot be dropped without patching that crate. `.claude/rules/licence.md`
+   forbids a worker from widening the policy to make a check pass, so it is raised, not fixed.
+   If the engineer declines to widen it, ghostty is out by the rule's own gate and the answer is
+   `alacritty_terminal`. doc-6 section 6 gives the three ways to clear it.
+2. The crate the task named, `libghostty-vt` 0.2.2, cannot be built on this machine: ghostty
+   `a887df42` demands Zig 0.15.2, and Zig 0.15.2 cannot link against the macOS 27 SDK. The
+   engine was measured through a fork pinned to a newer ghostty built with Zig 0.17 instead, so
+   there are real numbers rather than "could not be measured". The state of the bindings is
+   reported separately in doc-6 section 8.
+
+Checks recorded on this task, all exit 0:
+
+- `just check` before any change (every Rust step skipped, no workspace existed yet) and again
+  at the end after rebasing onto main (format check, lint, boundaries, licences all pass; tests
+  select no crate, which confirms the spike stayed out of TASK-1.5's workspace).
+- Per candidate: `conformance` (14 checks), `flood 100 3`, `latency 2000`, `flood-ui 100 300`,
+  `ownership`, `program` for vim and btop, `cargo tree -e normal --format "{p} {l}"`, and
+  `cargo deny check licenses` against the repository's own `deny.toml`.
+- The ghostty `flood` and `conformance` runs were recorded again after the scrollback conversion
+  changed, so every figure in doc-6 sections 3 and 4 traces to a recorded run of the committed
+  code.
+
+Headline numbers: parsing 100 MB, 220 MB/s at 40.6 MB peak RSS (alacritty) against 1,049 MB/s at
+20.6 MB (ghostty). Typing latency over 2,000 samples, key to paint p95 10.57 ms against 9.91 ms;
+key to next frame p95 18.38 ms against 17.33 ms. R14 coverage, 11 handled and 3 left to steg
+against 12 handled, 1 differing and 1 left to steg.
+
+R19 (AC #2): the first sentence is replaced, because 16 ms at p95 is met by both candidates if
+the clock stops at the paint and by neither once the display's refresh is counted - the
+requirement never said where the clock stops, and on a 120 Hz display one refresh is 8.3 ms of
+the 16 ms. doc-6 section 5 proposes wording with both stop points named. The second sentence is
+confirmed, with the condition that the app caps how much output it feeds per frame: unbounded,
+this spike produced a 148 ms main-thread stall on a 100 MB print, which is a finding for
+TASK-1.16 rather than a fault of either library.
+
+Worth a look while reviewing: doc-6 section 10 lists what this spike does not answer, including
+that nothing here measures a physical key press and that every number comes from one machine
+with a 120 Hz display, which is close to the best case.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

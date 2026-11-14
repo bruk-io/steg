@@ -1122,6 +1122,42 @@ handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
      the reattached client and the server agree byte for byte (1818 bytes, 24 lines)
    the slow client ended up with the same screen and scrollback as the server
 ```
+
+Check passed: `spikes/task-1.2-wire-protocol/measure --mode screen --framing ndjson --mega-bytes 100 --samples 200` exited 0 at 2026-11-14T05:04:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== measurements
+   machine: Darwin 27.0.0 arm64, 28 cpus
+   rust:    rustc 1.98.1 (48a229cea 2026-09-01)
+   build:   release, opt-level 3, lto off
+   crates:  alacritty_terminal 0.26.0, tokio 1.x, tokio-util 0.7, portable-pty 0.9
+   run:     framing=ndjson mode=screen overflow=resync tick=8ms fixture=100MB samples=200
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+-- 1. a byte into the pty, to that byte on the client's own screen (quiet machine)
+   latency mode=screen n=200 p50=10.086ms p95=10.835ms p99=10.916ms max=10.927ms lost=0
+-- 2. the cost of attaching with a full scrollback
+   scrollback filled: quiet pane=3 pty_bytes=156000 after=0.5s mb_per_s=12.9
+   attach pane=3 attachment=2 mode=screen seq=12000 snapshot_bytes=1343355 scrollback_rows=10000 attach_ms=83.9
+   page of 100 scrollback rows: call pane.scrollback n=20 p50=0.041ms p95=0.063ms p99=0.063ms max=0.063ms
+   quiet server: call pane.list n=50 p50=0.022ms p95=0.042ms p99=0.058ms max=0.058ms
+-- 3. the flood: 100MB printed in pane 2 with a slow client attached to it
+   fixture /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T//steg-measure.gjn45C/flood lines=1310720
+   slow client pane=2 attachment=3 mode=screen seq=0 snapshot_bytes=3347 scrollback_rows=0 attach_ms=0.2
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+   flood quiet pane=2 pty_bytes=104857604 after=2.3s mb_per_s=78.1
+   control calls during the flood: call pane.list n=100 p50=0.041ms p95=0.070ms p99=0.086ms max=0.086ms
+   keystrokes in another pane during the flood: latency mode=screen n=100 p50=10.124ms p95=10.413ms p99=10.782ms max=10.782ms lost=0
+-- 4. what the server had to do about the slow client
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+   {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":3760,"resyncs":0,"ticks":469},{"attachments":1,"blocked_nanos":0,"overflows":0,"pane":2,"pty_bytes":104857604,"resyncs":0,"ticks":707},{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":3,"pty_bytes":156000,"resyncs":0,"ticks":704}],"wire_bytes":3162334,"wire_frames":667}
+   slow client why="the duration ran out" frames=155 bytes_read=598751 resyncs=0 seq=102741 unknown_stream_frames=0 fetched_scrollback_rows=0
+-- 5. and whether the slow client is still correct afterwards
+   server capture pane=2 bytes=1818 lines=24 last=0
+     the reattached client and the server agree byte for byte (1818 bytes, 24 lines)
+   the slow client ended up with the same screen and scrollback as the server
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

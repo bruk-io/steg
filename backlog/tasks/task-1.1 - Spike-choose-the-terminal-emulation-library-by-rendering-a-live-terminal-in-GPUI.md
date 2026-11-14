@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:10:00Z'
+updated_date: '2026-11-14T01:12:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -258,6 +258,41 @@ Board (written by `asdlc`, never by hand):
   expected to skip every Rust step both times, because this task adds no workspace crate;
   that expectation is itself a check that the spike stayed out of TASK-1.5's way, and the
   notes say so.
+
+## How the choice is made, fixed before any measurement exists
+
+Written here, before the numbers, so the answer is not a weighting chosen to fit the data.
+
+1. **Gates.** A candidate is out, whatever its speed, if either fails: its licence and every
+   licence under it cannot be cleared for an MIT project that will be distributed (R59), or
+   it cannot be driven in the ownership shape step 10 builds (the terminal owned by one
+   thread, bytes in on a channel, snapshots out) without `Arc<Mutex<_>>` shared across
+   tasks, which `.claude/rules/rust.md` names a last resort.
+2. **R19 is a threshold, not a score.** A candidate that clears R19's two sentences clears
+   it; being faster than the other is worth nothing on its own. If both clear it, the
+   timings do not decide.
+3. **Then the work each one leaves to steg decides.** Every R14 item (and OSC 7501, and
+   reflow on resize) the library drops on the app is costed in days of work and summed. The
+   candidate that leaves steg less to write wins. The kitty keyboard protocol, OSC 133 and
+   unknown-OSC passthrough are the heavy items.
+4. **Tie-break, in this order.** Build and release cost (network and Zig at build time
+   against pure Rust, and what that does to TASK-1.23); then maintenance risk (version,
+   number of users, whether the API promises stability); then how much of the GPUI drawing
+   code each one makes steg write.
+5. **If neither clears R19**, the spike's answer is a replacement number with the reason,
+   plus the cheaper candidate on rule 3 (AC #2 allows exactly this).
+
+## Rules the probe binaries follow
+
+`asdlc record-check` runs these with nobody present, and the reviewer re-runs them, so:
+
+- Each binary takes its sample count and which measurement to run as arguments, runs it,
+  prints the table to stdout, and then quits the app itself (`cx.quit()`). No measurement
+  ever waits for a window to be closed by hand.
+- Every measurement is deterministic apart from the timings: the same byte scripts, the same
+  fixture, the same terminal size, the same sample count.
+- The binary prints the machine, the display's refresh rate, the crate versions and the
+  build profile above each table, so a number can never be read out of its context.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

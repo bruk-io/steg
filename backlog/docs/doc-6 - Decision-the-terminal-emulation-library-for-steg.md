@@ -3,7 +3,7 @@ id: doc-6
 title: 'Decision: the terminal emulation library for steg'
 type: other
 created_date: '2026-11-14T05:14:00Z'
-updated_date: '2026-11-14T05:16:00Z'
+updated_date: '2026-11-14T05:19:00Z'
 ---
 - Task: TASK-1.1, the spike that answers intent question 3 for TASK-1.
 - Spec: `doc-1`. Serves R14, R19 and R59.
@@ -63,24 +63,27 @@ every tenth line and double-width text every hundredth.
 
 | | seconds | MB/s | slowest 64 KB chunk | peak RSS | scrollback held |
 |---|---|---|---|---|---|
-| `alacritty_terminal` 0.26 | 0.5 / 0.5 / 0.5 | 213 / 213 / 211 | 0.54 / 0.47 / 0.39 ms | 41.7 MB | 10,000 rows |
-| `ghostty-vt` 0.8 | 0.1 / 0.1 / 0.1 | 1024 / 1029 / 998 | 0.20 / 0.11 / 0.10 ms | 20.6 MB | 10,995 rows |
+| `alacritty_terminal` 0.26 | 0.5 / 0.5 / 0.5 | 218 / 220 / 220 | 0.51 / 0.48 / 0.39 ms | 40.6 MB | 10,000 rows |
+| `ghostty-vt` 0.8 | 0.1 / 0.1 / 0.1 | 1041 / 1050 / 1049 | 0.12 / 0.11 / 0.10 ms | 20.6 MB | 10,995 rows |
 
 Per 64 KB chunk, and per read of the visible screen (which a renderer pays every frame):
 
 | | feed p50 | feed p95 | feed max | read screen p50 | read screen p95 |
 |---|---|---|---|---|---|
-| alacritty | 0.29 ms | 0.32 ms | 0.38 ms | 0.01 ms | 0.01 ms |
-| ghostty | 0.06 ms | 0.06 ms | 0.12 ms | 0.09 ms | 0.10 ms |
+| alacritty | 0.28 ms | 0.29 ms | 0.39 ms | 0.01 ms | 0.01 ms |
+| ghostty | 0.06 ms | 0.06 ms | 0.10 ms | 0.10 ms | 0.10 ms |
 
-Ghostty parses about **4.8x faster** and holds its scrollback in **half the memory**. Alacritty
-reads the screen back about 9x faster, but at 0.1 ms against an 8.3 ms frame neither figure is
-near mattering.
+Ghostty parses about **4.8x faster** and holds a comparable scrollback in **half the memory**.
+Alacritty reads the screen back about 10x faster, but at 0.1 ms against an 8.3 ms frame neither
+figure is near mattering.
 
-One measurement note, so the memory numbers are comparable: ghostty's `max_scrollback` is a
-**byte** estimate, not a line count. Asked for 10,000 lines naively it held 2,283 rows at 12 MB.
-The adapter now converts using a measured 1,152 bytes a row at 120 columns, which holds 10,995
-rows, and that is the row in the table.
+One measurement note, so the memory numbers are comparable at all: ghostty's `max_scrollback` is
+a **byte** estimate, not a line count, so a request in lines has to be converted. The adapter
+converts at 1,152 bytes a row, which is not a guess - it is what a row of the 100 MB fixture
+costs at 120 columns, measured by giving the library a known byte budget and counting the rows
+it kept. At that rate a 10,000-line request holds 10,995 rows, which is what the table reports
+beside alacritty's 10,000. An undersized estimate holds proportionally fewer rows in
+proportionally less memory, so getting this conversion right is work steg owns (section 4).
 
 ## 4. Evidence A: the R14 feature matrix
 
@@ -201,9 +204,15 @@ a bounded amount of output; the rest is carried to later frames."*
 
 ## 6. Licences (AC #3)
 
-Taken from `cargo tree -e normal --format "{p} {l}"` over each probe, recorded in full on the
-task, plus the pieces no crate graph shows. 435 crates in the alacritty tree and 436 in the
-ghostty tree; nearly all of them are gpui's.
+Taken from `cargo tree -e normal --format "{p} {l}"` over each probe, plus the pieces no crate
+graph shows. 435 crates in the alacritty tree and 436 in the ghostty tree; nearly all of them
+are gpui's. The **full** per-crate list for each is the recorded output of these two commands on
+TASK-1.1, which is where to look to check this section crate by crate:
+
+```sh
+cargo tree --manifest-path spikes/task-1.1-terminal-library/Cargo.toml -p probe-alacritty -e normal --format "{p} {l}"
+cargo tree --manifest-path spikes/task-1.1-terminal-library/Cargo.toml -p probe-ghostty   -e normal --format "{p} {l}"
+```
 
 **What each candidate adds beyond the shared base (gpui, portable-pty):**
 

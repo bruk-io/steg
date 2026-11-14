@@ -3,10 +3,11 @@ id: TASK-1.1
 title: >-
   Spike: choose the terminal emulation library by rendering a live terminal in
   GPUI
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T01:01:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.1-spike-choose-the-terminal-emulation
 ---
 
 ## Description

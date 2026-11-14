@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:43:00Z'
+updated_date: '2026-11-14T02:45:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -71,10 +71,15 @@ Bruk's six answers are cheap and are needed by TASK-1.13 and TASK-1.25.
 Both exclusions narrow what the orchestrator's notes asked for, not an accepted
 criterion. Say so to Bruk; it is his to refuse.
 
+This task is size-2, so phase 2 begins only after `asdlc approve TASK-1.4`; the first
+step below refuses until that is recorded.
+
 ## Deliverable, and how it is handed over
 
 Only the orchestrator and Bruk change doc-2, so this task produces a **new board
-document** (type `specification`), linked to TASK-1.4, in five parts:
+document**, linked to TASK-1.4, in five parts. Its type is `other`, not `specification`:
+the board has no way to mark one specification as superseded by another, and `other`
+says plainly that this is a proposal against doc-2 rather than a rival specification.
 
 - **A. The decision sheet.** One line per question, each with a recommendation, the
   alternative, and what breaks if it goes the other way, so Bruk can answer "all as
@@ -105,7 +110,7 @@ from this branch's diff. There is no pull request; `asdlc finish` is run without
 
 Board artefacts:
 
-- A new document from `asdlc board doc create "<title>" -t specification`, written with
+- A new document from `asdlc board doc create "<title>" -t other`, written with
   `asdlc board doc update <doc-id> --content "$(cat <<'DOC' ... DOC)"`.
 - `asdlc board task edit TASK-1.4 --add-doc <doc-id>` to link it.
 - The task's notes: what was reviewed, the consistency check's output, the Rex sources
@@ -141,7 +146,7 @@ do the cross-check by hand, and say in the notes that it was done by hand.
    consequence.
 5. Draft part B, the edit list, in doc-2's section order.
 6. Draft parts C, D and E.
-7. Create the document, write it, link it to the task.
+7. Create the document (`-t other`), write it, link it to the task.
 8. Write the task's notes.
 9. Record `just check` again, confirm `git -C <worktree> status` is clean, and hand over
    with `asdlc finish TASK-1.4 --as bruk.w5 --notes "..."`, no `--pr`.
@@ -199,11 +204,12 @@ Found while reviewing doc-2, each a question Bruk has not been asked:
     ask for every method and R32 says the CLI exposes everything the API exposes, but no
     command in section 8 does it, and R62 generates the reference docs from it. Either a
     noun and verb for it, or doc-2 states the exemption.
-12. **`watch` and `wait`: which noun owns them?** Section 3 lists both as verbs every
-    noun shares, but section 8 gives `watch` to `event` alone and `wait` to `pane` alone.
-    Either `session watch` and `pane watch` exist and `event watch` is redundant, or
-    `watch` is a verb one noun owns. This is load-bearing for TASK-1.13's drift test,
-    which needs an unambiguous statement of which command must exist for which method.
+12. **Can one session's or one pane's changes be streamed in M1, or only `event watch`?**
+    Section 8 gives `watch` to `event` alone, so an agent watching one pane filters the
+    stream itself. Whether `session watch` and `pane watch` exist is a design choice, not
+    a defect, and TASK-1.13's drift test needs the answer in writing. (The mistitled
+    table in section 3 that hides this is a part-B edit, not a question: the closed verb
+    set is not the same as verbs every noun shares.)
 13. **`pane focus --direction`.** Section 4 says the target is the thing the verb acts
     on, but focusing by direction acts on the target's *neighbour*. R9 asks for it, so
     the question is only whether doc-2 writes that exception down or splits the two
@@ -229,11 +235,11 @@ TASK-1.3's format, TASK-1.11's events) rather than be written by hand.
   the first release's set plus R63, not every command of every release; say if you meant
   wider.
 - **#2, the document marks each point where Rex's CLI does it differently.** Met in form
-  by section 10, but it has never been checked against Rex's documentation, so a
-  criterion would be closing on an unverified table. Part C checks it. Already visible
-  from the one page fetched while planning: Rex takes a session's label as a positional
-  and steg takes `--label`, and Rex's `-q` means something different from steg's, neither
-  of which section 10 mentions.
+  by section 10, but it has never been checked against Rex's documentation, so closing
+  this criterion on today's doc-2 would close it on an unverified table. Part C checks
+  it. Already visible from the one page fetched while planning: Rex takes a session's
+  label as a positional and steg takes `--label`, and Rex's `-q` means something
+  different from steg's, neither of which section 10 mentions.
 - **#3, Bruk has recorded his decision on the document.** Not met, and not this worker's
   to meet. It closes when Bruk answers the sheet and the orchestrator records the answers
   in doc-2 section 9 as it did for the first three decisions. No rewording needed.
@@ -255,9 +261,10 @@ to decide.
 - **Acceptance criterion 3 closes outside this worker's control,** so the task may sit
   in review while Bruk reads. Controlled by making the sheet answerable in one comment:
   one line per question, a recommendation on each.
-- **Two CLI documents on one board.** Controlled by titling the new one as a proposal
-  against doc-2, keeping every command table in doc-2, and saying in part B that once
-  the edits are applied the new document is a record of why, not a second specification.
+- **Two CLI documents on one board.** Controlled by the new one's type (`other`), by
+  titling it as a proposal against doc-2, by keeping every command table in doc-2, and
+  by saying in part B that once the edits are applied the new document is a record of
+  why, not a second specification.
 - **Rex's documentation is partly behind a login** (the install pages are) and may change
   under us. Controlled by quoting the exact line each row rests on, with its URL and the
   date, so a later reader can tell a stale row from a wrong one. If a page needed for a

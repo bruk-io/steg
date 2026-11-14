@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:05:00Z'
+updated_date: '2026-11-14T05:06:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -1189,6 +1189,42 @@ handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
 handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
    {"panes":[{"attachments":0,"blocked_nanos":110789,"overflows":0,"pane":1,"pty_bytes":2360,"resyncs":0,"ticks":371},{"attachments":1,"blocked_nanos":44627,"overflows":0,"pane":2,"pty_bytes":104857603,"resyncs":0,"ticks":526},{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":3,"pty_bytes":156000,"resyncs":0,"ticks":526}],"wire_bytes":2748100,"wire_frames":567}
    slow client why="the duration ran out" frames=155 bytes_read=594094 resyncs=0 seq=102743 unknown_stream_frames=0 fetched_scrollback_rows=0
+-- 5. and whether the slow client is still correct afterwards
+   server capture pane=2 bytes=1818 lines=24 last=0
+     the reattached client and the server agree byte for byte (1818 bytes, 24 lines)
+   the slow client ended up with the same screen and scrollback as the server
+```
+
+Check passed: `spikes/task-1.2-wire-protocol/measure --mode screen --tick-ms 1 --mega-bytes 100 --samples 200` exited 0 at 2026-11-14T05:06:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== measurements
+   machine: Darwin 27.0.0 arm64, 28 cpus
+   rust:    rustc 1.98.1 (48a229cea 2026-09-01)
+   build:   release, opt-level 3, lto off
+   crates:  alacritty_terminal 0.26.0, tokio 1.x, tokio-util 0.7, portable-pty 0.9
+   run:     framing=length mode=screen overflow=resync tick=1ms fixture=100MB samples=200
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+-- 1. a byte into the pty, to that byte on the client's own screen (quiet machine)
+   latency mode=screen n=200 p50=1.337ms p95=1.425ms p99=1.673ms max=1.714ms lost=0
+-- 2. the cost of attaching with a full scrollback
+   scrollback filled: quiet pane=3 pty_bytes=156000 after=0.5s mb_per_s=12.7
+   attach pane=3 attachment=2 mode=screen seq=12000 snapshot_bytes=1343355 scrollback_rows=10000 attach_ms=39.6
+   page of 100 scrollback rows: call pane.scrollback n=20 p50=0.042ms p95=0.079ms p99=0.079ms max=0.079ms
+   quiet server: call pane.list n=50 p50=0.023ms p95=0.039ms p99=0.048ms max=0.048ms
+-- 3. the flood: 100MB printed in pane 2 with a slow client attached to it
+   fixture /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T//steg-measure.QDs38o/flood lines=1310720
+   slow client pane=2 attachment=3 mode=screen seq=0 snapshot_bytes=3347 scrollback_rows=0 attach_ms=0.1
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   flood quiet pane=2 pty_bytes=104857603 after=2.8s mb_per_s=54.4
+   control calls during the flood: call pane.list n=100 p50=0.026ms p95=0.066ms p99=0.077ms max=0.077ms
+   keystrokes in another pane during the flood: latency mode=screen n=100 p50=1.368ms p95=1.444ms p99=1.674ms max=1.674ms lost=0
+-- 4. what the server had to do about the slow client
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":3760,"resyncs":0,"ticks":4179},{"attachments":1,"blocked_nanos":0,"overflows":255,"pane":2,"pty_bytes":104857603,"resyncs":255,"ticks":3989},{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":3,"pty_bytes":156000,"resyncs":0,"ticks":4403}],"wire_bytes":4778709,"wire_frames":1121}
+   slow client why="the duration ran out" frames=608 bytes_read=2229652 resyncs=255 seq=102760 unknown_stream_frames=0 fetched_scrollback_rows=0
 -- 5. and whether the slow client is still correct afterwards
    server capture pane=2 bytes=1818 lines=24 last=0
      the reattached client and the server agree byte for byte (1818 bytes, 24 lines)

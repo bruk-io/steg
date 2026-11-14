@@ -3,7 +3,7 @@ id: TASK-1.3
 title: >-
   Spike: choose the single description of the API that the CLI and docs are
   generated from
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
@@ -12,6 +12,9 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.3-spike-choose-the-single-description-of
+  - https://github.com/bruk-io/steg/pull/2
 documentation:
   - doc-2
   - doc-4
@@ -499,6 +502,71 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Built: the spike, and its answer as doc-4, "Decision: the one description steg's API is
+defined in", linked on this task.
+
+The decision: the API is defined once as data in Rust, compiled into the single binary and
+also served unchanged to whoever asks. The server's dispatch and validation, the
+self-description (R37), the CLI's command tree (R32), the reference docs (R62) and the JSON
+a plugin reads (R42, R75) all come from that one value. The CLI does not ask the server
+what the API is. doc-2 section 5's rule that --help and --version contact no server is what
+decides it: measured, candidate A answers --help with status 0 and no server, candidate B
+exits 4 whatever is asked of it. Speed does not decide it, which the measurements show
+rather than assume: the round trip is lost in process start-up noise (3.52 ms against
+3.73 ms median for --help), and in one recorded run candidate B was the faster of the two
+on a real call. The schema-file option was weighed on paper, as the plan said it would be,
+with crates and versions read on 2026-11-14: the mature Rust tooling runs Rust-first and
+emits schemas, while the schema-first direction rests on typify at 0.10.0-alpha.3 or a JVM
+build step. It costs nothing to leave open, since an OpenRPC document can be emitted from
+the Rust definition if a Python client library ever wants one.
+
+Checks, all recorded above: just check before anything was written and again after the
+rebase onto main; cargo test on the spike crate (31 tests) twice; cargo clippy on all
+targets with the rules' lints set to deny in the spike's manifest; and
+spikes/api-description/carry-one-method, which is the acceptance criterion in one command,
+run three times, the last two carrying the measurements.
+
+Departures from the approved plan, all small, with reasons:
+
+1. Two files the plan's list did not name: src/lib.rs (the module list the plan's modules
+   imply) and measure.py (the timings, in a script that writes its own method down, which
+   is what makes the numbers reproducible; the README says how they were taken, and
+   hyperfine is not installed on this machine).
+2. The definition holds three methods, not one. pane.split alone is carried end to end as
+   the criterion asks; pane.set and pane.list are there because the drift test needs a
+   second method to show a missing command, and a switch with its --no- form needs a method
+   that has one.
+3. Candidate A was built as a compiled-in description whose command tree is built in
+   process at start-up, not as code generation at build time. Generating CLI code at build
+   time is then judged against the measurement rather than built: building the tree costs
+   nothing measurable, so a build script or proc macro would buy nothing. Same side of the
+   plan's axis 2, less machinery, and the plan's timebox on a proc macro is why.
+4. The shared generator lives in cli_build.rs and candidate B's cli_runtime.rs feeds it, so
+   the plan's file list holds. The README says which module is which candidate.
+5. The departure the plan's risks already named: the spike's tests run through cargo test
+   --manifest-path, not just test. The crate is outside steg's workspace on purpose, and
+   adding a justfile recipe would both collide with TASK-1.5 and make steg-affected select
+   every crate. Recorded on this task either way, so the evidence still comes from the
+   toolchain.
+
+For the reviewer:
+
+- doc-4 section 2 is what TASK-1.10 builds. The field worth arguing about is `role` on a
+  parameter (target, flag, switch, program): it is what lets doc-2 section 2's mechanical
+  transform be the whole mapping, with no name or alias slot in the format.
+- doc-4 section 6 carries something TASK-1.5 needs: Unicode-3.0 has to be on the licence
+  allow list, or just deny will refuse a dependency tree every crate in steg will have. It
+  arrives through syn, which serde_derive and clap both need.
+- One thing doc-2 does not pin and the generator had to choose: `steg` and `steg <noun>`
+  alone print help and exit 2. doc-2 section 2 says they list the nouns and the verbs but
+  not with what status. If a bare listing should succeed, that is a line for doc-2 and a
+  change to the generator, not to the format.
+- Two findings worth keeping even though nothing asked for them: doc-2 section 7's 10 ms
+  proposal for --help holds on a quiet machine (3.93 ms at the 95th percentile) and not on
+  one that is compiling (11.02 ms), so that proposal should name the condition; and
+  clap's builder takes only &'static str for names, which a compiled-in description
+  satisfies for free and a fetched one has to leak for.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

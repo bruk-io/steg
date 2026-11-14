@@ -3,7 +3,7 @@ id: doc-3
 title: 'CLI design: decisions for Bruk and the edits they imply in doc-2'
 type: other
 created_date: '2026-11-14T04:02:00Z'
-updated_date: '2026-11-14T04:07:00Z'
+updated_date: '2026-11-14T04:08:00Z'
 ---
 - Task: TASK-1.4, "Spike: propose the CLI design for Bruk to decide".
 - Spec: doc-1 (R32 to R35, R63 to R68). CLI specification: doc-2. Policy: the team's
@@ -185,7 +185,10 @@ version, uptime, sessions and clients.
 - **Recommended:** add the noun `api` with `api list` (every method, one per line) and
   `api show <method>` (one method in full), generated from the description like
   everything else. It is how the docs are generated (R62), how a plugin author reads the
-  surface (R42, R75), and it is the one thing that proves R32 to a person.
+  surface (R42, R75), and it is the one thing that proves R32 to a person. Both are API
+  methods like any other, `api.list` and `api.show`, so the description describes itself.
+  That is normal, it is what Rex does, and it is the one place where section 2's rule
+  that a command is a method is worth saying out loud.
 - **Alternative:** state the exemption in section 2, that the description method has no
   command. Then R32's "everything the API exposes" needs the word "except".
 - **Cost of the wrong choice:** TASK-1.13's drift test has to carry a special case, which

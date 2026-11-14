@@ -420,6 +420,33 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 | feed | 1600 | 0.29 | 0.32 | 0.34 | 0.38 |
 | read the screen back | 200 | 0.01 | 0.01 | 0.02 | 0.02 |
 ```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghostty flood 100 3'` exited 0 at 2026-11-14T04:25:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## ghostty-vt (0.8.0 bindings (Apache-2.0) over ghostty 1.4.0-main+83fb956 (MIT), built with zig 0.17.1)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### printing 100 MB with no renderer
+
+fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-104857600.txt
+
+| run | seconds | MB/s | slowest 64 KB chunk ms | peak RSS MB | scrollback rows |
+|---|---|---|---|---|---|
+| run 1 | 0.1 | 1036 | 0.11 | 20.3 | 10995 |
+| run 2 | 0.1 | 982 | 0.11 | 20.5 | 10995 |
+| run 3 | 0.1 | 1041 | 0.12 | 20.5 | 10995 |
+
+| one 64 KB chunk | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| feed | 1600 | 0.06 | 0.06 | 0.07 | 0.12 |
+| read the screen back | 200 | 0.09 | 0.10 | 0.11 | 0.12 |
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

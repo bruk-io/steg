@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:24:00Z'
+updated_date: '2026-11-14T05:32:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -1227,6 +1227,14 @@ created: 2026-11-14T05:24:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.1: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+created: 2026-11-14T05:32:00Z
+
+---
+
+Bruk, 2026-11-14, relayed by @bruk.o: 'the licence check needs to be a bit more lax'. So the CDLA-Permissive-2.0 refusal on the Ghostty path (doc-6 section 6) is to be cleared by widening the allow list, not by falling back to alacritty_terminal. The change itself is DRAFT-2, not part of this task.
 
 ---
 <!-- COMMENTS:END -->

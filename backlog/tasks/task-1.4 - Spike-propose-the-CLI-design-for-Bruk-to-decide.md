@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:46:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -17,6 +17,9 @@ type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
 asdlc_branch: task-1.4-spike-propose-the-cli-design-for-bruk-to
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'cb75e1bf5967'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -318,3 +321,16 @@ Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no 
 
 Plan checked against doc-1 and doc-2 by @bruk.o: ok, and the reduced scope is agreed. This task keeps the open points in doc-2 section 9, the further questions its review of doc-2 found, the Rex comparison checked against Rex's own reference, and the reading of its acceptance criteria. The speed numbers move to an orchestrator edit of doc-2 once TASK-1.3 has measured them, and the check of every command against the API is TASK-1.13's drift test. The deliverable is a board document of proposed changes; only the orchestrator, with Bruk, edits doc-2. The review found that doc-2 used --by, --with and --all without defining them: that was the orchestrator's omission and is fixed in doc-2 section 5. The points that need Bruk's choice (what -q prints, a header on lists, a command for the API's self-description, the fuller design for showing a file) are left for him.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-14T03:56:00Z
+
+---
+
+Plan approved by @bruk (cb75e1bf5967, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -1,0 +1,3 @@
+# unwrap_used (workspace.lints.clippy) would otherwise fire inside #[cfg(test)] code too.
+# rust.md: "No `unwrap` outside tests."
+allow-unwrap-in-tests = true

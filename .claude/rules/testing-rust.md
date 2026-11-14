@@ -12,4 +12,4 @@ Applies to Rust code and tests in steg. These are the techniques for the team's 
 - Time, randomness and ids come in as parameters or through a trait. No test sleeps to wait for something; it waits on the event.
 - A real temporary directory or a real socket in one is cheap and is not a double.
 - A terminal behaviour is tested by feeding bytes in and reading the screen back, not by inspecting the emulator's internals.
-- Run tests through the repository's one check command, so the same thing runs by hand, in a worktree and in CI.
+- Run tests with `just test`, never `cargo test` directly: it runs only the crates the change affects and keeps the output short. `just check` is what a change must pass before it is called done.

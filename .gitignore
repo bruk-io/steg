@@ -1,1 +1,8 @@
 .asdlc/
+
+# Logs from quiet steps, build output, and Python caches.
+.quiet/
+target/
+__pycache__/
+.pytest_cache/
+.venv/

@@ -7,10 +7,10 @@ import pytest
 from steg_tools.affected import Crate, crates_from_metadata, owner, selection
 
 CRATES = (
-    Crate("steg-kernel", "crates/kernel", frozenset()),
-    Crate("steg-server", "crates/server", frozenset({"steg-kernel"})),
-    Crate("steg-app", "crates/app", frozenset({"steg-server"})),
-    Crate("steg-themes", "crates/app/themes", frozenset()),
+    Crate("steg-kernel", "crates/kernel", frozenset(), frozenset({"serde"})),
+    Crate("steg-server", "crates/server", frozenset({"steg-kernel"}), frozenset({"steg-kernel", "tokio"})),
+    Crate("steg-app", "crates/app", frozenset({"steg-server"}), frozenset({"steg-server"})),
+    Crate("steg-themes", "crates/app/themes", frozenset(), frozenset()),
 )
 
 
@@ -61,6 +61,6 @@ def test_crates_are_read_from_cargo_metadata() -> None:
         ],
     }
     assert crates_from_metadata(metadata, root) == (
-        Crate("steg-kernel", "crates/kernel", frozenset()),
-        Crate("steg-server", "crates/server", frozenset({"steg-kernel"})),
+        Crate("steg-kernel", "crates/kernel", frozenset(), frozenset({"serde"})),
+        Crate("steg-server", "crates/server", frozenset({"steg-kernel"}), frozenset({"steg-kernel", "tokio"})),
     )

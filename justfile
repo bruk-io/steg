@@ -19,8 +19,8 @@ affected := "uv run --quiet --project tools steg-affected"
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, licences, the affected tests, and the tools' own tests
-check: fmt-check lint deny test test-tools
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, and the tools' own tests
+check: fmt-check lint boundaries deny test test-tools
 
 # the tests for the crates this change touches and the crates that depend on them (steg-affected chooses)
 test:
@@ -57,6 +57,20 @@ lint:
 # refuse a dependency whose licence is not allowed (MIT project, nothing GPL or AGPL)
 deny:
     @if [ "{{rust}}" = no ]; then echo "skip    licences: no Rust workspace yet"; else {{quiet}} "licences" -- cargo deny check licenses; fi
+
+# refuse a crate dependency that crosses the boundaries in .claude/rules/architecture.md (boundaries.toml)
+boundaries:
+    @if [ "{{rust}}" = no ]; then echo "skip    boundaries: no Rust workspace yet"; else {{quiet}} "boundaries" -- uv run --quiet --project tools steg-boundaries; fi
+
+# install or check what the recipes need beyond Rust itself (cargo-deny first). Safe to run again
+setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v cargo-deny >/dev/null 2>&1; then
+        echo "ok      cargo-deny already installed"
+    else
+        {{quiet}} "install cargo-deny" -- cargo install cargo-deny --locked
+    fi
 
 # build everything
 build:

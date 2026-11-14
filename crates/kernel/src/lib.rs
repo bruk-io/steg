@@ -12,6 +12,7 @@ mod tests {
     // this crate has no behaviour of its own yet to test.
     #[test]
     fn a_test_may_unwrap() {
-        assert_eq!(Some(1).unwrap(), 1);
+        let value: Option<i32> = "1".parse().ok();
+        assert_eq!(value.unwrap(), 1);
     }
 }

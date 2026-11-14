@@ -8,6 +8,7 @@ dependencies = []
 
 [project.scripts]
 steg-affected = "steg_tools.affected:main"
+steg-boundaries = "steg_tools.boundaries:main"
 steg-quiet = "steg_tools.quiet:main"
 
 [dependency-groups]

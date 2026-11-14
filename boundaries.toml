@@ -1,0 +1,8 @@
+# A crate's permitted dependencies, workspace and external alike. A crate with no
+# table here is unrestricted. Checked by `tools/src/steg_tools/boundaries.py`, run
+# as `just boundaries`; adding a dependency to a restricted crate that isn't on its
+# list is a deliberate edit to this file, not something to remember separately.
+
+[steg-kernel]
+reason = "the kernel does no I/O of its own (.claude/rules/architecture.md)"
+allow = []

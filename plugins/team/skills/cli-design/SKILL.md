@@ -28,15 +28,14 @@ The shape is always: program, noun, verb, then the target, then flags.
   | `show` | One of the noun, in full |
   | `new` | Create one |
   | `close` | End one, and whatever runs in it |
-  | `rename` | Change its label |
   | `move` | Change its position or its parent |
-  | `set`, `unset` | Change or clear one named property |
+  | `set`, `unset` | Change or clear its properties, each one a flag |
   | `start`, `stop` | A long-running thing's lifecycle |
   | `check` | Validate without changing anything |
   | `watch` | Stream changes until interrupted |
   | `wait` | Block until a named condition, then exit |
 
-  Never `ls` beside `list`, `create` beside `new`, or `rm`, `delete` and `kill` beside `close`. A verb that only makes sense for one noun is allowed, listed in the project's specification, and still follows every rule here.
+  Never `ls` beside `list`, `create` beside `new`, or `rm`, `delete` and `kill` beside `close`. A name, a colour or an on-off state is a property, so it is `set`, not given a verb of its own: no `rename`, and no toggle. A verb that only makes sense for one noun is allowed, listed in the project's specification, and still follows every rule here.
 - **No aliases and no abbreviations.** Two spellings of one command are two things to learn and to keep working.
 
 ## Arguments

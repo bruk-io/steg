@@ -1,10 +1,11 @@
 ---
 id: TASK-1.4
 title: 'Spike: propose the CLI design for Bruk to decide'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:18:00Z'
+updated_date: '2026-11-14T02:34:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
+asdlc_branch: task-1.4-spike-propose-the-cli-design-for-bruk-to
 ---
 
 ## Description

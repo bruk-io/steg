@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:59:00Z'
+updated_date: '2026-11-14T05:03:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -483,6 +483,43 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alac
 
 - dropped samples (never drawn within the deadline): 984
 - within R19's 16 ms, to the next frame: 671 of 1016 (66.0%)
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty latency 2000'` exited 0 at 2026-11-14T05:03:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..250 | 21.3 | 2.54 | 10.34 | 10.52 | 18.34 | 0 |
+| 250..500 | 21.5 | 2.60 | 10.48 | 10.53 | 18.17 | 0 |
+| 500..750 | 21.7 | 2.40 | 10.59 | 10.24 | 18.09 | 0 |
+| 750..1000 | 21.8 | 2.72 | 10.32 | 10.66 | 18.33 | 0 |
+| 1000..1250 | 22.1 | 3.23 | 10.77 | 10.80 | 18.39 | 0 |
+| 1250..1500 | 21.7 | 2.64 | 10.57 | 10.53 | 18.38 | 0 |
+| 1500..1750 | 22.0 | 2.95 | 10.70 | 10.80 | 18.46 | 0 |
+| 1750..2000 | 21.7 | 2.64 | 10.57 | 10.53 | 18.44 | 0 |
+
+### typing into one pane
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 2000 | 2.67 | 10.57 | 10.92 | 11.29 |
+| key to next frame | 2000 | 10.54 | 18.38 | 18.65 | 18.82 |
+| interval between frames | 2050 | 83.57 | 91.92 | 116.78 | 510.88 |
+
+- dropped samples (never drawn within the deadline): 0
+- within R19's 16 ms, to the next frame: 1403 of 2000 (70.2%)
 ```
 <!-- SECTION:NOTES:END -->
 

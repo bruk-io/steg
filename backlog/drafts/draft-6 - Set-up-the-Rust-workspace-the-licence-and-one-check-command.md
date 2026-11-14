@@ -4,7 +4,7 @@ title: Set up the Rust workspace, the licence and one check command
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:14:00Z'
+updated_date: '2026-11-14T00:54:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -32,4 +32,5 @@ The frame everything else lands in: crates for the kernel, for the server and CL
 - [ ] #8 just test runs only the crates a change touches and the crates that depend on them, chosen by steg-affected in tools/ and not by whoever runs it; a change to the workspace manifest, the lock file or the toolchain runs everything. The selection is proven against the real workspace, since tools/ has only been tested against made-up crates
 - [ ] #9 Every recipe prints one line when it passes, and on failure prints the failure and the path of the full log (steg-quiet in tools/)
 - [ ] #10 just setup installs or checks what the recipes need beyond Rust itself, cargo-deny first, and is safe to run again
+- [ ] #11 The workspace is on the 2024 edition and sets its lints once in [workspace.lints], with warnings as errors, including the clippy lints .claude/rules/rust.md names as its enforcement: unwrap_used, missing_errors_doc, missing_panics_doc, undocumented_unsafe_blocks, wildcard_enum_match_arm, allow_attributes_without_reason and await_holding_lock; the kernel crate forbids unsafe code
 <!-- AC:END -->

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:20:00Z'
+updated_date: '2026-11-14T04:21:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -26,6 +26,8 @@ asdlc_branch: task-1.3-spike-choose-the-single-description-of
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7891230c821a'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -601,6 +603,15 @@ created: 2026-11-14T03:56:00Z
 ---
 
 Plan approved by @bruk (7891230c821a, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-14T04:21:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.3: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

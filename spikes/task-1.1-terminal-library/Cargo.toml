@@ -10,6 +10,7 @@ members = ["probe-core", "probe-alacritty", "probe-ghostty"]
 version = "0.0.0"
 edition = "2024"
 publish = false
+license = "MIT"
 
 [workspace.dependencies]
 probe-core = { path = "probe-core" }

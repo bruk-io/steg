@@ -773,6 +773,43 @@ agree     36001 bytes, 3001 lines, byte for byte
    {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":39000,"resyncs":0,"ticks":409,"wire_bytes":15409
 PASS  every gate
 ```
+
+Check passed: `spikes/task-1.2-wire-protocol/gates --framing ndjson` exited 0 at 2026-11-14T04:37:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== gates: framing=ndjson
+Darwin 27.0.0
+-- the socket is the owning user's only (R5), and there is no network port
+   srw-------@ 1 brukhabtu  staff  0 Nov 13 23:37 /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T//steg-gates.LLi8Qi/socket
+   the server's open sockets:
+   lsof is not available here
+-- gate 1: Python, no Rust, no emulator
+   skipped: client.py implements the length framing only, which is the candidate
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+-- gate 2: the protocol over a pipe pair through a relay it does not control
+   {"api":"0.1.0","methods":[{"name":"describe","params":[],"summary":"Every method, its parameters and its documentation"}
+   a control call travelled over two pipes and a process in the middle
+   and so did a whole attachment, snapshot and updates
+-- gate 2, over SSH to this machine, when one answers
+   not tested: ssh to localhost is not available here
+   ssh: connect to host localhost port 22: Connection refused
+   the pipe-pair run above is the evidence for R55's shape instead
+-- AC #3: a mismatched protocol version
+   client 2: probe-client: steg protocol mismatch: the client speaks version 2 and this server speaks version 1
+   client 0: probe-client: steg protocol mismatch: the client speaks version 0 and this server speaks version 1
+-- AC #3: a first frame the server cannot read
+   not-json: the server closed the connection without answering
+   wrong-magic: {"stream":0,"kind":"hello","json":{"client_protocol":null,"error":"malformed-hello","message":"steg could not read the client's hello (the magic is \"ssh\", not \"steg\"); this server speaks protocol version 1 and the client's version is unknown","server_protocol":1,"steg":"steg"}}
+   not-hello: {"stream":0,"kind":"hello","json":{"client_protocol":null,"error":"malformed-hello","message":"steg could not read the client's hello (the first frame is a Control frame, not a hello); this server speaks protocol version 1 and the client's version is unknown","server_protocol":1,"steg":"steg"}}
+   huge: the server closed the connection without answering
+-- a finding, not a gate: a client speaking the other framing
+   wrong-framing: the server neither answered nor closed within 5s
+   whichever way that goes, the handshake needs a timeout of its own: TASK-1.9's to add
+-- and the server is still serving after all of that
+   handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
+   {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":39000,"resyncs":0,"ticks":837,"wire_bytes":10526
+PASS  every gate
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

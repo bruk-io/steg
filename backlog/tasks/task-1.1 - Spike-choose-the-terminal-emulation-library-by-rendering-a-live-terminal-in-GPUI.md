@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:54:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -17,6 +17,9 @@ type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.1-spike-choose-the-terminal-emulation
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'b1e716d2ff94'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -315,3 +318,16 @@ Plan checked against doc-1 by @bruk.o: ok. It serves R14, R19 and R59 and answer
 
 Decided by Bruk on 2026-11-13, in answer to the worker's question on acceptance criterion 1: if the libghostty-vt candidate cannot be built on this machine after a real attempt, the spike may report that it could not be measured and why, with what was tried. A build that fragile is itself part of the answer. The criterion's wording is unchanged; read it with this. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-14T03:56:00Z
+
+---
+
+Plan approved by @bruk (b1e716d2ff94, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

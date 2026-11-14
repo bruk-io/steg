@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:24:00Z'
+updated_date: '2026-11-14T04:25:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -392,6 +392,33 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghos
 | scrollback honours its limit | R15 | differs | a 50-line limit: 191 rows held after 200 lines, 854 after 5,000 - bounded, but not by the line count: this library's limit is a byte estimate, so steg must convert R15's 10,000 lines into bytes |
 
 14 checks: 12 handled, 1 done differently, 1 left to steg, 0 wrong
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty flood 100 3'` exited 0 at 2026-11-14T04:25:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### printing 100 MB with no renderer
+
+fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-104857600.txt
+
+| run | seconds | MB/s | slowest 64 KB chunk ms | peak RSS MB | scrollback rows |
+|---|---|---|---|---|---|
+| run 1 | 0.5 | 214 | 0.58 | 40.5 | 10000 |
+| run 2 | 0.5 | 213 | 0.47 | 40.6 | 10000 |
+| run 3 | 0.5 | 211 | 0.38 | 40.6 | 10000 |
+
+| one 64 KB chunk | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| feed | 1600 | 0.29 | 0.32 | 0.34 | 0.38 |
+| read the screen back | 200 | 0.01 | 0.01 | 0.02 | 0.02 |
 ```
 <!-- SECTION:NOTES:END -->
 

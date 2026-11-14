@@ -3,10 +3,11 @@ id: TASK-1.2
 title: >-
   Spike: choose the wire protocol by detaching from and reattaching to a live
   session
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T02:34:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.2-spike-choose-the-wire-protocol-by
 ---
 
 ## Description

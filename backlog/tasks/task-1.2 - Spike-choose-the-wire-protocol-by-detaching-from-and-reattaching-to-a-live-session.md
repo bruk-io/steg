@@ -412,9 +412,12 @@ Each recorded with `asdlc record-check TASK-1.2 --in
   versions, and a malformed, truncated or oversized first frame gets an error rather than a
   panic or an unbounded allocation.
 - **The framing tests** in the same run: a captured stream decodes identically when fed one
-  byte at a time, in random chunk sizes, and in one piece; a frame at the size cap is accepted
-  and one above it is refused; and control payloads are the same JSON bytes under F2 as under
-  F1, which is what keeps TASK-1.3's payload contract.
+  byte at a time, in random chunk sizes, and in one piece; and a frame at the size cap is
+  accepted while one above it is refused. For TASK-1.3's payload contract the property tested
+  is not byte equality between F1 and F2, which differ by F1's newline and so would prove
+  nothing: it is that the JSON **object** a client parses out of a control frame is identical
+  under both framings, and that `client.py` reads the same self-description payload through
+  either one.
 
 ## Rules the probe binaries follow
 
@@ -445,11 +448,16 @@ Written into the document so nobody has to read this plan:
 ## Left for the engineer
 
 AC #1 reads as a binary choice ("raw bytes that a client-side emulator replays, or screen
-updates the server computes"), but the snapshot both candidates need makes a hybrid the likely
-answer: snapshot on attach, then one or the other. TASK-1.1 had an equivalent clarification
-recorded on its task rather than decided by its worker, so the same is asked here: whether a
-hybrid answer satisfies AC #1 as worded. The spike proceeds either way; only how the criterion
-is read changes.
+updates the server computes"). AC #2 removes that choice from one half of it: output printed
+while **no client was attached** has no byte stream left to replay, so a snapshot on attach is
+forced, in every candidate, by the acceptance criteria themselves and not by a preference of
+this spike's. AC #1's two options are therefore two choices of what **follows** the snapshot:
+raw bytes onto it, or deltas against it. The plan is written that way, so the answer will be a
+hybrid in AC #1's terms however the measurements fall.
+
+What is asked of the engineer is only whether that satisfies AC #1 as worded, or whether the
+criterion's text should be read with this note beside it, as TASK-1.1's AC #1 was. Nothing in
+the plan changes either way.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

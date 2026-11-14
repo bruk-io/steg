@@ -16,6 +16,7 @@ Changes are pull requests to this folder, like any other change; whoever merges 
 |---|---|
 | `skills/testing/` | How the team chooses, writes and runs tests, verifies work with each repository's own checks, and records the evidence on the task |
 | `skills/writing-a-contract/` | How the orchestrator writes and keeps the cross-repository contract for a large feature |
+| `skills/cli-design/` | How the team designs a command-line interface: noun-verb grammar, a closed set of verbs, one positional target, switch flags, data-only stdout, never prompting |
 | `review.md` | How a reviewer judges a finished task: the passes, the severities, the nit cap and the size-1 check. A repository plugin's own `review.md` adds to it |
 | `templates/contract.md` | The contract the orchestrator copies |
 | `rules/testing.md` | The testing rule for any language |

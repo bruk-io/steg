@@ -4,7 +4,7 @@ title: 'Server: events that clients subscribe to'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:05:00Z'
+updated_date: '2026-11-14T00:05:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -13,6 +13,7 @@ dependencies:
   - DRAFT-9
 parent_task_id: DRAFT-1
 type: task
+project: bruk-io-steg
 ---
 
 ## Description

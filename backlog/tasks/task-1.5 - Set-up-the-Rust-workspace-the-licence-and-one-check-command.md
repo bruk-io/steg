@@ -1,7 +1,7 @@
 ---
 id: TASK-1.5
 title: Set up the Rust workspace, the licence and one check command
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-13T22:52:00Z'
@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.5-set-up-the-rust-workspace-the-licence
+  - https://github.com/bruk-io/steg/pull/1
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -206,6 +209,29 @@ ok      licences (0.6s)
 ok      tests (every crate) (1.3s)
 ok      tool tests (0.2s)
 ```
+
+Built per the approved plan (digest e0acb049d09a).
+
+Workspace: 5 frame crates (steg-kernel lib/forbid-unsafe, steg-server lib, steg-cli lib, steg bin depending on server+cli for R61's single binary, steg-app bin pinning gpui=0.2.2). GPUI confirmed published standalone on crates.io (Apache-2.0, edition 2024); app's main.rs does a real Pixels::from(f32) call to prove the pin compiles and links, without needing a window server.
+
+Licence: root LICENSE (MIT), [workspace.package] license inherited via license.workspace=true on every crate. deny.toml scoped to macOS targets only (spec section 10); allow list is MIT/Apache-2.0 (+LLVM-exception)/BSD-2/BSD-3/ISC/Unicode-3.0/Zlib/CC0-1.0/MPL-2.0 - flagging MPL-2.0 for the engineer: it's file-scoped copyleft (not viral like GPL/AGPL), pulled in by cbindgen (a build-only dependency, never linked into the binary) and option-ext (a small trait extension via dirs, used by gpui's font loading). AC#5 only requires excluding GPL/AGPL, which this does, but licence.md's broader 'no copyleft' framing makes this worth a second look.
+
+AC#6 (kernel I/O boundary): built per Bruk's revised decision - boundaries.toml (one table per restricted crate, allow list + reason) checked by new tools/src/steg_tools/boundaries.py (pure violations()/unknown_rules(), thin main() shell), registered as steg-boundaries, wired into justfile's new boundaries recipe and into check. affected.py's Crate gained a dependencies field (all deps, workspace+external) alongside the existing workspace-only depends_on; a new tools/src/steg_tools/workspace.py factors out the git/cargo-metadata plumbing both tools share.
+
+Checks recorded via asdlc record-check (just check): baseline before any change, after the full build, and after rebasing onto origin/main - all exit 0 (format check, lint, boundaries, licences, tests, tool tests all 'ok'). 31 Python tests pass (21 existing + unit test_boundaries.py's 8 + adapter test_affected_real_workspace.py's 2, net new = 10).
+
+Refusal probes (not in the diff, reverted after confirming failure):
+- AC#5: removed MIT from deny.toml's allow list - cargo deny check licenses failed naming MIT crates; restored.
+- AC#6: added tokio as a direct steg-kernel dependency (with cargo fetch first, so the failure is the real violation and not a metadata error) - steg-boundaries failed with 'steg-kernel depends on tokio, which is not on its allow list in boundaries.toml (the kernel does no I/O of its own (.claude/rules/architecture.md)).'; reverted.
+- AC#8: steg-affected --base HEAD after an isolated uncommitted touch to crates/kernel/src/lib.rs alone selected '-p steg -p steg-kernel -p steg-server'; touching crates/app/src/main.rs alone selected '-p steg-app'. Both reverted.
+
+just run: steg-app's placeholder main.rs doesn't open a GPUI window yet (TASK-1.15), so it ran and exited cleanly under a 10s timeout with no window-server risk to report.
+
+just setup run twice reported cargo-deny already installed both times (it was installed once, earlier in the build, via cargo install cargo-deny --locked - the 'first install' path was exercised then, not in this final pass).
+
+Noted but not acted on: ruff (check/format) isn't wired into this repo's own checks (no justfile recipe), and the pre-existing tools/src/steg_tools/quiet.py already doesn't pass it cleanly under the ruff version on this machine - left alone as out of scope for this task.
+
+Unsettled per the plan, left for the engineer: the MPL-2.0 licence-allow judgement call above, and whether steg-run can be observed opening a real window once the app actually does (TASK-1.15).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

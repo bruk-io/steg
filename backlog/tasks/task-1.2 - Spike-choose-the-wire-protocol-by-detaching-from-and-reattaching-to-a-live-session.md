@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:32:00Z'
+updated_date: '2026-11-14T04:35:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -651,6 +651,46 @@ handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
    it kept receiving output after the other was killed (311 frames)
 handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=ndjson
    and its screen and scrollback still match the server's
+```
+
+Check passed: `spikes/task-1.2-wire-protocol/gates` exited 0 at 2026-11-14T04:35:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== gates: framing=length
+Darwin 27.0.0
+-- the socket is the owning user's only (R5), and there is no network port
+   srw-------@ 1 brukhabtu  staff  0 Nov 13 23:35 /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T//steg-gates.OitV5k/socket
+   the server's open sockets:
+   lsof is not available here
+-- gate 1: Python, no Rust, no emulator
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0
+describe  protocol=1 api=0.1.0
+describe  12 methods: describe, pane.open, pane.list, pane.capture, pane.scrollback, pane.attach, pane.detach, pane.input, pane.resize, pane.attachments, server.stats, server.shutdown
+pane      1
+attach    attachment=1 stream=1 seq=0 80x24 scrollback_rows=0
+updates   deltas=189 resyncs=0 rows_held=3001
+agree     36001 bytes, 3001 lines, byte for byte
+   gate 1 passed
+-- gate 2: the protocol over a pipe pair through a relay it does not control
+   {"api":"0.1.0","methods":[{"name":"describe","params":[],"summary":"Every method, its parameters and its documentation"}
+   a control call travelled over two pipes and a process in the middle
+   and so did a whole attachment, snapshot and updates
+-- gate 2, over SSH to this machine, when one answers
+   not tested: ssh to localhost is not available here
+   ssh: connect to host localhost port 22: Connection refused
+   the pipe-pair run above is the evidence for R55's shape instead
+-- AC #3: a mismatched protocol version
+   client 2: probe-client: steg protocol mismatch: the client speaks version 2 and this server speaks version 1
+   client 0: probe-client: steg protocol mismatch: the client speaks version 0 and this server speaks version 1
+-- AC #3: a first frame the server cannot read
+   not-json: {"steg":"steg","error":"malformed-hello","client_protocol":null,"server_protocol":1,"message":"steg could not read the client's hello (expected value at line 1 column 1); this server speaks protocol version 1 and the client's version is unknown"}
+   wrong-magic: {"steg":"steg","error":"malformed-hello","client_protocol":null,"server_protocol":1,"message":"steg could not read the client's hello (the magic is \"ssh\", not \"steg\"); this server speaks protocol version 1 and the client's version is unknown"}
+   not-hello: {"steg":"steg","error":"malformed-hello","client_protocol":null,"server_protocol":1,"message":"steg could not read the client's hello (the first frame is a Control frame, not a hello); this server speaks protocol version 1 and the client's version is unknown"}
+   huge: the server closed the connection without answering
+-- and the server is still serving after all of that
+   handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   {"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":39000,"resyncs":0,"ticks":405,"wire_bytes":15382
+PASS  every gate
 ```
 <!-- SECTION:NOTES:END -->
 

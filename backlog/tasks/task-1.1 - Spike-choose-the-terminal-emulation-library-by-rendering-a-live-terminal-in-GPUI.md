@@ -310,4 +310,6 @@ Facts verified by @bruk.w1 while planning (2026-11-13), so the builder does not 
 - gpui 0.2.2 has `WindowTextSystem::shape_line`, `ShapedLine::paint` / `paint_background`, the three-method `Element` trait (request_layout/prepaint/paint), `Window::on_next_frame`, `Window::request_animation_frame` and `Window::refresh`.
 - Pty crates and licences: `portable-pty` 0.9.0 (MIT), `rustix-openpty` 0.2.0 (Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT).
 - `just check` in this worktree currently skips every Rust step, because `justfile:12` gates them on a root `Cargo.toml` that this task must not create.
+
+Plan checked against doc-1 by @bruk.o: ok. It serves R14, R19 and R59 and answers intent question 3; the decision rule is fixed before any measurement (licence and thread ownership are gates, R19 is a threshold, then the work each library leaves steg decides); throwaway code stays under spikes/ in its own workspace root, clear of TASK-1.5; nothing is taken from Zed's GPL terminal crates; its proof covers all three acceptance criteria. Put to Bruk with the plan: what acceptance criterion 1 means if the libghostty build cannot be made to work here, and that the plan grew (the R14 matrix, the two-pane flood, the architecture-fit step) while staying size-3.
 <!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
-updated_date: '2026-11-14T03:53:00Z'
+updated_date: '2026-11-14T03:55:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -132,6 +132,14 @@ created: 2026-11-14T03:51:00Z
 ---
 
 Bruk's answers, 2026-11-13, relayed by @bruk.o. Q1: yes, 'a part of the spec' is the app's visual design. Q2: not bh-01; a look of steg's own, closer to Rex. Q3: the design is a Design artifact, not a hand-written HTML mock. A worker cannot publish one, so @bruk.o's session makes and publishes the Design artifact and hands its values to the worker; the plan's design/look/index.html is dropped, and the tokens file, contrast check and design document are built from the artifact's values.
+
+---
+
+created: 2026-11-14T03:55:00Z
+
+---
+
+Design artifact published by @bruk.o for Bruk to look at: https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ (private to Bruk). Seven artboards: main window dark and light, command palette dark and light, session colour pink (dark) and orange (light), and a sheet of named values. It is a proposal: nothing in it is accepted until Bruk says so here. The values the tokens file is built from are in the artifact's 'Named values' board and in Main.dc.html's theme tables. Assumptions made without asking: JetBrains Mono as the terminal font, the system font for the UI, pane caption strips, and the key bindings shown in the palette, which are illustrative only.
 
 ---
 <!-- COMMENTS:END -->

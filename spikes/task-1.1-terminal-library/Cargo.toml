@@ -1,0 +1,28 @@
+# The throwaway measuring instrument for TASK-1.1. Its own workspace, deliberately: the
+# repository root has no Cargo.toml yet (TASK-1.5 adds it in parallel), and `justfile:12` turns
+# every Rust step on as soon as one exists. This `[workspace]` table also stops the future root
+# manifest from adopting these crates as members.
+[workspace]
+resolver = "3"
+members = ["probe-core", "probe-alacritty", "probe-ghostty"]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace.dependencies]
+probe-core = { path = "probe-core" }
+gpui = "=0.2.2"
+portable-pty = "0.9"
+anyhow = "1"
+libc = "0.2"
+alacritty_terminal = "0.26"
+ghostty-vt = "0.8"
+
+# Every measurement is taken from a release build. Debug numbers would say nothing about R19.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+debug = false

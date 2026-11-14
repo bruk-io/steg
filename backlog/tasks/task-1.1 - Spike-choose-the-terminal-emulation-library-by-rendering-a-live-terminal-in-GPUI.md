@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:03:00Z'
+updated_date: '2026-11-14T05:06:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -520,6 +520,43 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alac
 
 - dropped samples (never drawn within the deadline): 0
 - within R19's 16 ms, to the next frame: 1403 of 2000 (70.2%)
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghostty latency 2000'` exited 0 at 2026-11-14T05:06:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## ghostty-vt (0.8.0 bindings (Apache-2.0) over ghostty 1.4.0-main+83fb956 (MIT), built with zig 0.17.1)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..250 | 21.3 | 2.23 | 9.87 | 10.01 | 17.73 | 0 |
+| 250..500 | 21.3 | 2.07 | 9.73 | 9.65 | 17.10 | 0 |
+| 500..750 | 21.6 | 2.24 | 9.94 | 9.91 | 17.46 | 0 |
+| 750..1000 | 21.7 | 2.01 | 9.88 | 9.34 | 17.28 | 0 |
+| 1000..1250 | 21.6 | 1.97 | 9.95 | 9.44 | 17.17 | 0 |
+| 1250..1500 | 21.5 | 2.19 | 10.01 | 9.89 | 17.51 | 0 |
+| 1500..1750 | 21.5 | 2.03 | 9.92 | 9.39 | 17.27 | 0 |
+| 1750..2000 | 21.6 | 2.11 | 10.02 | 9.83 | 17.37 | 0 |
+
+### typing into one pane
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 2000 | 2.12 | 9.91 | 10.47 | 12.51 |
+| key to next frame | 2000 | 9.67 | 17.33 | 18.29 | 19.23 |
+| interval between frames | 2050 | 83.46 | 91.90 | 116.84 | 514.31 |
+
+- dropped samples (never drawn within the deadline): 0
+- within R19's 16 ms, to the next frame: 1615 of 2000 (80.8%)
 ```
 <!-- SECTION:NOTES:END -->
 

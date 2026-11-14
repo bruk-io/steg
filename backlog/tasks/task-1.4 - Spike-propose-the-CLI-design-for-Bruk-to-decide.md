@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:45:00Z'
+updated_date: '2026-11-14T02:46:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -315,4 +315,6 @@ From Bruk, 2026-11-13, before this was claimed: 'For the CLI we should keep the 
 Bruk gave the CLI's design direction himself on 2026-11-13: centre it on speed, predictability and composability; noun-verb grammar; a consistent set of verbs; universal flags; positionals for the primary target and flags for everything else; boolean flags as switches with --no- pairs. The orchestrator wrote that up as the CLI specification (doc-2), with the team's cli-design skill as its policy. What is left for this task: settle the nine points in its section 9 with Bruk, check every command in its section 8 against the API description TASK-1.3 delivers, replace the proposed speed numbers with measured ones, and record Bruk's decision on the document. Recorded by @bruk.o.
 
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Plan checked against doc-1 and doc-2 by @bruk.o: ok, and the reduced scope is agreed. This task keeps the open points in doc-2 section 9, the further questions its review of doc-2 found, the Rex comparison checked against Rex's own reference, and the reading of its acceptance criteria. The speed numbers move to an orchestrator edit of doc-2 once TASK-1.3 has measured them, and the check of every command against the API is TASK-1.13's drift test. The deliverable is a board document of proposed changes; only the orchestrator, with Bruk, edits doc-2. The review found that doc-2 used --by, --with and --all without defining them: that was the orchestrator's omission and is fixed in doc-2 section 5. The points that need Bruk's choice (what -q prints, a header on lists, a command for the API's self-description, the fuller design for showing a file) are left for him.
 <!-- SECTION:NOTES:END -->

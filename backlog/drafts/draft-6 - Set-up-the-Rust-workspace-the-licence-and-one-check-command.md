@@ -4,7 +4,7 @@ title: Set up the Rust workspace, the licence and one check command
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:09:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -28,4 +28,7 @@ The frame everything else lands in: crates for the kernel, for the server and CL
 - [ ] #4 The GPUI version is pinned
 - [ ] #5 The check command refuses a dependency whose licence is not on an allow list that excludes GPL and AGPL (R59)
 - [ ] #6 The check command refuses a crate dependency that crosses the boundaries in .claude/rules/architecture.md, starting with the kernel depending on anything that does I/O
+- [ ] #7 The justfile's recipes (check, test, test-all, fmt, lint, deny, build, run) each do real work on the workspace, and none passes by doing nothing
+- [ ] #8 just test runs only the crates a change touches and the crates that depend on them, chosen by scripts/affected and not by whoever runs it; a change to the workspace manifest, the lock file or the toolchain runs everything
+- [ ] #9 Every recipe prints one line when it passes, and on failure prints the failure and the path of the full log (scripts/quiet)
 <!-- AC:END -->

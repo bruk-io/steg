@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:07:00Z'
+updated_date: '2026-11-14T01:08:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -253,6 +253,25 @@ Each recorded with `asdlc record-check TASK-1.3 --in /Users/brukhabtu/src/github
 - The document exists, is linked to the task, and records all six items under "What the
   document must record". That, with the recorded script output it quotes, is what the
   acceptance criterion is judged on.
+
+## Where the evidence is thin, on purpose
+
+Axis 2 (build time or run time) is answered by measurement: both candidates are built.
+Axis 1 (Rust source or a schema file) is answered on paper only. Building a schema-file
+candidate means a second code generation path and roughly doubles the spike, which a
+size-2 task does not hold. So the document must say which of its two answers rests on a
+measurement and which on a reading, and name what would overturn the paper one. If the
+reading leaves axis 1 genuinely open, the honest outcome is to say so and ask for a
+second round, not to pick from a guess.
+
+Two consequences for the deliverable:
+
+- Acceptance criterion 1 asks for one generated CLI command. Both candidates' runs are
+  recorded, but the document names which candidate's run is the proof: the one the
+  measurements choose. The other run is evidence for the comparison, not the criterion.
+- The start-up measurement has no `hyperfine` on this machine. The README states the
+  method it uses instead, so the number can be reproduced: how many runs, what is timed
+  (process start to exit), which clock, and whether the server was already up.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

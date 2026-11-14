@@ -32,3 +32,9 @@ The spec says what the app shows but not what it looks like: R20 (a window with 
 - [ ] #3 The spec (doc-1) has a design section giving the colours, type, spacing and states as named values an app task can build from, with a link to the design
 - [ ] #4 Bruk has seen the design and recorded what he accepted
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+<!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-14T04:04:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -486,6 +486,48 @@ skip    lint: no Rust workspace yet
 skip    licences: no Rust workspace yet
 skip    tests: no Rust workspace yet
 ok      tool tests (0.4s)
+```
+
+Check passed: `cargo test --manifest-path spikes/task-1.2-wire-protocol/probe-wire/Cargo.toml` exited 0 at 2026-11-14T04:04:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running unittests src/lib.rs (spikes/task-1.2-wire-protocol/target/debug/deps/probe_wire-7a61279e5ecc4502)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/framing.rs (spikes/task-1.2-wire-protocol/target/debug/deps/framing-fa3dd66e41e37a8c)
+
+running 7 tests
+test a_declared_length_over_the_cap_is_refused_without_allocating_it ... ok
+test bytes_that_are_not_a_frame_are_refused_rather_than_guessed_at ... ok
+test a_partial_frame_asks_for_more_rather_than_failing ... ok
+test the_json_object_a_client_parses_is_the_same_under_both_framings ... ok
+test a_stream_decodes_the_same_whatever_the_chunk_boundaries_are ... ok
+test a_snapshot_round_trips_through_a_control_frame ... ok
+test a_frame_at_the_cap_is_accepted_and_one_over_it_is_refused ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests/version.rs (spikes/task-1.2-wire-protocol/target/debug/deps/version-3749561cbf83f3c3)
+
+running 6 tests
+test a_newer_client_is_refused_with_both_versions_named ... ok
+test an_older_client_is_refused_with_both_versions_named ... ok
+test a_refusal_travels_as_a_frame_a_client_of_any_version_can_read ... ok
+test a_hello_that_cannot_be_read_is_an_error_naming_the_servers_version ... ok
+test the_same_version_is_accepted ... ok
+test an_unknown_field_in_a_hello_is_ignored_so_a_later_version_can_add_one ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests probe_wire
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

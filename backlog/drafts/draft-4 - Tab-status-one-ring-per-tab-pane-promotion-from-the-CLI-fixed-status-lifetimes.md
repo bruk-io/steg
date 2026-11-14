@@ -6,6 +6,7 @@ title: >-
 status: Draft
 assignee: []
 created_date: '2026-11-14T23:24:00Z'
+updated_date: '2026-11-14T23:25:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -57,3 +58,9 @@ Lifetimes, per status type (values are a first proposal, not decided):
 - [ ] #3 doc-2 has the CLI command for promotion
 - [ ] #4 A waiting or failed pane in the same tab still takes the ring over a promoted pane
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Open question added 2026-11-14 (Bruk): when the CLI posts a status, does it replace what is there or join a queue? Orchestrator's proposal, not decided: one status per pane, where a new report from that pane replaces its last; the tab then holds its panes' statuses as a set and shows the most pressing, falling to the next when one reaches the end of its lifetime. Ordered by how pressing, then newest, never first-in-first-out, so a waiting status is never stuck behind a finished one.
+<!-- SECTION:NOTES:END -->

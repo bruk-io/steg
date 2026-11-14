@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:19:00Z'
+updated_date: '2026-11-14T05:20:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -1027,6 +1027,78 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 | feed | 1600 | 0.28 | 0.29 | 0.32 | 0.39 |
 | read the screen back | 200 | 0.01 | 0.01 | 0.01 | 0.01 |
 ```
+
+## Build (phase 2) by @bruk.w1, 2026-11-14
+
+The answer is doc-6, linked on this task. Every number in it is the output of a command recorded
+on this task with `asdlc record-check`; nothing was typed in by hand. The recommendation is
+ghostty's VT engine, by the decision rule that was fixed on the plan before any measurement
+existed, with the build cost named as the price and the one-line change that would flip it.
+
+### Departures from the approved plan, and why
+
+1. **The ghostty bindings crate was swapped.** The plan said `libghostty-vt = "0.2"`. That crate
+   cannot be built on this machine: its `build.rs` pins ghostty `a887df42`, whose `build.zig`
+   calls `requireZig("0.15.2")` (exact major and minor), and Zig 0.15.2 cannot link anything
+   against the macOS 27 SDK, where `libSystem.B.tbd` lists only `x86_64`, `arm64e` and
+   `arm64e.x1` targets and no plain `arm64-macos` - an empty `pub fn main() void {}` fails with
+   every libSystem symbol undefined. Zig 0.17.1 links fine but ghostty `a887df42` refuses it.
+   The two constraints are mutually exclusive. Rather than report the candidate as unmeasurable,
+   the engine was measured through `ghostty-vt = "0.8"`, an explicit fork of those bindings
+   (its README says so) pinned to ghostty `1.4.0-main+83fb956` and built with Zig 0.17, which
+   builds in about 45 s. Same C library, so the engine's numbers are real; the state of the
+   bindings is reported separately in doc-6 section 8. This delivers more than the fallback the
+   orchestrator allowed ("could not be measured, and why"), and it is the departure a reviewer
+   should judge first.
+2. **Zig 0.17.1 was installed on this machine** with `mise install zig@0.17.1`, alongside the
+   existing 0.15.2. Nothing global was changed: the build is given `ZIG=<path to 0.17.1>`.
+   Noting it because it is a change to the engineer's environment, not just to this worktree.
+3. **One module beyond the plan's file list**: `probe-core/src/measure.rs`, which holds the
+   command line and every measurement. Without it each binary would carry its own copy of the
+   dispatch, and the two candidates could drift apart - the opposite of what the spike needs.
+   Both binaries are now nine lines each.
+4. **One mode beyond the plan's steps**: `program <command>`, which runs a real full-screen
+   program on a pseudo-terminal and prints the screen it drew. Added because R14's risk is about
+   real programs, not only byte scripts. vim 9.1.1752 and btop both render correctly on both
+   candidates; tmux starts and runs a command.
+5. **`libc` was added** to `probe-core`, for `getrusage` to read peak resident size. The plan's
+   flood step asked for peak RSS without saying how.
+6. **The pty crate is `portable-pty` 0.9 (MIT)**, as plan step 4 asked to record. Chosen over
+   `rustix-openpty` because it also spawns the child, resizes and reports exit, so the same code
+   serves both candidates; `alacritty_terminal::tty` was ruled out by the plan because it would
+   put one candidate's crate inside the other's measurement.
+
+### Two harness bugs found and fixed while measuring, both worth knowing
+
+- The first long run looked like the app stalling after about 1,000 keystrokes. It was the
+  pseudo-terminal's **canonical-mode line buffer filling at 1024 bytes** and refusing to echo
+  further input. The probe now presses Return every 40 keystrokes. Any steg test that types
+  without newlines will meet this.
+- Arrival was first detected by counting the typed letter on screen, which silently loses a
+  sample whenever a scroll drops an older copy of the same letter. It now watches the **cursor
+  position**, which cannot be fooled. Every reported run has zero dropped samples and is stable
+  across all eight blocks of 250, so no number here is an artefact of a degrading harness.
+
+### Checks recorded on this task
+
+`just check` before anything changed and again at the end: every Rust step skips, because this
+task deliberately adds no workspace crate (`justfile:12` gates them on a root `Cargo.toml` that
+TASK-1.5 is adding in parallel). The tool tests pass. Then, per candidate: `conformance`,
+`flood 100 3`, `latency 2000`, `flood-ui 100 300`, `ownership`, `program` for vim and btop, and
+`cargo tree -e normal --format "{p} {l}"` for the licence inventory. The ghostty `flood` and
+`conformance` runs were recorded again after the scrollback conversion changed, so every figure
+in doc-6 sections 3 and 4 traces to a recorded run of the committed code.
+
+### For the reviewer
+
+- doc-6 section 1 is the answer and the rule that produced it. Section 8 is the honest cost of
+  that answer. If the engineer weighs build fragility and dependency maintenance above feature
+  coverage, the answer flips to `alacritty_terminal` and doc-6 says exactly which rule to
+  change.
+- The spike's code is at `spikes/task-1.1-terminal-library/`, its own Cargo workspace with an
+  empty `[workspace]` table so the root manifest TASK-1.5 adds will not adopt it.
+- No GPL source was opened. The GPUI terminal view was written from gpui 0.2.2's own `examples/`
+  and rustdoc; Zed's `terminal` and `terminal_view` crates were not read (R59).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

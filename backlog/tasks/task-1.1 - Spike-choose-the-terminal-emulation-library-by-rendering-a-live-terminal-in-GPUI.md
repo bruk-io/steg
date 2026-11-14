@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:25:00Z'
+updated_date: '2026-11-14T04:59:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -446,6 +446,43 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 |---|---|---|---|---|---|
 | feed | 1600 | 0.06 | 0.06 | 0.07 | 0.12 |
 | read the screen back | 200 | 0.09 | 0.10 | 0.11 | 0.12 |
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty latency 2000'` exited 0 at 2026-11-14T04:59:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..248 | 22.3 | 2.65 | 10.41 | 10.55 | 18.46 | 2 |
+| 248..496 | 22.3 | 2.67 | 10.53 | 10.63 | 18.62 | 4 |
+| 496..744 | 22.6 | 2.92 | 10.73 | 10.79 | 18.52 | 6 |
+| 744..992 | 22.9 | 9.29 | 10.91 | 17.29 | 18.57 | 8 |
+| 992..1016 | 133.5 | 3.24 | 10.78 | 11.12 | 18.44 | 234 |
+| 1016..1016 | 145.3 | - | - | - | - | 484 |
+| 1016..1016 | 145.4 | - | - | - | - | 734 |
+| 1016..1016 | 145.3 | - | - | - | - | 984 |
+
+### typing into one pane
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 1016 | 2.84 | 10.77 | 11.01 | 11.88 |
+| key to next frame | 1016 | 10.71 | 18.54 | 18.69 | 18.80 |
+| interval between frames | 2000 | 92.12 | 583.80 | 584.20 | 591.30 |
+
+- dropped samples (never drawn within the deadline): 984
+- within R19's 16 ms, to the next frame: 671 of 1016 (66.0%)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -893,6 +893,51 @@ Check passed: `sh -c 'cargo tree --manifest-path spikes/task-1.1-terminal-librar
         │   └── libc v0.2.191 MIT OR Apache-2.0
         └── shell-words v1.1.1 MIT/Apache-2.0
 ```
+
+Check passed: `sh -c 'cargo tree --manifest-path spikes/task-1.1-terminal-library/Cargo.toml -p probe-ghostty -e normal --format "{p} {l}"'` exited 0 at 2026-11-14T05:13:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes, last 40 of 1125 lines:
+
+```text
+    │   ├── usvg v0.45.1 Apache-2.0 OR MIT (*)
+    │   ├── uuid v1.29.2 Apache-2.0 OR MIT
+    │   │   ├── getrandom v0.4.3 MIT OR Apache-2.0 (*)
+    │   │   ├── serde_core v1.0.229 MIT OR Apache-2.0
+    │   │   └── sha1_smol v1.0.1 BSD-3-Clause
+    │   ├── waker-fn v1.2.0 Apache-2.0 OR MIT
+    │   └── zed-font-kit v0.14.1-zed MIT OR Apache-2.0
+    │       ├── bitflags v2.13.2 MIT OR Apache-2.0
+    │       ├── byteorder v1.5.0 Unlicense OR MIT
+    │       ├── core-foundation v0.10.0 MIT OR Apache-2.0 (*)
+    │       ├── core-graphics v0.24.0 MIT OR Apache-2.0 (*)
+    │       ├── core-text v21.0.0 MIT OR Apache-2.0 (*)
+    │       ├── dirs v5.0.1 MIT OR Apache-2.0
+    │       │   └── dirs-sys v0.4.1 MIT OR Apache-2.0
+    │       │       ├── libc v0.2.191 MIT OR Apache-2.0
+    │       │       └── option-ext v0.2.0 MPL-2.0
+    │       ├── float-ord v0.3.2 MIT / Apache-2.0
+    │       ├── lazy_static v1.5.1 MIT OR Apache-2.0
+    │       ├── libc v0.2.191 MIT OR Apache-2.0
+    │       ├── log v0.4.35 MIT OR Apache-2.0 (*)
+    │       ├── pathfinder_geometry v0.5.1 MIT/Apache-2.0 (*)
+    │       ├── pathfinder_simd v0.5.6 MIT OR Apache-2.0
+    │       └── walkdir v2.5.0 Unlicense/MIT (*)
+    ├── libc v0.2.191 MIT OR Apache-2.0
+    └── portable-pty v0.9.0 MIT
+        ├── anyhow v1.0.104 MIT OR Apache-2.0
+        ├── downcast-rs v1.2.1 MIT/Apache-2.0
+        ├── filedescriptor v0.8.3 MIT
+        │   ├── libc v0.2.191 MIT OR Apache-2.0
+        │   └── thiserror v1.0.69 MIT OR Apache-2.0 (*)
+        ├── libc v0.2.191 MIT OR Apache-2.0
+        ├── log v0.4.35 MIT OR Apache-2.0 (*)
+        ├── nix v0.28.0 MIT
+        │   ├── bitflags v2.13.2 MIT OR Apache-2.0
+        │   ├── cfg-if v1.0.5 MIT OR Apache-2.0
+        │   └── libc v0.2.191 MIT OR Apache-2.0
+        ├── serial2 v0.2.39 BSD-2-Clause OR Apache-2.0
+        │   ├── cfg-if v1.0.5 MIT OR Apache-2.0
+        │   └── libc v0.2.191 MIT OR Apache-2.0
+        └── shell-words v1.1.1 MIT/Apache-2.0
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

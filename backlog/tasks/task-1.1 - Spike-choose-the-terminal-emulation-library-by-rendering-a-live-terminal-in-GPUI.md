@@ -742,6 +742,22 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alac
 - bytes fed over the channel: 25
 - so the shape works for ghostty-vt: the emulator is created on the thread that owns it, and callers send messages (no Arc<Mutex<_>> across tasks)
 ```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghostty window 6'` exited 0 at 2026-11-14T05:11:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## ghostty-vt (0.8.0 bindings (Apache-2.0) over ghostty 1.4.0-main+83fb956 (MIT), built with zig 0.17.1)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### a live shell, closing itself after 6s
+
+| ➜  ~
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

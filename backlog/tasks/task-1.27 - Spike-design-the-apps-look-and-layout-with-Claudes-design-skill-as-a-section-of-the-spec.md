@@ -106,6 +106,8 @@ One thing to verify rather than assume in step 3: the justfile sets `set shell :
 
 <!-- SECTION:NOTES:BEGIN -->
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Plan checked against doc-1 by @bruk.o: consistent with R20, R21, R23 to R27 and R50 as far as it goes, and held, not ok to approve yet. It rests on three questions only Bruk can answer, which the worker put on the task as a comment: whether 'a part of the spec' means the app's visual design, whether steg follows bh-01 or has a look of its own, and whether a hand-written HTML page is the design he wants or the canvas Design artifact, which a worker cannot publish. The plan's own proof is sound: named values in one tokens file, a contrast check that fails on a bad pair, and the design section generated from the tokens. Two criteria cannot be closed by a worker: the design being made with Claude's design skill, and Bruk's recorded acceptance.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

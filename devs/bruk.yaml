@@ -2,5 +2,5 @@
 name: bruk
 prefer: []
 avoid: []
-workers: 3
+workers: 6
 review: true

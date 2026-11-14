@@ -158,6 +158,8 @@ Left unsettled for the engineer
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
 
 Plan checked against doc-1 by @bruk.o: ok, with one point for phase 2. It delivers R58, R59 and R61 and each of the eleven acceptance criteria has a proof, including refusal probes for the licence and boundary checks and a real-workspace proof of the test selection. It builds only the frame and leaves the emulation library, wire protocol, API format and command names open. For phase 2: unwrap_used set to deny also fires in tests, and .claude/rules/rust.md allows unwrap there, so the workspace needs clippy's allow-unwrap-in-tests setting or the equivalent; confirm the setting's name against the installed clippy. Put to Bruk with the plan: the boundary check's mechanism (a crate-name deny list, or an allow-table of each crate's dependencies checked in tools/), just run left out of the quiet wrapper, and a fifth crate for the single binary.
+
+Revised plan checked against doc-1 by @bruk.o: ok. The kernel boundary is now an allow list in boundaries.toml, checked by steg-boundaries in tools/ on the dependency edges cargo metadata reports, run from just check, with unit tests and a refusal probe; an unknown crate name in the table is itself a finding, so a typo cannot switch the check off. cargo deny is licences only. unwrap in tests is handled through clippy.toml. The other named decisions stand. This matches Bruk's decision of 2026-11-13.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

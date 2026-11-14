@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T02:42:00Z'
+updated_date: '2026-11-14T02:43:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -456,4 +456,12 @@ is read changes.
 
 <!-- SECTION:NOTES:BEGIN -->
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Facts verified by @bruk.w4 while planning (2026-11-13/14), so the builder does not rediscover them:
+
+- Crate versions and licences read from the crates.io API while planning: tokio 1.54.1 (MIT), tokio-util 0.7.20 (MIT, the `codec` feature holds LengthDelimitedCodec), serde 1.0.229 and serde_json 1.0.154 (MIT OR Apache-2.0), base64 0.23.1 (MIT OR Apache-2.0), rmp-serde 1.3.1 (MIT, only if MessagePack is weighed), portable-pty 0.9.0 (MIT, the same pty crate TASK-1.1 chose), alacritty_terminal 0.26.0 (Apache-2.0). All permissive; none GPL or AGPL (R59). The licence inventory at build time is still `cargo tree -e normal --format "{p} {l}"` read by hand, because cargo-deny is not installed and there is no root workspace yet.
+- The server holds the emulator in every candidate, and this spike does not get to choose otherwise: R15 keeps 10,000 lines of scrollback on the server, `pane capture` (doc-2 section 8) renders a pane's screen and scrollback as text with no client attached, a Python plugin on the public API (R42, R75) cannot replay VT bytes, and .claude/rules/architecture.md:11 says a client never keeps a copy it treats as the truth. So the open question is what the server puts on the wire, not who emulates. This reading is @bruk.w4's and is in the plan for the engineer to check.
+- doc-2 section 8 has `event watch` streaming one record per line and `pane capture` returning text, so the control protocol has to carry server-initiated messages and a long-lived subscription on the same connection as requests. That is a framing requirement, not a server detail.
+- `just check` in this worktree skips every Rust step while there is no root Cargo.toml (justfile:12 gates them on `path_exists("Cargo.toml")`). This task must not create one: `just deny` would then run with no deny.toml and fail. TASK-1.5 owns the root manifest.
+- The spike's tests run with `cargo test --manifest-path`, a stated departure from .claude/rules/testing-rust.md:15, for the same reason TASK-1.3 recorded: the crate is deliberately outside the workspace, and a justfile recipe would collide with TASK-1.5 and make steg-affected select every crate. Every run is recorded through `asdlc record-check`.
 <!-- SECTION:NOTES:END -->

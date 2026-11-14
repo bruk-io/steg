@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:01:00Z'
+updated_date: '2026-11-14T01:07:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -29,6 +29,231 @@ Design decision 3 in the spec. One source has to yield the server's methods, the
 <!-- AC:BEGIN -->
 - [ ] #1 A board document records the format, with one method carried end to end: defined once, served, self-described, and callable from a generated CLI command
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## What this spike decides, and what it must not
+
+Decides: where the one definition of steg's API lives, in what format, and how each
+consumer gets it, so that the server's methods (TASK-1.10), the self-description a
+client asks for (R37), the CLI's commands (R32, TASK-1.13) and the reference docs (R62)
+all come from that one place. `.claude/rules/architecture.md` line 13 is the bar: a
+method written by hand in the CLI, or documented by hand, is a second definition.
+
+Must not decide, and the format has to leave room for all three:
+
+- Framing and how terminal output reaches a client (TASK-1.2). The spike needs a
+  transport to carry one call, so it uses newline-delimited JSON over a Unix socket and
+  the document marks it a stand-in, not a choice. What the spike does fix is that the
+  **payload** of the self-description, the JSON a client reads, is the contract; the
+  Rust-side definition is an implementation detail behind it. Plugins are separate
+  Python processes on the public API (R42, R75), so the payload is what they see.
+- Command names, flags, context variables and exit statuses (TASK-1.4, Bruk's to
+  decide). The document says instead **where** those names live: whether the format
+  carries a naming slot per method and per parameter that TASK-1.4 fills, or the
+  generator applies a mechanical transform (dots to subcommands, snake_case to
+  kebab-case) that TASK-1.4 overrides. TASK-1.13's criterion 1, a test that fails when
+  the API has a method the CLI does not expose, cannot be written until that is pinned.
+- A Python client library (a later release, design decision 5 in the spec). The format
+  has to be consumable from outside Rust with no Rust-side knowledge; the spike proves
+  that with a script, not a library.
+
+## The two axes, and the candidates
+
+The decision has two independent axes:
+
+1. Where the single definition lives: in the Rust source, or in a schema file the Rust
+   is generated from.
+2. When a client learns the API: at build time (generated code) or at run time (the
+   server's self-description, which is how Rex's CLI and scripting API work, through its
+   `help.all` method).
+
+Two candidates are built, sharing one definition so the comparison isolates axis 2:
+
+- **A. Definition in Rust, CLI generated at build time.** One definition in Rust yields
+  the server's dispatch, the self-description payload, and a clap command tree compiled
+  into the binary.
+- **B. Definition in Rust, CLI built at run time** from the self-description the server
+  returns, Rex-style.
+
+One candidate is weighed on paper and not built:
+
+- **C. A schema file as the definition** (an OpenRPC document, or JSON Schema, or an IDL
+  such as Smithy or protobuf), with the Rust server and the CLI both generated from it.
+  Judged on what exists on crates.io today, with crate names, versions and the date
+  read; on whether the Rust types stay single-sourced or are a second definition in
+  practice; and on build complexity. If the paper case beats A and B, the document says
+  so and says a second round is needed rather than pretending it was tried.
+
+### The discriminator
+
+R61 ships the server and the CLI as one binary. So the test that decides axis 2 is
+narrow and mechanical, not a trade-off table: with no server running, can the CLI print
+`--help` for a command, emit shell completions, and can R62's reference docs be
+generated? Measure, for each candidate: offline `--help` (works or not), CLI start-up
+cost over repeated runs, and whether the docs step needs a running server.
+
+Second discriminator, for axis 1: how a method's and a parameter's documentation reaches
+the payload. R37 asks for the documentation and R62 generates from it, so whether Rust
+doc comments can carry it, or the text must live in a schema file, separates A and B
+from C.
+
+## Files that change
+
+In the worktree, `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3`.
+Throwaway code, committed so the reviewer can re-run it, and deleted by TASK-1.10 when
+the real thing lands; the README says so.
+
+- `spikes/api-description/Cargo.toml`: the spike crate. It carries a bare `[workspace]`
+  table, which makes it its own workspace root. TASK-1.5 adds the repository's root
+  `Cargo.toml` in parallel, and without that table cargo would refuse this crate once
+  the two branches meet. Dependencies pinned, each one's licence read by hand.
+- `spikes/api-description/Cargo.lock`: committed, so the reviewer builds the versions
+  that were measured.
+- `spikes/api-description/README.md`: what the spike answers, how to run it, that it is
+  throwaway, and who removes it.
+- `spikes/api-description/src/api.rs`: the single definition. The one method with its
+  parameters and documentation, plus one event record and one error record, so the
+  format is shown to cover events (R38, TASK-1.11) and errors (R34's exit statuses), not
+  methods alone. Only the method is carried end to end, as the acceptance criterion asks.
+- `spikes/api-description/src/description.rs`: the self-description payload built from
+  the definition: the typed structs a client reads, with serde derives.
+- `spikes/api-description/src/server.rs`: the toy server. A Unix socket, newline-delimited
+  JSON, dispatching the one method and answering the describe call. Stand-in framing.
+- `spikes/api-description/src/cli_build.rs`: candidate A, the command tree generated from
+  the definition at build time.
+- `spikes/api-description/src/cli_runtime.rs`: candidate B, the command tree built at run
+  time from the payload the server returns.
+- `spikes/api-description/src/docs.rs`: the reference page for the method rendered as
+  Markdown from the payload (R62).
+- `spikes/api-description/src/bin/spike_server.rs`, `src/bin/spike_cli_a.rs`,
+  `src/bin/spike_cli_b.rs`, `src/bin/spike_docs.rs`: the binaries the script below runs.
+- `spikes/api-description/tests/drift.rs`: the drift tests (see Proof).
+- `spikes/api-description/client.py`: a PEP 723 script that asks for the description and
+  then calls the method knowing nothing else, standing in for a plugin (R42, R75).
+- `spikes/api-description/carry-one-method`: an executable script that carries the method
+  end to end in one command and prints the measurements. This is what the acceptance
+  criterion is recorded against.
+
+Not touched, deliberately: the repository's root `Cargo.toml` and `Cargo.lock` (TASK-1.5
+owns them), the `justfile` (TASK-1.5 is editing it, and `steg-affected` treats it as a
+file that affects every crate), `tools/`, and `.gitignore` (its bare `target/` already
+matches at any depth).
+
+Board artefacts, created with `asdlc` from the tasks clone and so not in this branch's
+diff:
+
+- A new document from `asdlc board doc create`, type `specification`: the deliverable.
+  Linked to the task with `asdlc board task edit TASK-1.3 --add-doc <doc-id>`.
+- The task's notes: what was measured, and the departures named under Risks.
+
+No `asdlc board decision` record: the answer is a format TASK-1.10 builds from, so it
+belongs in one document a builder reads, not split across two. Say so if you want an ADR
+beside it.
+
+## The method carried end to end
+
+`pane.split`, chosen by what it has to exercise rather than by name: a target parameter
+whose resolution follows R10 (full ID, label, position or ID suffix), a closed set as an
+enum (the split's direction), two optional parameters (the command to run, the working
+directory), a typed return (the new pane's ID, a type of its own, not a bare string, per
+`.claude/rules/rust.md`), documentation on the method and on each parameter, and one
+documented error (an ambiguous target, which R10 says is an error and never a guess).
+
+End to end means, in one run: defined once, served by the toy server, returned by the
+describe call, called through candidate A's generated command, called through candidate
+B's generated command, called from `client.py` using only the description, and rendered
+as a Markdown reference page.
+
+## What the document must record
+
+1. The decision: where the definition lives, in what format, and how each of the four
+   consumers gets it.
+2. The format itself, in enough detail for TASK-1.10 to build it: what a method record
+   holds (name, summary, parameters with type, optionality and documentation, return
+   type, the errors it can return), what an event record holds, and how the API's
+   version is carried for R39.
+3. The measurements from the discriminator above, per candidate.
+4. Candidate C weighed, with the crates and versions read and the date.
+5. The licence of every dependency the chosen approach needs (R59: MIT, nothing GPL or
+   AGPL). `cargo deny check licenses` cannot see this crate, since it is outside the
+   workspace and `just deny` skips it while there is no root manifest, so each licence
+   field is read by hand and listed, as TASK-1.1's criterion 3 does.
+6. The three lines left to others: the stand-in framing (TASK-1.2), where CLI names live
+   (TASK-1.4), and the shape of TASK-1.13's no-drift test.
+
+## Order of work
+
+1. Record `just check` as the starting point, before anything changes.
+2. Create the spike crate: manifest with the bare `[workspace]` table, README, and a
+   build that compiles. Confirm `just affected` still answers `none` for a change under
+   `spikes/`, so this branch does not change what the repository's checks run.
+3. Write the definition in `api.rs` (method, event, error) and the payload in
+   `description.rs`.
+4. The toy server: dispatch the method, answer the describe call.
+5. Candidate A: the build-time command tree, with `--help` working with no server.
+6. Candidate B: the run-time command tree from the payload.
+7. `client.py` and `docs.rs`, both from the payload alone.
+8. The drift tests.
+9. The `carry-one-method` script, and take the measurements.
+10. Weigh candidate C; read each named crate's licence.
+11. Write the document, link it to the task, and write the notes.
+
+Steps 3 to 7 are the throwaway core; if step 5 or 6 proves far harder than the other,
+that asymmetry is itself the finding and goes in the document.
+
+## Risks
+
+- **Collision with TASK-1.5**, which creates the Rust workspace in another worktree on
+  the same repository. Handled by touching no root file and by the bare `[workspace]`
+  table in the spike's manifest. Both check commands are run again after the default
+  branch is merged at finish, which is when the collision would show.
+- **A proc macro eats the whole spike.** The pattern can be proved without one: a
+  `macro_rules!` table, or a plain table of method records beside a serde-derived
+  parameter struct, is enough to show one definition yielding four consumers. The
+  document says what a production macro would add. Timebox: if the spike needs a proc
+  macro to answer the question, stop and say so rather than build one.
+- **Candidate C's tooling may be too immature to judge from documentation alone.** Then
+  the document says the evidence is thin and what a second round would cost, rather than
+  rejecting it on a guess.
+- **The honest answer may be a hybrid** (one definition in Rust, served at run time for
+  R37 and plugins, generated at build time for the CLI and the docs). That is one
+  decision with one artefact, and the document must show it as one source, not two.
+- **Over-reach into TASK-1.4.** Mitigated by recording where names live rather than what
+  they are, and by the carried command using the mechanical transform under protest, with
+  the transform named as a placeholder in the document.
+- **A departure from `.claude/rules/testing-rust.md`**, which says to run tests with
+  `just test` and never `cargo test` directly. That rule governs workspace crates under
+  `just`'s control; this crate is outside the workspace on purpose, and adding a justfile
+  recipe would both collide with TASK-1.5 and make `steg-affected` select every crate.
+  The spike's tests are run with `cargo test --manifest-path`, recorded on the task so
+  the evidence still comes from the toolchain. Noted in the task's notes.
+
+## Proof
+
+Each recorded with `asdlc record-check TASK-1.3 --in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 --as bruk.w2 -- <command>`:
+
+- `just check` at step 1 and again at finish: the repository's own bar, unchanged by this
+  branch. Expect the Rust steps to skip while there is no workspace, the tools' tests to
+  pass, and `just test` to print its skip line because `spikes/` owns no crate.
+- `cargo test --manifest-path spikes/api-description/Cargo.toml`: the spike's tests. The
+  load-bearing ones are the drift tests, not the happy path:
+  - adding a parameter to the definition in `api.rs` changes what the server accepts,
+    what the describe call returns, both CLIs' help and the generated Markdown, with no
+    hand-written line edited anywhere. The test asserts the parameter appears in each of
+    the four outputs, so deleting the generation makes it fail.
+  - a method present in the definition with no command in the generated CLI fails the
+    test. This is the shape TASK-1.13's criterion 1 inherits.
+- `spikes/api-description/carry-one-method`: acceptance criterion 1 in one command.
+  Defines `pane.split` once, starts the toy server, prints the describe call's payload,
+  calls the method through candidate A's command and through candidate B's command, calls
+  it from `client.py`, renders the Markdown page, and prints the measurements: offline
+  `--help` for each candidate, and start-up cost over repeated runs.
+- The document exists, is linked to the task, and records all six items under "What the
+  document must record". That, with the recorded script output it quotes, is what the
+  acceptance criterion is judged on.
+<!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 

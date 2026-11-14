@@ -345,6 +345,16 @@ What the review should look at first: C's two corrections to doc-2 section 10, s
 Three departures from the plan, all small. The flags the plan expected to find undefined in doc-2 section 5 (--by, --with, --all) were defined by the orchestrator before the check ran, so that finding shrank to --no-zoomed and, at M2, --colour. The new document's type is "other" rather than "specification", so it cannot read as a rival to doc-2. The consistency script's first attempt mis-read section 3's three tables as one and reported every command as having an unknown verb; it was fixed to split the section by its subheadings, and the output in doc-3's appendix is from the fixed script, which anyone can re-run.
 
 Rex's documentation was read on 2026-11-14 from reference/cli.md, automate/cli.md, reference/events.md and reference/api.md under https://www.superlogical.com/rex/docs/. Its install pages are behind a Discord login; none of those four is, so every row in part C rests on text anyone can read. No Rex name was copied into steg: doc-1 section 7 answers intent question 5 with steg's own names.
+
+Check passed: `just check` exited 0 at 2026-11-14T04:07:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.4 on task-1.4-spike-propose-the-cli-design-for-bruk-to at 1333252480ed:
+
+```text
+skip    format check: no Rust workspace yet
+skip    lint: no Rust workspace yet
+skip    licences: no Rust workspace yet
+skip    tests: no Rust workspace yet
+ok      tool tests (0.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -278,4 +278,6 @@ Two consequences for the deliverable:
 
 <!-- SECTION:NOTES:BEGIN -->
 Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no code to read layers or verify commands from. TASK-1.24 onboards it once the workspace exists. The repository's own rules are in .claude/rules/ and its commands are in the justfile.
+
+Plan checked against doc-1 by @bruk.o: ok. It serves R32, R36, R37 and R62, leaves framing to TASK-1.2 and command names to TASK-1.4 (the mechanical name transform is a flagged placeholder), keeps its throwaway code under spikes/ in its own workspace root so it cannot collide with TASK-1.5, and its proof covers the acceptance criterion with drift tests. Two points put to Bruk with the plan: where CLI names live borders TASK-1.4, and the schema-file option is weighed on paper only. The plan is large for size-2; the worker's timebox on a proc macro is the control.
 <!-- SECTION:NOTES:END -->

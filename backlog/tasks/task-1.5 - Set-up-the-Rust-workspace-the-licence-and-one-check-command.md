@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:04:00Z'
+updated_date: '2026-11-14T04:05:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -183,6 +183,17 @@ ok      boundaries (0.1s)
 ok      licences (0.6s)
 ok      tests (every crate) (0.3s)
 ok      tool tests (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-14T04:05:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.5 on task-1.5-set-up-the-rust-workspace-the-licence at cf41d5111a01:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

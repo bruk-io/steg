@@ -4,7 +4,7 @@ title: 'App: light and dark, and the default dark look'
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:59:00Z'
+updated_date: '2026-11-14T03:57:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -28,3 +28,9 @@ R24: the app follows the system's light and dark setting and can be pinned to ei
 - [ ] #1 Changing the system setting changes the app, and pinning holds it (R24)
 - [ ] #2 Bruk has seen the default dark look and accepted it (R25)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-1.27's worker, relayed by @bruk.o: a design canvas renders blur, materials and shadow stacks that GPUI cannot draw, so check the look in real GPUI. A gpui-app plugin in Bruk's plugin cache has a gpui-dev-loop skill and a gpuictl shot harness that screenshots a running GPUI app; it is not enabled for workers by default, so ask @bruk.o if it is needed.
+<!-- SECTION:NOTES:END -->

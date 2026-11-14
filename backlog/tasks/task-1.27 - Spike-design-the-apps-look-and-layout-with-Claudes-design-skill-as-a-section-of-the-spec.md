@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
-updated_date: '2026-11-14T03:55:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -109,6 +109,8 @@ Onboarding skipped by @bruk.o: bruk-io-steg has no repository plugin yet and no 
 Plan checked against doc-1 by @bruk.o: consistent with R20, R21, R23 to R27 and R50 as far as it goes, and held, not ok to approve yet. It rests on three questions only Bruk can answer, which the worker put on the task as a comment: whether 'a part of the spec' means the app's visual design, whether steg follows bh-01 or has a look of its own, and whether a hand-written HTML page is the design he wants or the canvas Design artifact, which a worker cannot publish. The plan's own proof is sound: named values in one tokens file, a contrast check that fails on a bad pair, and the design section generated from the tokens. Two criteria cannot be closed by a worker: the design being made with Claude's design skill, and Bruk's recorded acceptance.
 
 Plan revised by @bruk.w6 after Bruk's answers, 2026-11-13, and rewritten as one text (plan 29831ed076eb, not yet approved). What changed from the first version: the three open questions are gone, settled; the hand-written HTML mock (`design/look/index.html`) is dropped, because the design is a Design artifact @bruk.o makes and publishes; this worker's part is now a transcription of the artifact's values into `design/tokens.json` plus the contrast check, the README, the board document and the requirement-by-requirement check. The files moved from `design/look/` to `design/`. Phase 2 cannot start before @bruk.o hands over the artifact's values and URL: the plan lists, requirement by requirement, what that handover must carry, and a missing value is reported back rather than invented. A gated contrast failure also goes back to @bruk.o so the artifact changes, so the file and the artifact cannot drift.
+
+Revised plan (digest 29831ed076eb) checked against doc-1 by @bruk.o: ok. It builds only its own part (the tokens file, the contrast check, the design document), transcribes values from the Design artifact and invents none, and its proof covers AC#3; AC#1, AC#2 and AC#4 rest on the artifact and on Bruk. @bruk.o owes the handover after Bruk has reacted to the artifact, and it must add what the artifact does not yet show: the two terminal themes with 16 ANSI colours, the focus ring, the palette's empty state, the ligature default and the tab maximum width.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

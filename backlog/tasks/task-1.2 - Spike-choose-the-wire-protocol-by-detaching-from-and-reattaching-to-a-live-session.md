@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:16:00Z'
+updated_date: '2026-11-14T05:23:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -25,8 +26,10 @@ asdlc_branch: task-1.2-spike-choose-the-wire-protocol-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4dfe21538510'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1446,6 +1449,27 @@ created: 2026-11-14T05:16:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.2: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-14T05:23:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+No Important findings. Verified: all four axes (framing, control shape, topology, data representation) measured as the plan required; the decision rule's five gates and two thresholds each proved by a run (re-checked gate 1/2, the version refusals, and AC #2's reattach-demo); the attach/output ordering fix and the back-pressure (resync vs. scrollback-free resync) policy in attach.rs/term.rs match what doc-5 section 3/6 claims; the 100 MB flood numbers and the blocking-overflow result (32.0s vs 2.5s, 29.3s blocked) correctly support ruling out "block" against R19; AC #1's hybrid is honestly left for Bruk per the plan's own instruction; SSH-channel and handshake-timeout gaps are disclosed, not hidden; diffstat confirms the spike touches only spikes/task-1.2-wire-protocol/, no root file.
+
+[Evidence, Nit] Of ~15 recorded checks, only `just check` and `cargo test --manifest-path .../probe-wire` ran against the final committed tree (82a0598); reattach-demo (x3), gates (x2) and measure (x7) were all recorded while the deliverable was still uncommitted at e54403d. I independently re-ran `reattach-demo --mode screen` (the recommended candidate, AC #2) against the actual committed worktree and it passed identically (byte-for-byte match, gap intact, R7 case intact), so the evidence holds, but future tasks should record the measurement scripts' checks after the final commit, not before it.
+
+[Bugs, Nit] `probe-server/src/attach.rs` write_loop increments the `wire_frames` counter once per poll-loop iteration rather than once per frame actually written, so `server.stats`'s own frame count undercounts (e.g. the bytes-mode 100MB flood reported wire_frames=1175 while the client itself read thousands of frames). Doesn't affect doc-5, which quotes `wire_bytes` (correctly accumulated), not `wire_frames`.
+
+[Bugs, Nit] `measure --overflow block`'s step 5 prints a raw "FAIL ... differ first at line 1" for the expected mismatch (the slow client's fixed 30s duration is shorter than the 32s the blocking flood takes to drain), even though the script's own preceding lines explain this exact case is not a fault. Exit code is correctly 0. A clearer label than "FAIL" would stop a reader skimming raw check output from mistaking this for a real regression.
+
+--plan-matched is no per the flag's literal definition (any departure counts even when explained): the worker added `gates` and probe-client's capture/verify subcommands beyond the plan's file list, and measured a third data-representation variant (screen, scrollback-on-request) beyond the two the plan named. All three are disclosed in the task's "Departures from the approved plan" with reasons, so none of them is itself a finding.
 
 ---
 <!-- COMMENTS:END -->

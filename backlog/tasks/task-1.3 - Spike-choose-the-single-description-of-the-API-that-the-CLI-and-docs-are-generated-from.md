@@ -353,6 +353,51 @@ Check passed: `cargo clippy --manifest-path spikes/api-description/Cargo.toml --
     Checking steg-spike-api-description v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3/spikes/api-description)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.39s
 ```
+
+Check passed: `spikes/api-description/carry-one-method` exited 0 at 2026-11-14T04:11:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 17e1d355fc71 with uncommitted changes, last 40 of 467 lines:
+
+````text
+      "lowest_ms": 4.33,
+      "median_ms": 6.93,
+      "p95_ms": 12.31
+    },
+    "candidate_b": {
+      "lowest_ms": 6.33,
+      "median_ms": 8.32,
+      "p95_ms": 12.7
+    }
+  },
+  "version": {
+    "candidate_a": {
+      "lowest_ms": 4.17,
+      "median_ms": 7.77,
+      "p95_ms": 13.13
+    },
+    "candidate_b": {
+      "exit_status": 4,
+      "lowest_ms": 3.81,
+      "median_ms": 6.24,
+      "p95_ms": 10.64
+    }
+  },
+  "a_call_against_a_live_server": {
+    "candidate_a": {
+      "lowest_ms": 4.29,
+      "median_ms": 6.35,
+      "p95_ms": 9.67
+    },
+    "candidate_b": {
+      "lowest_ms": 5.36,
+      "median_ms": 9.46,
+      "p95_ms": 16.23
+    }
+  }
+}
+
+=== done
+one method, defined once, served, self-described, called from two generated CLIs,
+called from Python, and documented.
+````
 <!-- SECTION:NOTES:END -->
 
 ## Comments

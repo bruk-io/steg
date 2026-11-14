@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:12:00Z'
+updated_date: '2026-11-14T01:54:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -312,4 +312,6 @@ Facts verified by @bruk.w1 while planning (2026-11-13), so the builder does not 
 - `just check` in this worktree currently skips every Rust step, because `justfile:12` gates them on a root `Cargo.toml` that this task must not create.
 
 Plan checked against doc-1 by @bruk.o: ok. It serves R14, R19 and R59 and answers intent question 3; the decision rule is fixed before any measurement (licence and thread ownership are gates, R19 is a threshold, then the work each library leaves steg decides); throwaway code stays under spikes/ in its own workspace root, clear of TASK-1.5; nothing is taken from Zed's GPL terminal crates; its proof covers all three acceptance criteria. Put to Bruk with the plan: what acceptance criterion 1 means if the libghostty build cannot be made to work here, and that the plan grew (the R14 matrix, the two-pane flood, the architecture-fit step) while staying size-3.
+
+Decided by Bruk on 2026-11-13, in answer to the worker's question on acceptance criterion 1: if the libghostty-vt candidate cannot be built on this machine after a real attempt, the spike may report that it could not be measured and why, with what was tried. A build that fragile is itself part of the answer. The criterion's wording is unchanged; read it with this. Recorded by @bruk.o.
 <!-- SECTION:NOTES:END -->

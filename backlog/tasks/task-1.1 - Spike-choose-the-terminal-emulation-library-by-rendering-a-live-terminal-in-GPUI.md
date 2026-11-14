@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:11:00Z'
+updated_date: '2026-11-14T05:12:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -757,6 +757,51 @@ Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-ghos
 ### a live shell, closing itself after 6s
 
 | ➜  ~
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty program /usr/bin/vim && spikes/task-1.1-terminal-library/target/release/probe-ghostty program /usr/bin/vim'` exited 0 at 2026-11-14T05:12:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes, last 40 of 92 lines:
+
+```text
+- build: release, opt-level 3, thin LTO
+
+### /usr/bin/vim on a pseudo-terminal
+
+4437 bytes of output, 120x32 screen
+
+| 
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~                                                  VIM - Vi IMproved
+| ~
+| ~                                                   version 9.1.1752
+| ~                                               by Bram Moolenaar et al.
+| ~                                     Vim is open source and freely distributable
+| ~
+| ~                                            Help poor children in Uganda!
+| ~                                    type  :help iccf<Enter>       for information
+| ~
+| ~                                    type  :q<Enter>               to exit
+| ~                                    type  :help<Enter>  or  <F1>  for on-line help
+| ~                                    type  :help version9<Enter>   for version info
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| ~
+| 
+
+cursor at column 0, row 0
 ```
 <!-- SECTION:NOTES:END -->
 

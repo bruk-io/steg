@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# TASK-1.2's gates, each proved by a run rather than by an assertion. A candidate that fails any
+# of these is out whatever its speed, and the rule was written into the plan before any of this
+# existed.
+#
+#   gate 1  usable from outside Rust (R42, R75): a dependency-free Python client, with no
+#           emulator, holds the same screen as the server
+#   gate 2  survives a byte stream it does not control (R5 now, R55 over SSH later): the same
+#           client over a pipe pair through a relay process, and over ssh to this machine when
+#           one is available
+#   AC #3   the handshake: a mismatched version is answered with a message naming both versions,
+#           and a first frame the server cannot read is answered rather than hung on
+#
+# Usage: ./gates [--framing length|ndjson]
+set -euo pipefail
+
+framing=length
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --framing) framing="$2"; shift 2 ;;
+        *) echo "gates: unknown argument $1" >&2; exit 2 ;;
+    esac
+done
+
+here="$(cd "$(dirname "$0")" && pwd)"
+cargo build --release --quiet --manifest-path "$here/Cargo.toml"
+server="$here/target/release/probe-server"
+client="$here/target/release/probe-client"
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/steg-gates.XXXXXX")"
+socket="$work/socket"
+server_pid=""
+cleanup() {
+    if [ -n "$server_pid" ]; then
+        kill -9 "$server_pid" 2>/dev/null || true
+        wait "$server_pid" 2>/dev/null || true
+    fi
+    rm -rf "$work"
+}
+trap cleanup EXIT
+
+verdict=0
+fail() { echo "FAIL  $1"; verdict=1; }
+
+echo "== gates: framing=$framing"
+uname -sr
+"$server" --socket "$socket" --framing "$framing" > "$work/server.log" 2>&1 &
+server_pid=$!
+for _ in $(seq 1 100); do [ -S "$socket" ] && break; sleep 0.05; done
+[ -S "$socket" ] || { echo "the server never opened its socket" >&2; exit 1; }
+
+call() { "$client" call --socket "$socket" --framing "$framing" "$@"; }
+
+echo "-- the socket is the owning user's only (R5), and there is no network port"
+ls -l "$socket" | sed 's/^/   /'
+echo "   the server's open sockets:"
+lsof -a -p "$server_pid" -i -U 2>/dev/null | sed 's/^/   /' || echo "   lsof is not available here"
+
+echo "-- gate 1: Python, no Rust, no emulator"
+if [ "$framing" = length ]; then
+    if python3 "$here/client.py" --socket "$socket" --program "$client" --lines 3000 --seconds 2; then
+        echo "   gate 1 passed"
+    else
+        fail "the Python client could not hold the same screen as the server"
+    fi
+else
+    echo "   skipped: client.py implements the length framing only, which is the candidate"
+    call pane.open "{\"program\":\"$client\",\"args\":[\"emit\",\"--lines\",\"3000\",\"--interval-us\",\"400\"],\"cols\":80,\"rows\":24}" > /dev/null
+fi
+
+echo "-- gate 2: the protocol over a pipe pair through a relay it does not control"
+relay="$client proxy --socket $socket"
+if "$client" call --via "$relay" --framing "$framing" describe > "$work/via.json" 2>"$work/via.err"; then
+    head -c 120 "$work/via.json" | sed 's/^/   /'; echo
+    echo "   a control call travelled over two pipes and a process in the middle"
+else
+    sed 's/^/   /' "$work/via.err"
+    fail "a control call over a pipe pair did not work"
+fi
+if "$client" attach --via "$relay" --framing "$framing" --pane 1 --mode deltas \
+        --duration-ms 1500 --dump "$work/via.txt" > "$work/via-attach.log" 2>&1; then
+    sed -n 's/^\(ready\|done\)/   &/p' "$work/via-attach.log"
+    if [ -s "$work/via.txt" ]; then
+        echo "   and so did a whole attachment, snapshot and updates"
+    else
+        fail "the attachment over a pipe pair produced nothing"
+    fi
+else
+    sed 's/^/   /' "$work/via-attach.log"
+    fail "an attachment over a pipe pair did not work"
+fi
+
+echo "-- gate 2, over SSH to this machine, when one answers"
+if ssh -o BatchMode=yes -o ConnectTimeout=3 localhost true 2>"$work/ssh.err"; then
+    if "$client" call --via "ssh -o BatchMode=yes localhost $client proxy --socket $socket" \
+            --framing "$framing" pane.list > "$work/ssh.json" 2>"$work/ssh-call.err"; then
+        head -c 120 "$work/ssh.json" | sed 's/^/   /'; echo
+        echo "   the protocol travelled over a real SSH channel (R55's shape)"
+    else
+        sed 's/^/   /' "$work/ssh-call.err"
+        fail "the protocol did not survive an SSH channel"
+    fi
+else
+    echo "   not tested: ssh to localhost is not available here"
+    sed 's/^/   /' "$work/ssh.err" || true
+    echo "   the pipe-pair run above is the evidence for R55's shape instead"
+fi
+
+echo "-- AC #3: a mismatched protocol version"
+for version in 2 0; do
+    if "$client" call --socket "$socket" --framing "$framing" --protocol "$version" describe \
+            > "$work/v$version.out" 2>"$work/v$version.err"; then
+        fail "a client claiming protocol $version was accepted"
+    else
+        message="$(tail -1 "$work/v$version.err")"
+        echo "   client $version: $message"
+        case "$message" in
+            *"version $version"*) : ;;
+            *) fail "the refusal for protocol $version does not name the client's version" ;;
+        esac
+        case "$message" in
+            *"version 1"*) : ;;
+            *) fail "the refusal for protocol $version does not name the server's version" ;;
+        esac
+    fi
+done
+
+echo "-- AC #3: a first frame the server cannot read"
+for what in not-json wrong-magic not-hello huge; do
+    if "$client" bad-hello --socket "$socket" --framing "$framing" --what "$what" \
+            > "$work/bad-$what.log" 2>&1; then
+        sed 's/^/   /' "$work/bad-$what.log"
+    else
+        sed 's/^/   /' "$work/bad-$what.log"
+        fail "the server mishandled a $what first frame"
+    fi
+done
+echo "-- a finding, not a gate: a client speaking the other framing"
+"$client" bad-hello --socket "$socket" --framing "$framing" --what wrong-framing \
+    > "$work/bad-framing.log" 2>&1 || true
+sed 's/^/   /' "$work/bad-framing.log"
+echo "   whichever way that goes, the handshake needs a timeout of its own: TASK-1.9's to add"
+
+echo "-- and the server is still serving after all of that"
+if call server.stats > "$work/stats.json" 2>&1; then
+    head -c 200 "$work/stats.json" | sed 's/^/   /'; echo
+else
+    fail "the server stopped serving after a malformed hello"
+fi
+
+if [ "$verdict" -eq 0 ]; then
+    echo "PASS  every gate"
+else
+    echo "FAIL  at least one gate"
+fi
+call server.shutdown > /dev/null 2>&1 || true
+exit "$verdict"

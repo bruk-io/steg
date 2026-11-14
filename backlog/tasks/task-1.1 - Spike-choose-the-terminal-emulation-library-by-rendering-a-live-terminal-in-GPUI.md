@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:07:00Z'
+updated_date: '2026-11-14T05:08:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -594,6 +594,44 @@ fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-10485
 - within R19's 16 ms, to the next frame: 125 of 299 (41.8%)
 
 - the typing run took 26.8s; the flooding pane had finished by then
+```
+
+Check passed: `sh -c 'spikes/task-1.1-terminal-library/target/release/probe-alacritty flood-ui 100 300'` exited 0 at 2026-11-14T05:08:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at f5ccc602052e with uncommitted changes:
+
+```text
+## alacritty_terminal (0.26.0, Apache-2.0, pure Rust)
+
+- machine: macOS 27.0.1, Apple M3 Ultra, 28 cores
+- display: UI Looks like: 3840 x 1080 @ 120.00Hz
+- rustc: rustc 1.98.1 (48a229cea 2026-09-01)
+- gpui: 0.2.2 (crates.io)
+- build: release, opt-level 3, thin LTO
+
+### typing in one pane while the other prints 100 MB
+
+fixture: /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-spike-flood-104857600.txt
+
+
+### the run, block by block
+
+| samples | wall s | paint p50 ms | paint p95 ms | frame p50 ms | frame p95 ms | dropped so far |
+|---|---|---|---|---|---|---|
+| 0..250 | 22.3 | 7.79 | 10.86 | 16.03 | 18.40 | 0 |
+| 250..300 | 4.5 | 9.60 | 10.76 | 16.65 | 18.38 | 0 |
+
+### typing while the other pane floods
+
+| stop point | samples | p50 ms | p95 ms | p99 ms | max ms |
+|---|---|---|---|---|---|
+| key to paint | 300 | 9.01 | 10.78 | 11.47 | 57.20 |
+| key to next frame | 299 | 16.40 | 18.40 | 18.79 | 64.37 |
+| interval between frames | 313 | 90.65 | 92.45 | 117.37 | 186.76 |
+
+- dropped samples (never drawn within the deadline): 0
+- within R19's 16 ms, to the next frame: 140 of 299 (46.8%)
+
+- the typing run took 26.7s; the flooding pane had finished by then
+- printing the file in the pane took 0.08s
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:59:00Z'
+updated_date: '2026-11-14T03:56:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +15,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
 asdlc_branch: task-1.5-set-up-the-rust-workspace-the-licence
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'e0acb049d09a'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -178,6 +181,15 @@ created: 2026-11-14T01:59:00Z
 ---
 
 Plan revised per @bruk.o's decision: AC#6 is now enforced by an allow list (boundaries.toml) checked by a new steg-boundaries tool in tools/ against crates_from_metadata's dependency edges, not a cargo-deny deny list. deny.toml stays licences-only. clippy.toml's allow-unwrap-in-tests = true confirmed by name against the installed clippy (0.1.98) for the unwrap_used-in-tests note. just run and the fifth steg crate stand as before.
+
+---
+
+author: @bruk
+created: 2026-11-14T03:56:00Z
+
+---
+
+Plan approved by @bruk (e0acb049d09a, size-2): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

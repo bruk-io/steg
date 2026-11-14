@@ -4,7 +4,7 @@ title: 'App: the terminal view, drawing and typing'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:05:00Z'
+updated_date: '2026-11-14T00:06:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -14,6 +14,7 @@ dependencies:
   - DRAFT-2
 parent_task_id: DRAFT-1
 type: task
+project: bruk-io-steg
 ---
 
 ## Description

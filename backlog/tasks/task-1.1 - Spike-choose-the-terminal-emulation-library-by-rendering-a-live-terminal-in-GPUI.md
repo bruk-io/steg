@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:32:00Z'
+updated_date: '2026-11-14T05:34:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -25,8 +26,10 @@ asdlc_branch: task-1.1-spike-choose-the-terminal-emulation
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b1e716d2ff94'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=4'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1235,6 +1238,27 @@ created: 2026-11-14T05:32:00Z
 ---
 
 Bruk, 2026-11-14, relayed by @bruk.o: 'the licence check needs to be a bit more lax'. So the CDLA-Permissive-2.0 refusal on the Ghostty path (doc-6 section 6) is to be cleared by widening the allow list, not by falling back to alacritty_terminal. The change itself is DRAFT-2, not part of this task.
+
+---
+
+author: @bruk.r1
+created: 2026-11-14T05:34:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 4 nit. Cites: review. The diff does not match the plan.
+
+No Important findings. Verified directly, not only read: `cargo deny check licenses` reproduces identically on the final committed tree (1739c51) for both probes (alacritty: licenses ok; ghostty: FAILED on webpki-root-certs CDLA-Permissive-2.0, a build-only dep of ghostty-vt-sys's downloader) — confirmed by building both probes myself (ZIG=0.17.1 for ghostty) and rerunning `cargo deny --config deny.toml check licenses` against the review worktree. `conformance` also reproduces exactly for both probes on the final commit (alacritty 11/0/3/0, ghostty 12/1/1/0). `git diff bfb08fa98a47 1739c51 -- **/Cargo.toml` shows the only change between the uncommitted-check commit and the final commit is `license.workspace = true` in the three probe manifests, so the code path measured is unchanged. No `deny.toml`, `justfile` or root file is touched by the diff (confirmed by `git diff --stat origin/main...HEAD`); the spike is entirely under `spikes/task-1.1-terminal-library/` in its own `[workspace]` root, exactly as the plan requires. Plan approval present ("Plan approved by @bruk (b1e716d2ff94, size-3)"). doc-6 is honest that the ghostty numbers come from a fork (`ghostty-vt` 0.8, not the task-named `libghostty-vt` 0.2.2) and states the fork/build risk plainly in section 8 and the "For the reviewer" note; the R19 rewording and the licence-widening decision are both left to Bruk, not applied unilaterally. Zig 0.17.1 was installed locally via mise with no mise.toml in the repo and nothing global changed (confirmed: no .mise.toml/mise.toml exists or is touched by the diff). No Zed source copied; adapters read the public screen/render/event API on both sides (fair comparison, matches testing-rust.md's "feed bytes in, read the screen back").
+
+[Evidence, Nit] Every measurement check (conformance/flood/latency/flood-ui/ownership/program/cargo-tree/cargo-deny) is recorded "with uncommitted changes" at f5ccc602 or bfb08fa98a47, never re-recorded cleanly on the branch's final commit 1739c51 (only `just check` is). This is the same mistake TASK-1.2 and TASK-1.3's reviews found. I independently reran the two checks that matter most (conformance, cargo-deny licenses) directly on 1739c51 in a review worktree and both reproduce exactly, so the substance holds. No new rule-change draft filed: DRAFT-1 ("Rule: re-record evidence checks on the final commit, not the uncommitted tree") already covers this exact mistake.
+
+[Evidence, Nit] doc-6 section 7 states "`alacritty_terminal::Term<VoidListener>` is Send. It compiles under an `fn assert_send<T: Send>()` probe" and that the same probe fails for ghostty with a specific `error[E0277]` message. No such probe exists anywhere in the committed code (grepped the whole spike tree) and no check recording it was ever run on the task; the only committed proof (`measure::ownership`) sidesteps Send-ness entirely by constructing the terminal inside the spawned thread, which is why it passes for both candidates. The underlying claim is plausible and consistent with a fact already recorded in the task's Implementation Notes (libghostty-vt's README: handles are `!Send + !Sync` by design), and it does not change the recommendation (section 7 calls it "a constraint on TASK-1.8, not a blocker"), but it is presented as demonstrated when it was not recorded.
+
+[Compliance, Nit] doc-6 section 6 points readers at "the recorded output of these two commands on TASK-1.1, which is where to look to check this section crate by crate," but both recorded `cargo tree` runs are truncated to "last 40 of 1137/1125 lines," so the full per-crate list the pointer promises isn't actually there to check. Not Important: the section's real conclusion rests on the `cargo deny check licenses` run over the whole tree (independently reproduced above) plus the named non-crate pieces, not on the pasted partial list.
+
+[Wording, Nit] doc-6 section 1's bolded opening sentence, "**Use ghostty's VT engine**," states the recommendation unconditionally, two paragraphs before the gate-1 licence conditional ("Ghostty passes only if the engineer widens the licence policy") is stated. A reader skimming just the headline — e.g. a TASK-1.8 worker picking a crate — could start building against ghostty before Bruk decides whether to widen `deny.toml`. Worth putting the condition in the headline sentence itself; Bruk's call, not a build error.
 
 ---
 <!-- COMMENTS:END -->

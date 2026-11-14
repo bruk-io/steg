@@ -1,19 +1,20 @@
 ---
-id: DRAFT-21
+id: TASK-1.20
 title: 'App: light and dark, and the default dark look'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:16:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
-  - DRAFT-16
-  - DRAFT-28
-parent_task_id: DRAFT-1
+  - TASK-1.15
+  - TASK-1.27
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-21
 ---
 
 ## Description

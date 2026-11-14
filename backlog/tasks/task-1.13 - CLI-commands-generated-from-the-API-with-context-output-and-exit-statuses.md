@@ -1,19 +1,20 @@
 ---
-id: DRAFT-14
+id: TASK-1.13
 title: 'CLI: commands generated from the API, with context, output and exit statuses'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:05:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-11
-  - DRAFT-5
-parent_task_id: DRAFT-1
+  - TASK-1.10
+  - TASK-1.4
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-14
 ---
 
 ## Description

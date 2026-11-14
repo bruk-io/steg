@@ -1,22 +1,23 @@
 ---
-id: DRAFT-23
+id: TASK-1.22
 title: 'First release check: a session survives the app, end to end'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-15
-  - DRAFT-18
-  - DRAFT-20
-  - DRAFT-21
-  - DRAFT-22
-parent_task_id: DRAFT-1
+  - TASK-1.14
+  - TASK-1.17
+  - TASK-1.19
+  - TASK-1.20
+  - TASK-1.21
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-23
 ---
 
 ## Description

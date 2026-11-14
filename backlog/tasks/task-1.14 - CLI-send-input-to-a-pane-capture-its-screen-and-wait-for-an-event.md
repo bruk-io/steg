@@ -1,20 +1,21 @@
 ---
-id: DRAFT-15
+id: TASK-1.14
 title: 'CLI: send input to a pane, capture its screen, and wait for an event'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-14
-  - DRAFT-12
-  - DRAFT-13
-parent_task_id: DRAFT-1
+  - TASK-1.13
+  - TASK-1.11
+  - TASK-1.12
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-15
 ---
 
 ## Description

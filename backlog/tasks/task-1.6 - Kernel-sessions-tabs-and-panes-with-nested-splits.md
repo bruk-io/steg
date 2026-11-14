@@ -1,18 +1,19 @@
 ---
-id: DRAFT-7
+id: TASK-1.6
 title: 'Kernel: sessions, tabs and panes with nested splits'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-5
 milestone: m-0
 dependencies:
-  - DRAFT-6
-parent_task_id: DRAFT-1
+  - TASK-1.5
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-7
 ---
 
 ## Description

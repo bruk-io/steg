@@ -1,19 +1,20 @@
 ---
-id: DRAFT-12
+id: TASK-1.11
 title: 'Server: events that clients subscribe to'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:05:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-11
-  - DRAFT-9
-parent_task_id: DRAFT-1
+  - TASK-1.10
+  - TASK-1.8
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-12
 ---
 
 ## Description

@@ -1,20 +1,21 @@
 ---
-id: DRAFT-8
+id: TASK-1.7
 title: >-
   Kernel: resolve a session, tab or pane from an ID, label, position or ID
   suffix
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-7
-parent_task_id: DRAFT-1
+  - TASK-1.6
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-8
 ---
 
 ## Description

@@ -1,18 +1,19 @@
 ---
-id: DRAFT-18
+id: TASK-1.17
 title: 'App: select, copy, paste, find in scrollback, and clickable links'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-17
-parent_task_id: DRAFT-1
+  - TASK-1.16
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-18
 ---
 
 ## Description

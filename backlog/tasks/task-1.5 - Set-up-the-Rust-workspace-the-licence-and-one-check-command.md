@@ -1,7 +1,7 @@
 ---
-id: DRAFT-6
+id: TASK-1.5
 title: Set up the Rust workspace, the licence and one check command
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
 updated_date: '2026-11-14T00:54:00Z'
@@ -9,9 +9,10 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
-parent_task_id: DRAFT-1
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-6
 ---
 
 ## Description

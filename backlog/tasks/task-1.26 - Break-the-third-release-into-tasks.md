@@ -1,17 +1,19 @@
 ---
-id: DRAFT-27
+id: TASK-1.26
 title: Break the third release into tasks
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-14T00:14:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-2
 milestone: m-2
 dependencies:
-  - DRAFT-13
+  - TASK-1.12
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
-parent_task_id: DRAFT-1
+asdlc_accepted_from: DRAFT-27
 ---
 
 ## Description

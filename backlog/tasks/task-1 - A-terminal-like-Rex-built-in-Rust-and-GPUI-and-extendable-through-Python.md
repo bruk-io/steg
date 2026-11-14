@@ -1,15 +1,16 @@
 ---
-id: DRAFT-1
+id: TASK-1
 title: A terminal like Rex, built in Rust and GPUI and extendable through Python
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-14T00:52:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels: []
 dependencies: []
 documentation:
   - doc-1
 type: intent
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description
@@ -54,3 +55,45 @@ It is "personal, but assume after a few months I may want to distribute."
 - [ ] #6 An agent working in a pane can show the user a file in another pane from the CLI, such as a Markdown document with proper Markdown rendering
 - [ ] #7 Each session can have its own colour, which a running agent can change from the CLI
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-14T00:59:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-1 -> TASK-1
+- DRAFT-2 -> TASK-1.1
+- DRAFT-3 -> TASK-1.2
+- DRAFT-4 -> TASK-1.3
+- DRAFT-5 -> TASK-1.4
+- DRAFT-6 -> TASK-1.5
+- DRAFT-7 -> TASK-1.6
+- DRAFT-8 -> TASK-1.7
+- DRAFT-9 -> TASK-1.8
+- DRAFT-10 -> TASK-1.9
+- DRAFT-11 -> TASK-1.10
+- DRAFT-12 -> TASK-1.11
+- DRAFT-13 -> TASK-1.12
+- DRAFT-14 -> TASK-1.13
+- DRAFT-15 -> TASK-1.14
+- DRAFT-16 -> TASK-1.15
+- DRAFT-17 -> TASK-1.16
+- DRAFT-18 -> TASK-1.17
+- DRAFT-19 -> TASK-1.18
+- DRAFT-20 -> TASK-1.19
+- DRAFT-21 -> TASK-1.20
+- DRAFT-22 -> TASK-1.21
+- DRAFT-23 -> TASK-1.22
+- DRAFT-24 -> TASK-1.23
+- DRAFT-25 -> TASK-1.24
+- DRAFT-26 -> TASK-1.25
+- DRAFT-27 -> TASK-1.26
+- DRAFT-28 -> TASK-1.27
+
+---
+<!-- COMMENTS:END -->

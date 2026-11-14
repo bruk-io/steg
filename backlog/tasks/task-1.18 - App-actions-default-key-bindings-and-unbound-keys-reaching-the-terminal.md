@@ -1,18 +1,19 @@
 ---
-id: DRAFT-19
+id: TASK-1.18
 title: 'App: actions, default key bindings, and unbound keys reaching the terminal'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-16
-parent_task_id: DRAFT-1
+  - TASK-1.15
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-19
 ---
 
 ## Description

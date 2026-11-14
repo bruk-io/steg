@@ -1,20 +1,21 @@
 ---
-id: DRAFT-16
+id: TASK-1.15
 title: 'App: a GPUI window with the session switcher, tabs and split panes'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:16:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-5
 milestone: m-0
 dependencies:
-  - DRAFT-11
-  - DRAFT-12
-  - DRAFT-28
-parent_task_id: DRAFT-1
+  - TASK-1.10
+  - TASK-1.11
+  - TASK-1.27
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-16
 ---
 
 ## Description

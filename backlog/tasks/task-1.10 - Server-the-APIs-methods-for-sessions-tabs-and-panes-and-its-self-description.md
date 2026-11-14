@@ -1,22 +1,23 @@
 ---
-id: DRAFT-11
+id: TASK-1.10
 title: >-
   Server: the API's methods for sessions, tabs and panes, and its
   self-description
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-13T23:57:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
-  - DRAFT-10
-  - DRAFT-8
-  - DRAFT-4
-parent_task_id: DRAFT-1
+  - TASK-1.9
+  - TASK-1.7
+  - TASK-1.3
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-11
 ---
 
 ## Description

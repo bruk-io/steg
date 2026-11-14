@@ -1,20 +1,21 @@
 ---
-id: DRAFT-17
+id: TASK-1.16
 title: 'App: the terminal view, drawing and typing'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:59:00Z'
 labels:
   - size-5
 milestone: m-0
 dependencies:
-  - DRAFT-16
-  - DRAFT-13
-  - DRAFT-2
-parent_task_id: DRAFT-1
+  - TASK-1.15
+  - TASK-1.12
+  - TASK-1.1
+parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-17
 ---
 
 ## Description

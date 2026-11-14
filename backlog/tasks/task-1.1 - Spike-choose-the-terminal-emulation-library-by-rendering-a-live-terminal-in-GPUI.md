@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T05:21:00Z'
+updated_date: '2026-11-14T05:22:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -1109,6 +1109,12 @@ ok      boundaries (0.1s)
 ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.2s)
+```
+
+Check passed: `sh -c 'cargo deny --manifest-path spikes/task-1.1-terminal-library/probe-alacritty/Cargo.toml --config deny.toml check licenses'` exited 0 at 2026-11-14T05:22:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.1 on task-1.1-spike-choose-the-terminal-emulation at bfb08fa98a47 with uncommitted changes:
+
+```text
+licenses ok
 ```
 <!-- SECTION:NOTES:END -->
 

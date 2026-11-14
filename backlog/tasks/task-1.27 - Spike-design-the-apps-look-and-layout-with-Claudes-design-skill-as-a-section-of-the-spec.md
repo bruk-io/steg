@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
-updated_date: '2026-11-14T02:41:00Z'
+updated_date: '2026-11-14T02:42:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -90,6 +90,16 @@ Created by command, never by editing `backlog/` by hand:
 - **Accessibility, which both themes need.** `asdlc record-check TASK-1.27 --in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.27 --as bruk.w6 -- just design-contrast`. It exits non-zero on any pair below its threshold, so the claim is a number and not prose. Status not resting on colour alone is proved by enumeration: each of the four states has a glyph and a word in `tokens.json` and in the mock, and a state missing either is a failure of step 7.
 - **AC#3, the part a worker can do.** The board document exists, is linked to this task, and has one row per named value tagged with the requirement it serves, covering R20, R21, R23, R24, R25, R26, R27 and R50 with no requirement unrowed. AC#3 closes only when the orchestrator folds that text into doc-1.
 - **AC#4.** Not provable by this worker. It closes when Bruk has looked at the mock and his acceptance is recorded as a comment on this task, by the orchestrator. This plan stops at step 8 for that reason.
+
+## Corrections to the sections above, which win where they disagree
+
+Three fixes made before approval, after reading the plan back against R25, R27 and the release table in doc-1 section 6.
+
+1. **The 16 ANSI colours are reported, not gated.** The Files section says they are "required to reach 3:1". That is wrong and would do harm: normal-intensity ANSI blue on a near-black base fails 3:1 in every dark terminal theme there is, and step 3's rule of changing the token rather than the threshold would push the theme into colours that no longer read as a terminal's. So `design/look/contrast` gates only the app chrome's text pairs, the focus ring, pane borders, status glyphs and each terminal theme's default foreground on its background. It prints every ANSI colour's ratio and marks the ones under 3:1 without failing on them. The README says which group is gated and which is reported, and why.
+2. **Every named value carries the release it belongs to.** The tables in the board document get a release column, M1 or M2, read from doc-1 section 6: R20, R21, R23, R24 and R25 are M1, and R26 and R27 are M2. Without it TASK-1.20, which is M1, cannot tell whether the per-session accent machinery is its scope; with it, TASK-1.20 builds the M1 rows and the M2 rows wait. The mock still shows the M2 states, marked as M2, because AC#1 and AC#2 ask for them.
+3. **The gradient is given a geometry, not only stops.** A three-stop gradient squeezed into a 2px underline reads as mud, and GPUI draws a linear gradient into one quad, so "where it may appear" has to name the element and its size: for each place the gradient is allowed, `tokens.json` gives the element, its width and height in the mock, the angle, and the stop positions in that box. A place too small to carry three stops takes a single colour sampled from the gradient instead, and the file says which. This is the one place where the HTML mock can look right while the GPUI build looks wrong.
+
+One thing to verify rather than assume in step 3: the justfile sets `set shell := ["bash", "-euo", "pipefail", "-c"]`, so the `design-contrast` recipe's path to `design/look/contrast` is relative to wherever `just` runs. Run the recipe from the worktree root in step 3 and see it pass before relying on it.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

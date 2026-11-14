@@ -3,9 +3,11 @@ id: TASK-1.27
 title: >-
   Spike: design the app's look and layout with Claude's design skill, as a
   section of the spec
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
+updated_date: '2026-11-14T02:34:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +16,7 @@ parent_task_id: TASK-1
 type: spike
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-28
+asdlc_branch: task-1.27-spike-design-the-app-s-look-and-layout
 ---
 
 ## Description

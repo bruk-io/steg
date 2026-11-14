@@ -1,7 +1,7 @@
 ---
 id: TASK-1.4
 title: 'Spike: propose the CLI design for Bruk to decide'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
@@ -10,6 +10,8 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.4-spike-propose-the-cli-design-for-bruk-to
 documentation:
   - doc-2
   - doc-3
@@ -363,6 +365,8 @@ Check passed: `git -C /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/tas
 ```
 
 What the recorded checks do and do not prove: this branch changed no file, so just check at both ends is not evidence about this task's content, only that the branch moved nothing and left the repository's bar where it was (the Rust steps skip while there is no workspace; the tools' tests pass). The evidence for the deliverable is doc-3 itself and the consistency check quoted in its appendix, which anyone can re-run against doc-2. The empty git status --short is the evidence that nothing in the worktree was touched.
+
+Delivered doc-3, 'CLI design: decisions for Bruk and the edits they imply in doc-2', linked to this task. No file in the worktree changed, the branch has no commit and there is no pull request: the whole deliverable is on the board. doc-3 has five parts: A, sixteen decisions for Bruk with a recommendation, the alternative and the cost of the wrong choice on each (A1 to A6 are doc-2 section 9's own open points, B1 to B10 were found while reviewing it); B, ten edits to doc-2 that need no decision; C, doc-2 section 10 checked against Rex's own documentation on 2026-11-14, with the rows to replace and ten to add; D, the three acceptance criteria read against doc-2; E, the two items that wait for TASK-1.3 and who owns them. Checks recorded: just check before any work and again at the end (exit 0; the Rust steps skip while there is no workspace, the tools' tests pass), and git status --short at the end, empty. Because the branch is empty, those checks only show it moved nothing; the deliverable's own evidence is the consistency check quoted in doc-3's appendix, which can be re-run against doc-2. Review first: part C, because acceptance criterion 2 would otherwise close on a table nobody had checked, where one row is misleading about Rex's shape and one is wrong about waiting commands' exit status; A5, a worked design for R63 against R64, R67 and R68 where doc-2 had one line; and B3, the target resolution order that TASK-1.7 implements and TASK-1.13 tests. Acceptance criterion 3 is open by design: it closes when Bruk answers part A and the orchestrator records the answers in doc-2 section 9. Criterion 1 is met by doc-2 already; criterion 2 closes once part C is applied.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

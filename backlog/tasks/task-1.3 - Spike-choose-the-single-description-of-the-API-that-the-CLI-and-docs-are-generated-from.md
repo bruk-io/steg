@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:11:00Z'
+updated_date: '2026-11-14T04:12:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -392,6 +392,51 @@ Check passed: `spikes/api-description/carry-one-method` exited 0 at 2026-11-14T0
       "p95_ms": 16.23
     }
   }
+}
+
+=== done
+one method, defined once, served, self-described, called from two generated CLIs,
+called from Python, and documented.
+````
+
+Check passed: `spikes/api-description/carry-one-method` exited 0 at 2026-11-14T04:12:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.3 on task-1.3-spike-choose-the-single-description-of at 17e1d355fc71 with uncommitted changes, last 40 of 477 lines:
+
+````text
+      "lowest_ms": 3.43,
+      "median_ms": 3.73,
+      "p95_ms": 4.26
+    }
+  },
+  "version": {
+    "candidate_a": {
+      "lowest_ms": 2.99,
+      "median_ms": 3.44,
+      "p95_ms": 3.99
+    },
+    "candidate_b": {
+      "exit_status": 4,
+      "lowest_ms": 2.96,
+      "median_ms": 3.51,
+      "p95_ms": 3.99
+    }
+  },
+  "a_call_against_a_live_server": {
+    "candidate_a": {
+      "lowest_ms": 3.16,
+      "median_ms": 3.61,
+      "p95_ms": 4.03
+    },
+    "candidate_b": {
+      "lowest_ms": 2.97,
+      "median_ms": 3.13,
+      "p95_ms": 3.47
+    }
+  },
+  "load_average_after": [
+    9.94,
+    6.59,
+    4.47
+  ]
 }
 
 === done

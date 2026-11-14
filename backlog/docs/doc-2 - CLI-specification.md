@@ -3,11 +3,11 @@ id: doc-2
 title: CLI specification
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-14T01:18:00Z'
+updated_date: '2026-11-14T01:53:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python"
 - Spec: doc-1. This document is design decision 1 in its section 7, and gives R32 to R35 and R63 their concrete form.
-- Status: draft. Sections 1 to 6 follow Bruk's direction of 2026-11-13. Section 9 lists what is still his to decide.
+- Status: draft. Sections 1 to 6 follow Bruk's direction of 2026-11-13. Section 9 lists what he has decided since and what is still his to decide.
 - Policy: the team's CLI design skill (`plugins/team/skills/cli-design/`). Where this document is more specific, this document governs.
 
 The steg CLI is written in Rust and ships in the same binary as the server (R61). Its commands are generated from the API description (R32), never written by hand.
@@ -29,7 +29,7 @@ steg <noun> <verb> [target] [flags]
 ```
 
 - Every command has a noun and a verb. `steg <noun>` alone lists that noun's verbs, and `steg` alone lists the nouns.
-- The one positional is the target: the thing the verb acts on. No command has a second.
+- The one positional is the target: the thing the verb acts on. No command has a second, with one exception: a program to run is given after `--`, as in `steg pane split -- htop -d 5`.
 - Everything else is a flag.
 - There are no aliases and no abbreviations: `steg pane list`, never `steg ls`.
 
@@ -195,21 +195,21 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 |---|---|---|
 | `session list` | none | Every session on the host |
 | `session show` | session | |
-| `session new` | none | `--label`, `--cwd` |
+| `session new` | none | `--label`, `--cwd`, and a program after `--` |
 | `session close` | session | `--force` if programs are running |
 | `session move` | session | `--position` |
 | `session set`, `session unset` | session | `--label` |
 | `session focus` | session | |
 | `tab list` | session | The tabs of that session |
 | `tab show` | tab | |
-| `tab new` | session | `--label`, `--cwd`, `--position` |
+| `tab new` | session | `--label`, `--cwd`, `--position`, and a program after `--` |
 | `tab close` | tab | `--force` if programs are running |
 | `tab move` | tab | `--position`, `--to` another session |
 | `tab set`, `tab unset` | tab | `--label` |
 | `tab focus` | tab | |
 | `pane list` | tab | The panes of that tab |
 | `pane show` | pane | Kind, size, working directory, title, running program |
-| `pane split` | pane | `--direction`, `--cwd`, `--label` |
+| `pane split` | pane | `--direction`, `--cwd`, `--label`, and a program after `--` |
 | `pane close` | pane | `--force` if a program is running |
 | `pane move` | pane | `--to` another tab |
 | `pane set`, `pane unset` | pane | `--label`, `--zoomed` |
@@ -226,17 +226,22 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 
 Later releases add `config check`, `config reload`, `plugin list`, `action list`, `action run`, `status list`, `session set --colour`, the command that shows a file in a pane (R63), and the `host` noun.
 
-## 9. Still Bruk's to decide
+## 9. Decided, and still to decide
 
-1. **The program to run in a new pane.** One positional is the rule, but unix has a long habit of taking a command after `--`, as `env`, `ssh` and `sudo` do: `steg pane split -- htop -d 5`. The alternative is `--command 'htop -d 5'`, which needs a shell to split the string. Proposed: allow the command after `--` on `session new`, `tab new` and `pane split`, as the one exception.
-2. **Closing something that is already closed.** Proposed: status 3, like any target that matches nothing, since a script that names a pane that is gone has usually made a mistake.
-3. **`--force`.** Proposed as written: `close` and `server stop` refuse with status 1 when programs are still running, and say to pass `--force`. The alternative is to close without asking, as tmux does, which is simpler and less safe for an agent.
-4. **The path separator in a target.** `/` is proposed because it reads like a path and needs no quoting. tmux uses `session:window.pane`.
-5. **A header line on lists.** Proposed: only when stdout is a terminal. The alternative is never, which is more predictable and less readable.
-6. **Short flags.** Proposed: only `-h`, `-q` and `-v`. Every other flag is long.
-7. **Shell completion.** It is not a noun and a verb. Proposed: `steg --completion <shell>` beside `--version`, as the second and last flag on the bare program.
-8. **Showing a file in a pane (R63).** Proposed for M2: `steg pane split --file <path>`, which runs the viewer the config maps to that file's type in the new pane, so no new verb is needed.
-9. **Saved hosts (M3).** `new` and `close` read oddly for an entry in a list. Whether `host` gets `add` and `remove` as verbs of its own is left for that release.
+Decided by Bruk on 2026-11-13:
+
+- **A program to run is given after `--`.** `steg pane split -- htop -d 5`, and the same on `session new` and `tab new`. It is the one exception to a single positional, and follows `env`, `ssh` and `sudo`.
+- **`close` and `server stop` refuse while programs are still running,** with status 1 and a message naming `--force`. With `--force` they go ahead.
+- **A target's parts are separated by `/`,** as in `work/2/logs`.
+
+Still Bruk's to decide:
+
+1. **Closing something that is already closed.** Proposed: status 3, like any target that matches nothing, since a script that names a pane that is gone has usually made a mistake.
+2. **A header line on lists.** Proposed: only when stdout is a terminal. The alternative is never, which is more predictable and less readable.
+3. **Short flags.** Proposed: only `-h`, `-q` and `-v`. Every other flag is long.
+4. **Shell completion.** It is not a noun and a verb. Proposed: `steg --completion <shell>` beside `--version`, as the second and last flag on the bare program.
+5. **Showing a file in a pane (R63).** Proposed for M2: `steg pane split --file <path>`, which runs the viewer the config maps to that file's type in the new pane, so no new verb is needed.
+6. **Saved hosts (M3).** `new` and `close` read oddly for an entry in a list. Whether `host` gets `add` and `remove` as verbs of its own is left for that release.
 
 ## 10. Where this differs from Rex
 

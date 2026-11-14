@@ -355,6 +355,12 @@ skip    licences: no Rust workspace yet
 skip    tests: no Rust workspace yet
 ok      tool tests (0.2s)
 ```
+
+Check passed: `git -C /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.4 status --short` exited 0 at 2026-11-14T04:07:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.4 on task-1.4-spike-propose-the-cli-design-for-bruk-to at 1333252480ed:
+
+```text
+
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

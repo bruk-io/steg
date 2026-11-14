@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:04:00Z'
+updated_date: '2026-11-14T04:32:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -528,6 +528,47 @@ test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `spikes/task-1.2-wire-protocol/reattach-demo --mode deltas` exited 0 at 2026-11-14T04:32:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.2 on task-1.2-spike-choose-the-wire-protocol-by at e54403d1e1a6 with uncommitted changes:
+
+```text
+== reattach demonstration: mode=deltas framing=length lines=12000 interval=350us queue=64
+Darwin 27.0.0
+-- step 1: a pane prints 12000 numbered lines
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"pane":1}
+-- step 2: client A attaches and is killed mid-output
+   client A ready: pane=1 attachment=1 mode=deltas seq=10 snapshot_bytes=3335 scrollback_rows=0
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   client A killed with SIGKILL while the pane was at line 3394
+-- step 3: nothing is attached, and the program keeps printing
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   the pane reached line 6667 with no client attached
+-- step 4: client B attaches
+   client B ready: pane=1 attachment=2 mode=deltas seq=6698 snapshot_bytes=897920 scrollback_rows=6676
+-- step 5: the program finishes, everything quiesces, and the two are compared
+   client B: frames=296 bytes_read=1795397 resyncs=0 seq=11999 unknown_stream_frames=0
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+capture pane=1 bytes=120277 lines=10024 last=12000
+same  the reattached client and the server agree byte for byte (120277 bytes, 10024 lines)
+whole 10023 numbered lines run from 1978 to 12000 with no gap and no repeat
+last  the last line is 12000, as the program printed
+gap   every line from 3394 to 6667, printed while no client was attached, is there
+PASS
+-- the server's counters
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"panes":[{"attachments":0,"blocked_nanos":0,"overflows":0,"pane":1,"pty_bytes":156000,"resyncs":0,"ticks":1279,"wire_bytes":4108857,"wire_frames":498}]}
+-- two clients on one pane at once, each with its own size, while output is flowing (R7 is left open)
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"pane":2}
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+{"attachments":[{"attachment":3,"cols":80,"rows":24},{"attachment":4,"cols":120,"rows":40}]}
+   one of the two was killed with SIGKILL
+   the client that was not killed: frames=310 bytes_read=1664258 resyncs=0 seq=4000 unknown_stream_frames=0
+   it kept receiving output after the other was killed (310 frames)
+handshake server=probe-server/0.0.0 protocol=1 api=0.1.0 framing=length
+   and its screen and scrollback still match the server's
 ```
 <!-- SECTION:NOTES:END -->
 

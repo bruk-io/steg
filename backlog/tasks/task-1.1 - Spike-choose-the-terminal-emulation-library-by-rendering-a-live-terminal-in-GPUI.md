@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T01:09:00Z'
+updated_date: '2026-11-14T01:10:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -189,14 +189,14 @@ Board (written by `asdlc`, never by hand):
     carries an attribution obligation when steg is distributed. `cargo-deny` is not
     installed on this machine and there is no root workspace yet, so `just deny` cannot be
     the proof here; `cargo tree` is, and the document says which was used.
-12. **Write the answer.** `asdlc board doc create \"Decision: the terminal emulation library
-    for steg\" --type other`, then `asdlc board doc update <id> --content \"$(cat ...)\"`
-    with: the choice and the reasons in order of weight; the three measurement tables; the
-    R14 matrix; the architecture-fit findings; the licence inventory; a section confirming or
-    replacing each R19 number with the number measured, and what to change in the spec if it
-    is replaced; and the findings other tasks need (TASK-1.5's `deny.toml` and pinned
-    versions, TASK-1.8's thread ownership, TASK-1.16's drawing, TASK-1.23's CI if the
-    ghostty build needs Zig and the network). Link it with
+12. **Write the answer.** `asdlc board doc create` with the title "Decision: the terminal
+    emulation library for steg" and `--type other`, then `asdlc board doc update <id>
+    --content` with: the choice and the reasons in order of weight; the three measurement
+    tables; the R14 matrix; the architecture-fit findings; the licence inventory; a section
+    confirming or replacing each R19 number with the number measured, and what to change in
+    the spec if it is replaced; and the findings other tasks need (TASK-1.5's `deny.toml`
+    and pinned versions, TASK-1.8's thread ownership, TASK-1.16's drawing, TASK-1.23's CI if
+    the ghostty build needs Zig and the network). Link it with
     `asdlc board task edit TASK-1.1 --add-doc <id>`.
 13. **Finish.** Commit (trailer `Asdlc-Worker: bruk.w1`), `git fetch origin`, merge or rebase
     `origin/main` as the finish rules say, re-run `asdlc record-check ... -- just check`,

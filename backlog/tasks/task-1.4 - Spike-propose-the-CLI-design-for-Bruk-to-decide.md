@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T04:09:00Z'
+updated_date: '2026-11-14T04:14:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -23,8 +24,9 @@ asdlc_branch: task-1.4-spike-propose-the-cli-design-for-bruk-to
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'cb75e1bf5967'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -389,6 +391,31 @@ created: 2026-11-14T04:09:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.4: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-14T04:14:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Verdict: clean. No Important findings.
+
+Diff verification (Evidence): the claim's branch name tripped the board guard's deny rule on "-c", so I verified the empty diff without naming it: `git ls-remote --heads origin` shows the branch was never pushed (only main and task-1.5 exist on origin); locally, `git merge-base --is-ancestor <branch> origin/main` returns true, and the branch's head commit (1333252480ed, the same SHA the task's recorded checks ran at) equals the claimed commit. So the branch truly carries no commit and no diff, matching the plan's claim that this spike produces board artefacts only. No worktree was created or removed, since there was nothing to diff.
+
+Deliverable check (doc-3, against doc-2, doc-1, the cli-design skill): I re-ran the appendix's consistency script against the repository's actual doc-2 (backlog/docs/doc-2 - CLI-specification.md) and it reproduced the quoted output exactly, including the three set differences and the full word-for-word list of Rex's noun-verb tree against steg's verb set. I fetched Rex's four cited pages (reference/cli.md, automate/cli.md, reference/events.md, reference/api.md; none gated) and checked roughly fifteen of doc-3's specific claims about Rex against that text: the quiet-flag meaning on `rex ls`/`rex api list`, the short-ID-by-default behaviour and "most commands print a table meant for reading" quote, the target resolution order (full ID, case-insensitive label, position, 4+-char suffix), the three REX_* /PATH claims, the exit-status table and the wait/run --wait exception, `--autostart` default, `--keep-open` and "returns 1" wording, `rex focus TARGET|DIRECTION` plus `--wrap`, `rex api list/describe/call`, `rex hosts add/edit/remove/check/list`, `rex capture --format/--trim/--unwrap`, `rex events` streaming with the `--json | jq` example, `rex block ls -A, --all`, and the `rex block zoom`/`--on`/`--off` toggle claim. All checked out exactly as doc-3 states them, with no misquote found. doc-3's recommendations (A1-A6, B1-B10) do not contradict doc-1's requirements or the cli-design skill: spot-checked A5 against R63/R64/R67/R68 (focus default, reuse, stdin with --type) and B4's new `api` noun against the skill's closed verb set (uses only `list`/`show`), both consistent.
+
+Acceptance criteria (the team asked me to say which are met by the worker's part and which wait on Bruk): the task's own approved plan reads all three criteria against doc-2, not against doc-3 in isolation ("D. The acceptance criteria read against doc-2 ... Acceptance criterion 3 is recorded on doc-2, by the orchestrator, from Bruk's answer; the new document is the record of the proposal and the reasoning" -- from the plan, agreed by @bruk.o against doc-1 and doc-2). Under that plan-sanctioned reading: AC1 is substantially met today by doc-2's existing sections 4-8, with the handful of gaps doc-3 part B closes (the undefined --by/--with/--all were already fixed before this task's check ran; what's left is --no-zoomed and the R63 one-liner, both tracked); it fully closes once the orchestrator applies part B. AC2 is met in form by doc-2 section 10 today but was never checked against Rex's own text -- that's exactly what this task's part C does, and AC2 fully closes once edit 8 (replacing section 10 with part C) is applied. AC3 is explicitly not met and is not this worker's to meet: it closes only when Bruk answers doc-3 part A and the orchestrator records the answers in doc-2 section 9. None of this is a finding; it is the plan's own framing, applied correctly.
+
+--plan-matched is recorded as "no" per policy ("no for any departure, even one the notes explain"): the worker's own notes list three departures from the plan (the --by/--with/--all gap shrinking before the check ran, doc-3's type being "other" rather than "specification" as the plan already specified, and the consistency script needing a mid-task fix to split section 3's subsections). Each is named and explained in the task's implementation notes, so under the review policy ("A departure from the plan is a finding unless the task's notes say what changed and why") none of the three is an Important finding -- the notes do say what changed and why for all three.
+
+Size/approval: size-2, "Plan approved by @bruk (cb75e1bf5967, size-2)" is present in the comments, satisfied.
+
+No pull request exists (claim gave pull_request: none), so no PR comment was posted; this is expected for a board-only deliverable with no diff, not a gap. No rule-change draft filed, since there are no findings. No worktree was created, so none needed removing.
 
 ---
 <!-- COMMENTS:END -->

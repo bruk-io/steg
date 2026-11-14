@@ -4,13 +4,14 @@ title: 'App: a GPUI window with the session switcher, tabs and split panes'
 status: Draft
 assignee: []
 created_date: '2026-11-13T22:52:00Z'
-updated_date: '2026-11-14T00:06:00Z'
+updated_date: '2026-11-14T00:16:00Z'
 labels:
   - size-5
 milestone: m-0
 dependencies:
   - DRAFT-11
   - DRAFT-12
+  - DRAFT-28
 parent_task_id: DRAFT-1
 type: task
 project: bruk-io-steg

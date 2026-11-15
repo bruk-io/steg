@@ -3,13 +3,14 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:34:00Z'
+updated_date: '2026-11-15T03:37:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.69
@@ -24,8 +25,10 @@ asdlc_branch: task-1.71-boundaries-a-claude-md-for-each-package
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd8f3885f55ed'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -825,6 +828,29 @@ created: 2026-11-15T03:34:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.71: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:37:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] crates/sdk/CLAUDE.md:6-8 and .claude/rules/sdk.md:11-13 state the same fact twice: "a required dependency is for data and serialisation only" and the GPUI/async-runtime ban appear verbatim in both the package's CLAUDE.md and the new path-scoped rule. R111 says each package's CLAUDE.md holds "what it may and may not depend on" at the boundaries.toml/dependency-table level, and the rule holds "what is left to judgement about a boundary" - R106's "no GPUI type, no particular async runtime, data/serialisation-only dependency" is explicitly judgement (sdk.md's own text calls it out: "this is about what the sdk's own public types expose, which a dependency boundary can't see"), so it belongs in sdk.md only. Folding it into CLAUDE.md's "may not depend on" line duplicates it, which is exactly what R111 refuses ("nothing is stated in... two rules") when the two carriers are read together as this review required.
+
+Everything else checked out:
+- Both per-package clippy.toml files correctly repeat allow-unwrap-in-tests (clippy does not merge clippy.toml files; verified directly, and confirmed by the plan's own recorded demonstration) - nothing from the root file is silently lost, and every disallowed-types/methods entry's reason names doc-16 R110 and the crate.
+- just lint runs --all-features (confirmed in the justfile diff), so the sdk's local-socket module is linted too, and that module's own #[expect(...)] is the one named exemption (.claude/rules/sdk.md).
+- just packages genuinely builds/tests each package alone with cargo -p and no --all-features, is joined into just check's recipe line, and is exactly what closes the feature-unification gap AC#2 describes; boundaries.toml's new deny-features table and its conservative default-features rule are implemented and covered by tools/tests/unit/test_boundaries.py (declared-feature violation, no-violation, default-features violation, format, and read_allow_table parsing cases).
+- Every refusal's message names its requirement and why: clippy's disallowed_types/methods print "doc-16 R110: ... in the <crate>"; format_feature_violation and the existing format_violation print boundaries.toml's reason string, which names R105/R104.
+- architecture.md's two lint-covered bullets (kernel/sdk I/O, the dependency table) are replaced by bullets naming the lint and pointing at the new per-package rules; the kernel-is-logic-only and server-owns-every-session bullets were moved whole into the new kernel.md/server.md, not left duplicated in architecture.md.
+- CI (the "check" workflow) is green on the pull request's head commit (9f9585e).
+- AC#6 is answered in the plan/notes for the orchestrator, and plugins/ is untouched in this branch, confirmed with git diff --stat.
+- The just-recipes-not-cargo-test-p departure in the CLAUDE.md files matches root CLAUDE.md's own instruction and is explained in the notes.
 
 ---
 <!-- COMMENTS:END -->

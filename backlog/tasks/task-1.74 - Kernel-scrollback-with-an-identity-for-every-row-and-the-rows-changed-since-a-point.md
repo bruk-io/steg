@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:02:00Z'
+updated_date: '2026-11-15T17:08:00Z'
 labels:
   - size-3
   - review-passed
@@ -495,6 +495,14 @@ Nits (5, at the cap):
 - [Evidence, Nit] See the two paragraphs above (grounding claims re-established by test): recorded as notes rather than counted again here.
 
 Checked and clean beyond the above: the sdk/kernel split (RowId/Update/Page carry no engine type, no serde derives, matching the rest of the screen family per the worker's own disclosed departure), the three disclosed plan departures (Terminal::page rename, engine-level color_palette() instead of RenderState::colors() to avoid stealing changes_since's dirty state, and the new oldest_row() accessor) are all sound engineering corrections with real reasons, not scope creep, and the rebase onto origin/main (no conflicts with the four parallel sdk/lib.rs-touching tasks) is exactly the known, accepted conflict named in the review brief.
+
+---
+
+created: 2026-11-15T17:08:00Z
+
+---
+
+After the clean review at a9c3437, the worker added four tests the review's nits asked for (23d5928: a page across the scrollback/live-screen seam, the newest-row boundary, a same-size resize, max_rows larger than what is kept) and merged main (head 7ea0bf5). Tests only, no non-test hunk; read by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 7ea0bf5.
 
 ---
 <!-- COMMENTS:END -->

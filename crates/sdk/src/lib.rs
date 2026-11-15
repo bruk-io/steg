@@ -37,7 +37,9 @@ pub use ids::{ClientId, PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use record::SessionRecord;
-pub use screen::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Screen, Underline, Wide};
+pub use screen::{
+    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+};
 pub use wire::{
     CONTROL_STREAM, ClientHello, Connection, Control, Decoder, Frame, FrameError, Handshake,
     Incoming, Kind, MAX_FRAME, MAX_PAYLOAD, PROTOCOL_VERSION, Refusal, Refused, Role as WireRole,

@@ -89,6 +89,22 @@ impl Tab {
         self.label.as_deref()
     }
 
+    /// Makes `pane` this tab's current pane (R85). Used directly by
+    /// `split_pane` (R115, unconditionally) and, through
+    /// `Tree::focus_pane`/`Tree::focus_direction`, by the explicit focus
+    /// operations.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if `pane` is not in this tab.
+    pub(crate) fn focus(&mut self, pane: PaneId) -> Result<(), Error> {
+        if self.pane(pane).is_none() {
+            return Err(Error::PaneNotFound(pane));
+        }
+        self.current = pane;
+        Ok(())
+    }
+
     /// Sets or clears this tab's label.
     ///
     /// # Errors
@@ -1177,6 +1193,28 @@ mod tests {
         tab.unfill();
 
         assert_eq!(tab.fill(), None);
+    }
+
+    #[test]
+    fn focus_changes_the_current_pane() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        // `split_pane` already made `second` current.
+        assert_eq!(tab.current(), second);
+
+        tab.focus(first).unwrap();
+
+        assert_eq!(tab.current(), first);
+    }
+
+    #[test]
+    fn focus_rejects_an_unknown_pane() {
+        let (mut tab, _first) = tab_with_one_pane();
+        let unknown = PaneId::from_raw(999);
+
+        assert_eq!(tab.focus(unknown), Err(Error::PaneNotFound(unknown)));
     }
 
     #[test]

@@ -31,7 +31,7 @@ pub use pane::Pane;
 pub use session::{Session, TabClosed};
 pub use tab::{DirectionalFocus, PaneClosed, Tab};
 pub use target::Candidate;
-pub use tree::{ClosedPane, MovedPane, Tree};
+pub use tree::{ClosedPane, FocusMove, Focused, MovedPane, Tree};
 
 #[cfg(test)]
 mod tests {

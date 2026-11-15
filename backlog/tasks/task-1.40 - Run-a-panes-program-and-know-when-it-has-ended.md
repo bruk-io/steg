@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:45:00Z'
+updated_date: '2026-11-15T18:52:00Z'
 labels:
   - size-3
   - review-passed
@@ -659,6 +659,14 @@ Evidence: the worker's last recorded `just check` (2026-11-15T18:30:28Z, "with u
 No Important findings. plan-matched is "no": the ErrorCode mapping fix (dispatch/kernel_error.rs) is still not a file any plan section names, the same departure the prior two reviews also marked "no" for (anyhow, and now this). Naming the departure in the notes resolves the Compliance finding, not the plan match.
 
 Checked asdlc board draft list: DRAFT-2 (wait()-every-path) and DRAFT-3 (departures belong in notes) already cover the lessons this round's fixes were about. No new rule-change draft filed - nothing here is a mistake not already drafted.
+
+---
+
+created: 2026-11-15T18:52:00Z
+
+---
+
+After the clean third review at b71ba40, the worker merged main (TASK-1.42 had landed) and resolved conflicts in crates/kernel/src/error.rs, lib.rs, tree.rs, crates/sdk/src/lib.rs and crates/server/src/dispatch/kernel_error.rs by keeping both sides (head 94a2b77): this task's four program errors and TASK-1.42's three client errors, their arms and tests, all present. The reviewer did not see this merge; the resolutions were read by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 94a2b77.
 
 ---
 <!-- COMMENTS:END -->

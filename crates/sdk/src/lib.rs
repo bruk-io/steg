@@ -8,4 +8,16 @@
 //! (declared in `Cargo.toml`) is this crate's own provider for the local
 //! socket - finding a server, starting one if there is none, and connecting
 //! (R103) - but it is declared and empty today: TASK-1.44 and draft-1 fill it
-//! in. This crate is the frame.
+//! in.
+//!
+//! Identifiers, the colour set and pane kinds are shapes that cross the API,
+//! so they are defined once, here (doc-16 R105), and the kernel uses them
+//! rather than defining its own.
+
+mod colour;
+mod ids;
+mod pane_kind;
+
+pub use colour::Colour;
+pub use ids::{PaneId, SessionId, TabId};
+pub use pane_kind::PaneKind;

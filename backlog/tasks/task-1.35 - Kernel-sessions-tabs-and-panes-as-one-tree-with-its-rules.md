@@ -1,11 +1,11 @@
 ---
 id: TASK-1.35
 title: 'Kernel: sessions, tabs and panes as one tree, with its rules'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:29:00Z'
+updated_date: '2026-11-15T03:39:00Z'
 labels:
   - size-3
   - review-passed

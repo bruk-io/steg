@@ -1,7 +1,7 @@
 ---
 id: TASK-1.72
 title: 'Architecture: the LikeC4 MCP server for sessions'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
@@ -12,6 +12,9 @@ milestone: m-0
 dependencies:
   - TASK-1.33
   - TASK-1.32
+references:
+  - task-1.72-architecture-the-likec4-mcp-server-for
+  - https://github.com/bruk-io/steg/pull/19
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,6 +23,8 @@ asdlc_branch: task-1.72-architecture-the-likec4-mcp-server-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '367ae3e2b7cc'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -165,6 +170,24 @@ ok      tests (every crate) (0.3s)
 ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ```
+
+Built as planned, scoped to AC#1 only (the Pages half was paused by the engineer before the build phase and its acceptance criteria were removed).
+
+What was built:
+- .mcp.json at the repository root: a project-scoped stdio server (likec4 mcp --stdio), pinned to likec4@1.61.0, the same version the model-validating `just` recipe checks against. The path arg uses ${CLAUDE_PROJECT_DIR:-.}/architecture so it resolves correctly from a task's worktree, not just the main checkout.
+- tools/src/steg_tools/likec4_mcp.py: a pure JSON-RPC response parser (parse_project_summary) plus one function (read_project_summary) that owns the subprocess and pipe - the only I/O in the module.
+- tools/tests/unit/test_likec4_mcp.py: unit tests for the parser against hand-built responses, no doubles.
+- tools/tests/adapter/test_likec4_mcp_smoke.py: an adapter test that runs the exact pinned command .mcp.json declares against this repository's real architecture/ model and asserts the seven real view ids (index, stegContext, stegContainers, stegPackages, stegDeployment, attachToAPane, focusAPane) and one element id per package (sdk, kernel, server, steg, app) come back. This now runs on every `just test-tools` / `just check`.
+- .claude/rules/architecture.md: one bullet pointing agents at the MCP server instead of reading architecture/ by hand (placed there only, not doc-16, per the engineer's direction).
+
+Which recorded check proves which clause of AC#1:
+- "configures LikeC4's MCP server... pinned to the same LikeC4 version the check uses": .mcp.json's args pin likec4@1.61.0, matching the justfile's model-validating recipe's own npx pin - visible in the diff, confirmed passing by the `just check` record-check (its "architecture" step runs the same pinned version).
+- "a session started in the repository can list the model's views and elements through it, shown by a recorded run": two recorded proofs -
+  1. `uv run --project tools pytest -v tools/tests/adapter/test_likec4_mcp_smoke.py tools/tests/unit/test_likec4_mcp.py` - the mechanical, repeatable proof: the pinned stdio server answers for the real model and every expected view/element id is present.
+  2. `timeout 180 claude -p "..." --allowedTools mcp__likec4` - a real Claude Code session, using only the likec4 MCP tools (no file reads under architecture/), printing all 7 view ids and all 17 element ids correctly. This is the literal "a session... can list" demonstration. Per code.claude.com/docs/en/mcp, a `claude -p` run loads a project-scoped .mcp.json server without the interactive approval prompt; the first *interactive* `claude` session in this repository will still see a one-time "Pending approval" for this server (not a bug - `claude mcp reset-project-choices` resets it).
+- `just check` recorded clean both before and after rebasing onto origin/main (no divergence either time - this branch was never pushed before this task).
+
+Departure from the plan: none. The plan's Part 1 was built as written; Part 2 (Pages) was dropped from scope before the build phase per the engineer, not by me.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -176,6 +199,15 @@ created: 2026-11-15T03:31:00Z
 ---
 
 Plan approved by @bruk (367ae3e2b7cc, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:38:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.72: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

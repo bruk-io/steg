@@ -1,10 +1,11 @@
 ---
 id: TASK-1.37
 title: 'Kernel: focus as a path, set upward'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T03:39:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-7
+asdlc_branch: task-1.37-kernel-focus-as-a-path-set-upward
 ---
 
 ## Description

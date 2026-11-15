@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:13:00Z'
+updated_date: '2026-11-15T03:15:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -321,6 +321,8 @@ Separately, the engineer corrected the CI-workflow decision after this review ra
 Also merged origin/main in (branch already pushed, so merge not rebase) to pick up PR #12's unrelated ci.yml changes (the paths-ignore/conditional cancel-in-progress fix) cleanly, no conflicts.
 
 Final `just check`: exit 0, recorded on the task.
+
+Small process note: two of this worker's own commits since the first review - 9b82b31 ("Revert \"CI: install a pinned Node...\"") and e932dfe ("Revert \"Temporary: print the Node version...\"") - were made with `git revert --no-edit`, which reuses the original commit message and doesn't attach a trailer. Both are self-reverts within this same build (add a thing, then immediately undo it), net code effect zero. Not fixed by rewriting history (amending or rebasing commits already pushed is avoided per policy); recorded here instead for anyone totting up attribution.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

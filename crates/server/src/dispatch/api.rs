@@ -53,9 +53,41 @@ fn show(description: &Description, request: &Request) -> Result<Outcome, ApiErro
     }
 }
 
-/// `api.call`'s own answer: rewrites the request into the called method's
-/// own `Request` and dispatches that, returning its `Response` unchanged
-/// — no `Outcome` wraps or re-encodes it (TASK-1.75's plan, decision 3).
+/// Resolves an `api.call` request to the inner `Request` it names - the
+/// one implementation both [`call`] (below) and `Runtime::handle`
+/// (TASK-1.76) use, so every path that can mint and start a pane reads
+/// the selector's own key the same way, through this function, rather
+/// than as a literal string of its own. The selector is read and
+/// stripped under the key `method`, not `target` (TASK-1.81): the called
+/// method may itself declare a parameter literally named `target`
+/// (`pane.split`, `setting.show`, ...), and stripping that key instead
+/// would both lose it from the inner request and leave `api.call`'s own
+/// selector sitting in `params` unexamined.
+///
+/// # Errors
+///
+/// Returns a `BadRequest` if the selector is missing or not text, or
+/// names `api.call` itself.
+pub(crate) fn resolve(request: &Request) -> Result<Request, ApiError> {
+    let Some(method_name) = param_str(request, "method") else {
+        return Err(bad_request("method: must be text"));
+    };
+    if method_name == "api.call" {
+        return Err(bad_request("api.call cannot call api.call"));
+    }
+
+    let mut params = request.params.clone();
+    params.remove("method");
+    Ok(Request {
+        method: method_name.to_string(),
+        params,
+    })
+}
+
+/// `api.call`'s own answer: resolves the request into the target
+/// method's own `Request` ([`resolve`]) and dispatches that, returning
+/// its `Response` unchanged — no `Outcome` wraps or re-encodes it
+/// (TASK-1.75's plan, decision 3).
 ///
 /// Runs *before* `mod.rs`'s generic `validate` step: `api.call` declares
 /// only `method`, but a real call carries the called method's own
@@ -74,19 +106,8 @@ pub(super) fn call(
     context: &Context,
     request: &Request,
 ) -> Response {
-    let Some(method_name) = param_str(request, "method") else {
-        return Response::Error(bad_request("method: must be text"));
-    };
-    if method_name == "api.call" {
-        return Response::Error(bad_request("api.call cannot call api.call"));
+    match resolve(request) {
+        Ok(inner) => super::dispatch(tree, settings, description, context, &inner),
+        Err(error) => Response::Error(error),
     }
-
-    let mut params = request.params.clone();
-    params.remove("method");
-    let inner = Request {
-        method: method_name.to_string(),
-        params,
-    };
-
-    super::dispatch(tree, settings, description, context, &inner)
 }

@@ -5,8 +5,8 @@ use steg_sdk::{ApiError, Request, SessionId, SessionRecord};
 
 use super::outcome::Outcome;
 use super::{
-    Context, bad_request, map_kernel_error, not_implemented_yet, param_i64, param_present,
-    param_str, target_session, wire_position_to_index,
+    Context, bad_request, map_kernel_error, not_implemented_yet, param_bool, param_i64,
+    param_present, param_str, target_session, wire_position_to_index,
 };
 
 /// Every `session.*` method this module matches on, checked against
@@ -81,19 +81,38 @@ fn show(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, Ap
 }
 
 fn new(tree: &mut Tree, request: &Request) -> Result<Outcome, ApiError> {
-    if param_present(request, "cwd") || param_present(request, "program") {
-        return Err(not_implemented_yet(
-            "a pane's program and working directory (TASK-1.40)",
-        ));
-    }
-
     let label = param_str(request, "label").map(str::to_string);
     let id = tree.new_session(label).map_err(map_kernel_error)?;
     Ok(Outcome::Session(id))
 }
 
+/// `session.close` (AC #4): refuses while any pane of any of the
+/// session's tabs has a program running and `--force` was not given,
+/// with `ErrorCode::ProgramRunning`, touching nothing - the same
+/// dispatch-level policy `pane::close`/`tab::close` use, over every pane
+/// the session holds.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_session(tree, context, request)?;
+    let force = param_bool(request, "force").unwrap_or(false);
+
+    if !force {
+        let any_running = tree
+            .session(id)
+            .ok_or_else(|| map_kernel_error(steg_kernel::Error::SessionNotFound(id)))?
+            .tabs()
+            .iter()
+            .flat_map(steg_kernel::Tab::panes)
+            .any(|pane| {
+                matches!(
+                    pane.program_status(),
+                    Some(steg_sdk::ProgramStatus::Running)
+                )
+            });
+        if any_running {
+            return Err(super::program_running());
+        }
+    }
+
     tree.close_session(id).map_err(map_kernel_error)?;
     Ok(Outcome::Nothing)
 }

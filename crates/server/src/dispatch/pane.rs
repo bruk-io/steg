@@ -1,7 +1,7 @@
 //! The `pane` noun's dispatch arms (doc-2 section 8).
 
 use steg_kernel::{Error, Tree};
-use steg_sdk::{ApiError, Direction, PaneKind, Request};
+use steg_sdk::{ApiError, Direction, PaneKind, PaneRecord, Program, ProgramStatus, Request};
 
 use super::outcome::Outcome;
 use super::{
@@ -34,9 +34,10 @@ pub(super) fn dispatch(
     verb: &str,
 ) -> Result<Outcome, ApiError> {
     match verb {
-        "list" | "show" => Err(not_implemented_yet(
-            "title/cwd/program/exit_code/status (TASK-1.39-1.41)",
+        "list" => Err(not_implemented_yet(
+            "Records for every pane of a tab (TASK-1.76 only built pane.show)",
         )),
+        "show" => show(tree, context, request),
         "split" => split(tree, context, request),
         "close" => close(tree, context, request),
         "move" => move_(tree, context, request),
@@ -66,14 +67,64 @@ fn parse_direction(word: &str) -> Direction {
     }
 }
 
+/// `pane.show` (AC #2): the running program and, once it has ended, its
+/// exit code - pure, since `Program`/`ProgramStatus` already live on the
+/// kernel's own `Pane` (`crates/kernel/src/pane.rs`), not behind a
+/// `PaneHandle`. `title` is always `None` (`PaneRecord`'s own doc: that
+/// needs the terminal's live OSC title, which is I/O this function does
+/// not reach).
+fn show(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
+    let id = target_pane(tree, context, request)?;
+    let tab_id = tree
+        .tab_of_pane(id)
+        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+    let pane = find_tab(tree, tab_id)
+        .and_then(|tab| tab.pane(id))
+        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+
+    Ok(Outcome::PaneRecord(PaneRecord {
+        id,
+        label: pane.label().map(str::to_string),
+        title: None,
+        cwd: pane
+            .program()
+            .map(Program::cwd)
+            .unwrap_or_default()
+            .to_string(),
+        program: pane.program().map(program_text).unwrap_or_default(),
+        exit_code: match pane.program_status() {
+            Some(ProgramStatus::Ended { exit_code }) => Some(exit_code),
+            _ => None,
+        },
+        status: pane.program_status().map(status_text),
+    }))
+}
+
+/// `pane.show`'s `program` field, as a short word a person reads: the
+/// kind (`Program` itself only ever means one of these two things; no
+/// wildcard arm, so a third kind fails this to build, same reasoning
+/// `Pane::kind`'s own doc gives), never the whole `Program` value's debug
+/// form.
+fn program_text(program: &Program) -> String {
+    match program {
+        Program::Shell { .. } => "shell".to_string(),
+        Program::Command { argv, .. } => argv.join(" "),
+    }
+}
+
+/// `pane.show`'s `status` field, as a plain word - `ProgramStatus`'s own
+/// serde form is a tagged JSON shape (`"running"` or `{"ended":{...}}`),
+/// not the plain `ValueKind::Text` the description declares, so this is
+/// its own, smaller rendering rather than reusing serde here.
+fn status_text(status: ProgramStatus) -> String {
+    match status {
+        ProgramStatus::Running => "running".to_string(),
+        ProgramStatus::Ended { .. } => "ended".to_string(),
+    }
+}
+
 fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let target = target_pane(tree, context, request)?;
-
-    if param_present(request, "cwd") || param_present(request, "program") {
-        return Err(not_implemented_yet(
-            "a pane's program and working directory (TASK-1.40)",
-        ));
-    }
 
     let direction = param_str(request, "direction")
         .map(parse_direction)
@@ -121,8 +172,32 @@ fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
     Ok(Outcome::Pane(new_pane))
 }
 
+/// `pane.close` (AC #4): refuses while the pane's own program is running
+/// and `--force` was not given, with `ErrorCode::ProgramRunning`, touching
+/// nothing. This is a dispatch-level policy over the kernel's own
+/// `Pane::program_status()`, because the kernel's `close_pane` has no concept of
+/// "refuse" (TASK-1.40's own plan rejected threading a force flag through
+/// its signature, the same reasoning this plan's own §5 repeats).
+/// `--force` on a pane whose program is running stays exactly as it is
+/// today: an unconditional close that does not touch the program at all
+/// (the gap §5 names, until the task that forces the program itself to
+/// end).
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_pane(tree, context, request)?;
+    let force = param_bool(request, "force").unwrap_or(false);
+
+    if !force {
+        let tab_id = tree
+            .tab_of_pane(id)
+            .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+        let pane = find_tab(tree, tab_id)
+            .and_then(|tab| tab.pane(id))
+            .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+        if matches!(pane.program_status(), Some(ProgramStatus::Running)) {
+            return Err(super::program_running());
+        }
+    }
+
     tree.close_pane(id).map_err(map_kernel_error)?;
     Ok(Outcome::Nothing)
 }

@@ -26,7 +26,9 @@ mod error;
 mod listen;
 mod pane;
 mod paths;
+mod program_param;
 mod pty;
+mod runtime;
 
 pub use arbiter::{Arbitration, Reason as ArbitrationReason, ServerHandle, attempt};
 pub use config::{DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT, ServerConfig};
@@ -37,4 +39,6 @@ pub use error::Error;
 pub use listen::{ServeOutcome, Stopper, run, serve};
 pub use pane::{PaneEvent, PaneHandle, start};
 pub use paths::Reason as PathReason;
+pub use program_param::program_from_request;
 pub use pty::{LaunchSpec, ProgramLauncher, RealLauncher, SpawnedProgram};
+pub use runtime::{LoginShell, Runtime};

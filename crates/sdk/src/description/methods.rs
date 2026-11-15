@@ -243,7 +243,7 @@ fn session_methods() -> Vec<Method> {
             returns: Returns::Identifier {
                 of: "session".into(),
             },
-            errors: vec![ErrorCode::BadRequest],
+            errors: vec![ErrorCode::BadRequest, ErrorCode::ProgramFailed],
             since: VERSION,
         },
         Method {
@@ -449,6 +449,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::BadRequest,
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
+                ErrorCode::ProgramFailed,
             ],
             since: VERSION,
         },
@@ -643,6 +644,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::SplitTooSmall,
+                ErrorCode::ProgramFailed,
             ],
             since: VERSION,
         },
@@ -1372,6 +1374,15 @@ fn errors() -> Vec<ErrorRecord> {
             summary: "The terminal engine failed".into(),
             exit_status: 1,
         },
+        ErrorRecord {
+            code: ErrorCode::ProgramFailed,
+            summary: "The program could not be started".into(),
+            // The request was well-formed; the OS refused it - doc-2
+            // section 6's "the command ran and failed", the same status
+            // ProgramRunning/SplitTooSmall/EngineFailed already use, not
+            // status 2 ("bad usage"), which BadRequest already owns.
+            exit_status: 1,
+        },
     ]
 }
 
@@ -1590,11 +1601,11 @@ mod tests {
     }
 
     #[test]
-    fn errors_has_eleven_codes_with_their_exit_statuses() {
+    fn errors_has_twelve_codes_with_their_exit_statuses() {
         use crate::description::shapes::ErrorCode;
 
         let api = description();
-        assert_eq!(api.errors.len(), 11);
+        assert_eq!(api.errors.len(), 12);
 
         let status_of = |code: ErrorCode| {
             api.errors
@@ -1620,6 +1631,31 @@ mod tests {
         // (bad usage) or 3 (a target problem). Flagged on the task for the
         // engineer to confirm or overrule.
         assert_eq!(status_of(ErrorCode::EngineFailed), 1);
+        // `ProgramFailed` (TASK-1.76): the request was well-formed, the OS
+        // refused to start the program - "the command ran and failed", the
+        // same status `ProgramRunning`/`SplitTooSmall`/`EngineFailed`
+        // already use, not status 2 (`BadRequest`'s own bucket for a
+        // malformed request).
+        assert_eq!(status_of(ErrorCode::ProgramFailed), 1);
+    }
+
+    /// AC #6: `ProgramNotStarted` and `ShellCannotRestart` (the kernel's
+    /// own errors from `Tree::record_exit`/`restart_program`) have no
+    /// dedicated `ErrorCode` at all, and stay that way honestly only if
+    /// nothing in the description ever names a method that could produce
+    /// them - there is no `pane.restart` (or any other verb for "run a
+    /// command pane's program again", R97), so `Tree::restart_program`
+    /// stays unreachable through dispatch, and `record_exit`'s own
+    /// `ProgramNotStarted` is reachable only from this crate's own
+    /// internal drain loop, never a described method at all.
+    #[test]
+    fn no_described_method_can_reach_restart_program_or_record_exit() {
+        let api = description();
+        assert!(
+            api.methods.iter().all(|m| m.name.verb != "restart"),
+            "a `restart` verb would need ProgramNotStarted/ShellCannotRestart \
+             to finally get their own ErrorCode, which is not decided here"
+        );
     }
 
     #[test]

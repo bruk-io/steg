@@ -70,6 +70,23 @@ pub trait ProgramLauncher: Send + Sync {
     fn spawn(&self, spec: &LaunchSpec) -> Result<SpawnedProgram, Error>;
 }
 
+/// Serialises every real `openpty()` call this process makes (TASK-1.76
+/// review, second round): measured directly on macOS, 2026-11-15 - a
+/// bare call to libc's `openpty` from many threads of one process at
+/// once, with no Rust and none of this crate's own code loaded, fails
+/// intermittently with the platform's own `Os { code: -6 }`, while the
+/// number of ptys actually alive stays well under any real ceiling (the
+/// task's own review record has the isolated reproduction). The open is
+/// not safe to call concurrently on this platform; nothing short of
+/// serialising it removes the race, so this is a lock around the call
+/// itself, not a retry (a retry would hide the race, not remove it).
+///
+/// Held only for [`RealLauncher::spawn`]'s own `openpty` call, never
+/// across the spawn or anything that waits: `portable-pty`'s own
+/// `PtyPair::slave.spawn_command` is a separate call this lock does not
+/// need to cover, and nothing after the open blocks on I/O.
+static OPENPTY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// The real implementation, over `portable-pty`. Mirrors
 /// `spikes/task-1.2-wire-protocol/probe-server/src/pty.rs`'s own shape,
 /// which already proved this reads cleanly against this exact problem.
@@ -80,14 +97,19 @@ impl ProgramLauncher for RealLauncher {
     fn spawn(&self, spec: &LaunchSpec) -> Result<SpawnedProgram, Error> {
         let (cols, rows) = spec.size;
         let pty_system = portable_pty::native_pty_system();
-        let pair = pty_system
-            .openpty(portable_pty::PtySize {
-                rows,
-                cols,
-                pixel_width: 0,
-                pixel_height: 0,
-            })
-            .map_err(|cause| Error::Pty(cause.into()))?;
+        let pair = {
+            let _guard = OPENPTY_LOCK
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            pty_system
+                .openpty(portable_pty::PtySize {
+                    rows,
+                    cols,
+                    pixel_width: 0,
+                    pixel_height: 0,
+                })
+                .map_err(|cause| Error::Pty(cause.into()))?
+        };
 
         let mut command =
             portable_pty::CommandBuilder::from_argv(spec.argv.iter().map(OsString::from).collect());

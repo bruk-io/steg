@@ -8,7 +8,9 @@
 //! (`mod.rs`).
 
 use serde_json::Value;
-use steg_sdk::{Description, Method, PaneId, SessionId, SessionRecord, SettingRecord, TabId};
+use steg_sdk::{
+    Description, Method, PaneId, PaneRecord, SessionId, SessionRecord, SettingRecord, TabId,
+};
 
 /// A served method's typed result, before it becomes the `Value` a
 /// [`steg_sdk::Response::Ok`] carries.
@@ -36,6 +38,8 @@ pub enum Outcome {
     SettingRecord(SettingRecord),
     /// Every setting (`setting.list`).
     SettingRecords(Vec<SettingRecord>),
+    /// One pane, in full (`pane.show`; TASK-1.76 AC #2).
+    PaneRecord(PaneRecord),
 }
 
 impl Outcome {
@@ -83,6 +87,9 @@ impl Outcome {
             }
             Self::SettingRecords(records) => {
                 serde_json::to_value(records).expect("a Vec<SettingRecord> always serialises")
+            }
+            Self::PaneRecord(record) => {
+                serde_json::to_value(record).expect("a PaneRecord always serialises")
             }
         }
     }
@@ -146,6 +153,23 @@ mod tests {
         };
 
         let value = Outcome::SettingRecord(record.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(record).unwrap());
+    }
+
+    #[test]
+    fn a_pane_record_serialises_to_its_own_typed_shape() {
+        let record = steg_sdk::PaneRecord {
+            id: PaneId::from_raw(1),
+            label: None,
+            title: None,
+            cwd: "/tmp".to_string(),
+            program: "shell".to_string(),
+            exit_code: None,
+            status: Some("running".to_string()),
+        };
+
+        let value = Outcome::PaneRecord(record.clone()).into_value();
 
         assert_eq!(value, serde_json::to_value(record).unwrap());
     }

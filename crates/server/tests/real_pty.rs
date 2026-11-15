@@ -18,7 +18,7 @@ use std::time::Duration;
 use steg_kernel::{ExitOutcome, Moment, Tree};
 use steg_sdk::{PaneId, Program, Screen};
 
-use steg_server::{Error, LaunchSpec, PaneEvent, RealLauncher};
+use steg_server::{Error, LaunchSpec, PaneEvent, ProgramLauncher, RealLauncher};
 
 /// How long any one real-pty test waits for an event before failing with
 /// a message, rather than hanging indefinitely on a misbehaving child
@@ -255,6 +255,63 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     handle.shutdown();
 }
 
+/// `AC #1`'s "a program that cannot be started" is engaged by a bad
+/// command (the next test), never by a bad `cwd` - confirmed by the
+/// experiment this is the committed record of, not assumed. Read
+/// `portable-pty` 0.9.0's own source
+/// (`src/cmdbuilder.rs:498-507,560-576`): `CommandBuilder::as_command`
+/// silently substitutes the user's home directory for any `cwd` that
+/// isn't a real, existing directory, and spawns there - there is no
+/// error, no child-side `chdir` failure, nothing for this task's
+/// `ENOENT`-shaped rollback (§2 of the plan) to catch, because the
+/// program genuinely does start, successfully, just not where it was
+/// asked to. `get_home_dir()` reads the env var `HOME` from the
+/// `CommandBuilder`'s own map, which is seeded from this process's real
+/// environment at construction (`get_base_env()`) and never overridden by
+/// anything `pane_environment` sets (the five `STEG_*` vars and `PATH`
+/// only) - the same source `std::env::var("HOME")` reads, so asserting
+/// equality with it is a real claim, not a guess at portable-pty's
+/// internals.
+///
+/// **Answered (review finding 4, TASK-1.76)**: refused, not silently
+/// redirected - but not here, and not by `portable-pty`, since this
+/// experiment is exactly why that is the wrong layer to fix it at (no
+/// error reaches this call at all). `Runtime::start_and_dispatch`
+/// (`crates/server/src/runtime.rs`) checks `program.cwd()` itself,
+/// before calling down to this function, and refuses with
+/// `ErrorCode::ProgramFailed` rather than ever reaching this silent
+/// substitution; see `crates/server/tests/runtime.rs`'s
+/// `*_with_a_nonexistent_cwd_*` tests. This test stays exactly as it
+/// was: the committed record of what this lower layer does on its own,
+/// which is still true and still the reason the check exists above it.
+#[test]
+fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home() {
+    let home = std::fs::canonicalize(std::env::var("HOME").unwrap()).unwrap();
+    let (events_tx, events_rx) = mpsc::channel();
+    let pane = PaneId::from_raw(1);
+
+    let handle = steg_server::start(
+        spec(
+            vec!["sh", "-c", "pwd"],
+            "/this/directory/does/not/exist/anywhere/at/all",
+            Vec::new(),
+        ),
+        pane,
+        Arc::new(RealLauncher),
+        events_tx,
+    )
+    .expect("a bad cwd alone does not fail start() - portable-pty substitutes home and spawns");
+
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 0 }
+    );
+    let screen = handle.snapshot().unwrap();
+    let reported = std::fs::canonicalize(screen_text(&screen).trim()).unwrap();
+    assert_eq!(reported, home, "expected the program to have run in $HOME");
+    handle.shutdown();
+}
+
 #[test]
 fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
     let (events_tx, _events_rx) = mpsc::channel();
@@ -279,4 +336,103 @@ fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
             Err(e) => e.to_string(),
         }
     );
+}
+
+/// How many threads call `RealLauncher::spawn` at once, each round -
+/// "at least 28" per the review: this machine's own default `cargo test`
+/// parallelism, the exact concurrency that first exposed the race.
+const CONCURRENT_OPENS: usize = 32;
+
+/// How many times [`many_threads_opening_a_real_pty_at_once_never_fails`]
+/// repeats the all-at-once open, inside one test run - enough that the
+/// negative control (the lock removed) fails on a near-certain fraction
+/// of local runs, recorded on the task alongside how many rounds that
+/// took.
+const ROUNDS: usize = 10;
+
+/// TASK-1.76 review (second round): `openpty()` itself is not safe to
+/// call from several threads of one process at once on this platform -
+/// measured directly, isolated from this crate's own code (a bare libc
+/// call from many threads, no Rust, no `portable-pty`, still raced) and
+/// recorded on the task. `RealLauncher::spawn` now serialises its own
+/// `openpty` call behind `pty::OPENPTY_LOCK` for exactly this reason;
+/// this test drives that real contention directly - many real threads,
+/// each opening a real pty through the real launcher, at once, repeated
+/// enough rounds that the race is no longer a matter of luck.
+///
+/// Every spawned program exits at once and is waited on before the next
+/// round, rather than left running: proving the open itself is safe
+/// under contention does not need every pty kept alive at once, and
+/// reaping each keeps 32 * 10 rounds of this test from leaking real
+/// processes.
+#[test]
+fn many_threads_opening_a_real_pty_at_once_never_fails() {
+    let cwd = std::env::temp_dir();
+
+    for round in 0..ROUNDS {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(CONCURRENT_OPENS));
+        let handles: Vec<_> = (0..CONCURRENT_OPENS)
+            .map(|thread| {
+                let barrier = std::sync::Arc::clone(&barrier);
+                let cwd = cwd.clone();
+                std::thread::spawn(move || {
+                    let launcher = RealLauncher;
+                    let spec = spec(vec!["sh", "-c", "true"], cwd.to_str().unwrap(), Vec::new());
+                    // Every thread opens at the same instant, not
+                    // whenever it happens to get scheduled: the race
+                    // this is proving against is concurrent calls, not
+                    // merely overlapping ones.
+                    barrier.wait();
+                    (thread, launcher.spawn(&spec))
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let (thread, result) = handle.join().expect("the spawning thread itself panicked");
+            match result {
+                Ok(spawned) => {
+                    let status = wait_bounded(spawned.child, EVENT_TIMEOUT).unwrap_or_else(|_| {
+                        panic!(
+                            "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                             the real `sh -c true` never exited within {EVENT_TIMEOUT:?}"
+                        )
+                    });
+                    assert!(
+                        status.success(),
+                        "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                         expected `sh -c true` to exit 0, got {status:?}"
+                    );
+                }
+                Err(error) => panic!(
+                    "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                     RealLauncher::spawn failed under concurrent opens: {error}"
+                ),
+            }
+        }
+    }
+}
+
+/// Waits for `child` to exit, bounded by `timeout` rather than a bare
+/// `Child::wait()` (that trait has no timeout of its own) - the same
+/// thread-plus-bounded-`recv` shape this file's own module doc promises
+/// for every wait. On a timeout, kills the child first (taken from it
+/// before the wait, since `wait()` itself owns `child` on its own
+/// thread by then) so a child that never exits is not left running
+/// behind a failed test, not just reported as one.
+fn wait_bounded(
+    mut child: Box<dyn portable_pty::Child + Send + Sync>,
+    timeout: Duration,
+) -> std::io::Result<portable_pty::ExitStatus> {
+    let mut killer = child.clone_killer();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(child.wait());
+    });
+    rx.recv_timeout(timeout).unwrap_or_else(|_| {
+        let _ = killer.kill();
+        Err(std::io::Error::other(format!(
+            "child never exited within {timeout:?}; killed it"
+        )))
+    })
 }

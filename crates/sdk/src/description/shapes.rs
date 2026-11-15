@@ -290,6 +290,9 @@ pub enum ErrorCode {
     NotImplementedYet,
     /// The terminal engine (`ghostty-vt`) failed.
     EngineFailed,
+    /// The program could not be started: the OS refused to spawn it (for
+    /// instance, the command does not exist).
+    ProgramFailed,
 }
 
 #[cfg(test)]

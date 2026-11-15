@@ -125,8 +125,7 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             vec![("direction", json!("right")), ("by", json!(1))],
             "Tab::size",
         ),
-        ("pane.list", vec![], "title/cwd/program"),
-        ("pane.show", vec![], "title/cwd/program"),
+        ("pane.list", vec![], "pane.show"),
         ("pane.send", vec![], "start_program"),
         ("pane.capture", vec![], "start_program"),
         ("pane.wait", vec![("for", json!("exit"))], "start_program"),
@@ -139,21 +138,6 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             "client.show",
             vec![("target", json!("placeholder"))],
             "client model",
-        ),
-        (
-            "session.new",
-            vec![("cwd", json!("/tmp"))],
-            "program and working directory",
-        ),
-        (
-            "tab.new",
-            vec![("program", json!(["htop"]))],
-            "program and working directory",
-        ),
-        (
-            "pane.split",
-            vec![("direction", json!("right")), ("cwd", json!("/tmp"))],
-            "program and working directory",
         ),
     ];
 
@@ -844,17 +828,29 @@ fn pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was() {
 }
 
 #[test]
-fn pane_split_with_a_program_refuses_and_creates_nothing() {
+fn pane_split_with_a_program_mints_a_pane_but_does_not_start_it() {
+    // TASK-1.76: `dispatch` stays I/O-free and does not call
+    // `Tree::start_program` itself - that is `Runtime`'s own job, right
+    // after this same call, under one lock (its own plan, §1/§2). This
+    // test calls `dispatch` directly, bypassing `Runtime` entirely, to
+    // prove exactly the one thing `dispatch` alone ever does: mint the
+    // pane and nothing more, with `program()`/`program_status()` still
+    // `None` regardless of `program`/`cwd`.
+    //
+    // This is *not* a description of what any real caller sees: every
+    // production path that can mint a pane - `pane.split`/`tab.new`/
+    // `session.new` called directly, or through `api.call` - goes
+    // through `Runtime::start_and_dispatch`, which always starts the
+    // program right after this same call completes (confirmed by review:
+    // the first version of this comment claimed "that is Runtime's own
+    // job, right after this same call" without checking whether every
+    // path actually reaches `Runtime` - `api.call` did not, until that
+    // finding's fix). `grep -rn 'split_pane(\|new_tab(\|new_session('
+    // over `crates/server/src` outside tests shows exactly these three
+    // dispatch arms as the only callers.
     let (mut tree, context, api) = fresh();
-    let before = tree
-        .session(context.default_session)
-        .unwrap()
-        .tab(context.default_tab)
-        .unwrap()
-        .panes()
-        .len();
 
-    let error = err(dispatch(
+    let outcome = ok(dispatch(
         &mut tree,
         &mut Settings::new(),
         &api,
@@ -865,16 +861,16 @@ fn pane_split_with_a_program_refuses_and_creates_nothing() {
         ),
     ));
 
-    assert_eq!(error.code, ErrorCode::NotImplementedYet);
-    assert_eq!(
-        tree.session(context.default_session)
-            .unwrap()
-            .tab(context.default_tab)
-            .unwrap()
-            .panes()
-            .len(),
-        before
-    );
+    let new_pane: steg_sdk::PaneId = outcome["id"].as_str().unwrap().parse().unwrap();
+    let pane = tree
+        .session(context.default_session)
+        .unwrap()
+        .tab(context.default_tab)
+        .unwrap()
+        .pane(new_pane)
+        .expect("dispatch minted this pane");
+    assert_eq!(pane.program(), None);
+    assert_eq!(pane.program_status(), None);
 }
 
 #[test]

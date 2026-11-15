@@ -46,12 +46,6 @@ fn new(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome,
     // (doc-2's "The session to create the tab in"), not a tab.
     let session_id = target_session(tree, context, request)?;
 
-    if param_present(request, "cwd") || param_present(request, "program") {
-        return Err(not_implemented_yet(
-            "a pane's program and working directory (TASK-1.40)",
-        ));
-    }
-
     // Converted (and so refused, if malformed) before anything is
     // created, same as every other refusal in this arm - even though the
     // bound `move_tab` checks it against (how many siblings there will
@@ -101,8 +95,30 @@ fn new(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome,
     Ok(Outcome::Tab(tab_id))
 }
 
+/// `tab.close` (AC #4): refuses while any of the tab's panes has a program
+/// running and `--force` was not given, with `ErrorCode::ProgramRunning`,
+/// touching nothing - the same dispatch-level policy `pane::close` uses,
+/// over every pane the tab holds rather than one.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_tab(tree, context, request)?;
+    let force = param_bool(request, "force").unwrap_or(false);
+
+    if !force {
+        let any_running = super::find_tab(tree, id)
+            .ok_or_else(|| map_kernel_error(Error::TabNotFound(id)))?
+            .panes()
+            .iter()
+            .any(|pane| {
+                matches!(
+                    pane.program_status(),
+                    Some(steg_sdk::ProgramStatus::Running)
+                )
+            });
+        if any_running {
+            return Err(super::program_running());
+        }
+    }
+
     tree.close_tab(id).map_err(map_kernel_error)?;
     Ok(Outcome::Nothing)
 }

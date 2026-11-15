@@ -387,6 +387,39 @@ impl Tree {
         }
     }
 
+    /// What `tab`'s panes' sizes are *right now*, at whatever size the tab
+    /// already has declared — the same shape [`Tree::size_changed`] builds
+    /// after a fresh declaration, but callable at any time, for anything
+    /// that may have changed a tab's layout without itself declaring a new
+    /// size (TASK-1.76: a split, a close, a swap, a move between tabs — the
+    /// server reapplies this after any of them, for every currently-sized
+    /// tab, so a client's own size keeps reaching every pane regardless of
+    /// which verb moved them).
+    ///
+    /// Returns `None` when `tab` has no declared size yet (true of every
+    /// tab until a client declares one — no `client` dispatch method exists
+    /// yet to do that) or does not exist.
+    #[must_use]
+    pub fn tab_sizes_now(&self, tab: TabId) -> Option<SizeChanged> {
+        let size = self.tab_by_id(tab)?.size()?;
+        Some(self.size_changed(tab, size))
+    }
+
+    /// Every tab, anywhere in the tree, that currently has a declared size
+    /// (TASK-1.76: what the server walks after any request that could have
+    /// changed a layout, to reapply [`Tree::tab_sizes_now`] to each —
+    /// cheap today, since this is always empty until a client declares a
+    /// size).
+    #[must_use]
+    pub fn sized_tabs(&self) -> Vec<TabId> {
+        self.sessions
+            .iter()
+            .flat_map(Session::tabs)
+            .filter(|tab| tab.size().is_some())
+            .map(Tab::id)
+            .collect()
+    }
+
     /// Recomputes the latest client in `session` (decision-6: derived, not
     /// stored - see `Tree::latest_client`) and, for every tab it views
     /// there, reapplies its own last-declared size if that differs from
@@ -2925,6 +2958,108 @@ mod tests {
         let mut expected_viewers = vec![declarer, other_viewer];
         expected_viewers.sort_by_key(|client| client.into_raw());
         assert_eq!(viewers, expected_viewers);
+    }
+
+    // TASK-1.76: sizes reapplied generically, not only on start.
+
+    #[test]
+    fn tab_sizes_now_is_none_for_a_tab_with_no_declared_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+
+        assert_eq!(tree.tab_sizes_now(tab_id), None);
+    }
+
+    #[test]
+    fn tab_sizes_now_is_none_for_an_unknown_tab() {
+        let tree = Tree::new();
+        assert_eq!(tree.tab_sizes_now(steg_sdk::TabId::from_raw(999)), None);
+    }
+
+    #[test]
+    fn tab_sizes_now_matches_what_declaring_the_same_size_again_would_report() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            first_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, first_pane).unwrap();
+        let declared = tree
+            .declare_size(client, tab_id, steg_sdk::Size::new(60, 20))
+            .unwrap();
+
+        // Nothing about the tab changed since declaring - tab_sizes_now
+        // must report exactly what was just declared, read back rather
+        // than recomputed differently.
+        assert_eq!(tree.tab_sizes_now(tab_id), Some(declared));
+    }
+
+    #[test]
+    fn tab_sizes_now_reflects_a_split_that_happened_after_the_size_was_declared() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, first_pane).unwrap();
+        tree.declare_size(client, tab_id, steg_sdk::Size::new(60, 20))
+            .unwrap();
+
+        // The one-pane tab's size, declared above, applied to that one
+        // pane - no split yet.
+        let before = tree.tab_sizes_now(tab_id).unwrap();
+        assert_eq!(before.panes.len(), 1);
+
+        // Splitting afterwards, with no new declaration at all, is exactly
+        // the case this method exists for: the tab's own total size is
+        // unchanged, but each pane's share of it is not.
+        tree.split_pane(
+            first_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        let after = tree.tab_sizes_now(tab_id).unwrap();
+        assert_eq!(after.size, before.size);
+        assert_eq!(after.panes.len(), 2);
+        assert_ne!(after.panes[0].1, before.panes[0].1);
+    }
+
+    #[test]
+    fn sized_tabs_is_empty_until_a_size_is_declared() {
+        let mut tree = Tree::new();
+        tree.new_session(None).unwrap();
+        tree.new_session(None).unwrap();
+
+        assert_eq!(tree.sized_tabs(), Vec::new());
+    }
+
+    #[test]
+    fn sized_tabs_lists_only_the_tabs_a_client_actually_declared_a_size_for() {
+        let mut tree = Tree::new();
+        let first_session = tree.new_session(None).unwrap();
+        let first_tab = tree.session(first_session).unwrap().tabs()[0].id();
+        let first_pane = tree.session(first_session).unwrap().tabs()[0].panes()[0].id();
+        // A second session's tab, deliberately never sized, is the
+        // counter-example `sized_tabs` must not include.
+        let _second_session = tree.new_session(None).unwrap();
+
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, first_pane).unwrap();
+        tree.declare_size(client, first_tab, steg_sdk::Size::new(60, 20))
+            .unwrap();
+
+        assert_eq!(tree.sized_tabs(), vec![first_tab]);
     }
 
     #[test]

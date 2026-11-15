@@ -1,11 +1,11 @@
 ---
 id: TASK-1.41
 title: 'Kernel: status in the first release, and when each one ends'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:04:00Z'
+updated_date: '2026-11-15T21:27:00Z'
 labels:
   - size-3
   - review-passed

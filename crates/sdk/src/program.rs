@@ -53,13 +53,16 @@ impl Program {
 }
 
 /// What steg knows about a pane's program right now, in the first release
-/// (doc-15 R97): running, or ended with an exit code. A richer `Status` —
-/// waiting, failed, the bell, finished, with its own timers (doc-11) — is
-/// built on top of this in a later task; this is the one fact the kernel
-/// itself can always know with no clock of its own.
+/// (doc-15 R97): running, or ended with an exit code. [`crate::Status`] is
+/// built on top of this (TASK-1.41): the same fact, with R83's own ending
+/// rules and timers layered on top of it by the kernel — this remains the
+/// one fact the kernel itself can always know with no clock of its own,
+/// and the two can disagree (a program can have `Ended` here while its
+/// `Status` has already ended too, well before it is run again).
 ///
-/// Crosses the API as a pane's own field (doc-2 section 8: "status" and
-/// "exit_code"), so it is defined once, here (doc-16 R105).
+/// Crosses the API as a pane's own field (doc-2 section 8: "exit_code";
+/// "status" is [`crate::Status`]'s field now), so it is defined once, here
+/// (doc-16 R105).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProgramStatus {

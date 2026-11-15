@@ -9,6 +9,7 @@ use crate::colour::next_colour;
 use crate::error::Error;
 use crate::ids::Ids;
 use crate::label;
+use crate::moment::Moment;
 use crate::session::{Session, TabClosed};
 use crate::tab::{DirectionalFocus, Tab};
 
@@ -528,8 +529,14 @@ impl Tree {
         })
     }
 
-    /// Records what a pane runs, for the first time (doc-9 R13; TASK-1.40).
-    /// Called once, right after the pane that minted `id` was created
+    /// Records what a pane runs, for the first time (doc-9 R13; TASK-1.40),
+    /// and its status as `Running` (doc-11; TASK-1.41), stamped with this
+    /// tree's own current tick (decision-6/R91's non-clock activity
+    /// counter) - reused here purely so two panes' statuses can be told
+    /// apart by "which started more recently" (decision-7 point 3), with
+    /// no new parameter on this method: nothing about *when* in real time
+    /// a program started needs to reach this call at all. Called once,
+    /// right after the pane that minted `id` was created
     /// ([`Tree::new_session`]/[`Tree::new_tab`]/[`Tree::split_pane`]), so
     /// `STEG_PANE` (which needs the id) is already known.
     ///
@@ -539,16 +546,22 @@ impl Tree {
     /// with that id, or [`Error::ProgramAlreadyStarted`] if it already has
     /// a program.
     pub fn start_program(&mut self, id: PaneId, program: Program) -> Result<(), Error> {
+        let tick = self.tick();
         self.tab_owning_pane_mut(id)
             .and_then(|tab| tab.pane_mut(id))
             .ok_or(Error::PaneNotFound(id))?
-            .start_program(program)
+            .start_program(program, tick)
     }
 
-    /// Records that a pane's program ended with `exit_code`, and runs
-    /// R97's cascade: a pane started as a plain shell closes, exactly as a
-    /// manual [`Tree::close_pane`] would; a pane started with a given
+    /// Records that a pane's program ended with `exit_code` at `now`, and
+    /// runs R97's cascade: a pane started as a plain shell closes, exactly
+    /// as a manual [`Tree::close_pane`] would; a pane started with a given
     /// command stays, and can be run again with [`Tree::restart_program`].
+    /// Also updates the pane's status (doc-11 R82) to `Finished` or
+    /// `Failed` - `now` is the one place real elapsed time enters this
+    /// crate at all (TASK-1.41), the caller's own clock reading converted
+    /// to a [`Moment`], used only for R83's ten-minute `Finished` rule;
+    /// this method never reads a clock itself (doc-16 R110).
     ///
     /// # Errors
     ///
@@ -561,12 +574,18 @@ impl Tree {
     /// Never in practice: a pane this just found and recorded an exit on
     /// cannot have gone anywhere in between, since nothing else runs while
     /// this method holds `&mut self`.
-    pub fn record_exit(&mut self, id: PaneId, exit_code: i32) -> Result<ExitOutcome, Error> {
+    pub fn record_exit(
+        &mut self,
+        id: PaneId,
+        exit_code: i32,
+        now: Moment,
+    ) -> Result<ExitOutcome, Error> {
+        let tick = self.tick();
         let pane = self
             .tab_owning_pane_mut(id)
             .and_then(|tab| tab.pane_mut(id))
             .ok_or(Error::PaneNotFound(id))?;
-        pane.record_exit(exit_code)?;
+        pane.record_exit(exit_code, now, tick)?;
 
         if pane.closes_on_exit() {
             let closed = self
@@ -581,7 +600,9 @@ impl Tree {
     /// Runs a pane's program again, in the same directory, with the same
     /// arguments (R97). Only the kernel's own state moves back to
     /// `Running`; actually spawning the new process is the server's job
-    /// (TASK-1.40's brief).
+    /// (TASK-1.40's brief). Its status (doc-11) moves back to `Running`
+    /// too, stamped with this tree's current tick, the same reason
+    /// [`Tree::start_program`] is.
     ///
     /// # Errors
     ///
@@ -589,10 +610,72 @@ impl Tree {
     /// with that id, or whatever `Pane::restart` returns -
     /// [`Error::ProgramStillRunning`] or [`Error::ShellCannotRestart`].
     pub fn restart_program(&mut self, id: PaneId) -> Result<(), Error> {
+        let tick = self.tick();
         self.tab_owning_pane_mut(id)
             .and_then(|tab| tab.pane_mut(id))
             .ok_or(Error::PaneNotFound(id))?
-            .restart()
+            .restart(tick)
+    }
+
+    /// The pane whose status `tab`'s ring stands for, as of `now` (doc-11
+    /// R50, decision-7; TASK-1.41) - [`crate::Tab::shown_status`]'s own
+    /// doc comment has the ranking and tie-break. `None` if no pane in
+    /// the tab currently has a status.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
+    /// id.
+    pub fn tab_shown_status(&self, tab: TabId, now: Moment) -> Result<Option<PaneId>, Error> {
+        Ok(self
+            .tab_by_id(tab)
+            .ok_or(Error::TabNotFound(tab))?
+            .shown_status(now))
+    }
+
+    /// The soonest moment some pane's status will end on its own, with no
+    /// further input - the minimum of every pane's own
+    /// [`crate::Pane::next_status_deadline`] across the whole tree, or
+    /// `None` if nothing has a live timer (doc-11 R83: only `Finished`
+    /// ever has one). Lets a caller with a real clock (the server) sleep
+    /// until this moment, or until something else happens first, instead
+    /// of polling every pane on an interval; this method itself never
+    /// reads a clock (doc-16 R110) - it only compares the `Moment`s
+    /// already stored against the `now` it's given.
+    #[must_use]
+    pub fn next_status_deadline(&self, now: Moment) -> Option<Moment> {
+        self.sessions
+            .iter()
+            .flat_map(Session::tabs)
+            .flat_map(Tab::panes)
+            .filter_map(|pane| pane.next_status_deadline(now))
+            .min()
+    }
+
+    /// Tells the kernel the person has dealt with `pane`'s status - R83's
+    /// "a key press or click in that pane" ending, for the half of it
+    /// that is not a key press: `Tree::note_input` already ends a status
+    /// on input, so this is the kernel's own answer to doc-11's open
+    /// question #3 ("a click is not [input the server already sees]") for
+    /// *what the kernel operation is*; how a click reaches the server at
+    /// all is still open there, and in doc-14.
+    ///
+    /// Ends whichever status `pane` currently has, `Finished` or `Failed`
+    /// alike (decision-7 point 5 names "a key press or click" for both,
+    /// not for `Failed` alone - see this task's notes for the full
+    /// reconciliation against the acceptance criterion's narrower
+    /// wording). A no-op, not an error, if `pane` has no status to end.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id.
+    pub fn acknowledge_pane(&mut self, id: PaneId) -> Result<(), Error> {
+        self.tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?
+            .clear_status();
+        Ok(())
     }
 
     /// Creates a new tab in the session with this id, with one pane
@@ -1231,6 +1314,15 @@ impl Tree {
     /// This is the path that makes an *old* declaration win again once
     /// its client becomes latest by a later input, not a fresh declare.
     ///
+    /// Also ends `pane`'s status, if it has one (doc-11 R83; decision-7
+    /// point 5's "a key press" - TASK-1.41): this is exactly what "input
+    /// to the pane" already means in this codebase, so a key press ends a
+    /// `Finished` or `Failed` status whether or not that key press also
+    /// changes anything about the tab's size. A resize alone
+    /// ([`Tree::declare_size`]) and a bare focus
+    /// ([`Tree::focus_pane`]/[`Tab::focus`]) are not input and touch
+    /// nothing here (doc-15's own "opening a tab clears nothing").
+    ///
     /// # Errors
     ///
     /// Returns [`Error::ClientNotFound`] if `client` is unknown, or
@@ -1240,7 +1332,7 @@ impl Tree {
     /// # Panics
     ///
     /// Never in practice: `pane` was just confirmed to belong to a tab, and
-    /// every tab belongs to a session (R93), so the `expect` below cannot
+    /// every tab belongs to a session (R93), so the `expect`s below cannot
     /// fail.
     pub fn note_input(
         &mut self,
@@ -1258,6 +1350,11 @@ impl Tree {
         if !client_ref.is_viewing(pane) {
             return Err(Error::ClientNotViewingPane { client, pane });
         }
+
+        self.tab_by_id_mut(tab)
+            .and_then(|t| t.pane_mut(pane))
+            .expect("pane and its owning tab were both just confirmed to exist")
+            .clear_status();
 
         let tick = self.tick();
         let declared = {
@@ -1353,7 +1450,15 @@ impl Tree {
 #[cfg(test)]
 mod tests {
     use super::{FocusMove, Focused, Tree};
+    use crate::moment::Moment;
+    use std::time::Duration;
     use steg_sdk::Colour;
+
+    /// A `Moment` this many seconds after an arbitrary origin - plain
+    /// data, no clock, used throughout this module's tests.
+    fn moment(secs: u64) -> Moment {
+        Moment::new(Duration::from_secs(secs))
+    }
 
     #[test]
     fn new_session_gives_the_first_five_sessions_distinct_colours_in_order() {
@@ -1489,7 +1594,10 @@ mod tests {
 
         let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
         assert_eq!(pane.program(), Some(&command("/tmp")));
-        assert_eq!(pane.status(), Some(steg_sdk::ProgramStatus::Running));
+        assert_eq!(
+            pane.program_status(),
+            Some(steg_sdk::ProgramStatus::Running)
+        );
     }
 
     #[test]
@@ -1511,20 +1619,23 @@ mod tests {
         let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
         tree.start_program(pane_id, command("/tmp")).unwrap();
 
-        let outcome = tree.record_exit(pane_id, 3).unwrap();
+        let outcome = tree.record_exit(pane_id, 3, moment(0)).unwrap();
 
         assert_eq!(outcome, super::ExitOutcome::Stayed);
         assert!(tree.session(session_id).is_some());
         let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
         assert_eq!(
-            pane.status(),
+            pane.program_status(),
             Some(steg_sdk::ProgramStatus::Ended { exit_code: 3 })
         );
 
         tree.restart_program(pane_id).unwrap();
 
         let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
-        assert_eq!(pane.status(), Some(steg_sdk::ProgramStatus::Running));
+        assert_eq!(
+            pane.program_status(),
+            Some(steg_sdk::ProgramStatus::Running)
+        );
         assert_eq!(pane.program(), Some(&command("/tmp")));
     }
 
@@ -1535,7 +1646,7 @@ mod tests {
         let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
         tree.start_program(pane_id, shell("/tmp")).unwrap();
 
-        let outcome = tree.record_exit(pane_id, 0).unwrap();
+        let outcome = tree.record_exit(pane_id, 0, moment(0)).unwrap();
 
         let super::ExitOutcome::Closed(closed) = outcome else {
             panic!("expected the shell pane's exit to close it, got {outcome:?}");
@@ -1564,7 +1675,7 @@ mod tests {
             .unwrap();
         tree.start_program(second_pane, shell("/tmp")).unwrap();
 
-        let outcome = tree.record_exit(second_pane, 0).unwrap();
+        let outcome = tree.record_exit(second_pane, 0, moment(0)).unwrap();
 
         let super::ExitOutcome::Closed(closed) = outcome else {
             panic!("expected the shell pane's exit to close it, got {outcome:?}");
@@ -1580,7 +1691,7 @@ mod tests {
         let mut tree = Tree::new();
 
         assert_eq!(
-            tree.record_exit(steg_sdk::PaneId::from_raw(999), 0),
+            tree.record_exit(steg_sdk::PaneId::from_raw(999), 0, moment(0)),
             Err(crate::error::Error::PaneNotFound(
                 steg_sdk::PaneId::from_raw(999)
             ))
@@ -1620,7 +1731,7 @@ mod tests {
             )
             .unwrap();
         tree.start_program(second_pane, shell("/tmp")).unwrap();
-        tree.record_exit(second_pane, 0).unwrap();
+        tree.record_exit(second_pane, 0, moment(0)).unwrap();
 
         assert_eq!(
             tree.restart_program(second_pane),
@@ -3186,5 +3297,369 @@ mod tests {
             tree.set_tab_current_pane(first_tab, unknown_pane),
             Err(crate::error::Error::PaneNotFound(unknown_pane))
         );
+    }
+
+    // --- status (doc-11, decision-7; TASK-1.41) ---------------------------
+
+    fn finish(tree: &mut Tree, pane: steg_sdk::PaneId) {
+        tree.start_program(pane, command("/tmp")).unwrap();
+        tree.record_exit(pane, 0, moment(0)).unwrap();
+    }
+
+    fn fail(tree: &mut Tree, pane: steg_sdk::PaneId) {
+        tree.start_program(pane, command("/tmp")).unwrap();
+        tree.record_exit(pane, 3, moment(0)).unwrap();
+    }
+
+    #[test]
+    fn note_input_ends_a_finished_status_on_the_pane_it_was_sent_to() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        finish(&mut tree, pane);
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn note_input_ends_a_failed_status_on_the_pane_it_was_sent_to() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        fail(&mut tree, pane);
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn note_input_has_nothing_to_end_on_a_running_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane, command("/tmp")).unwrap();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), Some(steg_sdk::Status::Running));
+    }
+
+    #[test]
+    fn note_input_to_one_pane_does_not_end_another_panes_status_in_the_same_tab() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second = tree
+            .split_pane(
+                first,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        finish(&mut tree, first);
+        fail(&mut tree, second);
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, first).unwrap();
+
+        tree.note_input(client, first).unwrap();
+
+        let tab = &tree.session(session_id).unwrap().tabs()[0];
+        assert_eq!(tab.pane(first).unwrap().status(moment(0)), None);
+        assert_eq!(
+            tab.pane(second).unwrap().status(moment(0)),
+            Some(steg_sdk::Status::Failed { exit_code: 3 })
+        );
+    }
+
+    #[test]
+    fn acknowledge_pane_ends_a_finished_status() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        finish(&mut tree, pane);
+
+        tree.acknowledge_pane(pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn acknowledge_pane_ends_a_failed_status() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        fail(&mut tree, pane);
+
+        tree.acknowledge_pane(pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn acknowledge_pane_is_a_no_op_when_the_pane_has_no_status() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        tree.acknowledge_pane(pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn acknowledge_pane_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+        let unknown = steg_sdk::PaneId::from_raw(999);
+
+        assert_eq!(
+            tree.acknowledge_pane(unknown),
+            Err(crate::error::Error::PaneNotFound(unknown))
+        );
+    }
+
+    #[test]
+    fn a_command_panes_full_cycle_and_each_steps_tie_goes_to_the_newer_pane() {
+        // `a` runs through start, exit non-zero, input, restart, exit
+        // zero, restart, exit zero again - doc-15 R97's full cycle for a
+        // command pane. At every step, `b` is driven through the exact
+        // same step first, so the two panes always tie on rank; `a`'s
+        // tick is always the newer of the two, and decision-7 point 3
+        // ("how pressing, then newest") says it should win the tie every
+        // time - proving the tie-break holds across the whole lifecycle,
+        // not just once.
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let a = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let b = tree
+            .split_pane(a, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+            .unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, a).unwrap();
+
+        macro_rules! assert_status_and_tie {
+            ($status:expr) => {
+                let tab = &tree.session(session_id).unwrap().tabs()[0];
+                assert_eq!(tab.pane(a).unwrap().status(moment(0)), $status);
+                assert_eq!(tree.tab_shown_status(tab_id, moment(0)), Ok(Some(a)));
+            };
+        }
+
+        // Step 1: start. Both running (tied rank) - `b` first, `a`
+        // second, so `a` is the newer and wins.
+        tree.start_program(b, command("/tmp")).unwrap();
+        tree.start_program(a, command("/tmp")).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 2: exit non-zero - both Failed (tied rank).
+        tree.record_exit(b, 3, moment(0)).unwrap();
+        tree.record_exit(a, 3, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Failed { exit_code: 3 }));
+
+        // Step 3: input ends `a`'s status (never `b`'s, which was never
+        // sent any) - no tie to break any more: `a` has no status at
+        // all, so `b`'s Failed is what the tab shows instead.
+        tree.note_input(client, a).unwrap();
+        let tab = &tree.session(session_id).unwrap().tabs()[0];
+        assert_eq!(tab.pane(a).unwrap().status(moment(0)), None);
+        assert_eq!(tree.tab_shown_status(tab_id, moment(0)), Ok(Some(b)));
+
+        // Step 4: restart - both running again (tied rank).
+        tree.restart_program(b).unwrap();
+        tree.restart_program(a).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 5: exit zero - both Finished (tied rank).
+        tree.record_exit(b, 0, moment(0)).unwrap();
+        tree.record_exit(a, 0, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Finished));
+
+        // Step 6: restart again.
+        tree.restart_program(b).unwrap();
+        tree.restart_program(a).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 7: exit zero again - Finished once more.
+        tree.record_exit(b, 0, moment(0)).unwrap();
+        tree.record_exit(a, 0, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Finished));
+    }
+
+    #[test]
+    fn tab_shown_status_delegates_to_the_tabs_own_ranking() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second = tree
+            .split_pane(
+                first,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        finish(&mut tree, first);
+        fail(&mut tree, second);
+
+        assert_eq!(tree.tab_shown_status(tab_id, moment(0)), Ok(Some(second)));
+    }
+
+    #[test]
+    fn tab_shown_status_on_an_unknown_tab_errors() {
+        let tree = Tree::new();
+        let unknown = steg_sdk::TabId::from_raw(999);
+
+        assert_eq!(
+            tree.tab_shown_status(unknown, moment(0)),
+            Err(crate::error::Error::TabNotFound(unknown))
+        );
+    }
+
+    #[test]
+    fn opening_a_tab_or_focusing_a_pane_ends_nothing() {
+        // doc-15/decision-7: "opening a tab clears nothing" - neither
+        // `focus_pane`, `focus_tab` nor `focus_direction` touches a
+        // pane's status, however pressing it is.
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second = tree
+            .split_pane(
+                first,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        finish(&mut tree, first);
+        fail(&mut tree, second);
+        let deadline_before = tree.next_status_deadline(moment(0));
+
+        tree.focus_pane(first).unwrap();
+        tree.focus_pane(second).unwrap();
+        tree.focus_tab(tab_id).unwrap();
+        tree.focus_direction(first, steg_sdk::Direction::Right, false)
+            .unwrap();
+
+        let tab = &tree.session(session_id).unwrap().tabs()[0];
+        assert_eq!(
+            tab.pane(first).unwrap().status(moment(0)),
+            Some(steg_sdk::Status::Finished)
+        );
+        assert_eq!(
+            tab.pane(second).unwrap().status(moment(0)),
+            Some(steg_sdk::Status::Failed { exit_code: 3 })
+        );
+        // `first`'s `Finished` deadline (R83's ten-minute timer) is
+        // untouched too - not just its status - so there is no later
+        // "focusing secretly reset the clock" bug this would miss.
+        assert_eq!(deadline_before, Some(moment(600)));
+        assert_eq!(tree.next_status_deadline(moment(0)), deadline_before);
+    }
+
+    #[test]
+    fn next_status_deadline_on_an_empty_tree_is_none() {
+        let tree = Tree::new();
+
+        assert_eq!(tree.next_status_deadline(moment(0)), None);
+    }
+
+    #[test]
+    fn next_status_deadline_is_none_when_nothing_is_finished() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second = tree
+            .split_pane(
+                first,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        tree.start_program(first, command("/tmp")).unwrap();
+        fail(&mut tree, second);
+
+        assert_eq!(tree.next_status_deadline(moment(0)), None);
+    }
+
+    #[test]
+    fn next_status_deadline_is_the_earliest_across_several_panes_and_tabs() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        // `first` finishes at moment(500) (deadline 500 + 600 = 1100);
+        // `second` finishes at moment(0) (deadline 0 + 600 = 600) - the
+        // earlier of the two, in a different tab entirely.
+        tree.start_program(first, command("/tmp")).unwrap();
+        tree.record_exit(first, 0, moment(500)).unwrap();
+        tree.start_program(second, command("/tmp")).unwrap();
+        tree.record_exit(second, 0, moment(0)).unwrap();
+
+        assert_eq!(tree.next_status_deadline(moment(0)), Some(moment(600)));
+    }
+
+    #[test]
+    fn next_status_deadline_skips_a_pane_already_past_its_deadline_and_is_none_once_every_pane_is()
+    {
+        let mut tree = Tree::new();
+        let session_one = tree.new_session(None).unwrap();
+        let tab_one = tree.session(session_one).unwrap().tabs()[0].panes()[0].id();
+        let tab_two_id = tree.new_tab(session_one, None).unwrap();
+        let tab_two = tree
+            .session(session_one)
+            .unwrap()
+            .tab(tab_two_id)
+            .unwrap()
+            .panes()[0]
+            .id();
+        let session_two = tree.new_session(None).unwrap();
+        let other_session = tree.session(session_two).unwrap().tabs()[0].panes()[0].id();
+
+        // Three panes, each in a different tab, two of them in different
+        // sessions entirely, each finishing at a different moment:
+        // - `tab_one` at 0 (deadline 600) - already past by the time
+        //   anything here is asked at `moment(700)`.
+        // - `tab_two` at 500 (deadline 1100) - still ahead, and the
+        //   earliest of the two still ahead.
+        // - `other_session` at 1000 (deadline 1600) - also still ahead,
+        //   but later than `tab_two`'s.
+        tree.start_program(tab_one, command("/tmp")).unwrap();
+        tree.record_exit(tab_one, 0, moment(0)).unwrap();
+        tree.start_program(tab_two, command("/tmp")).unwrap();
+        tree.record_exit(tab_two, 0, moment(500)).unwrap();
+        tree.start_program(other_session, command("/tmp")).unwrap();
+        tree.record_exit(other_session, 0, moment(1_000)).unwrap();
+
+        // `tab_one`'s deadline (600) has already passed by 700, so the
+        // answer is the earliest of the two still ahead (1100), not 600.
+        assert_eq!(tree.next_status_deadline(moment(700)), Some(moment(1_100)));
+
+        // Asked again once every pane's deadline has passed, there is
+        // nothing left to schedule for.
+        assert_eq!(tree.next_status_deadline(moment(1_600)), None);
     }
 }

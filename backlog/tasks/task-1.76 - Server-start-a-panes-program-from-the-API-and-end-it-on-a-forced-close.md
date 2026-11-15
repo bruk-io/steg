@@ -1,11 +1,11 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:59:00Z'
+updated_date: '2026-11-15T21:22:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -13,6 +13,9 @@ dependencies:
   - TASK-1.40
   - TASK-1.75
   - TASK-1.42
+references:
+  - task-1.76-server-start-a-pane-s-program-from-the
+  - https://github.com/bruk-io/steg/pull/40
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -20,6 +23,8 @@ asdlc_branch: task-1.76-server-start-a-pane-s-program-from-the
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '308d35ef87d0'
 asdlc_plan_approved_size: size-5
+asdlc_reviewer: bruk.r4
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -858,6 +863,91 @@ ok      tool tests (1.4s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T21:15:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.2s)
+ok      licences (1.0s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (6.3s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (30.6s)
+ok      test (steg-server) (3.2s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T21:17:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at fdef2fe3f967:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.3s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.8s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (29.3s)
+ok      test (steg-server) (3.4s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (0.7s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Built as planned, with one departure noted below (the plan itself is unedited).
+
+What was built, by plan section:
+
+**§1 (the owning structure).** `crates/server/src/runtime.rs`: `Runtime` holds `Arc<Mutex<State>>` (`tree`, `panes`, `settings` - the last added because TASK-1.48 merged into `origin/main` mid-build; adapted per the plan's own Risks, no shape change needed since `State` already reserved the field) plus the launcher, the injected `LoginShell`, the `PaneEvent` sender and the one drain thread's `JoinHandle`. `Runtime::handle` intercepts only `session.new`/`tab.new`/`pane.split`; every other method delegates straight to the existing, unchanged `dispatch()` (now taking `&mut Settings` too, per TASK-1.48).
+
+**§2 (starting).** `program_param.rs`'s `program_from_request` is pure. Rule B (inherit the live directory of the pane being split, or of the session's current pane for `tab.new`; home otherwise) is built, via a new `PaneHandle::cwd` (bounded `recv_timeout`, same shape as `snapshot`). `Runtime::start_and_dispatch` validates, resolves the cwd default, calls the existing `dispatch()` arm to mint, calls `tree.start_program` itself right after (under the same lock - the real implementation detail: it is `Runtime`, not the dispatch arm, that calls `start_program`, since rule B's cwd resolution needs `Runtime`-level access `dispatch` deliberately does not have; the plan's own §1 justification for the lock - "nothing else runs between minting and starting" - holds exactly the same either way), then does the real spawn. A spawn failure rolls back via the same kernel calls the existing label-rejection rollback uses, and returns the new `ErrorCode::ProgramFailed`.
+
+**§3 (exit).** `pane.show` is wired, pure, returning a new `PaneRecord` (title always `None`, undocumented gap named in its own doc comment). The natural-exit cascade is `Runtime`'s drain thread calling `apply_event_locked` (the tested core) in a loop.
+
+**§4 (sizes).** `Tree::tab_sizes_now`/`sized_tabs` (pure, new). `Runtime::apply_size_changed` (public) / `apply_size_changed_locked` (private, used by the general step). `Runtime::handle`'s general step reapplies every currently-sized tab's sizes after *any* successful request, not only the three starting methods.
+
+**§5 (the refusal, and --force's stated gap).** The refusal lives in each noun's own `close` function (`dispatch::{pane,tab,session}`), pure, using `Pane::status()` directly - no `Runtime` involvement needed, smaller than the plan's own worst case. `--force` is untouched: it still calls `tree.close_pane`/`close_tab`/`close_session` unconditionally. `apply_event_locked`'s new `Err(Error::PaneNotFound(_))` arm is the orphan's cleanup: removes the stale `PaneHandle`, no panic.
+
+**§6 (error codes).** `ErrorCode::ProgramFailed` added to `shapes.rs`, its `ErrorRecord` (exit status 1) in `methods.rs`, and to `pane.split`/`tab.new`/`session.new`'s own `errors` lists. No new code for the refusal (`ProgramRunning` already existed on all three methods). `ProgramNotStarted`/`ShellCannotRestart` stay mapped to `BadRequest`, unchanged - confirmed by a new test that no described method has a `restart` verb.
+
+**§7.** `dispatch/mod.rs`'s generic `param_*`/`target_*`/`resolve_*`/`tab_mut`/`pane_mut`/`wire_position_to_index` helpers moved to `dispatch/lookup.rs`, re-exported `pub(crate)` unchanged for every other module's own `use super::{...}`. `session_owning_tab`/`resolve_session_str` dropped to private-to-`lookup.rs`, since nothing outside it actually calls them directly (only `target_session`/`tab_mut` do, internally) - a smaller surface than the plan's own file list implied, caught by the unused-import lint itself.
+
+**Departure from the plan** (noted here, plan unedited): `ErrorCode::ProgramFailed` is mapped from `steg_server::Error::Pty` inline, in `Runtime::start_and_dispatch`'s own match arm (`Response::Error(ApiError::new(ErrorCode::ProgramFailed, error.to_string()))`), not in a new `dispatch/server_error.rs`. There is exactly one error source and one resulting code here; a whole mapping module, parallel to `kernel_error.rs`'s real multi-arm match, would add structure with nothing to hold.
+
+**The cwd experiment's real finding** (plan §2): a bad `cwd` is **not** a failure to start at all. Read from `portable-pty` 0.9.0's own source (`cmdbuilder.rs:498-507,560-576`): `CommandBuilder::as_command` silently substitutes the login shell's home directory for any `cwd` that is not a real, existing directory, and the program spawns there successfully - no error, no non-zero exit tied to the bad `cwd`. Committed as `a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home` (`real_pty.rs`), asserting equality with `std::env::var("HOME")` (the same source `get_home_dir()` reads, confirmed by reading `get_base_env()`, not assumed). Left as a question for the engineer, not decided here: should `--cwd` naming a non-existent directory be refused instead of silently redirected? A doc-2 question, not a build-phase one.
+
+Checks recorded via `asdlc record-check` at each build step: the cwd experiment's own result (first `just check`, exit 101 - the scratch experiment's own `panic!` capturing its finding, not a broken baseline, superseded moments later by the committed version of the same test); a clean `just check` once the kernel additions and the committed cwd test compiled; a clean `just check` after `Runtime`'s structure, the sizing mechanism, the close-refusal, and the `lookup.rs` split landed; a clean `just check` at the final, rebased head (`fdef2fe`) before pushing.
+
+The real-process test suite (`steg-server`'s lib tests plus all four integration test files - `program.rs`, `real_pty.rs`, `runtime.rs` internal and external) was run 10 times in a row immediately after the sizing mechanism's signal-based tests were fixed, and 10 more times at the final head after the `lookup.rs` split: 20 consecutive runs, 0 failures. The sizing test's own real flakiness was found and fixed during this: the first `SIGWINCH`-based attempt resent the *same* target size on every retry, which is a genuine no-op once the kernel has already applied it once (no second signal for an unchanged size) - fixed by alternating the probed row count each attempt, so every retry is a real size change and gets its own real signal, confirmed stable afterward.
+
+Coverage, clause by clause:
+
+- **AC #1** ("start that program... with neither, the new pane runs the login shell... A program that cannot be started is reported and leaves no pane behind"): `runtime.rs` (tests/) `session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended`, `pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home`, `a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind`, `tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind`, `pane_split_with_a_bad_command_leaves_no_new_pane_behind` (one per method, each asserting the before/after session+pane count is unchanged). `program_param.rs`'s own unit tests cover the pure parsing. `real_pty.rs`'s `a_nonexistent_cwd_is_not_a_failure_to_start_...` covers the cwd experiment's real finding.
+- **AC #2** ("pane show reports the running program and... exit code; a shell pane that exits closes through the same cascade as a manual close... including the last pane of the last tab of a session"): `session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended` (running, then ended, with the right exit code and program text). `runtime.rs` (src/) `apply_event_records_an_exit_and_leaves_a_command_pane_in_place`, `apply_event_closes_a_shell_pane_through_the_same_cascade_as_a_manual_close` (asserts `tree.sessions()` is empty - the last-tab-of-session case), `a_real_exit_event_drives_the_same_cascade_apply_event_runs` (the real-process plumbing, separately from the deterministic cascade logic).
+- **AC #3** ("a change of a tab's size reaches every terminal in it: applied to its terminal and to its pty, and the pixel cell size... has a stated source"): `tab_sizes_now`/`sized_tabs`'s own kernel unit tests (pure). `runtime.rs` (src/) `a_tabs_declared_size_reaches_every_pane_including_one_split_in_afterward` - a real `SIGWINCH`-reporting shell proves the pty side on an *already-running* pane, a `snapshot()` row count proves the terminal side, and splitting afterward with no size given proves the general step reapplies to both the pre-existing and the new pane, each checked against `tab_sizes_now`'s own live computation, not a hard-coded expectation. `apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so` is the under-floor case (R100's last clause), through the public `apply_size_changed` directly. The pixel cell size's stated source (zero, `winsize`'s own "unknown") is unchanged code (`terminal.rs`/`pty.rs` already hardcoded it); `terminal.rs:395`'s comment is corrected to name TASK-1.56 instead of the already-shipped TASK-1.42.
+- **AC #4** ("close... refuse while a program is running, with the ProgramRunning code"; "--force stays as it is today"): `pane_close_refuses_while_its_program_is_running_and_touches_nothing`, `tab_close_refuses_while_any_of_its_panes_is_running` (with a second, already-ended pane in the same tab, so the refusal is proven to come from the *other* pane, not from "every pane is running"), `session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running`, each asserting the before/after tree is byte-for-byte unchanged via `counts()`. `pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap` proves `--force`'s own unconditional behaviour through the public API; the orphan's own survival and later cleanup is proven separately (next clause).
+- **AC #5** ("every path this task creates that can end a pane... leaves no child unreaped and no thread running... no unsafe code is added"): `apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking` (a real `sleep 1000`, simulating the orphan `--force` leaves, confirmed still alive, then `apply_event_locked` on its real exit event, confirmed the stale handle is gone - the one new edge case this task's own structure introduces). `real_pty.rs`'s existing `process_exists`/`join_within` helpers, reused unchanged, back every real-process assertion in this task's own new tests. No `unsafe` appears anywhere in this diff (`git diff --stat` plus a direct `grep -n unsafe` over every changed file, both empty) - trivially true, since nothing in this task's own scope signals a process.
+- **AC #6** ("the kernel errors... map to an API error code that says what happened; whether each needs its own code is decided in the plan"): `map_kernel_error`'s existing tests, unchanged. `shapes.rs`/`methods.rs`'s own `ProgramFailed` tests (the new `errors_has_twelve_codes_with_their_exit_statuses`, extended; the three methods' own `errors` lists). `no_described_method_can_reach_restart_program_or_record_exit` is the negative assertion: no method names a `restart` verb, so `ShellCannotRestart`/`ProgramNotStarted` stay unreachable and undecided, as the plan said.
+
+`just check` recorded clean at the final head, `fdef2fe` (rebased onto `origin/main` after TASK-1.48 merged; TASK-1.41's own rename/`Moment` change had not merged as of this rebase, so there was nothing further to adapt to - checked directly in `crates/kernel/src/pane.rs` before pushing, not assumed). Pushed, PR opened: https://github.com/bruk-io/steg/pull/40.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -869,6 +959,15 @@ created: 2026-11-15T20:25:00Z
 ---
 
 Plan approved by @bruk (308d35ef87d0, size-5): its worker may build it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T21:22:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

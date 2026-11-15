@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:14:00Z'
+updated_date: '2026-11-15T22:16:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1122,6 +1122,53 @@ running 1 test
 test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:16:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 75 lines:
+
+```text
+test program_param::tests::an_empty_program_array_is_a_command_with_no_arguments_not_a_shell ... ok
+test program_param::tests::no_program_and_no_cwd_is_a_shell_at_the_default ... ok
+test dispatch::tests::every_described_method_has_exactly_one_handler ... ok
+test runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once ... ok
+test runtime::tests::apply_event_closes_a_shell_pane_through_the_same_cascade_as_a_manual_close ... ok
+test runtime::tests::apply_event_records_an_exit_and_leaves_a_command_pane_in_place ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... FAILED
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+kill: 25632: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+kill: 25632: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 25600: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended stdout ----
+
+thread 'runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended' (14526986) panicked at crates/server/src/runtime.rs:1624:9:
+the program must have fully ended, not merely exited the pty
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended
+
+test result: FAILED. 53 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.

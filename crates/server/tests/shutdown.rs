@@ -12,7 +12,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{ClientHello, ClientKind, Decoder, Frame, PROTOCOL_VERSION, encode_frame};
-use steg_server::{ConnectionEvent, ServeOutcome, ServerConfig, Stopper, serve, stop_and_wake};
+use steg_server::{ConnectionEvent, ServeOutcome, ServerConfig, Stopper, serve};
 
 /// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
 /// (`crates/server/src/bind.rs`'s own doc comment found this matters).
@@ -61,6 +61,55 @@ fn start_server(
     };
     wait_until_accepting(&socket_path);
     (socket_path, config, stop, server_thread)
+}
+
+/// Starts a server exactly like `start_server`, then additionally
+/// drains the one connection `wait_until_accepting`'s own probe leaves
+/// queued, so `run`'s accept loop has genuinely cycled back to a fresh,
+/// empty, blocking `accept()` call before this returns.
+///
+/// **Without this, a test proving `stop()` wakes a genuinely idle
+/// server does not actually prove that** - found while writing these
+/// tests, not assumed. A successful `connect()` only means the kernel
+/// queued the connection; it does not require `run`'s own `accept()` to
+/// have consumed it yet. So `run`'s *first* `accept()` call can return
+/// that leftover probe connection regardless of whether `stop()`
+/// properly wakes a blocked `accept()` at all - and once that first
+/// `accept()` returns anything, `run` re-checks `should_stop()`
+/// immediately, which `set_stop_flag()` alone already makes true. A
+/// test that calls `start_server` then `stop()` would pass even with a
+/// `stop()` that never wakes anything, purely because of this leftover
+/// connection - exactly the bug a review of this task found, masked by
+/// the test's own setup rather than caught by it. Draining the probe's
+/// own `Connected`/`Disconnected` pair confirms `run`'s loop has
+/// already spawned a handler for it and gone back to `accept()` a
+/// second time - which, with nothing else queued, can only be blocking.
+fn start_truly_idle_server(
+    handshake_timeout: Duration,
+) -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (events_tx, events_rx) = mpsc::channel();
+    let socket_path = unique_socket_path();
+    let config = ServerConfig {
+        socket_path: Some(socket_path.clone()),
+        handshake_timeout,
+        ..ServerConfig::default()
+    };
+    let stop = Stopper::new();
+    let server_thread = {
+        let config = config.clone();
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            let _ = serve(&config, &stop, Some(events_tx));
+        })
+    };
+    wait_until_accepting(&socket_path);
+    events_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("the startup probe's Connected event should arrive");
+    events_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("the startup probe's Disconnected event should arrive");
+    (socket_path, stop, server_thread)
 }
 
 /// Joins `server_thread` within `bound`, failing the test rather than
@@ -138,7 +187,7 @@ fn stopping_closes_the_listener_removes_the_socket_and_releases_the_lock() {
     };
     wait_until_accepting(&socket_path);
 
-    stop_and_wake(&stop, &socket_path);
+    stop.stop();
 
     // Bounded on a real event (`serve` returning, sent over the
     // channel), not a sleep.
@@ -214,7 +263,7 @@ fn a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop() {
         .set_read_timeout(Some(Duration::from_secs(5)))
         .unwrap();
 
-    stop_and_wake(&stop, &socket_path);
+    stop.stop();
     join_within(server_thread, Duration::from_secs(5));
 
     // The client sees its connection closed, not merely a slow server:
@@ -256,7 +305,7 @@ fn a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop() {
     // Sends nothing - this is deliberately the stalled-handshake case,
     // not the completed one above.
 
-    stop_and_wake(&stop, &socket_path);
+    stop.stop();
     join_within(server_thread, Duration::from_secs(5));
 
     drop(client);
@@ -328,7 +377,7 @@ fn many_short_connections_do_not_grow_the_tracked_set() {
 
     let after = open_fd_count();
 
-    stop_and_wake(&stop, &socket_path);
+    stop.stop();
     join_within(server_thread, Duration::from_secs(5));
 
     assert!(
@@ -343,4 +392,109 @@ fn many_short_connections_do_not_grow_the_tracked_set() {
         PathBuf::from(p)
     };
     let _ = std::fs::remove_file(&lock_path);
+}
+
+/// The regression a review of this task found: a genuinely idle
+/// server, meaning no connection ever arriving on its own to make
+/// `accept()` return and notice the flag, used to leave `run` blocked
+/// forever on a bare `Stopper::stop()`. Uses `start_truly_idle_server`,
+/// not `start_server` (see its own doc for why that distinction is
+/// load-bearing here): the 30s handshake timeout given is deliberately
+/// far longer than this test's 5s bound, so a pass cannot be explained
+/// by anything but `stop()` itself waking the accept loop.
+#[test]
+fn stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound() {
+    let (socket_path, stop, server_thread) = start_truly_idle_server(Duration::from_secs(30));
+
+    stop.stop();
+    join_within(server_thread, Duration::from_secs(5));
+
+    let _ = std::fs::remove_file(&socket_path);
+    let lock_path = {
+        let mut p = socket_path.as_os_str().to_owned();
+        p.push(".lock");
+        PathBuf::from(p)
+    };
+    let _ = std::fs::remove_file(&lock_path);
+}
+
+/// `Stopper::stop`'s own doc promises idempotence, including
+/// concurrently - two threads calling it at once on the same idle
+/// server should be no different from one. `start_truly_idle_server`,
+/// not `start_server`, for the same reason as the test above.
+#[test]
+fn stop_called_twice_concurrently_on_an_idle_server_is_harmless() {
+    let (socket_path, stop, server_thread) = start_truly_idle_server(Duration::from_secs(30));
+
+    let first = stop.clone();
+    let second = stop.clone();
+    let a = std::thread::spawn(move || first.stop());
+    let b = std::thread::spawn(move || second.stop());
+    a.join().expect("the first stop() should not panic");
+    b.join().expect("the second stop() should not panic");
+
+    join_within(server_thread, Duration::from_secs(5));
+
+    let _ = std::fs::remove_file(&socket_path);
+    let lock_path = {
+        let mut p = socket_path.as_os_str().to_owned();
+        p.push(".lock");
+        PathBuf::from(p)
+    };
+    let _ = std::fs::remove_file(&lock_path);
+}
+
+/// `stop()` racing a real client's `connect()` - whichever one the
+/// kernel schedules first, `run` must still return within the bound.
+/// Run several times (not once) because a single run only ever
+/// exercises whichever interleaving the scheduler happens to produce;
+/// looping gives both orderings a real chance to occur rather than
+/// relying on luck once.
+///
+/// **This does not, on its own, prove `stop()`'s wakeup mechanism
+/// matters** - found while writing the idle tests above: as long as
+/// the listener is still open (which it is, for as long as `run`
+/// hasn't yet returned), the connector thread's own `connect()`
+/// succeeds and queues a connection regardless of whether `stop()`
+/// woke anything, and that connection, once consumed by `accept()`,
+/// would let `run` notice an already-set flag and return even under a
+/// `stop()` with no wakeup at all - the same masking the idle tests
+/// above exist to avoid. What this test proves instead, honestly: that
+/// `stop()` and a real, concurrently connecting client do not
+/// deadlock, panic, or leave anything orphaned, in either ordering -
+/// a real property, just not this review finding's own regression,
+/// which the two tests above are what actually cover.
+#[test]
+fn stop_racing_a_client_connecting_still_returns_within_a_bound() {
+    const ROUNDS: usize = 20;
+    for round in 0..ROUNDS {
+        let (socket_path, _config, stop, server_thread) =
+            start_server(Duration::from_secs(30), None);
+
+        let connect_path = socket_path.clone();
+        let connector = std::thread::spawn(move || {
+            // Whether this lands before or after `stop` wins the race
+            // is exactly what this test does not control - either
+            // way, `run` must still return within the bound below.
+            // Both an `Ok` (accepted, then closed by the shutdown) and
+            // an `Err` (refused, because the listener had already
+            // closed) are fine outcomes for this thread; only `run`
+            // itself hanging would fail this test.
+            let _ = UnixStream::connect(&connect_path);
+        });
+        stop.stop();
+        connector
+            .join()
+            .unwrap_or_else(|_| panic!("the connector thread should not panic on round {round}"));
+
+        join_within(server_thread, Duration::from_secs(5));
+
+        let _ = std::fs::remove_file(&socket_path);
+        let lock_path = {
+            let mut p = socket_path.as_os_str().to_owned();
+            p.push(".lock");
+            PathBuf::from(p)
+        };
+        let _ = std::fs::remove_file(&lock_path);
+    }
 }

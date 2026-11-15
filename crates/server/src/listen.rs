@@ -7,9 +7,10 @@
 
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use crate::arbiter::{self, Arbitration};
@@ -30,13 +31,25 @@ pub enum ServeOutcome {
 }
 
 /// Tells [`run`]'s accept loop to stop. Cloning shares the same
-/// underlying flag - every clone tells the same `run` call to stop.
-/// Part B's idle checker (not built in this task) will hold one of
-/// these and call [`Stopper::stop`] once its own clock-injected
-/// predicate says to; this task's own tests stand in for that caller.
+/// underlying flag (and, once `run` has bound it - see
+/// [`Stopper::bind_socket_path`] - the same socket path to wake) -
+/// every clone tells the same `run` call to stop. Part B's idle checker
+/// (not built in this task) will hold one of these and call
+/// [`Stopper::stop`] once its own clock-injected predicate says to;
+/// this task's own tests stand in for that caller. `stop()` is the one
+/// public way to end `run`, and it always works on its own - a review
+/// of this task found an earlier version where it did not (see
+/// `stop()`'s own doc).
 #[derive(Clone)]
 pub struct Stopper {
     stop: Arc<AtomicBool>,
+    /// The socket `run` is accepting on, so `stop()` can wake it - set
+    /// once, by `run` itself, before it ever blocks in `accept()`
+    /// (`bind_socket_path`). `None` until then, which is fine: a
+    /// `stop()` called before `run` has started has nothing to wake
+    /// yet, and `run` checks the flag itself immediately after binding
+    /// this, before it ever enters the loop (see `run`'s own doc).
+    socket_path: Arc<Mutex<Option<PathBuf>>>,
 }
 
 impl Stopper {
@@ -44,17 +57,69 @@ impl Stopper {
     pub fn new() -> Self {
         Self {
             stop: Arc::new(AtomicBool::new(false)),
+            socket_path: Arc::new(Mutex::new(None)),
         }
     }
 
-    /// Tells `run` to stop. Idempotent - calling it more than once, or
-    /// concurrently, does nothing more than calling it once.
+    /// Tells `run` to stop, and wakes its accept loop so that actually
+    /// happens - the one public way to do either, safe to call more
+    /// than once, concurrently, from any thread, before `run` has even
+    /// started, or after the socket file is already gone (a failed
+    /// wakeup connect is silently ignored, same as it always was - by
+    /// then `run` is already on its way out regardless).
+    ///
+    /// **A review of this task found the previous version of this
+    /// method set only the flag**, leaving the separate `stop_and_wake`
+    /// free function as the only way that reliably ended `run` - `run`'s
+    /// own loop only re-checks the flag once `accept()` returns, so a
+    /// bare flag-set left a genuinely idle server (no connection ever
+    /// arriving to make `accept()` return and notice it) blocked
+    /// forever. Removed rather than documented: there is now one
+    /// public way to stop, and it always works, on an idle server or
+    /// otherwise.
+    ///
+    /// # Panics
+    /// Never in practice: only if the mutex guarding the socket path is
+    /// poisoned, which only happens if a previous lock holder itself
+    /// panicked while holding it - neither `stop()` nor
+    /// `bind_socket_path` does any work that can panic while holding
+    /// the lock.
     pub fn stop(&self) {
+        self.set_stop_flag();
+        if let Some(path) = self
+            .socket_path
+            .lock()
+            .expect("the socket path mutex is never held across a panic")
+            .as_ref()
+        {
+            wake_accept(path);
+        }
+    }
+
+    /// Just the flag, with no wakeup - `run` itself calls this, both
+    /// through the public `stop()` above and directly, right after
+    /// binding the socket path, to catch a `stop()` that raced in
+    /// before there was a path to wake (see `run`'s own doc). Private:
+    /// every external caller goes through `stop()`.
+    fn set_stop_flag(&self) {
         self.stop.store(true, Ordering::SeqCst);
     }
 
     fn should_stop(&self) -> bool {
         self.stop.load(Ordering::SeqCst)
+    }
+
+    /// Records the socket `run` is accepting on, so a later `stop()`
+    /// knows what to wake. Called once, by `run` itself, before it
+    /// ever blocks in `accept()` - not part of the public contract: a
+    /// caller of `stop()` never needs to know the path itself, only
+    /// that calling `stop()` always works.
+    fn bind_socket_path(&self, path: &Path) {
+        *self
+            .socket_path
+            .lock()
+            .expect("the socket path mutex is never held across a panic") =
+            Some(path.to_path_buf());
     }
 }
 
@@ -102,14 +167,17 @@ fn reap_finished(connections: &mut Vec<(UnixStream, JoinHandle<()>)>) {
 }
 
 /// The accept loop: spawns a thread per accepted connection
-/// (`connection::handle`) until [`stop`] says to stop, then shuts down
-/// and joins every connection still open, closes the listener, removes
+/// (`connection::handle`) until [`stop`] says to stop, then closes the
+/// listener, shuts down and joins every connection still open, removes
 /// the socket file, and releases the lock - in that order, so the lock
-/// (the arbiter) is never given up before the path is fully vacated. A
-/// client whose `connect()` lands in that instant sees exactly what it
-/// would see against a server that was never there (refused, or - once
-/// the file is gone - not found), which is the safe, correct reading for
-/// any client (the sdk's own `local_socket::connect` treats either the
+/// (the arbiter) is never given up before the path is fully vacated,
+/// and the listener closes before this function spends any time
+/// joining connections (see the ordering's own comment, below, for
+/// why that order and not the reverse). A client whose `connect()`
+/// lands after the listener closes sees exactly what it would see
+/// against a server that was never there (refused, or - once the file
+/// is gone - not found), which is the safe, correct reading for any
+/// client (the sdk's own `local_socket::connect` treats either the
 /// same way: try to start one).
 ///
 /// **Every spawned thread is joined on every path out of this
@@ -132,6 +200,19 @@ fn reap_finished(connections: &mut Vec<(UnixStream, JoinHandle<()>)>) {
 /// connections genuinely still open when `stop` was called, never on
 /// the server's whole history of past connections.
 ///
+/// **Calling [`Stopper::stop`] on a genuinely idle server - no
+/// connection ever arriving on its own to make `accept()` return and
+/// notice the flag - still returns from this function promptly.** A
+/// review of this task found that was not true of an earlier version:
+/// [`Stopper::bind_socket_path`] is called first, below, specifically
+/// so that `stop()` (called at any time, including before this
+/// function is even entered) always has a path to wake - and the flag
+/// is checked once more immediately after binding it, for the one case
+/// a wakeup cannot cover: `stop()` having raced in and set the flag
+/// before there was a path to wake at all. Neither check alone would
+/// be enough; together they mean `accept()` is never entered at all
+/// once `stop()` has been called, no matter when.
+///
 /// # Errors
 /// An [`Error::Io`] from the accept loop's own listener.
 pub fn run(
@@ -141,6 +222,8 @@ pub fn run(
     stop: &Stopper,
     events: Option<Sender<ConnectionEvent>>,
 ) -> Result<(), Error> {
+    stop.bind_socket_path(socket_path);
+
     // No early return (`?`) inside this loop, on purpose: an I/O error
     // from `accept` or `try_clone` is an error branch like any other,
     // and the cleanup below - shutting down and joining every
@@ -148,45 +231,70 @@ pub fn run(
     // only when the loop ends by `stop` being called. The error, if
     // any, is carried past the loop and returned after cleanup runs.
     let mut connections: Vec<(UnixStream, JoinHandle<()>)> = Vec::new();
-    let loop_result: Result<(), Error> = loop {
-        let (stream, _addr) = match handle.listener.accept() {
-            Ok(accepted) => accepted,
-            Err(err) => break Err(err.into()),
-        };
-        reap_finished(&mut connections);
-        if stop.should_stop() {
-            drop(stream);
-            break Ok(());
-        }
-        let shutdown_handle = match stream.try_clone() {
-            Ok(cloned) => cloned,
-            Err(err) => {
+    let loop_result: Result<(), Error> = if stop.should_stop() {
+        // Already told to stop before this function ever got as far as
+        // calling `accept()` - never enters the loop at all, rather
+        // than relying on a wakeup there was no path to deliver until
+        // the line just above ran.
+        Ok(())
+    } else {
+        loop {
+            let (stream, _addr) = match handle.listener.accept() {
+                Ok(accepted) => accepted,
+                Err(err) => break Err(err.into()),
+            };
+            reap_finished(&mut connections);
+            if stop.should_stop() {
                 drop(stream);
-                break Err(err.into());
+                break Ok(());
             }
-        };
-        let handshake_timeout = config.handshake_timeout;
-        let events = events.clone();
-        let join = thread::spawn(move || connection::handle(stream, handshake_timeout, events));
-        connections.push((shutdown_handle, join));
+            let shutdown_handle = match stream.try_clone() {
+                Ok(cloned) => cloned,
+                Err(err) => {
+                    drop(stream);
+                    break Err(err.into());
+                }
+            };
+            let handshake_timeout = config.handshake_timeout;
+            let events = events.clone();
+            let join = thread::spawn(move || connection::handle(stream, handshake_timeout, events));
+            connections.push((shutdown_handle, join));
+        }
     };
+
+    // Shutdown order, each step only after the last: stop accepting
+    // (the loop above already has, on every path out of it), close the
+    // listener, shut down and join every connection still open, remove
+    // the socket file, release the lock last - never before the path
+    // is fully vacated. Destructured rather than one `drop(handle)`: a
+    // struct's fields drop in declaration order, which would release
+    // the lock in the same step as closing the listener, before the
+    // file is removed - the exact gap this ordering exists to avoid.
+    //
+    // **The listener closes here, immediately after the loop above
+    // stops accepting, rather than after the join below** - a review
+    // of this task found an earlier version left a window open between
+    // the two, during which the listener was still bound while this
+    // function was busy shutting down and joining already-open
+    // connections (a step that, for many open connections, is not
+    // instant). A client whose `connect()` landed in that window would
+    // have been queued by the kernel into the listener's own backlog -
+    // accepted at the OS level, but never reaching this code's own
+    // `accept()` again - and then reset once the listener eventually
+    // closed, rather than refused outright. Closing the listener first
+    // closes that window entirely: dropping it here affects only *new*
+    // connection attempts (immediately refused, nothing queues after
+    // this), never the already-accepted connections being joined just
+    // below, which live on their own, independent file descriptors the
+    // listener never touches.
+    let arbiter::ServerHandle { listener, lock } = handle;
+    drop(listener);
 
     for (shutdown_handle, join) in connections {
         let _ = shutdown_handle.shutdown(Shutdown::Both);
         let _ = join.join();
     }
 
-    // Shutdown order, each step only after the last: stop accepting
-    // (the loop above already has, on every path out of it), shut down
-    // and join every connection (just above), close the listener,
-    // remove the socket file, release the lock last - never before the
-    // path is fully vacated. Destructured rather than one
-    // `drop(handle)`: a struct's fields drop in declaration order,
-    // which would release the lock in the same step as closing the
-    // listener, before the file is removed - the exact gap this
-    // ordering exists to avoid.
-    let arbiter::ServerHandle { listener, lock } = handle;
-    drop(listener);
     let _ = std::fs::remove_file(socket_path);
     drop(lock);
     loop_result
@@ -236,17 +344,6 @@ pub fn serve(
         Arbitration::AlreadyRunning => Ok(ServeOutcome::AlreadyRunning),
         Arbitration::Refuse(reason) => Ok(ServeOutcome::Refuse(reason)),
     }
-}
-
-/// Wakes [`run`]'s accept loop after telling it to stop - the two steps
-/// `Stopper` alone cannot do by itself, since connecting to the socket
-/// needs the path, which `Stopper` does not hold (kept as data, not
-/// behaviour tied to one socket, so the same `Stopper` type works for
-/// `run` and for a future caller that never needs this helper because it
-/// already knows to wake the loop its own way).
-pub fn stop_and_wake(stop: &Stopper, socket_path: &std::path::Path) {
-    stop.stop();
-    wake_accept(socket_path);
 }
 
 #[cfg(test)]

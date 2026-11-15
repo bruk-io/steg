@@ -34,7 +34,7 @@ pub use connection::ConnectionEvent;
 pub use dispatch::{Context, Outcome, dispatch};
 pub use env::pane_environment;
 pub use error::Error;
-pub use listen::{ServeOutcome, Stopper, run, serve, stop_and_wake};
+pub use listen::{ServeOutcome, Stopper, run, serve};
 pub use pane::{PaneEvent, PaneHandle, start};
 pub use paths::Reason as PathReason;
 pub use pty::{LaunchSpec, ProgramLauncher, RealLauncher, SpawnedProgram};

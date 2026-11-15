@@ -13,12 +13,13 @@ use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use steg_sdk::{
-    ClientHello, ClientKind, Decoder, Frame, PROTOCOL_VERSION, encode_frame, parse_server_hello,
+    CONTROL_STREAM, ClientHello, ClientKind, Control, Decoder, Frame, PROTOCOL_VERSION,
+    encode_frame, parse_server_hello,
 };
-use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve, stop_and_wake};
+use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve};
 
 /// Reads one whole frame's payload off `stream`, looping reads until the
 /// sdk's own `Decoder` has a complete frame - the length-prefixed
@@ -83,8 +84,8 @@ fn start_server(handshake_timeout: Duration) -> (PathBuf, Stopper, std::thread::
     (socket_path, stop, handle)
 }
 
-fn stop_server(socket_path: &std::path::Path, stop: &Stopper, handle: std::thread::JoinHandle<()>) {
-    stop_and_wake(stop, socket_path);
+fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
+    stop.stop();
     handle.join().expect("the server thread should not panic");
 }
 
@@ -113,7 +114,7 @@ fn a_version_mismatch_names_both_versions_over_a_real_connection() {
         "message should name the server's version {PROTOCOL_VERSION}: {err}"
     );
 
-    stop_server(&socket_path, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
@@ -143,7 +144,7 @@ fn a_connection_that_never_sends_a_hello_is_closed_after_the_timeout() {
         }
     }
 
-    stop_server(&socket_path, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 #[test]
@@ -182,7 +183,7 @@ fn a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout() {
         Ok(n) => panic!("expected no bytes and no close, got {n} bytes"),
     }
 
-    stop_server(&socket_path, &stop, handle);
+    stop_server(&stop, handle);
 }
 
 /// A connection that finishes its handshake counts as a client the
@@ -221,5 +222,230 @@ fn a_connection_is_reported_connected_before_it_sends_its_hello() {
         .expect("Connected should arrive");
     assert_eq!(event, ConnectionEvent::Connected);
 
-    stop_server(&socket_path, &stop, handle);
+    stop_server(&stop, handle);
+}
+
+/// decision-2 section 7's own contract: a malformed-hello refusal names
+/// the server's version and says the client's is unknown, regardless of
+/// which of the four ways a first frame can fail to be a usable hello.
+/// `parse_server_hello` (the sdk's own parser) reading the reply is
+/// exactly what a real client does - this does not re-prove the
+/// refusal's wording (the sdk's own `handshake.rs` tests already do),
+/// only that the *server* delivers it for each of these cases over a
+/// real connection.
+fn assert_malformed_hello_refusal(frame_payload: &[u8]) {
+    let err = parse_server_hello(frame_payload).expect_err("expected a refusal, not a ServerHello");
+    assert!(
+        err.contains(&PROTOCOL_VERSION.to_string()),
+        "message should name the server's version {PROTOCOL_VERSION}: {err}"
+    );
+    assert!(
+        err.to_lowercase().contains("unknown"),
+        "message should say the client's version is unknown: {err}"
+    );
+}
+
+/// Asserts `stream` closes shortly after a reply was already read off
+/// it - every malformed-hello case closes the connection, it does not
+/// hold it open the way an accepted one would.
+fn assert_closes_after_the_reply(stream: &mut UnixStream) {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .expect("setting a read timeout should not fail");
+    let mut buf = [0_u8; 16];
+    match stream.read(&mut buf) {
+        Ok(0) => {}
+        Ok(n) => panic!("expected the connection to close, got {n} more bytes"),
+        Err(err) => assert_ne!(
+            err.kind(),
+            std::io::ErrorKind::WouldBlock,
+            "the connection should close well within the 5s bound"
+        ),
+    }
+}
+
+/// decision-2 section 7's first case: the wrong magic. Already decided
+/// by the sdk's own `check_hello` (this server adds nothing for it) -
+/// what this proves is that the server actually delivers that decision
+/// over a real connection, which nothing in this task's own suite did
+/// before this review.
+#[test]
+fn a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal() {
+    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let payload = serde_json::to_vec(&serde_json::json!({
+        "steg": "not-steg",
+        "protocol": PROTOCOL_VERSION,
+        "client": "test-client",
+        "kind": "cli",
+    }))
+    .unwrap();
+    let bytes = encode_frame(&Frame::hello(payload)).unwrap();
+    stream.write_all(&bytes).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    assert_malformed_hello_refusal(&frame_payload);
+    assert_closes_after_the_reply(&mut stream);
+
+    stop_server(&stop, handle);
+}
+
+/// decision-2 section 7's second case: a hello missing `protocol`
+/// entirely (as opposed to a mismatched one, already proved by
+/// `a_version_mismatch_names_both_versions_over_a_real_connection`).
+#[test]
+fn a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal() {
+    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let payload = serde_json::to_vec(&serde_json::json!({
+        "steg": "steg",
+        "client": "test-client",
+        "kind": "cli",
+    }))
+    .unwrap();
+    let bytes = encode_frame(&Frame::hello(payload)).unwrap();
+    stream.write_all(&bytes).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    assert_malformed_hello_refusal(&frame_payload);
+    assert_closes_after_the_reply(&mut stream);
+
+    stop_server(&stop, handle);
+}
+
+/// decision-2 section 7's third case, the one this review found never
+/// reached a reply at all: the first frame's own bytes do not decode as
+/// a frame (here, an unknown `Kind` tag) - never even reaching the
+/// sdk's `check_hello`, since there is no payload to hand it. Routed
+/// through `connection::FirstFrame::NotAHello` to the same refusal
+/// shape `check_hello` would have produced.
+#[test]
+fn undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal() {
+    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    // A well-formed length prefix and header, but an unknown kind tag
+    // (99) - `Decoder::next_frame`'s own `an_unknown_kind_tag_is_malformed`
+    // test pins this exact shape as a `FrameError::Malformed`.
+    let mut bytes = 5_u32.to_be_bytes().to_vec(); // header-only body
+    bytes.extend_from_slice(&CONTROL_STREAM.to_be_bytes());
+    bytes.push(99); // not a known Kind tag
+    stream.write_all(&bytes).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    assert_malformed_hello_refusal(&frame_payload);
+    assert_closes_after_the_reply(&mut stream);
+
+    stop_server(&stop, handle);
+}
+
+/// decision-2 section 7's fourth case: a well-formed frame that decodes
+/// fine, but is a control frame (an event, here) rather than a hello -
+/// the review's other previously-unreached branch. `Control::Event`'s
+/// own payload decodes without error, so this is distinct from the
+/// undecodable-bytes case above: it proves the "wrong kind" branch, not
+/// a second way to hit "wrong framing".
+#[test]
+fn a_control_frame_arriving_first_gets_a_malformed_hello_refusal() {
+    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let event = Control::Event {
+        name: "not-a-hello".into(),
+        body: serde_json::json!({}),
+    };
+    let bytes = encode_frame(&Frame::control(CONTROL_STREAM, event.to_payload().unwrap())).unwrap();
+    stream.write_all(&bytes).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    assert_malformed_hello_refusal(&frame_payload);
+    assert_closes_after_the_reply(&mut stream);
+
+    stop_server(&stop, handle);
+}
+
+/// The review's own named case: a declared length over the sdk's own
+/// `MAX_FRAME` is refused from only the 4-byte length prefix, with
+/// nothing allocated for the declared body (`Decoder::next_frame`'s own
+/// proof) - and, now, with a reply, delivered promptly rather than
+/// waiting out the handshake timeout. The bound asserted here
+/// (comfortably under the 5s handshake timeout the server was started
+/// with) is what proves "promptly": a client sending only 4 bytes and
+/// never completing a frame would otherwise have to wait for the
+/// timeout, as the stalled-handshake test below does.
+#[test]
+fn an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly() {
+    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    stream.write_all(&0xFFFF_FFFF_u32.to_be_bytes()).unwrap();
+
+    let started = Instant::now();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    assert_malformed_hello_refusal(&frame_payload);
+    assert!(
+        started.elapsed() < Duration::from_secs(2),
+        "an oversized length should be refused promptly, not waiting on the 5s handshake timeout, took {:?}",
+        started.elapsed()
+    );
+    assert_closes_after_the_reply(&mut stream);
+
+    stop_server(&stop, handle);
+}
+
+/// Distinguishes a stalled handshake from the cases above: a client
+/// that sends only part of a frame (a complete, valid length prefix
+/// declaring more bytes than it ever sends) and then stops is
+/// indistinguishable, at the framing level, from a client that sent
+/// nothing at all - `Decoder::next_frame` returns "need more bytes" for
+/// both, so this is closed at the handshake timeout with **no reply**,
+/// the same as `a_connection_that_never_sends_a_hello_is_closed_after_the_timeout`,
+/// not a malformed-hello refusal (there was nothing decoded yet to
+/// refuse).
+#[test]
+fn a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply() {
+    let (socket_path, stop, handle) = start_server(Duration::from_millis(100));
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
+    let payload = serde_json::to_vec(&hello).unwrap();
+    let full = encode_frame(&Frame::hello(payload)).unwrap();
+    // Sends only the length prefix and part of the header/payload,
+    // never the rest - a real stall, not merely "nothing sent".
+    let half = &full[..full.len() / 2];
+    assert!(half.len() >= 4, "sanity: at least the length prefix went");
+    stream.write_all(half).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut buf = [0_u8; 16];
+    match stream.read(&mut buf) {
+        Ok(0) => {} // a clean close
+        Ok(n) => panic!("expected the connection to close with no reply, got {n} bytes"),
+        Err(err) => assert_ne!(
+            err.kind(),
+            std::io::ErrorKind::WouldBlock,
+            "the connection should have closed well within the 5s bound"
+        ),
+    }
+
+    stop_server(&stop, handle);
 }

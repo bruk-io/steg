@@ -15,6 +15,7 @@ Applies to tests in any language. The procedure, and how to record evidence, is 
 - A test that needs a page of setup and mocks is telling you about the code: move the decision out of the I/O and test the decision.
 - Time, randomness and ids are parameters. Never patch them.
 - A branch the plan or an acceptance criterion names (an error, a refusal, a retry, an edge of a range, one direction of a pair) has its own test that reaches it. A test of the ordinary path does not cover it, and a test that claims something never changes captures enough state to fail if it did.
+- A test offered as proof that a mechanism works has been seen to fail with the mechanism removed: the main mechanism of each acceptance criterion, each test the plan's proof names, each "never changes" test. A test that passes either way is passing for some other reason.
 - A bug is reproduced as a failing test, committed, before the fix; the fix doesn't edit that test.
 - Never weaken, skip or loosen a test or check to make a change pass. A wrong check is a finding on the task.
 - The repository's existing test conventions govern where they differ from this.

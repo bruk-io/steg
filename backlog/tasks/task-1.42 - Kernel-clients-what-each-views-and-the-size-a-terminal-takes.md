@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:02:00Z'
+updated_date: '2026-11-15T17:04:00Z'
 labels:
   - size-3
   - changes-requested
@@ -530,6 +530,39 @@ test result: FAILED. 171 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-kernel --lib`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 29, 29 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T17:04:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at d7443d2e9566 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.1s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2236:
+     }
+ 
+     #[test]
+[31m-    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus()
+(B[m[31m-    {
+(B[m[32m+    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus() {
+(B[m         let mut tree = Tree::new();
+ 
+         // Session A: two tabs, each with two panes. Splitting makes the
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2620:
+         // nothing to reapply, so no change is reported.
+         assert_eq!(tree.note_input(client, pane).unwrap(), None);
+         assert_eq!(
+[31m-            tree.session(session_id).unwrap().tab(tab_id).unwrap().size(),
+(B[m[32m+            tree.session(session_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .tab(tab_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .size(),
+(B[m             Some(steg_sdk::Size::new(80, 24))
+         );
+     }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
 ```
 
 Commits since the review: 29, 29 without the Asdlc-Worker trailer.

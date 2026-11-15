@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:29:00Z'
+updated_date: '2026-11-15T21:30:00Z'
 labels:
   - size-2
   - changes-requested
@@ -477,6 +477,53 @@ ok      test (steg-app) (0.7s)
 ok      tool tests (1.3s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch api_call'` exited 101 at 2026-11-15T21:30:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes, last 40 of 118 lines:
+
+```text
+thread 'api_call_refuses_to_call_itself' (13889317) panicked at crates/server/tests/dispatch.rs:1179:5:
+assertion `left == right` failed
+  left: "target: must be text"
+ right: "api.call cannot call api.call"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- api_call_reaches_setting_set_with_its_required_target stdout ----
+
+thread 'api_call_reaches_setting_set_with_its_required_target' (13889314) panicked at crates/server/tests/dispatch.rs:49:35:
+expected Response::Ok, got ApiError { code: BadRequest, message: "no such method: appearance", candidates: [] }
+
+---- api_call_reaches_setting_show_with_its_required_target stdout ----
+
+thread 'api_call_reaches_setting_show_with_its_required_target' (13889315) panicked at crates/server/tests/dispatch.rs:49:35:
+expected Response::Ok, got ApiError { code: BadRequest, message: "no such method: appearance", candidates: [] }
+
+---- api_call_of_pane_split_gives_the_same_response_a_direct_call_would stdout ----
+
+thread 'api_call_of_pane_split_gives_the_same_response_a_direct_call_would' (13889311) panicked at crates/server/tests/dispatch.rs:1213:18:
+expected both calls to succeed: (Ok(Object {"id": String("00000003")}), Error(ApiError { code: BadRequest, message: "target: must be text", candidates: [] }))
+
+
+failures:
+    api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given
+    api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_call_would
+    api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be
+    api_call_of_pane_set_names_the_target_pane_not_the_context_default
+    api_call_of_pane_split_gives_the_same_response_a_direct_call_would
+    api_call_of_session_set_names_the_target_session_not_the_context_default
+    api_call_of_tab_set_names_the_target_tab_not_the_context_default
+    api_call_reaches_setting_set_with_its_required_target
+    api_call_reaches_setting_show_with_its_required_target
+    api_call_reaches_setting_unset_with_its_required_target
+    api_call_refuses_to_call_itself
+    api_call_with_a_non_text_method_is_a_bad_request
+    api_call_with_no_method_is_a_bad_request
+
+test result: FAILED. 0 passed; 13 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
 ```
 
 Commits since the review: 15, 13 without the Asdlc-Worker trailer.

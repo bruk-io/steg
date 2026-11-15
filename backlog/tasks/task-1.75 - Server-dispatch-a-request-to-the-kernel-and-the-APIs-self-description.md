@@ -1012,6 +1012,53 @@ error: recipe `test` failed with exit code 101
 ```
 
 Commits since the review: 26, 24 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T17:16:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at f6eb7a45144c with uncommitted changes, last 40 of 68 lines:
+
+```text
+test session_show_matches_exactly_the_fields_the_description_declares ... ok
+test session_close_removes_it ... ok
+test session_list_matches_exactly_the_fields_the_description_declares_per_record ... ok
+test pane_swap_exchanges_two_panes ... ok
+test pane_move_moves_it_to_another_tab ... ok
+test session_set_and_unset_change_and_clear_the_label ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first ... ok
+test api_show_with_a_target_returns_one_method ... ok
+test pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was ... ok
+test api_call_of_pane_split_gives_the_same_response_a_direct_call_would ... ok
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test pane_close_removes_the_pane ... ok
+test tab_new_with_no_focus_leaves_the_original_tab_current ... ok
+test pane_focus_moves_to_the_neighbour ... ok
+test api_show_an_unknown_method_is_no_such_target ... ok
+test every_nothing_or_identifier_returning_method_matches_its_declared_shape ... FAILED
+test api_show_with_no_target_returns_the_whole_description ... ok
+test api_list_returns_every_method ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+failures:
+
+---- every_nothing_or_identifier_returning_method_matches_its_declared_shape stdout ----
+
+thread 'every_nothing_or_identifier_returning_method_matches_its_declared_shape' (7221210) panicked at crates/server/tests/dispatch.rs:1094:22:
+pane.resize is Nothing/Identifier-returning but this test has no case for it - add one above
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_nothing_or_identifier_returning_method_matches_its_declared_shape
+
+test result: FAILED. 36 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 26, 24 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

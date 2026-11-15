@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -635,6 +636,15 @@ Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
 Everything else checked out: the two-commit boundary is clean (half A is I/O-free and feature-gate-free; half B is entirely behind local-socket, carrying the crate's one #[expect] plus its test-module twin, both scoped correctly per .claude/rules/sdk.md); the ClientId/ClientKind definitions match TASK-1.42's own plan verbatim (confirmed by reading TASK-1.42's plan directly); server.start's on_demand switch matches doc-2's already-approved row; no new dependency in Cargo.toml or boundaries.toml, and boundaries.toml's existing deny-features still blocks steg-kernel from local-socket; the justfile gap is fixed and CI on the PR's head commit (0b6aacde) shows "test (steg-sdk, local-socket)" actually running and passing under just check; the recorded just check is at the branch head. All the hostile-input cases I could find tests for (oversized length incl. the exact 0xFFFF_FFFF case, truncated/byte-at-a-time frames, two frames in one push, unknown kind tag, bad magic, non-JSON hello, missing field, unknown field ignored, client-newer and server-newer version mismatches both naming both versions, data on an unregistered stream, event name not in the Description) are present and look correct by inspection.
 
 A matching open draft already exists (DRAFT-1, "a named error/edge-case branch needs a test exercising it, not just a happy-path test", filed against TASK-1.39/TASK-1.35) that covers exactly this mistake pattern, so no new rule-change draft was filed for it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T17:09:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

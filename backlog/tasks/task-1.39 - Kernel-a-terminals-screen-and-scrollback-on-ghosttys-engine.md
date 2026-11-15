@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:50:00Z'
+updated_date: '2026-11-15T14:51:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -412,6 +412,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39/crates/
  
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 117 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T14:51:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39 on task-1.39-kernel-a-terminal-s-screen-and at edbe7af2c6e6 with uncommitted changes, last 40 of 65 lines:
+
+```text
+...   |
+386 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+377 ~         if bytes[i] == b'%'
+378 ~             && let (Some(high), Some(low)) = (
+379 |                 bytes.get(i + 1).copied().and_then(hex_digit),
+...
+384 |                 continue;
+385 ~             }
+    |
+
+error: this lint expectation is unfulfilled
+   --> crates/kernel/src/terminal.rs:294:5
+    |
+294 |     clippy::wildcard_enum_match_arm,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: ghostty_vt::style::Underline is #[non_exhaustive]; every current variant is covered, but the compiler still requires a wildcard arm for a foreign non_exhaustive enum
+    = note: `-D unfulfilled-lint-expectations` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unfulfilled_lint_expectations)]`
+
+error: this lint expectation is unfulfilled
+   --> crates/kernel/src/terminal.rs:312:5
+    |
+312 |     clippy::wildcard_enum_match_arm,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: ghostty_vt::render::CursorVisualStyle is #[non_exhaustive]; every current variant is covered, but the compiler still requires a wildcard arm for a foreign non_exhaustive enum
+
+error: could not compile `steg-kernel` (lib) due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-kernel` (lib test) due to 4 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

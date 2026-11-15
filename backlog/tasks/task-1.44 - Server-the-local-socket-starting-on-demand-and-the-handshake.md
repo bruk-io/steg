@@ -1,14 +1,13 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:44:00Z'
+updated_date: '2026-11-15T21:49:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -1040,6 +1039,16 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 39, 36 without the Asdlc-Worker trailer.
+
+Review findings fixed at head 100bc99 (PR #37, CI green: check passed in 4m7s). Each finding, and what was done about it:
+
+[Important #1 - malformed-hello for every non-hello first frame] Fixed: connection.rs now routes every decoded first-frame outcome other than Hello (undecodable bytes at the frame level, or a well-formed control/event/data frame arriving first) through the same malformed-hello refusal check_hello already produces for the two cases it could already reach (wrong magic, missing protocol) - built from the sdk's own public Refusal::Malformed/Frame::hello/encode_frame/PROTOCOL_VERSION, nothing added to crates/sdk. Six new tests in handshake.rs cover all four of decision-2 section 7's cases plus the oversized-length and stalled-half-frame cases the review also named; "prove one bites" reverted the fix and got exactly the three previously-unreached cases failing by their own bound, recorded on the task, then restored.
+
+[Important #2 - Stopper::stop not reliably stopping an idle run] Fixed: Stopper now binds the socket path itself (set by run() before its first accept()), so its one public stop() always both sets the flag and wakes the loop; the separate stop_and_wake function and the bare, easy-to-misuse flag-set are gone (the flag-set is now private, called internally). Three new tests cover a genuinely idle server, concurrent double-stop, and a stop racing a real connect(). Writing the first of these surfaced a test-design bug of my own - the shared start_server helper's own startup probe leaves a connection queued that masks this exact regression - caught by actually running "prove one bites" and seeing a suspiciously fast pass, then fixed with a new start_truly_idle_server helper that drains the probe first. Redid "prove one bites" with the corrected tests: all four tests calling stop() failed by their 5s bound exactly as expected with the wakeup disabled, recorded, then restored.
+
+[Nits] race-attempt is now feature-gated (confirmed an ordinary build produces no extra binary, and just check still runs the race test via a new check-packages line); the arbiter's probe showing up on the ConnectionEvent seam is documented as a TASK-1.77 caveat; the listener now closes immediately after the accept loop stops rather than after the connection-join phase, closing the window a connecting client could be queued-then-reset in (fixed, not only documented); error.rs's stale plan metadata is confirmed byte-identical to origin/main and noted here, plan left untouched.
+
+Checks recorded, in order: the failing handshake test with finding #1 reverted; the failing shutdown test with finding #2 reverted (using the corrected idle-server tests, after catching my own test-design bug); 10 consecutive race-fixture race-test runs; 10 consecutive shutdown-test runs; just check at the merged final head (100bc99, after merging origin/main - brought in TASK-1.41's kernel/sdk changes, no conflicts). Full writeup with code-level detail is in the task's own notes (two comments posted this round).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

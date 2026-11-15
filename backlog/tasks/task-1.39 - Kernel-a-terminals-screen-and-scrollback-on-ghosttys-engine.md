@@ -1,11 +1,13 @@
 ---
 id: TASK-1.39
-title: 'Kernel: a terminal''s screen and scrollback on ghostty''s engine'
+title: >-
+  Kernel: a terminal on ghostty's engine: its screen, its cells and what it
+  reports
 status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T13:55:00Z'
+updated_date: '2026-11-15T14:15:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -22,16 +24,17 @@ asdlc_branch: task-1.39-kernel-a-terminal-s-screen-and
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-doc-9: R14, R15, R16, R92. decision-2 says what a snapshot and an update carry, and its section 9 lists what the spike's cell model lacked.
+doc-9: R14, R16, R92, R116. decision-2 says what a snapshot carries. Split on 2026-11-15 by Bruk from the task that also covered scrollback identity and changed rows, which is now a task of its own: this part has no open design question and unblocks running a program, status, and clients and size. Its plan covers both parts and is to be cut down to this one.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Bytes fed in produce a screen that can be read out as rows of attribute runs
-- [ ] #2 Scrollback is kept to a configurable limit, 10,000 lines by default, and every row has an absolute identity
-- [ ] #3 The terminal reports its working directory, its title and whether the alternate screen is on
-- [ ] #4 The rows changed since a given point can be asked for, so an update need not carry the whole screen
-- [ ] #5 The cell model carries wide characters, link identity, underline style and colour, and the cursor's shape
+- [ ] #1 Bytes fed in produce a screen that can be read out as rows of attribute runs, with the cursor
+- [ ] #2 The terminal reports its working directory, its title and whether the alternate screen is on
+- [ ] #3 The cell model carries wide characters, underline style and colour, the cursor's shape, and whether a cell is part of a link (R116)
+- [ ] #4 The address of the link at a given cell can be asked for, and a cell with no link answers that there is none (R116)
+- [ ] #5 The terminal can be resized, and text reads back correctly at the new size
+- [ ] #6 The shapes a client draws from are defined in the sdk; the terminal itself and the engine stay in the kernel (doc-16 R105)
 <!-- AC:END -->
 
 ## Implementation Plan

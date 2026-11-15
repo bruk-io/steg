@@ -5,10 +5,11 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-13T22:49:00Z'
+updated_date: '2026-11-15T00:33:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
+- Revised 2026-11-15 for the app's design (doc-7) and the four decisions Bruk made that day: program status is split across M1 and M2; session colour follows the design; settings are overrides and the Python config is never written to; each status ends by its own rule. The changes are R21, R26, R50 and R51 reworded, R78 to R84 added, and the release table.
 - Reference product: [Rex](https://www.superlogical.com/rex/docs) by Superlogical.
 
 ## 1. What steg is
@@ -101,6 +102,8 @@ Each requirement is tagged with the release it belongs to (section 6).
   and restored.
 - R12 (M1). The pane model allows kinds other than terminals, even though v1 ships only
   the terminal kind.
+- R78 (M1). Where a split comes from, where a closed pane's space goes, the smallest a
+  pane may be, and what happens when the window is resized follow doc-7, D45 to D51.
 
 ### 5.3 Terminal
 
@@ -125,10 +128,17 @@ Each requirement is tagged with the release it belongs to (section 6).
 
 - R20 (M1). A macOS app built with GPUI. A window shows a session switcher, the current
   session's tabs, and the current tab's panes. More than one window can be open.
-- R21 (M1). A command palette lists every action, searchable by title.
+- R21 (M1). A command palette goes to any session, tab or pane, and lists every action,
+  searchable by title. Its modes, steps and keys follow doc-7, D79 to D88.
 - R22 (M1). The app is fully usable with no config file.
 - R23 (M1). The terminal font, size, line height, ligatures, and fallback fonts are
   configurable.
+- R79 (M1). What the window looks like and how its parts behave is doc-7, "Spec: the
+  app's design": its named values, and its requirements D1 to D110. App tasks cite those
+  numbers. Where doc-7 marks a value as proposed, it is not settled until Bruk says so.
+- R80 (M1). There is no settings window. A setting is changed from the palette, applies
+  at once, and is an override the server remembers; steg never writes to the config file
+  (doc-7, D101 and D106 to D108).
 
 ### 5.5 Appearance
 
@@ -137,10 +147,12 @@ Each requirement is tagged with the release it belongs to (section 6).
 - R25 (M1). The default dark look is a near-black base with warm gradient accents
   (violet through pink to orange), in the spirit of the Superlogical site and early Arc.
   No Liquid Glass and no dependence on macOS 26 materials.
-- R26 (M2). Each session can carry its own accent colour or gradient, shown in the
-  switcher and window chrome, so sessions are told apart at a glance. It is set
-  from the app, the CLI, and Python like any other session property, and a change shows
-  in every attached client at once.
+- R26 (M1). Each session carries one of five colours (violet, pink, orange, blue, green),
+  so sessions are told apart at a glance. A new session takes the next colour not in use,
+  and the palette changes it. Where the colour shows follows doc-7, D9. A change shows in
+  every attached client at once.
+- R81 (M2). A session's colour can also be any colour or gradient, set from the CLI and
+  Python like any other session property (doc-7, D10).
 - R27 (M2). Terminal colour themes are selectable separately for light and dark.
 
 ### 5.6 Keyboard
@@ -234,11 +246,25 @@ what a plugin can do, and what it cannot. Bruk agreed these limits on 2026-11-13
 - R49 (M2). Steg implements the Program Status Protocol (OSC 7501) as Superlogical
   publishes it: grammar, keys, size limits, whole-record replacement, the `id` hierarchy,
   record lifetime, the feature detection reply, and the security rules.
-- R50 (M2). A tab with an unfocused pane shows that pane's status: working with progress
-  when given, blocked, done, or error. The session switcher shows which sessions hold a
-  blocked or finished program.
-- R51 (M3). A blocked, done, or error status in an unfocused pane can raise a macOS
-  notification naming the session and pane. Each state is switchable on its own.
+- R82 (M1). Without the protocol, steg still shows what it can know by itself about a
+  pane's foreground program: running while it runs, and finished or failed from its exit
+  status. Progress, waiting for a person, and the bell as a status need R49.
+- R50 (M1 for running, finished and failed; M2 for the rest). A pane's status is shown as
+  a ring on its tab while the pane is out of view, and as a bar in the pane's own header
+  while it is in view. A tab shows one ring, for the most pressing of its panes. The
+  selected tab shows none, and a session never shows one. Shapes, colours, order and
+  motion follow doc-7, D52 to D78.
+- R83 (M1). Each status ends by its own rule: waiting and failed never on a timer;
+  finished after 10 minutes and the bell after 30 seconds, or sooner on a key press or
+  click in that pane. Opening a tab clears nothing (doc-7, D109 and D110).
+- R84 (M2). A tab holds the current status of each of its panes as a set: a new report
+  replaces only that pane's last one, and the tab shows the most pressing, then the next
+  when one ends. A pane's status can be promoted to its tab from the CLI; a pane that is
+  waiting or has failed still takes the ring. The command and its protocol form are
+  decided in TASK-1.30.
+- R51 (M3). A waiting or failed status can raise a macOS notification naming the session
+  and pane, only while steg is in the background and not more than once per pane per
+  state. Finished does not notify. Each is switchable on its own (doc-7, D71).
 - R52 (M2). Status changes are events, and the CLI can list a pane's status records.
 
 ### 5.11 Agents
@@ -305,8 +331,8 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R25, R28, R29, R32-R39, R58-R61 |
-| M2: extendable | Python, program status, and agents make it more than a terminal | R18, R26, R27, R30, R31, R40-R50, R52-R54, R62-R64, R67-R77 |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, and R50 for running, finished and failed |
+| M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
 Two spikes come before M1, because they carry the most risk:

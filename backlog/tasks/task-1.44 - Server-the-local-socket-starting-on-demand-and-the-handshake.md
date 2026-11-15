@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:23:00Z'
+updated_date: '2026-11-15T19:32:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,25 +14,18 @@ dependencies:
   - TASK-1.70
 modified_files:
   - crates/server/src/config.rs
-  - crates/server/src/error.rs
-  - crates/server/src/sys.rs
   - crates/server/src/paths.rs
   - crates/server/src/bind.rs
   - crates/server/src/arbiter.rs
-  - crates/server/src/detach.rs
-  - crates/server/src/login_env.rs
-  - crates/server/src/idle.rs
-  - crates/server/src/accounting.rs
   - crates/server/src/connection.rs
+  - crates/server/src/listen.rs
+  - crates/server/src/error.rs
   - crates/server/src/lib.rs
-  - crates/server/tests/serve.rs
+  - crates/server/tests/handshake.rs
+  - crates/server/tests/shutdown.rs
+  - crates/server/tests/race.rs
+  - crates/server/tests/fixtures/race_attempt.rs
   - crates/server/Cargo.toml
-  - crates/steg/src/main.rs
-  - crates/steg/Cargo.toml
-  - crates/steg/tests/socket.rs
-  - crates/steg/tests/lifecycle.rs
-  - crates/steg/tests/race.rs
-  - crates/steg/tests/fixtures/fake_client.rs
   - boundaries.toml
 parent_task_id: TASK-1
 type: task
@@ -61,486 +54,340 @@ doc-8: R1, R3, R4, R5, R39, R99; doc-13 R60, R61. decision-2, section 7. Bruk de
 <!-- SECTION:PLAN:BEGIN -->
 ## Before anything else
 
-This worktree's branch (`task-1.44-server-the-local-socket-starting-on`) is stale: it forked
-from the point right after TASK-1.44 was first claimed by `@bruk.w6` (commit `1d256ad`), before
-it was released and re-claimed by `@bruk.w3` (commit `10e9448`, current). In that same window
-TASK-1.70 (sdk: wire protocol + local-socket provider) merged to `origin/main` (PR #30) and
-TASK-1.69 finished, so the worktree's `crates/sdk`, `crates/server`, `crates/steg` are far
-behind what is actually on `origin/main` today - everything below is read from `origin/main`
-via `git show`, not from the stale worktree. TASK-1.40 (pane programs) is `In Review` with an
-open PR, not yet merged - this plan does not depend on it or edit its files, per the brief.
-Phase 2's first step is bringing the worktree's branch up to `origin/main` (rebase: nothing of
-this branch is pushed yet).
+This task is now part A only, after the engineer's split along the seam this task's own
+earlier plan proposed: the socket, the one-server-per-socket arbiter, and the handshake. Part
+B (starting on demand through the sdk's provider, detaching, the login-shell environment, the
+30-second idle stop, and the `steg` entry point) is a separate draft under TASK-1 that depends
+on this one - not planned here.
 
-## Size: this is bigger than one reviewable change
+TASK-1.40 (pane programs) merged to `origin/main` since this task's first plan was written
+(PR #32, now `Done`) - `crates/server` already has `dispatch/`, `env.rs`, `error.rs`, `pane.rs`,
+`pty.rs` on top of what the first plan saw. Everything below accounts for that: this plan adds
+new modules beside those, touches the existing `error.rs` rather than adding a second error
+type, and does not create `env.rs` (TASK-1.40's own file for `pane_environment`, unrelated to
+this task). Phase 2 still starts by rebasing the worktree's branch onto `origin/main`.
 
-Below is the full plan for the task as claimed, but it is large: a process-level arbiter with
-an exclusive lock, fd-passing double detach, login-shell environment capture with a timeout,
-an idle-with-injected-clock checker, socket mode/ownership checks, and the `steg` entry point,
-each with its own real-process or real-socket tests. Proposed split, if the engineer would
-rather have two reviews instead of one:
+Part A's five acceptance criteria, as the task now states them:
 
-- **A - the socket and the handshake** (ACs #1, #3, #4, #9's socket half): binding with mode
-  set and checked, the directory/stale-file checks, the arbiter's lock, the handshake with its
-  timeout and version mismatch, reusing the sdk's `wire::Connection` unmodified.
-- **B - the lifecycle** (ACs #2, #5, #6, #8, #9's lifecycle half): the detach, the login-shell
-  environment, the idle rule, the `steg` entry point, and the real client-starts-real-server
-  proof.
-- AC #7 (the race) is proved mostly in A (the arbiter) and re-proved end to end in B (N real
-  processes). Say in each PR which half it closes.
-- **If split, A needs its own foreground path to be testable alone.** Section 2's fd-passing
-  detach is B's; A's `serve()` has to bind (section 1's `bind.rs`) and run the accept/handshake
-  loop *in the calling process*, with no re-exec at all, so A's own tests (AC #1, #3, #4) have
-  something to run against without B existing yet. B then adds the detach as a wrapper around
-  that same foreground loop - stage 2 calls the identical `serve()` A already built, just after
-  the fd handoff instead of before it - so nothing in A is thrown away, only extended.
-
-If the engineer wants one task, build A then B in that order as two commits; each is
-independently `just check`-clean.
+1. The server listens on a socket at an XDG path that only its owner can open, with the mode
+   set rather than assumed, and refuses a directory or an existing file it cannot trust.
+2. Several servers started at the same moment for one socket leave exactly one listening; the
+   others find it and exit without error. A socket file left by a dead server is replaced.
+3. A client and server whose protocol versions differ get a message naming both versions.
+4. A connection that never completes its handshake is closed after a timeout; one that has
+   completed it is not closed for being idle.
+5. The handshake and the version check come from the sdk (TASK-1.70, doc-16 R101); the server
+   runs in the foreground of the process that called it, with no detaching, so this part is
+   testable alone.
 
 ### Order of work
 
-1. `config.rs`, `error.rs`, `sys.rs` (section 1) - the shared pieces everything else needs,
-   each with its own unit tests (no I/O for `config`/`error`; `sys` is thin wrappers, tested
-   where cheap, e.g. `clear_cloexec` round-tripped on a real pipe).
-2. `bind.rs`, `paths.rs` (sections 1, 3's step 4 note) - bind-temp-chmod-rename, and the
-   directory-safety check; real-socket unit tests in `crates/server`.
-3. `arbiter.rs` (section 3) - the pure `decide()` first, exhaustively unit-tested; then
-   `attempt()` wired to a real connect-probe and a real `flock`.
-4. A foreground `serve()` in `lib.rs` that binds (step 2), arbitrates (step 3), then runs the
-   accept loop with per-connection handshake (`connection.rs`, section 5's timeout) and no
-   detach yet - this is stage A's own deliverable if split (above), and lets AC #1/#3/#4 be
-   proved before anything about detaching exists.
-5. `idle.rs` + `accounting.rs` (section 5) - the pure predicate first, then the thread wiring
-   client counting from `accept()` (the fix named there) into `serve()`'s accept loop, gated
-   on `config.on_demand`.
-6. `detach.rs` (section 2) - **first**, a throwaway spawn-and-report check that a cleared
-   -`CLOEXEC` fd really does survive `Command::spawn`'s own fd handling across a `pre_exec`
-   -bearing exec (std closes fds it created and set `CLOEXEC` on itself, but does not walk and
-   close arbitrary inherited descriptors - this is the one assumption the whole detach rests
-   on, cheap to confirm before building on it, not left for the end-to-end tests to discover
-   if it is wrong; if it does not hold, the fallback is `dup2`-ing onto known low fd numbers
-   before exec, which changes this file's shape but nothing above it). Then the fd-passing
-   re-exec itself, wired so stage 2 calls the same `serve()` step 4 built, now reached after
-   the handoff instead of in the foreground.
-7. `login_env.rs` (section 4) - the passwd lookup, the env-cleared-and-reseeded capture with
-   its timeout, the pure parser; wired into stage 2's startup, stored on the running server and
-   exposed as the resolved `STEG_SERVER` string (see the note at the end of section 4) for a
-   later task's `pane_environment` to consume.
-8. `crates/steg/src/main.rs`'s narrow `server start [--on-demand]` match, calling `serve`.
-9. The real multi-process tests (`crates/steg/tests/`): mode/uid (AC #1), autostart and
-   explicit-stays-up (AC #2), survival-after-killed (AC #5), the eight-way race (AC #7), the
-   end-to-end hello round trip (AC #9) - each only after the step(s) it depends on above exist.
-10. `just check` end to end, recorded with `asdlc record-check`, before handing either stage
-    to review.
+1. `paths.rs` - `lock_path`, `directory_is_safe`, and the existing-file trust check (type and
+   owner). Unit tests first: a real, writable-by-anyone temp directory (no second user needed)
+   and fabricated metadata for the owner-mismatch case (the honest gap, named below).
+2. `bind.rs` - bind under a temporary name, set the mode, `rename` onto the final path. Real
+   -socket tests (no fabrication needed: a real bind, a real `fs::metadata` read-back).
+3. `arbiter.rs` - the pure `decide()` first, exhaustive unit tests, no I/O; then `attempt()`
+   wired to a real stat, a real connect, and `nix`'s `Flock`.
+4. `connection.rs` - the per-connection handshake: a real read timeout, the sdk's
+   `wire::Connection` for decoding and replying, clearing the timeout once accepted, and the
+   `ConnectionEvent` seam (section on "What part B inherits", below).
+5. `listen.rs` - the accept loop (`run`), the `Stopper` that tells it to stop, and `serve`
+   (`attempt` then, on `Became`, `run`) for this task's own foreground, no-detach case.
+6. `config.rs` - `ServerConfig`: the one place every timing and path this task's tests
+   override lives, each with a production default.
+7. `error.rs` - extend the existing `steg_server::Error` (section on error handling, below);
+   `lib.rs` - add `mod`/`pub use` lines beside the existing ones, nothing removed.
+8. `Cargo.toml`, `boundaries.toml` - add `nix` (section on dependencies, below).
+9. Tests mapped to each criterion (the "Proof" section) - written against the real modules as
+   each becomes available, not held until the end.
+10. `just check`, recorded with `asdlc record-check`.
 
-## 1. Where each part lives, and why
+## 1. Where each part lives, and the API part B wraps
 
-Everything socket/process/clock-touching is `steg-server` (doc-16 R98: the server's code is in
-packages no client depends on; the kernel and sdk stay I/O-free). `crates/steg` gains only
-enough argument handling to recognise `server start [--on-demand]` and call
-`steg_server::serve(config)` - no server logic of its own (R98), matching the `steg-kernel`/
-`steg` dependency table in `boundaries.toml` unchanged except for one new external dependency
-(section 6).
-
-New files under `crates/server/src/`:
+Everything here is `steg-server`, added beside TASK-1.40's `dispatch`, `env`, `error`, `pane`,
+`pty` - none of those are touched except `error.rs` (extended, not replaced) and `lib.rs` (new
+`mod`/`pub use` lines only). Nothing in `crates/steg` changes: part A has no binary entry
+point of its own (the task's criterion 5 says so explicitly - "the server runs in the
+foreground of the process that called it" means the *caller*, which for this task is a test,
+never a `steg server start` invocation; that invocation, and the `steg` package's own
+narrow argument handling for it, is part B's).
 
 | File | Holds |
 |---|---|
-| `config.rs` | `ServerConfig`: `socket_path: Option<PathBuf>`, `on_demand: bool`, `handshake_timeout: Duration`, `idle_grace: Duration`, each with a production default and all overridable - the injection point every test uses instead of sleeping real durations. |
-| `sys.rs` | The handful of POSIX calls std does not expose, each a safe wrapper with its own `// SAFETY:` comment: `flock_exclusive_nonblocking`, `setsid`, `login_shell_passwd_entry()` (via `getpwuid_r`, giving the shell, home directory, username and login name together - see section 4), `clear_cloexec(fd)`. No umask wrapper (see `bind.rs`, below). One small module per foreign interface (`rust.md`). |
-| `arbiter.rs` | The decision logic: a pure `fn decide(connect_probe: Probe, lock: LockOutcome) -> Arbitration` enum (`BecomeServer`, `AlreadyRunning`, `GiveUp(reason)`), unit-tested on all branches with no I/O; `attempt(config) -> Result<Arbitration, Error>` does the real connect-probe-then-lock-then-bind and returns the already-bound pieces. |
-| `paths.rs` | `lock_path(&socket_path)` (sibling file, `.lock` suffix - not subject to `sockaddr_un`'s 104-byte limit since it is never bound, only opened); `directory_is_safe(dir) -> Result<(), Reason>` checking the parent directory's owner uid and mode before anything is placed in it. |
-| `bind.rs` | `bind_with_mode(path) -> io::Result<UnixListener>`: removes a stale socket file (only ever called after the lock is held), binds under a sibling temporary name in the same directory, sets `0600` on the temp path via std's own `PermissionsExt::set_mode` (no `libc` needed for this step), then `rename()`s it onto `path` - atomic, and touches no process-global state (see "why not umask", below). |
-| `detach.rs` | `spawn_detached(listener, lock, config, argv) -> io::Result<()>` (fd-passing re-exec, below) and `inherited_fds() -> Option<(UnixListener, File)>` (the other side, reading the env vars it set). |
-| `login_env.rs` | `capture_login_environment(timeout) -> Vec<(OsString, OsString)>` and the pure `parse_env_dump(&[u8]) -> Vec<(OsString, OsString)>` it calls. |
-| `idle.rs` | `Counters { clients: u32, sessions: u32 }` and the pure `fn should_stop(idle_since: Option<Instant>, now: Instant, grace: Duration) -> bool`. |
-| `accounting.rs` | The one thread that owns `Counters` and the stop decision, fed by a channel (`rust.md`: "one task owns a piece of state, others send messages" - not `Arc<Mutex<_>>`). |
-| `connection.rs` | The per-connection thread body: handshake with a read timeout, then (once accepted) an unbounded hold-open read loop that only tracks liveness - it does **not** dispatch requests (see "Left out", below). |
-| `error.rs` | `Error`, one variant per failure a caller can tell apart. |
-| `lib.rs` | Adds `mod` lines beside the existing `dispatch`; adds `pub use` for `serve`, `ServerConfig`, `Error`. |
+| `config.rs` | `ServerConfig { socket_path: Option<PathBuf>, handshake_timeout: Duration }`, each overridable, with a production default - the injection point every test uses instead of sleeping real durations. |
+| `paths.rs` | `lock_path(&socket_path)` (sibling `.lock` file - not subject to `sockaddr_un`'s 104-byte limit, since it is only ever opened, never bound); `directory_is_safe(dir) -> Result<(), Reason>`; `existing_file_trust(path) -> ExistingFile` (an enum: `Absent`, `OursAndASocket`, `NotASocket`, `NotOurs` - see section 3). |
+| `bind.rs` | `bind_with_mode(path) -> io::Result<UnixListener>`: binds under a sibling temporary name in the same directory, sets `0600` via `std::fs::set_permissions`/`PermissionsExt`, `rename()`s onto `path`. |
+| `arbiter.rs` | The pure `fn decide(existing: ExistingFile, lock: LockOutcome) -> Arbitration` (`Arbitration::Became | AlreadyRunning | Refuse(Reason)`), exhaustively unit-tested with no I/O; `attempt(config) -> Result<(Arbitration, Option<ServerHandle>), Error>`, the real version. |
+| `connection.rs` | The per-connection thread body: set a read timeout, decode and answer the hello (`steg_sdk::wire::Connection`), clear the timeout once accepted, emit `ConnectionEvent`s, then hold the connection open until it closes on its own (this task reads nothing past the hello; TASK-1.45 is what routes further frames). |
+| `listen.rs` | `ServerHandle` (the bound listener + the held `Flock<File>` lock, dropped together); `Stopper` (the handle that tells `run` to stop, and how it wakes a blocked `accept()`); `run(handle, config, stop, events) -> io::Result<()>` (the accept loop, until stopped); `serve(config, stop, events) -> Result<ServeOutcome, Error>` (`attempt` then, on `Became`, `run`; returns immediately on `AlreadyRunning` or a refusal). |
+| `lib.rs` | Adds `mod config; mod paths; mod bind; mod arbiter; mod connection; mod listen;` beside the existing five, and `pub use` for `serve`, `ServeOutcome`, `ServerConfig`, `Stopper`, `ConnectionEvent`, `arbiter::attempt` (for part B and this task's own race test, below), `listen::run` (for part B's post-detach call). |
 
-`crates/steg/src/main.rs` gains a narrow, hand-matched case for exactly `["server","start"]` and
-`["server","start","--on-demand"]`, calling `steg_server::serve`. Nothing else changes; every
-other invocation keeps today's placeholder. This is the one necessary exception to "commands
-come from the API description" (R32): `server start --on-demand` is what bootstraps a process
-that has nothing to connect to yet, which `local_socket.rs`'s own doc comment already says
-can't go through the normal client-calls-a-method path. TASK-1.49's generated CLI will need
-the same special case; this plan leaves it a `// TASK-1.49:` comment, not a design for it to
-inherit blindly.
+**The contract part B wraps, stated once:** `serve()` is exactly `attempt()` then, if it became
+the server, `run()`; it is what this task's own tests call for a self-contained, no-detach
+server. Part B's stage 1 (still attached, pre-detach) calls `attempt()` directly, carries the
+resulting `ServerHandle` across its own fd-passing re-exec, and stage 2 (post-detach) calls
+`run()` directly - the same two functions this task builds and tests, composed around a detach
+step this task adds nothing of its own to. Nothing in this task needs to anticipate exactly how
+B calls them beyond their existing signatures.
 
-## 2. How the server detaches, and why it does not accumulate zombies beyond the bound TASK-1.70 already named
-
-**Two stages, not a bare fork.** Stage 1 is the literal process `local_socket::connect`
-spawned (or a human's `steg server start`), still attached to its own parent. It runs the
-*entire* arbiter (section 3) itself, while still attached - so it can print an error and exit
-non-zero if asked explicitly and a server is already up, which a detached process no longer
-could. Only once stage 1 holds the lock and has bound and `chmod`ed the listener does it:
-
-1. clear `FD_CLOEXEC` on the listener's and the lock file's descriptors (`sys::clear_cloexec`);
-2. spawn itself again (`Command::new(current_exe)`) with `STEG_SERVER_DETACHED=1`,
-   `STEG_INHERITED_SOCKET_FD=<n>`, `STEG_INHERITED_LOCK_FD=<n>`, the same argv, stdio set to
-   `/dev/null`, and an `unsafe` `pre_exec` closure that calls `sys::setsid()` and nothing
-   else - async-signal-safe, one syscall, documented in its own `// SAFETY:` comment (`Command`
-   takes the fork+exec path, not the `posix_spawn` fast path, whenever a `pre_exec` closure is
-   set, which is exactly why this works);
-3. drops the `Child` handle without waiting (see section 8) and exits 0.
-
-Stage 2 (`STEG_SERVER_DETACHED=1` present) is already a session leader with no controlling
-terminal by the time its `main` runs (setsid happened between fork and exec, in stage 1's
-child, before stage 2's image was even loaded). It reconstructs the listener and the lock from
-the inherited fd numbers via `FromRawFd` (one `unsafe` block, documented: the fd numbers are
-read from env vars this same binary just set, never untrusted input) and never binds or locks
-anything itself - **the lock is held continuously from the moment stage 1 acquires it to the
-moment the final process releases it, with no gap where it is closed and reopened.** That is
-what answers TASK-1.70's own worry about the local-socket provider never waiting: stage 1's
-only job after the handoff is to exit, which it does in a handful of syscalls (no login-shell
-capture, no accept loop - those are stage 2's, after detaching), so the zombie entry the
-calling client's process table carries is bounded to roughly that many syscalls' worth of
-wall-clock time. Tested directly (section 7, "Proof") rather than asserted: spawn stage 1,
-`wait()` it from the test (something only a test, not the real sdk provider, gets to do), and
-assert it returns promptly.
-
-A SIGKILL to the *original* client (the CLI or app process that called `connect`) never reaches
-stage 2: by the time that client's own code resumes after `connect()` returns, stage 2 is
-already reparented away from stage 1's process group into its own session, so stage 1's death
-(whether by exiting normally or if the client's process group were ever signalled) cannot
-propagate a SIGHUP into it either.
-
-## 3. The arbiter: one survivor from several simultaneous starts (AC #7), and a dead server's stale socket
+## 2. The arbiter: one survivor (AC #2's first half), and a dead server's stale socket (AC #2's second half)
 
 The lock, not `bind`, is the arbiter (binding twice at the same path cannot distinguish "stale
 file, nothing listening" from "another process already bound here" without first unlinking,
-and unlink-then-bind is itself the unresolved race). Sequence, run by stage 1:
+and unlink-then-bind is itself the unresolved race it would be trying to settle).
 
-1. **Connect-probe.** Before trusting a successful `UnixStream::connect`, `stat` the path first
-   and refuse to trust a file whose owner is not the caller's own euid - ownership is the
-   security property R5 actually names ("only its owner can open"); mode is not checked here
-   at all, deliberately: the server sets `0600` on its own socket (section 3's step 5), but a
-   live, owned server the caller happens to find with some other mode is a bug worth surfacing
-   on its own, never a reason to treat the socket as absent and go try to take it over - that
-   would send the caller down the lock-and-rebind branch against a server that is actually
-   alive, which the lock then correctly blocks, and the caller loops on connect-probe back to
-   the exact server it just rejected, converging only once the arbitration timeout gives up. A
-   mismatched *owner* is the only case worth distrusting a successful connect over - the
-   `/tmp/steg-<user>.sock` fallback is world-writable, so a pre-created file there at the exact
-   path owned by someone else is the one case this protects against (the XDG/TMPDIR cases are
-   per-user directories, so it never fires there in practice). If the file is absent, owned by
-   someone else, or a connect attempt is refused: nothing real of ours is listening - go to 2.
-   If it is a real server we own: exit 0 (both modes - the goal "a server is listening" is
-   already met).
-2. **Directory safety.** `paths::directory_is_safe` on the socket's parent directory (owner
-   uid, not world-writable beyond the owner) - refuse with a clear message rather than
-   silently trying to bind into an unsafe directory. (Honest gap: testing the cross-uid case
-   for real needs a second real user or root, neither available here; this is a defensive
-   check with a unit test over fabricated metadata, not an adversarial end-to-end proof - said
-   plainly on the task, not hidden.)
-3. **Lock attempt**, `flock(LOCK_EX | LOCK_NB)` on the sibling `.lock` file.
-   - Acquired: remove any stale socket file (safe now - step 1 already proved nothing answers
-     there), bind, chmod, detach (section 2).
-   - Not acquired: another stage-1 process is doing exactly this right now. Retry the
-     connect-probe on a short bounded loop (same shape as the sdk's own retry in
-     `local_socket::connect`, reusing that pattern rather than inventing a second one) up to
-     `config.handshake_timeout`-scaled deadline. Connects within it: exit 0, converged on the
-     winner (this is what proves AC #7 at the unit level - section 7's real multi-process test
-     proves it end to end). Never connects: exit non-zero naming the timeout, since something
-     is wrong with whichever process is holding the lock.
-4. **A dead server's stale socket self-heals with no special case.** A `flock` is released by
-   the kernel when its holder's process ends, by any means including `SIGKILL` - so the next
-   `server start` simply finds the lock free, takes it, and removes the stale file in step 3's
-   "acquired" branch. No explicit crash-detection code is needed, and I say so rather than
-   leaving it looking like an oversight.
-5. **Why `bind.rs` does not touch `umask`.** `umask` is process-wide (shared by every thread),
-   and `bind_with_mode` is called from the in-process functional tests in
-   `crates/server/tests/` too, not only from a freshly-exec'd stage 1 - a umask-set-then-
-   restore dance there would transiently corrupt every other test running in parallel in the
-   same `cargo test` binary. Bind under a temporary name in the same directory, set `0600` on
-   that temp path (std's `PermissionsExt::set_mode`, no `libc`), then `rename()` it onto the
-   final path - no process-global state touched at any point. The precise guarantee this gives,
-   stated carefully rather than as a blanket "atomic": the socket is never *observable* at its
-   final path with any mode other than `0600` - `rename()`'s own atomicity (replacing an
-   existing file in one step) is mostly moot here, since step 3 already removed any stale file
-   under the lock before this runs, so the common case is a plain create at the final path, not
-   a replace. The permissive-umask test (section 7, AC #1) is what proves this claim: it is the
-   *rename*, not any umask restore, that makes the mode immune to the ambient umask of whatever
-   process or shell invoked `steg server start`.
+1. **Existing-file trust (`paths::existing_file_trust`, AC #1's "refuses... an existing file it
+   cannot trust").** `stat` the path before touching it at all:
+   - **Absent.** Nothing there - proceed to the lock.
+   - **A socket, owned by the caller's own euid.** Try connecting. A successful connect means a
+     real server of ours is up: `Arbitration::Became` is not possible here, report
+     `AlreadyRunning` and stop (both AC #2's first clause and AC #5 - this is the same path a
+     losing racer in a simultaneous start takes). A refused connect means the owning process is
+     dead and the file is stale - safe to remove once the lock is held (step 3).
+   - **A socket, owned by someone else.** Never connected to (connecting to a socket we do not
+     own and trusting a reply from it is the exact thing R5 forbids) and never removed (we did
+     not create it, and in the one place this matters in practice - the world-writable
+     `/tmp/steg-<user>.sock` fallback - the directory's own sticky bit would refuse our unlink
+     anyway). `decide()` returns `Arbitration::Refuse` naming why.
+   - **Not a socket at all** (a plain file, a directory, anything else left at that exact
+     path). Refused the same way, for the same reason: we did not put it there and do not know
+     what it is for. This branch is fully testable for real with no second user - pre-create an
+     ordinary file at the path and assert the refusal.
+2. **Directory safety (`paths::directory_is_safe`).** The socket's parent directory must be
+   owned by the caller and not writable by anyone else. Also fully testable for real with no
+   second user: `chmod 0777` a real temporary directory and assert the refusal; the only
+   untestable half of this and of step 1's "owned by someone else" branch is the cross-uid
+   case itself, which this environment has no second real user or root to produce - said
+   plainly here and in "left out", not hidden.
+3. **Lock attempt**, `nix::fcntl::Flock::lock(lock_file, FlockArg::LockExclusiveNonblock)` on
+   the sibling `.lock` file, confirmed against the real crate (not assumed): contention surfaces
+   as `Err((file, Errno::EAGAIN))`, verified by compiling and running exactly this call with two
+   file descriptors open on one file in one process, which is a stronger proof of the
+   contention path than two real processes would be forced to show differently.
+   - **Acquired.** Remove any stale socket file found in step 1 (safe now: step 1 already
+     proved either nothing was there or the owner is dead), bind (section "bind", above), and
+     report `Arbitration::Became` with the `ServerHandle`.
+   - **Not acquired** (`EAGAIN`). Another process holds it right now, mid-becoming-the-server.
+     Retry the connect probe from step 1 on a short bounded loop up to a deadline (this plan's
+     own, not sdk's `local_socket::connect`'s retry, which this task's code never touches).
+     Connects within it: `AlreadyRunning`, converged on the winner - this is what proves AC #2's
+     first clause at the unit level (`decide()`'s own tests) and end to end (the real
+     multi-process test below). Never connects: `Refuse`, naming the timeout.
+4. **A dead server's stale socket self-heals because the lock does, not because anything here
+   detects death.** `Flock` releases on drop, which runs when its holder's process ends by any
+   means including `SIGKILL` - the kernel does this, not this crate. The real test for this
+   (not merely a stale file with no listener, which only proves the unlink): a small fixture
+   process binds a socket and takes the lock, gets `SIGKILL`ed, and a fresh `attempt()` is
+   asserted to acquire the lock and replace the file. A pre-created file with nothing holding
+   the lock proves less - it never exercises the lock actually being free because its holder
+   died, only that a stale file is removed once the lock (never contended) is taken.
 
-`decide()` itself (the pure part) takes only `Probe` (`AlreadyServed | Nothing`) and
-`LockOutcome` (`Acquired | HeldByOther`) - `on_demand` does not change the arbiter's outcome at
-all, only whether stage 2 later runs the idle checker (section 5). I looked at giving the
-race's loser a louder "a server is already running" message for an explicit, non-on-demand
-`server start`, as a nicety; left it out; it is not required by any of the nine criteria, and
-every branch that exists here has a test, with no untested branch invented for the asymmetry.
+`decide()` itself takes only `ExistingFile` and `LockOutcome` - nothing in this task's
+`ServerConfig` distinguishes an explicit start from an on-demand one (that distinction, and
+what it changes, is entirely part B's).
 
-## 4. The login-shell environment (AC #5's second half)
+## 3. The handshake: version mismatch (AC #3), the timeout, and not closing an idle completed one (AC #4)
 
-- **The shell, home directory, username and login name all come from the passwd entry
-  (`sys::login_shell_passwd_entry`, `getpwuid_r` on the caller's own uid), never from `$SHELL`/
-  `$HOME`/`$USER` inherited from the environment.** Those are inherited, and inherited means
-  "from whatever client's environment spawned this chain" - exactly what R99 forbids.
-- **The capture command is spawned with `.env_clear()` then re-seeded from that same passwd
-  entry before it runs**, not run against a bare-empty environment: `HOME`, `USER`, `LOGNAME`
-  from the passwd entry, and a baseline `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`). Clearing with
-  no seed was this plan's first draft, and it does not work: most real login profiles
-  (`.zprofile`, `.bash_profile`) reference `$HOME` or append to an existing `$PATH`, and
-  against a genuinely empty environment they either error or export nothing, so the capture
-  would "succeed" with a near-empty result and no test catches it unless it specifically
-  checks for `HOME`/`PATH` being present (section 7 adds that assertion, not just "the marker
-  is gone"). `env_clear` is still what makes "not from that client" true - the seed comes from
-  the passwd entry this process just looked up itself, never copied from whatever stage 1
-  inherited (which, through the unmodified `local_socket::connect`'s plain `Command::spawn`, is
-  the original client's own environment).
-- **`/usr/bin/env -0` is run by absolute path, confirmed present and NUL-delimited on this
-  machine by running it directly rather than assumed** (macOS's BSD `env` is older than
-  FreeBSD's, where `-0` could plausibly be missing - it is not, here). `-l` without `-i` is
-  what avoids hanging on an interactive prompt; `stdin(Stdio::null())` is the actual anti-hang
-  measure for a profile script that still tries to read a tty - it gets EOF, not a block.
-- **A timeout, with the child always waited on.** The capture spawns a watcher thread that does
-  a blocking `wait_with_output()` and sends the result over a channel; the caller does
-  `recv_timeout(timeout)`. On timeout it kills the child by pid (kept before the `Child` moved
-  into the watcher thread) and the watcher thread's own `wait_with_output()` still completes
-  and is dropped - the child is reaped on every path, never left a zombie because of a timeout.
-- **Fallback on any failure** (no passwd entry, spawn error, non-zero exit, timeout): the
-  server's own inherited environment, with every `STEG_*` key stripped (the one place a stray
-  value from whatever spawned the whole chain could otherwise leak through the fallback path
-  specifically, since the primary path already guards against it via `env_clear`).
-- `-0` (NUL-delimited) output, parsed by the pure `parse_env_dump`, because plain `env`'s
-  newline delimiting breaks on a value containing a newline - tested with exactly that value,
-  plus a line with no `=` (skipped) and a value containing its own `=` (split on the first
-  one only).
-- Captured once, at stage 2 startup, stored on the running server. Nothing in this task spawns
-  a pane (TASK-1.40 is unmerged), so there is no `pane_environment` to hand it to yet; this
-  plan deliberately does not create or touch `crates/server/src/env.rs`, which is TASK-1.40's
-  own file for the per-pane `pane_environment(base, ...)` function - this task's output is
-  exactly the `base` that function is written to take, wired at the call site once TASK-1.40
-  lands, not before.
-- **`serve()` also exposes the resolved socket path as the `STEG_SERVER` string** (doc-2
-  section 4: "how to reach the server this terminal belongs to"). This task is where that
-  string first becomes known - nothing consumes it yet (pane spawning is TASK-1.40's, unmerged),
-  but the plan names the seam now rather than leaving a later task to discover `serve()` has
-  nothing to hand it.
+Reuses `steg_sdk::wire::Connection` exactly as TASK-1.70 built it - nothing in this task adds a
+line to the sdk. `connection.rs`'s per-connection thread:
 
-## 5. The idle rule and the handshake timeout, both as injected-clock predicates
+1. `UnixStream::set_read_timeout(Some(config.handshake_timeout))` before the first read.
+2. Decode frames with the sdk's `Decoder`/`Connection::poll` until a `Hello` arrives or the read
+   times out.
+3. On a timed-out read: close the connection with no reply (AC #4's first clause). On a `Hello`:
+   `Connection::accept_or_refuse` (the sdk's own, unmodified) decides accept or refuse by
+   protocol version (AC #3 - the refusal already names both versions, proved by the sdk's own
+   tests; this task's test proves the *server* delivers that refusal over a real socket, not
+   that the refusal's wording is right, which is TASK-1.70's proof already).
+4. On accept: `set_read_timeout(None)` - this is what AC #4's second clause rests on. A
+   connection that has finished its handshake is never touched by this timeout again, proved by
+   a test that completes a handshake, waits past where the timeout would have fired, and asserts
+   the connection is still open.
+5. On refuse: write the refusal frame, then close.
 
-- `idle::should_stop(idle_since, now, grace)` is pure: `idle_since` is `None` while any client
-  or session exists, and gets set to `Some(Instant::now())` by `accounting.rs` the instant the
-  count reaches zero (real `Instant`, captured once, at the real moment it happens - never
-  read inside the predicate). The predicate itself never calls `Instant::now()`, so tests pass
-  `now` as `idle_since + Duration::from_millis(x)` for `x` straddling the grace on both sides,
-  with sessions present, with clients present, and in explicit mode (where `accounting.rs`
-  never evaluates the predicate at all - "a server that has a session never stops" and "an
-  explicit server stops only when told to" are both the absence of a call, not a `false`
-  result, which is itself worth a test: explicit mode's accounting thread takes no grace at
-  all).
-- **A connection counts as a client from the moment `accept()` returns it, not from the moment
-  its handshake completes.** The accept loop sends `ClientConnected` and spawns the
-  per-connection thread in that order, before any byte of that connection has been read; the
-  per-connection thread sends `ClientDisconnected` when it exits, on every exit path (a clean
-  EOF, a refused/malformed hello, and the handshake timeout). Counting from handshake
-  -acceptance instead was this plan's first draft, and it has a real gap: between `accept()`
-  returning and a hello being decoded and accepted, the accounting thread would see zero
-  clients, and for an on-demand server that nothing has connected to yet, the idle grace may
-  already have elapsed - it would set the stop flag and tear the socket down while a real
-  client is mid-handshake, which only then discovers the server gone (its own `connect()`
-  succeeded; the subsequent read just hangs until its own timeout). Section 7 adds a test for
-  exactly this: connect, stall before sending the hello, and assert the server does not tear
-  down.
-- `accounting.rs` is the single thread that owns `Counters`: it blocks on
-  `recv_timeout(poll_interval)` for `ClientConnected`/`ClientDisconnected` events from
-  `connection.rs`'s per-connection threads, updates the counts, and on each wakeup (event or
-  timeout) checks `should_stop` with a real `Instant::now()`. On `true` it triggers shutdown by
-  connecting a throwaway `UnixStream` to the server's own socket (the standard way to unblock a
-  thread blocked in `accept()`), which the accept loop treats as "wake up and check the stop
-  flag" rather than a real connection, then it closes the listener, removes the socket file,
-  and drops the lock file (releasing the `flock`).
-- **The handshake timeout is a real OS timeout, not a sleep-then-check**:
-  `UnixStream::set_read_timeout(Some(config.handshake_timeout))` before the first read;
-  cleared (`set_read_timeout(None)`) only once a complete hello has decoded and been accepted,
-  so a connected client that has finished its handshake and then sits idle is never closed (a
-  case I add a test for specifically, since it is the one teams forget and doc-14 does not
-  mention it either way beyond "frozen" framing).
+**`ConnectionEvent`, the seam part B inherits.** `run`'s accept loop sends
+`ConnectionEvent::Connected` the moment `accept()` returns a connection - before any byte is
+read - and the per-connection thread sends `ConnectionEvent::Disconnected` on every exit path
+(timed-out, refused, or a clean close after acceptance), over an optional channel `run` takes.
+This task has no accounting to feed it to - there is no idle rule here, and "not closed for
+being idle" in AC #4 is proved directly by step 4 above, not by anything watching this channel.
+Part B's idle checker is the real consumer: it holds the same channel, counts
+`Connected`/`Disconnected` into its own clock-injected predicate, and calls `Stopper::stop()`
+when its rule says to - nothing about `run`'s own signature changes to make that possible,
+which is the point of building the seam now rather than letting part B add it later.
 
-## 6. Dependencies, licensed
+## 4. Shutdown, in the foreground (part of AC #5, and the seam's other half)
 
-One new external dependency: **`libc` (`"0.2"`), `steg-server` only.** Covers the POSIX calls
-std does not expose: `flock` for the arbiter's lock (R99), `setsid` for detaching (R99),
-`getpwuid_r` for the login shell's own passwd entry (R99, not `$SHELL`), and `fcntl(F_SETFD)`
-to carry the bound listener and lock fd across the detaching re-exec. Setting the socket's
-mode (R5, AC #1) needs no `libc` call at all - `std::fs::set_permissions`/`PermissionsExt`
-already covers it (section 3's bind-temp-then-rename). `libc` is dual
-`MIT OR Apache-2.0`, both already in `deny.toml`'s allow list - read now, the same way
-TASK-1.40 read `portable-pty`'s licence by hand before `just deny` proved it for real in the
-build phase, which is how this plan proves it too, not by assertion. `boundaries.toml`'s
-`[steg-server]` gains `"libc"` in `allow`, with that same reason. No change to `[steg]`'s own
-entry: it already allows `steg-sdk` with no `deny-features`, so `steg`'s own `Cargo.toml`
-turning on `steg-sdk`'s `local-socket` feature needs no boundaries edit (the table only denies
-features explicitly listed; `[steg]` lists none).
+`run` takes a `Stopper` (a small `Arc`-backed handle with `.stop(&self)`); this task's own
+tests build one, pass a clone into `run` (spawned on a background thread or called directly,
+depending on the test), and call `.stop()` from elsewhere once they are done asserting. The
+accept loop blocks in `accept()`; `.stop()` sets a flag and then connects a throwaway
+`UnixStream` to the server's own socket to unblock it (the standard way to wake a thread parked
+in `accept()` with no other listener-level cancel in std) - the accept loop treats that
+connection as nothing (it never reaches the handshake step) and, seeing the flag, breaks out.
+
+**Shutdown order, stated so a client connecting in that instant has a definite, safe
+experience:** stop accepting (break out of the loop) → close the listener (drop it) → remove
+the socket file at its final path → release the lock (drop the `Flock` guard) last, never
+before the path is fully vacated. A client whose `connect()` lands in this window sees exactly
+what it would see against a server that was never there (`ConnectionRefused`, or - once the
+file is removed - `NotFound`) - indistinguishable from "nothing is listening," which is the
+correct, safe reading for any client (the sdk's own `local_socket::connect`, part B's future
+caller of this, treats that as "try to start one," never as an error of its own).
+
+Part B's idle checker will hold the same `Stopper` this task defines and call `.stop()` once
+its clock-injected predicate says to; this task's own tests call it directly, standing in for
+that future caller with no change needed to `run` or `Stopper` themselves.
+
+## 5. Dependencies, verified against the real crate rather than assumed
+
+One new external dependency: **`nix` (`"0.28"`), `steg-server` only**, with features `fs` (for
+`fcntl::Flock`/`FlockArg`) and `user` (for `unistd::geteuid`) - both confirmed by compiling and
+running exactly the calls this task needs, not inferred from memory:
+
+- `nix::fcntl::{Flock, FlockArg}`: `Flock::lock(file, FlockArg::LockExclusiveNonblock)` returns
+  `Ok(Flock<File>)` (derefs to the file, unlocks on drop) or `Err((file, Errno))`; a contended
+  lock surfaces as `Errno::EAGAIN`, confirmed by actually contending one in a real run, not
+  assumed from the type signature.
+- `nix::unistd::geteuid() -> Uid`, with `.as_raw()` to compare against
+  `std::os::unix::fs::MetadataExt::uid()` (a plain `u32`) for the owner checks in section 2 -
+  confirmed to need the `user` feature specifically (it is not in nix's base, unguarded
+  surface; a first attempt without it failed to compile with exactly that message).
+- Socket type (`FileTypeExt::is_socket()`) and mode (`PermissionsExt`) need no `nix` or `libc`
+  call at all - `std::os::unix::fs` already covers both, confirmed the same way.
+
+**No `setsid`, no `getpwuid_r`, no `fcntl(F_SETFD)`, no `FromRawFd` reconstruction of an
+inherited descriptor, and no `unsafe` block of this task's own anywhere** - detaching, the
+login shell, and fd-passing across an exec are all part B's; this task never forks, execs, or
+crosses a process boundary with anything but a plain, independently-bound socket and lock.
+`nix`'s own API for `Flock`/`geteuid` is safe Rust; this task adds none of the
+`sys.rs`-with-hand-written-FFI the original, pre-split plan carried.
+
+`nix` 0.28.0 is already resolved in the workspace's `Cargo.lock`, pulled in transitively through
+`portable-pty` (TASK-1.40's dependency, also in `steg-server`) - declaring `nix = "0.28"`
+directly resolves to that same line rather than adding a second version, checked with
+`cargo tree -p steg-server -i nix` showing exactly one entry once this is wired in (not assumed
+now: `portable-pty`'s *own* choice of `nix` version is not this task's to control, and a future
+bump of it could move that line, which is why this is a check to run in the build phase, not a
+fact to assert here). `nix` is `MIT`, read directly from its own `Cargo.toml`'s `license` field
+rather than taken on trust, and `MIT` is already in `deny.toml`'s allow list - `just deny` is
+still what proves it for real, the same way TASK-1.40 proved `portable-pty`'s licence.
+`boundaries.toml`'s `[steg-server]` gains `"nix"` in `allow`, with that reason, and
+`just check-boundaries` is the check that the features actually declared (`fs`, `user`) match
+what a reviewer sees named here.
+
+## 6. Error handling
+
+Extends `steg_server::Error` (`error.rs`, TASK-1.40's own file) rather than adding a second,
+parallel error type: a crate exporting `steg_server::Error` and a `steg_server::ListenError`
+side by side would make TASK-1.45 - which has to handle both a socket failure and a dispatch
+failure on one call path - carry conversion boilerplate between them for no reason this task's
+own criteria need. New variants, each with its own `Display` and `source()` arm, following the
+existing style exactly:
+
+- `AnotherServerRunning` - `attempt()` found a live server of ours; not itself a failure a
+  caller need treat as one (this task's own `serve()` returns `ServeOutcome::AlreadyRunning`
+  for it, never this `Error` variant - the variant exists for callers, like a future CLI's
+  explicit `server start`, that want to report it as one).
+- `UntrustedSocketPath(Reason)` - covers both "not a socket" and "owned by someone else" from
+  section 2, each sub-case named in `Reason`'s own `Display`.
+- `UnsafeDirectory(Reason)` - the parent-directory check.
+- `ArbitrationTimedOut` - the lock-contended-and-never-connects branch.
+
+`Io(std::io::Error)` already exists and covers bind/stat/rename failures with no new variant.
+
+## 7. Threading model
+
+Blocking `std::thread`: one thread per connection (handshake, then held open), the accept loop
+on whichever thread calls `run` (this task's own tests call it on a spawned thread so the test
+can keep driving connections and the `Stopper` from its own main thread). No new async runtime;
+consistent with TASK-1.40's own choice (one thread per pane) already on `origin/main`.
 
 ### Risks
 
-- **Size.** Named at the top: this is really two reviewable changes (the split proposal). The
-  biggest risk is trying to review it as one large diff rather than as the two ordered stages
-  the "Order of work" above lays out.
-- **The cross-uid socket hijack check (section 3, step 2) is unverified against a real second
-  user or root**, both unavailable in this environment - a defensive check with fabricated
-  -metadata unit tests, not an adversarial proof. Said here and in section 10 rather than
-  discovered later.
-- **`getpwuid_r`/`flock`/`setsid`/`fcntl` are one small `unsafe` FFI module (`sys.rs`)** - the
-  risk is scope creep into `libc` calls that don't need to be there; every call in that module
-  is named above by exactly what it is for, so a reviewer can check the list is complete and
-  not padded.
-- **The fd-passing detach (section 2) is the part most likely to behave differently under
-  `cargo test`'s own process model than under a real shell invocation** (file descriptor
-  inheritance across `Command::spawn` with a `pre_exec` closure) - mitigated by proving it with
-  real multi-process tests in `crates/steg/tests/`, not mocked, per section 7.
-- **Two drafts of this plan already found and fixed real gaps** (the login-shell seeding, the
-  accept-vs-handshake client count, the process-wide umask) before any code was written - a
-  signal that this area rewards a second pass over the build, not just over the plan; the
-  engineer approving this plan is not the last check it gets.
+- **The cross-uid cases (section 2, steps 1 and 2) are unverified against a real second user
+  or root** - both unavailable in this environment. Fabricated-metadata unit tests cover the
+  logic; the world-writable-directory and not-a-socket cases are proved for real instead,
+  narrowing the honest gap to ownership specifically.
+- **`nix`'s version resolving to the single, already-present `0.28.0` line is a fact to check
+  in the build phase (`cargo tree -p steg-server -i nix`), not to assume from the version string
+  alone** - `portable-pty`'s own choice of `nix` is outside this task's control and could move.
+- **The fixture-process test for AC #2's dead-server clause (section 2, step 4) depends on
+  `SIGKILL` reliably releasing a real `flock` on this machine** - expected POSIX behaviour, but
+  proved by running it, not assumed; if it does not hold the way expected here, that is itself
+  a finding worth surfacing rather than working around silently.
+- **The race test's winning fixture must flush its outcome line before entering `run`'s
+  blocking accept loop**, or the test reads nothing from a process now parked in `accept()` -
+  named here so it is not rediscovered as a confusing hang in the build phase.
 
-## 7. Tests, mapped to the acceptance criteria
+## 8. Explicitly left out, naming part B for each
+
+- **Starting on demand through the sdk's `local_socket::connect`, and everything about
+  detaching** (fd-passing re-exec, `setsid`, surviving the client that triggered the autostart)
+  - part B.
+- **The login-shell environment capture** - part B.
+- **The 30-second idle-with-no-sessions-and-no-clients stop, and its clock-injected
+  predicate** - part B, consuming the `ConnectionEvent` seam (section 3) and holding the
+  `Stopper` this task defines (section 4); this task adds no session count, no clock, and no
+  `on_demand` distinction anywhere in `ServerConfig`.
+- **The `steg` entry point's `server start [--on-demand]` handling** - part B; nothing in
+  `crates/steg` changes here.
+- **Routing real requests past the hello** (`session.*`/`tab.*`/`pane.*`/`api.*` control
+  frames) - TASK-1.45's named scope, unchanged by this task; `connection.rs` holds an accepted
+  connection open and reports its liveness, nothing more.
+- **An explicit start's distinct "already running" message** - there is no explicit/on-demand
+  distinction in this task at all; `AnotherServerRunning` (section 6) exists as a value a
+  future caller can act on, but nothing here decides what that caller prints.
 
 ### Proof
 
-Concrete files, so the modified-files list below
-matches what the test descriptions name: `crates/server/tests/serve.rs` (AC #3, #4, #6, the
-stalled-client case) and `crates/server/src/*.rs`'s own `#[cfg(test)]` modules (the pure
-decision functions, `login_env`'s focused capture test) for everything that needs a real
-socket or process but not the real `steg` binary; `crates/steg/tests/socket.rs` (AC #1's
-permissive-umask case), `crates/steg/tests/lifecycle.rs` (AC #2, #5, #9's end-to-end round
-trip), `crates/steg/tests/race.rs` (AC #7), and `crates/steg/tests/fixtures/fake_client.rs`
-(the fixture AC #5's survival test and AC #7's race test both spawn) for everything that needs
-the real binary.
+Tests, mapped to the five acceptance criteria. Files:
+`crates/server/src/paths.rs`/`bind.rs`/`arbiter.rs`'s own `#[cfg(test)]` modules for everything
+pure or needing only a real socket/file, no second process; `crates/server/tests/handshake.rs`
+(AC #3, #4) and `crates/server/tests/shutdown.rs` (section 4's ordering) for functional,
+in-process `serve`/`run` tests; `crates/server/tests/race.rs` plus a small fixture binary,
+`crates/server/tests/fixtures/race_attempt.rs`, for the real multi-process proof of AC #2.
 
-**No sleeps as synchronisation**, with one named, deliberate exception: proving a *negative*
-("an explicit/sessioned server does not stop") has no event to wait on, since the event never
-fires by design. That one test uses a short, injected `idle_grace` and waits a bounded multiple
-of it, stated as the exception it is rather than silently breaking the rule.
+**No sleeps as synchronisation.** Every wait is on a real event: a socket closing or refusing,
+a channel receiving, a process exiting - nothing here needs a negative-proof exception, unlike
+part B's idle rule (this task has no idle rule to prove the absence of).
 
-- **AC #1 (mode and path checked, not assumed)**: `crates/server`'s own functional test binds
-  for real in a temp dir and asserts `0600` under a default umask (unit-level, in-process);
-  `crates/steg/tests/socket.rs` spawns the real binary under `sh -c 'umask 0; exec "$BIN"
-  server start --on-demand'` (umask is process-wide, so this *must* be a separate process, not
-  an in-process test, or it would corrupt every test running in parallel in the same `cargo
-  test` binary - named explicitly so a reviewer doesn't ask for it to be "simplified" into one)
-  and asserts the file is still `0600` regardless. `paths::directory_is_safe` gets its own unit
-  tests over fabricated metadata (owned-by-me/safe, owned-by-me/world-writable,
-  not-owned-by-me) - the last one is the honest gap named in section 3.
-- **AC #2 (first client starts one; explicit stays with no clients)**: `crates/steg/tests/`
-  real-binary test drives `steg_sdk::connect` with `autostart: true` against nothing listening,
-  asserts it connects; a second real-binary test starts explicit (`server start`, no
-  `--on-demand`), connects and disconnects a client, waits a bounded multiple of a short
-  injected `idle_grace`, and asserts the socket still accepts (the negative-proof exception,
-  named above).
-- **AC #3 (version mismatch names both)**: `crates/server` functional test, in-process
-  `serve()`, a raw `UnixStream` sending a hand-built `ClientHello` (via the sdk's already-public
-  `Frame::hello`/`encode_frame`) at a wrong protocol version, asserting the refusal (decoded
-  with the sdk's own `parse_server_hello`) names both versions - reuses `wire::Connection`
-  unchanged, proving AC #9's "the handshake... comes from the sdk" by construction.
-- **AC #4 (handshake timeout)**: in-process functional test, connect and send nothing; the
-  test's own blocking read (with a timeout slightly over the server's own short injected one)
-  observes EOF/close - waiting on the close event, not sleeping first. A second test: a
-  complete handshake, then idle past where the timeout would have fired, and the connection is
-  still open (the one case named in section 5).
-- **AC #5 (survives the client; environment not from it)**: split in two, deliberately, rather
-  than forced into one test. Survival: `crates/steg/tests/` spawns a small fixture binary
-  (`tests/fixtures/fake_client.rs`, a `[[bin]]` on `steg`) whose whole job is `steg_sdk::connect`
-  with `autostart: true` against the real binary, then blocks on stdin; the test polls the
-  socket (bounded, not a sleep-as-sync - it is genuinely waiting for an async side effect with
-  no OS-level event to subscribe to, the same shape `connect`'s own retry already uses) until
-  live, sends the fixture `SIGKILL`, `wait()`s it (reaped, not left a zombie in the test's own
-  process), then asserts a *fresh* connection still succeeds. Environment: a focused test on
-  `login_env::capture_login_environment` alone, with a fake shell script standing in for the
-  real one and a marker set in the *test's own* environment before the call, asserting (a) the
-  marker is absent from the captured result, proving `env_clear` does what section 4 claims,
-  and (b) `HOME` and `PATH` are both present and non-empty - the assertion the seeding fix in
-  section 4 needs, since marker-absence alone would also pass against the empty, useless
-  environment the first draft of that capture would have produced.
-- **AC #6 (30s idle stop; a session or explicit mode does not)**: `idle::should_stop`'s own
-  exhaustive unit tests (section 5) for the logic; one `crates/server` functional test with a
-  short injected `idle_grace`, a real socket, no clients ever connected, that blocks on a
-  channel `serve()` sends to when it returns (bounded `recv_timeout`, not a sleep) and asserts
-  it returns inside that bound; a second asserting explicit mode's `serve()` does *not* return
-  over the same bound (the negative-proof exception again, named once more rather than hidden
-  the second time); a third connecting a client that never sends its hello, waiting past where
-  the grace would otherwise have fired with zero *handshake-accepted* clients, and asserting
-  `serve()` has *not* returned - the test for the accept-vs-handshake counting fix in section 5.
-- **AC #7 (two simultaneous starts converge)**: `arbiter::decide`'s pure branches, unit-tested
-  exhaustively, first; then `crates/steg/tests/` spawns eight real `steg server start
-  --on-demand` processes at once against the same `STEG_SOCKET_PATH`, `wait()`s every one
-  (asserting each exits 0 - the arbiter's losing branch is not an error for the on-demand case),
-  and has each report `became`/`joined` through a test-only env-var hook
-  (`STEG_TEST_REPORT_OUTCOME_TO=<path>`, the same kind of test seam `run_fake_server_for_tests`
-  already establishes) so the test can assert exactly one `became`.
-- **AC #8 (a client's part is to run the program and wait)**: proved by construction - every
-  test above drives the real, unmodified `steg_sdk::connect`/`ConnectOptions`; nothing in this
-  plan adds a line to `crates/sdk/src/local_socket.rs`. Noted explicitly on the task as the
-  proof for this criterion rather than left implicit.
-- **AC #9 (sdk's handshake; this task's socket, lifecycle, real client+server)**: the sum of
-  the above, plus one test using `steg_sdk::connect` end to end against the real detached
-  server and asserting a full method call's hello round-trip succeeds (not a deeper API call -
-  `session.*`/`pane.*` dispatch over this connection is explicitly not this task's, see below).
-
-## 8. Every spawned child, and whether it is waited on
-
-1. `local_socket::connect`'s own spawn (unmodified sdk code) - never waited on, by R99's own
-   design, already justified in that module's doc comment; out of this task's authority to
-   change.
-2. Stage 1's spawn of stage 2 (`detach::spawn_detached`) - **not** waited on, on purpose: stage
-   2 runs forever as the server, so waiting would mean stage 1 never exits, defeating the
-   detach. Tested directly (section 7, "Proof"): a test spawns stage 1 and *does* `wait()` it,
-   asserting it returns promptly, which only a test - never the real caller - is positioned to
-   check.
-3. The login-shell capture child (`login_env.rs`) - waited on along **every** path: normally
-   via the watcher thread's `wait_with_output()`, and on a timeout via an explicit `kill()` by
-   pid followed by that same `wait_with_output()` completing and being reaped.
-4. Test-only children (`fake_client`, the eight racing `server start` processes) - every one
-   explicitly `wait()`ed (or `kill()`ed then `wait()`ed) by the test that spawned it, so no test
-   leaves a zombie in its own process.
-
-## 9. Threading model
-
-Blocking `std::thread`, not `tokio`: one thread per connection (handshake, then hold-open), one
-accounting thread owning `Counters` and the idle decision, the main `serve()` call driving the
-accept loop. Matches the shape already settled for programs (one thread per pane, TASK-1.40's
-plan, unmerged but already reasoned there and consistent with decision-3 section 9); needs no
-new async-runtime dependency; and the two places that would otherwise need a runtime's timer
-(the handshake timeout, the idle check) fall out as a plain socket read timeout and a plain
-channel `recv_timeout` - if both come this cleanly from blocking I/O, `tokio`'s cost is not
-earned yet. TASK-1.45/1.47 inherit a blocking per-connection thread and (per decision-2) will
-need a bounded per-attachment queue and a dedicated writer when they add streaming - unaffected
-by this choice.
-
-## 10. Explicitly left out, named so no reviewer wonders
-
-- **Routing real requests.** Once a connection's handshake is accepted, this task holds it open
-  only to track liveness (for the idle rule and `client` counting) - it does not dispatch
-  `session.*`/`tab.*`/`pane.*`/`api.*` control frames into `dispatch::dispatch`, even though
-  that dispatch logic already exists and already handles those nouns. Wiring a `Tree`, a
-  `Context` built from a connection, and the control-thread-owns-the-tree shape to real frames
-  is TASK-1.45's named scope ("frames, streams, and requests routed to the API") and the
-  `("server", _) => not_implemented_yet(...)` arm in `dispatch/mod.rs` is untouched.
-- **Session count is hardcoded to zero.** Nothing in this task creates a session (that needs
-  TASK-1.45's wiring), so the idle rule's "no sessions" half is trivially always true here -
-  said plainly rather than built out further than this task's own acceptance criteria need.
-- **`server.show`/`server.start`/`server.stop` as RPC methods** stay `NotImplementedYet`; an
-  already-running explicit server is stopped today only by signalling the process, which the
-  arbiter's stale-lock self-healing (section 3's step 4) already makes safe for the next
-  `start`.
-- **An explicit `server start` that loses a simultaneous race does not get a distinct "already
-  running" error** (section 3) - not required by any of the nine criteria, left out to keep
-  the arbiter's branches minimal and each one tested.
-- **Cross-uid socket hijack** is a defensive check with a unit test over fabricated metadata,
-  not an adversarial end-to-end proof - this environment has no second real user or root to
-  prove it against for real (section 3, step 2).
-- **`run_fake_server_for_tests`, not removed.** `boundaries.toml`'s `[steg-sdk]` has an empty
-  allow list, so the sdk's own `local-socket` tests can never link against the real `steg`
-  binary regardless of how complete this task's server is - the fixture is required by the
-  dependency direction itself, not by the real server's absence. Proposed as a note, not a
-  change: `tests/fixtures/fake_server.rs` could in principle bind directly via the already
-  -public `socket_path` instead of calling back into the library crate's doc-hidden function,
-  but that is TASK-1.70's own test scaffolding and has no bearing on any of this task's nine
-  criteria.
+- **AC #1 (mode and path checked and trusted, not assumed)**: `bind.rs`'s own test binds for
+  real and asserts the final file is `0600` regardless of the ambient umask (set the umask to
+  0 in that one test process - safe here since it is a single-threaded, single-test binary
+  concern the way `cargo test`'s default parallelism makes it elsewhere, named so a reviewer
+  checks this specific test is not run in the same binary as anything else that binds; if it
+  is, move it to its own `#[test]` file compiled as its own binary, which `cargo test` already
+  does per integration-test file). `paths::existing_file_trust`'s tests: absent, ours-and-a
+  -socket-but-dead (refused connect, proceeds), not-a-socket (a real plain file, real refusal),
+  not-ours (fabricated metadata, the honest gap). `paths::directory_is_safe`: a real
+  world-writable temp directory, real refusal.
+- **AC #2 (one survivor; a dead server's socket replaced)**: `arbiter::decide`'s pure branches,
+  exhaustive. Then two real, multi-process tests in `race.rs`: (a) eight copies of
+  `fixtures/race_attempt.rs` spawned at once against the same socket path, each calling
+  `arbiter::attempt` directly and printing (flushed before any possible block in `run`) which
+  `Arbitration` it got, then - only the one that got `Became` - calling `listen::run` and
+  blocking until the test `kill()`s and `wait()`s it; the test asserts exactly one `Became`,
+  the rest `AlreadyRunning`, and every process exited 0 or was cleanly reaped after the kill.
+  (b) a fixture binds and locks, is `SIGKILL`ed, and a fresh `attempt()` in the test process
+  itself is asserted to win the lock and find the stale file replaced - the test named in
+  section 2's step 4 as proving lock-release-on-death specifically, not merely a stale file.
+- **AC #3 (version mismatch names both)**: `handshake.rs`, a real socket, `serve`/`run` in the
+  background, a raw `UnixStream` sending a hand-built `ClientHello` at a wrong protocol version
+  (via the sdk's already-public `Frame::hello`/`encode_frame`), asserting the refusal (read
+  with the sdk's own `parse_server_hello`) names both versions - proving this task delivers the
+  sdk's own, unmodified decision over a real connection, not re-proving the decision itself.
+- **AC #4 (handshake timeout; not idle-closed after completing)**: `handshake.rs`, connect and
+  send nothing, the test's own blocking read (timeout slightly over the server's short injected
+  one) observes the close - waiting on the event, not sleeping first. A second case: a complete
+  handshake, then an idle wait past where the timeout would have fired, asserting the connection
+  is still open.
+- **AC #5 (sdk's handshake; foreground, no detach, testable alone)**: proved by construction -
+  every test above drives `serve`/`attempt`/`run` directly, in-process or via the small fixture
+  under `tests/fixtures/`, with no `steg` binary anywhere in this task's own test suite. Said
+  explicitly here, the way the previous plan named its own analogous criterion, rather than
+  left for a reader to infer from the absence of `crates/steg` in the modified-files list.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

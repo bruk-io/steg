@@ -766,6 +766,16 @@ offline rebuild for both Darwin targets from the committed vendored tree produce
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T06:22:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+error   zig-deps-seeded: failed to copy third_party/ghostty-vt-zig-deps/p/*.tar.gz into target/zig-global-cache/p/ - check the vendored tarballs are present (third_party/README.md) and the target/ directory is writable
+error: recipe `zig-deps-seeded` failed with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

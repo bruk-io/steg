@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:34:00Z'
+updated_date: '2026-11-15T02:38:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -36,182 +36,236 @@ doc-16: R98, R101 to R105, R107; doc-13 R61. Today the workspace has kernel, ser
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+Rewritten against doc-16 (the architecture spec), which replaced the earlier plan's
+shape: no `steg-client`, no separate `steg-cli`. The repository ends this task with
+five packages - sdk, kernel, server, `steg`, app - matching doc-16's level-3 table
+exactly.
+
 ## Decisions the plan makes
 
-1. **Library crate name: `steg-client`, at `crates/client`.** `steg` is already the
-   binary package (crates/steg). Naming follows the existing pattern (steg-kernel,
-   steg-server, steg-cli, steg-app): short, prefixed with the role, R101's own words
-   ("how a Rust program is a client"). Rejected: renaming the binary package and
-   keeping its `steg` output via `[[bin]] name = "steg"`, so the library could be
-   called `steg` - this would touch layers.toml, rules/binary.md and the orchestrator's
-   brief, all of which fix `crates/steg` as the binary, for no gain.
+1. **sdk's crate name: `steg-sdk`, at `crates/sdk`.** Follows the convention every
+   other package already has (`steg-kernel`, `steg-server`, `steg-app`; `steg` itself
+   is the lone unprefixed one, because it is the binary's own name). doc-16 writes
+   "sdk" as the component's short name in its tables, the same way it writes "kernel"
+   and "server" for packages whose real names carry the prefix.
 
-2. **No change to `tools/src/steg_tools/boundaries.py`.** It already does the job: a
-   restricted crate's *allow list* is read and anything not on it is a violation
-   (`violations()`), and `format_violation` already prints the dependency and the
-   reason - that is AC#4's "refuses each dependency... with its reason." A `deny` key
-   would be strictly weaker (an app denied `steg-server` could still pick up
-   `steg-kernel` tomorrow with nothing to catch it), and boundaries.toml's own header
-   already states the mechanism: a crate restricted gets a full allow list, workspace
-   and external dependencies alike; a crate with no table is unrestricted. Extending
-   the tool and its tests for a weaker check is unnecessary machinery for a size-2 task.
+2. **`crates/cli` is deleted; its two files' content folds into `crates/steg`.**
+   doc-16's components table is explicit: "`steg` | The CLI, and the entry point that
+   starts the server". `crates/cli/src/lib.rs`'s doc comment (a thin client, commands
+   come from the API description, R32) becomes part of `crates/steg/src/main.rs`'s,
+   since that is now where the CLI's code will land (TASK-1.49 says so directly: "CLI:
+   commands generated from the API description, in the steg package").
 
-3. **AC#1 and AC#2 are already true today** (steg-cli has no dependencies; steg-app
-   depends only on gpui). This task does not restructure either crate; the allow lists
-   below make what is already true into something `just boundaries` enforces, so a
-   later task can't quietly add the dependency doc-8 R98 forbids.
+3. **No change to `tools/src/steg_tools/boundaries.py`.** Unchanged from the earlier
+   plan's finding, for the same reason: `violations()` already reads a restricted
+   crate's full allow list - workspace and external dependencies alike - and
+   `format_violation` already prints the dependency and the reason, which is what
+   AC#3 and R104 ask for. See "What `boundaries.py` can and cannot check" below for
+   the one place this finding does *not* cover: R105's "without its optional parts."
 
-## boundaries.toml - the full table after this task
+4. **Every edge doc-16's table allows is wired into the real `Cargo.toml` files now,
+   even though nothing uses it yet.** This matches the repository's own existing
+   practice: `steg-server` already depends on `steg-kernel` with no code in
+   `crates/server/src/lib.rs` calling into it, and the old `crates/steg` depended on
+   `steg-cli` the same way. Declaring the dependency ahead of the behaviour that uses
+   it is how this workspace has done it so far, so kernel, server, `steg` and app each
+   get a real (unused) dependency on sdk, not just a permission sitting in
+   `boundaries.toml` with nothing to show for it. AC#5's "builds and tests by itself"
+   is then proof against real manifests, not against a table nobody's Cargo.toml
+   matches.
+
+## doc-16's table, and `boundaries.toml` after this task
+
+| Package | May depend on | Does I/O |
+|---|---|---|
+| sdk | nothing of steg's | No |
+| kernel | sdk | No |
+| server | kernel, sdk | Yes |
+| `steg` | sdk, server | Yes |
+| app | sdk | Yes |
 
 ```toml
-[steg-kernel]
-reason = "the kernel does no I/O of its own (.claude/rules/architecture.md)"
+[steg-sdk]
+reason = "the sdk is steg's public interface and does no I/O of its own; it has nothing of steg's to depend on (doc-16 R101, R102)"
 allow = []
+
+[steg-kernel]
+reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)"
+allow = ["steg-sdk"]
 
 [steg-server]
-reason = "the server owns every session; no client reaches it except through its socket and the public API, and it may not depend on either client crate (doc-8 R98)"
-allow = ["steg-kernel"]
-
-[steg-client]
-reason = "the steg library is how a Rust program is a client (doc-8 R101); it holds no server logic and must not depend on steg-server or steg-kernel - cli and app inherit whatever this crate allows itself, since the check only ever looks at direct dependencies"
-allow = []
-
-[steg-cli]
-reason = "the CLI is a client built on the steg library; it holds no protocol code of its own and does not depend on steg-server or steg-kernel (doc-8 R98, R101)"
-allow = ["steg-client"]
-
-[steg-app]
-reason = "the app is a client like any other, with no private channel to the server (doc-8 R98, R101); it holds no server code and does not depend on steg-server or steg-kernel"
-allow = ["steg-client", "gpui"]
+reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98)"
+allow = ["steg-kernel", "steg-sdk"]
 
 [steg]
-reason = "the steg binary only puts the server and the CLI together; it holds nothing else (doc-13 R61)"
-allow = ["steg-server", "steg-cli"]
+reason = "the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own"
+allow = ["steg-sdk", "steg-server"]
+
+[steg-app]
+reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)"
+allow = ["steg-sdk", "gpui"]
 ```
 
-`cargo metadata --no-deps` gives `violations()` each crate's *direct* dependencies
-only - it never walks a transitive edge. That is why `steg-client`'s own list matters
-as much as cli's and app's: if the library crate ever took a dependency on
-`steg-kernel`, cli and app would inherit that path with nothing in their own entries
-to catch it. The `steg-client` reason says this explicitly so the next task that adds
-a dependency to it reads why the list is empty, not just that it is.
+## What `boundaries.py` can and cannot check
+
+`crates_from_metadata` (`tools/src/steg_tools/affected.py`) builds each `Crate` from
+`cargo metadata --no-deps`'s `package["dependencies"]`, keeping only each dependency's
+*name*. `violations()` then asks only "is this name on the allow list" - it has no
+access to a dependency's `features` or `default-features` table, because
+`--no-deps` never resolves features in the first place; that needs the full resolve
+graph (`cargo metadata` without `--no-deps`, or `cargo tree -e features`), which is a
+different, heavier query than this tool runs today.
+
+So `just boundaries` **can** enforce the crate-level half of R105: that
+`steg-kernel`'s only workspace dependency is `steg-sdk`, and nothing that does I/O
+(`steg-server`, `steg`, `steg-app`, or an I/O-bearing external crate) is on its list.
+It **cannot yet** enforce the feature-level half - that the dependency on `steg-sdk`
+specifically excludes the `local-socket` feature. That half is carried by
+`crates/kernel/Cargo.toml` writing `default-features = false` on the dependency
+(step 6 below) and by `.claude/rules/architecture.md` stating the rule for a reviewer
+to check, not by any command. If this needs to become mechanical later, the tool
+would need to run a feature-resolving `cargo metadata` (or `cargo tree -e features
+-p steg-kernel`) and compare the resolved feature set, not just the dependency names -
+real new machinery, out of this task's scope and not attempted here.
 
 ## Files, in order
 
-1. **`Cargo.toml`** (workspace root) - add `"crates/client"` to `[workspace] members`.
+1. **`Cargo.toml`** (workspace root) - `[workspace] members` becomes
+   `["crates/sdk", "crates/kernel", "crates/server", "crates/steg", "crates/app"]`:
+   drop `crates/cli`, add `crates/sdk`.
 
-2. **`crates/client/Cargo.toml`** - new package `steg-client`: `[package]` with
+2. **Delete `crates/cli/`** (`Cargo.toml` and `src/lib.rs`), via `git rm -r`.
+
+3. **`crates/sdk/Cargo.toml`** - new package `steg-sdk`: `[package]` with
    `edition.workspace = true`, `license.workspace = true`, `version.workspace = true`,
-   `[lints] workspace = true`, no `[dependencies]` table (nothing to depend on yet).
-
-3. **`crates/client/src/lib.rs`** - a frame, in the voice of `crates/kernel/src/lib.rs`
-   and `crates/server/src/lib.rs`: a module doc comment saying this is the steg
-   library (R101) - the API description, the wire protocol's types, and the code to
-   find or start a server, connect, call a method, subscribe to events and attach to a
-   pane - that it holds no server logic and depends on neither `steg-server` nor
-   `steg-kernel`, and that TASK-1.43 adds the API description and draft-1 the
-   connection code. No `#![forbid(unsafe_code)]` (that is kernel.md's rule, not stated
-   for this crate) and no test module (cli's and server's frames have none either;
-   kernel's dummy test exists only to exercise `clippy.toml`'s
-   `allow-unwrap-in-tests`, which this crate has no other reason to need yet).
-
-4. **`crates/cli/Cargo.toml`** - add `steg-client = { path = "../client" }` under
-   `[dependencies]`, in the same inline-path style the server's and binary's manifests
-   already use. Not consumed by any code yet (same as `steg-server`'s unused
-   `steg-kernel` dependency today); that is expected until TASK-1.43 and later tasks
-   give the CLI something to call through it.
-
-5. **`crates/app/Cargo.toml`** - add `steg-client = { path = "../client" }` beside the
-   existing `gpui.workspace = true`.
-
-6. **`boundaries.toml`** - replace the single `[steg-kernel]` table with the six-table
-   version above, in crate order (kernel, server, client, cli, app, steg).
-
-7. **`.claude/rules/architecture.md`** - add two bullets after the existing kernel
-   bullet, each naming where it is enforced, not just stating it (so the
-   rule-invariants check reads them as judgement, not a restatable lint):
-   - The server is its own package; no client's package depends on it, and it reaches
-     clients only through its socket and the public API (doc-8 R98). `boundaries.toml`
-     holds the allow list that enforces this; `just boundaries` fails on anything
-     added that isn't on it.
-   - The steg library is how a Rust program is a client (doc-8 R101): the CLI and the
-     app depend on it, never on the server or the kernel directly, and it holds no
-     server logic of its own. The same `boundaries.toml` allow lists enforce this.
-
-8. **`plugins/bruk-io-steg/layers.toml`** - add:
+   `[lints] workspace = true`, no `[dependencies]` (R102: no I/O, nothing of steg's to
+   depend on), and:
    ```toml
-   [layers.client]
-   paths = ["crates/client/**"]
-   summary = "steg-client: the steg library. How a Rust program is a client of the server (R101); the CLI and the app depend on it."
+   [features]
+   local-socket = []
    ```
-   and add `depends_on = ["client"]` to the existing `[layers.cli]` and
-   `[layers.app]` tables, matching how `[layers.server]` already names
-   `depends_on = ["kernel"]`.
+   Declared and empty (R103): no `default = [...]` table, so it is off unless a
+   consumer asks for it, and no optional dependency or `cfg`-gated code sits behind it
+   yet - that is TASK-1.44 and draft-1's to add.
 
-9. **`plugins/bruk-io-steg/rules/client.md`** (new) - one rule file for the new layer,
-   frontmatter `layer: client`, `paths: ["crates/client/**"]`, in the shape of
-   `rules/kernel.md`: states that `steg-client` holds no server logic and must not
-   depend on `steg-server` or `steg-kernel` (R101), that `boundaries.toml` gives it an
-   allow list enforcing that, and that the API description (TASK-1.43) and the
-   connection code (draft-1) land here, not in the server or the CLI.
+4. **`crates/sdk/src/lib.rs`** - a frame, in the voice of `crates/kernel/src/lib.rs`:
+   a module doc comment stating this is steg's public interface (R101) - the API
+   description, the shapes that cross the API, and the protocol's logic - that it does
+   no I/O of its own (R102), that a consumer supplies the transport, and that the
+   `local-socket` feature is declared and empty today, filled in by TASK-1.44 (the
+   server's local socket) and draft-1 (the client side of the connection). No
+   `#![forbid(unsafe_code)]` (kernel's rule, not stated for this crate) and no test
+   module (nothing to test yet).
 
-10. **`plugins/bruk-io-steg/rules/server.md`** and **`rules/cli.md`** - both currently
-    end their boundary bullet with "`boundaries.toml` does not check this yet;
-    TASK-1.69 adds it." That sentence becomes false once step 6 lands; replace it with
-    "`boundaries.toml` gives this crate an allow list; `just boundaries` fails on
-    anything added that isn't on it." `cli.md` also gains the word that the CLI is
-    built on `steg-client`, not just that it avoids the server and the kernel.
+5. **`crates/kernel/Cargo.toml`** - add:
+   ```toml
+   [dependencies]
+   # R105: the sdk, never its optional parts. `just boundaries` checks that this
+   # dependency exists and that nothing else does (boundaries.toml); it cannot check
+   # that `local-socket` stays off (see the plan's note on this).
+   steg-sdk = { path = "../sdk", default-features = false }
+   ```
 
-11. **`plugins/bruk-io-steg/rules/app.md`** - add one bullet: the app depends on
-    `steg-client`, never on `steg-server` or `steg-kernel`, and `boundaries.toml`
-    enforces it (R98, R101).
+6. **`crates/kernel/src/lib.rs`** - add one sentence to the existing doc comment: the
+   kernel depends on the sdk for the shapes that will cross the API (R105), unused
+   today because the sdk has none yet.
 
-These plugin edits are hand-written here rather than through `asdlc-plugin
-verify-command`/generation, because they are the same architectural fact
-`.claude/rules/architecture.md` states, restated for the plugin's layer rules - not a
-new command or layer map discovered from the code. Flagged here so the engineer can
-say no to hand-editing the plugin before it happens.
+7. **`crates/server/Cargo.toml`** - add `steg-sdk = { path = "../sdk" }` beside the
+   existing `steg-kernel` dependency.
+
+8. **`crates/steg/Cargo.toml`** - remove the `steg-cli` dependency; add
+   `steg-sdk = { path = "../sdk" }` beside the existing `steg-server`.
+
+9. **`crates/steg/src/main.rs`** - fold in the deleted `crates/cli/src/lib.rs`'s doc
+   comment: this binary is now the server, the CLI, and the entry point that starts
+   one (R61, R98); the CLI's commands come from the API description once TASK-1.43 and
+   TASK-1.49 land; the crate holds no server logic of its own. Which of server or CLI
+   a run acts as is still undecided here - unchanged from today's frame.
+
+10. **`crates/app/Cargo.toml`** - add `steg-sdk = { path = "../sdk" }` beside the
+    existing `gpui.workspace = true`.
+
+11. **`boundaries.toml`** - replace the single `[steg-kernel]` table with the
+    five-table version above (sdk, kernel, server, steg, app).
+
+12. **`.claude/rules/architecture.md`** - update to cite doc-16 instead of doc-8/R36
+    where this task's rules moved, and add what is new:
+    - Replace the existing API-description bullet's implicit source with doc-16, and
+      add: "The sdk is steg's public interface and does no I/O of its own (doc-16
+      R101, R102): a consumer supplies the transport. The CLI (inside `steg`), the
+      server and the app are all consumers of it, and none holds protocol code of its
+      own."
+    - Add: "The server's code is in packages no client depends on: the app never
+      depends on the server or the kernel, and the kernel may depend on the sdk only
+      without its optional parts (doc-16 R98, R105)."
+    - Extend the existing dependency-boundary bullet: "`boundaries.toml` holds doc-16's
+      table of which package may depend on which, with a reason for each; `just
+      boundaries` fails on anything added that isn't listed (doc-16 R104)."
+
+## For the orchestrator, through `asdlc-plugin` (not edited in this worktree)
+
+AC#6 keeps `plugins/bruk-io-steg/` out of this task. What it will need, so the
+orchestrator can apply it deliberately rather than guess from the diff:
+
+- `layers.toml`: a new `[layers.sdk]` (`paths = ["crates/sdk/**"]`); the `[layers.cli]`
+  table removed, since `crates/cli` no longer exists; `[layers.binary]`'s `paths`
+  unchanged (`crates/steg/**`) but its `depends_on` becomes `["sdk", "server"]`;
+  `[layers.kernel]` gains `depends_on = ["sdk"]`; `[layers.server]`'s `depends_on`
+  becomes `["kernel", "sdk"]`; `[layers.app]` gains `depends_on = ["sdk"]`.
+- `rules/cli.md` is deleted (its crate is gone).
+- A new `rules/sdk.md`: no I/O, nothing of steg's to depend on, the `local-socket`
+  feature declared and empty until TASK-1.44/draft-1 (doc-16 R101-R103).
+- `rules/kernel.md`: add that it now depends on `steg-sdk`, never with
+  `local-socket` (doc-16 R105), and that `boundaries.toml` checks the dependency's
+  name but not yet the feature (the plan's note above, so the rule doesn't overclaim
+  what's enforced).
+- `rules/binary.md`: update "this crate only puts `steg-server` and `steg-cli`
+  together" - `steg-cli` no longer exists; the CLI's code is now inside this crate
+  (doc-16's components table), and the dependency is on `steg-sdk` and `steg-server`.
+- `rules/app.md`: add that the app depends on `steg-sdk`, never on `steg-server` or
+  `steg-kernel`, enforced by `boundaries.toml` (doc-16 R98, R101).
+- `rules/server.md`: add `steg-sdk` beside `steg-kernel` as its allowed dependency.
 
 ## Risks
 
-- **`steg-affected` can't narrow this change.** `Cargo.toml`, `Cargo.lock` and
-  `boundaries.toml` are all in `affected.py`'s `GLOBAL_FILES`, so `steg-affected`
-  prints `all` and `just test` (inside `just check`) builds and tests every crate,
-  including `steg-app`, which links `gpui` against macOS frameworks. Give
-  `record-check` calls the long timeout for this reason.
-- **The friction this task adds is deliberate and lasting.** Every later task that
-  gives `steg-cli`, `steg-app`, `steg-client`, `steg-server` or `steg` (the binary) a
-  new dependency - workspace or external - must add it to that crate's `allow` list in
-  `boundaries.toml` with a reason, the same way `steg-kernel`'s empty list already
-  works. This is the point of the check, not a gap in it.
-- **`steg-client`'s empty allow list is a promise about today, not a lock.** TASK-1.43
-  (the API description) and draft-1 (the connection code) will each need to decide
-  whether they add a dependency to it; this task does not pre-empt that, it only
-  leaves the crate with nothing to depend on yet.
+- **`steg-affected`'s `GLOBAL_FILES`** (`Cargo.toml`, `Cargo.lock`, `boundaries.toml`)
+  all change here, so `steg-affected` prints `all` and `just check` builds and tests
+  every crate, including `steg-app` linking `gpui` against macOS frameworks. Give
+  `record-check` the long timeout.
+- **Feature-off-by-default is a manifest convention, not a check**, as above: nothing
+  stops a later task from writing `steg-sdk = { path = "../sdk" }` with no
+  `default-features = false` on a workspace member that shouldn't get `local-socket`.
+  Flagged in both the plan and the rule, not solved here.
+- **This is deliberate, lasting friction**: any later task giving `steg-sdk`,
+  `steg-kernel`, `steg-server`, `steg` or `steg-app` a new dependency - workspace or
+  external - edits that crate's `allow` list in `boundaries.toml` with a reason. That
+  is the point of R104, not a gap in it.
+- **R106** (the sdk stays usable from another language: no GPUI type, no particular
+  async runtime, dependencies for data and serialisation only) has nothing to check
+  yet, because the sdk has no dependencies at all after this task. It becomes a live
+  constraint the first time something is added to `steg-sdk`'s allow list.
 
 ## Proof
 
-1. `asdlc record-check` of `just check` on the tree as found, before any edit, so the
-   board shows the starting point.
-2. After steps 1-11: `just check` (fmt, lint, `boundaries`, `deny`, the affected
-   tests - which is every crate's, per the risk above - and the tools' own tests).
-   Record it.
-3. Individually, per AC#5: `cargo build -p steg-client`, `cargo build -p steg-cli`,
-   `cargo build -p steg-app`, `cargo build -p steg-server`, and the matching
-   `cargo test -p <name>` for each, confirming every one builds and tests standing
-   alone.
-4. **A live demonstration of AC#4, not a new fixture test** (the check logic itself is
-   already covered by `tools/tests/unit/test_boundaries.py`, which does not change
-   here): with `just boundaries` passing from step 2, add
-   `steg-server = { path = "../server" }` to `crates/app/Cargo.toml`'s
-   `[dependencies]` only (no code change; `cargo metadata --no-deps` reads the
-   manifest), run `just boundaries` again and record that it fails, naming
-   `steg-app`, `steg-server` and the reason string from the `[steg-app]` table above.
-   Then revert that manifest edit before committing anything - the bad dependency
-   never lands in a commit.
+1. `asdlc record-check` of `just check` on the tree as found, before any edit.
+2. After steps 1-12: `just check` (fmt, lint, `boundaries`, `deny`, the affected
+   tests - every crate's, per the risk above - and the tools' own tests). Record it.
+3. Per AC#5, individually: `cargo build -p steg-sdk`, `cargo build -p steg-kernel`,
+   `cargo build -p steg-server`, `cargo build -p steg`, `cargo build -p steg-app`, and
+   the matching `cargo test -p <name>` for each.
+4. **Two live demonstrations of AC#3/R104, not new fixture tests** (the check logic
+   itself is `tools/tests/unit/test_boundaries.py`'s subject, unchanged here):
+   - A disallowed workspace dependency: add `steg-server = { path = "../server" }` to
+     `crates/app/Cargo.toml`'s `[dependencies]` only, run `just boundaries`, record
+     that it fails naming `steg-app`, `steg-server` and the `[steg-app]` reason.
+   - A disallowed external dependency: add `tokio = "1"` to
+     `crates/kernel/Cargo.toml`'s `[dependencies]`, run `just boundaries`, record that
+     it fails naming `steg-kernel`, `tokio` and the `[steg-kernel]` reason.
+   Revert both manifest edits before anything is committed - neither bad dependency
+   ever lands.
 5. `uv run --project tools pytest -q tools/tests` (also inside `just check`, called out
-   because AC#4 is about this suite's subject) - unchanged, since `boundaries.py` and
-   its tests are not touched by this task.
+   because it is `boundaries.py`'s own suite) - unchanged, since the tool and its
+   tests are not touched by this task.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

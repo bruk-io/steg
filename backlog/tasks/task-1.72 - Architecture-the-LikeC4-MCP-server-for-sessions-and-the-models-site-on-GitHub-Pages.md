@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:30:00Z'
+updated_date: '2026-11-15T03:31:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -17,6 +17,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.72-architecture-the-likec4-mcp-server-for
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '367ae3e2b7cc'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -75,3 +78,16 @@ Paused by Bruk on 2026-11-15: the GitHub Pages site is not part of this task for
 
 Plan checked by @bruk.o against the task as narrowed (the MCP server only): ok. A project .mcp.json runs LikeC4's own MCP server over stdio, pinned to the version the check uses; the proof is a recorded session run plus an adapter test that speaks the protocol to the real pinned command, so it keeps being proved by just check. The test makes Node a requirement of the tools' tests as it already is of just check. TASK-1.73 renames the architecture recipe; whichever lands second uses the name on main.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T03:31:00Z
+
+---
+
+Plan approved by @bruk (367ae3e2b7cc, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

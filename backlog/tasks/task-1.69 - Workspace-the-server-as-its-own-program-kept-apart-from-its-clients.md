@@ -401,6 +401,17 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp0dXsRU` does not 
 ...............................                                          [100%]
 31 passed in 0.09s
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T02:47:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at dfebbf69b590 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

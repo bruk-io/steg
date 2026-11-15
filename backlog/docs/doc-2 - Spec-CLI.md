@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T01:23:00Z'
+updated_date: '2026-11-15T15:50:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -194,7 +194,7 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | `--text <text>` | `pane send` | Text to send, in place of standard input |
 | `--key <name>` | `pane send` | A key to send, by name. May be given more than once |
 | `--scrollback` | `pane capture` | Include scrollback, not just the screen |
-| `--for <event>` | `wait`, `event watch` | What to wait for, or which events to keep. The names come from the API description's event records (R38); the CLI checks the name before any request, and an unknown name is status 2 |
+| `--for` | `wait`, `event watch` | For `event watch`, which events to keep: the names come from the API description's event records (R38). For `pane wait`, what to wait for: in M1 the only condition is `exit`, the pane's program ending; it is a condition of its own and not an event name. Either way the CLI checks the word before any request, and an unknown one is status 2 |
 | `--timeout <seconds>` | `wait`, `watch` | Give up after this long, with status 1 |
 | `--by <cells>` | `pane resize` | How far to move the border, in character cells |
 | `--with <target>` | `pane swap` | The pane to exchange places with |

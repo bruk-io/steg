@@ -14,8 +14,9 @@ use std::collections::HashMap;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::Instant;
 
-use steg_kernel::{ExitOutcome, Settings, SizeChanged, Tree};
+use steg_kernel::{ExitOutcome, Moment, Settings, SizeChanged, Tree};
 use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
 
 use crate::dispatch::{self, Context};
@@ -68,6 +69,16 @@ struct State {
     // `&mut Settings`. This task reads no setting, so an empty store,
     // threaded through unchanged, is all `Runtime` needs for now.
     settings: Settings,
+    // TASK-1.41 merged into `origin/main` while this task was being
+    // fixed up (same Risks entry): `Tree::record_exit` now takes a
+    // `steg_kernel::Moment`, the clock-free point in time doc-11's own
+    // richer status needs. `clock_origin` is this `Runtime`'s own
+    // construction time - `Moment::new`'s own doc says the origin never
+    // matters as long as it is picked once and reused, and a `Runtime`'s
+    // own start is as good a pick as any (the server's real clock,
+    // converted at the one place `apply_event_locked` calls
+    // `record_exit`, never read by the kernel itself).
+    clock_origin: Instant,
 }
 
 /// Owns the kernel's tree and every pane's real runtime, and is the one
@@ -78,8 +89,12 @@ pub struct Runtime {
     state: Arc<Mutex<State>>,
     launcher: Arc<dyn ProgramLauncher>,
     login: LoginShell,
-    events: Sender<PaneEvent>,
-    _drain: JoinHandle<()>,
+    // `Option`-wrapped so `stop` (review finding 3) can `take()` each one
+    // exactly once - idempotent, since a second call finds `None` and
+    // does nothing further, which is what lets both an explicit call and
+    // `Drop` share the one implementation safely.
+    events: Option<Sender<PaneEvent>>,
+    drain: Option<JoinHandle<()>>,
 }
 
 impl Runtime {
@@ -101,6 +116,7 @@ impl Runtime {
             tree: Tree::new(),
             panes: HashMap::new(),
             settings: Settings::new(),
+            clock_origin: Instant::now(),
         }));
 
         let drain_state = Arc::clone(&state);
@@ -133,8 +149,8 @@ impl Runtime {
             state,
             launcher,
             login,
-            events: events_tx,
-            _drain: drain,
+            events: Some(events_tx),
+            drain: Some(drain),
         }
     }
 
@@ -150,9 +166,29 @@ impl Runtime {
         context: &Context,
         request: &Request,
     ) -> Response {
-        match request.method.as_str() {
+        // Review finding 1: `api.call` must reach the same start-wrapper
+        // a direct call does, or a program minted this way is left
+        // forever unstarted. Resolved *first*, before anything else -
+        // the same ordering `dispatch::dispatch` itself already uses for
+        // `api.call` - through `dispatch::resolve_api_call`, the one
+        // implementation `dispatch::api::call` also uses, so the
+        // selector's own key name (read inside that function, never
+        // here) can change (TASK-1.81) with nothing in this file to
+        // update. From here on, `resolved` is what every match below
+        // reads - never the original `request` - since `request.method`
+        // is `"api.call"` itself whenever this branch ran at all.
+        let resolved = if request.method == "api.call" {
+            match dispatch::resolve_api_call(request) {
+                Ok(inner) => inner,
+                Err(error) => return Response::Error(error),
+            }
+        } else {
+            request.clone()
+        };
+
+        match resolved.method.as_str() {
             "session.new" | "tab.new" | "pane.split" => {
-                self.start_and_dispatch(description, context, request)
+                self.start_and_dispatch(description, context, &resolved)
             }
             _ => {
                 let mut guard = self.lock();
@@ -169,7 +205,7 @@ impl Runtime {
                     &mut state.settings,
                     description,
                     context,
-                    request,
+                    &resolved,
                 );
                 if matches!(response, Response::Ok(_)) {
                     reapply_every_sized_tab(state);
@@ -189,6 +225,44 @@ impl Runtime {
     pub fn apply_size_changed(&self, change: &SizeChanged) {
         let mut state = self.lock();
         apply_size_changed_locked(&mut state, change);
+    }
+
+    /// Stops this `Runtime`: ends every running program (`PaneHandle::
+    /// stop`'s own `SIGHUP` by pid, no escalation - see its own doc for
+    /// the line this draws against TASK-1.78), reaps each one, shuts its
+    /// worker thread down and joins it, then joins the one drain thread
+    /// too (review finding 3 - this is the server stopping, not `--force`
+    /// on one pane, which stays untouched by `--force` itself, R94's own
+    /// stated gap, until TASK-1.78). TASK-1.78 can reuse `PaneHandle::
+    /// stop`'s own mechanism (`clone_killer`, taken before `child` moves
+    /// into the relay thread) directly for a single pane; what it still
+    /// has to add on top is the grace period before escalating and what a
+    /// client is told, neither of which this method needs.
+    ///
+    /// Idempotent: every field this empties is `Option`-wrapped, so a
+    /// second call (including the one `Drop` makes) finds nothing left to
+    /// do and returns at once. Every request this `Runtime` is given
+    /// after this call panics (`self.events`'s own `.expect()` inside
+    /// `start_and_dispatch`) rather than silently starting a program this
+    /// `Runtime` can no longer track - stopping is meant to be the last
+    /// thing done with one.
+    pub fn stop(&mut self) {
+        let panes = {
+            let mut state = self.lock();
+            std::mem::take(&mut state.panes)
+        };
+        for (_, handle) in panes {
+            handle.stop();
+        }
+
+        // Dropping every clone of `events` (this one, the last) is what
+        // lets the drain thread's own `for event in events_rx` end -
+        // every pane's own clone already went with its worker thread,
+        // stopped just above.
+        drop(self.events.take());
+        if let Some(drain) = self.drain.take() {
+            let _ = crate::pane::join_with_bound(drain, crate::pane::STOP_TIMEOUT);
+        }
     }
 
     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
@@ -221,6 +295,21 @@ impl Runtime {
 
         let default_cwd = self.resolve_default_cwd(&state, context, request);
         let program = program_from_request(request, &default_cwd);
+
+        // Finding 4: a nonexistent directory is never "success for
+        // something that did not happen". `default_cwd` above has
+        // already fallen back to `login.home` for every case this
+        // request named no `cwd` of its own (rule B), so the only way
+        // `program.cwd()` can still fail this check is a caller-given
+        // `cwd` that does not exist - checked here, before anything is
+        // minted, so refusing leaves nothing behind at all (no rollback
+        // needed, unlike the spawn-failure path below).
+        if !std::path::Path::new(program.cwd()).is_dir() {
+            return Response::Error(ApiError::new(
+                ErrorCode::ProgramFailed,
+                format!("cwd does not exist: {}", program.cwd()),
+            ));
+        }
 
         let response = {
             // See `handle`'s own comment: one explicit deref so the two
@@ -284,7 +373,9 @@ impl Runtime {
             spec,
             new_pane,
             Arc::clone(&self.launcher),
-            self.events.clone(),
+            self.events
+                .clone()
+                .expect("starting a program after this Runtime has been stopped"),
         ) {
             Ok(handle) => {
                 state.panes.insert(new_pane, handle);
@@ -303,9 +394,14 @@ impl Runtime {
     /// pane for `tab.new`), falling back to [`LoginShell::home`] in
     /// every case the chain does not produce a real answer -
     /// `session.new` has no pane to inherit from at all, so it always
-    /// takes the fallback. Never itself a source of an error: whatever
-    /// goes wrong here, `dispatch`'s own call right after surfaces the
-    /// real refusal (a bad target, say) on its own.
+    /// takes the fallback. A reported directory that no longer exists on
+    /// disk (the source pane `cd`'d somewhere since removed) falls back
+    /// the same way: the caller named no `cwd` of their own here, so this
+    /// is rule B's own fallback, never the explicit-`cwd` refusal the
+    /// engineer asked for (that one lives in `start_and_dispatch`, over
+    /// whatever `cwd` the caller actually gave). Never itself a source of
+    /// an error: whatever goes wrong here, `dispatch`'s own call right
+    /// after surfaces the real refusal (a bad target, say) on its own.
     fn resolve_default_cwd(&self, state: &State, context: &Context, request: &Request) -> String {
         let source_pane = match request.method.as_str() {
             "pane.split" => dispatch::target_pane(&state.tree, context, request).ok(),
@@ -321,6 +417,7 @@ impl Runtime {
             .and_then(|pane| state.panes.get(&pane))
             .and_then(|handle| handle.cwd().ok())
             .flatten()
+            .filter(|cwd| std::path::Path::new(cwd).is_dir())
             .unwrap_or_else(|| self.login.home.clone())
     }
 
@@ -355,6 +452,20 @@ impl Runtime {
             env,
             size,
         }
+    }
+}
+
+/// Dropping a `Runtime` stops it (review finding 3) - the safer of the
+/// two choices named in the review (stop automatically, or refuse to
+/// drop while something is still running): a caller that forgets the
+/// explicit call, or drops a `Runtime` on an error path, still ends every
+/// running program and joins every thread rather than leaking them
+/// silently. `stop`'s own `Option`-wrapped fields make this safe to run
+/// twice - an explicit `stop()` followed by this `drop` finds nothing
+/// left to do.
+impl Drop for Runtime {
+    fn drop(&mut self) {
+        self.stop();
     }
 }
 
@@ -430,28 +541,34 @@ fn rollback_mint(tree: &mut Tree, method: &str, new_pane: PaneId) {
 /// task needs to call this from outside an already-locked context.
 fn apply_event_locked(state: &mut State, event: PaneEvent) {
     match event {
-        PaneEvent::Exited { pane, exit_code } => match state.tree.record_exit(pane, exit_code) {
-            Ok(ExitOutcome::Closed(closed)) => {
-                state.panes.remove(&closed.pane);
+        PaneEvent::Exited { pane, exit_code } => {
+            // TASK-1.41: the one place the server's real clock becomes a
+            // kernel `Moment` - `Instant::now()` against this `Runtime`'s
+            // own `clock_origin`, never read by the kernel itself.
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            match state.tree.record_exit(pane, exit_code, now) {
+                Ok(ExitOutcome::Closed(closed)) => {
+                    state.panes.remove(&closed.pane);
+                }
+                Ok(ExitOutcome::Stayed) => {}
+                Err(steg_kernel::Error::PaneNotFound(_)) => {
+                    // The orphan a forced close leaves (§5, until the task
+                    // that ends a running program on `--force`): the tree no
+                    // longer has this pane at all, so there is nothing left
+                    // to record an exit on - the one thing left to do is stop
+                    // leaking the now-pointless `PaneHandle`.
+                    state.panes.remove(&pane);
+                }
+                Err(other) => {
+                    unreachable!(
+                        "record_exit on a pane the tree still holds can only fail with \
+                         ProgramNotStarted, and this task's own invariant (a program is \
+                         always started immediately after minting, under the one lock) \
+                         makes that unreachable here: {other}"
+                    );
+                }
             }
-            Ok(ExitOutcome::Stayed) => {}
-            Err(steg_kernel::Error::PaneNotFound(_)) => {
-                // The orphan a forced close leaves (§5, until the task
-                // that ends a running program on `--force`): the tree no
-                // longer has this pane at all, so there is nothing left
-                // to record an exit on - the one thing left to do is stop
-                // leaking the now-pointless `PaneHandle`.
-                state.panes.remove(&pane);
-            }
-            Err(other) => {
-                unreachable!(
-                    "record_exit on a pane the tree still holds can only fail with \
-                     ProgramNotStarted, and this task's own invariant (a program is \
-                     always started immediately after minting, under the one lock) \
-                     makes that unreachable here: {other}"
-                );
-            }
-        },
+        }
     }
 }
 
@@ -480,13 +597,14 @@ fn reapply_every_sized_tab(state: &mut State) {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::sync::mpsc;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
     use steg_sdk::{Program, ProgramStatus, Size};
 
     use super::{LoginShell, Runtime, State, apply_event_locked};
-    use crate::pane::PaneEvent;
+    use crate::pane::{PaneEvent, PaneHandle};
     use crate::pty::RealLauncher;
 
     /// Bounded, never a bare `recv` - the no-sleep rule's own reasoning
@@ -497,6 +615,19 @@ mod tests {
         LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+        }
+    }
+
+    /// Builds a `State` for a test with no `Runtime` around it - every
+    /// `clock_origin` in this module's own tests is simply "now", since
+    /// none of them care about any moment but the one `apply_event_locked`
+    /// reads at the instant it runs.
+    fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
+        State {
+            tree,
+            panes,
+            settings: steg_kernel::Settings::new(),
+            clock_origin: Instant::now(),
         }
     }
 
@@ -512,14 +643,7 @@ mod tests {
             },
         )
         .unwrap();
-        (
-            State {
-                tree,
-                panes: std::collections::HashMap::new(),
-                settings: steg_kernel::Settings::new(),
-            },
-            pane,
-        )
+        (test_state(tree, HashMap::new()), pane)
     }
 
     /// AC #2's cascade, proven deterministically: a hand-built
@@ -539,7 +663,10 @@ mod tests {
             .tabs()[0]
             .pane(pane)
             .unwrap();
-        assert_eq!(found.status(), Some(ProgramStatus::Ended { exit_code: 3 }));
+        assert_eq!(
+            found.program_status(),
+            Some(ProgramStatus::Ended { exit_code: 3 })
+        );
     }
 
     #[test]
@@ -554,11 +681,7 @@ mod tests {
             },
         )
         .unwrap();
-        let mut state = State {
-            tree,
-            panes: std::collections::HashMap::new(),
-            settings: steg_kernel::Settings::new(),
-        };
+        let mut state = test_state(tree, HashMap::new());
 
         // This pane is its tab's only pane, and its tab is its session's
         // only tab (R94) - a shell pane's own exit must cascade all the
@@ -591,11 +714,7 @@ mod tests {
             events_tx,
         )
         .unwrap();
-        let mut state = State {
-            tree,
-            panes: std::collections::HashMap::from([(gone, handle)]),
-            settings: steg_kernel::Settings::new(),
-        };
+        let mut state = test_state(tree, HashMap::from([(gone, handle)]));
 
         apply_event_locked(
             &mut state,
@@ -647,11 +766,7 @@ mod tests {
             .recv_timeout(EVENT_TIMEOUT)
             .expect("the real shell's own exit, within the bound");
 
-        let mut state = State {
-            tree,
-            panes: std::collections::HashMap::from([(pane, handle)]),
-            settings: steg_kernel::Settings::new(),
-        };
+        let mut state = test_state(tree, HashMap::from([(pane, handle)]));
         apply_event_locked(&mut state, event);
 
         assert!(state.tree.sessions().is_empty());
@@ -731,6 +846,13 @@ mod tests {
     /// (this crate's own internal access), since `pane.show` always
     /// reports a pane's started-in `Program::cwd` (pure, by this task's
     /// own design) and could never observe this.
+    ///
+    /// The reported directory is a real one, created for this test and
+    /// removed at the end: review finding 4 added an existence check to
+    /// this same fallback (see the sibling test right below, proving the
+    /// *other* half - a reported directory that has since vanished), so a
+    /// merely-claimed path would now fall back to home instead of proving
+    /// inheritance at all.
     #[test]
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
         use steg_sdk::{Request, SessionId, TabId};
@@ -743,6 +865,11 @@ mod tests {
             default_pane: steg_sdk::PaneId::from_raw(0),
         };
 
+        let live_cwd =
+            std::env::temp_dir().join(format!("steg-live-cwd-{}-{}", std::process::id(), line!()));
+        std::fs::create_dir(&live_cwd).unwrap();
+        let live_cwd = std::fs::canonicalize(&live_cwd).unwrap();
+
         let session = match runtime.handle(
             &description,
             &no_context,
@@ -751,7 +878,10 @@ mod tests {
                 params: serde_json::json!({
                     "cwd": "/private/tmp",
                     "program": ["sh", "-c",
-                        "printf '\\033]7;file:///private/tmp/project\\007'; sleep 100"],
+                        format!(
+                            "printf '\\033]7;file://{}\\007'; sleep 100",
+                            live_cwd.display()
+                        )],
                 })
                 .as_object()
                 .unwrap()
@@ -768,10 +898,13 @@ mod tests {
             state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
         };
 
-        // Bounded, never a bare wait: `PaneHandle::cwd` is itself bounded
-        // (`CWD_LOOKUP_TIMEOUT`), so this polls it, not an unbounded
-        // channel - there is no event to block on for "a byte sequence
-        // was written", only a value to re-read.
+        // Bounded, never a bare wait (review nit): `PaneHandle::cwd` is
+        // itself bounded (`CWD_LOOKUP_TIMEOUT`), so this polls it, not an
+        // unbounded channel - there is no event to wait on instead
+        // (`PaneEvent` only ever carries `Exited`; an event for a changed
+        // cwd is TASK-1.46's own gap, not this task's to close), so the
+        // only alternative to polling a value is blocking forever on one
+        // that may never change.
         let start = std::time::Instant::now();
         loop {
             let live = runtime
@@ -783,7 +916,7 @@ mod tests {
                 .unwrap()
                 .cwd()
                 .unwrap();
-            if live.as_deref() == Some("/private/tmp/project") {
+            if live.as_deref() == Some(live_cwd.to_str().unwrap()) {
                 break;
             }
             assert!(
@@ -832,21 +965,179 @@ mod tests {
         };
         assert_eq!(
             new_pane_program.map(|program| program.cwd().to_string()),
-            Some("/private/tmp/project".to_string()),
+            Some(live_cwd.to_str().unwrap().to_string()),
             "the new pane must inherit the live cwd (set by OSC 7), not the \
              source pane's own started-in cwd (/private/tmp)"
         );
+
+        std::fs::remove_dir(&live_cwd).unwrap();
     }
 
-    /// AC #3's full claim: a change to a tab's size reaches every
-    /// terminal in it, on both halves (the kernel `Terminal` and the real
-    /// pty), through the general step (§4) - not only at the moment a
-    /// pane starts. `declare_size`/`connect_client`/`view_pane` are
-    /// already public on `Tree` (TASK-1.42) and this is the seam the
-    /// tasks that wire `client.*` dispatch will use the same way; no
-    /// test-only hook is added anywhere for this.
+    /// Review finding 4, rule B's own half: a live cwd the source pane
+    /// reported (by real OSC 7) but that no longer exists on disk by the
+    /// time the split runs - the caller named no `cwd` of their own, so
+    /// this is rule B's own fallback deciding there is no usable answer,
+    /// never the explicit-`cwd` refusal `pane_split_with_a_nonexistent_cwd_*`
+    /// (`tests/runtime.rs`) proves instead. Falls back to `login.home`,
+    /// exactly as if the source pane had reported no cwd at all.
     #[test]
-    fn a_tabs_declared_size_reaches_every_pane_including_one_split_in_afterward() {
+    fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
+        use steg_sdk::{Request, SessionId, TabId};
+
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context {
+            default_session: SessionId::from_raw(0),
+            default_tab: TabId::from_raw(0),
+            default_pane: steg_sdk::PaneId::from_raw(0),
+        };
+
+        let vanished = std::env::temp_dir().join(format!(
+            "steg-vanishing-cwd-{}-{}",
+            std::process::id(),
+            line!()
+        ));
+        std::fs::create_dir(&vanished).unwrap();
+        let vanished = std::fs::canonicalize(&vanished).unwrap();
+
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({
+                    "cwd": "/private/tmp",
+                    "program": ["sh", "-c",
+                        format!(
+                            "printf '\\033]7;file://{}\\007'; sleep 100",
+                            vanished.display()
+                        )],
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: SessionId = session["id"].as_str().unwrap().parse().unwrap();
+
+        let source_pane = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
+        };
+
+        // Bounded, never a bare wait (review nit): `PaneHandle::cwd` is
+        // itself bounded (`CWD_LOOKUP_TIMEOUT`), so this polls it, not an
+        // unbounded channel - there is no event to wait on instead, since
+        // `PaneEvent` only ever carries `Exited` (events for anything
+        // else, including a changed cwd, are TASK-1.46's own gap, not
+        // this task's to close); the only alternative to polling a value
+        // is blocking forever on one that may never change. Same shape as
+        // this test's own sibling above, waiting for the real OSC 7 to
+        // land before the directory it names is removed out from under
+        // it.
+        let start = std::time::Instant::now();
+        loop {
+            let live = runtime
+                .state
+                .lock()
+                .unwrap()
+                .panes
+                .get(&source_pane)
+                .unwrap()
+                .cwd()
+                .unwrap();
+            if live.as_deref() == Some(vanished.to_str().unwrap()) {
+                break;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "the real OSC 7 never landed within the bound; last seen: {live:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        // The directory the source pane just reported is gone by the
+        // time the split below reads it.
+        std::fs::remove_dir(&vanished).unwrap();
+
+        let tab_id = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.tab_of_pane(source_pane).unwrap()
+        };
+        let context = crate::dispatch::Context {
+            default_session: session_id,
+            default_tab: tab_id,
+            default_pane: source_pane,
+        };
+
+        let split = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "pane.split".to_string(),
+                params: serde_json::json!({
+                    "direction": "right",
+                    "program": ["sh", "-c", "sleep 100"],
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => {
+                panic!("pane.split must fall back to home, not refuse: {error:?}")
+            }
+        };
+        let new_pane: steg_sdk::PaneId = split["id"].as_str().unwrap().parse().unwrap();
+
+        let new_pane_program = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0]
+                .pane(new_pane)
+                .unwrap()
+                .program()
+                .cloned()
+        };
+        assert_eq!(
+            new_pane_program.map(|program| program.cwd().to_string()),
+            Some(login().home),
+            "a vanished inherited cwd must fall back to the login shell's home, \
+             not refuse and not use the (now nonexistent) live cwd"
+        );
+    }
+
+    /// Review finding 2: the plan's own §4 proof promised `pane.split`,
+    /// `pane.resize`, `pane.close` and a swap, each driven through
+    /// `Runtime::handle`, with both the terminal and the pty checked
+    /// after each - and that the test would actually fail without the
+    /// general step. `pane.resize` is still `not_implemented_yet`
+    /// (TASK-1.42's own gap, not this task's to build), so this covers
+    /// `pane.split` (both directions), `pane.close` and `pane.swap`, the
+    /// three of the four this task's own dispatch arms serve.
+    ///
+    /// Every probe pane runs a tight polling loop (`while :; do stty
+    /// size; sleep 0.05; done`), not a `SIGWINCH` trap: a signal-based
+    /// first attempt at this test raced the trap's own installation
+    /// against the one-time automatic resize the general step performs,
+    /// which is a real, reproducible flake (recorded on this task) a
+    /// polling loop inside the child does not have, since `stty size`
+    /// only ever reads the pty's *current* winsize, with nothing to miss.
+    ///
+    /// The terminal side's row count is read via `Screen::rows.len()`;
+    /// `Screen` has no column-count field at all (confirmed: an empty
+    /// row is one zero-length run, carrying no width information), so
+    /// the terminal's own column width is instead proven once, directly,
+    /// right after the first resize, by printing exactly the expected
+    /// number of characters and confirming none of them wrap to a
+    /// second row - the same `Terminal::resize` call path every later
+    /// step in this test also goes through, so this is not re-proven at
+    /// every step, only established once.
+    #[test]
+    fn the_general_sizing_step_reaches_every_pane_through_split_close_and_swap() {
         use steg_sdk::{ClientKind, Request, SessionId, Size, TabId};
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
@@ -857,22 +1148,94 @@ mod tests {
             default_pane: steg_sdk::PaneId::from_raw(0),
         };
 
-        // A shell that re-reports its pty's own size on every `SIGWINCH`
-        // - the only way to observe the *pty* side of a resize on an
-        // *already-running* pane from outside, through what the engine
-        // actually drives into the terminal's screen.
+        fn polling_program() -> Vec<&'static str> {
+            vec!["sh", "-c", "while :; do stty size; sleep 0.05; done"]
+        }
+
+        /// Like `polling_program`, but prints exactly 61 `x`s once,
+        /// first - used only for `first_pane`'s own program, to prove
+        /// the terminal's column width directly (see this test's own
+        /// module doc), before the polling loop's own output has a
+        /// chance to scroll that line away.
+        fn polling_program_with_column_marker() -> Vec<&'static str> {
+            vec![
+                "sh",
+                "-c",
+                "printf '%s\n' \"$(printf 'x%.0s' $(seq 1 61))\"; \
+                 while :; do stty size; sleep 0.05; done",
+            ]
+        }
+
+        fn screen_text(runtime: &Runtime, pane: steg_sdk::PaneId) -> String {
+            let state = runtime.state.lock().unwrap();
+            let screen = state.panes[&pane].snapshot().unwrap();
+            screen
+                .rows
+                .iter()
+                .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join(
+                    "
+",
+                )
+        }
+
+        /// Polls (bounded, never a bare wait; review nit) until `pane`'s
+        /// own polling loop reports exactly `(cols, rows)` - proving the
+        /// pty side. There is no event to wait on instead: `PaneEvent`
+        /// only ever carries `Exited`, and an event for a program's own
+        /// output landing is TASK-1.46's own gap, not this task's to
+        /// close, so the only alternative to polling the snapshot is
+        /// blocking forever on text that may never appear.
+        fn wait_for_reported_size(runtime: &Runtime, pane: steg_sdk::PaneId, expected: (u16, u16)) {
+            let wanted = format!("{} {}", expected.1, expected.0);
+            let start = std::time::Instant::now();
+            loop {
+                let text = screen_text(runtime, pane);
+                if text.lines().any(|line| line.trim() == wanted) {
+                    return;
+                }
+                assert!(
+                    start.elapsed() < Duration::from_secs(20),
+                    "pane {pane} never reported pty size {wanted}; last screen: {text:?}"
+                );
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+
+        /// The terminal side's row count, directly.
+        fn terminal_rows(runtime: &Runtime, pane: steg_sdk::PaneId) -> usize {
+            let state = runtime.state.lock().unwrap();
+            state.panes[&pane].snapshot().unwrap().rows.len()
+        }
+
+        /// Every pane `tab_sizes_now` currently reports for `tab`, read
+        /// under the lock - the one source of truth every assertion
+        /// below checks against, never a size this test computed itself.
+        fn expected_sizes(
+            runtime: &Runtime,
+            tab: TabId,
+        ) -> std::collections::HashMap<steg_sdk::PaneId, Size> {
+            let state = runtime.state.lock().unwrap();
+            state
+                .tree
+                .tab_sizes_now(tab)
+                .expect("this test always declares a size before checking")
+                .panes
+                .into_iter()
+                .collect()
+        }
+
+        // One pane, its own session.
         let first = match runtime.handle(
             &description,
             &no_context,
             &Request {
                 method: "session.new".to_string(),
-                params: serde_json::json!({
-                    "program": ["sh", "-c",
-                        "trap 'stty size' WINCH; while :; do sleep 0.02; done"],
-                })
-                .as_object()
-                .unwrap()
-                .clone(),
+                params: serde_json::json!({"program": polling_program_with_column_marker()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
             },
         ) {
             steg_sdk::Response::Ok(value) => value,
@@ -885,132 +1248,169 @@ mod tests {
             (tab.panes()[0].id(), tab.id())
         };
 
-        // Declare a size directly on the tree - the only way to get a
-        // tab sized at all today (no `client` dispatch method exists) -
-        // and apply it through the *public* `apply_size_changed`,
-        // proving that entry point itself, not only `handle`'s internal
-        // use of it.
-        let change = {
+        // Declared directly on the kernel - the only way to get a tab
+        // sized at all today (no `client` dispatch method exists) - then
+        // applied through the public `apply_size_changed` once, by hand,
+        // exactly as a future `client.*` dispatch method would: nothing
+        // about *this* first application goes through the general step,
+        // since nothing has gone through `Runtime::handle` yet to trigger
+        // it. Everything from here on on does.
+        let initial_change = {
             let mut state = runtime.state.lock().unwrap();
             let client = state.tree.connect_client(ClientKind::App, None);
             state.tree.view_pane(client, first_pane).unwrap();
             state
                 .tree
-                .declare_size(client, tab_id, Size::new(50, 15))
+                .declare_size(client, tab_id, Size::new(61, 20))
                 .unwrap()
         };
-        runtime.apply_size_changed(&change);
+        runtime.apply_size_changed(&initial_change);
 
-        let screen = {
-            let state = runtime.state.lock().unwrap();
-            state.panes[&first_pane].snapshot().unwrap()
-        };
-        assert_eq!(screen.rows.len(), 15, "the terminal side of AC #3");
-
-        // The pty side: bounded polling on the shell's own real
-        // `SIGWINCH`-triggered re-report. The *first* `apply_size_changed`
-        // above raced the shell's own `trap` registration (a real, timing-
-        // dependent race, not assumed away) - and once a resize is a
-        // genuine no-op (the same size as before), the OS does not raise
-        // a second `SIGWINCH` for it, so simply repeating that same call
-        // can never recover from losing the race. Alternating the row
-        // count by one each attempt makes every single call a real size
-        // change, so every attempt gets its own real signal, until one of
-        // them lands after the trap is in place; the loop then settles on
-        // the actually-declared size this test is about before moving on.
-        let start = std::time::Instant::now();
-        let mut toggle = false;
-        loop {
-            toggle = !toggle;
-            let probe_rows = if toggle { 15 } else { 16 };
-            let probe = steg_kernel::SizeChanged {
-                panes: vec![(first_pane, Size::new(50, probe_rows))],
-                ..change.clone()
-            };
-            runtime.apply_size_changed(&probe);
-            let text = {
-                let state = runtime.state.lock().unwrap();
-                let screen = state.panes[&first_pane].snapshot().unwrap();
-                screen
-                    .rows
-                    .iter()
-                    .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            };
-            if text.contains("15 50") || text.contains("16 50") {
-                break;
+        // The terminal's own column width, proven once, checked first
+        // and with a short bound: the polling loop's own output scrolls
+        // this marker line away within about a second (20 rows at one
+        // line every 50ms), so this has to win that race, not the other
+        // way around. Bounded sleep-polling, not an event wait, for the
+        // same reason as `wait_for_reported_size` above: no event exists
+        // for a snapshot's text changing.
+        {
+            let start = std::time::Instant::now();
+            loop {
+                let text = screen_text(&runtime, first_pane);
+                if let Some(row) = text.lines().find(|l| l.starts_with('x')) {
+                    assert_eq!(
+                        row.trim_end(),
+                        "x".repeat(61),
+                        "61 columns must fit exactly"
+                    );
+                    break;
+                }
+                assert!(
+                    start.elapsed() < Duration::from_millis(800),
+                    "never saw the 61-column marker row before it would have scrolled away"
+                );
+                std::thread::sleep(Duration::from_millis(5));
             }
-            assert!(
-                start.elapsed() < Duration::from_secs(20),
-                "the pty's own real winsize was never reported; last screen \
-                 text: {text:?}"
-            );
-            std::thread::sleep(Duration::from_millis(20));
         }
-        // Settle back on the size this test is actually about, so the
-        // assertions after the split below compare against it.
-        runtime.apply_size_changed(&change);
-        let screen = {
-            let state = runtime.state.lock().unwrap();
-            state.panes[&first_pane].snapshot().unwrap()
-        };
-        assert_eq!(screen.rows.len(), 15);
 
-        // Now split, through the public API, with no size given: the
-        // general step (§4) must reapply the tab's declared size to
-        // *both* panes, not only decide the new one's initial size.
+        wait_for_reported_size(&runtime, first_pane, (61, 20));
+        assert_eq!(terminal_rows(&runtime, first_pane), 20);
+
         let context = crate::dispatch::Context {
             default_session: session_id,
             default_tab: tab_id,
             default_pane: first_pane,
         };
-        let split = match runtime.handle(
+
+        // Split right: two panes.
+        let split_right = match runtime.handle(
             &description,
             &context,
             &Request {
                 method: "pane.split".to_string(),
-                params:
-                    serde_json::json!({"direction": "right", "program": ["sh", "-c", "sleep 100"]})
-                        .as_object()
-                        .unwrap()
-                        .clone(),
+                params: serde_json::json!({"direction": "right", "program": polling_program()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
             },
         ) {
             steg_sdk::Response::Ok(value) => value,
-            steg_sdk::Response::Error(error) => panic!("pane.split failed: {error:?}"),
+            steg_sdk::Response::Error(error) => panic!("pane.split (right) failed: {error:?}"),
         };
-        let new_pane: steg_sdk::PaneId = split["id"].as_str().unwrap().parse().unwrap();
+        let second_pane: steg_sdk::PaneId = split_right["id"].as_str().unwrap().parse().unwrap();
 
-        let (first_screen, new_screen, expected) = {
-            let state = runtime.state.lock().unwrap();
-            let expected = state.tree.tab_sizes_now(tab_id).unwrap();
-            (
-                state.panes[&first_pane].snapshot().unwrap(),
-                state.panes[&new_pane].snapshot().unwrap(),
-                expected,
-            )
+        let expected = expected_sizes(&runtime, tab_id);
+        assert_eq!(expected.len(), 2, "two panes after one split");
+        for &pane in &[first_pane, second_pane] {
+            let size = expected[&pane];
+            wait_for_reported_size(&runtime, pane, (size.columns(), size.rows()));
+            assert_eq!(terminal_rows(&runtime, pane), usize::from(size.rows()));
+        }
+
+        // Split the first pane down too: three panes.
+        let split_down = match runtime.handle(
+            &description,
+            &crate::dispatch::Context {
+                default_session: session_id,
+                default_tab: tab_id,
+                default_pane: first_pane,
+            },
+            &Request {
+                method: "pane.split".to_string(),
+                params: serde_json::json!({"direction": "down", "program": polling_program()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("pane.split (down) failed: {error:?}"),
         };
-        let expected_rows = |pane: steg_sdk::PaneId| {
-            expected
-                .panes
-                .iter()
-                .find(|&&(id, _)| id == pane)
-                .map(|&(_, size)| usize::from(size.rows()))
+        let third_pane: steg_sdk::PaneId = split_down["id"].as_str().unwrap().parse().unwrap();
+
+        let expected = expected_sizes(&runtime, tab_id);
+        assert_eq!(expected.len(), 3, "three panes after the second split");
+        for &pane in &[first_pane, second_pane, third_pane] {
+            let size = expected[&pane];
+            wait_for_reported_size(&runtime, pane, (size.columns(), size.rows()));
+            assert_eq!(terminal_rows(&runtime, pane), usize::from(size.rows()));
+        }
+
+        // Close the third pane: its space returns to the first (R95).
+        match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "pane.close".to_string(),
+                params: serde_json::json!({
+                    "target": third_pane.to_string(),
+                    "force": true,
+                })
+                .as_object()
                 .unwrap()
-        };
-        assert_eq!(
-            first_screen.rows.len(),
-            expected_rows(first_pane),
-            "the split must have shrunk the original pane's share, and the \
-             general step must have reapplied that to its terminal"
+                .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.close failed: {error:?}"),
+        }
+
+        let expected = expected_sizes(&runtime, tab_id);
+        assert_eq!(expected.len(), 2, "back to two panes after the close");
+        for &pane in &[first_pane, second_pane] {
+            let size = expected[&pane];
+            wait_for_reported_size(&runtime, pane, (size.columns(), size.rows()));
+            assert_eq!(terminal_rows(&runtime, pane), usize::from(size.rows()));
+        }
+        let before_swap = expected;
+
+        // Swap the two remaining panes.
+        match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "pane.swap".to_string(),
+                params: serde_json::json!({"with": second_pane.to_string()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.swap failed: {error:?}"),
+        }
+
+        let after_swap = expected_sizes(&runtime, tab_id);
+        assert_eq!(after_swap.len(), 2);
+        assert_ne!(
+            after_swap, before_swap,
+            "the swap must actually change which pane has which size,              or this test cannot tell a correct swap from a no-op"
         );
-        assert_eq!(
-            new_screen.rows.len(),
-            expected_rows(new_pane),
-            "the new pane's own initial size must already match the tab's \
-             declared size"
-        );
+        for &pane in &[first_pane, second_pane] {
+            let size = after_swap[&pane];
+            wait_for_reported_size(&runtime, pane, (size.columns(), size.rows()));
+            assert_eq!(terminal_rows(&runtime, pane), usize::from(size.rows()));
+        }
     }
 
     /// R100's own last clause: a tab shrinking through a later
@@ -1057,5 +1457,209 @@ mod tests {
             1,
             "the terminal was cropped, not refused"
         );
+    }
+}
+
+#[cfg(test)]
+mod stop_tests {
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use steg_sdk::{PaneId, Program};
+
+    use super::Runtime;
+    use crate::pane::PaneHandle;
+    use crate::pty::{LaunchSpec, RealLauncher};
+
+    /// How long these tests poll for a real program's own printed pid
+    /// before giving up - bounded, the same reasoning every other
+    /// real-process wait in this crate gives.
+    const POLL_TIMEOUT: Duration = Duration::from_secs(10);
+
+    fn login() -> super::LoginShell {
+        super::LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        }
+    }
+
+    /// Whether a process with this id still exists, reaped or not - the
+    /// same `kill -0` probe `crate::pane`'s own tests already use.
+    fn process_exists(pid: u32) -> bool {
+        std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .status()
+            .expect("kill(1) is on PATH on every platform this runs on")
+            .success()
+    }
+
+    /// Starts a real pane whose own program prints its pid with `$$`
+    /// then `exec`s into `then` - keeping the same pid, so the one
+    /// number this reads back from the screen is the pid of whatever
+    /// ends up actually running, with no new accessor needed on
+    /// `PaneHandle` for a test to learn it. Returns the handle's own
+    /// `PaneEvent` receiver too (review nit): `Exited` is a real event a
+    /// caller that cares when the program ends should wait on instead of
+    /// polling, unlike the pid file below, which has no event at all.
+    fn start_pane_reporting_its_pid(
+        runtime: &Runtime,
+        then: &str,
+    ) -> (
+        PaneId,
+        PaneHandle,
+        u32,
+        std::sync::mpsc::Receiver<crate::pane::PaneEvent>,
+    ) {
+        let pane = {
+            let mut state = runtime.state.lock().unwrap();
+            let session = state.tree.new_session(None).unwrap();
+            let pane = state.tree.session(session).unwrap().tabs()[0].panes()[0].id();
+            state
+                .tree
+                .start_program(
+                    pane,
+                    Program::Command {
+                        argv: vec!["sh".to_string()],
+                        cwd: "/tmp".to_string(),
+                    },
+                )
+                .unwrap();
+            pane
+        };
+
+        // The pid is written to its own file, not the screen: a program
+        // like `yes` floods the screen fast enough to scroll a printed
+        // pid line out of the visible area before a poll loop can ever
+        // read it back, which is a race against the test's own reading,
+        // not against the program - a file has no such race. There is
+        // still no event for "a file now has this content" (review nit),
+        // unlike the process's own exit below, so this one stays a
+        // bounded poll.
+        //
+        // Named with a per-call counter, not just `pane`: every test in
+        // this module builds its own fresh `Tree`, so `pane` alone is not
+        // unique across tests - under this crate's default, parallel
+        // `cargo test` (unlike the `--test-threads=1` these tests were
+        // first proven stable under) two of them really did collide on
+        // the same file (`just check`'s own recorded run caught this).
+        static UNIQUE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let unique = UNIQUE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let pid_file = std::env::temp_dir().join(format!(
+            "steg-stop-test-{}-{pane}-{unique}.pid",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&pid_file);
+        let (events_tx, events_rx) = std::sync::mpsc::channel();
+        let handle = crate::pane::start(
+            LaunchSpec {
+                argv: vec![
+                    "sh".to_string(),
+                    "-c".to_string(),
+                    format!("echo $$ > {} ; exec {then}", pid_file.display()),
+                ],
+                cwd: "/tmp".to_string(),
+                env: Vec::new(),
+                size: (80, 24),
+            },
+            pane,
+            Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+
+        let start = std::time::Instant::now();
+        let pid = loop {
+            if let Ok(text) = std::fs::read_to_string(&pid_file)
+                && let Ok(pid) = text.trim().parse()
+            {
+                break pid;
+            }
+            assert!(
+                start.elapsed() < POLL_TIMEOUT,
+                "never saw a pid written to {}",
+                pid_file.display()
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let _ = std::fs::remove_file(&pid_file);
+
+        (pane, handle, pid, events_rx)
+    }
+
+    #[test]
+    fn stop_ends_a_program_producing_output() {
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "yes");
+        runtime.state.lock().unwrap().panes.insert(pane, handle);
+        assert!(
+            process_exists(pid),
+            "the program must be running before stop"
+        );
+
+        runtime.stop();
+
+        assert!(!process_exists(pid), "stop must end the program");
+        assert!(runtime.state.lock().unwrap().panes.is_empty());
+    }
+
+    #[test]
+    fn stop_ends_a_silent_program() {
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "sleep 1000");
+        runtime.state.lock().unwrap().panes.insert(pane, handle);
+        assert!(
+            process_exists(pid),
+            "the program must be running before stop"
+        );
+
+        runtime.stop();
+
+        assert!(!process_exists(pid), "stop must end the program too");
+        assert!(runtime.state.lock().unwrap().panes.is_empty());
+    }
+
+    #[test]
+    fn stop_is_a_no_op_for_a_pane_whose_program_has_already_ended() {
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        // `true` exits at once, no `exec sleep` keeping it alive - by the
+        // time this pid is known at all (printed, then read back), the
+        // process behind it is already gone or going; this test only
+        // needs that to have fully happened, confirmed the same way the
+        // other `stop` tests confirm a process ended.
+        let (pane, handle, pid, events_rx) = start_pane_reporting_its_pid(&runtime, "true");
+        // An event wait first, not a bare sleep-poll (review nit):
+        // `Exited` is a real event here (unlike the pid file above,
+        // which has none), so this waits on it rather than polling
+        // `process_exists` from the start. It is not the *whole*
+        // answer, though: `Exited` only means our own wait() on the
+        // child has returned, not that the OS has finished reaping it
+        // (observed empirically - `process_exists` can still report
+        // `true` for a moment right after `Exited` fires) - there is no
+        // second event for "the process table caught up", so the short
+        // remaining gap is still a bounded poll, now with far less of it
+        // to cover than polling from the start would.
+        events_rx
+            .recv_timeout(POLL_TIMEOUT)
+            .expect("the real `true` should have exited within the bound");
+        let start = std::time::Instant::now();
+        while process_exists(pid) {
+            assert!(
+                start.elapsed() < POLL_TIMEOUT,
+                "the process was never actually reaped after its own Exited event"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        runtime.state.lock().unwrap().panes.insert(pane, handle);
+
+        runtime.stop(); // must not hang or panic on an already-ended program
+
+        assert!(runtime.state.lock().unwrap().panes.is_empty());
+    }
+
+    #[test]
+    fn stop_with_no_panes_at_all_returns_at_once() {
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        runtime.stop();
+        assert!(runtime.state.lock().unwrap().panes.is_empty());
     }
 }

@@ -45,9 +45,38 @@ fn show(description: &Description, request: &Request) -> Result<Outcome, ApiErro
     }
 }
 
-/// `api.call`'s own answer: rewrites the request into the target method's
-/// own `Request` and dispatches that, returning its `Response` unchanged
-/// — no `Outcome` wraps or re-encodes it (TASK-1.75's plan, decision 3).
+/// Resolves an `api.call` request to the inner `Request` it names - the
+/// one implementation both [`call`] (below) and `Runtime::handle`
+/// (TASK-1.76) use, so every path that can mint and start a pane reads
+/// the selector's own key the same way, through this function, rather
+/// than as a literal string of its own (TASK-1.81 renames that key from
+/// `target` to `method`; nothing outside this function needs to know
+/// either name).
+///
+/// # Errors
+///
+/// Returns a `BadRequest` if the selector is missing or not text, or
+/// names `api.call` itself.
+pub(crate) fn resolve(request: &Request) -> Result<Request, ApiError> {
+    let Some(target) = param_str(request, "target") else {
+        return Err(bad_request("target: must be text"));
+    };
+    if target == "api.call" {
+        return Err(bad_request("api.call cannot call api.call"));
+    }
+
+    let mut params = request.params.clone();
+    params.remove("target");
+    Ok(Request {
+        method: target.to_string(),
+        params,
+    })
+}
+
+/// `api.call`'s own answer: resolves the request into the target
+/// method's own `Request` ([`resolve`]) and dispatches that, returning
+/// its `Response` unchanged — no `Outcome` wraps or re-encodes it
+/// (TASK-1.75's plan, decision 3).
 ///
 /// Runs *before* `mod.rs`'s generic `validate` step: `api.call` declares
 /// only `target`, but a real call carries the target method's own
@@ -60,19 +89,8 @@ pub(super) fn call(
     context: &Context,
     request: &Request,
 ) -> Response {
-    let Some(target) = param_str(request, "target") else {
-        return Response::Error(bad_request("target: must be text"));
-    };
-    if target == "api.call" {
-        return Response::Error(bad_request("api.call cannot call api.call"));
+    match resolve(request) {
+        Ok(inner) => super::dispatch(tree, settings, description, context, &inner),
+        Err(error) => Response::Error(error),
     }
-
-    let mut params = request.params.clone();
-    params.remove("target");
-    let inner = Request {
-        method: target.to_string(),
-        params,
-    };
-
-    super::dispatch(tree, settings, description, context, &inner)
 }

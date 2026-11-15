@@ -102,7 +102,12 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
             .tabs()
             .iter()
             .flat_map(steg_kernel::Tab::panes)
-            .any(|pane| matches!(pane.status(), Some(steg_sdk::ProgramStatus::Running)));
+            .any(|pane| {
+                matches!(
+                    pane.program_status(),
+                    Some(steg_sdk::ProgramStatus::Running)
+                )
+            });
         if any_running {
             return Err(super::program_running());
         }

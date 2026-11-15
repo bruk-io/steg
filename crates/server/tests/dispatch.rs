@@ -831,11 +831,23 @@ fn pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was() {
 fn pane_split_with_a_program_mints_a_pane_but_does_not_start_it() {
     // TASK-1.76: `dispatch` stays I/O-free and does not call
     // `Tree::start_program` itself - that is `Runtime`'s own job, right
-    // after this same call, under one lock (its own plan, §1/§2). Calling
-    // `dispatch` directly, as this test does, is exactly the part of the
-    // whole flow that mints the pane and nothing more: `program`/`cwd`
-    // make no difference here at all, and the new pane's own `program()`/
-    // `status()` are still `None`.
+    // after this same call, under one lock (its own plan, §1/§2). This
+    // test calls `dispatch` directly, bypassing `Runtime` entirely, to
+    // prove exactly the one thing `dispatch` alone ever does: mint the
+    // pane and nothing more, with `program()`/`program_status()` still
+    // `None` regardless of `program`/`cwd`.
+    //
+    // This is *not* a description of what any real caller sees: every
+    // production path that can mint a pane - `pane.split`/`tab.new`/
+    // `session.new` called directly, or through `api.call` - goes
+    // through `Runtime::start_and_dispatch`, which always starts the
+    // program right after this same call completes (confirmed by review:
+    // the first version of this comment claimed "that is Runtime's own
+    // job, right after this same call" without checking whether every
+    // path actually reaches `Runtime` - `api.call` did not, until that
+    // finding's fix). `grep -rn 'split_pane(\|new_tab(\|new_session('
+    // over `crates/server/src` outside tests shows exactly these three
+    // dispatch arms as the only callers.
     let (mut tree, context, api) = fresh();
 
     let outcome = ok(dispatch(
@@ -858,7 +870,7 @@ fn pane_split_with_a_program_mints_a_pane_but_does_not_start_it() {
         .pane(new_pane)
         .expect("dispatch minted this pane");
     assert_eq!(pane.program(), None);
-    assert_eq!(pane.status(), None);
+    assert_eq!(pane.program_status(), None);
 }
 
 #[test]

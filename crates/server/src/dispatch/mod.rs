@@ -19,6 +19,7 @@ mod session;
 mod setting;
 mod tab;
 
+pub(crate) use api::resolve as resolve_api_call;
 pub(crate) use kernel_error::map_kernel_error;
 pub(crate) use lookup::{
     find_tab, pane_mut, param_bool, param_i64, param_present, param_str, resolve_pane_str,

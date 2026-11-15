@@ -108,7 +108,12 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
             .ok_or_else(|| map_kernel_error(Error::TabNotFound(id)))?
             .panes()
             .iter()
-            .any(|pane| matches!(pane.status(), Some(steg_sdk::ProgramStatus::Running)));
+            .any(|pane| {
+                matches!(
+                    pane.program_status(),
+                    Some(steg_sdk::ProgramStatus::Running)
+                )
+            });
         if any_running {
             return Err(super::program_running());
         }

@@ -92,11 +92,11 @@ fn show(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, Ap
             .unwrap_or_default()
             .to_string(),
         program: pane.program().map(program_text).unwrap_or_default(),
-        exit_code: match pane.status() {
+        exit_code: match pane.program_status() {
             Some(ProgramStatus::Ended { exit_code }) => Some(exit_code),
             _ => None,
         },
-        status: pane.status().map(status_text),
+        status: pane.program_status().map(status_text),
     }))
 }
 
@@ -175,7 +175,7 @@ fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
 /// `pane.close` (AC #4): refuses while the pane's own program is running
 /// and `--force` was not given, with `ErrorCode::ProgramRunning`, touching
 /// nothing. This is a dispatch-level policy over the kernel's own
-/// `Pane::status()`, because the kernel's `close_pane` has no concept of
+/// `Pane::program_status()`, because the kernel's `close_pane` has no concept of
 /// "refuse" (TASK-1.40's own plan rejected threading a force flag through
 /// its signature, the same reasoning this plan's own §5 repeats).
 /// `--force` on a pane whose program is running stays exactly as it is
@@ -193,7 +193,7 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
         let pane = find_tab(tree, tab_id)
             .and_then(|tab| tab.pane(id))
             .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
-        if matches!(pane.status(), Some(ProgramStatus::Running)) {
+        if matches!(pane.program_status(), Some(ProgramStatus::Running)) {
             return Err(super::program_running());
         }
     }

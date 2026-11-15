@@ -273,10 +273,17 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
 /// equality with it is a real claim, not a guess at portable-pty's
 /// internals.
 ///
-/// **Left as a question for the engineer, not decided here**: should
-/// `--cwd` naming a directory that doesn't exist be refused instead of
-/// silently redirected? That is a doc-2 question (what the CLI/API
-/// promises `--cwd` means), not something this build phase settles.
+/// **Answered (review finding 4, TASK-1.76)**: refused, not silently
+/// redirected - but not here, and not by `portable-pty`, since this
+/// experiment is exactly why that is the wrong layer to fix it at (no
+/// error reaches this call at all). `Runtime::start_and_dispatch`
+/// (`crates/server/src/runtime.rs`) checks `program.cwd()` itself,
+/// before calling down to this function, and refuses with
+/// `ErrorCode::ProgramFailed` rather than ever reaching this silent
+/// substitution; see `crates/server/tests/runtime.rs`'s
+/// `*_with_a_nonexistent_cwd_*` tests. This test stays exactly as it
+/// was: the committed record of what this lower layer does on its own,
+/// which is still true and still the reason the check exists above it.
 #[test]
 fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home() {
     let home = std::fs::canonicalize(std::env::var("HOME").unwrap()).unwrap();

@@ -3,12 +3,12 @@ id: doc-16
 title: 'Spec: repository architecture'
 type: specification
 created_date: '2026-11-15T02:34:00Z'
-updated_date: '2026-11-15T02:34:00Z'
+updated_date: '2026-11-15T02:35:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
 - Rests on: decision-1 (the API description), decision-2 (the wire protocol), decision-5 (servers, clients and windows).
-- Status: draft, written 2026-11-15 from decisions Bruk made that day. R98 and R101 were moved here from the server spec (doc-8) and reworded to match those decisions. R102 to R108 are new.
+- Status: draft, written 2026-11-15 from decisions Bruk made that day. R98 and R101 were moved here from the server spec (doc-8) and reworded to match those decisions. R102 to R108, R110 and R111 are new.
 
 ## Scope
 
@@ -77,6 +77,8 @@ In M1, one Mac: one server process, any number of CLI processes, and one Steg.ap
 - R106 (M1). The sdk stays usable from another language: no GPUI type and no particular async runtime appears in its public interface, and its required dependencies are for data and serialisation only.
 - R107 (M1). The repository is a monorepo. Each package builds and tests by itself and refers to nothing outside its own folder except the packages it is allowed to depend on, so that any of them could move to a repository of its own.
 - R108 (M1). This architecture is drawn as a LikeC4 model kept in the repository: context, containers, components and deployment, with dynamic views for attaching to a pane and for focusing one. The repository's check validates the model. Where the model, the check's configuration and this spec disagree, this spec is right and the other two are fixed.
+- R110 (M1). A boundary a program can check is checked by the repository's check, not left to a rule. Beyond which package depends on which (R104), that means: code in the sdk and the kernel that reaches for a file, a socket, a process, the clock or a runtime fails the lint, and so does the kernel building the sdk's optional parts. Each refusal says which rule it enforces and why.
+- R111 (M1). Each package has a `CLAUDE.md` of its own saying what the package is, what it may and may not depend on, and how to run its tests, and pointing at this spec. The repository's rules hold what is left to judgement about a boundary, scoped to the package's files. Nothing is stated in both a lint and a rule, or in two rules.
 
 ## Areas of concern
 

@@ -1022,6 +1022,21 @@ error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 0 at 2026-11-15T22:14:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

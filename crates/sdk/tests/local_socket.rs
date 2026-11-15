@@ -22,7 +22,7 @@
 )]
 
 use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
@@ -42,8 +42,26 @@ fn binary_path_that_does_not_exist() -> PathBuf {
 
 /// A real file that exists but is not executable (no execute bit) - the
 /// other half of "the binary cannot be executed", distinct from a path
-/// that does not exist at all.
-fn binary_that_exists_but_is_not_executable() -> PathBuf {
+/// that does not exist at all. Removed on drop - including when the test
+/// panics, since unwinding still runs destructors - so a failing test
+/// leaves nothing behind in the real `TMPDIR` either.
+struct NonExecutableFile {
+    path: PathBuf,
+}
+
+impl NonExecutableFile {
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for NonExecutableFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+fn binary_that_exists_but_is_not_executable() -> NonExecutableFile {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!(
@@ -51,7 +69,7 @@ fn binary_that_exists_but_is_not_executable() -> PathBuf {
         std::process::id()
     ));
     std::fs::write(&path, b"not a program").expect("writing the fixture file should succeed");
-    path
+    NonExecutableFile { path }
 }
 
 /// A socket path unique to this test, under the real `TMPDIR` -
@@ -151,8 +169,9 @@ fn spawn_fails_promptly_when_the_binarys_path_does_not_exist() {
 /// at all.
 #[test]
 fn spawn_fails_when_the_binary_exists_but_is_not_executable() {
+    let fixture = binary_that_exists_but_is_not_executable();
     let options = ConnectOptions {
-        binary: binary_that_exists_but_is_not_executable(),
+        binary: fixture.path().to_path_buf(),
         socket_path: Some(unique_socket_path()),
         autostart: true,
         connect_timeout: Duration::from_secs(5),

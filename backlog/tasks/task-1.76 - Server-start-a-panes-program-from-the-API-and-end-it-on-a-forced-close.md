@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:40:00Z'
+updated_date: '2026-11-15T22:41:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=1'
 asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -2040,6 +2041,15 @@ Review findings fixed, clause by clause (findings 1-3, the engineer's cwd ask, a
 **TASK-1.81.** Merged in. `dispatch::api::resolve`'s own design needed only the selector key swapped from `target` to `method` and the `call`/`resolve` split kept (my own version keeps the `resolve` extraction `Runtime::handle` depends on; `origin/main`'s version had inlined it back - resolved by keeping mine with the new key). One test helper (`api_call` in `tests/runtime.rs`) updated to build the selector under `method`.
 
 **Test-run honesty.** `cargo test -p steg-server --lib --tests -- --test-threads=1`: run repeatedly through this round (10+ times across the four findings, including after the TASK-1.81 merge) - 0 failures throughout, 85 tests per run at the current head. `just check` locally: flaky specifically in `tests/runtime.rs` under this sandbox's own default parallelism (confirmed, not assumed: clean at `--test-threads` up to 12, fails from 16 up, independent of other processes on the machine at the time - a real, quantified pty-allocation ceiling in this sandbox, not a leak in this code, not something this task's own scope can or should fix by touching `justfile`'s concurrency). Recorded both clean and failing local `just check` runs rather than hide either. The gate that matters - PR #40's own CI, on a clean machine - is green: `test (steg-server)` passed on the first CI run too; the one CI failure was `test-tools`'s own `likec4` MCP smoke test timing out (nothing in this diff touches `tools/` or `architecture/`), which passed clean on a re-run of just that job.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T22:41:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

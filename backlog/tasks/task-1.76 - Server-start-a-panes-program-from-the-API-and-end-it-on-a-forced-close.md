@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and end it on a forced close'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T18:07:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.42
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-14T00:16:00Z'
-updated_date: '2026-11-14T03:56:00Z'
+updated_date: '2026-11-15T00:23:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -142,6 +142,14 @@ created: 2026-11-14T03:55:00Z
 ---
 
 Design artifact published by @bruk.o for Bruk to look at: https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ (private to Bruk). Seven artboards: main window dark and light, command palette dark and light, session colour pink (dark) and orange (light), and a sheet of named values. It is a proposal: nothing in it is accepted until Bruk says so here. The values the tokens file is built from are in the artifact's 'Named values' board and in Main.dc.html's theme tables. Assumptions made without asking: JetBrains Mono as the terminal font, the system font for the UI, pane caption strips, and the key bindings shown in the palette, which are illustrative only.
+
+---
+
+created: 2026-11-15T00:23:00Z
+
+---
+
+Handover from @bruk.o, 2026-11-15. The design is the artifact https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ (private to Bruk). Its values and rules are transcribed in doc-7, 'Spec: the app's design': section 1 holds every named value (neutral colours, the six ramp colours and blue, type, sizes, both terminal themes) and section 2 holds 105 numbered requirements, D1 to D105. Bruk asked for doc-7 on 2026-11-14 and said the design is close enough to use as a spec; he has not yet approved its text. The design went well past this task's plan: it also covers the status ring and bar and their motion, pane layout rules, resizing rules, and seven states and flows. So the plan here needs revising before phase 2: criterion 3 is now met by doc-7 plus a link from doc-1, and what is left for a worker is design/tokens.json transcribed from doc-7 section 1, where doc-7 is the source. Values marked (proposed) in doc-7 are waiting for Bruk and should not be transcribed as settled.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:17:00Z'
+updated_date: '2026-11-15T14:18:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -226,3 +226,81 @@ test per acceptance-criterion clause, by the byte sequence that proves it:
 and `steg-sdk` alone. `#![forbid(unsafe_code)]` stays in force; the new
 kernel module contains no `unsafe` of its own.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+## Starting design for the scrollback task (moved out of this task's plan, 2026-11-15)
+
+This is the design from this task's original plan for scrollback identity
+and rows-changed-since-a-point, before the task was split (engineer-approved
+split: this task is now the terminal type, screen, cell model and resize
+only). Kept here so it is not lost; the scrollback task should read it as a
+starting point, not a settled answer - both sections name an open risk that
+is still unresolved.
+
+### Scrollback identity
+
+**Correction to decision-3**: it says ghostty's `max_scrollback` is a byte
+estimate and "steg converts lines to bytes." That was true of the spike's
+binding; `ghostty-vt` 0.8 (the crate actually chosen) also has
+`Terminal::set_scrollback_max_lines(Option<usize>)`, documented as working
+alongside the byte limit with "the first limit reached wins." `Terminal::new`
+can call this with the configured limit (10,000 by default, R15) directly -
+no byte-per-row conversion needed. Caveat that still holds: pruning is at
+page granularity, so the retained count runs somewhat higher than the
+limit; `Terminal::scrollback_rows()` reports the real count rather than
+promising exactly the limit.
+
+Absolute identity: `ghostty_vt::render::RowId` looks like a match for "an
+absolute identity that survives rows scrolling off" but is not one - it is
+explicitly opaque (`[u64; 2]`, "treat this value as opaque"), unordered, and
+only populated for rows the render state actually visited (the viewport
+plus a requested overscan margin - not all 10,000 scrollback rows). It
+cannot answer "give me rows 500 through 600" or distinguish "here are your
+rows" from "those rows are gone," which is what decision-2 section 3 needs
+for paging scrollback by `rows_ever`. Its real use is a per-frame render
+cache key for whoever draws - the app's problem (TASK-1.56), not the
+kernel's.
+
+Instead: `Terminal` would keep its own monotonic counter,
+`rows_scrolled_off: u64`, incremented by exactly the drop in
+`scrollback_rows() + viewport_rows()` (i.e. `total_rows()`) observed across
+a `vt_write` call that shrank it - which only happens when pruning removes
+rows, never when the active area merely grows into unused scrollback space.
+A row's absolute id would be `rows_scrolled_off + its offset from the
+oldest row currently retained`. The counter only grows, is never reset, and
+a pruned row's id is never reissued to a different row's content.
+
+**Open risk, unresolved**: a primary-screen resize can reflow and renumber
+scrollback (the alternate screen does not). Whether reflow can move rows in
+a way that breaks this counter's monotonicity is untested; TASK-1.39 named
+it for TASK-1.42 too, since resize is where reflow happens.
+
+### Rows changed since a given point
+
+The render state's own dirty tracking (`Snapshot::dirty()`,
+`RowIteration::next_dirty()`, `Snapshot::clean()`) is per-`RenderState`, not
+per-client: `clean()` erases it for everyone holding that state, and
+`update()` never unsets it on its own. With more than one attachment
+reading at different points, the engine's dirty bits cannot be "the given
+point" by themselves.
+
+A single-reader version (no attachments yet) would need only: a
+kernel-owned `seq: u64` on `Terminal`, one `RenderState` per `Terminal`, and
+a `changes_since(&mut self) -> (Vec<(row_index, Row)>, Cursor, new_seq)`
+-shaped method that reads the dirty rows via `next_dirty()`, builds `Row`s
+only for those, reads the cursor unconditionally (cheap per `render.rs`'s
+own measurement), bumps `seq`, and calls `clean()`. "The given point" would
+be the caller holding the last `seq` it saw and asking again; a caller
+behind by more than the dirty state can express would get everything
+(`Dirty::Full`) rather than a partial answer.
+
+**Open risk, unresolved**: once more than one caller reads at different
+points (TASK-1.46/1.47), dirty flags cannot be shared read-and-cleared by
+all of them. The two live options are a `RenderState` per attachment, or
+one retained "last published screen" per `Terminal` that each attachment
+diffs a fresh `update()` against in software. Not decided; whichever task
+builds multi-attachment should settle it, informed by whichever this
+scrollback task's single-reader method ends up implying.
+<!-- SECTION:NOTES:END -->

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.69
 title: 'Workspace: the five packages of doc-16, and the check that holds them apart'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:48:00Z'
+updated_date: '2026-11-15T02:54:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-0
 dependencies: []
 references:
@@ -21,8 +22,10 @@ asdlc_branch: task-1.69-workspace-the-server-s-code-kept-apart
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '3b5cfdb0a760'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -504,6 +507,25 @@ created: 2026-11-15T02:48:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.69: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:54:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] AC#3 ("`boundaries.toml` holds doc-16's table for every package, with a reason on each, and `just boundaries` fails when a dependency outside it is added, shown by a recorded run (R104)") is unmet as evidenced. The task's own notes say the two live demonstrations (steg-app -> steg-server, steg-kernel -> tokio) were "not recorded as a check, since nothing was committed in that state." That reasoning doesn't hold: the 02:43:17 entry on this same task is a recorded FAILED `just check` taken "with uncommitted changes," proving `asdlc record-check` can and does record a failing command on a dirty tree. Every "boundaries" line actually recorded on the task is "ok", from `just check`'s own boundaries step; nowhere is there a recorded run showing `just boundaries` refusing a disallowed dependency. The PR body's test-plan checkbox restates the same unrecorded demonstration. As written, AC#3's "shown by a recorded run" clause is not met.
+
+[Bugs/Evidence, Nit] `justfile`'s new `packages` recipe is commented "build and test every package by itself (R107)" and is the plan's cited proof for AC#5, but `cargo build -p <pkg>` / `cargo test -p <pkg>` still resolve against the workspace root's `Cargo.lock`, and every crate (including the new `steg-sdk`) inherits `edition.workspace`, `license.workspace`, `version.workspace` and `[lints] workspace = true` from the root `Cargo.toml`. None of the five packages can build moved out to a repository of its own today, so the recipe proves package *selection* inside the workspace, not R107's "refers to nothing outside its own folder" half. This pattern predates this task (kernel/server/app already used `.workspace = true`), so it's an overclaim in a comment, not a regression this diff introduced.
+
+Plan-matched is reported as "no" because `tools/tests/adapter/test_affected_real_workspace.py` is not in the plan's "Files, in order" list; this is explained on the task (comment #2: deleting `crates/cli` broke the adapter test's hard-coded fixtures, fixed in the same pass) so it is not raised as its own finding.
+
+Everything else checked clean: boundaries.toml's five tables are a literal match for doc-16's "who may depend on whom" table and each carries a reason citing doc-16; every manifest edge (sdk/kernel/server/steg/app) matches the plan exactly; crates/cli's deletion and its doc comment's fold into crates/steg/src/main.rs match doc-16's component table (R98); the sdk crate is I/O-free with `local-socket` declared and empty, off by default (R102, R103); the kernel's sdk dependency is `default-features = false` (R105); .claude/rules/architecture.md's new bullets cite doc-16 correctly; plugins/bruk-io-steg/ is correctly left untouched per AC#6, with the "For the orchestrator" section listing what's needed; plan approval by @bruk is recorded (size-2); and the PR's CI run (43669467226) is green on the exact PR head commit (df8f9a21d734), covering format, lint, boundaries, licences, every crate's tests and tool tests.
 
 ---
 <!-- COMMENTS:END -->

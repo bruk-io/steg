@@ -96,5 +96,4 @@ affected:
 
 # the architecture model (architecture/) validates against the LikeC4 grammar (doc-16, R108)
 architecture:
-    @node --version
     @{{quiet}} "architecture" -- npx --yes likec4@1.61.0 validate architecture

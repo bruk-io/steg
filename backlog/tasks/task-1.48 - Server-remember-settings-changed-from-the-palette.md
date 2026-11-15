@@ -491,6 +491,51 @@ test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 219 filtered out
 
 error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
+
+Check passed: `cargo test -p steg-kernel` exited 0 at 2026-11-15T19:18:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 234 lines:
+
+```text
+test tree::tests::new_session_gives_the_first_five_sessions_distinct_colours_in_order ... ok
+test tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::new_session_sets_the_label_given_to_it ... ok
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size ... ok
+test tree::tests::record_exit_on_an_unknown_pane_errors ... ok
+test tree::tests::restart_program_on_an_unknown_pane_errors ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_current_pane_moves_only_the_tabs_own_current_pane ... ok
+test tree::tests::set_tab_current_pane_rejects_an_unknown_tab_or_pane ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test terminal::tests::a_column_changing_resize_retires_every_id_from_before_it ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::start_program_on_an_unknown_pane_errors ... ok
+test tree::tests::start_program_records_it_on_the_newly_minted_pane ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::tab_of_pane_finds_the_tab_holding_a_pane ... ok
+test tree::tests::tab_of_pane_is_none_for_an_unknown_pane ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::every_row_id_grows_and_is_never_reused_for_different_content ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+test result: ok. 221 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

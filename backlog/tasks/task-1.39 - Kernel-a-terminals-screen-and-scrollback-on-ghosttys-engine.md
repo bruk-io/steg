@@ -3,17 +3,20 @@ id: TASK-1.39
 title: >-
   Kernel: a terminal on ghostty's engine: its screen, its cells and what it
   reports
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:53:00Z'
+updated_date: '2026-11-15T14:56:00Z'
 labels:
   - size-4
 milestone: m-0
 dependencies:
   - TASK-1.34
   - TASK-1.35
+references:
+  - task-1.39-kernel-a-terminal-s-screen-and
+  - https://github.com/bruk-io/steg/pull/27
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -504,6 +507,55 @@ ok      tool tests (0.9s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built as planned, no departures. Pull request #27, CI green
+(https://github.com/bruk-io/steg/actions/runs/43726886769).
+
+New: `crates/kernel/src/terminal.rs` (steg_kernel::Terminal, free-standing,
+not stored on Pane), `crates/sdk/src/screen.rs` (the shapes a client draws
+from). Changed: `crates/kernel/src/{lib,error}.rs` (wire the module in, add
+Error::Engine), `crates/sdk/src/lib.rs` (wire the module in). No new
+dependency in either crate's Cargo.toml; `just check-boundaries` passes
+unchanged.
+
+Which test proves which clause, all in crates/kernel/src/terminal.rs's
+`#[cfg(test)]` module, no doubles (bytes fed in, screen read back):
+
+- AC #1 (screen as rows of attribute runs, with the cursor):
+  `writing_plain_text_produces_one_run`,
+  `an_sgr_colour_change_splits_the_row_into_two_runs_with_the_right_fg`,
+  `the_cursor_position_is_reported`.
+- AC #2 (cwd, title, alternate screen): `osc_7_sets_the_reported_cwd`,
+  `osc_2_sets_the_reported_title`,
+  `entering_and_leaving_the_alternate_screen_is_reported`.
+- AC #3 (cell model: wide characters, underline style/colour, cursor
+  shape, link presence per R116):
+  `a_wide_character_is_marked_wide_and_its_spacer_is_skipped`,
+  `curly_underline_with_its_own_colour_round_trips`,
+  `decscusr_sets_the_reported_cursor_shape`,
+  `a_hyperlink_marks_its_cells_and_nothing_else`.
+- AC #4 (the link's address by cell, R116):
+  `link_at_returns_the_address_of_a_linked_cell`,
+  `link_at_returns_none_for_a_cell_with_no_link`.
+- AC #5 (resize): `resizing_changes_the_reported_size_and_reflows_text`.
+- AC #6 (sdk/kernel split, R105): structural - the new sdk shapes carry no
+  engine type and the kernel's new module holds no shape a client draws
+  from directly; checked by `just check-boundaries` and `just
+  check-packages` (both recorded above), not by a unit test.
+
+Two bugs the tests themselves caught and fixed before this was clean:
+`parse_pwd` was dropping the leading `/` of a `file://` URI's path
+(`split_once` consumes the separating slash), and the SGR-colour test's
+own row was wider than its text, which found a real emulator behaviour
+worth noting rather than a bug: a cell the cursor never visits keeps its
+original default style regardless of the "current" SGR, so a row with
+unwritten trailing cells reports more runs than the written text alone
+would suggest - expected, not a defect, and the test was narrowed to the
+exact text width instead.
+
+All `just check` / `just check-packages` runs are recorded on the task via
+asdlc record-check, including the two failures that led to the fixes
+above.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

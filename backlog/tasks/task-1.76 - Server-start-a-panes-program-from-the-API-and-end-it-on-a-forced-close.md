@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:24:00Z'
+updated_date: '2026-11-15T22:25:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1476,6 +1476,53 @@ ok      test (steg-app) (0.9s)
 ok      tool tests (1.3s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:25:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6, last 40 of 75 lines:
+
+```text
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... FAILED
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_split_through_api_call_starts_a_real_program ... FAILED
+test session_new_through_api_call_starts_a_real_program ... ok
+
+failures:
+
+---- tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind stdout ----
+
+thread 'tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind' (14675606) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- session_new_through_api_call_with_no_program_runs_the_login_shell stdout ----
+
+thread 'session_new_through_api_call_with_no_program_runs_the_login_shell' (14675594) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14675602) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- pane_split_through_api_call_starts_a_real_program stdout ----
+
+thread 'pane_split_through_api_call_starts_a_real_program' (14675581) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    pane_split_through_api_call_starts_a_real_program
+    session_new_through_api_call_with_no_program_runs_the_login_shell
+    tab_close_refuses_while_any_of_its_panes_is_running
+    tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind
+
+test result: FAILED. 14 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
 ```
 
 Commits since the review: 25, 22 without the Asdlc-Worker trailer.

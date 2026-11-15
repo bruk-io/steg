@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -289,6 +290,15 @@ created: 2026-11-15T03:04:00Z
 ---
 
 Plan approved by @bruk (c6301b963301, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:04:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -4,13 +4,20 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T01:09:00Z'
+updated_date: '2026-11-15T01:15:00Z'
 labels: []
 dependencies: []
 documentation:
   - doc-1
   - doc-2
   - doc-7
+  - doc-8
+  - doc-9
+  - doc-10
+  - doc-11
+  - doc-12
+  - doc-13
+  - doc-14
 type: intent
 asdlc_accepted_from: DRAFT-1
 ---
@@ -72,6 +79,8 @@ Decided 2026-11-15 (Bruk): settings follow the convention of code configs. A set
 Decided 2026-11-15 (Bruk): the terminal emulation library is ghostty's VT engine, which is doc-6's recommendation. doc-6 names what follows from it and none of these is decided yet: the licence policy has to allow CDLA-Permissive-2.0 or exclude build-only dependencies, because the repository's own licence check refuses the ghostty path today; R19's first sentence needs replacing, since neither candidate meets 16 ms once the wait for the display is counted; and the build needs a Zig toolchain and a vendored source tree. The dependency doc-6 names is ghostty-vt 0.8 over ghostty 1.4.0-main, not libghostty-vt 0.2.2, which could not be built.
 
 2026-11-15: Bruk accepted the three consequences of choosing ghostty's VT engine. Written into doc-1: R19 replaced with 12 ms to paint and 20 ms to frame at the 95th percentile; R59 now says the licence check allows permissive licences including CDLA-Permissive-2.0 and refuses GPL and AGPL; R92 added for the library and its build. The licence wording follows the archived TASK-1.28's title; the repository's deny.toml has not been changed and needs a task.
+
+2026-11-15: the specs were reorganised at Bruk's request. doc-1 is now the overview; doc-8 to doc-14 and doc-2 are one spec per area, all in the same shape, with requirement numbers unchanged. doc-7 (the app's design restated as text) is archived: doc-10 points at the design artifact. The decision documents doc-3 to doc-6 are being moved to decision records in pull request 5 and are archived once it merges.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

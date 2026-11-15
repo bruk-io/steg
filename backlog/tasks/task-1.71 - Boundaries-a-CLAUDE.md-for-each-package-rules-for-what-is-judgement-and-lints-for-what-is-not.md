@@ -465,6 +465,12 @@ skip    tests: this change touches no crate
 ok      tool tests (0.2s)
 ok      architecture (0.8s)
 ```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:25:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,10 +1,11 @@
 ---
 id: TASK-1.36
 title: 'Kernel: the layout tree: split, close, resize, swap, move and fill'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T03:41:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
+asdlc_branch: task-1.36-kernel-the-layout-tree-split-close
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:40:00Z'
+updated_date: '2026-11-15T02:41:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +15,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-39
 asdlc_branch: task-1.69-workspace-the-server-s-code-kept-apart
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '3b5cfdb0a760'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -309,3 +312,16 @@ Plan held by @bruk.o, not sent for approval: the engineer is settling the reposi
 
 Rewritten plan checked against doc-16 by @bruk.o: ok. Five packages with doc-16's table in boundaries.toml, the sdk empty with its local-socket feature off by default, the CLI merged into steg, each package built and tested by itself through a just recipe. Known gap, left to the boundaries task: the check cannot see the kernel turning on an sdk feature. The plugin changes it lists are the orchestrator's, through asdlc-plugin, after this merges.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T02:41:00Z
+
+---
+
+Plan approved by @bruk (3b5cfdb0a760, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

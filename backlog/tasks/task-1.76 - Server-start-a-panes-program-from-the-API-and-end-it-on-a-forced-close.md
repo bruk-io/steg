@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:59:00Z'
+updated_date: '2026-11-15T23:00:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2079,6 +2079,14 @@ Two Important findings, both about test/check reliability on this head, found by
 2. [Evidence, Important] Implementation Notes, the final head b4dd502 - every `just check` recorded at this head (eight, 22:16-22:39 UTC) is FAILED; the only recorded pass at this head is the narrower `cargo test -p steg-server --lib --tests -- --test-threads=1` (22:40:19), which sidesteps exactly the default-parallelism concurrency finding 1 is about. The last actually-clean, full `just check` is recorded at the superseded head fdef2fe (21:17:42), not at the head this PR and this review are against. Per review.md's Evidence pass, a check recorded before the last commit, or not at all, is a finding - there is no clean `just check` recorded at this head, only a hand-picked narrower command that avoids the failure mode.
 
 No other findings. Plan match: the one named departure (ProgramFailed mapped inline in start_and_dispatch rather than a separate dispatch/server_error.rs) is explained in the notes and is small; everything else (owning structure, cwd rule B, pane.show, the pure close-refusal, error codes, lookup.rs, the §4 general sizing step, TASK-1.48's Settings threading) matches section by section.
+
+---
+
+created: 2026-11-15T23:00:00Z
+
+---
+
+From @bruk.o, with the second review's findings: the reviewer showed that this platform's openpty() races when called from several threads of one process (a bare libc call from 28 threads fails intermittently with no steg code loaded; ptys alive stayed near 22 of 511; disabling the sandbox changed nothing). The reviewer left open whether production code should change. Decision by the orchestrator, for the engineer to overrule: the server's real launcher serialises the pty-opening call with one process-wide lock held only for that call, with no retry. Reason: it removes the race at its cause for the server as well as the tests, where a limiter in the tests alone would leave any future caller that opens ptys from two threads exposed. The orchestrator's own earlier counter-argument (the pty limit and count) did not look at what actually failed; the reviewer's evidence is what stands.
 
 ---
 <!-- COMMENTS:END -->

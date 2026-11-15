@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:39:00Z'
+updated_date: '2026-11-15T20:46:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -574,6 +574,207 @@ ok      test (steg) (0.4s)
 ok      build (steg-app) (15.2s)
 ok      test (steg-app) (0.8s)
 ok      tool tests (1.6s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T20:41:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.8s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:42:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_current_pane_moves_only_the_tabs_own_current_pane ... ok
+test tree::tests::set_tab_current_pane_rejects_an_unknown_tab_or_pane ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing ... FAILED
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::start_program_on_an_unknown_pane_errors ... ok
+test tree::tests::start_program_records_it_on_the_newly_minted_pane ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test tree::tests::tab_of_pane_finds_the_tab_holding_a_pane ... ok
+test tree::tests::tab_of_pane_is_none_for_an_unknown_pane ... ok
+test tree::tests::tab_shown_status_delegates_to_the_tabs_own_ranking ... ok
+test tree::tests::tab_shown_status_on_an_unknown_tab_errors ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing stdout ----
+
+thread 'tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing' (11402834) panicked at crates/kernel/src/tree.rs:3481:9:
+assertion `left == right` failed
+  left: None
+ right: Some(Finished)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing
+
+test result: FAILED. 259 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T20:42:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (3.6s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:42:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::start_program_records_it_on_the_newly_minted_pane ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::tab_of_pane_finds_the_tab_holding_a_pane ... ok
+test tree::tests::tab_of_pane_is_none_for_an_unknown_pane ... ok
+test tree::tests::tab_shown_status_delegates_to_the_tabs_own_ranking ... ok
+test tree::tests::tab_shown_status_on_an_unknown_tab_errors ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- pane::tests::a_finished_status_is_still_shown_599_seconds_after_it_began stdout ----
+
+thread 'pane::tests::a_finished_status_is_still_shown_599_seconds_after_it_began' (11452611) panicked at crates/kernel/src/pane.rs:513:9:
+assertion `left == right` failed
+  left: None
+ right: Some(Finished)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tree::tests::next_status_deadline_is_the_earliest_across_several_panes_and_tabs stdout ----
+
+thread 'tree::tests::next_status_deadline_is_the_earliest_across_several_panes_and_tabs' (11452816) panicked at crates/kernel/src/tree.rs:3526:9:
+assertion `left == right` failed
+  left: Some(Moment(599s))
+ right: Some(Moment(600s))
+
+
+failures:
+    pane::tests::a_finished_status_is_still_shown_599_seconds_after_it_began
+    tree::tests::next_status_deadline_is_the_earliest_across_several_panes_and_tabs
+
+test result: FAILED. 258 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T20:42:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (3.7s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T20:43:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+         let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+         let second = tree
+[31m-            .split_pane(first, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+(B[m[32m+            .split_pane(
+(B[m[32m+                first,
+(B[m[32m+                steg_sdk::Direction::Right,
+(B[m[32m+                steg_sdk::PaneKind::Terminal,
+(B[m[32m+            )
+(B[m             .unwrap();
+         tree.start_program(first, command("/tmp")).unwrap();
+         fail(&mut tree, second);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/kernel/src/tree.rs:3513:
+         let session_id = tree.new_session(None).unwrap();
+         let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+         let second_tab = tree.new_tab(session_id, None).unwrap();
+[31m-        let second = tree.session(session_id).unwrap().tab(second_tab).unwrap().panes()[0].id();
+(B[m[32m+        let second = tree
+(B[m[32m+            .session(session_id)
+(B[m[32m+            .unwrap()
+(B[m[32m+            .tab(second_tab)
+(B[m[32m+            .unwrap()
+(B[m[32m+            .panes()[0]
+(B[m[32m+            .id();
+(B[m 
+         // `first` finishes at moment(500) (deadline 500 + 600 = 1100);
+         // `second` finishes at moment(0) (deadline 0 + 600 = 600) - the
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/kernel/src/tree.rs:3523:
+         tree.start_program(second, command("/tmp")).unwrap();
+         tree.record_exit(second, 0, moment(0)).unwrap();
+ 
+[31m-        assert_eq!(
+(B[m[31m-            tree.next_status_deadline(moment(0)),
+(B[m[31m-            Some(moment(600))
+(B[m[31m-        );
+(B[m[32m+        assert_eq!(tree.next_status_deadline(moment(0)), Some(moment(600)));
+(B[m     }
+ }
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:44:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (2.5s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (6.0s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (32.1s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (2.7s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.4s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:46:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at 4169a943a8a3:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.5s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.3s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (2.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.7s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```

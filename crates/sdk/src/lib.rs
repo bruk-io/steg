@@ -18,6 +18,7 @@
 //! error, and `validate`, the protocol logic that checks a request against
 //! it with no I/O.
 
+mod client_kind;
 mod colour;
 mod description;
 mod ids;
@@ -25,14 +26,21 @@ mod layout;
 mod pane_kind;
 mod record;
 mod screen;
+mod wire;
 
+pub use client_kind::ClientKind;
 pub use colour::Colour;
 pub use description::{
     ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param,
     Request, Response, Returns, Role, ValueKind, Version, description, validate,
 };
-pub use ids::{PaneId, SessionId, TabId};
+pub use ids::{ClientId, PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use record::SessionRecord;
 pub use screen::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Screen, Underline, Wide};
+pub use wire::{
+    CONTROL_STREAM, ClientHello, Connection, Control, Decoder, Frame, FrameError, Handshake,
+    Incoming, Kind, MAX_FRAME, MAX_PAYLOAD, PROTOCOL_VERSION, Refusal, Refused, Role as WireRole,
+    STEG_MAGIC, ServerHello, check_hello, encode_frame, parse_server_hello,
+};

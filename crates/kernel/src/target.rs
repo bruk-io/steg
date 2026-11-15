@@ -653,7 +653,11 @@ mod tests {
             .panes()[0]
             .id();
         let pane_id = tree
-            .split_pane(first_pane, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
             .unwrap();
         tree.session_mut(session_id)
             .unwrap()

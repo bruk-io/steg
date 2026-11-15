@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:38:00Z'
+updated_date: '2026-11-15T23:39:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -462,6 +462,12 @@ No other file changes; no sdk change; no `boundaries.toml`/`deny.toml`/
 
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-11 (R50, R82, R83), decision-7, doc-15 and doc-16 by @bruk.o: ok. The engineer decided on 2026-11-15 that a shell waiting at a prompt is idle and shows nothing: a shell pane has no status from start, running only between a typed command's start and end marks, nothing again once its finished or failed status ends; a command pane is unchanged. The plan makes that one branch in start_program, keeps program_status as it is, adds the two operations beside record_exit with a state table of one test per row, and reuses TASK-1.41's status record, ten-minute rule, ending rules and ranking with no second copy. The worker checked rather than listed: no existing test reads a shell pane's status between its start and its next call, and nothing in the server reads the display status yet. Kernel only: no I/O, no clock, no unsafe, no sdk change.
+
+Check passed: `just test` exited 0 at 2026-11-15T23:39:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e:
+
+```text
+skip    tests: this change touches no crate
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

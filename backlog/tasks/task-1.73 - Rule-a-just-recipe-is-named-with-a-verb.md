@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:34:00Z'
+updated_date: '2026-11-15T03:35:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -198,6 +198,19 @@ Check passed: `sh -c 'git grep -n -E "just (boundaries|packages|affected|archite
 
 ```text
 
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:35:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 56eada5b62ba:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -1,9 +1,11 @@
 ---
 id: TASK-1.83
 title: 'Kernel: running, finished and failed for a command typed at a shell prompt'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
+updated_date: '2026-11-15T23:16:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.83-kernel-running-finished-and-failed-for-a
 ---
 
 ## Description

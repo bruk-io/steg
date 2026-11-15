@@ -10,6 +10,18 @@ version = "0.1.0"
 [workspace.dependencies]
 gpui = { version = "=0.2.2" }
 
+# TASK-1.79: carries a small patch to the safe `ghostty-vt` crate (wiring
+# `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`, which the unpatched 0.8.0 does
+# not surface) until upstream does the same. `third_party/ghostty-vt-
+# patched/` holds the exact patch, how to re-verify it against a pristine
+# copy, and the procedure for dropping this entry. The patched crate's own
+# `Cargo.toml` keeps the same name and version as the one it replaces
+# (crates/kernel/Cargo.toml pins the exact version this patches), so
+# nothing else in the workspace - `boundaries.toml`, `deny.toml` - needs a
+# change.
+[patch.crates-io]
+ghostty-vt = { path = "third_party/ghostty-vt-patched" }
+
 [workspace.lints.clippy]
 unwrap_used = "deny"
 missing_errors_doc = "deny"

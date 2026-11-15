@@ -1,14 +1,14 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:00:00Z'
+updated_date: '2026-11-15T23:19:00Z'
 labels:
   - size-5
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -25,9 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '308d35ef87d0'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1961,6 +1960,237 @@ Review findings fixed (3 Important, 1 nit) plus the engineer's cwd ask, at head 
 Checks: `cargo test -p steg-server --lib --tests -- --test-threads=1` run 10+ times through this round, 0 failures, 144 tests at the final head. Local `just check` is flaky specifically in `tests/runtime.rs` under this sandbox's own default parallelism (quantified: clean through 12 threads, fails from 16 up, confirmed independent of other processes) - a real pty-allocation ceiling in this sandbox, not a code defect; recorded both clean and failing runs rather than hiding either. PR #40's own CI (a clean machine) is green: `test (steg-server)` passed on the very first run; the one CI failure was an unrelated `likec4` MCP smoke-test timeout in `tools/` (nothing in this diff touches `tools/` or `architecture/`), which passed on a re-run of just that job.
 
 Pushed to the same branch, PR #40 updated.
+
+Check FAILED: `cargo test -p steg-server --test real_pty many_threads_opening_a_real_pty_at_once_never_fails` exited 101 at 2026-11-15T23:03:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 1 test
+test many_threads_opening_a_real_pty_at_once_never_fails ... FAILED
+
+failures:
+
+---- many_threads_opening_a_real_pty_at_once_never_fails stdout ----
+
+thread 'many_threads_opening_a_real_pty_at_once_never_fails' (14987896) panicked at crates/server/tests/real_pty.rs:397:31:
+round 1/10, thread 13/32: RealLauncher::spawn failed under concurrent opens: the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: "Unknown error: -6" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    many_threads_opening_a_real_pty_at_once_never_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.77s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test real_pty many_threads_opening_a_real_pty_at_once_never_fails` exited 0 at 2026-11-15T23:03:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 1 test
+test many_threads_opening_a_real_pty_at_once_never_fails ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.49s
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do echo "=== run $i ==="; if ! cargo test -p steg-server 2>&1 | tee /tmp/run-$i.log | grep -E "test result|FAILED"; then fail=$((fail+1)); fi; if grep -q "FAILED" /tmp/run-$i.log; then echo "RUN $i FAILED"; fail=$((fail+1)); fi; done; echo "TOTAL FAILURES: $fail / 20"; test "$fail" -eq 0'` exited 0 at 2026-11-15T23:04:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes, last 40 of 141 lines:
+
+```text
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== run 16 ===
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== run 17 ===
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== run 18 ===
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== run 19 ===
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+=== run 20 ===
+test result: ok. 54 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+TOTAL FAILURES: 0 / 20
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:05:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (7.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (4.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (3.7s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:05:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:05:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:06:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:06:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Second round's findings fixed. Corrected the earlier notes: there is no sandbox pty-allocation ceiling and no leak - withdrawn, per the reviewer's own isolated reproduction.
+
+1. RealLauncher::spawn (crates/server/src/pty.rs) now serialises its own openpty() call behind a process-wide OPENPTY_LOCK, held only across that one call, never across spawn_command or anything that waits. No retry added - the lock removes the race rather than hiding it.
+
+2. New test many_threads_opening_a_real_pty_at_once_never_fails (tests/real_pty.rs): 32 real threads, a Barrier so every thread calls openpty at the same instant, 10 rounds. Negative control recorded via asdlc record-check: lock removed, fails on round 1/10 with the identical Os { code: -6 }; lock restored, passes.
+
+3. cargo test -p steg-server (default parallelism, the command just test/just check itself runs) recorded 20 times in a row via asdlc record-check: 0 failures across all 20. just check recorded 5 times in a row via asdlc record-check: 0 failures across all 5, unmodified command.
+
+Merged origin/main first (board-only changes since the last merge; no new code to adapt to). Pushed to the same branch; PR #40's CI green (gh pr checks 40 --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2087,6 +2317,63 @@ created: 2026-11-15T23:00:00Z
 ---
 
 From @bruk.o, with the second review's findings: the reviewer showed that this platform's openpty() races when called from several threads of one process (a bare libc call from 28 threads fails intermittently with no steg code loaded; ptys alive stayed near 22 of 511; disabling the sandbox changed nothing). The reviewer left open whether production code should change. Decision by the orchestrator, for the engineer to overrule: the server's real launcher serialises the pty-opening call with one process-wide lock held only for that call, with no retry. Reason: it removes the race at its cause for the server as well as the tests, where a limiter in the tests alone would leave any future caller that opens ptys from two threads exposed. The orchestrator's own earlier counter-argument (the pty limit and count) did not look at what actually failed; the reviewer's evidence is what stands.
+
+---
+
+created: 2026-11-15T23:06:00Z
+
+---
+
+Second round's findings fixed.
+
+**Correction to this task's own earlier notes**: there is no sandbox pty-allocation ceiling, and no leak. What I wrote before was wrong; the reviewer isolated the real cause and it is recorded on this task - `openpty()` itself is not safe to call from several threads of one process at once on this platform, reproduced with a bare libc call, no Rust, none of this crate's own code loaded, with the number of live ptys staying around 22 of 511 throughout. Running the Bash sandbox disabled changed nothing either, so "sandbox" was never the right word for it. I withdraw that description.
+
+**Finding 1 (just check not reliable).** `RealLauncher::spawn` (`crates/server/src/pty.rs`) now serialises its own `openpty()` call behind a process-wide `OPENPTY_LOCK`, held only across that one call - never across `spawn_command` or anything that waits. No retry: a retry would hide the race, a lock removes it. New test `many_threads_opening_a_real_pty_at_once_never_fails` (`tests/real_pty.rs`): 32 real threads (this machine's own default `cargo test` concurrency), each opening a real pty through the real launcher at once (a `Barrier` makes every thread call `openpty` at the same instant, not merely overlapping), 10 rounds. Negative control recorded via `asdlc record-check`: lock removed, fails on round 1 of 10 with the identical `Os { code: -6 }`; lock restored, passes. `cargo test -p steg-server` (the full suite, default parallelism, the command `just test`/`just check` itself runs) recorded 20 times in a row via `asdlc record-check`: 0 failures across all 20. `just check` recorded 5 times in a row via `asdlc record-check`: 0 failures across all 5, each at the unmodified command (never `--test-threads=1`).
+
+**Finding 2 (no clean just check recorded at the head handed in).** Fixed by the above: `just check` now passes reliably at this head, recorded 5 times, unmodified.
+
+Head: merged origin/main first (board-only changes since the last merge; no new code). Running `just fmt`/`just lint` clean. Pushing now; `gh pr checks 40 --watch` next.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T23:10:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T23:19:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Head reviewed: 471542c780e1d962837d5584fa45dc6c4e9ed107 (PR #40's headRefOid, CI `check` green on this exact SHA). Worktree clean at this head throughout.
+
+1. The lock. OPENPTY_LOCK (crates/server/src/pty.rs) covers exactly the openpty() call inside RealLauncher::spawn, released before spawn_command and before anything that can wait (read by eye, pty.rs:96-160). It is a leaf lock: nothing is acquired or waited on while held, so it cannot cycle with Runtime's own `state` Mutex, which is always the outer lock (runtime.rs:280-327 holds `state` across the dispatch arm and pane::start/launcher.spawn, matching the plan's own §1 reasoning, unchanged this round) - no deadlock possible. Poisoning: `.unwrap_or_else(PoisonError::into_inner)` recovers the guard rather than propagating poison, so a panic while holding it (only openpty() itself could panic, and doesn't) would not permanently block every later open. No retry - matches the comment's own stated reasoning (a retry would hide the race, not remove it). `git grep openpty`/`native_pty_system` across crates/: the only call site is this one, in RealLauncher::spawn - nothing else in the crate opens a pty outside it (the fake launcher doesn't call openpty at all).
+
+2. The new test. many_threads_opening_a_real_pty_at_once_never_fails (tests/real_pty.rs) drives 32 real threads through a Barrier so every thread calls RealLauncher::spawn at the same instant, 10 rounds, reaping (child.wait()) every spawned process before the next round - no leaked processes across rounds. I scratch-removed OPENPTY_LOCK (reverted after) and ran it 5 times: failed 5/5, every failure the same `Os { code: -6 }` the second review's own isolated reproduction found; restored the lock and ran it 3 times: passed 3/3. With the lock, I also ran the full `many_threads_...` test in isolation and it passed cleanly.
+
+3. Reliability (the point of this round) - verified independently, not just read:
+   - `cargo test -p steg-server`, full output captured (not tail-truncated), 15 runs at this exact clean head: 0 FAILED lines, 145 tests/run across 6 test binaries (lib 54, three integration files 61/5/7, runtime suite 18, 0 doctests), every run identical in count.
+   - `just check`, 3 runs at this exact clean head: all exited 0, matching step-by-step the worker's own recorded `just check` output (format/lint/boundaries/licences/per-crate build+test/tool tests/architecture/recipe names).
+   - PR #40 CI `check` is green on 471542c itself (gh pr checks 40; gh pr view --json headRefOid confirms the SHA).
+   - The worker's recorded 20-run loop (`sh -c 'fail=0; for i in $(seq 1 20); do ... done; test "$fail" -eq 0'`): I reproduced its exact logic against a fake `cargo test` that fails - the loop's final exit status came back 1, i.e. it really would fail the recorded check had any of the 20 runs failed. The first `if ! ... | grep -E "test result|FAILED"` branch is near-inert (grep normally matches "test result" on both pass and fail, so it rarely increments `fail`, though it would catch a run that produces neither string at all, e.g. a compile error); the second `grep -q FAILED <logfile>` branch is the one doing the real work, and it does work.
+   - The worker's five `just check` runs are stamped "9e508ed with uncommitted changes," not the committed head - but `git diff --stat 9e508ed 471542c` is exactly this round's own fix (pty.rs +38, real_pty.rs +67) and nothing else, so the tested tree and the committed head are content-identical (only the commit object differs). The recorded loop's per-binary test counts (54/61/5/7/18/0 = 145) match my own 15 runs at 471542c exactly, same test inventory. The first of the five recorded `just check` runs shows real, non-trivial step timings (`build (steg-server) 29.1s`, `test (steg-server) 4.3s`) naming `-p steg-server` in its selection line; the later four are fast only because cargo's own incremental cache made the rebuild steps near-instant (0.1s build, 1.9s test) - the same pattern my own 3 runs reproduced (run 1: 28.8s/3.5s; runs 2-3: 0.1s/1.9s). Not a skip.
+
+4. Nothing since the prior review (b4dd502) touches anything but pty.rs/real_pty.rs - no unsafe added, no new dependency (Cargo.toml/Cargo.lock unchanged since b4dd502). The Implementation Notes' stale "a real pty-allocation ceiling in this sandbox, not a code defect" sentence (an earlier round's own claim) is explicitly revisited in the same Implementation Notes, later: "Corrected the earlier notes: there is no sandbox pty-allocation ceiling and no leak - withdrawn, per the reviewer's own isolated reproduction," with the real cause (a genuine openpty() concurrency race on this platform) stated in both the notes and the pty.rs/real_pty.rs comments.
+
+No Important findings.
+
+[Nit] crates/server/tests/real_pty.rs: `let _ = spawned.child.wait();` in the new concurrency test is an unbounded wait whose result is discarded, against this same file's own stated convention elsewhere (a named EVENT_TIMEOUT, "rather than hanging indefinitely on a misbehaving child"). In practice safe (`sh -c "true"` always exits immediately), so a Nit, not Important.
+
+--plan-matched no: this round's diff (crates/server/src/pty.rs) and several files from earlier rounds (dispatch/api.rs, dispatch/outcome.rs, sdk/record.rs, tests/runtime.rs in place of the plan's tests/start.rs) are not in the plan's own "Files that change" list. All are named and justified in the task's notes/comments as forced by review findings or the engineer's own follow-on asks, so none of them is itself a finding under review.md's "a departure... is a finding unless the task's notes say what changed and why" - but the flag itself is descriptive of the diff against the plan's file list, not a verdict, so it is reported as `no` rather than `yes`.
 
 ---
 <!-- COMMENTS:END -->

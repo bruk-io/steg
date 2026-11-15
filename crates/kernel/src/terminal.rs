@@ -62,6 +62,41 @@ pub struct Terminal {
     /// at least `1`), so a caller claiming `0` is always treated the same
     /// as a caller with no point at all.
     seq: u64,
+    /// Every [`CommandMark`] queued since the last [`Terminal::
+    /// take_command_marks`] (doc-9 R14, OSC 133; TASK-1.79). Unbounded
+    /// until a caller exists - nothing in this task calls
+    /// `take_command_marks`, so in the repository's shipped state after
+    /// this task merges, this grows for the whole life of any pane whose
+    /// shell emits OSC 133: one `CommandMark` (a few bytes) per `C` or
+    /// `D`, bounded in practice by how fast a person can type commands,
+    /// not by anything this field enforces. Named deliberately rather
+    /// than capped: a cap would be dead code with nothing to exercise it
+    /// before the next draft (the kernel's status operations, or the
+    /// server's wiring) calls `take_command_marks` and actually drains
+    /// it.
+    command_marks: Vec<CommandMark>,
+}
+
+/// What a shell reported about a prompt-marked command, from OSC 133
+/// (doc-9 R14; TASK-1.79). Only `C` (output started) and `D` (command
+/// ended) - this task's own scope; `A`/`B` (prompt/input start) are read
+/// by [`command_mark_from`] and dropped, since nothing yet needs them.
+/// Adding a variant for them later is additive. Never the engine's own
+/// `ghostty_vt::terminal::SemanticPromptEvent`/`SemanticPromptKind` -
+/// this is the kernel's own type, so nothing downstream has to depend on
+/// `ghostty-vt`'s shapes to read it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandMark {
+    /// OSC 133 `C`: the command started producing output.
+    OutputStarted,
+    /// OSC 133 `D`: the command ended. `None` when the shell reported no
+    /// exit code (a bare `D`) or one the engine's own OSC parser could
+    /// not read - both report the same way, verified by test - never
+    /// guessed.
+    Ended {
+        /// The command's exit code, if the shell reported one.
+        exit_code: Option<i32>,
+    },
 }
 
 impl Terminal {
@@ -101,6 +136,7 @@ impl Terminal {
             rows_scrolled_off: 0,
             epoch: 0,
             seq: 0,
+            command_marks: Vec::new(),
         })
     }
 
@@ -145,6 +181,11 @@ impl Terminal {
                 Event::PwdChanged(pwd) => {
                     if let Some(cwd) = parse_pwd(&pwd) {
                         self.cwd = Some(cwd);
+                    }
+                }
+                Event::SemanticPrompt(prompt) => {
+                    if let Some(mark) = command_mark_from(prompt) {
+                        self.command_marks.push(mark);
                     }
                 }
                 Event::PtyWrite(_)
@@ -474,6 +515,17 @@ impl Terminal {
     pub fn alternate_screen(&self) -> Result<bool, Error> {
         Ok(self.engine.active_screen().map_err(Error::Engine)? == EngineScreen::Alternate)
     }
+
+    /// Every [`CommandMark`] queued since the last call (doc-9 R14, OSC
+    /// 133; TASK-1.79). Drains what it returns - unlike `cwd`/`title`,
+    /// which are continuous state a later report simply overwrites, this
+    /// is a sequence of discrete occurrences: more than one can arrive
+    /// from a single [`Terminal::write`] call (two `C`s in a row, for
+    /// example), and none of them are lost between two reads just because
+    /// nothing asked in between.
+    pub fn take_command_marks(&mut self) -> Vec<CommandMark> {
+        std::mem::take(&mut self.command_marks)
+    }
 }
 
 /// What a call to [`Terminal::changes_since`] found, before it is turned
@@ -691,6 +743,24 @@ fn read_cursor(snapshot: &Snapshot<'_>) -> Result<Cursor, Error> {
     })
 }
 
+/// Turns one engine-level OSC 133 step into this crate's own
+/// [`CommandMark`], or `None` for a step this task doesn't need
+/// (`PromptStart`/`InputStart` - OSC 133 `A`/`B`). `has_exit_code` is the
+/// engine's own say on whether `exit_code` means anything - a bare `D`
+/// and a `D` with a code the engine's OSC parser could not read both set
+/// it to `false` (verified by test), so trusting it here is already
+/// correct; nothing here second-guesses it.
+fn command_mark_from(event: ghostty_vt::terminal::SemanticPromptEvent) -> Option<CommandMark> {
+    use ghostty_vt::terminal::SemanticPromptKind;
+    match event.kind {
+        SemanticPromptKind::OutputStart => Some(CommandMark::OutputStarted),
+        SemanticPromptKind::CommandEnd => Some(CommandMark::Ended {
+            exit_code: event.has_exit_code.then_some(event.exit_code),
+        }),
+        SemanticPromptKind::PromptStart | SemanticPromptKind::InputStart => None,
+    }
+}
+
 /// Parses the value an `Event::PwdChanged` carries into a plain path.
 ///
 /// `PwdChanged` carries the raw, unvalidated value of whichever of three
@@ -773,7 +843,142 @@ fn uri_from_bytes(bytes: &[u8]) -> String {
 mod tests {
     use steg_sdk::{Rgb, RowId, Underline, Update, Wide};
 
-    use super::{CursorShape, Terminal};
+    use super::{CommandMark, CursorShape, Terminal};
+
+    // --- OSC 133 command marks (doc-9 R14; TASK-1.79) -----------------------
+
+    #[test]
+    fn output_started_mark_on_osc_133_c() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;C\x07");
+
+        assert_eq!(term.take_command_marks(), vec![CommandMark::OutputStarted]);
+    }
+
+    #[test]
+    fn command_ended_with_its_exit_code_on_osc_133_d() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;C\x07\x1b]133;D;0\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![
+                CommandMark::OutputStarted,
+                CommandMark::Ended { exit_code: Some(0) }
+            ]
+        );
+    }
+
+    #[test]
+    fn command_ended_with_no_exit_code_reports_none() {
+        // A bare `D` - some shells send this to close an already-open mark
+        // with nothing more to say (zsh/fish/bash's own integration
+        // scripts all have this path).
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;D\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![CommandMark::Ended { exit_code: None }]
+        );
+    }
+
+    #[test]
+    fn command_ended_with_a_malformed_exit_code_reports_none() {
+        // The engine's own OSC parser treats a code it can't read the same
+        // way it treats no code at all - verified by test, not assumed, so
+        // nothing here needs its own validation beyond trusting the
+        // engine's `has_exit_code`.
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;D;abc\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![CommandMark::Ended { exit_code: None }]
+        );
+    }
+
+    #[test]
+    fn command_ended_fires_with_no_preceding_output_started() {
+        // The engine enforces no ordering between marks ("shells differ in
+        // what they report... handle each event on its own" - the sys
+        // crate's own doc comment on the callback type).
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;D;5\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![CommandMark::Ended { exit_code: Some(5) }]
+        );
+    }
+
+    #[test]
+    fn two_output_started_marks_in_a_row_are_both_kept() {
+        // A shell may redraw the same prompt more than once (the sys
+        // crate's own doc comment: "treat a repeated PROMPT_START as
+        // harmless"); this crate passes each mark through rather than
+        // deduping - idempotency, if wanted, is for whatever reads
+        // `take_command_marks` next, not for this module.
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;C\x07\x1b]133;C\x07\x1b]133;D;7\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![
+                CommandMark::OutputStarted,
+                CommandMark::OutputStarted,
+                CommandMark::Ended { exit_code: Some(7) }
+            ]
+        );
+    }
+
+    #[test]
+    fn a_mark_split_across_two_writes_still_resolves() {
+        // The real engine's own OSC parser carries a partial sequence's
+        // state across two separate `write` calls - exactly the buffering
+        // a hand-rolled byte-scanner over the pty stream would have to
+        // reimplement for itself (decision-3's own argument for choosing
+        // an engine with a real parser in the first place).
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]133;D;");
+        term.write(b"9\x07");
+
+        assert_eq!(
+            term.take_command_marks(),
+            vec![CommandMark::Ended { exit_code: Some(9) }]
+        );
+    }
+
+    #[test]
+    fn take_command_marks_drains_what_it_returns() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]133;C\x07");
+
+        let first = term.take_command_marks();
+        let second = term.take_command_marks();
+
+        assert_eq!(first, vec![CommandMark::OutputStarted]);
+        assert_eq!(second, vec![]);
+    }
+
+    #[test]
+    fn a_shell_with_no_prompt_marks_produces_no_command_marks() {
+        // AC #4 of the parent, now-split task: nothing is guessed. Plain
+        // output with no OSC 133 at all produces an empty queue, not a
+        // default or inferred mark.
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"ordinary output, no escape sequences\n");
+
+        assert_eq!(term.take_command_marks(), vec![]);
+    }
 
     #[test]
     fn writing_plain_text_produces_one_run() {

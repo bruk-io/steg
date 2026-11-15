@@ -1,10 +1,11 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand, detach, and stop when idle'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T21:22:00Z'
+updated_date: '2026-11-15T23:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.77-server-start-on-demand-detach-and-stop
 ---
 
 ## Description

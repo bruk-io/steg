@@ -20,4 +20,35 @@ steg-sdk = { path = "../sdk", default-features = false }
 # bytes and reading cells back is pure computation; the network fetch and the
 # Zig link happen at build time, before any of the kernel's own code runs
 # (.cargo/config.toml, mise.toml, third_party/README.md).
-ghostty-vt = "0.8"
+#
+# Pinned to `=0.8.0`, not a "0.8" range (TASK-1.79). What this actually
+# constrains: semver build metadata (the `+ghostty.1.4.0-main.83fb956`
+# suffix) is never part of a version *requirement* - cargo ignores it when
+# matching and warns if it's written here (confirmed: writing the full
+# string with the suffix produces "includes semver metadata which will be
+# ignored, removing the metadata is recommended to avoid confusion"), so
+# the real constraint `=0.8.0` enforces is on the numeric triple alone. A
+# caret range ("0.8") would let an unpatched future `0.8.1` or later
+# satisfy this requirement; `=0.8.0` refuses any version but `0.8.0`
+# itself, patched or not.
+#
+# Why the *patched* 0.8.0 is still the one selected, not crates.io's real
+# one: the workspace root `Cargo.toml`'s `[patch.crates-io]` entry replaces
+# every resolution of `ghostty-vt` from crates.io with the vendored copy
+# at `third_party/ghostty-vt-patched/` outright - this requirement line
+# only has to accept whatever version that local copy declares (its own
+# `Cargo.toml` still says `0.8.0+ghostty.1.4.0-main.83fb956`, unchanged).
+#
+# What would make the patch stop applying, confirmed by experiment (not
+# assumed): if the vendored copy's own declared version ever drifted
+# outside what `=0.8.0` accepts (tried bumping it to a fake `0.8.1+test`),
+# cargo prints a warning naming the patch and saying it "was not used in
+# the crate graph", and silently falls back to crates.io's real,
+# *unpatched* `0.8.0` instead - the same would happen if the
+# `[patch.crates-io]` entry were removed or misconfigured. How to notice,
+# beyond that warning (which is easy to miss in a long build log): the
+# fallback is still unpatched `ghostty-vt`, which has no
+# `Event::SemanticPrompt` variant, so `crates/kernel/src/terminal.rs`'s own
+# code referencing it fails to *compile* - verified by running the
+# experiment above to completion, not stopping at the warning.
+ghostty-vt = "=0.8.0"

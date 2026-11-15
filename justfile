@@ -104,6 +104,11 @@ test-tools:
 # test, so without this second run the local-socket provider's own tests (TASK-1.70) would
 # never execute under `just check` at all - proving the package both with the feature off
 # (the default every other consumer gets) and on (what its own tests need), each alone.
+#
+# steg-server alone is tested a second time the same way, with `--features race-fixture` -
+# the same reason: off by default (a review of TASK-1.44 found the race test's own fixture
+# binary should not build for an ordinary `cargo build`), so without this second run the
+# race test (AC #2) would never execute under `just check` either.
 check-packages: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
@@ -114,6 +119,9 @@ check-packages: zig-deps-seeded
         {{quiet}} "test ($pkg)" -- cargo test -p "$pkg"
         if [ "$pkg" = steg-sdk ]; then
             {{quiet}} "test (steg-sdk, local-socket)" -- cargo test -p steg-sdk --features local-socket
+        fi
+        if [ "$pkg" = steg-server ]; then
+            {{quiet}} "test (steg-server, race-fixture)" -- cargo test -p steg-server --features race-fixture
         fi
     done
 

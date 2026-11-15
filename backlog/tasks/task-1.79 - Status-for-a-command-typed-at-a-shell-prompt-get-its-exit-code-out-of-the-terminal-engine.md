@@ -3,11 +3,11 @@ id: TASK-1.79
 title: >-
   Terminal: surface a prompt-marked command's start and end, with its exit code,
   from the engine
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:43:00Z'
+updated_date: '2026-11-15T23:16:00Z'
 labels:
   - size-5
   - review-passed

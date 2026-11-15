@@ -1,11 +1,11 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:34:00Z'
+updated_date: '2026-11-15T23:15:00Z'
 labels:
   - size-3
   - review-passed

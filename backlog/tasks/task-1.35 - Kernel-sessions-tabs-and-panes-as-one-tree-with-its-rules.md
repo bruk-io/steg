@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:18:00Z'
+updated_date: '2026-11-15T03:29:00Z'
 labels:
   - size-3
   - review-passed
@@ -227,6 +227,16 @@ Nits (4):
 2. [Evidence, Nit] Session::set_colour (session.rs:71) and Session::set_label (session.rs:60) have no test anywhere in the diff - only Tab's label is exercised indirectly (via Tree::new_tab) and Pane::set_label is tested directly. The implementation notes claim the 22 kernel unit tests cover "labelling... of sessions and tabs (AC #1)" and "colour assignment... (AC #3)," which overclaims: AC #3's "its colour can be changed" and AC #1's session-labelling are implemented but unverified by any test.
 3. [Rust, Nit] sdk/src/ids.rs's format_raw uses `{raw:08x}`, which is a minimum width, not a true fixed width: a raw value above u32::MAX prints more than 8 hex digits, so the doc comment's and the plan's "fixed-width hex string" claim isn't actually enforced for the type's full u64 range. Unlikely to be hit before the counter mints four billion ids, but worth noting.
 4. [Compliance, Nit] Tree::new_tab, Tree::new_pane and Tree::move_tab (tree.rs) are not in the plan's file list or order of work. The notes explain the departure (a pub(crate)-only Tab::add_pane/Session::add_tab/Session::move_tab failed the dead_code lint with no in-task production caller) and the three methods are tested and don't pre-empt TASK-1.36: new_pane only appends to the placeholder flat Vec<Pane> that 1.36's own plan note already expects to replace with a split-based layout tree, so its signature will be rewritten, not inherited. Flagged for --plan-matched=no since it is a real departure even though explained.
+
+---
+
+created: 2026-11-15T03:29:00Z
+
+---
+
+From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head 8b9cafe with four nits. The board takes no recorded check on a task whose review has passed, so the worker fixed the nits and pushed without asdlc record-check; the check at the new head is pull request 15's CI run 43672441387 (just check: fmt, lint, boundaries, licences, affected tests, tool tests, architecture, all ok) on head 461c583. The earlier review does not cover these commits. What changed: new_tab and new_pane check the target exists before minting an id, with a test each that a failed call consumes none; tests for a session's label and colour being changed, at unit level and through Tree::session_mut; the id format's comment says at least 8 digits, with tests; and two gaps the worker found while listing coverage, now tested: close_session on a real session, and a tab's last pane closing the tab while the session keeps another tab.
+
+Coverage, clause by clause, as the worker states it at 461c583. AC1: sessions created, labelled, reordered, closed and tabs created, labelled, reordered, closed each have a tree-level test (new_session_sets_the_label_given_to_it, session_mut_lets_a_caller_change_a_sessions_label_and_colour, move_session_reorders_and_rejects_an_out_of_range_position, close_session_removes_it_directly, new_tab_adds_a_labelled_tab_with_one_pane_already_in_it, move_tab_reorders_a_sessions_tabs, closing_one_of_several_tabs_cascades_no_further_than_it_should); exactly one parent has no test and rests on the data structure, each thing being owned by one Vec. AC2: both clauses tested at unit and tree level. AC3: next colour not in use, and colour can be changed, both tested at unit and tree level. AC4: a pane has a kind is tested; nothing assumes a terminal is by inspection, no match on PaneKind outside its definition. AC5: no I/O is by inspection and the manifest; the boundaries check is the CI run. AC6: tested at unit and tree level. AC7: by inspection, the five types are defined only under crates/sdk.
 
 ---
 <!-- COMMENTS:END -->

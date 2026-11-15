@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:49:00Z'
+updated_date: '2026-11-15T03:50:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-8
 asdlc_branch: task-1.38-kernel-resolve-a-session-tab-or-pane
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '218939872684'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -300,3 +303,16 @@ build begins and after each meaningful step, per the team's testing policy.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-15 (R10), doc-2 section 4 and doc-16 (R105) by @bruk.o: ok. The four kinds of match are tried in order and stop at the first that matches anything; a miss or an ambiguous match is an error listing candidates; one validate function is called by every way of setting a label, before any id is minted. Nothing new goes in the sdk: a target crosses the API as text, and mapping the kernel's error to a wire error is TASK-1.43's. For the engineer: what a pane's position means once a tab's panes are a tree of splits is not written anywhere; the plan uses the order the tab lists its panes in, and the orchestrator proposes that be the order of the layout tree's leaves, first child before second.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T03:50:00Z
+
+---
+
+Plan approved by @bruk (218939872684, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

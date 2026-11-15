@@ -4,7 +4,7 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -31,3 +31,9 @@ doc-9 R19; doc-10 R23, R29; doc-13 R59 (the view is written fresh, with nothing 
 - [ ] #4 The terminal font, size, line height, ligatures and fallbacks can be set
 - [ ] #5 A terminal whose size was set by another client is drawn at that size from the top left, padded or cropped, never rescaled
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Carried (2026-11-15): Terminal::resize and the pty are given a pixel cell size of zero (unknown) everywhere today (TASK-1.39, 1.40, 1.76). This task's terminal view is the first thing that knows real pixel dimensions; its plan says how they reach the server and the pty.
+<!-- SECTION:NOTES:END -->

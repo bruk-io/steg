@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:12:00Z'
+updated_date: '2026-11-15T19:15:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -346,6 +346,51 @@ without a `use` beyond `std`; `steg-server`'s existing `serde_json` allowance al
 Plan checked against doc-10 (R22, R80), decision-9, doc-2 and doc-16 by @bruk.o: ok to build as written if the engineer confirms three things the plan itself raises. (1) Overrides are kept in memory for the life of the server, which is what decision-9 point 2 says ('lasts for this run of the server') and point 1 requires ('there is no separate settings file'); the consequence is that an override is lost when the server stops, including an on-demand server's 30-second idle stop (doc-8 R99) and a reboot, so acceptance criterion 2 holds only while the server keeps running. (2) The one setting seeded is 'appearance' (system, light, dark; R24). (3) doc-2 gains a 'setting' noun with list, show, set and unset; the orchestrator makes that edit once approved. Layering matches doc-16: the list of settings in the sdk, the rule in the kernel with no I/O, the remembering in the server. No new dependency.
 
 doc-2 changed by @bruk.o on the engineer's approval of this plan (2026-11-15): section 3 gains the noun 'setting' (M1), section 8 gains setting list, show, set and unset, as the plan proposed. The engineer also confirmed overrides are kept in memory for the life of the server (decision-9) and 'appearance' as the first setting.
+
+Check passed: `cargo test -p steg-sdk` exited 0 at 2026-11-15T19:15:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 151 lines:
+
+```text
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... ok
+test wire::frame::tests::an_oversized_declared_length_is_refused_before_anything_past_it_is_read ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::frame_constructors_set_the_expected_kind_and_stream ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+
+test result: ok. 125 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/connection.rs (target/debug/deps/connection-51dcfc64c8e8cbf8)
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-0e096e596b4f4ad1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

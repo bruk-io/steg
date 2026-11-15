@@ -1,10 +1,11 @@
 ---
 id: TASK-1.43
 title: 'Server: the API description, its methods and its self-description'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:34:00Z'
+updated_date: '2026-11-15T13:52:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -17,6 +18,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-13
+asdlc_branch: task-1.43-server-the-api-description-its-methods
 ---
 
 ## Description

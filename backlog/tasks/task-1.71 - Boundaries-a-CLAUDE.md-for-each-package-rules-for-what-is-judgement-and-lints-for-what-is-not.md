@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:41:00Z'
+updated_date: '2026-11-15T03:47:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -918,6 +918,14 @@ Everything else checked out:
 - CI (the "check" workflow) is green on the pull request's head commit (9f9585e).
 - AC#6 is answered in the plan/notes for the orchestrator, and plugins/ is untouched in this branch, confirmed with git diff --stat.
 - The just-recipes-not-cargo-test-p departure in the CLAUDE.md files matches root CLAUDE.md's own instruction and is explained in the notes.
+
+---
+
+created: 2026-11-15T03:47:00Z
+
+---
+
+From @bruk.o: commits after the hand-back. The worker handed this back to review at an earlier head, then, on the orchestrator's instruction and before any reviewer claimed it, merged origin/main (pull requests 15 and 18) and switched every old just recipe name to the new one. The board takes no recorded check on a task that is In Review, so the check at the new head 5ba2098 is pull request 17's CI run 43673858878 (success), plus a just check the worker ran unrecorded. Conflicts resolved in .claude/rules/architecture.md, crates/kernel/Cargo.toml and the justfile. The reviewer is asked to review at 5ba2098 and to confirm no old recipe name remains in this change's files.
 
 ---
 <!-- COMMENTS:END -->

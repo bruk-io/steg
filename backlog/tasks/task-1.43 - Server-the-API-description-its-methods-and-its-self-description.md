@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:18:00Z'
+updated_date: '2026-11-15T14:26:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -269,6 +269,12 @@ are the dispatch task's (see its notes).
   and `just deny` passing.
 - `just check` recorded in full at the end.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan for the narrowed task checked against doc-8 (R36, R37), doc-16 (R101, R105, R106) and decision-1 by @bruk.o: ok. All 38 methods of doc-2 section 8 described once, with 14 events and 10 errors carrying their exit statuses; validation in the sdk with no I/O; serde added to the sdk and named in boundaries.toml; the sdk's identifiers, colour, pane kind, orientation, ratio and layout given their wire form with round-trip tests; one record type, SessionRecord, since sessions are the only records the kernel can fill today, with a test that its fields are the ones the description declares. Records for tabs and panes arrive with the tasks that supply their fields. A ratio travels as a number between 0 and 1 and is held in thousandths, rounded on the way in.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

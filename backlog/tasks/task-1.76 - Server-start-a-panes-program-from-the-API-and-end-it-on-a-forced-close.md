@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:19:00Z'
+updated_date: '2026-11-15T22:23:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1407,6 +1407,37 @@ error: recipe `test` failed with exit code 101
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 101 at 2026-11-15T22:23:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... FAILED
+
+failures:
+
+---- runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap stdout ----
+
+thread 'runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap' (14640237) panicked at crates/server/src/runtime.rs:1383:13:
+assertion `left == right` failed
+  left: 10
+ right: 20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,11 +3,11 @@ id: doc-10
 title: 'Spec: app'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T01:15:00Z'
+updated_date: '2026-11-15T01:24:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
-- Rests on: decision-10 (the design is the artifact), decision-5 (what a window is), decision-7 (status), decision-8 (session colour), decision-9 (settings). The decision records are in pull request 5 until it merges.
+- Rests on: decision-10 (the design is the artifact), decision-5 (what a window is), decision-7 (status), decision-8 (session colour), decision-9 (settings).
 - Status: draft. Reorganised from the single spec on 2026-11-15; every requirement here was moved without rewording, except that references to documents since retired now point at the decision records and at doc-10.
 
 ## Scope
@@ -99,7 +99,7 @@ The orchestrator chose these to make a rule concrete. Bruk has seen the design b
 - [ ] More tabs than fit the bar along the top, many session chips, reordering tabs, and moving a pane to another tab are not designed. Bruk parked them on 2026-11-14.
 - [ ] Whether a session can be ended from the bar along the top, where a session chip has no close button. Today only the palette can.
 - [ ] Whether GPUI can draw the six-section ring, a gradient fixed to its track, and the failure flakes within R19's budget. Not established.
-- [ ] Workers and reviewers cannot yet read the artifact. An intent for that is open on the asdlc repository as pull request 56.
+- [ ] Workers and reviewers cannot yet read the artifact. The intent to fix that is accepted on the asdlc repository (`intent/workers-read-artifacts.md`); the work is not done.
 
 ## Out of scope
 

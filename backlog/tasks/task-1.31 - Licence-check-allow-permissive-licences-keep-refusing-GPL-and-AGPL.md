@@ -21,6 +21,8 @@ asdlc_branch: task-1.31-licence-check-allow-permissive-licences
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c2afd9822006'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -197,6 +199,15 @@ created: 2026-11-15T02:36:00Z
 ---
 
 Plan approved by @bruk (c2afd9822006, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:40:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.31: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

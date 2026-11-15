@@ -3,7 +3,7 @@ id: doc-2
 title: CLI specification
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T00:40:00Z'
+updated_date: '2026-11-15T00:48:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python"
 - Spec: doc-1. This document is design decision 1 in its section 7, and gives R32 to R35 and R63 their concrete form.
@@ -54,6 +54,7 @@ The description describes itself: `api.list` and `api.show` are methods like any
 | `server` | The steg server on this host | M1 |
 | `event` | Something the server reports as it happens | M1 |
 | `api` | The API's own description, and a way to call any method | M1 |
+| `client` | One connection to the server: a window of the app, a CLI call, a plugin | M1 |
 | `config` | The user's configuration | M2 |
 | `plugin` | A Python plugin the config lists | M2 |
 | `action` | A named operation, built in or from a plugin | M2 |
@@ -114,6 +115,10 @@ session                     for a session
 
 For `new`, the target is the parent the new thing is created in. `steg tab new work` creates a tab in the session labelled work.
 
+Focus is a path down the server's tree (doc-1, R85): `pane focus` makes the pane current in its tab and its tab current in its session, and `tab focus` makes the tab current in its session. Neither changes what any client views or which session a window shows (R88).
+
+`session focus` is different in kind: which session a window shows belongs to the app, so it is a request to one client to show that session. With `--client` it goes to that client. Without, it goes to the app's client when exactly one is connected, as in Rex; with none, or more than one, it fails with status 3 and lists them. A client is named like anything else: by identifier, label, position or identifier suffix.
+
 One exception: with `--direction`, the target of `pane focus` is the pane the move starts from, and the pane that gains focus is its neighbour. At the edge of the layout focus does not move and the command exits 0; `--wrap` continues from the other side.
 
 ### Context
@@ -173,10 +178,11 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | `--timeout <seconds>` | `wait`, `watch` | Give up after this long, with status 1 |
 | `--by <cells>` | `pane resize` | How far to move the border, in character cells |
 | `--with <target>` | `pane swap` | The pane to exchange places with |
-| `--all` | `event watch` | Every session on the host, not just the target's |
+| `--all` | `event watch`, `client list` | Every session on the host, not just the target's; or command line clients as well |
 | `--force` | `close`, `server stop` | Do it even though programs are still running |
 | `--focus`, `--no-focus` | `session new`, `tab new`, `pane split` | Whether the new thing takes focus. It does by default |
 | `--wrap` | `pane focus` | With `--direction`, continue from the other side at the edge |
+| `--client <target>` | `session focus` | The client that is asked to show the session |
 
 ## 6. Input, output and exit status
 
@@ -225,14 +231,14 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `session close` | session | `--force` if programs are running |
 | `session move` | session | `--position` |
 | `session set`, `session unset` | session | `--label` |
-| `session focus` | session | |
+| `session focus` | session | A request to a client to show it; `--client` when more than one window is connected |
 | `tab list` | session | The tabs of that session |
 | `tab show` | tab | |
 | `tab new` | session | `--label`, `--cwd`, `--position`, `--focus`, and a program after `--` |
 | `tab close` | tab | `--force` if programs are running |
 | `tab move` | tab | `--position`, `--to` another session |
 | `tab set`, `tab unset` | tab | `--label` |
-| `tab focus` | tab | |
+| `tab focus` | tab | Makes it the current tab of its session |
 | `pane list` | tab | The panes of that tab |
 | `pane show` | pane | Kind, size, working directory, title, running program, and its exit code once it has ended |
 | `pane split` | pane | `--direction`, `--cwd`, `--label`, `--focus`, and a program after `--` |
@@ -249,6 +255,8 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `server start` | none | Stays up with no clients |
 | `server stop` | none | `--force` if sessions exist |
 | `event watch` | session | `--for <event>` to filter on the server; all sessions with `--all`. The only stream in M1 |
+| `client list` | none | Every client connected to the server. Command line clients only with `--all` |
+| `client show` | client | What it is, and the sessions it views |
 | `api list` | none | Every method, one per line |
 | `api show` | method | One method in full |
 | `api call` | method | Parameters as JSON on standard input |
@@ -284,6 +292,7 @@ Decided by Bruk on 2026-11-15. The rule: steg keeps its own grammar and words, a
 - **The server puts its own directory first on `PATH`,** and sets `STEG_BIN_DIR` (section 4). As Rex.
 - **Showing a file in a pane** is flags on `pane split` and `pane set` (section 8), in M2.
 - **Saved hosts** are left for M3.
+- **Focus is a path in the server's tree; a window is the app's** (section 4, and doc-1 R85 to R90). `pane focus` and `tab focus` set the path. `session focus` asks a client to show a session, and there is a `client` noun. As Rex, as far as its documentation shows: its focus commands name no client, and what it asks of the app is addressed to one.
 
 Two details were filled in by the orchestrator to make the answers complete, and are Bruk's to change: that `-q` with `--json` prints the identifiers as a JSON array, and that `api call` takes its parameters as JSON on standard input.
 
@@ -296,7 +305,8 @@ Checked on 2026-11-14 against Rex's own documentation (the pages are listed in d
 | Spellings | A full noun and verb tree, and short forms over it: `rex new` and `rex session new` are one command, as are `rex ls` and `rex session ls` | One spelling for each command | It is what lets the CLI be generated from the API with no table of names |
 | Verb set | Two words for one meaning (`ls` and `list`, `kill` and `close`), plus `inspect`, `rename`, `zoom`, `types`, `add`, `remove` | One verb per meaning, from a closed set | The same reason |
 | Toggles | `rex block zoom` toggles when neither `--on` nor `--off` is given | `pane set --zoomed` and `pane set --no-zoomed` | A toggle's result depends on state the script cannot see |
-| Targets | A flag per level: `-s`, `-w`, `-b`, `-C` for a client, `-S` for a server | One path as the positional, and `--host`. No client noun | One way to write a target |
+| Targets | A flag per level: `-s`, `-w`, `-b`, `-C` for a client, `-S` for a server | One path as the positional, with `--client` and `--host` | One way to write a target |
+| Clients | `rex client ls`, `rex client inspect`; `-C` or `REX_CLIENT`; the app's client is used when exactly one is connected | `client list`, `client show`; `--client`; the same rule. No `STEG_CLIENT`: a pane is not tied to one client | |
 | Target resolution | Identifier, label, position, then identifier suffix; labels ignore case | The same | |
 | Words | `window` and `block` | `tab` and `pane` everywhere | The same words as the app (doc-1, section 4) |
 | Scripting | `rex do` runs an action, a script or inline Lua | No scripting in the CLI; Python plugins use the API | Python runs beside the server, never inside the binary (R72) |

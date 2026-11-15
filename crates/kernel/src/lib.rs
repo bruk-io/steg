@@ -33,7 +33,7 @@ mod tree;
 pub use client::Client;
 pub use error::Error;
 pub use moment::Moment;
-pub use pane::Pane;
+pub use pane::{CommandEnded, CommandOutputStarted, Pane};
 pub use session::{Session, TabClosed};
 pub use setting::Settings;
 pub use tab::{DirectionalFocus, PaneClosed, Tab};

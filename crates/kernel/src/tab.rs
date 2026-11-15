@@ -705,6 +705,12 @@ mod tests {
         }
     }
 
+    fn shell() -> Program {
+        Program::Shell {
+            cwd: "/tmp".to_string(),
+        }
+    }
+
     /// Starts `pane`'s program (so it has a status at all) and immediately
     /// exits it with `exit_code`, stamped with `tick` - the tie-break
     /// `shown_status` tests exercise directly.
@@ -724,6 +730,27 @@ mod tests {
             .unwrap()
             .start_program(command(), tick)
             .unwrap();
+    }
+
+    /// Starts `pane` as an idle shell - no status at all (TASK-1.83).
+    fn idle_shell(tab: &mut Tab, pane: PaneId, tick: u64) {
+        tab.pane_mut(pane)
+            .unwrap()
+            .start_program(shell(), tick)
+            .unwrap();
+    }
+
+    /// Starts `pane` as a shell, then immediately marks a typed command's
+    /// output as started - the only way a shell pane's own status
+    /// becomes `Running` (TASK-1.83).
+    fn running_typed_command(tab: &mut Tab, pane: PaneId, tick: u64) {
+        tab.pane_mut(pane)
+            .unwrap()
+            .start_program(shell(), tick)
+            .unwrap();
+        tab.pane_mut(pane)
+            .unwrap()
+            .note_command_output_started(tick);
     }
 
     fn tab_with_one_pane() -> (Tab, PaneId) {
@@ -1499,5 +1526,44 @@ mod tests {
 
         assert_eq!(tab.shown_status(moment(0)), Some(first));
         assert_eq!(tab.shown_status(moment(600)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_is_none_when_every_pane_is_an_idle_shell() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        idle_shell(&mut tab, first, 0);
+        idle_shell(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), None);
+    }
+
+    #[test]
+    fn shown_status_prefers_a_running_command_pane_over_an_idle_shell() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        idle_shell(&mut tab, first, 0);
+        start_running(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_ranks_a_running_typed_command_exactly_like_a_running_program() {
+        // `CommandRunning` maps onto the same `Status::Running` `rank()`
+        // already ranks - proof, not just construction, that a shell
+        // pane's typed command is ranked no differently (TASK-1.83).
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        running_typed_command(&mut tab, first, 0);
+        finish_or_fail(&mut tab, second, 1, 1); // Failed.
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
     }
 }

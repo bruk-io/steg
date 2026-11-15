@@ -10,6 +10,7 @@ use crate::error::Error;
 use crate::ids::Ids;
 use crate::label;
 use crate::moment::Moment;
+use crate::pane::{CommandEnded, CommandOutputStarted};
 use crate::session::{Session, TabClosed};
 use crate::tab::{DirectionalFocus, Tab};
 
@@ -628,6 +629,60 @@ impl Tree {
         } else {
             Ok(ExitOutcome::Stayed)
         }
+    }
+
+    /// Tells the kernel a typed command started producing output in
+    /// `pane` (OSC 133 `C`; TASK-1.79's `CommandMark::OutputStarted`;
+    /// TASK-1.83) - the shell's own program never exits between
+    /// commands, so this is the operation for "the command the person
+    /// typed has started", not [`Tree::start_program`]/[`Tree::record_
+    /// exit`]. [`Pane::note_command_output_started`] (`crate::pane`)
+    /// decides and reports the outcome; this method only threads `pane`'s
+    /// lookup and the tree's own tick through to it, the same shape
+    /// [`Tree::start_program`] already has.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id.
+    pub fn note_command_output_started(
+        &mut self,
+        id: PaneId,
+    ) -> Result<CommandOutputStarted, Error> {
+        let tick = self.tick();
+        Ok(self
+            .tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?
+            .note_command_output_started(tick))
+    }
+
+    /// Tells the kernel a typed command ended in `pane` (OSC 133 `D`;
+    /// `CommandMark::Ended`; TASK-1.83), with `exit_code` exactly as the
+    /// mark carried it and `now` converted from the caller's own clock
+    /// (the one place real elapsed time enters this call, the same as
+    /// [`Tree::record_exit`]'s own `now` - used only if the exit code is
+    /// `0`, to stamp R83's ten-minute `Finished` deadline).
+    /// [`Pane::note_command_ended`] decides and reports the outcome,
+    /// which already reads the pane's state before mutating it (there is
+    /// no separate read-then-write here to keep in sync).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id.
+    pub fn note_command_ended(
+        &mut self,
+        id: PaneId,
+        exit_code: Option<i32>,
+        now: Moment,
+    ) -> Result<CommandEnded, Error> {
+        let tick = self.tick();
+        Ok(self
+            .tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?
+            .note_command_ended(exit_code, now, tick))
     }
 
     /// Runs a pane's program again, in the same directory, with the same
@@ -1482,10 +1537,10 @@ impl Tree {
 
 #[cfg(test)]
 mod tests {
-    use super::{FocusMove, Focused, Tree};
+    use super::{CommandEnded, CommandOutputStarted, FocusMove, Focused, Tree};
     use crate::moment::Moment;
     use std::time::Duration;
-    use steg_sdk::Colour;
+    use steg_sdk::{Colour, Status};
 
     /// A `Moment` this many seconds after an arbitrary origin - plain
     /// data, no clock, used throughout this module's tests.
@@ -1744,6 +1799,30 @@ mod tests {
     }
 
     #[test]
+    fn note_command_output_started_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.note_command_output_started(steg_sdk::PaneId::from_raw(999)),
+            Err(crate::error::Error::PaneNotFound(
+                steg_sdk::PaneId::from_raw(999)
+            ))
+        );
+    }
+
+    #[test]
+    fn note_command_ended_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.note_command_ended(steg_sdk::PaneId::from_raw(999), Some(0), moment(0)),
+            Err(crate::error::Error::PaneNotFound(
+                steg_sdk::PaneId::from_raw(999)
+            ))
+        );
+    }
+
+    #[test]
     fn a_shell_pane_is_gone_after_its_exit_so_restarting_it_finds_no_pane_at_all() {
         // `Tree::record_exit` already cascaded this pane away (R97: a
         // plain shell closes), so there is no lingering "ended shell" for
@@ -1770,6 +1849,89 @@ mod tests {
             tree.restart_program(second_pane),
             Err(crate::error::Error::PaneNotFound(second_pane))
         );
+    }
+
+    // --- a typed command at a shell prompt (doc-11, decision-7; TASK-1.83) -
+
+    /// A fresh session's one pane, started as a shell - a new session,
+    /// not a split, so its one tab's one pane (index `[0]`) is always
+    /// `pane_id`, the same idiom this module's other status tests use
+    /// (`finish`/`fail`, above).
+    fn shell_pane(tree: &mut Tree) -> (steg_sdk::SessionId, steg_sdk::PaneId) {
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane_id, shell("/tmp")).unwrap();
+        (session_id, pane_id)
+    }
+
+    #[test]
+    fn note_command_output_started_sets_a_shell_panes_status_to_running() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+
+        let outcome = tree.note_command_output_started(pane).unwrap();
+
+        assert_eq!(outcome, CommandOutputStarted::Started);
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), Some(Status::Running));
+    }
+
+    #[test]
+    fn note_command_output_started_on_a_command_pane_through_the_tree_is_ignored() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane_id, command("/tmp")).unwrap();
+
+        let outcome = tree.note_command_output_started(pane_id).unwrap();
+
+        assert_eq!(outcome, CommandOutputStarted::NotAShellPane);
+    }
+
+    #[test]
+    fn note_command_ended_through_the_tree_reports_the_new_status() {
+        let mut tree = Tree::new();
+        let (_, pane) = shell_pane(&mut tree);
+        tree.note_command_output_started(pane).unwrap();
+
+        let outcome = tree.note_command_ended(pane, Some(0), moment(100)).unwrap();
+
+        assert_eq!(outcome, CommandEnded::Ended(Status::Finished));
+    }
+
+    #[test]
+    fn note_command_ended_through_the_tree_with_no_exit_code_reports_it() {
+        let mut tree = Tree::new();
+        let (_, pane) = shell_pane(&mut tree);
+        tree.note_command_output_started(pane).unwrap();
+
+        let outcome = tree.note_command_ended(pane, None, moment(0)).unwrap();
+
+        assert_eq!(outcome, CommandEnded::EndedWithNoExitCode);
+    }
+
+    #[test]
+    fn note_command_ended_through_the_tree_with_no_preceding_start_is_ignored() {
+        let mut tree = Tree::new();
+        let (_, pane) = shell_pane(&mut tree);
+
+        let outcome = tree.note_command_ended(pane, Some(5), moment(0)).unwrap();
+
+        assert_eq!(outcome, CommandEnded::Ignored);
+    }
+
+    #[test]
+    fn note_command_ended_through_the_tree_on_a_command_pane_is_ignored() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane_id, command("/tmp")).unwrap();
+
+        let outcome = tree
+            .note_command_ended(pane_id, Some(0), moment(0))
+            .unwrap();
+
+        assert_eq!(outcome, CommandEnded::Ignored);
     }
 
     #[test]
@@ -3567,6 +3729,120 @@ mod tests {
         );
     }
 
+    // --- a typed command's ending rules (TASK-1.83; same rules as TASK-1.41) -
+
+    /// The shell-pane equivalent of `finish`, above: starts a typed
+    /// command in a shell pane that already has a program, and
+    /// immediately ends it with code 0.
+    fn finish_typed_command(tree: &mut Tree, pane: steg_sdk::PaneId) {
+        tree.note_command_output_started(pane).unwrap();
+        tree.note_command_ended(pane, Some(0), moment(0)).unwrap();
+    }
+
+    /// The shell-pane equivalent of `fail`, above.
+    fn fail_typed_command(tree: &mut Tree, pane: steg_sdk::PaneId) {
+        tree.note_command_output_started(pane).unwrap();
+        tree.note_command_ended(pane, Some(3), moment(0)).unwrap();
+    }
+
+    #[test]
+    fn note_input_does_not_end_a_running_typed_command() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+        tree.note_command_output_started(pane).unwrap();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), Some(Status::Running));
+    }
+
+    #[test]
+    fn note_input_ends_a_typed_commands_finished_status() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+        finish_typed_command(&mut tree, pane);
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn note_input_ends_a_typed_commands_failed_status() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+        fail_typed_command(&mut tree, pane);
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        tree.note_input(client, pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn acknowledge_pane_ends_a_typed_commands_finished_status() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+        finish_typed_command(&mut tree, pane);
+
+        tree.acknowledge_pane(pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn acknowledge_pane_ends_a_typed_commands_failed_status() {
+        let mut tree = Tree::new();
+        let (session_id, pane) = shell_pane(&mut tree);
+        fail_typed_command(&mut tree, pane);
+
+        tree.acknowledge_pane(pane).unwrap();
+
+        let pane_ref = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane_ref.status(moment(0)), None);
+    }
+
+    #[test]
+    fn opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched()
+     {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let idle_shell = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(idle_shell, shell("/tmp")).unwrap();
+        let running_command = tree
+            .split_pane(
+                idle_shell,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        tree.start_program(running_command, shell("/tmp")).unwrap();
+        tree.note_command_output_started(running_command).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+
+        tree.focus_pane(idle_shell).unwrap();
+        tree.focus_pane(running_command).unwrap();
+        tree.focus_tab(tab_id).unwrap();
+        tree.focus_direction(idle_shell, steg_sdk::Direction::Right, false)
+            .unwrap();
+
+        let tab = &tree.session(session_id).unwrap().tabs()[0];
+        assert_eq!(tab.pane(idle_shell).unwrap().status(moment(0)), None);
+        assert_eq!(
+            tab.pane(running_command).unwrap().status(moment(0)),
+            Some(Status::Running)
+        );
+    }
+
     #[test]
     fn a_command_panes_full_cycle_and_each_steps_tie_goes_to_the_newer_pane() {
         // `a` runs through start, exit non-zero, input, restart, exit
@@ -3796,5 +4072,30 @@ mod tests {
         // Asked again once every pane's deadline has passed, there is
         // nothing left to schedule for.
         assert_eq!(tree.next_status_deadline(moment(1_600)), None);
+    }
+
+    #[test]
+    fn next_status_deadline_excludes_an_idle_shell_pane() {
+        // An idle shell (no typed command ever started) has no status at
+        // all (TASK-1.83), so it must contribute nothing to the minimum -
+        // the same "no status, nothing to schedule" rule a freshly
+        // created, never-started pane already proves.
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let idle_shell = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(idle_shell, shell("/tmp")).unwrap();
+        let finished_command = tree
+            .split_pane(
+                idle_shell,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        finish(&mut tree, finished_command);
+
+        assert_eq!(
+            tree.next_status_deadline(moment(0)),
+            Some(moment(0).plus(Duration::from_secs(600)))
+        );
     }
 }

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:01:00Z'
+updated_date: '2026-11-15T16:04:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -42,7 +42,7 @@ doc-8: R36, R37; doc-16 R98, R101. decision-1. Split from TASK-1.43 on 2026-11-1
 
 The carried design (TASK-1.43's notes, comment #2) is the starting point, checked
 against what is actually on `main` now (focus exists; a `Terminal` type exists but no
-pane holds one — TASK-1.40 is what wires it in). Five things in the carried design do
+pane holds one — TASK-1.40 is what wires it in). Three things in the carried design do
 not survive that check unchanged, and this plan resolves each rather than copying it:
 
 1. **`pane.resize` is reclassified from served to not-yet.** Its declared `by` parameter
@@ -64,44 +64,55 @@ not survive that check unchanged, and this plan resolves each rather than copyin
    confirm or overrule, not decided silently. In practice no served arm in this task can
    produce it (nothing here calls into the terminal engine yet), but the match must
    still cover it to compile.
-3. **`api.call`'s own declared parameters collide with `validate`.** `api.call` declares
-   only `target`; `validate` refuses any parameter a method does not declare. A real
-   `api.call` request carries the *target method's* parameters alongside `target`
-   ("nothing is nested under a second key" — the method's own `details`), so calling
+3. **`api.call`'s own declared parameters collide with `validate`, and this plan picks
+   one shape for its answer, not two.** `api.call` declares only `target`; `validate`
+   refuses any parameter a method does not declare. A real `api.call` request carries
+   the *target method's* parameters alongside `target` ("nothing is nested under a
+   second key" — the method's own `details`), so calling
    `validate(&description, &request)` against `api.call`'s own schema first would refuse
    every real call. Dispatch's top-level function special-cases `method == "api.call"`
    **before** the generic validation step: it reads `target` (a string; `BadRequest` if
    absent or not a string), refuses `target == "api.call"` (`BadRequest`: no nested
    calls), builds an inner `Request { method: target, params: request.params minus
-   "target" }`, and *that* inner request is what `validate(&description, &inner)` checks
-   and what the per-noun match dispatches. `api.call`'s own `errors: [BadRequest]` covers
-   the two checks above; the inner call's own errors surface as themselves (so an
-   `api.call` of `pane.split` with a bad `direction` answers the same `BadRequest` a
-   direct `pane.split` call would, not a different error naming `api.call`).
+   "target" }`, validates *that* (`validate(&description, &inner)`), and then — this is
+   the one shape, not a choice left open — **calls `dispatch` again on the inner request
+   and returns that `Response` unchanged as the outer answer.** No `Outcome` variant
+   wraps or re-encodes it: the client reading `api.call`'s answer sees exactly the value
+   the inner method's own call would have produced, not a JSON string of it. `returns:
+   Text` on `api.call`'s own description describes what the CLI prints (doc-2 section
+   3: "the method's result, as JSON" — a rendering rule for TASK-1.49, not a wire
+   transform), and this plan does not change that description entry. `Outcome` gets no
+   `Text(String)` variant in this task: nothing served here produces one (`pane.capture`,
+   the one method whose `returns` is `Text`, is not-yet) — a variant with no producer
+   would say something untrue (rust.md), and a later task adds it when `pane.capture`
+   becomes servable.
 
 ## The method table, re-derived against today's kernel (not copied from TASK-1.43)
 
 "Served" = every field a method's `returns` needs and every kernel operation it calls
-already exists; "not yet" names what it waits on.
+already exists; "not yet" names what it waits on. Counted directly against
+`description().methods`' 38 entries, not by re-tallying prose: **22 served in full, 1
+served for one branch of its parameters and not-yet for the other (`tab.move`), 15 not
+served at all. 22 + 1 + 15 = 38.**
 
 | Method | Served? | Waits on |
 |---|---|---|
-| `session.list`, `.show`, `.new`, `.close`, `.move`, `.set`, `.unset` | Served | — |
-| `session.focus` | Not yet | A client/window to address (TASK-1.42, TASK-1.46) |
-| `tab.list`, `.show` | Not yet | `title`, `shown_status` (TASK-1.39, TASK-1.41) |
-| `tab.new`, `.close`, `.set`, `.unset`, `.focus` | Served | — |
-| `tab.move` | Served for `--position`; `--to` (another session) answers `NotImplementedYet` | A kernel operation to move a tab between sessions — `Tree` has none |
-| `pane.split`, `.close`, `.move`, `.set`, `.unset`, `.focus`, `.swap` | Served | — |
-| `pane.resize` | Not yet (reclassified, see decision 1) | The tab's own size, tracked (TASK-1.42) |
-| `pane.list`, `.show` | Not yet | `title`, `cwd`, `program`, `exit_code`, `status` (TASK-1.39–1.41) |
-| `pane.send`, `.capture`, `.wait` | Not yet | The terminal engine wired to a pane (TASK-1.39, TASK-1.40) |
-| `server.show`, `.start`, `.stop` | Not yet | The server's own socket and lifecycle (TASK-1.44) |
-| `event.watch` | Not yet | Events (TASK-1.46) |
-| `client.list`, `.show` | Not yet | A client model (TASK-1.42) |
-| `api.list`, `.show`, `.call` | Served | — |
+| `session.list`, `.show`, `.new`, `.close`, `.move`, `.set`, `.unset` (7) | Served | — |
+| `session.focus` (1) | Not yet | A client/window to address (TASK-1.42, TASK-1.46) |
+| `tab.list`, `.show` (2) | Not yet | `title`, `shown_status` (TASK-1.39, TASK-1.41) |
+| `tab.new`, `.close`, `.set`, `.unset`, `.focus` (5) | Served | — |
+| `tab.move` (1) | Served for `--position`; its `--to` branch (moving the tab to another session) answers `NotImplementedYet` | A kernel operation to move a tab between sessions — `Tree` has none |
+| `pane.split`, `.close`, `.move`, `.set`, `.unset`, `.focus`, `.swap` (7) | Served | — |
+| `pane.resize`, `.list`, `.show`, `.send`, `.capture`, `.wait` (6) | Not yet | The tab's size (TASK-1.42); `title`/`cwd`/`program`/`exit_code`/`status` (TASK-1.39–1.41); the terminal engine wired to a pane (TASK-1.39, TASK-1.40) |
+| `server.show`, `.start`, `.stop` (3) | Not yet | The server's own socket and lifecycle (TASK-1.44) |
+| `event.watch` (1) | Not yet | Events (TASK-1.46) |
+| `client.list`, `.show` (2) | Not yet | A client model (TASK-1.42) |
+| `api.list`, `.show`, `.call` (3) | Served | — |
 
-25 served (counting `tab.move`'s `--position` branch as served and its `--to` branch as
-the one per-call, not whole-method, `NotImplementedYet`), 13 not-yet.
+**22 fully served + 1 partial (`tab.move`) = 23 methods with a real dispatch arm. 15
+methods are wholly not-yet, and `tab.move --to` is one further per-call
+`NotImplementedYet`, for 16 total cases that answer it** — the number the completeness
+test (below) asserts directly against this table, not against this count restated.
 
 **Accepted-but-not-fully-meaningful, documented rather than hidden** (every one of these
 is still a *served* arm — it changes the tree correctly on every field it can act on; it
@@ -160,6 +171,11 @@ done by putting the previous focus back")
   module, following its existing style (build a tree, act, assert the one field moved
   and nothing else did).
 
+Both additions are deliberately event-free, carrying no eventing of their own — exactly
+so TASK-1.46 can *wrap* them (fire `pane.focused` around `set_tab_current_pane`, and
+whatever event a zoom change gets around `tab_of_pane`'s callers) rather than replace
+them when events arrive.
+
 ## Where dispatch lives, and its signature
 
 In `steg-server` (R98): it needs `&mut Tree`, which the sdk may never depend on.
@@ -178,9 +194,23 @@ pub fn dispatch(
 ```
 
 No socket, no I/O, in this signature — `tree` is already in memory, `request` is already
-parsed. TASK-1.45's whole remaining job is building a `Context` from
-`STEG_SESSION`/`STEG_TAB`/`STEG_PANE` and calling this unchanged. A target parameter
-present in `request.params` is resolved through `Tree::resolve_session`/
+parsed. **What TASK-1.45 needs**: exactly this function and `Context`, unchanged — its
+whole remaining job is building a `Context` from `STEG_SESSION`/`STEG_TAB`/`STEG_PANE`
+and calling `dispatch` once per request it reads off a connection. **What TASK-1.46
+needs**: `Outcome` and the per-noun `HANDLED` consts as the seam it attaches events to —
+it does not change dispatch's signature or its match; firing `event.watch`'s subscribers
+is a wrapper around the same calls, and the two new `Tree` methods above are shaped for
+exactly that wrapping. **How a not-built arm becomes real** (for TASK-1.39/1.40/1.41/1.42
+and TASK-1.44/1.46, each of which upgrades some of the 15-plus-one not-yet cases above):
+the method's entry in its noun's `HANDLED` const does not move — it is already there,
+since the method is already described and already matched. Only the arm's *body*
+changes, from the shared `not_implemented_yet(name, waiting_on)` call to real logic
+against the kernel fields that task adds. The only test that is deleted is that one
+method's "answers `NotImplementedYet`" case; the completeness tests themselves (which
+assert against `description().methods` and each `HANDLED` const, not against a
+served/not-yet count) keep passing across the swap unchanged.
+
+A target parameter present in `request.params` is resolved through `Tree::resolve_session`/
 `resolve_tab_path`/`resolve_pane_path` against the method's own scope (session/tab/pane);
 one left out (the role is `required: false` and the key is absent) uses the matching
 `context.default_*` id directly, with no string to resolve at all.
@@ -195,7 +225,8 @@ boundary (`1` → kernel `0`; `0` → `BadRequest`, not a kernel call).
 ## Typed results: `Outcome` and `into_value`
 
 `crates/server/src/dispatch/outcome.rs`: one enum covering every served method's result,
-built only from sdk types that already exist:
+built only from sdk types that already exist and that this task actually produces (no
+variant with no producer, per the `api.call` decision above):
 
 ```rust
 pub enum Outcome {
@@ -208,22 +239,22 @@ pub enum Outcome {
     Method(Box<Method>),
     Methods(Vec<Method>),
     Description(Box<Description>),
-    Text(String),
 }
 ```
 
 `Outcome::into_value(self) -> Value`: `Nothing` → `Value::Null`; an id variant →
 `{"id": "<it>"}` (naming decision-1 section 8's flagged rough edge — "the real format
 should name that field" — rather than leaving it unnamed); the record/`Method`/
-`Methods`/`Description` variants → `serde_json::to_value` of the already-typed value;
-`Text` → `Value::String`. `api.list`/`api.show` (with a target) answer `Method`/
-`Methods`, the *full* typed struct, matching what the sdk's own
-`api_method_fields`/exemption comment already documents (`api.list`'s declared `returns`
-is a two-field projection; the actual value is richer, and the sdk's own code already
-says this pair is exempt from the fields-cross-check for that reason — not re-decided
-here). `api.show` with no target answers `Description` — the whole value, same rule,
-same exemption, and its mismatch against a bare `Method`'s declared shape stays
-documented in the method's own `details` text as it already is.
+`Methods`/`Description` variants → `serde_json::to_value` of the already-typed value.
+`api.list`/`api.show` (with a target) answer `Method`/`Methods`, the *full* typed
+struct, matching what the sdk's own `api_method_fields`/exemption comment already
+documents (`api.list`'s declared `returns` is a two-field projection; the actual value
+is richer, and the sdk's own code already says this pair is exempt from the
+fields-cross-check for that reason — not re-decided here). `api.show` with no target
+answers `Description` — the whole value, same rule, same exemption, and its mismatch
+against a bare `Method`'s declared shape stays documented in the method's own `details`
+text as it already is. `api.call` never calls `into_value` itself — see the decision
+above: it returns the inner `dispatch` call's `Response` unchanged.
 
 ## Errors: `map_kernel_error`
 
@@ -263,14 +294,9 @@ error maps" is the forward direction only.
   target present → `description.method(target)` found → `Outcome::Method(Box::new(...))`;
   not found → `ApiError::new(ErrorCode::NoSuchTarget, ...)` (a method name is not an R10
   target, but "named, not found" is still the right code for a client).
-- `api.call`: the rewrite in decision 3 above, then dispatch recurses on the inner
-  request through the same per-noun match (not a second `dispatch` entry point — one
-  function, one match, called once more with the inner `Request`). The outer answer is
-  `Outcome::Text(serde_json::to_string(&inner_value)?)` if `api.call`'s declared `Text`
-  return is to be taken literally (CLI prints the inner result "as JSON" — doc-2 section
-  3); if the inner method's own `Outcome` already converts cleanly to a `Value`, printing
-  its `to_string()` is what "as JSON" means at this layer, with the CLI (TASK-1.49) doing
-  nothing further.
+- `api.call`: the rewrite-and-recurse in decision 3 above. One function, one match,
+  called a second time on the inner `Request`; the outer `Response` is the inner call's
+  `Response`, unchanged.
 
 ## Completeness, both ways (AC #2)
 
@@ -287,11 +313,11 @@ its match handles (the same "two tables, checked by a test" pattern this crate's
 - Every entry in every `HANDLED` names a method that is actually in `description()`
   (AC #2, reverse direction: every arm is described) — catches a typo or a leftover
   arm for a method the sdk no longer declares.
-- For every "not yet" entry (the 13-or-14 above, including `pane.resize` and
-  `tab.move`'s `--to` branch exercised with a request that sets `to`), calling `dispatch`
-  with a minimally valid request for that method returns `Response::Error` with
-  `ErrorCode::NotImplementedYet`, and the message names what it waits on (the "Waits on"
-  column above, verbatim) — never an invented value (AC #2's second half).
+- For each of the 15 whole-method not-yet cases, plus `tab.move` called with `to` set
+  (16 cases total, matching the method table above exactly): calling `dispatch` with a
+  minimally valid request returns `Response::Error` with `ErrorCode::NotImplementedYet`,
+  and the message names what it waits on (the "Waits on" column above, verbatim) — never
+  an invented value (AC #2's second half).
 
 ## Typed results versus declared `fields` (AC #3), scoped honestly
 
@@ -326,8 +352,8 @@ declares") applies only where both sides exist and are comparable:
 - `crates/server/src/lib.rs`: `mod dispatch; pub use dispatch::{dispatch, Context};
   pub use dispatch::outcome::Outcome;` (mod/`pub use` only, per rust.md).
 - `crates/server/src/dispatch/mod.rs` (new): `Context`, the top-level `dispatch`
-  function (the `api.call` rewrite, then the per-noun match), the completeness consts
-  and test.
+  function (the `api.call` rewrite-and-recurse, then the per-noun match), the
+  completeness consts and test.
 - `crates/server/src/dispatch/outcome.rs` (new): `Outcome`, `into_value`.
 - `crates/server/src/dispatch/session.rs`, `tab.rs`, `pane.rs` (new): each noun's served
   arms and its `HANDLED` const (not-yet arms for that noun included, answering
@@ -336,11 +362,12 @@ declares") applies only where both sides exist and are comparable:
 - `crates/server/tests/dispatch.rs` (new, functional — a real `Tree`, no doubles, per
   testing-rust.md): per-method tests for every served arm, the completeness tests both
   ways, the kernel-error-mapping test, the `Outcome`-versus-`fields` cross-check, the
-  position-conversion boundary tests, the `api.call` rewrite tests (including refusing
-  `api.call` of `api.call`, and calling `pane.split` through `api.call` and getting the
-  same answer a direct call would), the `--no-focus` capture-and-restore tests for
-  `pane.split` and `tab.new`, and two end-to-end scenarios (split → set label → close a
-  session; `tab.new --no-focus` leaving the original tab current).
+  position-conversion boundary tests, the `api.call` rewrite-and-recurse tests
+  (including refusing `api.call` of `api.call`, and calling `pane.split` through
+  `api.call` and getting byte-for-byte the same `Response` a direct call would), the
+  `--no-focus` capture-and-restore tests for `pane.split` and `tab.new`, and two
+  end-to-end scenarios (split → set label → close a session; `tab.new --no-focus`
+  leaving the original tab current).
 - `spikes/api-description/` deleted. This leaves decision-1 sections 3 and 9's citations
   of `carry-one-method`/`measure.py` dangling — flagged on this task's notes once more
   (TASK-1.43 raised it twice already) since decision text changes only via a PR
@@ -358,8 +385,8 @@ declares") applies only where both sides exist and are comparable:
    data-only pieces, each with its own unit tests, before anything calls into a `Tree`.
 5. `crates/server/src/dispatch/{session,tab,pane}.rs` and `mod.rs`'s top-level
    `dispatch`/`Context`/completeness consts: the served arms, the not-yet arms, the
-   `api.call` rewrite, the position conversion. Build incrementally noun by noun
-   (session, then tab, then pane — tab and pane's `--no-focus` cases depend on each
+   `api.call` rewrite-and-recurse, the position conversion. Build incrementally noun by
+   noun (session, then tab, then pane — tab and pane's `--no-focus` cases depend on each
    other's kernel calls being in place first).
 6. `crates/server/tests/dispatch.rs`: every test named in "Files that change" above.
    `just test` (server) green.
@@ -368,15 +395,14 @@ declares") applies only where both sides exist and are comparable:
 
 ## Risks
 
-- **This plan is large for one review.** It touches a kernel addition, an sdk error
-  addition, and the whole of dispatch. If the engineer agrees, a natural split is **(A)**
-  `Context`, `Outcome`/`into_value`, `map_kernel_error`, the completeness tests both
-  ways with every arm answering `NotImplementedYet`, `api.list`/`.show`/`.call`, and
-  spike deletion — provable with no kernel change beyond the two `Tree` additions;
-  **(B)** the kernel-backed session/tab/pane served arms, the `SessionRecord` cross-check
-  through a real `dispatch` call, and the `--no-focus` capture-and-restore behaviour.
-  Noted for the engineer's decision; this plan is written for the task as assigned and
-  does not resize it.
+- **This plan is large for one review — flagged explicitly, not only here.** A natural
+  split, if the engineer agrees: **(A)** `Context`, `Outcome`/`into_value`,
+  `map_kernel_error`, the completeness tests both ways with every arm answering
+  `NotImplementedYet`, `api.list`/`.show`/`.call`, and spike deletion — provable with no
+  kernel change beyond the two `Tree` additions; **(B)** the kernel-backed
+  session/tab/pane served arms, the `SessionRecord` cross-check through a real
+  `dispatch` call, and the `--no-focus` capture-and-restore behaviour. This plan is
+  written for the task as assigned and does not resize it.
 - **The position conversion (1-based wire, 0-based kernel) is a one-line bug waiting to
   happen.** Mitigated by a dedicated boundary test on each side, not folded into a
   general "move works" test.
@@ -397,9 +423,9 @@ declares") applies only where both sides exist and are comparable:
   an unknown method and an undeclared parameter).
 - **AC #2** (every described method has an arm and every arm is described, both ways by
   a test; a not-built method's own distinct error naming what it waits on): the
-  completeness tests described above, both directions; the not-yet-arm tests checking
-  `ErrorCode::NotImplementedYet` and the message text for each of the 13-or-14 not-yet
-  methods.
+  completeness tests described above, both directions; the 16 not-yet-case tests
+  checking `ErrorCode::NotImplementedYet` and the message text, matching the method
+  table's count exactly.
 - **AC #3** (every served method's result serialises to exactly its declared fields):
   the `SessionRecord`-versus-`session.show`/`session.list` cross-check through a real
   `dispatch` call; the `Identifier`/`Nothing` shape tests for every other served method;

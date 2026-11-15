@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:40:00Z'
+updated_date: '2026-11-15T02:41:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
 asdlc_branch: task-1.35-kernel-sessions-tabs-and-panes-as-one
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'f3e4e6873d40'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -134,3 +137,16 @@ Plan held by @bruk.o, not sent for approval: it hand-rolls ids, colours and erro
 
 Revised plan checked against doc-15 and doc-16 by @bruk.o: ok. Id types, the colour set and pane kinds are in the sdk; minting, colour choice (R109) and the tree are in the kernel. It names the types the layout, focus and target tasks build on. It cannot be built until TASK-1.69 merges.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T02:41:00Z
+
+---
+
+Plan approved by @bruk (f3e4e6873d40, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

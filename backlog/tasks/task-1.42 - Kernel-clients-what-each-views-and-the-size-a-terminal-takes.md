@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:07:00Z'
+updated_date: '2026-11-15T17:27:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -23,7 +23,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '571c32803ab2'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
 asdlc_reviewer: bruk.r1
@@ -635,6 +635,174 @@ Updated clause list (adds to the previous notes' mapping):
 - AC #1 "focus never changes": connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus (rebuilt, proven to bite).
 - AC #3 "terminal takes the latest's declared size" (no-op cases): note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size, reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size.
 - Cleanup on close (two distinct tabs/clients): closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it, closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab.
+
+Check passed: `just test` exited 0 at 2026-11-15T17:15:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.4s)
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check FAILED: `just test` exited 101 at 2026-11-15T17:16:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::every_row_id_grows_and_is_never_reused_for_different_content ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus stdout ----
+
+thread 'tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus' (7217532) panicked at crates/kernel/src/tree.rs:2346:9:
+assertion `left == right` failed: after view_pane
+  left: [(SessionId(0), TabId(1), TabId(1), PaneId(3)), (SessionId(0), TabId(1), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+ right: [(SessionId(0), TabId(4), TabId(1), PaneId(3)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check FAILED: `just test` exited 101 at 2026-11-15T17:16:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::a_column_changing_resize_retires_every_id_from_before_it ... ok
+test terminal::tests::every_row_id_grows_and_is_never_reused_for_different_content ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus stdout ----
+
+thread 'tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus' (7224642) panicked at crates/kernel/src/tree.rs:2347:9:
+assertion `left == right` failed: after view_pane
+  left: [(SessionId(0), TabId(4), TabId(1), PaneId(2)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+ right: [(SessionId(0), TabId(4), TabId(1), PaneId(3)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:18:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.5s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.0s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:20:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 36f1c599061b:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.9s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.9s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 30, 23 without the Asdlc-Worker trailer.
+
+Fixed the second review finding (whole_focus never read session.current_tab(), so the focus test could only catch half the fault space) and looked over every other "nothing changes"/"drops X" test in the diff as asked.
+
+whole_focus (crates/kernel/src/tree.rs) now captures, per row, (session, session's current_tab, this tab, this tab's current pane) - previously it omitted session.current_tab() entirely. Proved both halves bite, each its own recorded failing run, reverted after recording:
+- A scratch `self.focus_tab(owning_tab)` inside view_pane moved only the session's current tab (the fixture starts with a different tab current, so this was a real change, not a same-value no-op) - failed at "after view_pane" with the session's current_tab column differing.
+- A scratch `tab.focus(pane)` (via Tab::focus directly, not Tree::focus_pane, which would also move the session) inside view_pane moved only the owning tab's current pane - failed at "after view_pane" with the pane-current column differing.
+
+Audited every other test in the diff claiming "never"/"nothing changes"/"drops": two over-claimed what they verified, since the ids involved are retired for good and nothing could ever behaviourally observe a stale record for them either way.
+- closing_a_tab_drops_its_declared_size_record_from_every_client previously "proved" its claim by redeclaring on a different, surviving tab - which can't distinguish a purged record from a merely-unreachable one. Now asserts Client::declared_size(first_tab) directly (pub(crate), same crate as the test module).
+- closing_a_session_drops_every_clients_attachment_and_activity_for_it never checked the "activity" half of its own name. Now asserts Client::activity_in(session_id) directly, both Some before closing and None after.
+Everything else checked (viewing_alone_never_makes_a_client_latest, declare_size_never_fails_the_floor, the note_input no-op tests, the other closing_* tests) already asserts on a real, live derived value (latest_client, a declare_size Result, a surviving pane/tab's actual state) that could not pass vacuously - no further changes needed there.
+
+Merged origin/main twice: TASK-1.74's code changes (clean), then TASK-1.70's own ClientId/ClientKind definitions (add/add + content conflict in crates/sdk/src/ids.rs and client_kind.rs) - resolved by keeping mine as the designated canonical copy, folding in one improved doc-comment line from theirs about why ClientId lives in ids.rs rather than wire/.
+
+Check recorded: just check at the merged head (36f1c59), full suite green including steg-sdk's new local-socket feature tests from TASK-1.70's merge. Per @bruk's confirmation, PR #29's CI failure at this head is an account billing block (job never started, no steps run), not a code issue - not chased further; the recorded just check is the evidence.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -683,6 +851,34 @@ Everything else checked clean: ClientId/ClientKind mirror SessionId/PaneKind wit
 
 author: @bruk.r1
 created: 2026-11-15T17:07:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:13:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Reviewed at head f9ec800 (PR #29, CI green at that exact SHA). Diff against b99b850 (prior review head) is crates/kernel/src/tree.rs only; read it in full, line by line.
+
+All four nits from the prior review are fixed with real outcome assertions, not just call checks: note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size; reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size; closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it and closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab; stop_viewing's doc comment now matches its unconditional reapply_latest call.
+
+The prior Important finding (the focus test was structurally unable to fail: one tab, one pane) is genuinely fixed for pane-level focus: the rebuilt connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus uses two sessions, each with two tabs of two panes, deliberately unfocuses the pane the client acts on, and the worker's recorded run (injecting `focus_pane` into view_pane, exit 101, failure at "after view_pane", then reverted) is honest proof that this half of the check bites.
+
+[Bugs, Important] crates/kernel/src/tree.rs:2236 (helper `whole_focus`, :2222) The new helper's own doc comment claims to capture "every one of tree's sessions' current tab and every tab's current pane," but its body only yields `(session.id(), tab.id(), tab.current())` for every tab - it never calls `session.current_tab()`. Session-level current-tab is a distinct, separately-set field (session.rs:27, set via Tree::focus_tab/focus_pane -> Session::set_current_tab), not derivable from tab.current(). The plan's own PROOF section for this test says it "asserts the tree's focus path (current_tab, current_pane) is unchanged throughout" - decision-5 point 1 makes that path session -> current tab -> current pane, so leaving current_tab out of the captured state asserts only half the path, every time. I confirmed this bites: injecting a fault into view_pane that calls session.set_current_tab (moving session_a's current tab from tab_a2 to tab_a1, touching no tab's current pane) left the test passing unchanged (cargo test -p steg-kernel, not a recorded just-test check - a probe only, reverted after). This is the same shape of gap the prior review found (a test for this exact invariant that cannot detect a real class of the violation it claims to rule out), now on the other half of the focus path; the worker's own recorded failing run only exercised the pane-level half.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:27:00Z
 
 ---
 

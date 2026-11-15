@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:29:00Z'
+updated_date: '2026-11-15T02:36:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +15,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.31-licence-check-allow-permissive-licences
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'c2afd9822006'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -67,3 +70,16 @@ Risks: (a) cargo-deny's SPDX data may not recognise `CDLA-Permissive-2.0` by tha
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-13 (R59) and decision-3 by @bruk.o: ok. It adds one named licence, no exception and no skipped crate, proves the GPL refusal with a recorded and reverted probe, and leaves decision-3 alone.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T02:36:00Z
+
+---
+
+Plan approved by @bruk (c2afd9822006, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

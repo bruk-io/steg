@@ -4,7 +4,7 @@ title: 'App: connect to the server and hold what it reports'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -29,3 +29,9 @@ doc-10 R20 and R22; doc-15 R87 and R90. decision-5. The app draws what the serve
 - [ ] #3 A second window can be opened; two windows on one session show the same tab, pane and layout
 - [ ] #4 After the connection drops and returns, what the window shows is what the server reports
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Carried from TASK-1.70 (2026-11-15): the sdk's local-socket provider is given the path of the binary to run to start a server. The CLI can use its own executable; the app is a separate program, so it cannot. This task's plan says how the app finds the steg binary (R61: one bundle). Also, as the first app task with something on screen: a change to what the app draws needs an image in its pull request (team rule), so this task or TASK-1.53, whichever draws first, works out how a worker captures the built app's window and attaches it.
+<!-- SECTION:NOTES:END -->

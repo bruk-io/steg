@@ -3,14 +3,13 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:37:00Z'
+updated_date: '2026-11-15T03:41:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.69
@@ -808,6 +807,74 @@ demonstrations that were reverted. `just check` recorded clean before any
 change, after the clippy.toml/justfile changes, after the Python/boundaries.toml
 changes, after the CLAUDE.md and rules changes, and once more after rebasing
 onto origin/main just before pushing.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:41:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at ada4026cced6 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (2.3s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.7s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (0.3s)
+ok      architecture (1.0s)
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Fixed the one Important finding and checked for the same mistake elsewhere.
+
+crates/sdk/CLAUDE.md:6-8 duplicated .claude/rules/sdk.md:11-13's R106 content
+verbatim ("a required dependency is for data and serialisation only", the
+GPUI/async-runtime ban). Removed from CLAUDE.md. While there, corrected the
+remaining dependency line to match boundaries.toml's actual `[steg-sdk]`
+table (an empty allow list, so "nothing" is accurate; the sdk may not depend
+on anything, steg's or external, not only "any other steg package" - the
+narrower phrasing I'd had was itself slightly wrong, independent of the
+duplication).
+
+Read the other four CLAUDE.md files against every rule that applies to their
+package (the new .claude/rules/{sdk,kernel,server}.md plus the repo-wide
+architecture.md, grepped for shared multi-word phrases, not just eyeballed)
+and found two more of the same mistake:
+- crates/app/CLAUDE.md's "with no private channel" restated
+  architecture.md's R36 bullet ("The app gets no private channel, so
+  anything the app can do, the CLI and a plugin can do too"). Removed.
+- crates/server/CLAUDE.md's "owns every session, tab, pane and running
+  program" restated .claude/rules/server.md's R1/R2 bullet verbatim.
+  Removed.
+crates/kernel/CLAUDE.md and crates/steg/CLAUDE.md had no overlapping phrase
+with kernel.md, architecture.md, or (for steg, which has no new rule of its
+own from this task) architecture.md - left unchanged. Confirmed with a grep
+for each phrase judged ("no private channel", "owns every session", "GPUI
+type", "async runtime", "data and serialisation", "server logic", "never
+keeps a copy", "optional parts", "no I/O") across all five CLAUDE.md files
+and the four rule files together - each now appears in exactly one file.
+
+PR 18 (the just-recipe rename) was still open, not merged, when checked
+(`gh pr view 18` and `git show origin/main:justfile`) - left every recipe
+name as it was (`packages`, `boundaries`, `fmt-check`, `architecture`,
+`affected`), matching the instruction for that case.
+
+Brought in origin/main with a merge (the branch was already pushed): PR 15
+(TASK-1.35) landed real code in crates/kernel/src (pane, session, tab, tree,
+colour, error, ids) and crates/sdk/src (colour, ids, pane_kind) since this
+task's last review. No conflicts. Recorded `just check` clean against that
+real code with the clippy.toml/boundaries.toml changes from this task still
+in place - the new disallowed-types/methods lists don't false-positive on
+any of it.
+
+Pull request (unchanged): https://github.com/bruk-io/steg/pull/17
 <!-- SECTION:NOTES:END -->
 
 ## Comments

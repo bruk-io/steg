@@ -8,9 +8,9 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-# R105: the sdk, never its optional parts. `just boundaries` checks that this
+# R105: the sdk, never its optional parts. `just check-boundaries` checks that this
 # dependency exists and that nothing else does, and that `local-socket` stays
-# off (boundaries.toml's `deny-features`, doc-16 R110). `just packages`, part
+# off (boundaries.toml's `deny-features`, doc-16 R110). `just check-packages`, part
 # of `just check`, additionally builds and tests this crate alone, so a
 # source change that only compiles because some other crate turned the
 # feature on in the same `--workspace` run still fails.

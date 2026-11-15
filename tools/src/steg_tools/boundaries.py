@@ -3,7 +3,7 @@
 Each restricted crate's permitted dependencies - workspace and external alike - are
 written down once in boundaries.toml. A crate with no entry there is unrestricted.
 Nobody chooses the tests by hand and nobody keeps the boundary in their head either:
-`just boundaries` fails on any dependency a restricted crate has that isn't on its list.
+`just check-boundaries` fails on any dependency a restricted crate has that isn't on its list.
 
 Usage: steg-boundaries
 """

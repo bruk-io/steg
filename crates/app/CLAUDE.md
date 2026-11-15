@@ -1,7 +1,7 @@
 # steg-app
 
 Steg.app (doc-16): the GPUI window. A client of the server like any other, through the sdk and
-the public API, with no private channel.
+the public API.
 
 - May depend on: `steg-sdk`, `gpui` (`boundaries.toml`'s `[steg-app]`).
 - May not depend on: `steg-server`, `steg-kernel`, or `steg`.

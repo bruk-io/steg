@@ -1,7 +1,7 @@
 # steg-server
 
 The server (doc-16): the kernel plus sockets, pseudo-terminals, processes and the clock. One
-process per person per machine; owns every session, tab, pane and running program.
+process per person per machine.
 
 - May depend on: `steg-kernel`, `steg-sdk` (`boundaries.toml`'s `[steg-server]`).
 - May not depend on: `steg` or `steg-app`; no client reaches it except through the socket and

@@ -276,3 +276,19 @@ Deleting the directory leaves those references dangling. Decision text changes o
 via a PR containing nothing else (the project's own rule) — not this task's to fix;
 noting it for the orchestrator.
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-15T14:04:00Z
+
+---
+
+Plan written (phase 1). One open flag for the engineer, not decided silently: `api.show` with no target is read in this plan as returning the whole `Description` (decision-1's "served to anyone who asks... at the call"), since doc-2 section 8's row for `api show` doesn't mark its target required and adding a new verb would need a document change. Confirm or overrule.
+
+Also noting for whoever takes this to review/build: AC #4 deletes `spikes/api-description/`, but decision-1 sections 3 and 9 cite `carry-one-method` and `measure.py` under that path as TASK-1.3's recorded evidence — deleting it leaves those references dangling. Not this task's to fix (decision text changes only via a PR containing nothing else); flagging so it isn't lost.
+
+The plan also proposes a possible split at the sdk/server boundary (steps 1-6 vs 7-12) for the engineer to consider, without changing the task's size here.
+
+---
+<!-- COMMENTS:END -->

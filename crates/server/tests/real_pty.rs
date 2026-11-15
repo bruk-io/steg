@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::Duration;
 
-use steg_kernel::{ExitOutcome, Tree};
+use steg_kernel::{ExitOutcome, Moment, Tree};
 use steg_sdk::{PaneId, Program, Screen};
 
 use steg_server::{Error, LaunchSpec, PaneEvent, RealLauncher};
@@ -195,7 +195,8 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     )
     .unwrap();
     assert_eq!(
-        tree.record_exit(kernel_pane, 3).unwrap(),
+        tree.record_exit(kernel_pane, 3, Moment::new(Duration::ZERO))
+            .unwrap(),
         ExitOutcome::Stayed
     );
 
@@ -242,7 +243,9 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     )
     .unwrap();
 
-    let outcome = tree.record_exit(kernel_pane, 7).unwrap();
+    let outcome = tree
+        .record_exit(kernel_pane, 7, Moment::new(Duration::ZERO))
+        .unwrap();
     let ExitOutcome::Closed(closed) = outcome else {
         panic!("expected the shell pane's real exit to close it, got {outcome:?}");
     };

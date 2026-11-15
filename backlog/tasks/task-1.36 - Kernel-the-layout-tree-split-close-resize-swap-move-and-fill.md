@@ -308,6 +308,53 @@ error: test failed, to rerun pass `-p steg-kernel --lib`
 ```
 
 Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk` exited 101 at 2026-11-15T04:45:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at d2f05c6c834e with uncommitted changes, last 40 of 55 lines:
+
+```text
+test layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor ... FAILED
+test layout::tests::leaf_sizes_sum_exactly_to_the_total_on_an_uneven_ratio ... ok
+test layout::tests::leaf_rects_gives_adjacent_leaves_exactly_equal_touching_boundaries ... ok
+test layout::tests::leaves_are_depth_first_first_before_second ... ok
+test layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth ... FAILED
+test layout::tests::neighbour_from_a_pane_spanning_two_rows_takes_the_upper_pane_across_a_column_split ... ok
+test layout::tests::neighbour_is_none_at_the_tabs_own_edge ... ok
+test layout::tests::neighbour_is_none_for_a_single_pane_tab_in_every_direction ... ok
+test layout::tests::neighbour_moving_right_from_bottom_left_lands_on_bottom_right_not_top_right ... ok
+test layout::tests::wrap_from_the_rightmost_pane_lands_on_the_leftmost_pane_in_its_own_row_not_another_row ... ok
+
+failures:
+
+---- layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level stdout ----
+
+thread 'layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level' (4740840) panicked at crates/sdk/src/layout.rs:838:37:
+expected a leaf, found a split
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor stdout ----
+
+thread 'layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor' (4740845) panicked at crates/sdk/src/layout.rs:838:37:
+expected a leaf, found a split
+
+---- layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth stdout ----
+
+thread 'layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth' (4740848) panicked at crates/sdk/src/layout.rs:909:9:
+assertion `left == right` failed
+  left: Some(Size { columns: 800, rows: 10 })
+ right: Some(Size { columns: 200, rows: 10 })
+
+
+failures:
+    layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level
+    layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor
+    layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth
+
+test result: FAILED. 18 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

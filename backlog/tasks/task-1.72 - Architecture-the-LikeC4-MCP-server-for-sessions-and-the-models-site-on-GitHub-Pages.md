@@ -1,9 +1,9 @@
 ---
-id: DRAFT-3
+id: TASK-1.72
 title: >-
   Architecture: the LikeC4 MCP server for sessions, and the model's site on
   GitHub Pages
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T02:48:00Z'
 labels:
@@ -15,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T02:21:00Z'
 updated_date: '2026-11-15T02:34:00Z'
@@ -14,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

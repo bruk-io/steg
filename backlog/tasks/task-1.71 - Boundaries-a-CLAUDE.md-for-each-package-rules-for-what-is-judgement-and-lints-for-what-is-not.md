@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T02:35:00Z'
 labels:
@@ -14,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

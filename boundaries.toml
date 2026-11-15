@@ -10,8 +10,8 @@
 # resolved, check: it is what catches a crate's own manifest asking for the feature,
 # even though Cargo's workspace-wide feature unification can turn the same feature on
 # for that crate's compiled dependency anyway, from some other crate's edge, in any
-# `--workspace` build - `just packages`, part of `just check`, is what catches that
-# half, by building and testing every crate alone.
+# `--workspace` build - `just check-packages`, part of `just check`, is what catches
+# that half, by building and testing every crate alone.
 #
 # This table is doc-16's level-3 dependency table (section "Who may depend on
 # whom"), one entry per package.

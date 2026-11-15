@@ -1,0 +1,37 @@
+# This file is read instead of the workspace root's `clippy.toml` - clippy
+# does not merge, it stops at the first file it finds walking up from the
+# crate's own manifest directory - so every option the root file sets that
+# still applies here has to be repeated, not just the new ones below.
+#
+# unwrap_used (workspace.lints.clippy) would otherwise fire inside
+# #[cfg(test)] code too. rust.md: "No `unwrap` outside tests."
+allow-unwrap-in-tests = true
+
+# doc-16 R110: the kernel does no I/O of its own. Not exhaustive of every
+# std function that could reach the outside world - see .claude/rules/
+# kernel.md for why that's by design, not an oversight.
+disallowed-types = [
+    { path = "std::fs::File", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::OpenOptions", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::net::TcpStream", reason = "doc-16 R110: no socket I/O in the kernel" },
+    { path = "std::net::TcpListener", reason = "doc-16 R110: no socket I/O in the kernel" },
+    { path = "std::net::UdpSocket", reason = "doc-16 R110: no socket I/O in the kernel" },
+    { path = "std::os::unix::net::UnixStream", reason = "doc-16 R110: no socket I/O in the kernel" },
+    { path = "std::os::unix::net::UnixListener", reason = "doc-16 R110: no socket I/O in the kernel" },
+    { path = "std::process::Command", reason = "doc-16 R110: no process spawning in the kernel" },
+    { path = "std::process::Child", reason = "doc-16 R110: no process spawning in the kernel" },
+]
+disallowed-methods = [
+    { path = "std::fs::read", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::write", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::read_to_string", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::remove_file", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::create_dir", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::create_dir_all", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::copy", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::fs::rename", reason = "doc-16 R110: no file I/O in the kernel" },
+    { path = "std::thread::spawn", reason = "doc-16 R110: no runtime of its own in the kernel" },
+    { path = "std::thread::sleep", reason = "doc-16 R110: no runtime of its own in the kernel" },
+    { path = "std::time::Instant::now", reason = "doc-16 R110: no clock access in the kernel" },
+    { path = "std::time::SystemTime::now", reason = "doc-16 R110: no clock access in the kernel" },
+]

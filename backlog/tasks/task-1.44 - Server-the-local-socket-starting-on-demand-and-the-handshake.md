@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:34:00Z'
+updated_date: '2026-11-15T20:35:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -574,6 +574,30 @@ test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; 
 error: test failed, to rerun pass `-p steg-server --test race`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:35:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 30f6ac77b152 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (5.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (31.6s)
+ok      test (steg-server) (4.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

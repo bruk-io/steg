@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:25:00Z'
+updated_date: '2026-11-15T20:30:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -675,6 +675,51 @@ Clause by clause:
 
 <!-- SECTION:NOTES:BEGIN -->
 Split on 2026-11-15 under the engineer's standing decision to split by default, along the seam this task's description named and the worker's plan recommended. This task is now part one: programs started from the API, exits, sizes, and the refusal to close a running program without --force. Part two, a draft under TASK-1 depending on this task, takes --force actually ending a program (the worker's plan section 5 from 'With --force' onward, and the experiment it names). The plan on this task was written for both parts and is to be rewritten for part one only.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T20:30:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070, last 40 of 75 lines:
+
+```text
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/program.rs (target/debug/deps/program-89613f7a57fade38)
+
+running 5 tests
+test a_programs_exit_code_reaches_the_event_channel ... ok
+test resize_reaches_the_terminal_even_with_no_program_running ... ok
+test a_pane_with_no_program_running_accepts_input_as_a_no_op ... ok
+test output_printed_before_exit_is_in_the_snapshot ... ok
+test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 6 tests
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test experiment_a_nonexistent_cwd_scratch ... FAILED
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+
+failures:
+
+---- experiment_a_nonexistent_cwd_scratch stdout ----
+
+thread 'experiment_a_nonexistent_cwd_scratch' (10456452) panicked at crates/server/tests/real_pty.rs:275:13:
+SPAWNED THEN EXITED: Exited { pane: PaneId(1), exit_code: 0 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    experiment_a_nonexistent_cwd_scratch
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

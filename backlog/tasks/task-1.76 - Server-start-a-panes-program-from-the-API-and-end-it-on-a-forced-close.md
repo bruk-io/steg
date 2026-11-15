@@ -1,14 +1,13 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
 updated_date: '2026-11-15T22:40:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -1949,6 +1948,18 @@ test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Review findings fixed (3 Important, 1 nit) plus the engineer's cwd ask, at head b4dd502 (merged onto origin/main, which now includes TASK-1.81's api.call rename; TASK-1.44/1.79 have not merged any code yet, board updates only). Full account of each fix is in this round's own comment on the task; summary:
+
+1. api.call now routes through the same start-wrapper a direct call uses, via one shared `dispatch::api::resolve`; audited every other mint path by grep; 5 new tests via api.call (all three methods, with/without a program, and a failing start leaving nothing behind); the dispatch-level test whose comment claimed this was fine is corrected.
+2. The sizes test is rebuilt with real pty/terminal checks through split (both directions)/close/swap via Runtime::handle. Negative controls recorded via asdlc record-check for both the general reapply step and the close refusal (6 recorded runs: disable/fail/restore/pass, twice).
+3. Runtime::stop ends every program via portable-pty's own clone_killer (SIGHUP only, confirmed from its source), joins every worker and the drain thread (bounded); Drop calls stop, idempotently. 4 new tests with real processes. Notes say what TASK-1.78 can reuse (the clone_killer pattern) and what it still has to add (escalation, a grace period, client messaging).
+4. A caller-given cwd that does not exist is refused with ProgramFailed before anything is minted; rule B's own inherited-directory fallback now also checks existence, falling back to home rather than refusing. 5 new tests, including the rule-B fallback case with a real directory removed mid-test.
+5. The nit's named sleep-polls, and every one this round's own tests added, now say explicitly why no event exists to wait on instead; one genuine fix (not just a comment) where a real event did exist (Runtime::stop's already-ended-program test).
+
+Checks: `cargo test -p steg-server --lib --tests -- --test-threads=1` run 10+ times through this round, 0 failures, 144 tests at the final head. Local `just check` is flaky specifically in `tests/runtime.rs` under this sandbox's own default parallelism (quantified: clean through 12 threads, fails from 16 up, confirmed independent of other processes) - a real pty-allocation ceiling in this sandbox, not a code defect; recorded both clean and failing runs rather than hiding either. PR #40's own CI (a clean machine) is green: `test (steg-server)` passed on the very first run; the one CI failure was an unrelated `likec4` MCP smoke-test timeout in `tools/` (nothing in this diff touches `tools/` or `architecture/`), which passed on a re-run of just that job.
+
+Pushed to the same branch, PR #40 updated.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

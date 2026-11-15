@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:29:00Z'
+updated_date: '2026-11-15T02:30:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -59,3 +59,9 @@ The repository's one check command has to run where nobody can forget it. doc-1,
 - In a second scratch commit, force the `test` step's selection away from `none` (e.g. touch a file in `GLOBAL_FILES`/`GLOBAL_FOLDERS`, or temporarily swap the `test` recipe's call for `test-all`) and push; confirm `cargo test` actually executes against the `gpui`-linked workspace on the runner and passes; then revert the scratch commit so the merged diff is only `.github/workflows/ci.yml`.
 - Record each of the above runs with `asdlc record-check TASK-1.32 --in <worktree> --as bruk.w5 -- <command>` where there's a local command to run (the GitHub-side confirmations — status check present, run log, forced-red, forced-test — are read from the Actions UI/`gh run view` and reported in the task's notes instead, since they can't run inside the worktree).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-1 section 7 by @bruk.o: ok against the acceptance criteria. One thing for the engineer to decide: just check selects tests by diff against origin/main, so on a push to main it runs no crate tests. The orchestrator suggests the push-to-main run also does just test-all.
+<!-- SECTION:NOTES:END -->

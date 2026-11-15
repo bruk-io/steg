@@ -261,6 +261,30 @@ ok      architecture (0.8s)
 ```
 
 Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+AC #6 evidence: every element's title traced to its source, checked by hand against doc-16's own tables, doc-15's "The things" table, and doc-1 section 4's vocabulary table. One row per distinct title; sdk and `steg` are each declared three and two times respectively (AC #2), all identical, so listed once.
+
+| Title | Kind | Source |
+|---|---|---|
+| The person at the Mac | person | doc-16, Level 1, "Element" column |
+| steg | softwareSystem | doc-16, Level 1 ("steg" row) and the system's own name throughout doc-16/doc-1 |
+| Programs in panes | externalSystem | doc-16, Level 1 |
+| macOS | externalSystem | doc-16, Level 1 |
+| A plugin | externalSystem | doc-16, Level 1 (and Level 2's prose: "A plugin is not a container of steg's... it is an external system in the context above") |
+| A remote host | externalSystem, and deployment node | doc-16, Level 1; also doc-1 section 4 vocabulary's "Host" entry ("A machine running a steg server") |
+| The server | container | doc-16, Level 2 |
+| The CLI | container | doc-16, Level 2 |
+| Steg.app | container | doc-16, Level 2; also doc-1 section 7's Parts table ("Steg.app (GPUI)") |
+| kernel | component | doc-16, Level 3, "Package" column |
+| server | component | doc-16, Level 3 |
+| sdk | component (x3: server, cli, app) | doc-16, Level 3 |
+| steg | component (x2: server, cli) | doc-16, Level 3 (written `` `steg` `` there) |
+| app | component | doc-16, Level 3 |
+| A host | deployment node | doc-1 section 4 vocabulary's "Host" entry; paired with "A remote host" above, both reusing doc-16's own words from the Deployment section ("one Mac... another to a server on another machine") |
+
+Relationship/technology vocabulary, not element names but checked the same way: "window" and "client" (doc-15's "The things" table has Client; doc-1 section 4 has Window; doc-16's own Deployment section uses both: "one Steg.app whose windows each hold a client to that server"), "socket" (doc-16, Level 2's "over its socket"; R5), "pseudo-terminal" (doc-16, Level 1's "pseudo-terminals"), "SSH" (R55).
+
+Not domain vocabulary, and not claimed as such: the `#shared` and `#planned` tags are LikeC4 modeling annotations (like the `container`/`component` kind keywords themselves), not words drawn from the specs - `#planned` marks M2/M3 scope and `#shared` marks a package duplicated across containers per AC #2. Both are documented as additions in the plan's structural decisions.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

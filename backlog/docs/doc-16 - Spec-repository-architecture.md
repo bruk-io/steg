@@ -3,7 +3,7 @@ id: doc-16
 title: 'Spec: repository architecture'
 type: specification
 created_date: '2026-11-15T02:34:00Z'
-updated_date: '2026-11-15T02:35:00Z'
+updated_date: '2026-11-15T02:43:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
@@ -34,13 +34,12 @@ It does not cover what the server holds (doc-15), what the API offers (doc-8), w
 | The server | One process per person per machine. Owns every session, tab, pane and running program (R1) | Programs in panes, through pseudo-terminals |
 | The CLI | A short-lived process for one command | The server, over its socket, through the public API |
 | Steg.app | The window. Draws what the server reports | The server, over its socket, through the public API |
-| A plugin (M2) | One Python process per plugin | The server, over its socket, through the public API |
 
-The server and the CLI are one binary, `steg` (R61, R98). The app is a separate program. Every arrow into the server is the same socket and the same API (R36): there is no other way in.
+A plugin is not a container of steg's: anyone can write one, so it is an external system in the context above, and it reaches the server the same way the CLI and the app do. The server and the CLI are one binary, `steg` (R61, R98). The app is a separate program. Every arrow into the server is the same socket and the same API (R36): there is no other way in.
 
 ## Level 3: components, the packages
 
-A package here is a crate. Packages are not things that run: each container above is built from one or more of them.
+A package here is a crate. Packages are not things that run: each container above is built from one or more of them. A package built into several containers, as the sdk is, is a component of each of them; it belongs to none more than another.
 
 | Package | What it is | Does I/O | Built into |
 |---|---|---|---|

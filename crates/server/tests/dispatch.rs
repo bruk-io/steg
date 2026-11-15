@@ -405,6 +405,192 @@ fn tab_new_with_no_focus_restores_the_previous_current_tab() {
     assert!(after.tabs().iter().any(|tab| tab.id() == new_tab));
 }
 
+/// The easy case above has only one tab, so its current tab is trivially
+/// both the first and the one restored. Here the session's current tab
+/// is neither first nor last before the call, which is what actually
+/// exercises `tab::new` reading `session.current_tab()` rather than
+/// assuming the first tab.
+#[test]
+fn tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first() {
+    let (mut tree, context, api) = fresh();
+    let second_tab = tree.new_tab(context.default_session, None).unwrap();
+    let _third_tab = tree.new_tab(context.default_session, None).unwrap();
+    // `new_tab` just made `_third_tab` current (R115); focus the middle
+    // one instead, so the session's current tab is neither its first nor
+    // its last tab before the call below.
+    tree.focus_tab(second_tab).unwrap();
+    let before = tree.session(context.default_session).unwrap().clone();
+    assert_eq!(before.current_tab(), second_tab);
+    assert_ne!(before.tabs()[0].id(), second_tab);
+    assert_ne!(before.tabs().last().unwrap().id(), second_tab);
+
+    let value = ok(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request("tab.new", vec![("focus", json!(false))]),
+    ));
+
+    let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
+    let after = tree.session(context.default_session).unwrap();
+    assert_eq!(after.current_tab(), second_tab);
+    assert_eq!(after.tabs().len(), before.tabs().len() + 1);
+    assert_eq!(after.tabs()[..before.tabs().len()], before.tabs()[..]);
+    assert!(after.tabs().iter().any(|tab| tab.id() == new_tab));
+}
+
+#[test]
+fn tab_new_with_position_one_places_the_new_tab_first() {
+    let (mut tree, context, api) = fresh();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request("tab.new", vec![("position", json!(1))]),
+    ));
+    let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
+
+    let tabs = tree.session(context.default_session).unwrap().tabs();
+    assert_eq!(tabs[0].id(), new_tab);
+    assert_eq!(tabs[1].id(), context.default_tab);
+}
+
+#[test]
+fn tab_new_with_a_middle_position_places_the_new_tab_there() {
+    let (mut tree, context, api) = fresh();
+    let second_tab = tree.new_tab(context.default_session, None).unwrap();
+    let third_tab = tree.new_tab(context.default_session, None).unwrap();
+    // Order so far: [default_tab, second_tab, third_tab].
+
+    let value = ok(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request("tab.new", vec![("position", json!(2))]),
+    ));
+    let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
+
+    let tabs: Vec<TabId> = tree
+        .session(context.default_session)
+        .unwrap()
+        .tabs()
+        .iter()
+        .map(steg_kernel::Tab::id)
+        .collect();
+    assert_eq!(
+        tabs,
+        vec![context.default_tab, new_tab, second_tab, third_tab]
+    );
+}
+
+#[test]
+fn tab_new_with_no_position_appends_at_the_end_as_before() {
+    let (mut tree, context, api) = fresh();
+    let second_tab = tree.new_tab(context.default_session, None).unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request("tab.new", vec![]),
+    ));
+    let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
+
+    let tabs: Vec<TabId> = tree
+        .session(context.default_session)
+        .unwrap()
+        .tabs()
+        .iter()
+        .map(steg_kernel::Tab::id)
+        .collect();
+    assert_eq!(tabs, vec![context.default_tab, second_tab, new_tab]);
+}
+
+#[test]
+fn tab_new_with_position_zero_is_refused_and_creates_nothing() {
+    let (mut tree, context, api) = fresh();
+    let before = tree.session(context.default_session).unwrap().clone();
+
+    let error = err(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request("tab.new", vec![("position", json!(0))]),
+    ));
+
+    assert_eq!(error.code, ErrorCode::BadRequest);
+    assert_eq!(&before, tree.session(context.default_session).unwrap());
+}
+
+/// A position past the end behaves exactly as `tab.move`'s own arm does
+/// for the same out-of-range index (`Error::PositionOutOfRange`, mapped
+/// to `ErrorCode::PositionOutOfRange`) - checked against two otherwise
+/// identical trees, one for each call, so neither call's own state
+/// change is in the other's way. Unlike `tab.move`, which acts on a tab
+/// that already existed, `tab.new` leaves nothing behind: the tab this
+/// call minted is closed again, and the session's current tab restored
+/// to what it was before the call.
+#[test]
+fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing() {
+    let (mut new_tree, new_context, api) = fresh();
+    let before = new_tree
+        .session(new_context.default_session)
+        .unwrap()
+        .clone();
+
+    let new_error = err(dispatch(
+        &mut new_tree,
+        &api,
+        &new_context,
+        &request("tab.new", vec![("position", json!(99))]),
+    ));
+
+    assert_eq!(new_error.code, ErrorCode::PositionOutOfRange);
+    assert_eq!(
+        &before,
+        new_tree.session(new_context.default_session).unwrap()
+    );
+
+    let (mut move_tree, move_context, _) = fresh();
+    let second_tab = move_tree
+        .new_tab(move_context.default_session, None)
+        .unwrap();
+    let move_error = err(dispatch(
+        &mut move_tree,
+        &api,
+        &move_context,
+        &request(
+            "tab.move",
+            vec![
+                ("target", json!(second_tab.to_string())),
+                ("position", json!(99)),
+            ],
+        ),
+    ));
+
+    assert_eq!(new_error.code, move_error.code);
+}
+
+#[test]
+fn tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus() {
+    let (mut tree, context, api) = fresh();
+    let before = tree.session(context.default_session).unwrap().clone();
+
+    let error = err(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request(
+            "tab.new",
+            vec![("position", json!(99)), ("focus", json!(false))],
+        ),
+    ));
+
+    assert_eq!(error.code, ErrorCode::PositionOutOfRange);
+    assert_eq!(&before, tree.session(context.default_session).unwrap());
+}
+
 #[test]
 fn tab_move_with_position_reorders() {
     let (mut tree, context, api) = fresh();
@@ -532,6 +718,58 @@ fn pane_split_with_no_focus_restores_the_previous_current_pane() {
     assert_eq!(after.current(), before.current());
     assert_eq!(after.panes().len(), before.panes().len() + 1);
     assert_eq!(after.panes()[..before.panes().len()], before.panes()[..]);
+    assert!(after.panes().iter().any(|pane| pane.id() == new_pane));
+}
+
+/// The easy case above splits the tab's only pane, so it is trivially
+/// both the split's target and the tab's current pane. Here the split's
+/// target is *not* the tab's current pane, which is what actually
+/// exercises `pane::split` reading the tab's own `current()` rather than
+/// assuming the target it was just given.
+#[test]
+fn pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target() {
+    let (mut tree, context, api) = fresh();
+    let second_pane = tree
+        .split_pane(
+            context.default_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+    // `split_pane` just made `second_pane` current (R115); the call below
+    // splits `default_pane`, which is *not* current, so a correct restore
+    // has to read the tab's own current pane, not assume the target.
+    let before = tree
+        .session(context.default_session)
+        .unwrap()
+        .tab(context.default_tab)
+        .unwrap()
+        .clone();
+    assert_eq!(before.current(), second_pane);
+    assert_ne!(before.current(), context.default_pane);
+
+    let value = ok(dispatch(
+        &mut tree,
+        &api,
+        &context,
+        &request(
+            "pane.split",
+            vec![
+                ("target", json!(context.default_pane.to_string())),
+                ("direction", json!("right")),
+                ("focus", json!(false)),
+            ],
+        ),
+    ));
+
+    let new_pane: steg_sdk::PaneId = value["id"].as_str().unwrap().parse().unwrap();
+    let after = tree
+        .session(context.default_session)
+        .unwrap()
+        .tab(context.default_tab)
+        .unwrap();
+    assert_eq!(after.current(), second_pane);
+    assert_eq!(after.panes().len(), before.panes().len() + 1);
     assert!(after.panes().iter().any(|pane| pane.id() == new_pane));
 }
 
@@ -908,10 +1146,41 @@ fn api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be(
 
 // --- shapes: Nothing/Identifier (AC #3) ------------------------------------
 
+/// Every method whose `returns` is `Nothing` or `Identifier`, covered by
+/// name - not a representative few - with a valid request against a
+/// dedicated piece of tree state nothing else in this test touches, so
+/// the order these run in cannot matter. A method of either kind absent
+/// from `CASES` falls through to the `panic!` arm below, so a new one
+/// added to the description cannot be missed; the closing assertion is a
+/// second, independent check of the same thing, from the description's
+/// own side rather than this test's.
 #[test]
-fn every_served_nothing_returning_method_answers_exactly_null() {
+fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
     let (mut tree, context, api) = fresh();
-    let second_pane = tree
+
+    // One dedicated id per case that creates, closes or moves something,
+    // so no two cases ever compete for the same piece of state.
+    let session_to_close = tree.new_session(None).unwrap();
+    let session_to_move = tree.new_session(None).unwrap();
+    let tab_to_close = tree.new_tab(context.default_session, None).unwrap();
+    let tab_to_move = tree.new_tab(context.default_session, None).unwrap();
+    let tab_to_focus = tree.new_tab(context.default_session, None).unwrap();
+    let tab_for_pane_move = tree.new_tab(context.default_session, None).unwrap();
+    let pane_to_close = tree
+        .split_pane(
+            context.default_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+    let pane_to_move = tree
+        .split_pane(
+            context.default_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+    let pane_for_swap = tree
         .split_pane(
             context.default_pane,
             steg_sdk::Direction::Right,
@@ -919,35 +1188,120 @@ fn every_served_nothing_returning_method_answers_exactly_null() {
         )
         .unwrap();
 
-    for (method, extra) in [
-        ("session.set", vec![("label", json!("x"))]),
-        ("tab.set", vec![("label", json!("x"))]),
-        (
-            "pane.swap",
-            vec![
-                ("target", json!(context.default_pane.to_string())),
-                ("with", json!(second_pane.to_string())),
+    let not_yet: &[&str] = &[
+        "session.focus",
+        "pane.resize",
+        "pane.send",
+        "server.start",
+        "server.stop",
+    ];
+    let mut covered: Vec<String> = Vec::new();
+
+    for method in &api.methods {
+        let dotted = method.name.dotted();
+        if !matches!(
+            method.returns,
+            steg_sdk::Returns::Nothing | steg_sdk::Returns::Identifier { .. }
+        ) {
+            continue;
+        }
+        covered.push(dotted.clone());
+
+        if not_yet.contains(&dotted.as_str()) {
+            // Every required param filled with a minimally-valid value
+            // (`pane.resize`'s `direction`/`by`), so `validate` passes
+            // and the arm's own `NotImplementedYet` is what answers -
+            // not a `BadRequest` for a missing required param instead.
+            let params: Vec<(&str, Value)> = method
+                .params
+                .iter()
+                .filter(|p| p.required)
+                .map(|p| (p.name.as_str(), minimal_value(&p.value)))
+                .collect();
+            let error = err(dispatch(
+                &mut tree,
+                &api,
+                &context,
+                &request(&dotted, params),
+            ));
+            assert_eq!(error.code, ErrorCode::NotImplementedYet, "{dotted}");
+            continue;
+        }
+
+        let extra: Vec<(&str, Value)> = match dotted.as_str() {
+            "session.close" => vec![("target", json!(session_to_close.to_string()))],
+            "session.move" => vec![
+                ("target", json!(session_to_move.to_string())),
+                ("position", json!(1)),
             ],
-        ),
-    ] {
-        let value = ok(dispatch(&mut tree, &api, &context, &request(method, extra)));
-        assert_eq!(value, Value::Null, "{method}");
+            "session.set" => vec![("label", json!("x"))],
+            "session.unset" => vec![("label", json!(""))],
+            "session.new" => vec![],
+            "tab.close" => vec![("target", json!(tab_to_close.to_string()))],
+            "tab.move" => vec![
+                ("target", json!(tab_to_move.to_string())),
+                ("position", json!(1)),
+            ],
+            "tab.set" => vec![("label", json!("x"))],
+            "tab.unset" => vec![("label", json!(""))],
+            "tab.focus" => vec![("target", json!(tab_to_focus.to_string()))],
+            "tab.new" => vec![],
+            "pane.close" => vec![("target", json!(pane_to_close.to_string()))],
+            "pane.move" => vec![
+                ("target", json!(pane_to_move.to_string())),
+                ("to", json!(tab_for_pane_move.to_string())),
+            ],
+            "pane.set" => vec![("label", json!("x"))],
+            "pane.unset" => vec![("label", json!(""))],
+            "pane.focus" => vec![("target", json!(context.default_pane.to_string()))],
+            "pane.swap" => vec![
+                ("target", json!(context.default_pane.to_string())),
+                ("with", json!(pane_for_swap.to_string())),
+            ],
+            "pane.split" => vec![("direction", json!("right"))],
+            other => panic!(
+                "{other} is Nothing/Identifier-returning but this test has no case for it - \
+                 add one above"
+            ),
+        };
+
+        let response = dispatch(&mut tree, &api, &context, &request(&dotted, extra));
+        match (&method.returns, response) {
+            (steg_sdk::Returns::Nothing, Response::Ok(value)) => {
+                assert_eq!(value, Value::Null, "{dotted}");
+            }
+            (steg_sdk::Returns::Identifier { .. }, Response::Ok(value)) => {
+                let object = value
+                    .as_object()
+                    .unwrap_or_else(|| panic!("{dotted}: an identifier result must be an object"));
+                assert_eq!(object.keys().collect::<Vec<_>>(), vec!["id"], "{dotted}");
+                assert!(object["id"].is_string(), "{dotted}");
+            }
+            (_, Response::Error(error)) => {
+                panic!("{dotted} was expected to succeed, got {error:?}")
+            }
+            (other, Response::Ok(_)) => {
+                panic!("{dotted}'s returns is neither Nothing nor Identifier: {other:?}")
+            }
+        }
     }
-}
 
-#[test]
-fn every_served_identifier_returning_method_answers_exactly_one_id_field() {
-    let (mut tree, context, api) = fresh();
-
-    let value = ok(dispatch(
-        &mut tree,
-        &api,
-        &context,
-        &request("session.new", vec![]),
-    ));
-    let object = value.as_object().unwrap();
-    assert_eq!(object.keys().collect::<Vec<_>>(), vec!["id"]);
-    assert!(object["id"].is_string());
+    // A second, independent check that nothing of this kind was missed:
+    // from the description's own side, not this test's `match`.
+    let mut expected: Vec<String> = api
+        .methods
+        .iter()
+        .filter(|m| {
+            matches!(
+                m.returns,
+                steg_sdk::Returns::Nothing | steg_sdk::Returns::Identifier { .. }
+            )
+        })
+        .map(|m| m.name.dotted())
+        .collect();
+    expected.sort();
+    covered.sort();
+    assert_eq!(expected, covered);
 }
 
 // --- end-to-end scenarios (AC #6) ------------------------------------------

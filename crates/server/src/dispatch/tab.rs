@@ -52,17 +52,47 @@ fn new(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome,
         ));
     }
 
+    // Converted (and so refused, if malformed) before anything is
+    // created, same as every other refusal in this arm - even though the
+    // bound `move_tab` checks it against (how many siblings there will
+    // be) is only known once the tab exists, so a position past the end
+    // is still caught below, after creation, not here.
+    let position = match param_i64(request, "position") {
+        Some(wire) => Some(wire_position_to_index(wire)?),
+        None => None,
+    };
+
     let label = param_str(request, "label").map(str::to_string);
     let focus = param_bool(request, "focus").unwrap_or(true);
 
     // Captured before `new_tab` unconditionally makes the new tab current
-    // (R115), so a `--no-focus` call can put it back afterward.
+    // (R115), so a `--no-focus` call, or the rollback below, can put it
+    // back afterward.
     let previous_tab = tree
         .session(session_id)
         .ok_or_else(|| map_kernel_error(Error::SessionNotFound(session_id)))?
         .current_tab();
 
     let tab_id = tree.new_tab(session_id, label).map_err(map_kernel_error)?;
+
+    if let Some(index) = position {
+        // doc-2 section 8: `tab.new`'s own `position` is "where among its
+        // siblings the new tab goes", not left for the caller to achieve
+        // with a second `tab.move` call. `Tree::move_tab` is the same
+        // conversion `tab.move`'s own arm already composes with
+        // `wire_position_to_index`, used here as half of one outcome: if
+        // the position is past the end, nothing is left behind - the tab
+        // this call just created is closed again, and the session's
+        // current tab restored to what it was before this call, same as
+        // `pane.split`'s own rollback on a rejected label.
+        if let Err(error) = tree.move_tab(tab_id, index) {
+            tree.close_tab(tab_id)
+                .expect("the tab this call just created is still in the tree");
+            tree.focus_tab(previous_tab)
+                .expect("the session this call just created a tab in still holds its previous tab");
+            return Err(map_kernel_error(error));
+        }
+    }
 
     if !focus {
         tree.focus_tab(previous_tab).map_err(map_kernel_error)?;

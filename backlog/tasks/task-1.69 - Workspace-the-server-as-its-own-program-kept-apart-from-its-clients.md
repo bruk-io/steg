@@ -380,4 +380,27 @@ created: 2026-11-15T02:41:00Z
 Plan approved by @bruk (3b5cfdb0a760, size-2): its worker may build it.
 
 ---
+
+created: 2026-11-15T02:46:00Z
+
+---
+
+Small departure found while building, plan otherwise unchanged: deleting `crates/cli`
+and adding `crates/sdk` (step 2) breaks
+`tools/tests/adapter/test_affected_real_workspace.py`, which asserts
+`crates_from_metadata`'s output against this repository's real `cargo metadata`,
+hard-coded to the old five crate names and edges (`steg-kernel`, `steg-server`,
+`steg-cli`, `steg`, `steg-app`). `just check` caught it: `test-tools` failed on this
+file once the workspace changed. Fixed in the same step as everything else: the
+test's fixtures (names, folders, `depends_on` sets, and one `selection()` case) now
+describe the real post-task workspace - `steg-sdk` replacing `steg-cli`, every
+package's `depends_on` updated for its real sdk edge, and the
+`crates/cli/src/lib.rs` selection case replaced with `crates/sdk/src/lib.rs`,
+expecting every package (`-p steg -p steg-app -p steg-kernel -p steg-sdk -p
+steg-server`), since every package now depends on the sdk directly or transitively.
+`crates_from_metadata` and `selection()` themselves are untouched; only the
+real-world fixture this adapter test reads changed, which is what an adapter test is
+for when the real thing moves.
+
+---
 <!-- COMMENTS:END -->

@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:29:00Z'
+updated_date: '2026-11-15T00:53:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -66,6 +66,8 @@ Decided 2026-11-15 (Bruk): session colour follows the design artifact. In M1 eac
 Decided 2026-11-15 (Bruk): settings. There is no settings window and no separate settings file. The Python config (doc-1 section 5.9) is the only file; the palette's 'Settings: ...' actions read and change the same values it sets, and 'Settings: Open the config file' opens it. Not yet decided: how a change made in the palette is kept when the config is code a person wrote, and what the palette does in M1, before the Python config exists (5.9 is M2).
 
 Decided 2026-11-15 (Bruk): settings follow the convention of code configs. A setting changed in the palette applies at once and lasts for this run of the server, as an override; steg never writes to the Python config. The palette shows when a value differs from the config, and an action opens the config at the right place with the line to add. In M1, before the config exists, every setting is an override the server remembers. Recorded in doc-7 as D106 to D108.
+
+2026-11-15: Bruk read the day's spec work (doc-7 new; doc-1, doc-2 and doc-5 revised) and said it looks good. Recorded as he said it; the values doc-7 marks (proposed) were not gone through one by one, and doc-1's header still says draft.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

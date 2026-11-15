@@ -4,7 +4,7 @@ title: 'Decide where focus lives: server or client'
 status: To Do
 assignee: []
 created_date: '2026-11-14T17:29:00Z'
-updated_date: '2026-11-15T00:48:00Z'
+updated_date: '2026-11-15T00:50:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -48,4 +48,6 @@ The spec and CLI spec rely on a 'current' or 'focused' session, tab and pane, bu
 
 <!-- SECTION:NOTES:BEGIN -->
 Decided 2026-11-15 (Bruk). (1) Focus is a path down one server's tree, held by that server: each session has a current tab and each tab a current pane, and focusing a pane sets every level above it. (2) A client is one connection to one server; it can know about every session there and views zero or more of them, with no limit in the protocol. (3) A window belongs to the app: it holds one client per server it uses and shows one session at a time; which session it shows is the app's, and cannot live on a server because there can be more than one server. (4) Focusing a pane or tab never changes what a client views or a window shows; 'session focus' is a request to a client. (5) Two windows on one session mirror each other; per-window focus is not provided. (6) 'In view' is the app's judgement; a server does not track visibility. Both open questions here are answered by (5) and (6). Written into doc-1 as R85 to R90 and the vocabulary, and into doc-2 as the client noun and the meaning of the three focus commands. Criterion 2 (doc-5) is not yet done.
+
+Decided 2026-11-15 (Bruk): when more than one client views a session, each terminal takes the size it would have in the client most recently active in that session; other clients draw it at that size, anchored top left, padded or cropped, never rescaled. Split proportions stay shared. One rule for two windows in M1 and two machines in M3. Written into doc-1 as R91, and doc-1's 'two clients, one pane' decision is marked settled.
 <!-- SECTION:NOTES:END -->

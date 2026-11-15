@@ -8,7 +8,8 @@ updated_date: '2026-11-15T02:23:00Z'
 labels:
   - size-2
 milestone: m-0
-dependencies: []
+dependencies:
+  - TASK-1.65
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:59:00Z'
+updated_date: '2026-11-15T17:03:00Z'
 labels:
   - size-3
   - changes-requested
@@ -504,6 +504,53 @@ Three things worth a reviewer's attention, each already flagged in the plan or d
 1. ClientId (ids.rs) and ClientKind (client_kind.rs) are TASK-1.42's own planned shapes; this task landed first, so they're created here exactly as that task's plan describes them (from_raw/into_raw/Display/FromStr/serde hex form; App/Cli/Plugin snake_case word). TASK-1.42 should find them already in place.
 2. The provider's spawn step runs the already-public `<binary> server start --on-demand`, not a private subcommand - description::methods' server.start method gained the on_demand switch the team lead and engineer approved, matching the already-updated doc-2 row.
 3. The local-socket feature's own behavioural tests had to move to an integration test (tests/local_socket.rs), not stay as local_socket.rs's own #[cfg(test)] unit tests: CARGO_BIN_EXE_<name> (needed to find the fixture binary) is only set for tests under tests/, not for a lib crate's own unit test binary - found while building, not assumed. That integration test carries its own second #[expect(clippy::disallowed_types)] (only that one lint fires there, not disallowed_methods) for the same reason the production module does - a test proving socket-finding behaviour has to touch a real socket. Also added a justfile step (check-packages runs steg-sdk a second time with --features local-socket) so these tests actually run under just check, since neither the default build/test nor lint's --all-features (which never executes a test) would otherwise exercise them.
+
+Check FAILED: `cargo test -p steg-sdk --lib wire::frame` exited 101 at 2026-11-15T17:03:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at 0b6aacde5acd with uncommitted changes, last 40 of 47 lines:
+
+```text
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_whole ... ok
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_declared_length_of_five_decodes_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::a_declared_length_of_five_the_smallest_accepted_decodes_an_empty_payload_fed_whole ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole ... FAILED
+test wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time ... FAILED
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... FAILED
+
+failures:
+
+---- wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole stdout ----
+
+thread 'wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole' (7018920) panicked at crates/sdk/src/wire/frame.rs:348:9:
+assertion failed: matches!(decoder.next_frame(), Err(FrameError::Malformed(_)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time stdout ----
+
+thread 'wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time' (7018919) panicked at crates/sdk/src/wire/frame.rs:364:17:
+assertion failed: matches!(result, Err(FrameError::Malformed(_)))
+
+---- wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection stdout ----
+
+thread 'wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection' (7018924) panicked at crates/sdk/src/wire/frame.rs:406:9:
+assertion failed: matches!(first, Err(FrameError::Malformed(_)))
+
+
+failures:
+    wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time
+    wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole
+    wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection
+
+test result: FAILED. 11 passed; 3 failed; 0 ignored; 0 measured; 96 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

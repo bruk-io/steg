@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:58:00Z'
+updated_date: '2026-11-15T17:04:00Z'
 labels:
   - size-3
   - changes-requested
@@ -486,6 +486,111 @@ Tests mapped to acceptance criteria:
 - Cleanup on close (the plan's named risk area): closing_a_pane_a_client_views_drops_the_attachment_and_reapplies_the_session, closing_a_tab_drops_its_declared_size_record_from_every_client, closing_a_session_drops_every_clients_attachment_and_activity_for_it.
 
 Also added (per the plan's revision, approved alongside the build): Tab::size() public getter, paired with narrowing Tree::set_tab_size and Tab::set_size to pub(crate).
+
+Check FAILED: `just test` exited 101 at 2026-11-15T17:02:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at d7443d2e9566 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::move_session_reorders_and_rejects_an_out_of_range_position ... ok
+test tree::tests::move_tab_reorders_a_sessions_tabs ... ok
+test tree::tests::new_session_gives_the_first_five_sessions_distinct_colours_in_order ... ok
+test tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::new_session_sets_the_label_given_to_it ... ok
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+
+failures:
+
+---- tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus stdout ----
+
+thread 'tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus' (6993453) panicked at crates/kernel/src/tree.rs:2315:9:
+assertion `left == right` failed: after view_pane
+  left: [(SessionId(0), TabId(1), PaneId(2)), (SessionId(0), TabId(4), PaneId(6)), (SessionId(7), TabId(8), PaneId(10)), (SessionId(7), TabId(11), PaneId(13))]
+ right: [(SessionId(0), TabId(1), PaneId(3)), (SessionId(0), TabId(4), PaneId(6)), (SessionId(7), TabId(8), PaneId(10)), (SessionId(7), TabId(11), PaneId(13))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus
+
+test result: FAILED. 171 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 29, 29 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T17:04:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at d7443d2e9566 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.1s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2236:
+     }
+ 
+     #[test]
+[31m-    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus()
+(B[m[31m-    {
+(B[m[32m+    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus() {
+(B[m         let mut tree = Tree::new();
+ 
+         // Session A: two tabs, each with two panes. Splitting makes the
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2620:
+         // nothing to reapply, so no change is reported.
+         assert_eq!(tree.note_input(client, pane).unwrap(), None);
+         assert_eq!(
+[31m-            tree.session(session_id).unwrap().tab(tab_id).unwrap().size(),
+(B[m[32m+            tree.session(session_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .tab(tab_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .size(),
+(B[m             Some(steg_sdk::Size::new(80, 24))
+         );
+     }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
+
+Commits since the review: 29, 29 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:04:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at d7443d2e9566 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      build (steg-kernel) (29.5s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.1s)
+ok      architecture (0.9s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 29, 29 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

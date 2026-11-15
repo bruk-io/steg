@@ -4,6 +4,7 @@ title: 'Decide where focus lives: server or client'
 status: Draft
 assignee: []
 created_date: '2026-11-14T17:29:00Z'
+updated_date: '2026-11-15T00:13:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -32,8 +33,8 @@ The spec and CLI spec rely on a 'current' or 'focused' session, tab and pane, bu
 
 ## Open questions
 
-- [ ] Is one focused tab per session acceptable for M1, or must each window keep its own?
-- [ ] Does 'unfocused' in R50 and R51 mean unfocused on the server, or not visible in any attached window?
+- [ ] Is one focused tab per session acceptable for M1, or must each window keep its own? - Each winndow should keep its own
+- [ ] Does 'unfocused' in R50 and R51 mean unfocused on the server, or not visible in any attached window? Unsure
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

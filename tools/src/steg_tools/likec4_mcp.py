@@ -5,13 +5,11 @@ and read back the project's title, view ids and element ids. `read_project_summa
 the only function that touches a process or a pipe; parsing its response is pure.
 """
 
-from __future__ import annotations
-
 import json
 import queue
 import subprocess
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -53,6 +51,22 @@ def _read_project_summary_request() -> Mapping[str, object]:
         "method": "tools/call",
         "params": {"name": "read-project-summary", "arguments": {}},
     }
+
+
+def take_replies(messages: Iterable[Mapping[str, object]], count: int) -> list[Mapping[str, object]]:
+    """Collect the first `count` JSON-RPC replies out of `messages`, in order.
+
+    A message with no "id" is a notification, not a reply to anything this client sent
+    (the server emits `notifications/...` on its own schedule); it is skipped and does
+    not count toward `count`.
+    """
+    replies: list[Mapping[str, object]] = []
+    for message in messages:
+        if "id" in message:
+            replies.append(message)
+            if len(replies) == count:
+                break
+    return replies
 
 
 def parse_project_summary(responses: Sequence[Mapping[str, object]]) -> ProjectSummary:
@@ -100,6 +114,7 @@ def read_project_summary(likec4_path: Path, *, likec4_version: str = PINNED_LIKE
     )
     assert process.stdin is not None
     assert process.stdout is not None
+    assert process.stderr is not None
 
     # A plain `readline()` would block forever if the server never answers, and closing
     # stdin to force EOF races the server's own processing (confirmed: it answers in well
@@ -107,28 +122,43 @@ def read_project_summary(likec4_path: Path, *, likec4_version: str = PINNED_LIKE
     # in-flight tool call off before it replies). A background reader plus a bounded
     # `queue.get` gives a real timeout without either risk.
     lines: queue.Queue[str] = queue.Queue()
+    stderr_lines: list[str] = []
 
     def _drain_stdout() -> None:
         assert process.stdout is not None
         for line in process.stdout:
             lines.put(line)
 
-    reader = threading.Thread(target=_drain_stdout, daemon=True)
-    reader.start()
+    def _drain_stderr() -> None:
+        # Nothing reads the server's stderr otherwise, so a failure would say only
+        # "it didn't answer" with no hint why. Collecting it here means a later
+        # failure can report it.
+        assert process.stderr is not None
+        stderr_lines.extend(process.stderr)
+
+    threading.Thread(target=_drain_stdout, daemon=True).start()
+    threading.Thread(target=_drain_stderr, daemon=True).start()
+
+    def _received_messages() -> Iterator[Mapping[str, object]]:
+        while True:
+            try:
+                line = lines.get(timeout=timeout)
+            except queue.Empty:
+                raise TimeoutError(f"likec4 mcp did not answer within {timeout}s") from None
+            yield json.loads(line)
 
     try:
         for message in (_initialize_request(), _initialized_notification(), _read_project_summary_request()):
             process.stdin.write(json.dumps(message) + "\n")
         process.stdin.flush()
 
-        responses = []
-        for _ in range(2):  # one reply per request; the notification gets none
-            try:
-                line = lines.get(timeout=timeout)
-            except queue.Empty:
-                raise TimeoutError(f"likec4 mcp did not answer within {timeout}s") from None
-            responses.append(json.loads(line))
+        responses = take_replies(_received_messages(), count=2)
         return parse_project_summary(responses)
+    except Exception as exc:
+        stderr_text = "".join(stderr_lines).strip()
+        if stderr_text:
+            exc.add_note(f"likec4 mcp stderr:\n{stderr_text}")
+        raise
     finally:
         process.stdin.close()
         try:

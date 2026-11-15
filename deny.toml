@@ -15,6 +15,11 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CC0-1.0", # public domain dedication - no restriction, not copyleft (hexf-parse, via gpui's renderer)
+    # Permissive licence for data, not code; carries no copyleft. Reached only through
+    # webpki-root-certs, a build-only dependency of ureq, itself a build-only dependency of
+    # ghostty-vt-sys's source downloader - none of it is linked into steg's binary. Widened for
+    # the ghostty-vt path per R59 (doc-13) and decision-3, decided by Bruk on 2026-11-15.
+    "CDLA-Permissive-2.0",
     # MPL-2.0 is file-scoped copyleft, not viral like GPL/AGPL: only the MPL file itself carries the
     # obligation, not code that depends on it (cbindgen, a build-only dependency never linked into the
     # binary; option-ext, a small trait extension gpui's font loading depends on via `dirs`).

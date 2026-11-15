@@ -367,6 +367,17 @@ FAILED tools/tests/adapter/test_affected_real_workspace.py::test_selection_again
 full output: .quiet/tool-tests.log
 error: recipe `test-tools` failed on line 43 with exit code 1
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T02:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at dfebbf69b590 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

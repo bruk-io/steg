@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:27:00Z'
+updated_date: '2026-11-15T21:29:00Z'
 labels:
   - size-2
   - changes-requested
@@ -454,6 +454,32 @@ Coverage against the four acceptance criteria:
 Also added: a strengthened unknown-inner-method test (now compares the whole ApiError, not just the code), a new test for an inner request that fails validation (`pane.split` with no `direction`) giving the identical ApiError a direct call would, and an sdk test that no method other than api.call declares a parameter named `method` (the invariant that keeps the flat merge safe for every method added later).
 
 Checks recorded on the task via asdlc record-check: baseline `just check` (clean, before any change), the deliberate failing run (`cargo test --test dispatch` in crates/server, exit 101, for the reason above), `just check` clean after the full change, and `just check` clean again after rebasing onto origin/main a second time (TASK-1.44 had merged meanwhile; TASK-1.76's Runtime wrapper had not landed by the time this was pushed, and dispatch's signature is unchanged). PR #39's CI check passed (watched in the foreground).
+
+Check passed: `just check` exited 0 at 2026-11-15T21:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.2s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.3s)
+ok      test (steg-server) (2.9s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

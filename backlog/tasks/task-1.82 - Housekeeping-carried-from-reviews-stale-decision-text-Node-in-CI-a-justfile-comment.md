@@ -3,9 +3,11 @@ id: TASK-1.82
 title: >-
   Housekeeping carried from reviews: stale decision text, Node in CI, a justfile
   comment
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-15T20:27:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -13,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
+asdlc_branch: task-1.82-housekeeping-carried-from-reviews-stale
 ---
 
 ## Description

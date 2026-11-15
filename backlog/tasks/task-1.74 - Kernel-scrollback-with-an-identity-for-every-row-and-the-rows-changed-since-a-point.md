@@ -3,9 +3,11 @@ id: TASK-1.74
 title: >-
   Kernel: scrollback with an identity for every row, and the rows changed since
   a point
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
+updated_date: '2026-11-15T15:21:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -15,6 +17,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.74-kernel-scrollback-with-an-identity-for
 ---
 
 ## Description

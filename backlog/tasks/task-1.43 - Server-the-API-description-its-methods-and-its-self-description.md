@@ -5,15 +5,19 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:09:00Z'
+updated_date: '2026-11-15T15:22:00Z'
 labels:
   - size-4
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.36
   - TASK-1.37
   - TASK-1.38
   - TASK-1.69
+references:
+  - task-1.43-server-the-api-description-its-methods
+  - https://github.com/bruk-io/steg/pull/28
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -22,6 +26,10 @@ asdlc_branch: task-1.43-server-the-api-description-its-methods
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6427b7d1fb39'
 asdlc_plan_approved_size: size-4
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -361,6 +369,42 @@ ok      tool tests (0.9s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T15:10:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 85df8bd5ad54:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Built the sdk half as planned: crates/sdk/src/description/ (shapes.rs, request.rs, methods.rs) with all 38 methods from doc-2 section 8, 14 M1 events (R38), and ten errors carrying doc-2 section 6's exit statuses; validate() checks a request against the description with no I/O; crates/sdk/src/record.rs's SessionRecord, the one new typed result (session.list/show are the only served methods whose returns is a record today); wire forms for the sdk's existing shapes (ids.rs, colour.rs, pane_kind.rs, layout.rs); boundaries.toml + Cargo.toml for serde/serde_json, named under R106.
+
+Which test proves which clause:
+- AC #1: description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_38_pairs, no_method_or_param_summary_or_param_summary_is_empty, no_method_declares_a_cli_only_flag_as_a_parameter, a_method_has_at_most_one_target_and_at_most_one_program.
+- AC #2: description::request::tests::an_unknown_method_is_a_bad_request, a_parameter_the_description_does_not_declare_is_a_bad_request, a_missing_required_parameter_is_a_bad_request, a_value_outside_a_closed_set_is_a_bad_request; no I/O is also what steg-sdk's own clippy.toml mechanically refuses (just lint, part of just check).
+- AC #3: round-trip tests in ids.rs, colour.rs, pane_kind.rs, layout.rs, record.rs; record::tests::matches_the_fields_session_show_and_session_list_declare ties SessionRecord to the description.
+- AC #4: description::methods::tests::events_has_r38s_fourteen_m1_names_each_once, errors_has_ten_codes_with_doc_2_section_6s_exit_statuses, every_error_a_method_names_has_a_record.
+- AC #5: boundaries.toml's [steg-sdk] entry itself, with its reason; just check-boundaries and just deny, part of just check.
+
+just check recorded clean on the task multiple times, including after rebasing onto origin/main twice (TASK-1.39 landed on main mid-build but never touched crates/sdk, so no conflict). CI passed on PR #28.
+
+Departure from the plan: none - built in the order the plan laid out, steps 1-7.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -440,6 +484,34 @@ created: 2026-11-15T14:41:00Z
 ---
 
 Plan approved by @bruk (6427b7d1fb39, size-4): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:15:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.43: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:22:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] crates/sdk/src/description/methods.rs: api.show's and api.call's method-selector parameter are declared with role: Flag (via the `flag()` helper), not role: Target. Doc-2 section 8's Target column is "method" for both `api show` and `api call`, and section 2's grammar text uses the bare positional convention (`steg api show <method>`, `steg api call <method>`), matching how every other command with a Target column uses role: Target (verified against all 38 methods: these are the only 2 of 38 where a non-"none" Target column has no Role::Target param at all). Confirmed by adding a probe test: `api.show` and `api.call` currently have zero Target-role parameters. Per decision-1's own model, role and value.kind are independent, so the fix is role: Target with value: ValueKind::Text (not ValueKind::Target, since a method name isn't an R10-resolved session/tab/pane path) — not reachable through either the `target()` or `flag()` helper as written, so a method literal was likely copied from the wrong helper. As written, a CLI generated from this description would need `--target <method>`/`--method <method>` instead of the positional `steg api show <method>`/`steg api call <method>` doc-2 describes, which is exactly the kind of literal-data mismatch AC #1 asks a reviewer to catch by hand since the completeness test only checks (noun, verb) pairs, not roles.
+
+[Bugs, Nit] crates/sdk/src/description/request.rs `validate`: a `null` or wrong-JSON-type value for a required non-Choice parameter (e.g. an Integer or Text param) passes validation, since `validate` only checks presence of the key for required-ness and only type-checks `ValueKind::Choice` values. Verified with a probe test: `{"direction": null}` against a required Integer param returns `Ok(())`. This matches decision-1 section 8's explicitly accepted rough edge ("the spike's validation... types are not checked beyond [choice]") and AC #2's literal wording (which lists only unknown method/undeclared parameter/missing required/closed-set violation), so it is not a new regression, but it is a real gap worth a line in the dispatch task or a follow-up if a client ever sends malformed JSON types.
+
+[Bugs, Nit] crates/sdk/src/description/methods.rs `pane.wait`'s declared `returns` is a fixed `Record{fields: [exit_code]}`, but its `for` parameter's closed set is all 14 event names (shared with `event.watch`, confirmed by a test tying them together) and doc-2 section 3's verb table describes `wait` generically as printing "the event that ended the wait", not specifically an exit code. For 13 of the 14 possible `--for` values the declared shape wouldn't hold anything meaningful. Likely fine for M1 if `pane.exited` is the only value anyone uses in practice, but the declared shape doesn't reflect the parameter's own closed set.
+
+Everything else checked clean: all 38 of doc-2 section 8's (noun, verb) pairs are present with no extras (verified by reading the full method table against section 8, not just the completeness test, which only checks the (noun, verb) set); every other method's target/params/required-ness/closed-set-of-values matches doc-2 sections 3, 4, 5 and 8 (direction choices, colour/pane-kind/client-kind words, `--position`/`--to` required-ness per noun, `client.show`'s target correctly required since doc-2 states there is no STEG_CLIENT context default); the 14 events match doc-8 R38 exactly and the 10 errors' exit statuses match doc-2 section 6 exactly; SessionRecord's fields match doc-14's session row exactly and are cross-checked against the description by a test; identifiers' Serialize/Deserialize round-trip through exactly their Display string and FromStr/Deserialize reject malformed strings without panicking (verified); Colour/PaneKind/Orientation serialise as their own words; Ratio round-trips an uneven value (333/1000) and rejects 0, 1, negative and out-of-range values (NaN/infinity are rejected too, since serde_json's text format has no literal for them and f64 comparisons against them are false either way); Layout's externally-tagged shape round-trips a split with two leaves. The diff touches only the files the plan names (boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs, crates/sdk/src/description/*), nothing under crates/kernel/, crates/server/ or spikes/ (spikes/api-description/ is untouched, as the split required), serde/serde_json are the only new dependencies and are named in boundaries.toml with a reason that matches what they're used for, clippy.toml carries no new exemptions, and `cargo test -p steg-sdk` passes all 62 tests. The recorded `just check` (85df8bd5ad54) is at the branch's current head, and PR #28's CI run on that same head (headRefOid 85df8bd5ad54) is green. The known textual conflict with PR #27 (TASK-1.39) in crates/sdk/src/lib.rs was not treated as a finding, per instruction.
 
 ---
 <!-- COMMENTS:END -->

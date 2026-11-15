@@ -1,10 +1,11 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T15:20:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-10
+asdlc_branch: task-1.40-run-a-pane-s-program-and-know-when-it
 ---
 
 ## Description

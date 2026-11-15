@@ -3,11 +3,11 @@ id: TASK-1.39
 title: >-
   Kernel: a terminal on ghostty's engine: its screen, its cells and what it
   reports
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:08:00Z'
+updated_date: '2026-11-15T15:20:00Z'
 labels:
   - size-4
   - review-passed
@@ -602,6 +602,14 @@ Nits (4, at the cap):
 - [Evidence, Nit] crates/kernel/src/terminal.rs:560-573 `resizing_changes_the_reported_size_and_reflows_text` is the only resize test, and it changes both axes at once (10x2 -> 5x4: narrower and taller). Growing a dimension and shrinking one in isolation are both untested.
 
 Checked and clean: the cell-model clauses (underline style/colour, cursor shape, link presence true-inside/false-outside R116), events drained after every write for the `vt_write` path with cwd/title copied out as owned values (not borrowed past the next write), the run builder's style-change/wide-character/spacer-skip logic (traced against inputs beyond the tests: wide character at end of row via `SpacerHead`, an all-default-style unwritten row, a style change with no following text - no bug found in any), the sdk/kernel split (no engine type in `crates/sdk/src/screen.rs`, no new dependency, structural per AC #6), and that `Pane`/`Tree` are untouched (diff touches no file under pane/tree/session/tab).
+
+---
+
+created: 2026-11-15T15:20:00Z
+
+---
+
+From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head 4e93bde with four nits. The board takes no recorded check on a task whose review has passed, so the worker fixed them and pushed without asdlc record-check; the check at the new head b6e0c01 is pull request 27's CI run 43729109085 (success). The earlier review does not cover these commits. The orchestrator read every non-test change between the two heads; all are in crates/kernel/src/terminal.rs and fall in two places. First, draining: the engine's events are drained by one function that write and resize both call, since a resize can queue an event too. Second, the working directory: a value is now refused, leaving the previous directory in place, when it is a file URI with a host and no slash at all, has another scheme, is a relative path, is empty or has bad percent-encoding; a file URI whose path is empty after the slash is the root, and a plain absolute path is accepted. An intermediate push, c6c84ff, had refused the root directory and every plain path; the second came from the orchestrator's own wording and both were corrected before this head. Tests were added for each of those cases (one through a real OSC 1337 sequence), for a link address longer than the first buffer, and for growing and shrinking each axis on resize.
 
 ---
 <!-- COMMENTS:END -->

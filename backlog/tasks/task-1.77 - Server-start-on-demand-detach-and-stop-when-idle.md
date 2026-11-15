@@ -4,7 +4,7 @@ title: 'Server: start on demand, detach, and stop when idle'
 status: To Do
 assignee: []
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -33,3 +33,9 @@ Builds on TASK-1.44's foreground serve(): the detach wraps that same loop. The w
 - [ ] #6 steg server start and steg server start --on-demand run the server, and say on standard output whether a server was started or one was already running; no test-only hook is added to the shipped binary
 - [ ] #7 Every child this code spawns is waited on along every path or the notes say why not, including what the client that started the server is left holding
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Carried from TASK-1.70 (2026-11-15): the sdk exports run_fake_server_for_tests as a public, doc-hidden function behind the local-socket feature. TASK-1.44's plan found it cannot simply be removed (the sdk may not depend on the real binary), but the fixture could bind through the public socket_path itself; say in this task's plan whether to move it out of the public interface here.
+<!-- SECTION:NOTES:END -->

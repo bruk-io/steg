@@ -25,6 +25,8 @@ asdlc_branch: task-1.39-kernel-a-terminal-s-screen-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b1c858e146a2'
 asdlc_plan_approved_size: size-4
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -567,6 +569,15 @@ created: 2026-11-15T14:41:00Z
 ---
 
 Plan approved by @bruk (b1c858e146a2, size-4): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T14:56:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.39: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

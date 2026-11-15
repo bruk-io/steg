@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:36:00Z'
+updated_date: '2026-11-15T02:37:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -69,6 +69,17 @@ Risks: (a) cargo-deny's SPDX data may not recognise `CDLA-Permissive-2.0` by tha
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-13 (R59) and decision-3 by @bruk.o: ok. It adds one named licence, no exception and no skipped crate, proves the GPL refusal with a recorded and reverted probe, and leaves decision-3 alone.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:37:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.31 on task-1.31-licence-check-allow-permissive-licences at e8a16c09bd4c:
+
+```text
+ok      format check (0.1s)
+ok      lint (15.0s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

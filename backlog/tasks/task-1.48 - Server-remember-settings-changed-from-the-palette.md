@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:27:00Z'
+updated_date: '2026-11-15T19:28:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -691,6 +691,30 @@ ok      build (steg) (0.1s)
 ok      test (steg) (0.1s)
 ok      build (steg-app) (0.2s)
 ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T19:27:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at b983fcff3388:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (4.6s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.2s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.5s)
+ok      test (steg-server) (2.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
 ok      tool tests (1.2s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)

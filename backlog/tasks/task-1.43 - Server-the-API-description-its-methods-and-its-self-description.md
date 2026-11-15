@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:44:00Z'
+updated_date: '2026-11-15T14:56:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -299,6 +299,13 @@ ok      test (steg-app) (0.7s)
 ok      tool tests (1.6s)
 ok      architecture (0.7s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `sh -c 'just check-boundaries && just test'` exited 0 at 2026-11-15T14:56:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 2776d3cd43c5 with uncommitted changes:
+
+```text
+ok      boundaries (0.1s)
+ok      tests (every crate) (0.4s)
 ```
 <!-- SECTION:NOTES:END -->
 

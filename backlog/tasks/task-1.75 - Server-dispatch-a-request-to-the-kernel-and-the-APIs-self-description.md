@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:25:00Z'
+updated_date: '2026-11-15T17:29:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "rust"]
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["rust"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -1288,6 +1288,33 @@ created: 2026-11-15T17:25:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:29:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: rust. The diff does not match the plan.
+
+Reviewed at head e0abcd99f7ef6f8b29813cc657821c91171353e1 (PR #33's head). GitHub Actions "check" is SUCCESS at this exact SHA; the task's own recorded `just check` clean run is also at this exact SHA (both confirmed, not the account-billing CI outage noted in the brief).
+
+The one Important finding from the first review is fixed: crates/server/src/dispatch/tab.rs:60-95 (`new`) now converts and validates `position` via `wire_position_to_index` before anything is created (0/negative -> BadRequest, no kernel call), then composes `new_tab` + `move_tab` as one outcome, rolling back (`close_tab`, `focus_tab(previous_tab)`) if the position lands past the end so a refusal never leaves a tab nobody asked for. Verified by reading the code and by six new tests in dispatch.rs that exercise first/middle/default-end placement, position-zero refusal, past-the-end refusal (checked byte-for-byte against tab.move's own PositionOutOfRange for the same index, on a separate tree), and the no-focus+past-the-end combination - each asserting the tree is unchanged on refusal, not just the error code.
+
+Re-did the "declared param vs. acted-on" sweep myself, independent of the worker's own list: read session.rs, tab.rs, pane.rs and api.rs in full against every method's declared params in crates/sdk/src/description/methods.rs. Every param is either read and acted on, or is one of the plan's disclosed no-ops (`--force` on *.close, `session.new --focus`/`--no-focus`). No other accepted-and-silently-unacted parameter found.
+
+The two test nits are fixed, not just renamed: every_nothing_or_identifier_returning_method_matches_its_declared_shape now iterates api.methods directly, builds a dedicated piece of tree state per case, panics on any Nothing/Identifier-returning method it has no case for, and closes with an independent set-equality check against the description - a new method cannot be missed. The two added no-focus tests (tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first, pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target) target tree state where the restore logic is not trivially correct (current tab/pane is neither first nor the call's own target) - each would fail if the restore read the wrong thing.
+
+Remaining nit, unchanged and already disclosed in both reviews: crates/server/src/dispatch/mod.rs still holds Context, the top-level dispatch function and a dozen-plus helpers directly, against rust.md's "lib.rs and mod.rs hold mod and pub use lines only" - the plan itself named this file for this content, so not a new departure, just worth a later split.
+
+plan-matched is "no", same reason as the first review: crates/server/src/dispatch/api.rs is a real file beyond the plan's own file list (which put api.list/show/call's handling under mod.rs in the plan text), and the completeness/kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as named - both disclosed in the notes with reasons, not undisclosed, but still a departure.
+
+Kernel error mapping re-checked: exhaustive over all 13 current steg_kernel::Error variants (crates/kernel/src/error.rs), no wildcard arm, confirmed by direct count. TASK-1.40/1.42 (which would add new variants) are still unmerged, as expected.
+
+No Important findings. Verdict clean.
 
 ---
 <!-- COMMENTS:END -->

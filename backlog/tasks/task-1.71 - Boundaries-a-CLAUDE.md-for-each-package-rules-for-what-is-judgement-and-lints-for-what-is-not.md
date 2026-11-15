@@ -616,6 +616,12 @@ steg-kernel turns on steg-sdk's "local-socket" feature, which its rule in bounda
 full output: .quiet/boundaries.log
 error: recipe `boundaries` failed on line 78 with exit code 1
 ```
+
+Check passed: `just boundaries` exited 0 at 2026-11-15T03:29:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      boundaries (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -10,6 +10,7 @@ dependencies = []
 steg-affected = "steg_tools.affected:main"
 steg-boundaries = "steg_tools.boundaries:main"
 steg-quiet = "steg_tools.quiet:main"
+steg-recipes = "steg_tools.recipes:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

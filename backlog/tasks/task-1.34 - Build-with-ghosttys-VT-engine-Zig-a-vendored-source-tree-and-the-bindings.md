@@ -1061,6 +1061,8 @@ Checks recorded on this task (asdlc record-check), in order, this round:
 
 PR: https://github.com/bruk-io/steg/pull/20, branch
 task-1.34-build-with-ghostty-s-vt-engine-zig-a, pushed to 1b1c6f7, up to date with origin/main.
+
+Follow-ups carried by @bruk.o after the clean second review at 1b1c6f7, none blocking: the justfile's doc comment above zig-deps-seeded still says cp -n is a no-op, which the recipe's own comment contradicts; decision-3's text is stale now that the spike is deleted and because vendoring the source alone does not give an offline build (seven Zig packages are vendored too), to be corrected by a decision-record pull request with nothing else in it; doc-16's open question on where vendored source lives is answered by third_party/.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

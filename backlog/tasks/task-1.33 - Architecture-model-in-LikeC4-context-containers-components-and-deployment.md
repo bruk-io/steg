@@ -222,6 +222,31 @@ c4lint.py (the skill's own authoring linter, not wired into just check) reports 
 Follow-up for the orchestrator, not done here per the engineer's instruction: add "Node.js (npx, for `just architecture`)" to plugins/bruk-io-steg/commands.toml's [check].needs and re-verify [check] through asdlc-plugin once this PR merges.
 
 PR: https://github.com/bruk-io/steg/pull/14
+
+Check FAILED: `just check` exited 1 at 2026-11-15T03:10:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 6ee794d1b96e with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+FAILED  architecture (exit 1, 0.9s)
+[2m03:10:55.732[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mlayout[22m wasm[0m
+[2m03:10:55.738[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mworkspace:[22m /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33/architecture[0m
+[2m03:10:55.746[0m [1m[32mINFO [0m [1m[36mlikec4.server.projects[0m add [32m'architecture'[39m
+[2m03:10:55.746[0m [1m[32mINFO [0m [1m[36mlikec4.server.workspace[0m loaded [33m1[39m projects
+[2m03:10:55.853[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mworkspace:[22m found 27 source files[0m
+[2m03:10:55.853[0m [1m[31mERROR[0m [1m[36mlikec4[0m Invalid /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33/architecture/models/steg/steg.c4
+    [2mLine 10: [22m[31mExpecting token of type 'EOF' but found `this`.[39m[0m
+[2m03:10:55.978[0m [1m[31mERROR[0m [1m[36mlikec4.c4:validate[0m [31m[31m✗ Invalid[31m[2m (27 files, 1 errors)[22m[39m[0m
+[2m03:10:55.978[0m [1m[32mINFO [0m [1m[36mlikec4.c4:validate[0m [32mvalidate 246ms[39m[0m
+full output: .quiet/architecture.log
+error: recipe `architecture` failed on line 99 with exit code 1
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

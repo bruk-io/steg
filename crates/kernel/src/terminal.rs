@@ -61,15 +61,30 @@ impl Terminal {
     /// Feeds bytes through the engine's VT parser (doc-9 R14, R92).
     ///
     /// Drains every event the write produced into this terminal's own
-    /// state (`cwd`, `title`): `ghostty_vt::Terminal::events` never drains
-    /// itself, and a caller that only wrote would leak them.
+    /// state (`cwd`, `title`): see [`Terminal::drain_events`].
     pub fn write(&mut self, bytes: &[u8]) {
         self.engine.vt_write(bytes);
+        self.drain_events();
+    }
+
+    /// Drains whatever `ghostty_vt::Terminal::events` is holding into this
+    /// terminal's own state.
+    ///
+    /// `events` never drains itself, and more than [`Terminal::write`]
+    /// can push onto it - [`Terminal::resize`] does too, when mode 2048
+    /// (in-band size reports) is on - so every engine call that can queue
+    /// an event calls this afterwards, rather than leaving it to whichever
+    /// `write` happens to come next.
+    fn drain_events(&mut self) {
         let events: Vec<Event> = self.engine.events().collect();
         for event in events {
             match event {
                 Event::TitleChanged(title) => self.title = title,
-                Event::PwdChanged(pwd) => self.cwd = Some(parse_pwd(&pwd)),
+                Event::PwdChanged(pwd) => {
+                    if let Some(cwd) = parse_pwd(&pwd) {
+                        self.cwd = Some(cwd);
+                    }
+                }
                 Event::PtyWrite(_)
                 | Event::Bell
                 | Event::ClipboardWrite(_)
@@ -142,11 +157,18 @@ impl Terminal {
     /// mode-2048 size reports will be wrong until TASK-1.42 plumbs a real
     /// pixel size through; a known, named gap, not fixed here.
     ///
+    /// Drains events the same way [`Terminal::write`] does
+    /// ([`Terminal::drain_events`]): a resize with mode 2048 (in-band size
+    /// reports) on queues one, and it must not wait for a later `write` to
+    /// be drained.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Engine`] if the engine could not resize.
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<(), Error> {
-        self.engine.resize(cols, rows, 0, 0).map_err(Error::Engine)
+        let result = self.engine.resize(cols, rows, 0, 0).map_err(Error::Engine);
+        self.drain_events();
+        result
     }
 
     /// The terminal's width in columns.
@@ -167,8 +189,10 @@ impl Terminal {
         self.engine.rows().map_err(Error::Engine)
     }
 
-    /// The terminal's working directory, as last reported by OSC 7, OSC 9
-    /// or OSC 1337 (AC #2, doc-9 R16). `None` until a program reports one.
+    /// The terminal's working directory, as last reported by a
+    /// well-formed `file://` URI (AC #2, doc-9 R16). `None` until a
+    /// program reports one; a value this crate cannot parse confidently
+    /// (see [`parse_pwd`]) leaves it at whatever it was before.
     #[must_use]
     pub fn cwd(&self) -> Option<&str> {
         self.cwd.as_deref()
@@ -337,26 +361,32 @@ fn read_cursor(snapshot: &ghostty_vt::render::Snapshot<'_>) -> Result<Cursor, Er
 
 /// Parses the value an `Event::PwdChanged` carries into a plain path.
 ///
-/// OSC 7 gives a `file://<host>/<path>` URI; OSC 9 and OSC 1337 already
-/// give a plain path, so a value with no `file://` prefix is returned
-/// unchanged.
-fn parse_pwd(raw: &str) -> String {
-    let Some(after_scheme) = raw.strip_prefix("file://") else {
-        return raw.to_string();
-    };
+/// `None` for anything that is not a well-formed `file://<host>/<path>`
+/// URI with a non-empty path - no scheme, a host with no path, or a path
+/// whose percent-encoding does not decode. A caller keeps whatever `cwd`
+/// it already had rather than replace it with a guess: a value this
+/// permissive can be wrong in a way nothing downstream would notice, so a
+/// value this task cannot parse confidently is treated as no change
+/// rather than as a plain path.
+fn parse_pwd(raw: &str) -> Option<String> {
+    let after_scheme = raw.strip_prefix("file://")?;
     // `after_scheme` is `<host>/<path>`; `split_once` consumes the
     // separating `/`, so it is put back in front of the decoded path.
-    let path = after_scheme
-        .split_once('/')
-        .map_or("", |(_host, path)| path);
-    format!("/{}", percent_decode(path))
+    let (_host, path) = after_scheme.split_once('/')?;
+    if path.is_empty() {
+        return None;
+    }
+    Some(format!("/{}", percent_decode(path)?))
 }
 
-/// Decodes `%XX` escapes in a URI path. Byte-oriented on purpose: it never
-/// slices the input `&str` by index, so malformed input - this is a path a
-/// running program chose, not a trusted value - cannot panic on a
+/// Decodes `%XX` escapes in a URI path. `None` on any malformed escape,
+/// rather than passing invalid-looking bytes through unchanged: the
+/// caller treats that as a value it cannot parse confidently, not as a
+/// path with a few odd characters in it. Byte-oriented on purpose: it
+/// never slices the input `&str` by index, so malformed input - this is a
+/// path a running program chose, not a trusted value - cannot panic on a
 /// non-UTF-8-boundary slice.
-fn percent_decode(value: &str) -> String {
+fn percent_decode(value: &str) -> Option<String> {
     fn hex_digit(byte: u8) -> Option<u8> {
         match byte {
             b'0'..=b'9' => Some(byte - b'0'),
@@ -370,12 +400,9 @@ fn percent_decode(value: &str) -> String {
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%'
-            && let (Some(high), Some(low)) = (
-                bytes.get(i + 1).copied().and_then(hex_digit),
-                bytes.get(i + 2).copied().and_then(hex_digit),
-            )
-        {
+        if bytes[i] == b'%' {
+            let high = bytes.get(i + 1).copied().and_then(hex_digit)?;
+            let low = bytes.get(i + 2).copied().and_then(hex_digit)?;
             out.push(high * 16 + low);
             i += 3;
             continue;
@@ -383,7 +410,7 @@ fn percent_decode(value: &str) -> String {
         out.push(bytes[i]);
         i += 1;
     }
-    String::from_utf8_lossy(&out).into_owned()
+    String::from_utf8(out).ok()
 }
 
 /// A hyperlink's URI, as UTF-8 bytes from the engine's buffer. Lossy on
@@ -455,6 +482,29 @@ mod tests {
         term.write(b"\x1b]7;file:///tmp/project\x07");
 
         assert_eq!(term.cwd(), Some("/tmp/project"));
+    }
+
+    #[test]
+    fn a_malformed_osc_7_value_is_ignored_and_the_previous_cwd_is_kept() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]7;file:///tmp/first\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+
+        // A host with no path at all - nothing after it to take as one.
+        term.write(b"\x1b]7;file://host\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+
+        // Not a file scheme.
+        term.write(b"\x1b]7;/not/a/uri\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+
+        // Empty.
+        term.write(b"\x1b]7;\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+
+        // Bad percent-encoding: `%zz` is not a hex escape.
+        term.write(b"\x1b]7;file:///tmp/%zzbad\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
     }
 
     #[test]
@@ -558,6 +608,44 @@ mod tests {
     }
 
     #[test]
+    fn link_at_grows_its_buffer_for_an_address_longer_than_the_first_try() {
+        // Longer than `link_at`'s first, 256-byte buffer, so this only
+        // passes if the `OutOfSpace` branch retries with a bigger one.
+        let long_uri = format!("http://example.com/{}", "a".repeat(300));
+        assert!(long_uri.len() > 256);
+
+        let mut term = Terminal::new(20, 1, 100).unwrap();
+        term.write(format!("\x1b]8;;{long_uri}\x1b\\hi\x1b]8;;\x1b\\").as_bytes());
+
+        assert_eq!(term.link_at(0, 0).unwrap(), Some(long_uri));
+    }
+
+    #[test]
+    fn resize_drains_the_in_band_size_report_event_so_it_does_not_leak_to_the_next_read() {
+        use ghostty_vt::terminal::{Mode, ModeKind};
+
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.engine
+            .set_mode(Mode::new(2048, ModeKind::Dec), true)
+            .unwrap();
+
+        term.resize(5, 3).unwrap();
+
+        // `resize` must have drained whatever it queued itself: nothing
+        // is left over for a later read of the engine's own queue to see
+        // (`Terminal` has no public accessor for it - this module's own
+        // test code can reach the private `engine` field directly, which
+        // is the only way to observe that the queue, not just this type's
+        // own state, ended up empty).
+        let leftover: Vec<_> = term.engine.events().collect();
+        assert!(
+            leftover.is_empty(),
+            "resize must drain what it queues itself, not leave it for the next write/resize \
+             to see: {leftover:?}"
+        );
+    }
+
+    #[test]
     fn resizing_changes_the_reported_size_and_reflows_text() {
         let mut term = Terminal::new(10, 2, 100).unwrap();
         assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (10, 2));
@@ -567,6 +655,56 @@ mod tests {
 
         assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (5, 4));
 
+        let screen = term.screen().unwrap();
+        assert_eq!(screen.rows[0][0].text, "01234");
+        assert_eq!(screen.rows[1][0].text, "56789");
+    }
+
+    #[test]
+    fn growing_only_the_columns_keeps_the_text_readable_at_the_new_width() {
+        let mut term = Terminal::new(5, 2, 100).unwrap();
+        term.write(b"\x1b[?7h01234");
+
+        term.resize(10, 2).unwrap();
+
+        assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (10, 2));
+        let screen = term.screen().unwrap();
+        assert_eq!(screen.rows[0][0].text, "01234");
+    }
+
+    #[test]
+    fn shrinking_only_the_columns_reflows_the_text() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b[?7h0123456789");
+
+        term.resize(5, 2).unwrap();
+
+        assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (5, 2));
+        let screen = term.screen().unwrap();
+        assert_eq!(screen.rows[0][0].text, "01234");
+        assert_eq!(screen.rows[1][0].text, "56789");
+    }
+
+    #[test]
+    fn growing_only_the_rows_keeps_the_text_readable_at_the_new_height() {
+        let mut term = Terminal::new(5, 2, 100).unwrap();
+        term.write(b"\x1b[?7h01234");
+
+        term.resize(5, 5).unwrap();
+
+        assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (5, 5));
+        let screen = term.screen().unwrap();
+        assert_eq!(screen.rows[0][0].text, "01234");
+    }
+
+    #[test]
+    fn shrinking_only_the_rows_keeps_the_active_lines_text() {
+        let mut term = Terminal::new(5, 4, 100).unwrap();
+        term.write(b"\x1b[?7h01234\r\n56789");
+
+        term.resize(5, 2).unwrap();
+
+        assert_eq!((term.cols().unwrap(), term.rows().unwrap()), (5, 2));
         let screen = term.screen().unwrap();
         assert_eq!(screen.rows[0][0].text, "01234");
         assert_eq!(screen.rows[1][0].text, "56789");

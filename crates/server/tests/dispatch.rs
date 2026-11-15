@@ -1131,8 +1131,38 @@ fn api_call_with_no_method_is_a_bad_request() {
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
+    assert_eq!(error.message, "method: must be text");
 }
 
+/// A `method` that is present but not text takes the same early refusal
+/// as an absent one (`param_str` returns `None` for either) - asserted
+/// explicitly here, with its own two cases, rather than assumed from the
+/// absent-`method` test above.
+#[test]
+fn api_call_with_a_non_text_method_is_a_bad_request() {
+    for value in [json!(42), json!({"not": "text"})] {
+        let (mut tree, context, api) = fresh();
+
+        let error = err(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request("api.call", vec![("method", value.clone())]),
+        ));
+
+        assert_eq!(error.code, ErrorCode::BadRequest, "{value}");
+        assert_eq!(error.message, "method: must be text", "{value}");
+    }
+}
+
+/// Compares the whole error, not only the code: against the pre-TASK-1.81
+/// code (selector read and stripped under `target`), this request has no
+/// `target` key at all, so it is refused for *that* reason
+/// (`"target: must be text"`) before the self-call check is ever reached.
+/// A code-only assertion cannot tell "refuses to call itself" apart from
+/// "the selector is missing", which is exactly what let this test keep
+/// passing against the bug this task fixes.
 #[test]
 fn api_call_refuses_to_call_itself() {
     let (mut tree, context, api) = fresh();
@@ -1146,6 +1176,7 @@ fn api_call_refuses_to_call_itself() {
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
+    assert_eq!(error.message, "api.call cannot call api.call");
 }
 
 #[test]

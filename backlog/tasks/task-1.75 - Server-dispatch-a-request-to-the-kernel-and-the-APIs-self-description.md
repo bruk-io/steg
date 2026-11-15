@@ -1,9 +1,11 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
+updated_date: '2026-11-15T15:52:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -13,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
 ---
 
 ## Description

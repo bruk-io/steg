@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:31:00Z'
+updated_date: '2026-11-15T16:48:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -430,6 +430,30 @@ ok      test (steg-app) (1.2s)
 ok      tool tests (1.6s)
 ok      architecture (1.6s)
 ok      recipe names (0.2s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:48:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at 974e2b165d9d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.1s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

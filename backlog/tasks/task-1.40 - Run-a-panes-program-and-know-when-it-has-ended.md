@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:02:00Z'
+updated_date: '2026-11-15T16:07:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -320,3 +320,9 @@ stay few and deliberate.
 `check-architecture` unaffected, recipe names) recorded via `asdlc record-check`, plus the
 test-to-clause mapping in section 6.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-9 (R13, R16), doc-15 (R97), doc-2 section 4, doc-8 (R1, R99) and doc-16 by @bruk.o: ok. The kernel holds what a pane's program is and its status, as shapes defined in the sdk, and the rule for what happens when it ends, reusing the tree's close cascade; the server launches through an interface of its own that the kernel never sees. One thread per pane owns its terminal for the pane's life, with a short relay thread per run; opening the pseudo-terminal and spawning happen on the control thread so a bad command is an ordinary error. portable-pty is added to the server only, its licence to be confirmed by just deny. Tests use a real pseudo-terminal and wait on events, never a sleep. Left to TASK-1.44: where the server's own environment comes from.
+<!-- SECTION:NOTES:END -->

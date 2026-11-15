@@ -1,16 +1,19 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:14:00Z'
+updated_date: '2026-11-15T21:17:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.48
+references:
+  - task-1.81-api-call-cannot-reach-a-method-that-has
+  - https://github.com/bruk-io/steg/pull/39
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
@@ -432,6 +435,20 @@ ok      tool tests (1.0s)
 ok      architecture (0.9s)
 ok      recipe names (0.0s)
 ```
+
+Built per the approved plan (digest d5c2871b65a2): renamed api.call's own selector from `target` to `method` in crates/sdk/src/description/methods.rs (new `method_target` helper, role stays Target so it's still the CLI's one positional; details prose updated), and crates/server/src/dispatch/api.rs now reads/strips "method" instead of "target" (stale doc comments naming "target" updated too, including one in dispatch/mod.rs's bad_request doc comment). api.show's own `target` is left unchanged (no collision, smaller diff).
+
+Departure from the plan's stated order, noted here rather than left unsaid: I built the production rename first, then updated/added tests, rather than writing the tests first against unmodified code. The deliberate failing run is still on record, just inverted - the pre-existing api.call tests (still sending the old "target" key) failed against the renamed production code with BadRequest "method: must be text" (asdlc record-check, exit 101, recorded on the task) - the same signal the plan predicted, from the other direction. No content of the plan changed.
+
+Coverage against the four acceptance criteria:
+- AC #1 (every method, with its own target, matches a direct call): `api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given` in crates/server/tests/dispatch.rs - a description-driven loop over all 41 non-api.call methods (api.call is excluded by name, with its own reason - it refuses to call itself), each given a freshly-created non-default target where it has one, comparing the full Response (success or error) against a direct call. An exhaustive match with a `panic!` fallback means a method added later and missed would fail loudly, not be silently skipped.
+- AC #2 (setting.show/set/unset, required target, no default): three dedicated tests (`api_call_reaches_setting_show/set/unset_with_its_required_target`), mirroring the two tests TASK-1.48's worker wrote and TASK-1.81's own notes record as removed before TASK-1.48 merged. Also covered incidentally by the AC #1 loop.
+- AC #3 (the format decision, named for the engineer): written into the plan before any code changed - renamed the selector rather than nesting the forwarded parameters (would need a new ValueKind) or adding a new top-level Request field (a wire change). No doc-2 or decision-1 edit needed: doc-2 section 8's own Target column for `api call` already reads "method", and decision-1's format already lets a parameter's wire name differ from its role. Only change: the Param literal + its prose in methods.rs.
+- AC #4 (names the pane/tab/session, not the default): three dedicated tests (`api_call_of_pane_set/tab_set/session_set_names_the_target_..._not_the_context_default`) asserting both halves - the named one changed, and the context's default did not - since response equality alone (which the AC #1 loop checks) can't rule out a silent fallback to the default.
+
+Also added: a strengthened unknown-inner-method test (now compares the whole ApiError, not just the code), a new test for an inner request that fails validation (`pane.split` with no `direction`) giving the identical ApiError a direct call would, and an sdk test that no method other than api.call declares a parameter named `method` (the invariant that keeps the flat merge safe for every method added later).
+
+Checks recorded on the task via asdlc record-check: baseline `just check` (clean, before any change), the deliberate failing run (`cargo test --test dispatch` in crates/server, exit 101, for the reason above), `just check` clean after the full change, and `just check` clean again after rebasing onto origin/main a second time (TASK-1.44 had merged meanwhile; TASK-1.76's Runtime wrapper had not landed by the time this was pushed, and dispatch's signature is unchanged). PR #39's CI check passed (watched in the foreground).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

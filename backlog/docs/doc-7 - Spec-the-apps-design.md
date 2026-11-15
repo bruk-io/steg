@@ -3,7 +3,7 @@ id: doc-7
 title: 'Spec: the app''s design'
 type: specification
 created_date: '2026-11-15T00:22:00Z'
-updated_date: '2026-11-15T00:29:00Z'
+updated_date: '2026-11-15T00:30:00Z'
 ---
 Intent: TASK-1. Delivers the design section that TASK-1.27 asks for (its criterion 3), as a document of its own because it is too long for a section of doc-1.
 
@@ -184,7 +184,10 @@ All of 2.6 is a proposal: none of it was in doc-1.
 - D70. How loud each status is, most pressing first: waiting (first in the palette; notifies in the background), failed (the ring shakes once; notifies in the background), bell (swings once), finished (no motion once it has closed), running (moves only as progress arrives).
 - D71. Outside the window, only waiting and failed raise a notification, only while steg is in the background, and not more than once per pane per state.
 
-How long each status lasts, how a pane's status is promoted to its tab from the CLI, and how several statuses in one tab are held, are decided in TASK-1.30 and are not restated here.
+- D109. Each status ends by its own rule. Running: when the program reports an end, or exits. Waiting: when the person answers, or the program withdraws it; never on a timer. Failed: on a key press or click in that pane; never on a timer. Finished: on a key press or click in that pane, or after 10 minutes. Bell: on a key press or click in that pane, or after 30 seconds.
+- D110. Opening a tab does not clear anything. Only a key press or click in the pane itself counts as having dealt with it.
+
+How a pane's status is promoted to its tab from the CLI, and how several statuses in one tab are held, are decided in TASK-1.30 and are not restated here.
 
 ### 2.8 Status: motion
 
@@ -249,7 +252,7 @@ For Bruk to decide. None is resolved here.
 1. **Status across releases: decided 2026-11-15.** M1 shows only what steg can know without a program's help: running, and finished or failed from the exit code. So in M1, D56, D58, D59 and D64 apply, with their motion; D55, D57, D60 and D76 need the status protocol and arrive in M2. doc-1's R49, R50 and R52 and its release table are still to be reworded.
 2. **Session colour: decided 2026-11-15.** It follows the artifact. In M1 each session has one of the five colours, a new session takes the next one not in use, and "Session: Set colour" in the palette changes it. An arbitrary colour or gradient from the CLI (D10) stays in M2. doc-1's R26 is still to be reworded.
 3. **Settings: decided 2026-11-15.** The Python config is the only file and the palette never writes to it (D106 to D108). One point is left for doc-1 section 5.9: D108 says the server remembers overrides in M1, which is state 5.9 does not yet describe.
-4. **When finished and failed clear.** The design's own rules said they stay until the first key press or click in that pane, never on a timer. Bruk has since decided that each status type has a fixed lifetime (TASK-1.30). D70 and D77 are written to hold under either; TASK-1.30 decides.
+4. **When a status ends: decided 2026-11-15.** D109 and D110. Waiting and failed never end on a timer; finished ends after 10 minutes and the bell after 30 seconds, or sooner on a key press or click in the pane.
 5. **R50 needs rewording.** It says a tab with an unfocused pane shows that pane's status with words. This design shows one ring per tab with no words (D37, D67), no ring on the selected tab (D38), and nothing on a session (D32).
 6. **Whether GPUI can draw all of this cheaply** is not established: the six-section ring, the gradient fixed to the track, and above all the flakes of D75, which are a small physics simulation running for ten seconds. D75 is the first candidate to simplify if it costs frames against R19.
 7. **Search puts the session colour behind text** (D95), which D9 otherwise forbids. It is the one exception, and it changes the text colour to keep contrast.
@@ -261,7 +264,7 @@ For Bruk to decide. None is resolved here.
 - [ ] Carried forward: more tabs than fit the top bar, many session chips, reordering tabs, and moving a pane to another tab are not designed. Bruk parked them on 2026-11-14 to come back to; they do not block the first window.
 - [ ] Carried forward: whether a session can be ended from the top bar, where chips have no x. Today it can only be ended there from the palette.
 - [ ] Carried forward to TASK-1.29: whether two windows on one session share one pane layout and one focused tab.
-- [ ] Carried forward to TASK-1.30: status lifetimes, promotion, and the CLI form.
+- [ ] Carried forward to TASK-1.30: promotion, and its CLI form. Lifetimes are settled in D109.
 
 ## 6. Out of scope
 

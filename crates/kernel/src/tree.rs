@@ -5,6 +5,7 @@ use steg_sdk::{PaneId, PaneKind, SessionId, TabId};
 use crate::colour::next_colour;
 use crate::error::Error;
 use crate::ids::Ids;
+use crate::label;
 use crate::session::{Session, TabClosed};
 use crate::tab::Tab;
 
@@ -67,7 +68,20 @@ impl Tree {
 
     /// Creates a new session, with one tab and one pane already in it
     /// (R93, R94), and the next colour not in use (R26, R109).
-    pub fn new_session(&mut self, label: Option<String>) -> SessionId {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidLabel`] if `label` is invalid (doc-2 section
+    /// 4). The label is validated before anything is minted, so a failed
+    /// call never consumes an id (see `new_tab`'s comment below).
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: `label` was already validated above, so setting
+    /// it on the session just built cannot fail.
+    pub fn new_session(&mut self, label: Option<String>) -> Result<SessionId, Error> {
+        let label = label::validate(label)?;
+
         let colour = next_colour(self.sessions.iter().map(Session::colour));
 
         let id = self.ids.next_session();
@@ -75,10 +89,10 @@ impl Tree {
         let first_pane = self.ids.next_pane();
 
         let mut session = Session::new(id, colour, first_tab, first_pane, PaneKind::Terminal);
-        session.set_label(label);
+        session.set_label(label).expect("already validated above");
         self.sessions.push(session);
 
-        id
+        Ok(id)
     }
 
     /// Ends a session outright. There is no cascade above a session.
@@ -205,12 +219,22 @@ impl Tree {
     /// # Errors
     ///
     /// Returns [`Error::SessionNotFound`] if the tree holds no session
-    /// with that id.
+    /// with that id, or [`Error::InvalidLabel`] if `label` is invalid
+    /// (doc-2 section 4). The label is validated before anything is
+    /// minted, same as the target-exists check below, so neither kind of
+    /// failure ever consumes an id.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: `label` was already validated above, so setting
+    /// it on the tab just added cannot fail.
     pub fn new_tab(
         &mut self,
         session_id: SessionId,
         label: Option<String>,
     ) -> Result<TabId, Error> {
+        let label = label::validate(label)?;
+
         // Check the target exists before minting anything: an id only
         // ever names something actually being created, never a failed
         // call (step 10 of the plan). Destructuring `self` into its
@@ -227,7 +251,7 @@ impl Tree {
         let pane_id = ids.next_pane();
 
         let tab = session.add_tab(tab_id, pane_id, PaneKind::Terminal);
-        tab.set_label(label);
+        tab.set_label(label).expect("already validated above");
 
         Ok(tab_id)
     }
@@ -308,7 +332,7 @@ mod tests {
 
         let colours: Vec<Colour> = (0..5)
             .map(|_| {
-                let id = tree.new_session(None);
+                let id = tree.new_session(None).unwrap();
                 tree.session(id).unwrap().colour()
             })
             .collect();
@@ -329,10 +353,10 @@ mod tests {
     fn the_sixth_concurrent_session_repeats_the_first_colour() {
         let mut tree = Tree::new();
         for _ in 0..5 {
-            tree.new_session(None);
+            tree.new_session(None).unwrap();
         }
 
-        let sixth = tree.new_session(None);
+        let sixth = tree.new_session(None).unwrap();
 
         assert_eq!(tree.session(sixth).unwrap().colour(), Colour::Violet);
     }
@@ -340,7 +364,7 @@ mod tests {
     #[test]
     fn close_session_removes_it_directly() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
 
         tree.close_session(session_id).unwrap();
 
@@ -351,7 +375,7 @@ mod tests {
     #[test]
     fn closing_a_sessions_only_tabs_only_pane_ends_the_session() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
 
         let closed = tree.close_pane(pane_id).unwrap();
@@ -366,7 +390,7 @@ mod tests {
     #[test]
     fn closing_a_tabs_last_pane_closes_the_tab_without_ending_a_session_that_has_others() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
         let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
         let second_tab = tree.new_tab(session_id, None).unwrap();
@@ -383,7 +407,7 @@ mod tests {
     #[test]
     fn closing_one_of_several_panes_cascades_no_further_than_it_should() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
         let second_pane = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
 
@@ -398,7 +422,7 @@ mod tests {
     #[test]
     fn closing_one_of_several_tabs_cascades_no_further_than_it_should() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let second_tab = tree.new_tab(session_id, None).unwrap();
 
         let closed = tree.close_tab(second_tab).unwrap();
@@ -410,7 +434,7 @@ mod tests {
     #[test]
     fn new_tab_adds_a_labelled_tab_with_one_pane_already_in_it() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
 
         let tab_id = tree.new_tab(session_id, Some("logs".to_string())).unwrap();
 
@@ -424,7 +448,7 @@ mod tests {
     #[test]
     fn a_failed_new_tab_does_not_consume_an_id() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None); // mints raw ids 0 (session), 1 (tab), 2 (pane)
+        let session_id = tree.new_session(None).unwrap(); // mints raw ids 0 (session), 1 (tab), 2 (pane)
         let unknown_session = steg_sdk::SessionId::from_raw(999);
 
         assert!(tree.new_tab(unknown_session, None).is_err());
@@ -438,7 +462,7 @@ mod tests {
     #[test]
     fn a_failed_new_pane_does_not_consume_an_id() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None); // mints raw ids 0, 1, 2
+        let session_id = tree.new_session(None).unwrap(); // mints raw ids 0, 1, 2
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
         let unknown_tab = steg_sdk::TabId::from_raw(999);
 
@@ -456,7 +480,7 @@ mod tests {
     #[test]
     fn new_pane_adds_a_pane_to_an_existing_tab() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
 
         let pane_id = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
@@ -469,7 +493,7 @@ mod tests {
     #[test]
     fn move_tab_reorders_a_sessions_tabs() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
         let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
         let second_tab = tree.new_tab(session_id, None).unwrap();
 
@@ -483,10 +507,10 @@ mod tests {
     #[test]
     fn session_mut_lets_a_caller_change_a_sessions_label_and_colour() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None);
+        let session_id = tree.new_session(None).unwrap();
 
         let session = tree.session_mut(session_id).unwrap();
-        session.set_label(Some("work".to_string()));
+        session.set_label(Some("work".to_string())).unwrap();
         session.set_colour(Colour::Green);
 
         let session = tree.session(session_id).unwrap();
@@ -498,16 +522,49 @@ mod tests {
     fn new_session_sets_the_label_given_to_it() {
         let mut tree = Tree::new();
 
-        let session_id = tree.new_session(Some("work".to_string()));
+        let session_id = tree.new_session(Some("work".to_string())).unwrap();
 
         assert_eq!(tree.session(session_id).unwrap().label(), Some("work"));
     }
 
     #[test]
+    fn new_session_rejects_an_invalid_label_and_mints_no_id() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.new_session(Some("123".to_string())),
+            Err(crate::error::Error::InvalidLabel("123".to_string()))
+        );
+        assert!(tree.sessions().is_empty());
+
+        // Had the failed call minted ids before validating the label,
+        // this session would start at raw id 3, not 0.
+        let session_id = tree.new_session(None).unwrap();
+        assert_eq!(session_id.into_raw(), 0);
+    }
+
+    #[test]
+    fn new_tab_rejects_an_invalid_label_and_mints_no_id() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap(); // mints raw ids 0, 1, 2
+
+        assert_eq!(
+            tree.new_tab(session_id, Some("a/b".to_string())),
+            Err(crate::error::Error::InvalidLabel("a/b".to_string()))
+        );
+        assert_eq!(tree.session(session_id).unwrap().tabs().len(), 1);
+
+        // Had the failed call minted a tab id and a pane id before
+        // validating the label, this would mint raw 5, not 3.
+        let tab_id = tree.new_tab(session_id, None).unwrap();
+        assert_eq!(tab_id.into_raw(), 3);
+    }
+
+    #[test]
     fn move_session_reorders_and_rejects_an_out_of_range_position() {
         let mut tree = Tree::new();
-        let first = tree.new_session(None);
-        let second = tree.new_session(None);
+        let first = tree.new_session(None).unwrap();
+        let second = tree.new_session(None).unwrap();
 
         tree.move_session(second, 0).unwrap();
 

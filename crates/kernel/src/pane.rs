@@ -2,6 +2,9 @@
 
 use steg_sdk::{PaneId, PaneKind};
 
+use crate::error::Error;
+use crate::label;
+
 /// A pane: a region of a tab running one program (doc-15).
 ///
 /// Carries only its identity, its label and its kind. A pane's program and
@@ -46,8 +49,14 @@ impl Pane {
     }
 
     /// Sets or clears this pane's label.
-    pub fn set_label(&mut self, label: Option<String>) {
-        self.label = label;
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidLabel`] if `label` contains `/`, or is made
+    /// only of digits (doc-2 section 4).
+    pub fn set_label(&mut self, label: Option<String>) -> Result<(), Error> {
+        self.label = label::validate(label)?;
+        Ok(())
     }
 }
 
@@ -68,8 +77,19 @@ mod tests {
     fn set_label_changes_it() {
         let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
 
-        pane.set_label(Some("logs".to_string()));
+        pane.set_label(Some("logs".to_string())).unwrap();
 
         assert_eq!(pane.label(), Some("logs"));
+    }
+
+    #[test]
+    fn set_label_rejects_an_invalid_label() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+
+        assert_eq!(
+            pane.set_label(Some("123".to_string())),
+            Err(crate::error::Error::InvalidLabel("123".to_string()))
+        );
+        assert_eq!(pane.label(), None);
     }
 }

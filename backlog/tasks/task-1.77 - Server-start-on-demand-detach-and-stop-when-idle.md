@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T23:51:00Z'
+updated_date: '2026-11-15T23:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -53,13 +53,14 @@ own split:
   [--on-demand]` exists and works; an on-demand server survives the client that started
   it; both start forms construct a `Runtime` and stop it cleanly (section 1b - new now
   that TASK-1.76 has merged); two real clients converge on one; every spawned child is
-  accounted for. No new `ServerConfig` fields beyond section 1b's own, no new nix
-  feature beyond what section 6 names, no login-shell *resolution* code (B3's).
+  accounted for. No new `ServerConfig` fields, no new nix feature beyond what section 6
+  names, no login-shell *resolution* code (B3's), no `Runtime::session_counter` (B2's -
+  its only caller is B2's own checker, so it belongs there, not here).
 - **B2 - the idle rule** (AC #3, and the "what does a client see while stopping"
   question doc-8/TASK-1.44 carried here). Depends on B1 for the one function its own
-  checker thread is wired into (`start::serve_on_demand`, section 1b) and for the
-  `Runtime::session_counter` method B1 adds. Adds the idle-specific `ServerConfig`
-  fields.
+  checker thread is wired into (`start::serve_on_demand`, section 1b). Adds the
+  `Runtime::session_counter` method and the idle-specific `ServerConfig` fields,
+  both this section's own.
 - **B3 - the login-shell identity** (AC #2's environment clause). The resolver itself
   (`login.rs`, its bounded wait, its own tests) has no dependency on B1 or B2 and can be
   built and reviewed in parallel with either; only its last step - swapping which
@@ -489,11 +490,12 @@ that `Arc`, the same pattern the drain thread's own closure (`runtime.rs:124-139
 already uses for the same reason. Everything else in `runtime.rs` stays byte-identical
 to `origin/main`.
 
-**The driving loop** (`idle::run_checker`, spawned from `start::serve_on_demand`,
-section 1b, right after `Runtime::new` so its `session_counter()` is ready): holds the
-channel's `Receiver<ConnectionEvent>`, the `Stopper`, a `session_count: impl Fn() ->
-usize + Send + 'static` (section 1b's `runtime.session_counter()` - no longer a `|| 0`
-placeholder, see below), and `config.idle_timeout`/`config.idle_poll_interval` (two new
+**The driving loop** (`idle::run_checker`, spawned from `start::serve_on_demand`
+right after `Runtime::new`, section 1b, so this section's own `session_counter()` is
+ready): holds the channel's `Receiver<ConnectionEvent>`, the `Stopper`, a
+`session_count: impl Fn() -> usize + Send + 'static` (this section's own
+`runtime.session_counter()`, above - no longer a `|| 0` placeholder), and
+`config.idle_timeout`/`config.idle_poll_interval` (two new
 `ServerConfig` fields, this task's own addition, same pattern as `handshake_timeout`/
 `arbitration_timeout`: production defaults, every test overrides). Loop: `receiver.
 recv_timeout(poll_interval)` - `Ok(event)` feeds `predicate.on_event`; `Err(Timeout)` is
@@ -508,7 +510,7 @@ job past that point is to end). `start::serve_on_demand` joins this thread's
 because the channel closing (which `run()`'s own return already causes) wakes the next
 `recv_timeout` promptly, satisfying AC #7 for this thread specifically.
 
-**The session-count seam is now real, wired to `Runtime::session_counter` (section 1b)
+**The session-count seam is now real, wired to `Runtime::session_counter` (above)
 - and whether TASK-1.45 is still needed, answered directly.** This task builds both
 sides of the seam for real: the idle checker's closure calls `runtime.session_counter()`,
 which reads `state.tree.sessions().len()` under `Runtime`'s own lock, not a stand-in.

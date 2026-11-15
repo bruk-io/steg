@@ -21,6 +21,8 @@ asdlc_branch: task-1.69-workspace-the-server-s-code-kept-apart
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '3b5cfdb0a760'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -493,6 +495,15 @@ steg-server`), since every package now depends on the sdk directly or transitive
 `crates_from_metadata` and `selection()` themselves are untouched; only the
 real-world fixture this adapter test reads changed, which is what an adapter test is
 for when the real thing moves.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:48:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.69: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

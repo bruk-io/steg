@@ -43,6 +43,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1469,6 +1470,15 @@ The audit of every other wait in this task's own code, as asked:
 - The post-handshake hold-open read (connection.rs's final `while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}`): deliberately unbounded by design (AC #4's second clause - a completed handshake is never closed for being idle) and must stay that way; not a bug, not touched.
 
 Checks recorded, in order: the failing handshake tests with the deadline fix reverted (prove-one-bites); 10 consecutive cargo test -p steg-server --test handshake runs; 10 consecutive cargo test -p steg-server --test shutdown runs; 10 consecutive cargo test -p steg-server --features race-fixture --test race runs; just check at the merged final head (origin/main brought in cleanly - TASK-1.76/1.79's changes to dispatch/api.rs, dispatch/mod.rs, methods.rs and tests/dispatch.rs, none overlapping this task's own files).
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T22:22:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

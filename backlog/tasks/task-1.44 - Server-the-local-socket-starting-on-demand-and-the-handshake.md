@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:43:00Z'
+updated_date: '2026-11-15T20:02:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -33,6 +33,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-14
 asdlc_branch: task-1.44-server-the-local-socket-starting-on
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'c074345d1296'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -432,3 +435,16 @@ Split on the engineer's decision of 2026-11-15 ("default to splitting going forw
 
 Rewritten plan for part A checked against doc-8 (R1, R3-R5, R39, R98), doc-13 (R60, R61), doc-14, doc-16 and decision-2 section 7 by @bruk.o: ok. The four points of the first check are met: part A only, with part B named for each thing left out; nix 0.28 (MIT, already in Cargo.lock) for the lock and the owner check, and no unsafe code at all; no test hook in shipped code (serve returns its outcome; the race is proved by a test fixture binary); shutdown order stated (stop accepting, close the listener, remove the socket file, release the lock last) with what a connecting client sees. Proof covers the five criteria clause by clause with real sockets and processes, including a server killed outright to prove the lock is released on death. Known and stated gap: the other-user cases are tested over fabricated metadata, there being no second user here.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T20:02:00Z
+
+---
+
+Plan approved by @bruk (c074345d1296, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

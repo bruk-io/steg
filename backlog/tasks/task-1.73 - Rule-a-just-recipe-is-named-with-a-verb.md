@@ -1,9 +1,11 @@
 ---
 id: TASK-1.73
 title: 'Rule: a just recipe is named with a verb'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
+updated_date: '2026-11-15T03:19:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -13,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.73-rule-a-just-recipe-is-named-with-a-verb
 ---
 
 ## Description

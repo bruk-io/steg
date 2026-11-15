@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T15:50:00Z'
+updated_date: '2026-11-15T16:27:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -272,7 +272,7 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `pane capture` | pane | `--scrollback` |
 | `pane wait` | pane | `--for exit`, `--timeout` |
 | `server show` | none | Version, uptime, sessions, clients |
-| `server start` | none | Stays up with no clients |
+| `server start` | none | Stays up with no clients. With `--on-demand` it is the kind a client starts when it finds no server: it stops itself after 30 seconds with no sessions and no clients (doc-8 R99). `steg server start --on-demand` is what the sdk's local-socket provider runs |
 | `server stop` | none | `--force` if sessions exist |
 | `event watch` | session | `--for <event>` to filter on the server; all sessions with `--all`. The only stream in M1 |
 | `client list` | none | Every client connected to the server. Command line clients only with `--all` |

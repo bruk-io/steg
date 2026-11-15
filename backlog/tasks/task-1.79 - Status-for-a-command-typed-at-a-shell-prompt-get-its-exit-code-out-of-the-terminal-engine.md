@@ -383,3 +383,15 @@ against the new source by hand (the `diff -rq` check above) until it's dropped.
 <!-- SECTION:NOTES:BEGIN -->
 Split on 2026-11-15 under the engineer's standing decision to split by default, along the five pieces the worker's plan proposed. This task is now piece one: the patch to ghostty-vt and the kernel's Terminal surfacing the event. Drafts under TASK-1 take the rest: status from a typed command in the kernel; the server passing the event to the kernel; shell integration so the marks are emitted. The worker's fourth piece (a loop turning a pane event into a kernel call with a clock reading) is not a draft: TASK-1.76, in progress, builds exactly that (Runtime::apply_event), so the server piece depends on it. The plan on this task was written for all five and is to be rewritten for piece one.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-15T21:55:00Z
+
+---
+
+Plan rewritten for piece one (ghostty-vt patch + kernel Terminal event surfacing only). Scratch verification run during planning, outside the normal record-check flow since it was against a scratch copy of the crate, not this worktree's own committed code: applied the patch to a scratch copy of the real vendored ghostty-vt 0.8.0, pointed this worktree's Cargo.toml at it via [patch.crates-io], and ran (1) just build - full Zig/C + kernel pipeline passing; (2) a temporary test feeding the six real byte sequences AC #1 names (C then D;0; bare D; malformed D;abc; D with no preceding C; two Cs then D; a mark split across two vt_write calls) - all six behaved as the rewritten plan now states, including that a malformed exit code degrades the same way a missing one does (has_exit_code: false); (3) a negative control - commented out the one new install! line, the same test failed with zero events, restored it, passing again; (4) cargo clean -p ghostty-vt-sys && GHOSTTY_SOURCE_URL=unreachable just build - passing in 39.6s, re-confirming TASK-1.34's offline-build proof still holds with the patch present; (5) just check in full - 19/19 ok, confirming boundaries.toml and deny.toml need no edit. All experimental edits (Cargo.toml, Cargo.lock, crates/kernel/src/terminal.rs) were reverted with git checkout -- after each round; the worktree was clean (git status --porcelain empty) before and after.
+
+---
+<!-- COMMENTS:END -->

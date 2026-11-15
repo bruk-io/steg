@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:04:00Z'
+updated_date: '2026-11-15T16:10:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -42,16 +42,16 @@ doc-8: R36, R37; doc-16 R98, R101. decision-1. Split from TASK-1.43 on 2026-11-1
 
 The carried design (TASK-1.43's notes, comment #2) is the starting point, checked
 against what is actually on `main` now (focus exists; a `Terminal` type exists but no
-pane holds one — TASK-1.40 is what wires it in). Three things in the carried design do
+pane holds one — TASK-1.40 is what wires it in). Four things in the carried design do
 not survive that check unchanged, and this plan resolves each rather than copying it:
 
 1. **`pane.resize` is reclassified from served to not-yet.** Its declared `by` parameter
    is character cells; `Tree::resize_pane` takes a `Ratio`. Converting cells to a ratio
-   needs the tab's current size, and `Tab`'s `size: Option<Size>` has no public getter —
-   `set_tab_size` exists but nothing in the real pipeline calls it yet (that arrives with
-   TASK-1.42's window-size reporting). Dispatch cannot honestly convert cells to a ratio
-   today, so `pane.resize`'s arm answers `NotImplementedYet`, naming the missing size,
-   not a fabricated conversion.
+   needs the tab's current size, and `Tab`'s `size: Option<Size>` has no public getter
+   on `main` today — `set_tab_size` exists but nothing reads it back. TASK-1.42 (planned
+   in parallel) adds `Tab::size()`; until it lands, dispatch cannot honestly convert
+   cells to a ratio, so `pane.resize`'s arm answers `NotImplementedYet`, naming
+   `Tab::size()`/TASK-1.42, not a fabricated conversion.
 2. **`kernel::Error::Engine(ghostty_vt::Error)` has no `ErrorCode` to map to.** It
    arrived with TASK-1.39 after the carried design was written: the sdk has ten codes,
    and none of them means "the engine failed" (`BadRequest` is wrong — not the client's
@@ -86,55 +86,92 @@ not survive that check unchanged, and this plan resolves each rather than copyin
    the one method whose `returns` is `Text`, is not-yet) — a variant with no producer
    would say something untrue (rust.md), and a later task adds it when `pane.capture`
    becomes servable.
+4. **`--cwd` and the program after `--` on `session.new`/`tab.new`/`pane.split` are
+   refused, not silently ignored, when given.** The earlier draft of this plan accepted
+   both and dropped them, so a caller asking for `pane split -- htop` would get a
+   success and a pane's identifier back with no `htop` running in it — a false claim
+   (the engineer's correction). The test applied throughout this plan, to this case and
+   every other "accepted but not fully meaningful" one below: *does the method's own
+   `returns` or documented effect imply the flag's effect took hold?* Where yes, and the
+   kernel cannot honour it, the call is refused with `NotImplementedYet`, not answered
+   with a success that quietly didn't happen. So: when `cwd` is present, or `program` is
+   present (either, or both), the arm does not call `Tree::new_session`/`new_tab`/
+   `split_pane` at all — it returns `ApiError::new(ErrorCode::NotImplementedYet, ...)`
+   naming a pane's program and working directory, which TASK-1.40 adds
+   (`Tree::start_program`, `record_exit`, `restart_program`, and a program/cwd on
+   `Pane`), and creates nothing. When neither is given, the method proceeds exactly as
+   before — a plain shell pane, which the kernel already fully supports and which is the
+   one case `session.new`'s/`tab.new`'s/`pane.split`'s success already promises nothing
+   more than ("the new thing's identifier", not "and it runs what you asked"). This
+   moves these three methods from "served in full" to "served for the plain-shell case,
+   not-yet when a program or cwd is asked for" — the same shape `tab.move` already has
+   for `--to`, not a new kind of case.
+
+## Re-applying that same test to the rest of the "accepted but not fully meaningful" list
+
+- **`--force` on `*.close`/`server.stop`: stays accepted, no refusal.** Nothing in the
+  kernel can represent a running program yet (TASK-1.40), so there is no state for
+  `--force` to guard that could ever differ from "there was nothing to force past" — a
+  caller cannot notice a difference between giving it and not, because the thing it
+  would override cannot exist. This is the same shape as the engineer's own example.
+- **`session.new --focus`/`--no-focus`: stays accepted, no refusal.** `session.new`'s
+  `returns` is only the new session's identifier; nothing in it, or in doc-15, claims
+  anything about which window shows the session (R87 is the app's, not the kernel's —
+  there is no "current session" concept for a kernel-only dispatch to honour or fail to
+  honour). A caller cannot observe a difference at this layer between `--focus` and
+  `--no-focus` today, because there is no window to compare against, unlike `--cwd`/
+  `program`, which the pane's own later `pane.show`/`pane.capture` would show as missing
+  the moment those methods are served. `tab.new`/`pane.split --focus`/`--no-focus` are
+  the opposite case — see R115 below: those *are* real today, not accepted-and-ignored.
+  `pane.set`/`unset --zoomed` are likewise real today (`Tree::fill_pane`/`unfill_pane`),
+  not on this list at all.
 
 ## The method table, re-derived against today's kernel (not copied from TASK-1.43)
 
 "Served" = every field a method's `returns` needs and every kernel operation it calls
-already exists; "not yet" names what it waits on. Counted directly against
-`description().methods`' 38 entries, not by re-tallying prose: **22 served in full, 1
-served for one branch of its parameters and not-yet for the other (`tab.move`), 15 not
-served at all. 22 + 1 + 15 = 38.**
+already exists; "not yet" names what it waits on, by the specific type or function that
+arrives with that task where it is known (TASK-1.42 adds `Tab::size()`; TASK-1.40 adds
+`Tree::start_program`, `record_exit`, `restart_program`, and a program/status on `Pane`
+— neither is on `main` yet, so both stay not-yet here and are named precisely so the
+task that lands them can find exactly what to flip). Counted directly against
+`description().methods`' 38 entries: **19 served in full, 4 served for one branch of
+their parameters and not-yet for another (`session.new`, `tab.new`, `pane.split`,
+`tab.move`), 15 not served at all. 19 + 4 + 15 = 38.**
 
 | Method | Served? | Waits on |
 |---|---|---|
-| `session.list`, `.show`, `.new`, `.close`, `.move`, `.set`, `.unset` (7) | Served | — |
+| `session.list`, `.show`, `.close`, `.move`, `.set`, `.unset` (6) | Served | — |
+| `session.new` (1) | Served when neither `cwd` nor a program is given; `NotImplementedYet` when either is | A pane's program and working directory (TASK-1.40) |
 | `session.focus` (1) | Not yet | A client/window to address (TASK-1.42, TASK-1.46) |
-| `tab.list`, `.show` (2) | Not yet | `title`, `shown_status` (TASK-1.39, TASK-1.41) |
-| `tab.new`, `.close`, `.set`, `.unset`, `.focus` (5) | Served | — |
+| `tab.list`, `.show` (2) | Not yet | `title`, `shown_status` (TASK-1.39, 1.41) |
+| `tab.new` (1) | Served when neither `cwd` nor a program is given; `NotImplementedYet` when either is | Same as `session.new` (TASK-1.40) |
+| `tab.close`, `.set`, `.unset`, `.focus` (4) | Served | — |
 | `tab.move` (1) | Served for `--position`; its `--to` branch (moving the tab to another session) answers `NotImplementedYet` | A kernel operation to move a tab between sessions — `Tree` has none |
-| `pane.split`, `.close`, `.move`, `.set`, `.unset`, `.focus`, `.swap` (7) | Served | — |
-| `pane.resize`, `.list`, `.show`, `.send`, `.capture`, `.wait` (6) | Not yet | The tab's size (TASK-1.42); `title`/`cwd`/`program`/`exit_code`/`status` (TASK-1.39–1.41); the terminal engine wired to a pane (TASK-1.39, TASK-1.40) |
+| `pane.split` (1) | Served when neither `cwd` nor a program is given; `NotImplementedYet` when either is | Same as `session.new` (TASK-1.40) |
+| `pane.close`, `.move`, `.set`, `.unset`, `.focus`, `.swap` (6) | Served | — |
+| `pane.resize` (1) | Not yet | `Tab::size()` (TASK-1.42) |
+| `pane.list`, `.show` (2) | Not yet | `title`/`cwd`/`program`/`exit_code`/`status` (TASK-1.39–1.41) |
+| `pane.send`, `.capture`, `.wait` (3) | Not yet | `Tree::start_program`/`record_exit`/`restart_program` and a program on `Pane` (TASK-1.40) |
 | `server.show`, `.start`, `.stop` (3) | Not yet | The server's own socket and lifecycle (TASK-1.44) |
 | `event.watch` (1) | Not yet | Events (TASK-1.46) |
 | `client.list`, `.show` (2) | Not yet | A client model (TASK-1.42) |
 | `api.list`, `.show`, `.call` (3) | Served | — |
 
-**22 fully served + 1 partial (`tab.move`) = 23 methods with a real dispatch arm. 15
-methods are wholly not-yet, and `tab.move --to` is one further per-call
-`NotImplementedYet`, for 16 total cases that answer it** — the number the completeness
-test (below) asserts directly against this table, not against this count restated.
+**19 fully served + 4 partial = 23 methods with a real dispatch arm. 15 methods are
+wholly not-yet; of the 23 with an arm, 4 also have a per-call `NotImplementedYet`
+branch (`session.new`/`tab.new`/`pane.split` given `cwd` or a program; `tab.move --to`)
+— 19 total scenarios across this task that answer `NotImplementedYet`**, the number the
+completeness test (below) asserts directly against this table, not against a count
+restated in prose.
 
-**Accepted-but-not-fully-meaningful, documented rather than hidden** (every one of these
-is still a *served* arm — it changes the tree correctly on every field it can act on; it
-just also accepts something it cannot yet act on):
+**What else is accepted but not fully meaningful, applying the same test** (does the
+method's own `returns`/documented effect imply the flag's effect took hold; if yes and
+the kernel cannot honour it, refuse rather than silently succeed):
 
-- `--force` on `*.close`/`server.stop`: accepted, a no-op (no running-program concept in
-  the kernel yet — TASK-1.40 gives it teeth; `ErrorCode::ProgramRunning` is in the
-  description but no served arm can produce it today, which is accepted here, not
-  treated as a reverse-direction completeness gap — see "Not built both ways" below).
-- `session.new --focus`/`--no-focus`: a no-op (no "current session" concept in doc-15,
-  only `current_tab`/`current_pane` — R87 is the client/window's, TASK-1.42/1.46).
-- `--cwd` and the program after `--` on `session.new`, `tab.new`, `pane.split`: accepted,
-  ignored. `Tree::new_session`/`new_tab`/`split_pane` take no working directory and no
-  argv; a pane's program is not a field `Pane` has yet (TASK-1.39/1.40). The new pane's
-  `kind` is always `PaneKind::Terminal`, since no parameter lets a caller ask for
-  anything else.
-- `tab.new`/`pane.split --focus`/`--no-focus`: real, not a no-op (R115) — see below.
-- `pane.set`/`unset --zoomed`: `set --zoomed`/`set --no-zoomed` fill or unfill for real
-  (`Tree::fill_pane`/`unfill_pane`); `unset --zoomed` always unfills, ignoring the
-  switch's own boolean value, matching "unset clears a property" regardless of what
-  `set`'s boolean carries — the same rule governs `unset --label`, which always clears
-  regardless of whether a value was even given.
+- `--force` on `*.close`/`server.stop`: accepted, no refusal — see above.
+- `session.new --focus`/`--no-focus`: accepted, no refusal — see above.
+- The new pane's `kind` is always `PaneKind::Terminal`; there is no `kind` parameter in
+  the description for a caller to ask for anything else, so there is nothing to refuse.
 
 ## `--no-focus` for real (R115; doc-15's own wording: "creating without taking focus is
 done by putting the previous focus back")
@@ -144,7 +181,8 @@ done by putting the previous focus back")
   (`tab.current()`, read via the target's tab). After the split, if `focus == false`,
   call the new `Tree::set_tab_current_pane(tab, previous_pane)` to restore it — this
   touches only that tab's own current pane, never the session's `current_tab`, matching
-  `split_pane`'s own scope.
+  `split_pane`'s own scope. (This runs only on the plain-shell branch — see decision 4
+  above; the `cwd`/program branch refuses before any of this.)
 - **`tab.new --no-focus`**: before calling `Tree::new_tab` (which unconditionally makes
   the new tab current in its session, same rule), capture the session's current tab
   (`session.current_tab()`). After, if `focus == false`, call the *existing*
@@ -152,7 +190,7 @@ done by putting the previous focus back")
   `focus_tab` already sets only `current_tab`, leaving the tab's own current pane alone
   — exactly the restore this case needs. (The carried design proposed a kernel addition
   for this case too; it does not need one, and this plan does not add one it would not
-  use.)
+  use.) Same plain-shell-branch-only scope as above.
 - **`session.new --no-focus`**: a no-op, per the table above — there is nothing to
   restore.
 
@@ -200,13 +238,18 @@ and calling `dispatch` once per request it reads off a connection. **What TASK-1
 needs**: `Outcome` and the per-noun `HANDLED` consts as the seam it attaches events to —
 it does not change dispatch's signature or its match; firing `event.watch`'s subscribers
 is a wrapper around the same calls, and the two new `Tree` methods above are shaped for
-exactly that wrapping. **How a not-built arm becomes real** (for TASK-1.39/1.40/1.41/1.42
-and TASK-1.44/1.46, each of which upgrades some of the 15-plus-one not-yet cases above):
-the method's entry in its noun's `HANDLED` const does not move — it is already there,
-since the method is already described and already matched. Only the arm's *body*
-changes, from the shared `not_implemented_yet(name, waiting_on)` call to real logic
-against the kernel fields that task adds. The only test that is deleted is that one
-method's "answers `NotImplementedYet`" case; the completeness tests themselves (which
+exactly that wrapping. **How a not-built arm or branch becomes real** (for
+TASK-1.39/1.40/1.41/1.42 and TASK-1.44/1.46, each of which upgrades some of the 19
+not-yet cases above — concretely, TASK-1.40 landing `Tree::start_program`/
+`record_exit`/`restart_program` and a program/cwd on `Pane` is what turns
+`session.new`/`tab.new`/`pane.split`'s `cwd`/program branch, and `pane.send`/`.capture`/
+`.wait`, from `NotImplementedYet` into real arms; TASK-1.42 landing `Tab::size()` is what
+turns `pane.resize`'s): the method's entry in its noun's `HANDLED` const does not move —
+it is already there, since the method is already described and already matched. Only
+the arm's *body* changes, from the shared `not_implemented_yet(name, waiting_on)` call
+(or, for the four partial methods, one branch of the arm) to real logic against the
+kernel fields that task adds. The only test that is deleted is that one method's (or
+branch's) "answers `NotImplementedYet`" case; the completeness tests themselves (which
 assert against `description().methods` and each `HANDLED` const, not against a
 served/not-yet count) keep passing across the swap unchanged.
 
@@ -284,8 +327,8 @@ a thirteenth kernel variant fails the build here). The reverse — every `ErrorC
 description lists has a kernel source that can produce it today — is not exhaustive and
 is not asserted as if it were: `ProgramRunning` has no kernel source yet (no served arm
 can trigger it), and `NotImplementedYet` never comes from `map_kernel_error` at all; it
-is dispatch's own synthetic error for an arm that is not built. AC #4's "every kernel
-error maps" is the forward direction only.
+is dispatch's own synthetic error for an arm or branch that is not built. AC #4's "every
+kernel error maps" is the forward direction only.
 
 ## `api.list`, `api.show`, `api.call`
 
@@ -313,11 +356,13 @@ its match handles (the same "two tables, checked by a test" pattern this crate's
 - Every entry in every `HANDLED` names a method that is actually in `description()`
   (AC #2, reverse direction: every arm is described) — catches a typo or a leftover
   arm for a method the sdk no longer declares.
-- For each of the 15 whole-method not-yet cases, plus `tab.move` called with `to` set
-  (16 cases total, matching the method table above exactly): calling `dispatch` with a
-  minimally valid request returns `Response::Error` with `ErrorCode::NotImplementedYet`,
-  and the message names what it waits on (the "Waits on" column above, verbatim) — never
-  an invented value (AC #2's second half).
+- For each of the 15 whole-method not-yet cases, plus the 4 per-call branches
+  (`tab.move --to`; `session.new`/`tab.new`/`pane.split` given `cwd` or a program) — 19
+  scenarios total, matching the method table above exactly: calling `dispatch` with the
+  triggering request returns `Response::Error` with `ErrorCode::NotImplementedYet`, and
+  the message names what it waits on (the "Waits on" column above, verbatim) — never an
+  invented value, and nothing is created (AC #2's second half; for the four partial
+  methods, also checked by asserting the tree is unchanged after the refusal).
 
 ## Typed results versus declared `fields` (AC #3), scoped honestly
 
@@ -356,8 +401,9 @@ declares") applies only where both sides exist and are comparable:
   completeness consts and test.
 - `crates/server/src/dispatch/outcome.rs` (new): `Outcome`, `into_value`.
 - `crates/server/src/dispatch/session.rs`, `tab.rs`, `pane.rs` (new): each noun's served
-  arms and its `HANDLED` const (not-yet arms for that noun included, answering
-  `NotImplementedYet`).
+  arms (including the `cwd`/program refusal branch on `session.new`/`tab.new`/
+  `pane.split`, and the `--to` refusal branch on `tab.move`) and its `HANDLED` const
+  (not-yet arms for that noun included, answering `NotImplementedYet`).
 - `crates/server/src/dispatch/kernel_error.rs` (new): `map_kernel_error`.
 - `crates/server/tests/dispatch.rs` (new, functional — a real `Tree`, no doubles, per
   testing-rust.md): per-method tests for every served arm, the completeness tests both
@@ -365,9 +411,10 @@ declares") applies only where both sides exist and are comparable:
   position-conversion boundary tests, the `api.call` rewrite-and-recurse tests
   (including refusing `api.call` of `api.call`, and calling `pane.split` through
   `api.call` and getting byte-for-byte the same `Response` a direct call would), the
-  `--no-focus` capture-and-restore tests for `pane.split` and `tab.new`, and two
-  end-to-end scenarios (split → set label → close a session; `tab.new --no-focus`
-  leaving the original tab current).
+  `--no-focus` capture-and-restore tests for `pane.split` and `tab.new`, the four
+  cwd/program/`--to` refusal tests asserting both the error and that nothing was
+  created, and two end-to-end scenarios (split → set label → close a session; `tab.new
+  --no-focus` leaving the original tab current).
 - `spikes/api-description/` deleted. This leaves decision-1 sections 3 and 9's citations
   of `carry-one-method`/`measure.py` dangling — flagged on this task's notes once more
   (TASK-1.43 raised it twice already) since decision text changes only via a PR
@@ -384,10 +431,11 @@ declares") applies only where both sides exist and are comparable:
 4. `crates/server/src/dispatch/kernel_error.rs` and `outcome.rs`: the two exhaustive,
    data-only pieces, each with its own unit tests, before anything calls into a `Tree`.
 5. `crates/server/src/dispatch/{session,tab,pane}.rs` and `mod.rs`'s top-level
-   `dispatch`/`Context`/completeness consts: the served arms, the not-yet arms, the
-   `api.call` rewrite-and-recurse, the position conversion. Build incrementally noun by
-   noun (session, then tab, then pane — tab and pane's `--no-focus` cases depend on each
-   other's kernel calls being in place first).
+   `dispatch`/`Context`/completeness consts: the served arms (including each partial
+   method's refusal branch, checked first so nothing is created before the rest of the
+   arm is written), the not-yet arms, the `api.call` rewrite-and-recurse, the position
+   conversion. Build incrementally noun by noun (session, then tab, then pane — tab and
+   pane's `--no-focus` cases depend on each other's kernel calls being in place first).
 6. `crates/server/tests/dispatch.rs`: every test named in "Files that change" above.
    `just test` (server) green.
 7. `spikes/api-description/` deleted. `just check` in full; fix what it finds; record
@@ -395,14 +443,11 @@ declares") applies only where both sides exist and are comparable:
 
 ## Risks
 
-- **This plan is large for one review — flagged explicitly, not only here.** A natural
-  split, if the engineer agrees: **(A)** `Context`, `Outcome`/`into_value`,
-  `map_kernel_error`, the completeness tests both ways with every arm answering
-  `NotImplementedYet`, `api.list`/`.show`/`.call`, and spike deletion — provable with no
-  kernel change beyond the two `Tree` additions; **(B)** the kernel-backed
-  session/tab/pane served arms, the `SessionRecord` cross-check through a real
-  `dispatch` call, and the `--no-focus` capture-and-restore behaviour. This plan is
-  written for the task as assigned and does not resize it.
+- **This plan is large for one review — flagged explicitly, not only here.** The
+  engineer has already indicated it should stay one change, since neither of the two
+  halves this plan's earlier draft proposed splitting on (dispatch infrastructure versus
+  kernel-backed arms) unblocks anything without the other. Kept as one task, as
+  instructed; not resized here.
 - **The position conversion (1-based wire, 0-based kernel) is a one-line bug waiting to
   happen.** Mitigated by a dedicated boundary test on each side, not folded into a
   general "move works" test.
@@ -414,6 +459,10 @@ declares") applies only where both sides exist and are comparable:
   by colocating each const directly above its match in the same file, so a reviewer sees
   both at once, and by the completeness test itself, which is exactly what catches drift
   between them.
+- **A refusal branch that runs after some kernel mutation would be a worse bug than the
+  one it replaces** (half-created state reported as `NotImplementedYet`). Mitigated by
+  checking `cwd`/program presence before any `Tree` call on the three affected methods,
+  and by the "tree unchanged after the refusal" assertion named above.
 
 ## Proof (which test proves which clause)
 
@@ -423,9 +472,9 @@ declares") applies only where both sides exist and are comparable:
   an unknown method and an undeclared parameter).
 - **AC #2** (every described method has an arm and every arm is described, both ways by
   a test; a not-built method's own distinct error naming what it waits on): the
-  completeness tests described above, both directions; the 16 not-yet-case tests
-  checking `ErrorCode::NotImplementedYet` and the message text, matching the method
-  table's count exactly.
+  completeness tests described above, both directions; the 19 not-yet-scenario tests
+  checking `ErrorCode::NotImplementedYet`, the message text, and that nothing was
+  created, matching the method table's count exactly.
 - **AC #3** (every served method's result serialises to exactly its declared fields):
   the `SessionRecord`-versus-`session.show`/`session.list` cross-check through a real
   `dispatch` call; the `Identifier`/`Nothing` shape tests for every other served method;

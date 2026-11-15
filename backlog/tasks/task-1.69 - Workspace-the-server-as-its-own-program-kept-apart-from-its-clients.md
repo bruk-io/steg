@@ -499,6 +499,19 @@ ok      tool tests (0.2s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:56:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at 0774a6380dd0:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+```
+
+Commits since the review: 22, 21 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

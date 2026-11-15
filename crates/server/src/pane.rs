@@ -46,6 +46,7 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Sender};
 use std::thread;
+use std::time::Duration;
 
 use steg_kernel::Terminal;
 use steg_sdk::{PaneId, Screen};
@@ -58,6 +59,18 @@ use crate::pty::{LaunchSpec, ProgramLauncher};
 /// value, and TASK-1.74 (scrollback identity and paging) is where that
 /// would be revisited.
 const DEFAULT_SCROLLBACK_LINES: usize = 10_000;
+
+/// A new pane's size when nothing has ever declared one for its tab
+/// (TASK-1.76 AC #3) - no client has reported a real size yet (no
+/// `client` dispatch method exists), so this is a stated literal, not a
+/// computed guess.
+pub const DEFAULT_PANE_SIZE: (u16, u16) = (80, 24);
+
+/// How long [`PaneHandle::cwd`] waits for the pane's worker thread to
+/// answer before giving up (TASK-1.76 §2) - bounded, so a worker mid-
+/// `vt_write` on a large flood (R19's own worst case) never blocks a
+/// caller holding `Runtime`'s one lock indefinitely.
+const CWD_LOOKUP_TIMEOUT: Duration = Duration::from_millis(200);
 
 /// What happened to a pane's program, reported out of its worker thread.
 /// TASK-1.41 reads this to compute richer status; TASK-1.46 forwards it as
@@ -84,6 +97,10 @@ enum PaneCommand {
     /// Read the terminal's current screen back through this reply
     /// channel.
     Snapshot(Sender<Result<Screen, Error>>),
+    /// Read the terminal's live working directory, as last reported by a
+    /// real OSC 7 (doc-9 R16), back through this reply channel - `None`
+    /// if nothing has reported one yet (TASK-1.76 §2, rule B).
+    Cwd(Sender<Option<String>>),
     /// Resume with a freshly spawned program (a restart): the pieces
     /// [`SpawnedProgram`] splits apart, already spawned on the caller's
     /// thread by [`PaneHandle::restart`].
@@ -159,6 +176,31 @@ impl PaneHandle {
             .send(PaneCommand::Snapshot(reply_tx))
             .map_err(|_| Error::PaneGone)?;
         reply_rx.recv().map_err(|_| Error::PaneGone)?
+    }
+
+    /// Reads the pane's live working directory - the directory its own
+    /// shell last reported with a real OSC 7 (doc-9 R16), which can
+    /// differ from the directory it *started* in once the program `cd`s
+    /// (TASK-1.76 §2, rule B). `Ok(None)` means nothing has reported one
+    /// yet, not that the pane is gone.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there, or did not answer within
+    /// [`CWD_LOOKUP_TIMEOUT`] - treated the same way by every caller
+    /// today (TASK-1.76's `Runtime` falls back to the login shell's home
+    /// directory either way), but returned as its own error rather than
+    /// folded into `Ok(None)`, so a caller that ever needs to tell "no
+    /// cwd yet" apart from "the worker didn't answer" still can.
+    pub fn cwd(&self) -> Result<Option<String>, Error> {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        self.commands
+            .send(PaneCommand::Cwd(reply_tx))
+            .map_err(|_| Error::PaneGone)?;
+        reply_rx
+            .recv_timeout(CWD_LOOKUP_TIMEOUT)
+            .map_err(|_| Error::PaneGone)
     }
 
     /// Runs the pane's program again (R97): a new pseudo-terminal and a
@@ -271,6 +313,9 @@ fn worker_loop(
             }
             PaneCommand::Snapshot(reply) => {
                 let _ = reply.send(terminal.screen().map_err(Error::from));
+            }
+            PaneCommand::Cwd(reply) => {
+                let _ = reply.send(terminal.cwd().map(str::to_string));
             }
             PaneCommand::Resume { writer, resize } => {
                 current = Some(Running { writer, resize });

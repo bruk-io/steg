@@ -252,6 +252,56 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     handle.shutdown();
 }
 
+/// `AC #1`'s "a program that cannot be started" is engaged by a bad
+/// command (the next test), never by a bad `cwd` - confirmed by the
+/// experiment this is the committed record of, not assumed. Read
+/// `portable-pty` 0.9.0's own source
+/// (`src/cmdbuilder.rs:498-507,560-576`): `CommandBuilder::as_command`
+/// silently substitutes the user's home directory for any `cwd` that
+/// isn't a real, existing directory, and spawns there - there is no
+/// error, no child-side `chdir` failure, nothing for this task's
+/// `ENOENT`-shaped rollback (§2 of the plan) to catch, because the
+/// program genuinely does start, successfully, just not where it was
+/// asked to. `get_home_dir()` reads the env var `HOME` from the
+/// `CommandBuilder`'s own map, which is seeded from this process's real
+/// environment at construction (`get_base_env()`) and never overridden by
+/// anything `pane_environment` sets (the five `STEG_*` vars and `PATH`
+/// only) - the same source `std::env::var("HOME")` reads, so asserting
+/// equality with it is a real claim, not a guess at portable-pty's
+/// internals.
+///
+/// **Left as a question for the engineer, not decided here**: should
+/// `--cwd` naming a directory that doesn't exist be refused instead of
+/// silently redirected? That is a doc-2 question (what the CLI/API
+/// promises `--cwd` means), not something this build phase settles.
+#[test]
+fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home() {
+    let home = std::fs::canonicalize(std::env::var("HOME").unwrap()).unwrap();
+    let (events_tx, events_rx) = mpsc::channel();
+    let pane = PaneId::from_raw(1);
+
+    let handle = steg_server::start(
+        spec(
+            vec!["sh", "-c", "pwd"],
+            "/this/directory/does/not/exist/anywhere/at/all",
+            Vec::new(),
+        ),
+        pane,
+        Arc::new(RealLauncher),
+        events_tx,
+    )
+    .expect("a bad cwd alone does not fail start() - portable-pty substitutes home and spawns");
+
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 0 }
+    );
+    let screen = handle.snapshot().unwrap();
+    let reported = std::fs::canonicalize(screen_text(&screen).trim()).unwrap();
+    assert_eq!(reported, home, "expected the program to have run in $HOME");
+    handle.shutdown();
+}
+
 #[test]
 fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
     let (events_tx, _events_rx) = mpsc::channel();

@@ -13,10 +13,14 @@ mod dispatch;
 mod env;
 mod error;
 mod pane;
+mod program_param;
 mod pty;
+mod runtime;
 
 pub use dispatch::{Context, Outcome, dispatch};
 pub use env::pane_environment;
 pub use error::Error;
 pub use pane::{PaneEvent, PaneHandle, start};
+pub use program_param::program_from_request;
 pub use pty::{LaunchSpec, ProgramLauncher, RealLauncher, SpawnedProgram};
+pub use runtime::{LoginShell, Runtime};

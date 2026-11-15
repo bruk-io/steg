@@ -4,10 +4,10 @@ title: 'App: connect to the server and hold what it reports'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-4
 dependencies:
   - TASK-1.46
 parent_task_id: TASK-1

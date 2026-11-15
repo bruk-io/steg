@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T23:40:00Z'
+updated_date: '2026-11-15T23:51:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -48,19 +48,24 @@ rounds split in half. Proposing the split along the seams the design below falls
 on its own, for the engineer to decide, the same way TASK-1.44's worker proposed its
 own split:
 
-- **B1 - the entry point, detaching, and the two-clients race** (AC #1, #2's survival
-  clause, #4, #5, #6, #7). `steg server start [--on-demand]` exists and works; an
-  on-demand server survives the client that started it; two real clients converge on
-  one; every spawned child is accounted for. No new `ServerConfig` fields, no new nix
-  feature beyond what section 6 names, no login-shell code at all.
+- **B1 - the entry point, detaching, wiring a real `Runtime` into both paths, and the
+  two-clients race** (AC #1, #2's survival clause, #4, #5, #6, #7). `steg server start
+  [--on-demand]` exists and works; an on-demand server survives the client that started
+  it; both start forms construct a `Runtime` and stop it cleanly (section 1b - new now
+  that TASK-1.76 has merged); two real clients converge on one; every spawned child is
+  accounted for. No new `ServerConfig` fields beyond section 1b's own, no new nix
+  feature beyond what section 6 names, no login-shell *resolution* code (B3's).
 - **B2 - the idle rule** (AC #3, and the "what does a client see while stopping"
   question doc-8/TASK-1.44 carried here). Depends on B1 for the one function its own
-  checker thread is wired into (`ondemand::serve_on_demand`, section 4). Adds the two
-  new `ServerConfig` fields.
-- **B3 - the login-shell identity** (AC #2's environment clause). No dependency on B1
-  or B2 at all - it is one pure-ish function with its own bounded wait and its own
-  tests, consumed by nobody today (section 2 says why), so it can be built and reviewed
-  in parallel with either.
+  checker thread is wired into (`start::serve_on_demand`, section 1b) and for the
+  `Runtime::session_counter` method B1 adds. Adds the idle-specific `ServerConfig`
+  fields.
+- **B3 - the login-shell identity** (AC #2's environment clause). The resolver itself
+  (`login.rs`, its bounded wait, its own tests) has no dependency on B1 or B2 and can be
+  built and reviewed in parallel with either; only its last step - swapping which
+  `LoginShell` value `serve_on_demand` builds (section 2) - needs B1's `start.rs` to
+  exist first, so B3 either waits for B1 to merge for that one line, or lands everything
+  but that line and a trivial follow-up applies it.
 
 Everything below is the full design for all three, so the engineer has the whole shape
 before deciding; if the split is approved this plan is rewritten per child the way
@@ -117,15 +122,15 @@ line runs) where the detaching this line asks for is already true.
 does not exist on this platform at all. Naming this so nobody reaches for it from
 memory later.
 
-**The one new function, `ondemand::serve_on_demand`, re-exported at the crate root as
-`steg_server::serve_on_demand` (`lib.rs` gains `mod ondemand; pub use ondemand::
+**The one new function, `start::serve_on_demand`, re-exported at the crate root as
+`steg_server::serve_on_demand` (`lib.rs` gains `mod start; pub use start::
 serve_on_demand;`, the same `mod`/`pub use`-only shape every other module in this crate
 already follows, per `.claude/rules/rust.md`'s "`lib.rs`... hold[s] `mod` and `pub use`
 lines only")**, is where `setsid`
 lives, and where B2 and B3 each add one line later without changing its signature:
 
 ```rust
-// crates/server/src/ondemand.rs (new)
+// crates/server/src/start.rs (new)
 pub fn serve_on_demand(
     handle: arbiter::ServerHandle,
     socket_path: &Path,
@@ -192,18 +197,130 @@ allocator and mutex state). Introducing the one `unsafe` block this task's own c
 note asks to minimise, to remove a cost the sdk's own code already accepts and names,
 is the wrong trade here - named explicitly rather than silently chosen.
 
+## 1b. Wiring a real `Runtime` into both paths, and what stops it (B1)
+
+**TASK-1.76 merged since the rest of this plan was first drafted** (`crates/server/src/
+runtime.rs`: `Runtime`, `LoginShell`, `Runtime::stop`; `pane.rs`'s `PaneHandle::stop`),
+and it changes this task in one real way: **today, nothing in production constructs a
+`Runtime` at all** - every call to `Runtime::new` on `origin/main` is inside
+`runtime.rs`'s or `tests/runtime.rs`'s own test code (confirmed: `git grep Runtime::new
+origin/main -- crates/` finds no call site outside `#[cfg(test)]`/`tests/`).
+`Runtime::handle` (the one entry point a request reaches) is still unreachable from a
+real connection - that wiring is TASK-1.45's, unchanged by anything below.
+
+**Both `server start` and `server start --on-demand` construct one, hold it for the
+server's whole life, and stop it on every way out of `run()` - not only the on-demand
+path**, because `Runtime` (and the real requests TASK-1.45 will eventually route to it)
+is not an on-demand-only concept; an explicitly-started server needs the same cleanup
+when it is told to stop. Two small functions, not one with a flag, since the two differ
+in more than a branch (detaching, the idle checker, which `LoginShell` feeds `Runtime::
+new`):
+
+```rust
+// crates/server/src/start.rs (new)
+pub fn serve_explicit(
+    handle: ServerHandle,
+    socket_path: &Path,
+    config: &ServerConfig,
+) -> Result<(), Error> {
+    let mut runtime = Runtime::new(Arc::new(RealLauncher), LoginShell::from_process_env());
+    // Bound, not a throwaway temporary: nobody holds this `Stopper`, so nothing can
+    // make this explicitly-started server stop before `run()` ends on its own (an
+    // `Err` from the accept loop) - correct for now, since R99 says an explicit
+    // server "stops only when told to," and there is no `server stop` for anything
+    // to be told through yet (section 6's "left out": no dispatch reaches
+    // `Stopper::stop` until TASK-1.45 exists and something calls it). Named here so
+    // the choice reads as deliberate, not an oversight a reviewer has to ask about.
+    let stopper = Stopper::new();
+    let result = listen::run(handle, socket_path, config, &stopper, None);
+    // Every exit path out of `run` - a clean stop or an `Err` from the accept loop
+    // itself - still stops `Runtime` before this function returns: captured, not
+    // `?`-propagated early, the same "cleanup runs on every path, including the
+    // error one" shape `listen::run`'s own "no early return inside this loop"
+    // comment already uses.
+    runtime.stop();
+    result
+}
+
+pub fn serve_on_demand(
+    handle: ServerHandle,
+    socket_path: &Path,
+    config: &ServerConfig,
+) -> Result<(), Error> {
+    if let Err(err) = nix::unistd::setsid() { log_detach_failure(err); } // section 1
+
+    // B3 extends this one line once it lands: `crate::login::resolve_login_identity
+    // (config.login_lookup_timeout).into()` in place of `from_process_env()` - R99's
+    // own wording scopes "not from the client" to the on-demand case specifically
+    // (explicit start, above, keeps reading the process environment, which for a
+    // person running it directly in their own terminal is the correct source).
+    let mut runtime = Runtime::new(Arc::new(RealLauncher), LoginShell::from_process_env());
+
+    let stopper = Stopper::new();
+    // B2 extends this: builds the `(tx, rx)` channel, passes `Some(tx)` below instead
+    // of `None`, spawns `idle::run_checker(rx, stopper.clone(), runtime.session_counter(),
+    // config.idle_timeout, config.idle_poll_interval)` here, and joins it after `run`
+    // returns, before `runtime.stop()`.
+    let result = listen::run(handle, socket_path, config, &stopper, None);
+
+    runtime.stop();
+    result
+}
+```
+
+**`runtime.rs` itself does not change here at all - `LoginShell`, `LoginShell::
+from_process_env`, `State`, every method, byte-identical to `origin/main`.** The one
+new method `Runtime` gains for this task as a whole, `session_counter`, is section 3's
+own addition, not this section's: its only caller is B2's idle checker, and a public
+method with no caller anywhere in the tree is exactly what `.claude/rules/rust.md`'s
+"start with none of [`pub`]" exists to catch - `Runtime::new`/`Runtime::stop`, wired
+above, both have real, immediate effect on their own and belong to B1; `session_counter`
+belongs beside the thing that calls it.
+
+**What `runtime.stop()` does here, restated against TASK-1.76's own doc rather than
+re-explained**: ends every pane's program with `SIGHUP` by pid (`PaneHandle::stop`,
+bounded by `pane.rs`'s own `STOP_TIMEOUT`, 5s, per pane, no escalation - TASK-1.78's own
+job, not this one's), then joins the drain thread. Idempotent, so calling it
+unconditionally on every exit path (including one where `sessions()` was already empty,
+the realistic case until TASK-1.45 routes real requests) costs nothing - `panes` is
+empty, the loop over it does nothing, and dropping the one remaining `events` sender
+lets the drain thread's own `for event in events_rx` end immediately.
+
+**The process-wide `OPENPTY_LOCK` in `pty.rs`** (TASK-1.76, serialises real `openpty()`
+calls within one process after a review found concurrent opens racing on this machine)
+is read and does not interact with anything this task builds: nothing in this task's
+own code calls `RealLauncher::spawn` or opens a pseudo-terminal at all, since nothing
+routes a request that would start a pane (TASK-1.45's job). Section 5's own
+"parallelism" note already establishes no `openpty` call happens in this task's tests
+either (real sockets and real process spawns, no ptys) - restated here now that the
+lock itself has actually been read, not assumed irrelevant.
+
 ## 2. The login-shell identity (B3): data, not an ambient side-channel
 
-**What this produces, and what it feeds.** TASK-1.76's (in-review, unmerged) plan
-already defines the consumer shape exactly: `runtime.rs`'s `LoginShell { argv0: String,
-home: String }`, built today by a named stand-in, `LoginShell::from_process_env()`,
-reading `SHELL`/`HOME` from *this process's own environment* - which, for an on-demand
-server, is inherited from whatever client spawned it (`Command::spawn` inherits the
-parent's environment by default; the sdk's provider never clears it), making that
-stand-in read exactly what R99 forbids ("not from the client"). This task's job is to
-build the real replacement for that one call site, as data, with no change to anything
-downstream of it (TASK-1.76's own plan says the same: "nothing downstream of `LoginShell`
-changes" once this lands).
+**What this produces, and the one real call site it feeds, now that TASK-1.76 has
+merged.** `runtime.rs`'s `LoginShell { argv0: String, home: String }` is the consumer
+shape, built today by a named stand-in, `LoginShell::from_process_env()`, reading
+`SHELL`/`HOME` from *this process's own environment* - which, for an on-demand server,
+is inherited from whatever client spawned it (`Command::spawn` inherits the parent's
+environment by default; the sdk's provider never clears it), making that stand-in read
+exactly what R99 forbids ("not from the client"). This section builds the real
+replacement, as data; section 1b's `serve_on_demand` is the one place it is used,
+swapping its own `LoginShell::from_process_env()` call for:
+
+```rust
+let identity = crate::login::resolve_login_identity(config.login_lookup_timeout);
+let login = LoginShell { argv0: identity.shell.to_string_lossy().into_owned(),
+                          home: identity.home.to_string_lossy().into_owned() };
+```
+
+one line replacing another in a function section 1b already builds - nothing about
+`LoginShell`'s own fields, or `runtime.rs` beyond the one method section 1b adds,
+changes. `serve_explicit` keeps `from_process_env()` unchanged (R99's wording scopes
+"not from the client" to the on-demand case; a person running `server start` directly
+in their own terminal is the correct source for that case, section 1b). This task also
+adds the one new `ServerConfig` field this line needs, `login_lookup_timeout: Duration`,
+alongside `handshake_timeout`/`arbitration_timeout` - same pattern, a production
+default (proposed: 2s) every test overrides.
 
 ```rust
 // crates/server/src/login.rs (new)
@@ -274,21 +391,17 @@ draft of this design had the detaching step mutate this process's own environmen
 (`SHELL`/`HOME`/`USER`) once at startup, reasoning that `portable_pty::CommandBuilder::
 new`'s own `get_base_env()` reads `std::env::vars_os()` at construction time
 (`portable-pty-0.9.0/src/cmdbuilder.rs:74-98`), so every future pane's `CommandBuilder`
-would pick this up for free with no change needed in TASK-1.76's own, unmerged code.
-This is wrong for two reasons, caught before writing it as the real design rather than
-after: `std::env::set_var` is an `unsafe fn` (the documented hazard is exactly concurrent
+would pick this up for free with no coordination needed anywhere else. This is wrong
+for two reasons, caught before writing it as the real design rather than after:
+`std::env::set_var` is an `unsafe fn` (the documented hazard is exactly concurrent
 access from another thread), and this task's own `resolve_login_identity` spawns a
 worker thread whose timeout path does **not** join it - so the "nothing else is running
 yet" argument that would justify the `unsafe` is not actually true by the time the call
-would happen. Second, and more basic: TASK-1.76's own carried note already says what
-the real seam is - "`Runtime` takes one injected login value" - which is data flowing in
-through a constructor argument, not an ambient table every future call site has to
-happen to read correctly. **Nothing in this task's own code calls `resolve_login_identity`
-except its own tests.** It is exported (`pub use login::{LoginIdentity,
-resolve_login_identity}`) and sits unconsumed until TASK-1.76 merges and its own
-`Runtime::new` call site is changed from `LoginShell::from_process_env()` to this
-function's result, which is a one-line change in a task that has not merged, outside
-this task's own scope to make. **Net: zero `unsafe` anywhere in this task.**
+would happen. Second, and more basic: `LoginShell` already *is* the real seam - "one
+injected login value," data flowing in through a constructor argument, not an ambient
+table every future call site has to happen to read correctly - and section 1b's one
+-line swap is all that is needed to use it, now that `Runtime` is on `main`. **Net: zero
+`unsafe` anywhere in this task.**
 
 ## 3. The idle rule (B2)
 
@@ -343,31 +456,68 @@ pair arriving and leaving within the same tick (the arbiter-probe shape) does no
 behaviour - checked directly, not assumed, since it is the one line this whole
 guarantee rests on).
 
-**The driving loop** (`idle::run_checker`, spawned from `ondemand::serve_on_demand`,
-section 4): holds the channel's `Receiver<ConnectionEvent>`, the `Stopper`, a
-`session_count: impl Fn() -> usize + Send + 'static` (the seam, below), and
-`config.idle_timeout`/`config.idle_poll_interval` (two new `ServerConfig` fields, this
-task's own addition, same pattern as `handshake_timeout`/`arbitration_timeout`:
-production defaults, every test overrides). Loop: `receiver.recv_timeout(poll_interval)`
-- `Ok(event)` feeds `predicate.on_event`; `Err(Timeout)` is the periodic recheck (needed
-because `session_count()` can change for reasons that are not a `ConnectionEvent` at
-all, once TASK-1.45 wires real sessions); `Err(Disconnected)` means `run()` has already
-returned and dropped every sender clone (someone else called `stop()`, or an error
-ended the accept loop) - breaks the loop, nothing left to watch. After handling the
-`recv_timeout` result, `predicate.tick(Instant::now(), session_count(), idle_timeout)`;
-`true` calls `stopper.stop()` and breaks (one-shot: this thread's only job past that
-point is to end). `ondemand::serve_on_demand` joins this thread's `JoinHandle` after
-`run()` returns - bounded, because the channel closing (which `run()`'s own return
-already causes) wakes the next `recv_timeout` promptly, satisfying AC #7 for this
-thread specifically.
+**The one method `Runtime` gains for this section's own use** (not section 1b's -
+`Runtime::new`/`Runtime::stop` have real callers and effect on their own; this method's
+only caller is the checker below, so it belongs here): a cheap, independently
+-cloneable reader, rather than requiring a caller to hold a `&Runtime` for as long as
+the checker's own thread lives (that thread outlives any single borrow; `Runtime`
+itself is not `Clone` - it owns a `JoinHandle<()>`, which is not `Clone` - so sharing
+the *whole* value across threads would need an outer `Arc<Mutex<Runtime>>` this task
+does not otherwise need, since `serve_on_demand`'s own `runtime.stop()` call, section
+1b, only ever runs on the one thread that already owns `runtime` directly):
 
-**The session-count seam, stated as a seam, not solved here.** `session_count` is
-`|| 0` in this task - TASK-1.76's `Runtime` is the real count (`tree.sessions().len()`
-or equivalent, read under its own lock) once it merges and some later task (routing,
-TASK-1.45, or whichever task first gives `ondemand::serve_on_demand` a live `Runtime` to
-ask) replaces the closure. Nothing about `idle::run_checker`'s own signature changes
-when that happens - the same seam-building TASK-1.44 already did once for
-`ConnectionEvent` itself.
+```rust
+/// A cheap, cloneable way to read the live session count, for as long as the
+/// returned closure is held - this section's idle checker calls it repeatedly from
+/// its own thread, long after any borrow of `self` could last.
+#[must_use]
+pub fn session_counter(&self) -> impl Fn() -> usize + Send + 'static {
+    let state = Arc::clone(&self.state);
+    move || {
+        state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .tree
+            .sessions()
+            .len()
+    }
+}
+```
+
+`self.state` is already `Arc<Mutex<State>>` (`runtime.rs:89`); this method only clones
+that `Arc`, the same pattern the drain thread's own closure (`runtime.rs:124-139`)
+already uses for the same reason. Everything else in `runtime.rs` stays byte-identical
+to `origin/main`.
+
+**The driving loop** (`idle::run_checker`, spawned from `start::serve_on_demand`,
+section 1b, right after `Runtime::new` so its `session_counter()` is ready): holds the
+channel's `Receiver<ConnectionEvent>`, the `Stopper`, a `session_count: impl Fn() ->
+usize + Send + 'static` (section 1b's `runtime.session_counter()` - no longer a `|| 0`
+placeholder, see below), and `config.idle_timeout`/`config.idle_poll_interval` (two new
+`ServerConfig` fields, this task's own addition, same pattern as `handshake_timeout`/
+`arbitration_timeout`: production defaults, every test overrides). Loop: `receiver.
+recv_timeout(poll_interval)` - `Ok(event)` feeds `predicate.on_event`; `Err(Timeout)` is
+the periodic recheck (needed because `session_count()` can change for reasons that are
+not a `ConnectionEvent` at all, once TASK-1.45 routes real sessions); `Err(Disconnected)`
+means `run()` has already returned and dropped every sender clone (someone else called
+`stop()`, or an error ended the accept loop) - breaks the loop, nothing left to watch.
+After handling the `recv_timeout` result, `predicate.tick(Instant::now(), session_count(),
+idle_timeout)`; `true` calls `stopper.stop()` and breaks (one-shot: this thread's only
+job past that point is to end). `start::serve_on_demand` joins this thread's
+`JoinHandle` after `run()` returns, before `runtime.stop()` (section 1b) - bounded,
+because the channel closing (which `run()`'s own return already causes) wakes the next
+`recv_timeout` promptly, satisfying AC #7 for this thread specifically.
+
+**The session-count seam is now real, wired to `Runtime::session_counter` (section 1b)
+- and whether TASK-1.45 is still needed, answered directly.** This task builds both
+sides of the seam for real: the idle checker's closure calls `runtime.session_counter()`,
+which reads `state.tree.sessions().len()` under `Runtime`'s own lock, not a stand-in.
+**TASK-1.45 is still needed, for exactly the one thing it was always going to do**:
+routing an accepted connection's further frames to `Runtime::handle`, which is the only
+way `session.new` (or anything else) ever runs and gives the tree a session to count.
+Until that lands, `session_counter()` reads `0` because the tree genuinely has nothing
+in it, not because the seam is a placeholder - the same "seam built now, fed later"
+shape TASK-1.44 already used once for `ConnectionEvent` itself, one level further in.
 
 **The arbiter's probe, already documented on `ConnectionEvent` by TASK-1.44's own review
 (connection.rs:27-42), decays on its own and is not fixed here.** A probe connects and
@@ -413,6 +563,29 @@ nearly so) at the moment `stop()` is called, meaning there is nothing of substan
 join - 5 seconds is comfortably enough, and this is named here as the relationship
 rather than left for a future task to discover by a timing-dependent test failure.
 
+**A third, narrower outcome neither task has named: a connection `accept()`-ed and then
+dropped with no reply at all, which is not the same as "refused."** `listen.rs`'s own
+loop is `accept()` → `reap_finished` → `if stop.should_stop() { drop(stream); break }`.
+If the idle checker's `stop()` lands in the instant between a client's `connect()`
+succeeding at the OS level and this check running, the client's `UnixStream::connect`
+has already returned `Ok` - `steg_sdk::local_socket::connect()` is done, successfully,
+from that caller's point of view - and only the *handshake* that follows (writing a
+`ClientHello`, reading the reply) then sees the peer close with zero bytes, which reads
+as EOF, not a protocol error and not `ConnectionRefused`/`NotFound`. **Nothing in this
+task, or in TASK-1.44, builds the code that drives a handshake after `connect()`
+returns** - that caller does not exist in production yet (TASK-1.49's generated CLI,
+or whichever code first does `Connection::new(Role::Client, ...)` for real) - so there
+is no existing behaviour to verify here, only a requirement to state for whoever writes
+it: an EOF with no reply at this exact point must be treated the same as a refusal (try
+starting a fresh one), not as a protocol failure to report to the person. Named rather
+than silently left, because AC #3's "a client still in its handshake counts as a
+client" is precisely about not dropping someone the server already accepted, and this
+is the one shape of drop this task's own idle rule can actually cause. Not given its
+own test: the window is sub-millisecond and this task has no synchronisation hook into
+`run()`'s own loop to force a `connect()` to land inside it deterministically without
+adding a test-only seam AC #6 already rules out - the honest gap is stated here rather
+than chased with a flaky one.
+
 ## 4. The entry point (B1)
 
 Hand-matched, since the generated CLI (TASK-1.49) does not exist - `crates/steg/src/main.rs`:
@@ -447,9 +620,9 @@ fn run_server_start(on_demand: bool) -> i32 {
         Ok(steg_server::Arbitration::Became(handle)) => {
             println!("started a new server");
             let result = if on_demand {
-                steg_server::serve_on_demand(handle, &socket_path, &config)
+                steg_server::serve_on_demand(handle, &socket_path, &config) // §1b
             } else {
-                steg_server::run(handle, &socket_path, &config, &steg_server::Stopper::new(), None)
+                steg_server::serve_explicit(handle, &socket_path, &config) // §1b
             };
             match result {
                 Ok(()) => 0,
@@ -469,16 +642,18 @@ handled specially by this task - it falls through to today's placeholder, since 
 every malformed invocation is TASK-1.49's job once the real CLI exists; named as a
 narrow, deliberate gap rather than a silent one.
 
-**Why `steg_server::serve_on_demand` (section 1) rather than reusing `listen::
-serve`.** `serve()` (listen.rs, unmodified, still used by TASK-1.44's own tests) returns
-`ServeOutcome::Became` only *after* `run()` has already finished - it cannot be used by
-`crates/steg` to print "started" before the server's whole life is over. This task does
-not change `serve()` at all; it becomes effectively test-only for production purposes
-(still fully public, still exercised by TASK-1.44's own existing test suite, so nothing
-here marks it unused) - worth a sentence for a reviewer, not a change.
+**Why `steg_server::serve_on_demand`/`serve_explicit` (section 1b) rather than reusing
+`listen::serve`.** `serve()` (listen.rs, unmodified, still used by TASK-1.44's own
+tests) returns `ServeOutcome::Became` only *after* `run()` has already finished - it
+cannot be used by `crates/steg` to print "started" before the server's whole life is
+over, and it knows nothing about `Runtime` at all (deliberately - `listen.rs` stays
+scoped to the socket and the accept loop). This task does not change `serve()` at all;
+it becomes effectively test-only for production purposes (still fully public, still
+exercised by TASK-1.44's own existing test suite, so nothing here marks it unused) -
+worth a sentence for a reviewer, not a change.
 
 **No test-only hook added to the shipped binary (AC #6).** Nothing in `main.rs` or
-`ondemand.rs` branches on an environment variable or a flag that exists only for a test
+`start.rs` branches on an environment variable or a flag that exists only for a test
 to control; `STEG_SOCKET_PATH` (already existing, sdk's own) is the one override every
 test and every real debugging session shares, unchanged by this task.
 
@@ -565,10 +740,14 @@ prove different things (section 1):**
   to show the server receiving the `SIGHUP` and ending - confirming the mechanism this
   section's design rests on, not merely asserting the happy path.
 
-**Width and parallelism**: no pseudo-terminal is opened anywhere in this task (confirmed
-by reading `pty.rs`/`pane.rs` are untouched - this task adds no caller of either), so the
-`openpty` contention this machine has shown under heavy parallel real-pty tests
-(TASK-1.76's own review finding) does not apply here. What does matter at `cargo test`'s
+**Width and parallelism**: no pseudo-terminal is opened anywhere in this task. Section
+1b's `Runtime::new(Arc::new(RealLauncher), ...)` references `RealLauncher`'s *type*
+(unavoidable - it is `Runtime::new`'s own second parameter), but nothing calls
+`RealLauncher::spawn`/opens a real pty, since nothing routes a request that would start
+a pane (TASK-1.45's job, confirmed by reading `pty.rs`/`pane.rs`: both untouched by this
+task's own diff). So the `openpty` contention this machine has shown under heavy
+parallel real-pty tests (TASK-1.76's own review finding) does not apply here. What does
+matter at `cargo test`'s
 default parallelism is concurrent socket binds and process spawns, and `arbiter::attempt`
 already has eight-wide proof of exactly that, run ten times consecutively with no flake
 (TASK-1.44's own recorded checks) - this task's own two-and-four-wide tests ride the
@@ -593,9 +772,10 @@ considered for section 2 and rejected (section 2's own reasoning); no `fork`, no
 
 **Left out, naming what inherits each:**
 
-- **Routing a real request past the hello**, and the real session count the idle
-  predicate's seam needs - TASK-1.45/TASK-1.76, unchanged from TASK-1.44's own "left
-  out" list.
+- **Routing a real request past the hello to `Runtime::handle`** - TASK-1.45's named
+  scope, unchanged. The session-count seam itself is no longer left out (section 1b/3
+  wire it to `Runtime::session_counter` for real); what TASK-1.45 still owns is making
+  that count ever read above zero, by giving a connection a way to create a session.
 - **`steg_sdk::run_fake_server_for_tests`, left where it is, not moved.** TASK-1.70's own
   carried note asked this task to say whether to move it out of the sdk's public
   interface. Not moved: the sdk's own tests (`local_socket.rs`'s AC #3 coverage) need a
@@ -667,6 +847,11 @@ considered for section 2 and rejected (section 2's own reasoning); no `fork`, no
 - **AC #7** (every spawned child/thread accounted for, including what the client holds):
   the zombie/reap test in section 5; `login.rs`'s named, deliberate non-join on timeout
   (section 2); the idle-checker thread's own join after `run()` returns (section 3);
+  `runtime.stop()` running exactly once on every exit path out of `serve_explicit`/
+  `serve_on_demand` (section 1b), including `run()`'s own `Err` path - proved by a test
+  that forces that path (the same technique `shutdown.rs`'s own tests already use to
+  observe a thread end: a channel or `is_finished()` check, never a sleep) and confirms
+  `Runtime::stop`'s own, already-proven behaviour (TASK-1.76's `stop_tests`) still runs;
   nothing else is spawned by this task's own code.
 
 **No sleeps as synchronisation, with the one named exception already called out in

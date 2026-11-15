@@ -131,4 +131,6 @@ Proof:
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan held by @bruk.o, not sent for approval: it hand-rolls ids, colours and errors in the kernel on the assumption that the kernel depends on nothing. The engineer is settling whether the kernel may depend on an SDK with no I/O, in which case ids, the colour set and pane kinds are defined once there. To be revised once the architecture spec is on the board. Open for the engineer: which colour a sixth session takes when all five are in use (the plan proposes wrapping to violet).
+
+Revised plan checked against doc-15 and doc-16 by @bruk.o: ok. Id types, the colour set and pane kinds are in the sdk; minting, colour choice (R109) and the tree are in the kernel. It names the types the layout, focus and target tasks build on. It cannot be built until TASK-1.69 merges.
 <!-- SECTION:NOTES:END -->

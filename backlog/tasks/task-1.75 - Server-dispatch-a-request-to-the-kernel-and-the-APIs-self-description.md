@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T14:15:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

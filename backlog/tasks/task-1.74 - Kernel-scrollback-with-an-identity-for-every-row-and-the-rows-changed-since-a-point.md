@@ -1,9 +1,9 @@
 ---
-id: DRAFT-1
+id: TASK-1.74
 title: >-
   Kernel: scrollback with an identity for every row, and the rows changed since
   a point
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T14:15:00Z'
 labels:
@@ -14,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

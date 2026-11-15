@@ -61,3 +61,9 @@ R59 (doc-13) and decision-3. The repository's own licence check refuses the ghos
 
 Risks: (a) cargo-deny's SPDX data may not recognise `CDLA-Permissive-2.0` by that exact identifier - step 7's command settles this empirically rather than by assumption. (b) `just deny` runs the real licence step standalone, not full `just check`, so clippy/boundaries never run against the probe dependencies and can't mask or short-circuit the result - full `just check` (lint before boundaries before deny) is reserved for step 10, on the clean tree, where no probe is present. (c) every probe targets `crates/server`, never `crates/kernel`, so none of them can trip `boundaries.toml`.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-13 (R59) and decision-3 by @bruk.o: ok. It adds one named licence, no exception and no skipped crate, proves the GPL refusal with a recorded and reverted probe, and leaves decision-3 alone.
+<!-- SECTION:NOTES:END -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:17:00Z'
+updated_date: '2026-11-15T03:19:00Z'
 labels:
   - size-2
   - review-passed

@@ -3,7 +3,7 @@ id: doc-3
 title: 'CLI design: decisions for Bruk and the edits they imply in doc-2'
 type: other
 created_date: '2026-11-14T04:02:00Z'
-updated_date: '2026-11-15T00:37:00Z'
+updated_date: '2026-11-15T00:40:00Z'
 ---
 - Task: TASK-1.4, "Spike: propose the CLI design for Bruk to decide".
 - Spec: doc-1 (R32 to R35, R63 to R68). CLI specification: doc-2. Policy: the team's
@@ -46,13 +46,15 @@ rule and doc-2's own principles pull in different directions.
 | B8 | `--autostart` and `--no-autostart` on every command, `--autostart` the default; `--no-autostart` exits 4 | Rex |
 | B9 | The server puts the directory of its own binary at the front of PATH in every terminal it opens, and sets `STEG_BIN_DIR` | Rex |
 
-Left for Bruk:
+Answered by Bruk on 2026-11-15:
 
-| Point | The question | Rex | doc-2's own principle |
-|---|---|---|---|
-| A2 and B10 | What a list looks like on a terminal | A table meant for reading, with short identifiers | No behaviour that depends on whether a person is watching: tab-separated, full identifiers, no header, the same bytes piped or not |
-| B2 | What `-q` means | Print less: identifiers only, one per line | Print nothing on stdout |
-| B4 | Whether there is an `api call` | Yes: `rex api list`, `rex api describe`, `rex api call` | `api list` and `api show` only; `api call` is a way round the generated grammar |
+| Point | Answer |
+|---|---|
+| A2 and B10 | Not as Rex: a list is tab-separated, with full identifiers, no header and no alignment, the same piped or not |
+| B2 | As Rex: `-q` prints identifiers only, one per line |
+| B4 | As Rex: `api list`, `api show` (steg's verb for Rex's `describe`), and `api call` |
+
+All sixteen answers, and the ten edits of part B, were applied to doc-2 on 2026-11-15. Three of part B's edits changed with the answers: edit 5 (`-q` with `--json` now prints the identifiers as a JSON array, since `-q` no longer means silence), edit 8 (section 10 is part C brought up to date with these answers), and edit 10 (`version` and `completion` are subcommands, so only `--help` is a flag).
 
 ## A. Decisions for Bruk
 

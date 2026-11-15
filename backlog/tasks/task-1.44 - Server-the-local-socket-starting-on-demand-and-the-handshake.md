@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:10:00Z'
+updated_date: '2026-11-15T19:12:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -118,8 +118,15 @@ independently `just check`-clean.
 5. `idle.rs` + `accounting.rs` (section 5) - the pure predicate first, then the thread wiring
    client counting from `accept()` (the fix named there) into `serve()`'s accept loop, gated
    on `config.on_demand`.
-6. `detach.rs` (section 2) - the fd-passing re-exec, wired so stage 2 calls the same `serve()`
-   step 4 built, now reached after the handoff instead of in the foreground.
+6. `detach.rs` (section 2) - **first**, a throwaway spawn-and-report check that a cleared
+   -`CLOEXEC` fd really does survive `Command::spawn`'s own fd handling across a `pre_exec`
+   -bearing exec (std closes fds it created and set `CLOEXEC` on itself, but does not walk and
+   close arbitrary inherited descriptors - this is the one assumption the whole detach rests
+   on, cheap to confirm before building on it, not left for the end-to-end tests to discover
+   if it is wrong; if it does not hold, the fallback is `dup2`-ing onto known low fd numbers
+   before exec, which changes this file's shape but nothing above it). Then the fd-passing
+   re-exec itself, wired so stage 2 calls the same `serve()` step 4 built, now reached after
+   the handoff instead of in the foreground.
 7. `login_env.rs` (section 4) - the passwd lookup, the env-cleared-and-reseeded capture with
    its timeout, the pure parser; wired into stage 2's startup, stored on the running server and
    exposed as the resolved `STEG_SERVER` string (see the note at the end of section 4) for a
@@ -211,13 +218,21 @@ file, nothing listening" from "another process already bound here" without first
 and unlink-then-bind is itself the unresolved race). Sequence, run by stage 1:
 
 1. **Connect-probe.** Before trusting a successful `UnixStream::connect`, `stat` the path first
-   and refuse to trust a file not owned by the caller's own euid, or whose mode is not `0600`
-   (R5's "only its owner can open" checked, not assumed, from the connecting side too - the
-   XDG/TMPDIR cases are per-user directories so this never fires in practice, but the
+   and refuse to trust a file whose owner is not the caller's own euid - ownership is the
+   security property R5 actually names ("only its owner can open"); mode is not checked here
+   at all, deliberately: the server sets `0600` on its own socket (section 3's step 5), but a
+   live, owned server the caller happens to find with some other mode is a bug worth surfacing
+   on its own, never a reason to treat the socket as absent and go try to take it over - that
+   would send the caller down the lock-and-rebind branch against a server that is actually
+   alive, which the lock then correctly blocks, and the caller loops on connect-probe back to
+   the exact server it just rejected, converging only once the arbitration timeout gives up. A
+   mismatched *owner* is the only case worth distrusting a successful connect over - the
    `/tmp/steg-<user>.sock` fallback is world-writable, so a pre-created file there at the exact
-   path is the one case it protects against). If the file is absent, or fails that check, or a
-   connect attempt is refused: nothing real is listening - go to 2. If it is a real server:
-   exit 0 (both modes - the goal "a server is listening" is already met).
+   path owned by someone else is the one case this protects against (the XDG/TMPDIR cases are
+   per-user directories, so it never fires there in practice). If the file is absent, owned by
+   someone else, or a connect attempt is refused: nothing real of ours is listening - go to 2.
+   If it is a real server we own: exit 0 (both modes - the goal "a server is listening" is
+   already met).
 2. **Directory safety.** `paths::directory_is_safe` on the socket's parent directory (owner
    uid, not world-writable beyond the owner) - refuse with a clear message rather than
    silently trying to bind into an unsafe directory. (Honest gap: testing the cross-uid case
@@ -239,18 +254,20 @@ and unlink-then-bind is itself the unresolved race). Sequence, run by stage 1:
    `server start` simply finds the lock free, takes it, and removes the stale file in step 3's
    "acquired" branch. No explicit crash-detection code is needed, and I say so rather than
    leaving it looking like an oversight.
-5. **Why `bind.rs` does not touch `umask`.** An earlier draft of this plan set `umask(0o077)`
-   around the `bind` call and restored it afterwards. `umask` is process-wide (shared by every
-   thread), and `bind_with_mode` is called from the in-process functional tests in
-   `crates/server/tests/` too, not only from a freshly-exec'd stage 1 - mutating it there would
-   transiently corrupt every other test running in parallel in the same `cargo test` binary.
-   Bind-under-a-temporary-name-then-`set_mode`-then-`rename` gets the same result (the file is
-   never observable at its final path with any mode but `0600`) with no window and no shared
-   state, and matches decision-2 section 8's own wording more directly ("0600, set rather than
-   assumed" - it does not prescribe a umask dance). The permissive-umask test (section 7, AC
-   #1) still has a reason to exist even though production code no longer touches umask at all:
-   it is what proves the *rename*, not a umask restore, is what makes the mode immune to the
-   ambient umask of whatever process or shell invoked `steg server start`.
+5. **Why `bind.rs` does not touch `umask`.** `umask` is process-wide (shared by every thread),
+   and `bind_with_mode` is called from the in-process functional tests in
+   `crates/server/tests/` too, not only from a freshly-exec'd stage 1 - a umask-set-then-
+   restore dance there would transiently corrupt every other test running in parallel in the
+   same `cargo test` binary. Bind under a temporary name in the same directory, set `0600` on
+   that temp path (std's `PermissionsExt::set_mode`, no `libc`), then `rename()` it onto the
+   final path - no process-global state touched at any point. The precise guarantee this gives,
+   stated carefully rather than as a blanket "atomic": the socket is never *observable* at its
+   final path with any mode other than `0600` - `rename()`'s own atomicity (replacing an
+   existing file in one step) is mostly moot here, since step 3 already removed any stale file
+   under the lock before this runs, so the common case is a plain create at the final path, not
+   a replace. The permissive-umask test (section 7, AC #1) is what proves this claim: it is the
+   *rename*, not any umask restore, that makes the mode immune to the ambient umask of whatever
+   process or shell invoked `steg server start`.
 
 `decide()` itself (the pure part) takes only `Probe` (`AlreadyServed | Nothing`) and
 `LockOutcome` (`Acquired | HeldByOther`) - `on_demand` does not change the arbiter's outcome at

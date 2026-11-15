@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:32:00Z'
+updated_date: '2026-11-15T19:36:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -24,6 +24,7 @@ modified_files:
   - crates/server/tests/handshake.rs
   - crates/server/tests/shutdown.rs
   - crates/server/tests/race.rs
+  - crates/server/tests/socket_mode.rs
   - crates/server/tests/fixtures/race_attempt.rs
   - crates/server/Cargo.toml
   - boundaries.toml
@@ -115,10 +116,10 @@ narrow argument handling for it, is part B's).
 
 | File | Holds |
 |---|---|
-| `config.rs` | `ServerConfig { socket_path: Option<PathBuf>, handshake_timeout: Duration }`, each overridable, with a production default - the injection point every test uses instead of sleeping real durations. |
+| `config.rs` | `ServerConfig { socket_path: Option<PathBuf>, handshake_timeout: Duration, arbitration_timeout: Duration }`, each overridable, with a production default - the injection point every test uses instead of sleeping real durations. `arbitration_timeout` bounds the lock-contended retry loop (section 2, step 3) - without its own field the only way to test that branch would be to wait out a production-length duration, which is how a test quietly becomes a sleep. |
 | `paths.rs` | `lock_path(&socket_path)` (sibling `.lock` file - not subject to `sockaddr_un`'s 104-byte limit, since it is only ever opened, never bound); `directory_is_safe(dir) -> Result<(), Reason>`; `existing_file_trust(path) -> ExistingFile` (an enum: `Absent`, `OursAndASocket`, `NotASocket`, `NotOurs` - see section 3). |
 | `bind.rs` | `bind_with_mode(path) -> io::Result<UnixListener>`: binds under a sibling temporary name in the same directory, sets `0600` via `std::fs::set_permissions`/`PermissionsExt`, `rename()`s onto `path`. |
-| `arbiter.rs` | The pure `fn decide(existing: ExistingFile, lock: LockOutcome) -> Arbitration` (`Arbitration::Became | AlreadyRunning | Refuse(Reason)`), exhaustively unit-tested with no I/O; `attempt(config) -> Result<(Arbitration, Option<ServerHandle>), Error>`, the real version. |
+| `arbiter.rs` | The pure, total `fn decide(existing: ExistingFile, probe: Probe, lock: LockOutcome) -> Arbitration` (`Probe`: `Answered | Refused` - the connect attempt's own result, kept out of `ExistingFile` so `decide` holds the whole decision rather than `attempt` quietly making the interesting call itself; `Arbitration::Became(ServerHandle) | AlreadyRunning | Refuse(Reason)`, every variant `Ok` - see section 6), exhaustively unit-tested with no I/O; `attempt(config: &ServerConfig) -> Result<Arbitration, Error>`, the real version, which does the stat, the connect and the lock attempt, feeds their results into `decide`, binds only on `Became`, and reserves `Err` for the I/O failures section 6 names. |
 | `connection.rs` | The per-connection thread body: set a read timeout, decode and answer the hello (`steg_sdk::wire::Connection`), clear the timeout once accepted, emit `ConnectionEvent`s, then hold the connection open until it closes on its own (this task reads nothing past the hello; TASK-1.45 is what routes further frames). |
 | `listen.rs` | `ServerHandle` (the bound listener + the held `Flock<File>` lock, dropped together); `Stopper` (the handle that tells `run` to stop, and how it wakes a blocked `accept()`); `run(handle, config, stop, events) -> io::Result<()>` (the accept loop, until stopped); `serve(config, stop, events) -> Result<ServeOutcome, Error>` (`attempt` then, on `Became`, `run`; returns immediately on `AlreadyRunning` or a refusal). |
 | `lib.rs` | Adds `mod config; mod paths; mod bind; mod arbiter; mod connection; mod listen;` beside the existing five, and `pub use` for `serve`, `ServeOutcome`, `ServerConfig`, `Stopper`, `ConnectionEvent`, `arbiter::attempt` (for part B and this task's own race test, below), `listen::run` (for part B's post-detach call). |
@@ -169,11 +170,16 @@ and unlink-then-bind is itself the unresolved race it would be trying to settle)
      proved either nothing was there or the owner is dead), bind (section "bind", above), and
      report `Arbitration::Became` with the `ServerHandle`.
    - **Not acquired** (`EAGAIN`). Another process holds it right now, mid-becoming-the-server.
-     Retry the connect probe from step 1 on a short bounded loop up to a deadline (this plan's
-     own, not sdk's `local_socket::connect`'s retry, which this task's code never touches).
-     Connects within it: `AlreadyRunning`, converged on the winner - this is what proves AC #2's
-     first clause at the unit level (`decide()`'s own tests) and end to end (the real
-     multi-process test below). Never connects: `Refuse`, naming the timeout.
+     Retry the connect probe from step 1 on a short bounded loop up to `config
+     .arbitration_timeout` (this plan's own deadline, not sdk's `local_socket::connect`'s
+     retry, which this task's code never touches). Connects within it: `AlreadyRunning`,
+     converged on the winner - this is what proves AC #2's first clause at the unit level
+     (`decide()`'s own tests, fed `Probe::Answered` after one or more `LockOutcome::HeldByOther`
+     results) and end to end (the real multi-process test below). Never connects before the
+     deadline: `Refuse(Reason::ArbitrationTimedOut)` - its own test, section "Proof", feeds a
+     short injected `arbitration_timeout` against a lock a fixture holds and never releases
+     within it, so the branch is proved inside a bound, never by waiting out a production
+     -length timeout.
 4. **A dead server's stale socket self-heals because the lock does, not because anything here
    detects death.** `Flock` releases on drop, which runs when its holder's process ends by any
    means including `SIGKILL` - the kernel does this, not this crate. The real test for this
@@ -279,21 +285,30 @@ what a reviewer sees named here.
 
 ## 6. Error handling
 
-Extends `steg_server::Error` (`error.rs`, TASK-1.40's own file) rather than adding a second,
-parallel error type: a crate exporting `steg_server::Error` and a `steg_server::ListenError`
-side by side would make TASK-1.45 - which has to handle both a socket failure and a dispatch
-failure on one call path - carry conversion boilerplate between them for no reason this task's
-own criteria need. New variants, each with its own `Display` and `source()` arm, following the
-existing style exactly:
+**This task adds no new variant to `steg_server::Error` at all.** The arbiter's refusals (an
+unsafe directory, an untrusted existing file, arbitration timing out) are not errors in the
+sense `rust.md` means by the word - each is a normal, decided outcome a caller must act on, not
+a failure the caller could not have avoided by deciding differently. They are carried as
+`Arbitration::Refuse(Reason)`, a plain `Ok` value `decide()`'s own total, pure signature
+already returns (section 1's table), with `Reason` a small enum local to `arbiter.rs`
+(`NotASocket`, `NotOurs`, `UnsafeDirectory`, `ArbitrationTimedOut`), never wrapped in
+`steg_server::Error`. Adding a second, parallel error type instead - the alternative this plan
+considered and rejected - would make TASK-1.45, which has to handle both a socket failure and
+a dispatch failure on one call path, carry conversion boilerplate between `Error` and a new
+`ListenError` for no reason this task's own criteria need; keeping refusals as plain data
+avoids the question entirely rather than resolving it by extending `Error` for values that are
+never actually `Err`.
 
-- `AnotherServerRunning` - `attempt()` found a live server of ours; not itself a failure a
-  caller need treat as one (this task's own `serve()` returns `ServeOutcome::AlreadyRunning`
-  for it, never this `Error` variant - the variant exists for callers, like a future CLI's
-  explicit `server start`, that want to report it as one).
-- `UntrustedSocketPath(Reason)` - covers both "not a socket" and "owned by someone else" from
-  section 2, each sub-case named in `Reason`'s own `Display`.
-- `UnsafeDirectory(Reason)` - the parent-directory check.
-- `ArbitrationTimedOut` - the lock-contended-and-never-connects branch.
+`Error::Io` (already there, `error.rs`, TASK-1.40's own file) is the one thing a genuine I/O
+failure in this task's own code becomes: `nix::errno::Errno` converts to `std::io::Error`
+directly (`impl From<Errno> for io::Error`, confirmed by reading `nix-0.28.0`'s own
+`errno.rs`, not assumed), and `error.rs`'s existing `impl From<std::io::Error> for Error`
+already covers the rest - so a `Flock::lock` failure other than the one errno `attempt`
+matches on explicitly (`EAGAIN`, which is never an `Error`, only ever feeds `decide()`'s
+`LockOutcome::HeldByOther`) reaches a caller exactly the way a failed `bind` or `rename`
+already does, no new variant needed for that either. `attempt(config: &ServerConfig) ->
+Result<Arbitration, Error>` - `Arbitration::Became(ServerHandle)`/`AlreadyRunning`/
+`Refuse(Reason)` are all `Ok`; `Err` is reserved for the I/O this paragraph names.
 
 `Io(std::io::Error)` already exists and covers bind/stat/rename failures with no new variant.
 
@@ -337,32 +352,44 @@ consistent with TASK-1.40's own choice (one thread per pane) already on `origin/
   frames) - TASK-1.45's named scope, unchanged by this task; `connection.rs` holds an accepted
   connection open and reports its liveness, nothing more.
 - **An explicit start's distinct "already running" message** - there is no explicit/on-demand
-  distinction in this task at all; `AnotherServerRunning` (section 6) exists as a value a
-  future caller can act on, but nothing here decides what that caller prints.
+  distinction in this task at all; `ServeOutcome::AlreadyRunning` and `Arbitration::AlreadyRunning`
+  (section 1) are values a future caller can act on, but nothing here decides what that caller
+  prints.
 
 ### Proof
 
 Tests, mapped to the five acceptance criteria. Files:
 `crates/server/src/paths.rs`/`bind.rs`/`arbiter.rs`'s own `#[cfg(test)]` modules for everything
-pure or needing only a real socket/file, no second process; `crates/server/tests/handshake.rs`
-(AC #3, #4) and `crates/server/tests/shutdown.rs` (section 4's ordering) for functional,
-in-process `serve`/`run` tests; `crates/server/tests/race.rs` plus a small fixture binary,
-`crates/server/tests/fixtures/race_attempt.rs`, for the real multi-process proof of AC #2.
+pure or needing only a real socket/file, no second process and no umask mutation;
+`crates/server/tests/socket_mode.rs` (the one test that sets the process umask - its own
+integration-test file, so `cargo test` gives it its own process rather than sharing one with
+every other unit test in the crate's lib test binary, which a umask mutation inside `bind.rs`'s
+own `#[cfg(test)]` module would otherwise corrupt under `cargo test`'s default parallelism);
+`crates/server/tests/handshake.rs` (AC #3, #4) and `crates/server/tests/shutdown.rs` (section
+4's ordering) for functional, in-process `serve`/`run` tests; `crates/server/tests/race.rs`
+plus a small fixture binary declared as its own `[[bin]]` in `crates/server/Cargo.toml`
+(`crates/server/tests/fixtures/race_attempt.rs`, the same shape the sdk's own
+`fake-server-for-tests` already establishes, so `CARGO_BIN_EXE_race-attempt` is set for
+`race.rs` - a path under `tests/fixtures/` is not auto-discovered as a binary on its own).
+`steg-server` has no Cargo features of its own today, so this `[[bin]]` always builds; stated
+here rather than left for a reviewer to ask why `just check-packages` now builds one more
+binary for this crate.
 
-**No sleeps as synchronisation.** Every wait is on a real event: a socket closing or refusing,
-a channel receiving, a process exiting - nothing here needs a negative-proof exception, unlike
-part B's idle rule (this task has no idle rule to prove the absence of).
+**No sleeps as synchronisation, with one named exception.** Every wait but one is on a real
+event: a socket closing or refusing, a channel receiving, a process exiting. The exception is
+AC #4's second clause - "one that has completed it is not closed for being idle" is a negative
+proof (nothing happens), which has no event to wait on since the event never fires by design;
+that one test waits a short, injected multiple of `handshake_timeout` past where the timeout
+would have fired and asserts the connection is still open, named as the exception it is rather
+than silently waiting like the rest.
 
-- **AC #1 (mode and path checked and trusted, not assumed)**: `bind.rs`'s own test binds for
-  real and asserts the final file is `0600` regardless of the ambient umask (set the umask to
-  0 in that one test process - safe here since it is a single-threaded, single-test binary
-  concern the way `cargo test`'s default parallelism makes it elsewhere, named so a reviewer
-  checks this specific test is not run in the same binary as anything else that binds; if it
-  is, move it to its own `#[test]` file compiled as its own binary, which `cargo test` already
-  does per integration-test file). `paths::existing_file_trust`'s tests: absent, ours-and-a
-  -socket-but-dead (refused connect, proceeds), not-a-socket (a real plain file, real refusal),
-  not-ours (fabricated metadata, the honest gap). `paths::directory_is_safe`: a real
-  world-writable temp directory, real refusal.
+- **AC #1 (mode and path checked and trusted, not assumed)**: `socket_mode.rs` sets the
+  process umask to `0`, binds for real through `bind_with_mode`, and asserts the final file is
+  still `0600` regardless. `paths::existing_file_trust`'s tests (in `paths.rs`, no umask
+  involved, safe beside the crate's other unit tests): absent, ours-and-a-socket-but-dead
+  (refused connect, proceeds), not-a-socket (a real plain file, real refusal), not-ours
+  (fabricated metadata, the honest gap). `paths::directory_is_safe`: a real world-writable temp
+  directory, real refusal.
 - **AC #2 (one survivor; a dead server's socket replaced)**: `arbiter::decide`'s pure branches,
   exhaustive. Then two real, multi-process tests in `race.rs`: (a) eight copies of
   `fixtures/race_attempt.rs` spawned at once against the same socket path, each calling
@@ -373,6 +400,12 @@ part B's idle rule (this task has no idle rule to prove the absence of).
   (b) a fixture binds and locks, is `SIGKILL`ed, and a fresh `attempt()` in the test process
   itself is asserted to win the lock and find the stale file replaced - the test named in
   section 2's step 4 as proving lock-release-on-death specifically, not merely a stale file.
+  A third, in-process case for the branch section 2's step 3 names but the above two never
+  reach: a second `File` handle on the same lock path holds the lock for real (the same
+  technique this plan's own nix verification used to produce a real `EAGAIN`) and is never
+  released within a short, injected `arbitration_timeout`; `attempt()` is asserted to return
+  `Refuse(Reason::ArbitrationTimedOut)` inside that bound, not by waiting out the production
+  default.
 - **AC #3 (version mismatch names both)**: `handshake.rs`, a real socket, `serve`/`run` in the
   background, a raw `UnixStream` sending a hand-built `ClientHello` at a wrong protocol version
   (via the sdk's already-public `Frame::hello`/`encode_frame`), asserting the refusal (read

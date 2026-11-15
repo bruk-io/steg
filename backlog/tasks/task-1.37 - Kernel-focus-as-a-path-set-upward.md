@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:18:00Z'
+updated_date: '2026-11-15T06:24:00Z'
 labels:
   - size-2
   - review-passed
@@ -422,6 +422,14 @@ Findings (all Nits, Bugs pass - tests that under-exercise what they claim to pro
 5. [Bugs, Nit] tree.rs:985 a_not_found_id_at_any_level_is_the_matching_error runs against an empty Tree::new(), so "fails without changing anything" has nothing to mutate in the first place - not really exercised for this task's three new methods.
 
 No Important findings. Verdict: clean.
+
+---
+
+created: 2026-11-15T06:24:00Z
+
+---
+
+From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head d766015 with five nits, all tests that exercised less than their names claimed. The board takes no recorded check on a task whose review has passed, so the worker strengthened the tests and pushed without asdlc record-check; the check at the new head 589b4e3 is pull request 25's CI run 43685128929 (success). The orchestrator compared the two commits: one file differs, crates/kernel/src/tree.rs, in 18 places, every one of them inside its #[cfg(test)] module, which begins at line 702; no line of non-test code changed. So the reviewed logic is what merges, with stronger tests: focusing on a tree where both current fields really change; R114's repair reached through the move cascade; an edge with other panes and tabs present; the wrap test asserting the tree's state; and not-found cases against a populated tree.
 
 ---
 <!-- COMMENTS:END -->

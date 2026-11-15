@@ -4,6 +4,7 @@ title: 'Server: the API description, its methods and its self-description'
 status: Draft
 assignee: []
 created_date: '2026-11-15T01:32:00Z'
+updated_date: '2026-11-15T01:44:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -11,6 +12,7 @@ dependencies:
   - DRAFT-6
   - DRAFT-7
   - DRAFT-8
+  - DRAFT-39
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

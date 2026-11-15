@@ -1,0 +1,87 @@
+# Runs the repository's one check command on every pull request and on every push to
+# main, so a review never has to rely only on what a worker recorded by hand (doc-1,
+# section 7; TASK-1.32).
+#
+# Every tool this workflow uses is pinned to an exact version: the action, the macOS
+# runner image, and the toolchains `just check` needs beyond what the image already
+# ships. The Rust toolchain itself is pinned in `rust-toolchain.toml`, not here; this
+# file only has to make sure rustup honours it. Toolchain and action versions were read
+# from upstream release pages when this file was written (2026-11), not from memory -
+# re-check them against the same sources before bumping any one of these pins.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # macOS runner minutes are billed at a premium and a cold build of the gpui-linked
+  # workspace is the dominant cost here, so a superseded run should stop paying for
+  # itself rather than race the new one to completion.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # A specific image, never `macos-latest`: that label's meaning changes on GitHub's
+    # own schedule, which is exactly what pinning rules out. macos-26 is the current
+    # hosted Apple Silicon image; it ships rustup, cargo, rustfmt and clippy already,
+    # but not `just` or `uv`, so both are installed below at pinned versions.
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # `steg-affected` (tools/src/steg_tools/affected.py) selects which crates'
+          # tests to run by diffing against `origin/main`; a shallow checkout would
+          # leave that ref unreachable.
+          fetch-depth: 0
+
+      - name: Confirm the pinned Rust toolchain
+        # rust-toolchain.toml pins channel 1.98.1 plus rustfmt and clippy. rustup
+        # installs an override toolchain's declared components automatically the first
+        # time one is needed; this step forces that now and prints what actually
+        # landed, so the toolchain is a checked fact in the run log instead of an
+        # assumption about what the runner image ships by default.
+        run: |
+          rustup show
+          rustc --version
+          cargo fmt --version
+          cargo clippy --version
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.8"
+          python-version: "3.15.2"
+          enable-cache: true
+
+      - name: Install just and cargo-deny
+        # Prebuilt, pinned binaries from GitHub Releases: `cargo install --locked`
+        # compiles both from source every run (slow, and `--locked` pins cargo-deny's
+        # own dependencies, not cargo-deny's own version), and `brew install` floats,
+        # which defeats the point of pinning.
+        uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
+        with:
+          tool: just@1.59.0,cargo-deny@0.20.2
+
+      - name: Cache cargo registry and build output
+        uses: Swatinem/rust-cache@2201cc584a476d1b508be977bbe4b7d1c7a52e9c # v2.9.3
+        # Keyed on Cargo.lock by default. Without this, `cargo clippy --workspace
+        # --all-targets` and `cargo test`/`test-all` rebuild gpui from scratch on every
+        # run, on a runner class billed at a premium.
+
+      - name: just check
+        run: just check
+
+      - name: just test-all (push to main only)
+        # `steg-affected` diffs against `origin/main`; on a push to main that ref
+        # already is HEAD, so `just check` alone always selects `test: none` there and
+        # `cargo test` would never run on the default branch. The engineer decided
+        # (2026-11-15) that push to main runs this in addition to `just check`, not
+        # instead of it.
+        if: github.event_name == 'push'
+        run: just test-all

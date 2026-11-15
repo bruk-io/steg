@@ -15,3 +15,9 @@ workspace = true
 # source change that only compiles because some other crate turned the
 # feature on in the same `--workspace` run still fails.
 steg-sdk = { path = "../sdk", default-features = false }
+# doc-16 lists the terminal engine under the kernel. R92: ghostty's VT engine,
+# through the `ghostty-vt` bindings. This does no I/O at runtime - feeding
+# bytes and reading cells back is pure computation; the network fetch and the
+# Zig link happen at build time, before any of the kernel's own code runs
+# (.cargo/config.toml, mise.toml, third_party/README.md).
+ghostty-vt = "0.8"

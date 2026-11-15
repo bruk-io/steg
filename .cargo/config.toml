@@ -1,0 +1,24 @@
+# R92 / decision-3: `ghostty-vt-sys`'s build has two separate network surfaces, and both are
+# closed by a vendored, sha256-verified copy instead (third_party/README.md explains each one
+# and why neither is the single-knob fix decision-3's mitigation first described):
+#
+# - `GHOSTTY_SOURCE_DIR` - Ghostty's own C/Zig source, so `build.rs` never downloads it.
+# - `ZIG_GLOBAL_CACHE_DIR` - Zig's own package-manager fetches, resolving Ghostty's
+#   `build.zig.zon`, which `GHOSTTY_SOURCE_DIR` alone does nothing about.
+#
+# `ZIG_GLOBAL_CACHE_DIR` points at `target/`, not at the vendored packages directly: Zig
+# writes its own compiled-artifact cache (`b/`, `h/`, `o/`, `z/`, `tmp/`) into whatever
+# directory this names, alongside the fetched packages under `p/` - pointing it straight at
+# `third_party/ghostty-vt-zig-deps` filled that tracked directory with megabytes of Zig's own
+# build cache on the first real build (found while building this task; fixed before
+# committing). `target/` is already gitignored and cargo-owned, so it's the natural place for
+# Zig's own scratch state too. `justfile` seeds `target/zig-global-cache/p/` from the
+# committed, read-only `third_party/ghostty-vt-zig-deps/p/` before any recipe that can trigger
+# a real build, so the vendored tarballs are what Zig actually resolves from even though it
+# never touches the committed directory itself.
+#
+# `ZIG` itself is deliberately not set here: that would hardcode one machine's install location.
+# `justfile` resolves it per machine from `mise.toml`, in the same recipes.
+[env]
+GHOSTTY_SOURCE_DIR = { value = "third_party/ghostty", relative = true }
+ZIG_GLOBAL_CACHE_DIR = { value = "target/zig-global-cache", relative = true }

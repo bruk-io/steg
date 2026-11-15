@@ -1,14 +1,14 @@
 ---
 id: TASK-1.34
 title: 'Build with ghostty''s VT engine: Zig, a vendored source tree, and the bindings'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:53:00Z'
+updated_date: '2026-11-15T07:02:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.31
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e63ab21b4e98'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=5'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
 ---
 
@@ -746,6 +745,324 @@ recorded here as the plan instructs for a small departure):
 PR: https://github.com/bruk-io/steg/pull/20, branch
 `task-1.34-build-with-ghostty-s-vt-engine-zig-a`, up to date with `origin/main` as of this
 note.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  ZIG_GLOBAL_CACHE_DIR=../ghostty-vt-zig-deps ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache
+done
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -z "$(git status --porcelain third_party/ghostty | grep -v "^D ")"
+echo "offline rebuild for both Darwin targets from the committed vendored tree produced libghostty-vt.a, with ZIG_LOCAL_PKG_DIR redirected outside the repo; third_party/ghostty left byte-for-byte as committed (no zig-pkg/ or .zig-cache/ written)"
+'` exited 0 at 2026-11-15T06:22:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+offline rebuild for both Darwin targets from the committed vendored tree produced libghostty-vt.a, with ZIG_LOCAL_PKG_DIR redirected outside the repo; third_party/ghostty left byte-for-byte as committed (no zig-pkg/ or .zig-cache/ written)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T06:22:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+error   zig-deps-seeded: failed to copy third_party/ghostty-vt-zig-deps/p/*.tar.gz into target/zig-global-cache/p/ - check the vendored tarballs are present (third_party/README.md) and the target/ directory is writable
+error: recipe `zig-deps-seeded` failed with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:23:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+mkdir -p /tmp/ghostty-refresh-global-cache/p
+cp third_party/ghostty-vt-zig-deps/p/*.tar.gz /tmp/ghostty-refresh-global-cache/p/
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  ZIG_GLOBAL_CACHE_DIR=/tmp/ghostty-refresh-global-cache ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache
+done
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+test -z "$(git status --porcelain third_party | grep -v "^D " | grep -v "README.md")"
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+echo "offline rebuild for both Darwin targets, using the committed vendored tarballs copied into a scratch global-cache dir (never pointed at third_party/ directly, matching justfile'"'"'s zig-deps-seeded), produced libghostty-vt.a with no network and left third_party/ untouched"
+'` exited 0 at 2026-11-15T06:27:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+offline rebuild for both Darwin targets, using the committed vendored tarballs copied into a scratch global-cache dir (never pointed at third_party/ directly, matching justfile's zig-deps-seeded), produced libghostty-vt.a with no network and left third_party/ untouched
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:27:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:28:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 8f81797c4b7c:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (2.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 32, 28 without the Asdlc-Worker trailer.
+
+Check passed: `env GHOSTTY_SOURCE_URL=http://127.0.0.1:1/unreachable just check` exited 0 at 2026-11-15T06:31:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 8f81797c4b7c:
+
+```text
+ok      format check (0.1s)
+ok      lint (74.2s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (39.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (38.3s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 32, 28 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+mkdir -p /tmp/ghostty-refresh-global-cache/p
+cp third_party/ghostty-vt-zig-deps/p/*.tar.gz /tmp/ghostty-refresh-global-cache/p/
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  out=$(ZIG_GLOBAL_CACHE_DIR=/tmp/ghostty-refresh-global-cache ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache 2>&1)
+  echo "$out"
+  if echo "$out" | grep -qi "fetching"; then
+    echo "FAIL: a fetch happened during the $t build - the vendored tarballs alone were not enough" >&2
+    exit 1
+  fi
+done
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+n=$(ls /tmp/ghostty-refresh-pkg | wc -l | tr -d " ")
+test "$n" = "7"
+test ! -d third_party/ghostty/zig-pkg
+test ! -d third_party/ghostty/.zig-cache
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+echo "offline rebuild for both Darwin targets from the seven committed tarballs: zero fetches (checked the build log, not just git status), exactly 7 packages resolved into the local pkg dir, libghostty-vt.a produced, and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk afterward (checked directly, not through git status, which the new .gitignore entries would otherwise make blind to this)"
+'` exited 0 at 2026-11-15T06:39:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 8f81797c4b7c:
+
+```text
+
+
+offline rebuild for both Darwin targets from the seven committed tarballs: zero fetches (checked the build log, not just git status), exactly 7 packages resolved into the local pkg dir, libghostty-vt.a produced, and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk afterward (checked directly, not through git status, which the new .gitignore entries would otherwise make blind to this)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:41:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 8f81797c4b7c with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (28.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (29.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (28.2s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:41:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 1b1c6f7ba9ae:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 5, 4 without the Asdlc-Worker trailer.
+
+Fixed the review's findings.
+
+[Compliance/Evidence, Important] third_party/ghostty/zig-pkg/ (687 files, 29 MB) removed.
+Found the cause by experiment, not by guess: `cargo build` never writes there (build.rs's
+copy_tree copies GHOSTTY_SOURCE_DIR into $OUT_DIR/src first, skipping zig-pkg, and builds
+there). The writer was a direct `zig build` invocation with third_party/ghostty as cwd - used
+for one of this task's own offline-rebuild proofs. Zig's build runner (lib/compiler/Maker.zig,
+override_pkg_dir) resolves the directory it extracts fetched packages into, in order:
+ZIG_LOCAL_PKG_DIR if set, else --system <dir>, else <build root>/zig-pkg - and that proof set
+neither. Reproduced directly: a bare `zig build --help` run from third_party/ghostty populated
+exactly this directory, byte-identical to the seven tarballs already vendored at
+ghostty-vt-zig-deps/p/.
+
+Fixed at the cause, not just the result: third_party/README.md now documents the mechanism and
+the ZIG_LOCAL_PKG_DIR/--cache-dir-redirected, scratch-global-cache form of the direct-zig-build
+proof (copying the committed tarballs into a scratch dir first, same as justfile's
+zig-deps-seeded, rather than pointing ZIG_GLOBAL_CACHE_DIR at the committed directory itself),
+so refreshing the pin later can't repeat this. .gitignore gets third_party/ghostty/zig-pkg/ and
+.zig-cache/ as a second guard, not the fix - and because that makes `git status` blind to them,
+the re-recorded offline-rebuild proof checks the directories don't exist on disk directly
+(`test ! -d ...`), not through git status, and checks the build's own output never says
+"fetching" rather than only counting the resolved packages. third_party/README.md also
+reconciles this with its own earlier note about removing a vendored .gitignore (that one could
+hide an already-tracked file; these stop one from being tracked by accident, and detection
+doesn't go through git status).
+
+State fixed to match reality: third_party/README.md now states the real committed size
+(ghostty/ 23 MB, ghostty-vt-zig-deps/ 7.1 MB, ~30 MB total - not the ~54 MB this task's earlier
+notes said, which double-counted the stray zig-pkg/ copy).
+
+[Licence, Nit] third_party/README.md's Zig-deps table now names each of the seven packages'
+licence and the licence file it's named in, found by extracting each tarball and reading the
+file, not the project's README: uucode MIT (LICENSE.md), translate_c MIT (LICENSE), aro MIT +
+Unicode-License-v3 (LICENSE, LICENSE-UNICODE), zlib's own zlib licence (LICENSE), highway
+Apache-2.0 OR BSD-3-Clause (LICENSE, LICENSE-BSD3), wuffs MIT OR Apache-2.0 (LICENSE,
+LICENSE-MIT, LICENSE-APACHE), pixels CC0-1.0 (LICENSE). All permissive; nothing GPL/AGPL (R59
+holds) - matches what the reviewer already checked by hand.
+
+[Bugs, Nit] justfile's zig-deps-seeded no longer swallows a failed seed. The old `cp -n ... ||
+true` wasn't just hiding a failure - BSD cp (macOS) exits 1 whenever `-n` skips an
+already-present destination, which is the common case here (every run after the first), so
+that pattern conflated "nothing to do" with "really failed." The recipe now copies each tarball
+individually, skips one already at its destination, and only fails loudly (with a message
+naming what and where) when a copy actually errors or the vendored directory is empty. Verified
+all three paths by hand: already-seeded (no-op, passes), first real seed (copies, passes), and a
+genuine failure (vendor directory temporarily emptied - fails loudly with the intended message).
+
+Merged origin/main twice (once resolving a real conflict in crates/kernel/src/lib.rs - kept
+TASK-1.36's MovedPane export alongside this task's AC #3 test module - once a board-only
+no-op). `just check` recorded clean after each. The AC #1 local proof
+(GHOSTTY_SOURCE_URL=unreachable, after `cargo clean -p ghostty-vt-sys`) was re-recorded at the
+new head and still passes. The AC #1 CI/DNS-block proof was also rerun fresh rather than argued
+to still hold: scratch PR #26 (never merged, branch deleted), run 43686868598, blocked
+tip.files.ghostty.org/deps.files.ghostty.org/codeberg.org via /etc/hosts, just check green in
+5m47s at this task's real head (1b1c6f7) - stronger than inferring it from an unchanged-paths
+argument, since both .cargo (unchanged) and third_party (changed this round) were named in the
+prior reviewer's reasoning for why the old scratch run still covered an earlier head.
+
+Checks recorded on this task (asdlc record-check), in order, this round:
+1. The offline-rebuild proof (direct zig build against third_party/ghostty, both Darwin
+   targets) with the fix - ZIG_LOCAL_PKG_DIR redirected, pointing at a scratch global-cache
+   copy of the vendored tarballs rather than the committed directory - passing, before any
+   edit to justfile/.gitignore.
+2. `just check` after the justfile/.gitignore/README fixes and the git rm of zig-pkg/ - passing.
+3. `just check` again after merging origin/main (resolved the lib.rs conflict) - passing.
+4. `env GHOSTTY_SOURCE_URL=... just check` after `cargo clean -p ghostty-vt-sys` - passing
+   (AC #1, local half, at the new head).
+5. The offline-rebuild proof, tightened (checks the build log for "fetching", checks the
+   directories don't exist on disk rather than via git status, after the .gitignore entries
+   were added) - passing.
+6. `just check` after the README reconciliation commit and a second (board-only) main merge -
+   passing.
+7. GitHub (reported here, run inside this task's own worktree never reaches it): PR 20's own
+   CI runs 43685860087 (3m1s, at 8f81797) and 43686625467 (2m50s, at 1b1c6f7) green; scratch
+   PR 26's run 43686868598 (5m47s, DNS-blocked, at b6cee50) green, then closed without merging,
+   branch deleted.
+
+PR: https://github.com/bruk-io/steg/pull/20, branch
+task-1.34-build-with-ghostty-s-vt-engine-zig-a, pushed to 1b1c6f7, up to date with origin/main.
+
+Follow-ups carried by @bruk.o after the clean second review at 1b1c6f7, none blocking: the justfile's doc comment above zig-deps-seeded still says cp -n is a no-op, which the recipe's own comment contradicts; decision-3's text is stale now that the spike is deleted and because vendoring the source alone does not give an offline build (seven Zig packages are vendored too), to be corrected by a decision-record pull request with nothing else in it; doc-16's open question on where vendored source lives is answered by third_party/.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -787,6 +1104,50 @@ Findings: 1 Important, 5 nit. Cites: review. The diff does not match the plan.
 Checked and found no issue: AC #1's provenance (commit 83fb95624b0439ee660c2679b43b38c8b63769cd, sha256 ed57ae9b95581c88f2614e976c1d3f146c02d443a3c26139200eb9de6e645eb4, URL - all verified directly against the real crate's own GHOSTTY.lock on this machine, not just the README's claim of them); the local poisoned-URL proof and the scratch PR #24 / CI run 43677134619 (confirmed via `gh run view`: /etc/hosts blocks on tip.files.ghostty.org, deps.files.ghostty.org, codeberg.org only - not all network - just check passed in 4m22s); that proof's paths (.cargo, third_party, justfile) are unchanged between the recorded commit 47715cff72c0 and HEAD 043be079b8f7, so it still covers the head commit, whose own CI run (43677974737) is green in 3m9s; AC #3's test (feeds b"hello", reads back through render/row/cell API, never internals); AC #4 (spikes/task-1.1-terminal-library deleted, no remaining reference outside backlog/decision-3, which the plan correctly left stale on purpose); justfile's per-recipe Zig export (build, run, lint, test, test-all, check-packages) and check-recipes passing with zig-deps-seeded correctly marked [private] and exempt; boundaries.toml's ghostty-vt allow-list entry and kept deny-features; crates/kernel/clippy.toml untouched and still applicable (ghostty-vt does no I/O); deny.toml untouched, consistent with TASK-1.31; CI pins mise-action and runs just check on PRs, just test-all on push to main. Wall time: a clean/cold `just check` now costs ~3-4.5 minutes (head PR run 3m9s, scratch-proof run 4m22s) against recent main pushes of 9s-59s - but those main runs are mostly board-only commits against a warm cache, not a fair baseline; the real cost is the Zig link paid once per clean target/, as the notes already say, then cached to well under a second.
 
 Size disclosed to the engineer (54 MB, seven packages not three) undersells by omission: about 29 of those MB is the undeclared zig-pkg duplicate above, not part of the seven-packages story.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T06:51:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.34: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T07:02:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Fresh re-review at head 1b1c6f7 (worktree build, not inherited from notes).
+
+The prior Important finding is fixed, verified independently: third_party/ghostty/zig-pkg/ is gone (git ls-files: 0 files; filesystem: absent), and the real committed size is now stated correctly - ghostty/ 23 MB + ghostty-vt-zig-deps/ 7.1 MB = ~30 MB (confirmed with du), matching third_party/README.md.
+
+Cause, verified against the real crate, not just the notes: ghostty-vt-sys's build.rs copy_tree copies GHOSTTY_SOURCE_DIR into $OUT_DIR/src (skip-list includes "zig-pkg", confirmed by grep against ~/.cargo/registry/src/.../ghostty-vt-sys-0.8.0+.../build.rs lines 169-195) and builds there - cargo build never writes into third_party/ghostty. The writer was a direct `zig build` invocation with third_party/ghostty as cwd, run for one of this task's own offline-rebuild proofs, with neither ZIG_LOCAL_PKG_DIR nor --cache-dir set, so Zig's default (<build root>/zig-pkg) wrote there. Fixed at the cause: every such direct-zig-build proof now redirects ZIG_LOCAL_PKG_DIR and --cache-dir to a scratch dir, copying the vendored tarballs into a scratch global-cache first (never pointing ZIG_GLOBAL_CACHE_DIR at the committed directory). The .gitignore entries (zig-pkg/, .zig-cache/) are a second guard only, and the notes and third_party/README.md say so explicitly - they would hide a reappearance from `git status` (confirmed: git status --porcelain --ignored third_party is silent even looking for ignored files), not prevent one; the real build does `just check`'s own build (ZIG_GLOBAL_CACHE_DIR -> target/zig-global-cache via .cargo/config.toml, seeded by justfile's zig-deps-seeded from the read-only vendored tarballs) plus build.rs's $OUT_DIR copy. I ran `just check` myself in a fresh detached worktree at this head: all steps passed (lint 79.6s, tests/build steg-kernel ~40-45s - the Zig link cost, cached after); `git status --porcelain` was empty afterward and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk.
+
+[Bugs, Compliance/Evidence] AC #1 offline proof at this head, independently checked: GHOSTTY_SOURCE_URL=unreachable local proof is recorded post-merge; the GitHub network-blocked half reran as a second throwaway PR (#26, branch task-1.34-scratch-network-proof-2) rather than reused from the earlier head - verified via `gh pr view 26` (closed, not merged) and `git ls-remote origin` (branch gone from origin; only a stale local tracking ref remained in my fetch) and `git merge-base --is-ancestor b6cee50 HEAD` (exit 1 - the scratch commit is not in this branch). Run 43686868598 completed success in ~5m50s. PR 20's own head run (43686625467, at 1b1c6f7) is green, 2m50s - longer than recent board-only main pushes (mostly under 2 minutes, warm cache, no Zig link paid), consistent with the notes' own account of the one-time Zig-link cost per clean runner, not a new concern.
+
+Licences (item 4): third_party/README.md now tables all seven vendored Zig packages with licence and licence-file location, independently re-checked against what I already verified by hand in the prior review - uucode MIT, translate_c MIT, aro MIT+Unicode-License-v3, zlib's own licence, highway Apache-2.0/BSD-3, wuffs MIT/Apache-2.0, pixels CC0-1.0. Nothing GPL/AGPL; R59 holds.
+
+Seed failure (item 5): copied justfile alone into a scratch dir with no third_party/ and ran `just zig-deps-seeded` - fails loudly with "no tarballs found under third_party/ghostty-vt-zig-deps/p/ (third_party/README.md)", exit 1, not swallowed.
+
+check-recipes / no-mise message (item 6): `just check`'s `recipe names` step passed; grepped the real build.rs directly - the no/wrong-Zig panic reads "Install it with `mise install`, activate mise, or set ZIG to the Zig 0.17 binary." - a machine without mise gets a clear message.
+
+boundaries/clippy/deny (item 7): boundaries.toml's [steg-kernel] keeps deny-features and gains ghostty-vt on allow, reason extended; crates/kernel/clippy.toml unchanged and still names the no-I/O disallowed-types/methods list; deny.toml has no diff against main (TASK-1.31 already covers this graph).
+
+AC #3 (bytes-in/screen-out test): present at crates/kernel/src/lib.rs, passing in my own just check run. AC #4: spikes/task-1.1-terminal-library/ is gone; no remaining reference outside backlog/.
+
+[Bugs, Nit] justfile:44's doc comment above zig-deps-seeded ("`cp -n` is a no-op once seeded once") contradicts the recipe body's own comment two lines below ("Copies, not `cp -n`: ... conflated 'nothing to do' with 'really failed'") - a leftover from before this round's fix to that recipe, never updated to match.
+
+Plan-matched is recorded as "no": the notes disclose real departures from the approved plan (seven Zig packages, not three; ZIG_GLOBAL_CACHE_DIR pointing at target/, not the vendored directory; a per-recipe conditional ZIG export, not a top-level one) - each with a stated reason, so none is an Important Compliance finding, but they are departures.
+
+No Important findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

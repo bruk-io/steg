@@ -20,9 +20,21 @@ from steg_tools import workspace
 
 # A change to any of these can change every crate's build or behaviour.
 GLOBAL_FILES = frozenset(
-    {"Cargo.toml", "Cargo.lock", "rust-toolchain", "rust-toolchain.toml", "deny.toml", "boundaries.toml", "justfile"}
+    {
+        "Cargo.toml",
+        "Cargo.lock",
+        "rust-toolchain",
+        "rust-toolchain.toml",
+        "deny.toml",
+        "boundaries.toml",
+        "justfile",
+        "mise.toml",
+    }
 )
-GLOBAL_FOLDERS = (".cargo/", "tools/")
+# third_party/ is the vendored ghostty source and Zig packages (TASK-1.34): no crate's folder
+# is a prefix of it, so `owner()` would otherwise attribute a change there to nothing, and a
+# bump to the vendored commit or its Zig dependencies would silently select `test: none`.
+GLOBAL_FOLDERS = (".cargo/", "tools/", "third_party/")
 
 
 @dataclass(frozen=True)

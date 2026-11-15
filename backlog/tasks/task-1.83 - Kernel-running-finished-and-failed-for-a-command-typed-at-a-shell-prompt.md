@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:52:00Z'
+updated_date: '2026-11-15T23:53:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -575,6 +575,51 @@ Check passed: `just test` exited 0 at 2026-11-15T23:52:54+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-kernel -p steg-server) (7.0s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T23:53:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes, last 40 of 64 lines:
+
+```text
+thread 'pane::tests::a_freshly_started_shell_pane_has_no_status' (15566685) panicked at crates/kernel/src/pane.rs:827:9:
+assertion `left == right` failed
+  left: Some(Running)
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane::tests::note_command_ended_with_no_preceding_start_is_ignored stdout ----
+
+thread 'pane::tests::note_command_ended_with_no_preceding_start_is_ignored' (15566712) panicked at crates/kernel/src/pane.rs:928:9:
+assertion `left == right` failed
+  left: Some(Running)
+ right: None
+
+---- tab::tests::shown_status_is_none_when_every_pane_is_an_idle_shell stdout ----
+
+thread 'tab::tests::shown_status_is_none_when_every_pane_is_an_idle_shell' (15566784) panicked at crates/kernel/src/tab.rs:1534:9:
+assertion `left == right` failed
+  left: Some(PaneId(2))
+ right: None
+
+---- tree::tests::opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched stdout ----
+
+thread 'tree::tests::opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched' (15566956) panicked at crates/kernel/src/tree.rs:3837:9:
+assertion `left == right` failed
+  left: Some(Running)
+ right: None
+
+
+failures:
+    pane::tests::a_freshly_started_shell_pane_has_no_status
+    pane::tests::a_shell_pane_stays_idle_with_no_marks_at_all_however_far_in_the_future
+    pane::tests::note_command_ended_with_no_preceding_start_is_ignored
+    tab::tests::shown_status_is_none_when_every_pane_is_an_idle_shell
+    tree::tests::opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched
+
+test result: FAILED. 318 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-kernel-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

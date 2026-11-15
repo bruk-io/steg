@@ -265,4 +265,6 @@ split proposed.
 TASK-1.48 added two tests in crates/server/tests/dispatch.rs that record today's behaviour (api_call_cannot_reach_setting_show_because_its_own_target_is_also_named_target, api_call_cannot_reach_setting_set_for_the_same_reason). The fix inverts them: say so in the notes rather than deleting them quietly.
 
 Correction: the two tests mentioned above were removed from TASK-1.48 before it merged (ae89d2b), so there is nothing to invert; this task writes the tests that show api.call reaching the settings methods.
+
+Plan checked against doc-2 (sections 2, 5, 8), decision-1 and doc-14 by @bruk.o: ok. api.call's own selector is renamed from target to method on the wire and keeps the Target role, so it is still the CLI's one positional and doc-2's row (target: method) is already true; the called method's parameters stay flat beside it, so its own target survives. No spec or decision document changes; the description of api.call changes (one parameter's name), which the engineer approves with the plan. Nesting the parameters was weighed and set aside as a larger change to the description format. A test fixes that no method declares a parameter named method. Proof is driven from the description, with named targets shown to be acted on rather than the default.
 <!-- SECTION:NOTES:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:37:00Z'
+updated_date: '2026-11-15T02:38:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -100,6 +100,32 @@ error[rejected]: failed to satisfy license requirements
   ├ licence-probe-gpl v0.1.0
     └── steg-server v0.1.0
         └── steg v0.1.0
+
+licenses FAILED
+full output: .quiet/licences.log
+error: recipe `deny` failed on line 59 with exit code 4
+```
+
+Check FAILED: `just deny` exited 4 at 2026-11-15T02:38:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.31 on task-1.31-licence-check-allow-permissive-licences at e8a16c09bd4c with uncommitted changes:
+
+```text
+FAILED  licences (exit 4, 0.6s)
+error[rejected]: failed to satisfy license requirements
+   ┌─ /Users/brukhabtu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/webpki-root-certs-1.0.12/Cargo.toml:26:12
+   │
+26 │ license = "CDLA-Permissive-2.0"
+   │            ━━━━━━━━━━━━━━━━━━━
+   │            │
+   │            rejected: license is not explicitly allowed
+   │
+   ├ CDLA-Permissive-2.0 - Community Data License Agreement Permissive 2.0:
+   ├   - No additional metadata available for license
+   ├ webpki-root-certs v1.0.12
+     └── ureq v3.5.2
+         └── (build) ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+             └── ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956
+                 └── steg-server v0.1.0
+                     └── steg v0.1.0
 
 licenses FAILED
 full output: .quiet/licences.log

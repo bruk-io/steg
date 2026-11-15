@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:33:00Z'
+updated_date: '2026-11-15T20:34:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -529,6 +529,51 @@ Check passed: `just test` exited 0 at 2026-11-15T20:33:41+00:00 in /Users/brukha
 
 ```text
 ok      tests (every crate) (5.5s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:34:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 30f6ac77b152 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test resize_reaches_the_terminal_even_with_no_program_running ... ok
+test a_pane_with_no_program_running_accepts_input_as_a_no_op ... ok
+test a_programs_exit_code_reaches_the_event_channel ... ok
+test output_printed_before_exit_is_in_the_snapshot ... ok
+test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/race.rs (target/debug/deps/race-9ccfa22c1fcb949d)
+
+running 3 tests
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... FAILED
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... FAILED
+
+failures:
+
+---- attempt_times_out_when_the_lock_stays_contended_and_nothing_answers stdout ----
+
+thread 'attempt_times_out_when_the_lock_stays_contended_and_nothing_answers' (10813150) panicked at crates/server/tests/race.rs:198:5:
+expected Refuse(ArbitrationTimedOut), got Became(ServerHandle { listener: UnixListener { fd: FileDesc(OwnedFd { fd: 13 }), local: "/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/.steg-tmp-76728-0" (pathname) }, lock: Flock(File { fd: 12, path: "/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/76728-1.sock.fake-76728-1794774866638135000", read: false, write: true }) })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- eight_simultaneous_starts_leave_exactly_one_server stdout ----
+
+thread 'eight_simultaneous_starts_leave_exactly_one_server' (10813151) panicked at crates/server/tests/race.rs:94:5:
+assertion `left == right` failed: expected exactly one winner, got outcomes: ["became", "became", "became", "became", "became", "became", "became", "became"]
+  left: 8
+ right: 1
+
+
+failures:
+    attempt_times_out_when_the_lock_stays_contended_and_nothing_answers
+    eight_simultaneous_starts_leave_exactly_one_server
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p steg-server --test race`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

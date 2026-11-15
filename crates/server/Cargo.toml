@@ -10,3 +10,4 @@ workspace = true
 [dependencies]
 steg-kernel = { path = "../kernel" }
 steg-sdk = { path = "../sdk" }
+serde_json = "1"

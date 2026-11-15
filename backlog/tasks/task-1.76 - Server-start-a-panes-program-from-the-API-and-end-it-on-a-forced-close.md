@@ -1,14 +1,14 @@
 ---
 id: TASK-1.76
-title: 'Server: start a pane''s program from the API, and end it on a forced close'
+title: 'Server: start a pane''s program from the API, and size it'
 status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T19:13:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-5
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.40
   - TASK-1.75
@@ -31,10 +31,521 @@ Cites doc-2 sections 8 and 9, doc-8 (R97, R99), doc-15, doc-16 (R101-R108: the k
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 pane split, tab new and session new given a program or a working directory start that program in the new pane through the server's pane runtime, where today dispatch refuses them; with neither, the new pane runs the login shell (doc-2 section 8, doc-8 R99 for the environment once TASK-1.44 provides it)
-- [ ] #2 pane show reports the running program and, once it has ended, its exit code; a shell pane that exits closes through the same cascade as a manual close (R97)
+- [ ] #1 pane split, tab new and session new given a program or a working directory start that program in the new pane through the server's pane runtime, where today dispatch refuses them; with neither, the new pane runs the login shell (doc-2 section 8). A program that cannot be started is reported and leaves no pane behind
+- [ ] #2 pane show reports the running program and, once it has ended, its exit code; a shell pane that exits closes through the same cascade as a manual close (R97), including the last pane of the last tab of a session
 - [ ] #3 A change of a tab's size reaches every terminal in it: the kernel's size for each pane is applied to its terminal and to its pty, and the pixel cell size Terminal::resize needs has a stated source
-- [ ] #4 pane close, tab close and session close without --force refuse while a program is running, with the ProgramRunning code; with --force the program is ended, its exit is observed, and its relay thread ends, for a program that is producing output and for one that prints nothing (the case TASK-1.40 left: a silent program kept the relay blocked in read and the child alive)
-- [ ] #5 No path that can end a pane leaves a child unreaped or a thread running: shown by tests with real programs and bounded waits, and no unsafe code is added without it being named in the plan and approved
+- [ ] #4 pane close, tab close and session close without --force refuse while a program is running, with the ProgramRunning code, and change nothing; --force stays as it is today until the forced-close task
+- [ ] #5 Every path this task creates that can end a pane (a normal exit, a shell's exit cascade, a start that fails) leaves no child unreaped and no thread running, shown by tests with real programs and bounded waits; no unsafe code is added
 - [ ] #6 The kernel errors ProgramNotStarted and ShellCannotRestart, and ClientNotViewingPane and ClientNotViewingTab if a method here can return them, map to an API error code that says what happened; whether each needs its own code is decided in the plan against doc-2
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## 1. Where the state lives: the owning structure
+
+Today `dispatch` (`crates/server/src/dispatch/mod.rs`) is a plain function
+over `&mut Tree` with no I/O in its signature, and nothing holds a
+`PaneHandle`. New `crates/server/src/runtime.rs`:
+
+```rust
+pub struct Runtime {
+    state: Mutex<State>,
+    launcher: Arc<dyn ProgramLauncher>,
+    login: LoginShell,                  // §2 — the one injected value
+    events: Sender<PaneEvent>,          // cloned into every pane::start
+    _drain: JoinHandle<()>,             // kept so the thread outlives Runtime's own construction
+}
+struct State {
+    tree: Tree,
+    panes: HashMap<PaneId, PaneHandle>,
+    // settings: steg_server::Settings   — TASK-1.48's field; see Risks.
+}
+```
+
+`Runtime::new(launcher, login)` constructs an empty `Tree`, opens the
+`PaneEvent` channel, and spawns one drain thread whose entire body is `for
+event in events_rx { self.apply_event(event) }` — no logic of its own. The
+logic lives in `Runtime::apply_event(&self, event: PaneEvent)` (`pub(crate)`,
+not test-only, so a test can call it directly and deterministically, or let
+the real thread call it): locks `state`, matches `PaneEvent::Exited{pane,
+exit_code}`, calls `tree.record_exit(pane, exit_code)`. On
+`Err(Error::PaneNotFound)` — the orphaned-pane case named in §5, not a bug —
+it still removes `pane`'s `PaneHandle` from `panes` if present, and stops;
+it does not panic and does not retry. On `Ok(ExitOutcome::Closed(closed))`
+it removes `closed.pane`'s `PaneHandle` (R94's cascade only empties a
+tab/session when the one pane that just exited was its last, so no *other*
+pane's `PaneHandle` is ever touched by this cascade — confirmed by reading
+`Tree::close_pane`/`close_tab`, tree.rs:489-529,282-306, including the case
+where the tab was also the session's last: `close_tab` calls
+`close_session` itself, tree.rs:298-300, so one `apply_event` call already
+reaches all the way to the session closing with no separate step needed).
+
+Keeping the thread a thin loop over one public, directly-callable method
+(rather than a test-only notification hook) means the cascade — including
+the shell-closes-itself case, and the session's-last-tab case — is proven
+deterministically and synchronously by calling `apply_event` with a
+hand-built `PaneEvent::Exited` against a `Tree` already holding the fixture;
+that the plumbing *before* `apply_event` is real (a real process's real
+exit reaching a real channel) is proven separately, by a test that
+constructs its own `(tx, rx)`, starts a real `sh -c 'exit 0'` through
+`pane::start(..., tx)` directly (the same shape `crates/server/src/pane.rs`'s
+own tests already use to bypass `PaneHandle`), blocks on
+`rx.recv_timeout(...)` (bounded, never a bare `recv`) for the real event,
+and only then calls `apply_event` against a `Tree` the test set up.
+
+`Runtime::handle(&self, description, context, request) -> Response` is the
+one entry point (what TASK-1.44/1.45 will call once a socket exists; today
+only this task's own tests call it). It locks `state` once per request. For
+every method except `session.new`/`tab.new`/`pane.split` — the only three
+that need the launcher — it delegates straight to the **existing,
+unchanged** `dispatch(&mut state.tree, description, context, request)`.
+This is a smaller intercept list than I first drew: the close-refusal (§5)
+needs only `Pane::status()`, which already lives on the kernel's own `Pane`
+— it is a pure check and stays *inside* `dispatch`'s own `pane.rs`/`tab.rs`/
+`session.rs` arms, not in `Runtime`, the same reasoning that already keeps
+`pane.show` pure. `dispatch` stays I/O-free exactly as its own module doc
+claims today; `Runtime` is additive, nothing in `mod.rs`'s signature moves.
+
+**What runs under the one lock, and why that is acceptable rather than done
+outside it** (asked for directly): for the three starting methods, the lock
+is held across the existing `dispatch()` arm (mint the pane, call
+`tree.start_program` — both pure) *and* the real `pane::start` call
+(`openpty` + `spawn_command`, synchronous, no indefinite wait — confirmed by
+reading `RealLauncher::spawn`, pty.rs:80-137, which returns once the process
+is forked and the pty pair is split apart, never blocking on anything the
+*program* does). Nothing that blocks on a running program (a `read()`, a
+`wait()`) happens inside the lock; those live on the pane's own worker/relay
+threads, started only after `pane::start` returns. Holding the lock here is
+what keeps TASK-1.40's own stated invariant exactly as it already reads:
+"`Pane::program()`/`status()` is `None` only in the window between minting
+and `start_program`, never observed outside that one pairing, because
+nothing else runs between the two calls" — true today because the server's
+one thread does both calls back to back with nothing interleaved; this
+task has no such single thread yet, so the lock is what makes "nothing else
+runs between the two calls" still true. **Rejected alternative**: release
+the lock between minting and the real I/O (lock → mint, unlock → spawn →
+lock → `start_program` + insert the handle). This does let other requests
+run between mint and start, which breaks that invariant as TASK-1.40 wrote
+it (a concurrent `pane.show` would see a pane that exists with no `program`
+at all, for as long as the real spawn takes, and nothing in the kernel
+marks that state as "being built" versus "actually programless") and buys
+nothing at M1's scale (one local server, no stated concurrent-request
+target) in exchange for revisiting a different task's already-reviewed
+invariant. Not built.
+
+## 2. Starting (AC #1)
+
+`session.new`, `tab.new`, `pane.split` stop refusing `program`/`cwd`
+(`crates/server/src/dispatch/{session,tab,pane}.rs`'s three `if
+param_present(...) { return Err(not_implemented_yet(...)) }` blocks are
+deleted). New `crates/server/src/program_param.rs`:
+
+```rust
+pub fn program_from_request(request: &Request, default_cwd: &str) -> Result<steg_sdk::Program, ApiError>
+```
+
+reads `program` (`Argv`) and `cwd` (`Path`); absent `program` → `Program::
+Shell { cwd }` (the description's own words: "Defaults to the login shell",
+methods.rs:116); present → `Program::Command { argv, cwd }`. `cwd` absent →
+the caller-supplied `default_cwd` — this function takes it as plain data, it
+never reads the environment itself, which is the point of the injection
+below.
+
+**The one injected value, replacing "read `SHELL`/`HOME` from the process
+environment in several places"**: `crates/server/src/runtime.rs`:
+
+```rust
+pub struct LoginShell {
+    pub argv0: String,   // what Program::Shell resolves to, e.g. "/bin/zsh"
+    pub home: String,    // the default cwd when nothing else applies
+}
+```
+
+`Runtime::new` takes one `LoginShell`, read in exactly one place —
+`LoginShell::from_process_env()` (new, in `runtime.rs`, called once, by
+whichever binary constructs the real `Runtime`; this task's own tests
+construct their own `LoginShell` values directly, with no environment
+read at all) — `std::env::var("SHELL")` falling back to `"/bin/zsh"` (macOS,
+R4), `std::env::var("HOME")` falling back to `"/"`. **This is a named
+stand-in, not this task's final answer**: TASK-1.44's draft part B (start on
+demand, detach, the login-shell environment taken from the password
+database, not the process environment) will own the real base environment;
+when it lands, its own resolved shell/home replaces
+`LoginShell::from_process_env()`'s call site, and nothing downstream of
+`LoginShell` changes, because `program_from_request` and the two cwd rules
+below only ever see the already-resolved value.
+
+**Working directory, two rules, both buildable — I built the first**:
+
+- **Rule A — `$HOME` always.** Every `session.new`/`tab.new`/`pane.split`
+  with no `cwd` given gets `login.home`. Needs nothing beyond what §1
+  already has.
+- **Rule B — inherit the live directory of the pane being split (for
+  `pane.split`), or of the session's current pane (for `tab.new`); `$HOME`
+  for `session.new`, which has no pane to inherit from.** This is what
+  `doc-9` R16 already says the server tracks — confirmed by reading
+  `crates/kernel/src/terminal.rs:452-459`: `Terminal::cwd()` returns the
+  *live* directory, last reported by a real OSC 7 from the shell actually
+  running there (not the pane's stored `Program::cwd()`, which is the
+  directory it *started* in and does not follow a later `cd` — the same
+  distinction TASK-1.40's own plan drew for `restart`). Needs one new,
+  small accessor, the same shape as the existing `snapshot()`: `PaneHandle::
+  cwd(&self) -> Result<Option<String>, Error>` (new `PaneCommand::Cwd
+  (Sender<Option<String>>)`, the worker replies `terminal.cwd().map(str::
+  to_string)`), called under `Runtime`'s lock before building the new
+  `LaunchSpec` — the source pane is already in `state.panes` at that point,
+  found via `tree.tab_owning_pane`/`session.current_tab()` + `tab.current()`
+  for `tab.new`'s case (the same lookup `dispatch::pane::split`'s own
+  rollback already does for "the tab's previous current pane", mod.rs/
+  pane.rs:88-90). Falls back to `login.home` in every case the chain does
+  not produce a real answer: no source pane at all (the session `tab.new`
+  targets has no tab/pane yet — true of nothing today, since `new_session`
+  always mints a first tab and pane together, but not assumed to stay true
+  forever), the source pane's `PaneHandle` not yet in `panes` (should not
+  happen under the one lock, but checked rather than `.expect()`ed), or the
+  source pane reporting no cwd yet (OSC 7 never fired). `PaneHandle::cwd`
+  itself uses a bounded `recv_timeout` (not a bare `recv`) on its reply
+  channel, falling back to `login.home` on timeout too — keeping §1's claim
+  that nothing under the lock blocks on another thread's progress literally
+  true even though this read is a channel round-trip to a pane's worker,
+  which could in principle be mid-`vt_write` on a large flood (R19's worst
+  case). A timeout here is treated the same as "no answer yet", not an
+  error.
+
+**I built rule B** and am flagging it rather than deciding it unilaterally:
+it is what a real terminal multiplexer does, it is enabled by state TASK-1.39
+already tracks for exactly this reason (R16), and it costs one small
+accessor rather than new design. Rule A is simpler and needs nothing new;
+either is a small, isolated change (`program_from_request`'s one call site
+per method), so the choice does not gate the rest of this plan.
+
+`Program::Shell` resolves to `login.argv0` (never a second, separate
+environment read).
+
+`Runtime::handle`'s wrapper for the three starting methods, under the one
+lock (§1):
+
+1. Call the existing `dispatch()` arm unchanged. Its own body additionally
+   calls `tree.start_program(new_pane, program)` right after minting (new
+   code in the three arms) — still pure.
+2. On success, resolve the cwd default (rule B: `PaneHandle::cwd()` on the
+   inherited-from pane, already in `panes`; rule A: `login.home`), build a
+   `LaunchSpec` (argv, the five `STEG_*` vars + `PATH` via the existing
+   `pane_environment`, and a size — §4), and call `pane::start(spec,
+   new_pane, launcher.clone(), events.clone())`.
+3. **On I/O failure** (`Error::Pty` — a bad command, or, pending the
+   experiment below, a bad `cwd`): roll back the mint exactly as
+   `pane.split`'s existing label-rejection path already does
+   (`tree.close_pane`/`close_tab`/`close_session` on whichever was just
+   minted — for `tab.new`/`session.new` this also undoes the brand-new tab
+   or session, leaving no pane, tab *or* session behind, as AC #1 now says
+   explicitly for all three methods) and return the new `ErrorCode::
+   ProgramFailed` (§6).
+4. On success, insert the `PaneHandle` into `panes`, return the original
+   `Outcome`.
+
+**Experiment, first step of phase 2:** does a bad `cwd` fail
+`spawn_command` synchronously (same path as `ENOENT`), or does the child
+fork, `chdir` fail inside it, and it exit immediately with a nonzero code
+(the *normal* exit path — `Ended{exit_code}`, no rollback, pane stays per
+R97)? AC #1 groups "a program that cannot be started" as one thing; I do
+not assume a bad `cwd` takes the same path as a bad command. Whichever it
+is, name it in the notes — no code change either way, since both outcomes
+already have a handler.
+
+## 3. Exit (AC #2)
+
+Covered structurally by §1's drain thread for the natural path, including
+the session's-last-tab cascade (§1). `pane.show` (today `"list" | "show" =>
+not_implemented_yet`, pane.rs:37-39) gets its own arm, pure, inside the
+existing `dispatch`: a new `steg_sdk::PaneRecord` (`crates/sdk/src/
+program.rs` or a new `record.rs`, same reasoning as `SessionRecord` — this
+crosses the API, R105) with `id`, `label`, `cwd` (`Program::cwd()`),
+`program` (a short word — "shell" or the command), `exit_code` (`Some` only
+once `ProgramStatus::Ended`), `status` ("running"/"ended", `ProgramStatus`'s
+own serde words). **`title` is left null**: it needs the terminal's live
+OSC title, behind `PaneHandle` (I/O), and nothing in AC #2 asks for it.
+`status`'s richer doc-11 states are TASK-1.41's job (in progress — see
+Risks); this reports the two-state `ProgramStatus` only, which is what AC #2
+itself asks for. `pane.list` stays `not_implemented_yet` — AC #2 only names
+`show`.
+
+## 4. Sizes (AC #3)
+
+New, pure kernel method, `crates/kernel/src/tree.rs`:
+```rust
+pub fn tab_sizes_now(&self, tab: TabId) -> Option<SizeChanged>
+```
+a public wrapper around the existing private `size_changed` (tree.rs:377),
+returning `None` when `tab.size()` is `None` (true of every tab today — no
+`client`/`declare_size` dispatch exists yet). `Runtime`'s start-wrapper (§2)
+calls this once the new pane has a real `PaneHandle` in `panes` (after
+`pane::start` returns — there is nothing to resize before then) and, if
+`Some`, applies `SizeChanged.panes` via `PaneHandle::resize(cols, rows)` for
+every pane in the tab, not only the new one (a split can shift existing
+panes' ratios too). When `None` (today,
+always), the new pane's `LaunchSpec.size` falls back to a stated literal
+default, `DEFAULT_PANE_SIZE: (u16, u16) = (80, 24)` (`crates/server/src/
+pane.rs`, beside `DEFAULT_SCROLLBACK_LINES`) — named, not guessed: no client
+has ever reported a size, so there is nothing real to use.
+
+**How AC #3's two halves are actually observed**: "applied to its terminal"
+is `PaneHandle::snapshot()` — its `Screen` carries its own dimensions.
+"applied to its pty" has no handle to ask (`RealLauncher` moves `pair.
+master` into the `resize` closure, pty.rs:118-129, so nothing outside it can
+call `MasterPty::get_size()` afterward) — the proof is the pty's own real
+effect: a real `sh -c 'stty size'` pane, resized before the shell reads its
+controlling terminal's size, with `snapshot()` afterward showing the line
+it printed matching what was applied.
+
+**Pixel cell size, its source and what replaces it**: `Terminal::resize`
+(terminal.rs:418) already hardcodes `0, 0` into the engine call, and
+`RealLauncher`'s `resize`/`openpty` (pty.rs:84-89,119-127) already hardcode
+it too — there is no plumbing left for this task to add. Zero is `winsize`'s
+own "unknown" convention; no app is attached to a server-only M1 build, so
+there is no real pixel size to pass, and fabricating one would tell a
+program a geometry that is wrong. terminal.rs:395's own comment currently
+names TASK-1.42 as the task that plumbs a real value through — TASK-1.42 is
+done and did not, because nothing client-facing calls the pixel path yet;
+correcting that comment to name the real source (the app's terminal view,
+TASK-1.56, once a window exists to report pixel dimensions) is part of this
+task's own diff.
+
+## 5. The refusal, and `--force`'s stated gap (AC #4, #5)
+
+**The missing refusal, found by re-reading `close_pane`/`close_tab`/
+`close_session` (tree.rs:489,282,218): none of them check anything today.**
+`dispatch::pane::close`/`tab::close`/`session::close` call them straight
+through with no status check at all. The description already carries
+everything needed (confirmed in `crates/sdk/src/description/methods.rs`):
+`pane.close`/`tab.close`/`session.close` already list a `force` switch and
+already list `ErrorCode::ProgramRunning` in their `errors`. **No sdk/
+description change is needed.** The check is a dispatch-level policy over
+kernel state, pure, and stays *inside* the existing `dispatch` function —
+no `Runtime` wrapper needed for these three methods at all, since reading
+`Pane::status()` needs no launcher and no `PaneHandle`:
+
+```rust
+fn running_panes(tree: &Tree, scope: /* one pane, or every pane of a tab, or of every tab of a session */) -> Vec<PaneId>
+```
+
+`pane.close` checks one pane; `tab.close` every pane of the target tab
+(`Tab::panes()`); `session.close` every pane of every tab of the target
+session (`Session::tabs().flat_map(Tab::panes)`). Without `--force` and a
+non-empty list: `ApiError::new(ErrorCode::ProgramRunning, ...)`, nothing
+touched — proven by a test per noun that the tree is byte-for-byte
+unchanged afterward. This holds even for a shell pane whose own exit would
+close it on its own (R97): a manual close without `--force` still refuses
+while that shell is running — the two are different triggers (the program
+ending itself, versus a person asking to end the pane) and only one of
+them is "force".
+
+**With `--force`: AC #4 says plainly that it "stays as it is today" —
+unconditional, straight through to `tree.close_pane`/`close_tab`/
+`close_session`, exactly the no-check behaviour this whole task found and
+is otherwise fixing.** I did not make `--force` answer `NotImplementedYet`
+instead, because the acceptance criterion already settles this (the
+engineer's own rewrite: "`--force` stays as it is today until the
+forced-close task") — there is nothing left for me to pick between.
+
+**What that gap means, stated rather than left implicit, since this task
+now owns a `Runtime` that makes the gap concrete in a new way it wasn't
+before**: forcing a close on a pane with a program still running removes
+the pane from the tree but does **not** touch its `PaneHandle` — `Runtime`
+never learns the close happened, because the close-refusal and the close
+itself are both still inside plain `dispatch`, which has no access to
+`panes`. The process keeps running, orphaned: reachable by nothing (its
+`PaneId` is gone from the tree, so no API method can address it), but not
+leaked in the sense AC #5 forbids — its thread is still alive, still
+capable of ending on its own. When it eventually does, the relay's
+`PaneEvent::Exited` reaches `apply_event` (§1), which calls `tree.
+record_exit` on a `PaneId` the tree no longer has, gets `Err(Error::
+PaneNotFound)`, and — per §1's own handling, written for exactly this case —
+removes the now-pointless `PaneHandle` from `panes` and stops, without a
+panic. This is the one new edge case this task's own structure introduces
+(TASK-1.40 could not hit it, since dispatch never called `start_program`
+before now), gets its own test (§5's proof, below), and is exactly the gap
+part two (the forced-close task) closes, starting from this section.
+
+## 6. Error codes (AC #6)
+
+**No new `ErrorCode` for the refusal** — `ProgramRunning` already exists, is
+already on all three methods' `errors` list, and its own doc comment ("A
+program is still running and `--force` was not given") is a verbatim match.
+
+**One new code is needed**, surfaced by §2's rollback, not by the four
+kernel errors the brief named: `ErrorCode::ProgramFailed` — "the program
+could not be started" (a real OS-level spawn failure). Nothing existing
+fits: `BadRequest` is "did not match the description" (validation-shaped)
+and maps to CLI exit status **2** ("bad usage"), confirmed from `crates/
+sdk/src/description/methods.rs:1472` — the request was fine, the OS refused
+it, which is doc-2 section 6's status **1** ("the command ran and failed").
+New code added to `ErrorCode` (shapes.rs), to the `exit_status` table
+(status 1), to `pane.split`/`tab.new`/`session.new`'s `errors` lists
+(methods.rs), mapped from `steg_server::Error::Pty` in a new `crates/
+server/src/dispatch/server_error.rs`. **Flagged for the engineer as its own
+item**: this is new public surface in the sdk's description, which the
+generated CLI (TASK-1.49/1.50, not yet built) will consume mechanically
+(R32) — not an internal refactor.
+
+**The four kernel errors the brief named, checked against doc-2, each with
+a reason, none changed**:
+- `ProgramAlreadyStarted`/`ProgramStillRunning` → `ProgramRunning` — already
+  correct (TASK-1.40's second review fixed this).
+- `ProgramNotStarted` — reachable only from this task's own internal `tree.
+  record_exit` call in `apply_event` (§1), never from a client request. Per
+  `Pane`'s own invariant (program always started immediately after minting,
+  before anything else runs — enforced by `Runtime`'s single lock, §1), this
+  fires only if that invariant is broken, which is a bug, not a client-
+  facing error. Left as `BadRequest` in `kernel_error.rs` (unchanged, dead
+  in practice).
+- `ShellCannotRestart` — doc-2 names no verb anywhere for "run a command
+  pane's program again" (checked: no "restart" string in doc-2 at all, and
+  `pane_methods()` has no such method). `Tree::restart_program` stays
+  unreachable through dispatch after this task too. Not decided here.
+- `ClientNotViewingPane`/`ClientNotViewingTab` — still unreachable through
+  anything this task adds. Not decided here, same as today.
+
+## 7. `dispatch/mod.rs`
+
+At 358 lines today, before this task's own additions. This task:
+- Moves the `param_*`/`target_*`/`resolve_*`/`tab_mut`/`pane_mut`/
+  `session_owning_tab`/`find_tab`/`wire_position_to_index` helpers
+  (mod.rs:91-242) into a new `crates/server/src/dispatch/lookup.rs`,
+  re-exported `pub(super)` the same as today.
+- Keeps `mod.rs` to: `Context`, the `dispatch()` routing function, `not_
+  implemented_yet`/`bad_request`, and the completeness test — genuinely
+  about *routing*, nothing a shared utility.
+- Adds no new behaviour to `mod.rs` itself: the refusal (§5), the program-
+  starting logic (§2, split between the pure `dispatch` arm and `Runtime`'s
+  thin wrapper), and `pane.show` (§3) all land in `pane.rs`/`tab.rs`/
+  `session.rs`/`runtime.rs`, not in `mod.rs`, so this split happens before
+  any of this task's own logic would have grown the file further.
+
+## Files that change
+
+- `crates/server/src/runtime.rs` — new: `Runtime`/`State`/`LoginShell`, the
+  drain thread, `apply_event`, `handle`, the three-method start-wrapper.
+- `crates/server/src/program_param.rs` — new: `program_from_request`, its
+  own unit tests (pure, no environment reads).
+- `crates/server/src/pane.rs` — new `PaneCommand::Cwd`, `PaneHandle::cwd`
+  (rule B, §2); `DEFAULT_PANE_SIZE`.
+- `crates/server/src/dispatch/{session,tab,pane}.rs` — delete the program/
+  cwd refusal; add `pane.show`'s record (§3); `pane.close`/`tab.close`/
+  `session.close` gain the pure refusal check (§5), still calling `tree.
+  close_pane`/etc directly (unchanged for the `--force` path).
+- `crates/server/src/dispatch/mod.rs` — shrinks (§7).
+- `crates/server/src/dispatch/lookup.rs` — new (§7).
+- `crates/server/src/dispatch/server_error.rs` — new (§6).
+- `crates/kernel/src/tree.rs` — `Tree::tab_sizes_now` (§4), pure, new tests.
+- `crates/kernel/src/terminal.rs:395` — comment corrected (§4).
+- `crates/sdk/src/program.rs` (or a new `record.rs`) — `PaneRecord` (§3).
+- `crates/sdk/src/description/shapes.rs`, `methods.rs` — `ErrorCode::
+  ProgramFailed`, its exit status, its presence on `pane.split`/`tab.new`/
+  `session.new`'s `errors` (§6); `pane.show`'s `Returns` (§3).
+- `crates/server/tests/real_pty.rs` and a new `crates/server/tests/
+  start.rs` — the cwd experiment, the proofs below.
+
+## Order of work
+
+1. Bring in `origin/main` first, before anything else, including the
+   experiment below — it should answer against current code, not whatever
+   this plan was written against. Two sibling tasks may have landed since:
+   TASK-1.41 (status, planning) and TASK-1.48 (settings, in review); adapt
+   to whichever did (see Risks).
+2. The `cwd`-failure experiment (§2) — a scratch program first, then a
+   committed test either way.
+3. `Tree::tab_sizes_now` (§4), pure, kernel-only, lands first and alone.
+4. `program_param.rs` and `LoginShell` (§2), pure/data-only, testable
+   alone.
+5. `PaneRecord`/`pane.show` (§3).
+6. The pure close-refusal (§5) — small, and independent of `Runtime`.
+7. `Runtime`'s structure, drain thread and `apply_event` (§1), with the
+   shell-closes-itself and last-tab-of-session proofs.
+8. `Runtime`'s start-wrapper (§2/§4), with the ENOENT-rollback,
+   cwd-resolution, and size proofs.
+9. `dispatch/lookup.rs` split (§7).
+10. `just check` at each numbered step's own boundary, not only at the end.
+
+## Risks
+
+- **TASK-1.41 (status) and TASK-1.48 (settings) land mid-build.** TASK-1.41
+  is expected to add a moment parameter to `Tree::record_exit` and rename
+  `Pane::status` to `Pane::program_status` — if it lands first, `apply_event`
+  (§1) and the refusal check's `Pane::status()` calls (§5) are updated to
+  the new names/signature as part of step 1's merge, with whatever moment
+  source TASK-1.41 settles on (not guessed here). TASK-1.48 is expected to
+  add a `Settings` parameter to `dispatch` — if it lands first,
+  `Runtime::handle`'s call into `dispatch` threads `state.settings` through
+  at the same step; `State` already reserves the field for this. Neither
+  changes this plan's shape, both are named rather than assumed away.
+- **The cwd rule (A vs. B, §2) is a UX call I made a recommendation on, not
+  a closed one.** Both are small, isolated changes; switching later costs
+  one function and, for rule A, deleting `PaneHandle::cwd`.
+- **The `--force` gap (§5) is a real, user-visible limitation this task
+  ships with, not a hidden one**: a forced close on a running program
+  orphans its process until it exits on its own. Named plainly, with its
+  own test, because the acceptance criteria decided `--force` stays
+  unchanged here rather than refusing outright.
+
+## Proof
+
+`just check` (format, lint, boundaries, licences, affected tests, every
+package alone, architecture, recipe names), recorded via `asdlc
+record-check` at each numbered step above.
+
+Clause by clause:
+- **AC #1**: real-pty tests — a command and a shell started through
+  `Runtime::handle`, in a resolved `cwd` (both rules exercised, or the
+  chosen default plus the alternative named as untested-by-choice if the
+  engineer picks rule A instead); for each of the three methods, an
+  `ENOENT` argv leaves the tree with no new session/tab/pane (a before/
+  after count) and returns `ProgramFailed`; the `cwd`-failure experiment's
+  actual result, with its own test.
+- **AC #2**: `pane.show`'s record reflects `Running`/`Ended{exit_code}`
+  (kernel-level, no doubles, plus one real-pty case); the shell-exit-closes-
+  itself cascade proven two ways per §1 (direct `apply_event`, and
+  end-to-end via a real process and a bounded `recv_timeout`); a dedicated
+  case for "the last pane of the last tab of a session" — a one-pane,
+  one-tab session's shell exiting, asserting the session itself is gone
+  from `tree.sessions()` afterward, not only the pane.
+- **AC #3**: `Tree::tab_sizes_now` unit tests (pure); a real-pty test that
+  declares a tab size directly at the kernel level (bypassing the unbuilt
+  `client` dispatch, the only way to get a tab size to exist at all today),
+  splits a pane, and asserts the kernel `Terminal`'s own reported size via
+  `PaneHandle::snapshot()` and the pty's own real size via a real `sh -c
+  'stty size'` pane, for every pane in the tab.
+- **AC #4**: the refusal with `ProgramRunning` and a byte-for-byte unchanged
+  tree, for a pane/tab/session each, including the shell-whose-own-exit-
+  would-close-it case; a `--force` close on a pane running a real `sh -c
+  'sleep 1000'` (a program that cannot exit on its own within the test, so
+  the proof carries no race against its own lifetime) proceeding exactly as
+  an un-forced close on an already-ended pane does (the stated gap, §5),
+  asserting the tree loses the pane *and* the orphaned `PaneHandle`'s real
+  process is still alive right after (`process_exists`, `pane.rs`'s own
+  helper, already `kill -0` via `std::process::Command` — no `unsafe`); the
+  test then ends that process itself, deliberately, outside the production
+  path this task builds (`std::process::Command::new("kill")` by pid, the
+  same tool `process_exists` already uses, not `libc::kill` — keeping this
+  test's own diff as `unsafe`-free as the rest of it, since ending a
+  program on purpose is part two's job, not something this test's own
+  plumbing should need a new mechanism for) and asserts `apply_event`
+  handles the resulting `Err(PaneNotFound)` without panicking, with the
+  stale handle finally removed from `panes` — proving the gap is exactly
+  what §5 says, not more and not less.
+- **AC #5**: every path *this task* creates that can end a pane — a normal
+  exit (command pane, stays; shell pane, cascades), a start that fails
+  (rollback, §2) — reaped and thread-ended, via the existing `process_
+  exists`/`join_within` helpers; no `unsafe` anywhere in this task's diff
+  (trivially true — nothing here signals a process).
+- **AC #6**: `map_kernel_error`'s existing tests, unchanged, plus `Program
+  Failed`'s own mapping test; a test that `ShellCannotRestart` and
+  `ProgramNotStarted` remain absent from every method's `errors` list.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default, along the seam this task's description named and the worker's plan recommended. This task is now part one: programs started from the API, exits, sizes, and the refusal to close a running program without --force. Part two, a draft under TASK-1 depending on this task, takes --force actually ending a program (the worker's plan section 5 from 'With --force' onward, and the experiment it names). The plan on this task was written for both parts and is to be rewritten for part one only.
+<!-- SECTION:NOTES:END -->

@@ -4,10 +4,10 @@ title: 'App: the design''s named values, in light and dark'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-4
 dependencies:
   - TASK-1.52
 parent_task_id: TASK-1

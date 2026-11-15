@@ -5,10 +5,10 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:34:00Z'
+updated_date: '2026-11-15T20:07:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.40
 parent_task_id: TASK-1
@@ -26,7 +26,7 @@ doc-11: R50, R82, R83. decision-7. The first release shows only what steg can kn
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A pane is running while its foreground program runs, and finished or failed from its exit code, including for a command typed at a shell prompt that reports prompt marks
+- [ ] #1 A command pane is running while its program runs, and finished or failed from its exit code. A command typed at a shell prompt is left to the task that gets a prompt-marked command's exit code out of the terminal engine
 - [ ] #2 Finished ends after 10 minutes or on input to the pane; failed ends only on input or when told the person has dealt with it; opening a tab ends nothing
 - [ ] #3 A tab's shown status is the most pressing among its panes, and a session has none
 <!-- AC:END -->
@@ -34,61 +34,6 @@ doc-11: R50, R82, R83. decision-7. The first release shows only what steg can kn
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-## Open question that blocks half of AC #1 — needs the engineer's decision before phase 2
-
-AC #1 asks for "finished or failed from its exit code, including for a command typed
-at a shell prompt that reports prompt marks." That needs the terminal engine to report
-a command's exit code when the shell marks it with OSC 133 (the "command ends" prompt
-mark), for a `Program::Shell` pane where the shell process itself never exits between
-commands.
-
-I read `ghostty-vt` 0.8 (the exact vendored dependency, `crates/kernel/Cargo.toml`) to
-check this rather than assume it:
-
-- The raw FFI crate, `ghostty-vt-sys` (`~/.cargo/registry/.../ghostty-vt-sys-0.8.0.../src/bindings.rs:3291-3324`),
-  *does* carry the data: a `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT` callback whose
-  `TerminalSemanticPrompt` struct has `has_exit_code: bool` and `exit_code: i32`, set on
-  the `COMMAND_END` step of OSC 133.
-- The safe crate we actually depend on, `ghostty-vt` 0.8, does not wire that callback at
-  all. `terminal.rs`'s `Event` enum (the only way this crate surfaces anything from the
-  terminal) has no semantic-prompt variant and no exit code, anywhere
-  (`grep -n "semantic\|exit_code" src/terminal.rs` — zero hits besides
-  `is_cursor_at_prompt()`, a bare bool with no code). The standalone `osc::Parser`/
-  `CommandType::SemanticPrompt` is a separate, payload-free marker from a parser that
-  isn't fed from the `Terminal`'s own byte stream either.
-- `Terminal::get`/`set`/`set_ptr`, the only way to reach a raw FFI tag, are `pub(crate)`
-  inside `ghostty-vt` (`terminal.rs:483-512`) — unreachable from steg. And `crates/kernel/src/lib.rs`
-  has `#![forbid(unsafe_code)]`, while `.claude/rules/rust.md` keeps FFI "in one small
-  module per foreign interface" outside logic crates like the kernel — so even if the
-  pointer were reachable, wiring this callback from inside the kernel isn't the kernel's
-  to do.
-- The server can't supply the exit code either: R16's exit code is the pane's own
-  foreground process (`waitpid` on the child steg spawned). A command typed at a shell
-  prompt is a child of the *shell*, invisible to the server's own process tracking.
-
-So this is a gap in the vendored dependency, not a kernel design choice, and not
-something a size-3 kernel task should paper over with its own OSC 133 parser (feeding
-the pty bytes to a second parser alongside `Terminal::vt_write` would require tracking
-two parsers' states in lockstep and still can't produce an exit code the C struct
-doesn't expose through this binding — it would be inventing behaviour the library
-doesn't give us, which I was told not to do).
-
-**I'm stopping on this one clause rather than guessing.** The two real options, both the
-engineer's call:
-1. Treat `Program::Shell` panes as out of scope for Finished/Failed in this task — only
-   `Program::Command` panes (and the shell's own process exiting, which closes the pane
-   per R97 and so shows nothing afterward) get a status from `record_exit`'s existing
-   exit-code plumbing. Raise a follow-up task against the ghostty-vt dependency
-   (TASK-1.34's territory) to wire `OPT_SEMANTIC_PROMPT` behind a safe API, and widen
-   AC #1 later once that lands.
-2. Make wiring that callback a prerequisite of this task (i.e. this task doesn't close
-   until it's unblocked).
-
-Whichever is chosen, I did not want to invent a parser and call it done quietly. The
-rest of this plan builds everything the gap doesn't touch: AC #1's command-pane half,
-and AC #2 and #3 in full, which do not depend on this question's answer — only the
-`Program::Shell` half of AC #1 does.
-
 ## The shape, and where it lives
 
 A new sdk type, `Status` (`crates/sdk/src/status.rs`, new file; `mod status; pub use
@@ -110,18 +55,19 @@ steg knows about a pane's program at this moment"). This is the M1 subset only �
 `Waiting` and the bell are decision-7's M2 additions and are not variants here; adding
 them later is additive, not a breaking change to this enum's existing variants.
 
-It carries **no timing data**. `std::time::Instant` has no serde impl and is meaningless
-off the process that made it, so it can never appear in a type that crosses the API
-(R102/R105, and `crates/sdk/clippy.toml` bans the sdk from reading the clock the same
-way the kernel is). All of Finished's 10-minute timer and every status's "since" live
-only inside the kernel's own `Pane`, discussed below.
+It carries **no timing data**. `std::time::Instant` (and anything built on it) has no
+serde impl and is meaningless off the process that made it, so nothing timing-shaped can
+ever appear in a type that crosses the API (R102/R105, and `crates/sdk/clippy.toml` bans
+the sdk from reading the clock the same way the kernel is). All of Finished's 10-minute
+timer and every status's "since" live only inside the kernel's own `Pane`, discussed
+below.
 
 **Relation to `ProgramStatus`: wrapped, not replaced.** `ProgramStatus`'s own doc comment
 (`crates/sdk/src/program.rs`) already names this moment: "A richer `Status` ... is built
 on top of this in a later task; this is the one fact the kernel itself can always know
 with no clock of its own." `ProgramStatus` keeps meaning exactly what it means today
 (Running / Ended{exit_code}, no timers, feeds `pane.exit_code` and `closes_on_exit`/
-`restart`'s own checks) and does not change shape. `Status` is additive state Pane now
+`restart`'s own checks) and does not change shape. `Status` is additive state `Pane` now
 also carries, derived from the same exit event but living through its own, longer
 lifecycle (R83's ending rules) after `ProgramStatus` has already settled on `Ended`.
 
@@ -130,50 +76,95 @@ called `status`, but typed `Option<ProgramStatus>` — that name is now wrong fo
 holds, once doc-15's actual "Status" entity exists as its own type. I'm renaming that
 existing field and its public accessor to `program_status`/`Pane::program_status()`
 (and the one internal check in `Pane::restart` that matches on it), freeing `status` for
-the new, correct thing. Blast radius: confined to `crates/kernel/src/pane.rs` alone — I
-checked every call site in the repo (`git grep '\.status()'` against `origin/main`); the
-only hits outside this file are `crates/kernel/src/tree.rs`'s own tests (same rename) and
-one unrelated `std::process::Command::...status()` in `crates/server/src/pane.rs` that
-is `ExitStatus`, not this `Pane` at all. Nothing in `server`, `steg` or `app` calls
-`Pane::status()` today (API dispatch isn't built yet), so the rename is free of any
-cross-crate ripple.
+the new, correct thing. Blast radius: confined to `crates/kernel/src/pane.rs` alone, as
+far as `origin/main` stood when I read it — I checked every call site in the repo
+(`git grep '\.status()'`); the only hits outside this file were `crates/kernel/src/tree.rs`'s
+own tests (same rename) and one unrelated `std::process::Command::...status()` in
+`crates/server/src/pane.rs` that is `ExitStatus`, not this `Pane` at all. Two tasks
+touch nearby code since then or concurrently — TASK-1.76 (in planning) and TASK-1.48
+(in review) — so **phase 2's first step, bringing in `origin/main`, re-runs this exact
+grep** before relying on "nothing else calls it" again.
 
-## Time arrives as data — two different kinds, used for two different things
+## Time arrives as data, through a kernel-owned type — never `std::time::Instant`
 
-Two separate questions need "when", and they get two different answers, so neither
-forces the other's cost onto call sites that don't need it:
+`std::time::Instant` cannot appear in the kernel's own public signatures either, even
+though the kernel only ever receives one as data and never calls `.now()` on it: std
+gives no way to construct an `Instant` except `Instant::now()`, so every test exercising
+a method that takes one would need a `#[expect(clippy::disallowed_methods)]`-scoped
+workaround just to get a value to pass in — real friction for a type whose only job
+*in the kernel* is comparison and addition, never reading the wall clock.
 
-1. **Decision-7's tie-break ("how pressing, then newest, never FIFO")** needs only a
-   *relative* order between any two panes' statuses, never a real duration. The tree
-   already has exactly this primitive, built for the same reason (R91/decision-6's
-   "latest client"): `Tree::tick()`, a `u64` the kernel bumps itself — "not a clock" by
-   its own doc comment. I reuse it: every status transition (`start_program`,
-   `record_exit`, `restart_program`) stamps the pane's new status with the tree's current
-   tick. `Tree`'s own public signatures for `start_program` and `restart_program` don't
-   change at all — `Tree` calls `self.tick()` internally and passes the `u64` down to
-   `Pane`'s `pub(crate)` methods, the same way it already does for `declare_size`/
-   `note_input`'s activity tracking. Only `Pane`'s lower-level, `pub(crate)` signatures
-   gain a `tick: u64` parameter.
-2. **R83's 10-minute rule for Finished** needs real elapsed wall-clock time, which a tick
-   counter cannot give (ticks don't advance at a fixed rate). This is the one place a
-   real `std::time::Instant` is unavoidable, and it enters at exactly one call:
-   `Tree::record_exit`'s signature gains `now: Instant`, the caller's (the server's) own
-   clock reading, passed in as plain data — never read by the kernel (`clippy.toml`'s
-   `disallowed-methods` already bans `Instant::now`/`SystemTime::now` in this crate, and
-   stays that way; nothing in this plan calls either). `start_program` and
-   `restart_program` need no `Instant` at all: Running has no timer.
+So the kernel defines its own tiny type instead, `Moment` (new file,
+`crates/kernel/src/moment.rs`, `pub` and re-exported from `lib.rs` next to `Pane`/`Tab`/
+`Tree` — it has to be `pub`, not `pub(crate)`, because it appears in `Tree::record_exit`'s
+public signature and the server, outside this crate, has to construct one):
 
-This keeps the *external* (Tree-level) surface change to exactly one new parameter on
-one existing method, not three.
+```rust
+/// A point in time, as plain data (doc-16 R110: the kernel never reads a
+/// clock, so this is never produced by one in this crate). A duration
+/// since whatever origin the caller — the server, which does own a real
+/// clock — picked once and keeps using; two `Moment`s are only ever
+/// compared or offset against each other, never read as a wall-clock
+/// value, so the choice of origin never matters to the kernel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Moment(Duration);
 
-**Why not use `Instant` for the tie-break too (simpler, one mechanism)?** Because std's
-`Instant` has no public constructor besides `.now()`, so every one of the ~15 existing
-kernel unit tests that call `start_program`/`restart`/`record_exit` directly would need a
-`#[expect(clippy::disallowed_methods, reason = "...")]`-scoped test helper just to get a
-value to pass in, for a property (ordering) that doesn't need real time at all. Splitting
-the two keeps that workaround to only the tests that exercise the one thing that
-genuinely needs wall-clock time (`record_exit` and the 10-minute boundary), and every
-other existing test call site gains a trivial `u64` literal instead.
+impl Moment {
+    /// Builds a `Moment` this far after the caller's own origin. Pure
+    /// arithmetic on a plain `Duration` — constructible in a test with a
+    /// literal (`Moment::new(Duration::from_secs(599))`), no clock
+    /// involved, so no clippy exception is needed anywhere this is used.
+    #[must_use]
+    pub const fn new(since_the_callers_origin: Duration) -> Self {
+        Self(since_the_callers_origin)
+    }
+
+    /// This moment, offset later by `duration` — used for R83's
+    /// 10-minute deadline. Saturates rather than panicking at
+    /// `Duration::MAX` (`Duration::saturating_add`), though nothing
+    /// realistic gets near it.
+    #[must_use]
+    pub const fn plus(self, duration: Duration) -> Self {
+        Self(self.0.saturating_add(duration))
+    }
+}
+```
+
+No subtraction is defined at all — every comparison this task needs is `deadline > now`
+(`Moment: Ord`, always well-defined, never a panic risk the way `Instant - Instant` is
+when the right-hand side is later), never "how long between these two". That answers the
+question of a caller passing an earlier moment than one it passed before, as plainly as
+I can state the rule: **nothing here ever subtracts one `Moment` from another, so there
+is no operation that could panic on going backward, and no special case needed.**
+Concretely: if `record_exit`'s `now` were earlier than some other call's `now` for the
+same or a different pane, nothing enforces or checks that — each pane's `since` is just
+overwritten with whatever `Moment` it's given; and if a later *query*'s `now` happens to
+be earlier than a stored `since` (the caller's own clock looked like it went backward),
+the stored status is reported exactly as if the elapsed time were small or negative:
+`since.plus(FINISHED_LIFETIME) > now` still holds, so a Finished status simply reads as
+not yet at its deadline — the same answer a genuinely-just-started Finished status would
+give, which is the right default when the input is suspect, with nothing crashing.
+
+`Moment` does not cross the API (R105's rule is about shapes that do), so it has no
+business in the sdk — `crates/sdk/CLAUDE.md`'s dependency table gives the sdk nothing to
+depend on, and defining a timing type there that no wire format ever carries would be
+the wrong crate advertising a capability nothing on the wire uses.
+
+**Why keep the tree's existing `tick()` counter for ordering, now that `Moment` is
+trivially constructible in tests too — why not use `Moment` for both jobs?** Because
+ordering only ever needs "did this status start more recently than that one", which the
+tree's own non-clock tick counter already answers for every pane-status transition,
+exactly as it already does for R91/decision-6's "latest client", with **zero new
+parameters** on `Tree::start_program`/`Tree::restart_program`. Routing that through
+`Moment` instead would force both of those methods' external signatures to accept a real
+point in time they'd never do any time-arithmetic with — only ever compare — just to
+serve as an ordering proxy the kernel can already produce from state it already owns.
+`Moment` stays reserved for the one place real elapsed duration is actually asked about:
+R83's 10-minute rule, which only `record_exit` sets and only `status`/
+`next_status_deadline` read.
+
+This keeps the *external* (`Tree`-level) surface change to exactly one new parameter on
+one existing method (`record_exit` gains `now: Moment`), not three.
 
 ## Pane-level mechanics (`crates/kernel/src/pane.rs`)
 
@@ -183,7 +174,7 @@ const FINISHED_LIFETIME: Duration = Duration::from_secs(10 * 60); // R83
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StatusKind {
     Running,
-    Finished { since: Instant }, // R83's 10-minute clock starts here
+    Finished { since: Moment }, // R83's 10-minute clock starts here
     Failed { exit_code: i32 },
 }
 
@@ -197,34 +188,35 @@ struct StatusRecord {
 `Pane` gains one new private field, `status: Option<StatusRecord>` (the old field of
 that name becomes `program_status`, as above). New methods:
 
-- `pub fn status(&self, now: Instant) -> Option<Status>` — `None` if there is no record,
-  or if it's `Finished` and `since + FINISHED_LIFETIME <= now` (expired — see the
+- `pub fn status(&self, now: Moment) -> Option<Status>` — `None` if there is no record,
+  or if it's `Finished` and `since.plus(FINISHED_LIFETIME) <= now` (expired — see the
   boundary rule below); otherwise the `Status` the record names. This is a pure read: it
   never mutates `self.status`, so an already-timed-out `Finished` simply stops being
   reported the moment `now` says it should, with no sweep needed.
-- `pub(crate) fn status_for_ranking(&self, now: Instant) -> Option<(Status, u64)>` — the
+- `pub(crate) fn status_for_ranking(&self, now: Moment) -> Option<(Status, u64)>` — the
   same filtering as `status`, plus the stored `tick`, so `Tab::shown_status` doesn't
   duplicate the expiry check.
-- `pub(crate) fn next_status_deadline(&self, now: Instant) -> Option<Instant>` — `Some(since
-  + FINISHED_LIFETIME)` only when the current status is `Finished` *and* that instant is
-  still ahead of `now`; `None` for Running, Failed (R83: "never on a timer") or no status
-  at all, or for a Finished deadline that has already passed (it's already reported as
-  gone by `status`, so there's nothing left to schedule for it).
+- `pub(crate) fn next_status_deadline(&self, now: Moment) -> Option<Moment>` — `Some(since
+  .plus(FINISHED_LIFETIME))` only when the current status is `Finished` *and* that
+  moment is still ahead of `now`; `None` for Running, Failed (R83: "never on a timer") or
+  no status at all, or for a Finished deadline that has already passed (it's already
+  reported as gone by `status`, so there's nothing left to schedule for it).
 - `pub(crate) fn clear_status(&mut self)` — unconditionally `self.status = None`. The one
   mutating op, called from both "ends on input" and "ends on being told the person has
   dealt with it". Idempotent (a no-op when there's nothing to clear).
 
 `start_program(&mut self, program: Program, tick: u64)`, `restart(&mut self, tick:
-u64)` and `record_exit(&mut self, exit_code: i32, now: Instant, tick: u64)` each set
+u64)` and `record_exit(&mut self, exit_code: i32, now: Moment, tick: u64)` each set
 `program_status` exactly as they do today, and additionally set `status`:
 `StatusKind::Running` (start/restart) or, on exit, `Finished { since: now }` for code 0
 and `Failed { exit_code }` otherwise.
 
 **Boundary rule, stated so the tests can pin it down:** "ends ... after 10 minutes"
 means the status has already ended *at* the 10-minute mark, not only strictly after it:
-`since + FINISHED_LIFETIME > now` is the "still showing" condition, so at
-`now == since + 600s` it is already gone. Three tests pin this exactly: 599s (still
-`Some(Finished)`), 600s (`None`), 601s (`None`).
+`since.plus(FINISHED_LIFETIME) > now` is the "still showing" condition, so at
+`now == since.plus(FINISHED_LIFETIME)` it is already gone. Three tests pin this exactly,
+all with literal `Moment`/`Duration` values, no clock involved: 599s after `since`
+(still `Some(Finished)`), 600s (`None`), 601s (`None`).
 
 ## Ending rules (`crates/kernel/src/tree.rs`)
 
@@ -246,12 +238,13 @@ means the status has already ended *at* the 10-minute mark, not only strictly af
   word — "click" — as their second ending surface, so I clear whichever status is
   present, not Failed only. (The acceptance criterion's wording singles out "dealt with"
   for Failed only because, for Finished, it's redundant with the timer it already has —
-  not because Finished is excluded from it; I'm flagging this reconciliation explicitly
-  rather than picking one silently.) This is the kernel's half of doc-11's own open
-  question #3 ("How the app tells the server a person has dealt with a pane by clicking
-  in it... a click is not [input the server already sees]") — it answers "what the
-  kernel operation is", not "how a click reaches the server", which stays open for
-  doc-14/CLI design.
+  not because Finished is excluded from it.) I'll restate this reconciliation on the
+  task's notes at build time too, not only here, so a reviewer sees the reasoning beside
+  the commit that acts on it. This is the kernel's half of doc-11's own open question #3
+  ("How the app tells the server a person has dealt with a pane by clicking in it... a
+  click is not [input the server already sees]") — it answers "what the kernel
+  operation is", not "how a click reaches the server", which stays open for doc-14/CLI
+  design.
 - **Timer** (Finished only): no mutation at all — see `status`/`next_status_deadline`
   above. It is a computed fact of `(stored record, now)`, never swept.
 - **"Opening a tab ends nothing"**: true by construction — no code path reachable from
@@ -262,7 +255,7 @@ means the status has already ended *at* the 10-minute mark, not only strictly af
 ## Tab aggregation (`crates/kernel/src/tab.rs`) and "a session has none"
 
 ```rust
-pub(crate) fn shown_status(&self, now: Instant) -> Option<PaneId> {
+pub(crate) fn shown_status(&self, now: Moment) -> Option<PaneId> {
     self.panes
         .iter()
         .filter_map(|p| p.status_for_ranking(now).map(|(s, tick)| (p.id(), s, tick)))
@@ -281,7 +274,7 @@ fn rank(status: Status) -> u8 {
 }
 ```
 
-Exposed from `Tree` as `pub fn tab_shown_status(&self, tab: TabId, now: Instant) ->
+Exposed from `Tree` as `pub fn tab_shown_status(&self, tab: TabId, now: Moment) ->
 Result<Option<PaneId>, Error>` (`TabNotFound` if unknown), matching the API
 description's own words for the field this backs (`methods.rs`'s `tab_fields()`:
 "shown_status ... the pane whose status this tab's ring stands for, if any") — returning
@@ -299,12 +292,13 @@ description's `session_fields()` (`crates/sdk/src/description/methods.rs`) alrea
 none (checked: id, label, position, colour, current_tab — no status). Nothing in this
 plan adds one.
 
-`Tree::next_status_deadline(&self, now: Instant) -> Option<Instant>` — the minimum
+`Tree::next_status_deadline(&self, now: Moment) -> Option<Moment>` — the minimum
 `next_status_deadline(now)` across every pane in every tab in every session, or `None`
 if nothing has a live timer. This is the "ask when the next thing is due, without
-polling" capability the brief asked for: the server computes this once, sleeps until
-that instant (or until something else happens first), and re-queries with the real
-`now` when it wakes — the kernel never schedules anything or reads a clock itself.
+polling" capability the brief asked for: the server converts its own clock reading to a
+`Moment` once, calls this, sleeps until that `Moment` is reached (or until something
+else happens first), and re-queries with a fresh `Moment` when it wakes — the kernel
+never schedules anything or reads a clock itself.
 
 ## The sdk's description (`crates/sdk/src/description/methods.rs`)
 
@@ -323,6 +317,16 @@ merged. No behavioural change, comment-only.
 
 ## Left out of this task
 
+- A command typed at a shell prompt (the `Program::Shell` half of what AC #1 used to
+  ask for) — the task's own criterion now says this explicitly: it's split off to a
+  separate task that gets a prompt-marked command's exit code out of the terminal
+  engine, since the currently-vendored `ghostty-vt` 0.8's safe Rust API doesn't surface
+  one (checked by reading it, not assumed — `ghostty-vt-sys`'s `TerminalSemanticPrompt`
+  carries `has_exit_code`/`exit_code`, but the safe `ghostty-vt` crate never wires the
+  callback that would deliver it, and the kernel forbids unsafe code, so this isn't a
+  gap this crate can close on its own). Everything in this plan is scoped to a
+  `Program::Command` pane's own exit code, which AC #1 now asks for directly and which
+  the existing `record_exit`/`ExitOutcome` plumbing from TASK-1.40 already carries.
 - Everything decision-7/doc-11 scope to M2 or M3: `Waiting`, the bell, their own timers
   and notifications (R51), the per-tab status *set* and promotion (R84), and R52's
   events/CLI listing.
@@ -330,11 +334,12 @@ merged. No behavioural change, comment-only.
   stops reporting without exiting — unresolved there, unresolved here.
 - How a click reaches the server at all (doc-11's open question #3, doc-14) — only the
   kernel operation it will eventually call is built here.
-- The `Program::Shell` half of AC #1 — the open question at the top of this plan.
 
 ## Proof
 
-- Boundary, exactly as R83 states it: 599s/600s/601s after a Finished exit, as above.
+- Boundary, exactly as R83 states it: 599s/600s/601s after a Finished exit, as above,
+  each with a literal `Moment`/`Duration` — no clock, no clippy exception, anywhere in
+  this crate's tests.
 - Each ending rule both ways, per status: input ends Finished; input ends Failed; input
   does *not* end Running (nothing to end); input to pane A does not touch pane B's
   status in the same tab; `acknowledge_pane` ends Finished; `acknowledge_pane` ends
@@ -349,9 +354,13 @@ merged. No behavioural change, comment-only.
   panes, newer tick wins; two Finished panes, newer tick wins).
 - `next_status_deadline` on an empty tree, and on a tree with only Running/Failed panes,
   returns `None` (nothing to poll for).
+- A `Moment` passed to a query earlier than a status's own `since`: the stated rule
+  above (still reads as not-yet-expired, nothing panics), with a test that passes an
+  earlier `Moment` than the one `record_exit` stored and confirms `status` still returns
+  `Some(Finished)` and nothing panics.
 - A deliberate failing run: the new tests land before the implementation changes (new
-  `status`/`shown_status`/`acknowledge_pane` methods don't exist yet), `just test` on the
-  touched crates recorded failing for that reason, then recorded passing after the
+  `status`/`shown_status`/`acknowledge_pane`/`Moment` don't exist yet), `just test` on
+  the touched crates recorded failing for that reason, then recorded passing after the
   implementation.
 - Rename fallout: every existing `pane.status()`/`ProgramStatus` test keeps asserting the
   same thing under `pane.program_status()`, confirming the rename changed no behaviour.
@@ -360,6 +369,7 @@ merged. No behavioural change, comment-only.
 
 - `crates/sdk/src/status.rs` (new), `crates/sdk/src/lib.rs` (module + re-export).
 - `crates/sdk/src/description/methods.rs` (comments only).
+- `crates/kernel/src/moment.rs` (new), `crates/kernel/src/lib.rs` (module + re-export).
 - `crates/kernel/src/pane.rs` (rename + new state + new methods + test updates).
 - `crates/kernel/src/tab.rs` (`shown_status`, `rank`).
 - `crates/kernel/src/tree.rs` (`record_exit` signature; internal tick-passing to
@@ -368,24 +378,32 @@ merged. No behavioural change, comment-only.
 
 ## Risks
 
-- **Concurrent task on the same method.** `origin/main`'s latest commit is "Claim
-  TASK-1.76 for @bruk.w4" — "Server: start a pane's program from the API, and end it on
-  a forced close" — which is very likely to call `Tree::record_exit` from the server side
-  for the first time. Its signature is changing here (`+ now: Instant`). Phase 2's first
-  step (bringing in `origin/main`) needs to check whether that task has landed a caller
-  in the meantime and update it, not just resolve a textual conflict.
+- **Rename fallout since `origin/main` moved.** TASK-1.76 (in planning) and TASK-1.48
+  (in review) may land new callers of `Pane::status()` I couldn't see when I read the
+  repo. Phase 2's first step — bringing in `origin/main` — re-runs
+  `git grep '\.status()'` before relying on the "nothing outside `pane.rs`" finding
+  above.
+- **`record_exit`'s new parameter, and TASK-1.76's server-side caller.** TASK-1.76
+  ("Server: start a pane's program from the API, and end it on a forced close") is very
+  likely to call `Tree::record_exit` from the server side for the first time, and its
+  signature is changing here (`+ now: Moment`). Whichever of the two tasks merges second
+  adapts to the other: if TASK-1.76 lands first with the old signature, this task's
+  phase 2 updates its one call site when bringing in `origin/main`; if this task lands
+  first, TASK-1.76's own build picks up the new signature and supplies a `Moment` from
+  whatever clock reading the server already has at that call site.
 - **Test-signature churn.** Roughly 15 existing unit tests across `pane.rs` and `tree.rs`
   call `start_program`/`restart`/`record_exit`/`pane.status()` directly and need
   mechanical updates (an added `tick`/`now` argument, or the `program_status` rename).
   None of their assertions change.
-- **A new, scoped clippy exception.** Tests that need a concrete `Instant` (only the
-  ones exercising `record_exit`/the 10-minute boundary) need a small
-  `#[expect(clippy::disallowed_methods, reason = "...")]`-wrapped helper calling
-  `Instant::now()` once, inside the test module — the same pattern
-  `crates/sdk/src/local_socket.rs` already uses for its one real-I/O exception. Without
-  it, `just check`'s `cargo clippy -D warnings` fails on the first test that needs a real
-  `Instant`, since std gives no other way to construct one.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default. The worker found, by reading ghostty-vt 0.8 and ghostty-vt-sys, that the engine's safe API does not surface a prompt-marked command's exit code (the data is behind OPT_SEMANTIC_PROMPT in the sys bindings, which the safe crate never wires, and the kernel forbids unsafe). Criterion 1 is narrowed to command panes; finished and failed for a command typed at a shell prompt is a draft under TASK-1 that depends on this task.
+
+Revised plan checked against doc-11 (R50, R82, R83), decision-7, doc-15 and doc-16 by @bruk.o: ok. Status is one shape in the sdk (running, finished, failed with its exit code) beside ProgramStatus, which keeps its meaning; time enters the kernel as a kernel-owned Moment that is plain data, so the kernel reads no clock and its tests need no lint exception; the 10-minute rule is a computed fact of the stored record and the moment asked about, with next_status_deadline for the server to sleep on; input ends finished and failed through TASK-1.42's note_input; acknowledge_pane ends either (the worker's reading of decision-7 point 5, which names a click for both, stated in the plan); a tab's shown status is the most pressing by decision-7's order then newest; a session has none. Typed-at-a-prompt commands are TASK-1.79's. Boundary tests at 599, 600 and 601 seconds, each ending rule both ways, the ordering exhaustively. Risk noted: record_exit gains a parameter that TASK-1.76 will call; whichever merges second adapts.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 
@@ -395,6 +413,14 @@ created: 2026-11-15T19:34:00Z
 ---
 
 Plan written. One open question blocks half of AC #1, needs the engineer's decision before build: ghostty-vt 0.8 (the exact vendored dependency) does not surface a prompt-marked command's exit code anywhere in its safe Rust API (verified by reading ghostty-vt-sys's bindings.rs, which has the data behind an OPT_SEMANTIC_PROMPT callback the safe ghostty-vt crate never wires, and ghostty-vt's own terminal.rs Event enum, which has no such variant). That blocks Finished/Failed for a command typed at a shell prompt (the Program::Shell half of AC #1) - a vendored-dependency gap, not a kernel design choice, and not something to work around with a hand-rolled OSC 133 parser. Program::Command panes, and AC #2 and #3 in full, are unaffected and planned in full below. Two options for the engineer, both outside this task's own scope to decide: descope the Shell-prompt clause to a follow-up task against the ghostty-vt dependency, or make wiring that callback a prerequisite of this one. See the plan for the full writeup and reasoning.
+
+---
+
+created: 2026-11-15T19:46:00Z
+
+---
+
+Plan revised per team-lead's feedback: dropped the ghostty-vt blocking question (AC #1 now scopes it out, confirmed from the task's own updated wording); replaced std::time::Instant with a new kernel-owned Moment type (crates/kernel/src/moment.rs) - a newtype over Duration, constructible in tests with no clock and no clippy exception, with the 'earlier moment than one passed before' rule stated explicitly (no subtraction is ever defined, so there's no path that could panic; a stale or backward-looking now just reads a Finished status as not-yet-expired); kept the tree's existing tick() counter for decision-7's ordering tie-break, reasoned explicitly against folding that into Moment too; kept acknowledge_pane clearing both Finished and Failed, with the AC-vs-decision-7 reconciliation now flagged to also go in the build-time notes; and added the rename-fallout and record_exit-signature risks naming TASK-1.76 and TASK-1.48 by name, with phase 2's first step re-running the call-site grep against origin/main.
 
 ---
 <!-- COMMENTS:END -->

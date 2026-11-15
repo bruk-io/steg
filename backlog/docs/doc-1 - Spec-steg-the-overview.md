@@ -3,7 +3,7 @@ id: doc-1
 title: 'Spec: steg, the overview'
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T14:15:00Z'
+updated_date: '2026-11-15T20:06:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - This is the overview. It says what steg is, fixes the words, lists the specs, and says which requirement is in which release. The requirements themselves are in the specs listed in section 5.
@@ -96,6 +96,16 @@ The decisions these rest on are decision records, decision-1 to decision-10.
 | M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R116, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
+
+M1 is reached through two stopping points, each usable by itself (Bruk, 2026-11-15). They divide M1's work; they add no requirement and move none out of M1. On the board each is its own milestone, and M1's milestone holds what is left after them.
+
+| Stopping point | What a person can do when it is reached | What it holds |
+|---|---|---|
+| M1a: works from the command line | With no app: start a server, create a session, run a program in a pane, send it input, read its screen, wait for it, watch events, and end a stuck program. Enough to script steg and to drive agents and long jobs | The server's socket, lifecycle, frames, events and attach; programs started from the API, sized, and ended on a forced close; pane status; the CLI |
+| M1b: a window to work in | Work in one window for an afternoon: tabs and split panes, a shell that draws correctly and keeps up with typing, copy and paste, key bindings, finished and failed for commands typed at a prompt, and a session that is still there after quitting and reopening | The app's connection, design values, bar, panes and terminal view; selection, copy and paste; actions and key bindings; status for typed commands; the first release check |
+| The rest of M1 | Steg as the daily driver | The command palette and remembered settings, the status ring and its motion, find and links, the empty window and ended programs, accessibility, and the acceptance set of full-screen programs |
+
+Work stops at M1a to use what was built before app work begins beyond what needs no server.
 
 Two spikes come before M1, because they carry the most risk:
 

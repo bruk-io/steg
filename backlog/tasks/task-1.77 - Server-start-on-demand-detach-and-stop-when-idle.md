@@ -1,16 +1,18 @@
 ---
-id: DRAFT-4
+id: TASK-1.77
 title: 'Server: start on demand, detach, and stop when idle'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T19:23:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.44
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

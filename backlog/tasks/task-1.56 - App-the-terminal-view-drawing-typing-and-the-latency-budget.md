@@ -4,10 +4,10 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-5
-milestone: m-0
+milestone: m-4
 dependencies:
   - TASK-1.55
   - TASK-1.47

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:12:00Z'
+updated_date: '2026-11-15T03:13:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -369,6 +370,15 @@ created: 2026-11-15T03:10:00Z
 ---
 
 From @bruk.o, on review finding 3: the worker left plugins/bruk-io-steg/commands.toml alone on the orchestrator's instruction, given by message at the start of the build and not recorded here until now. A repository plugin is changed only through asdlc-plugin, never in a task's worktree, so that line of the approved plan could not be carried out as written. The orchestrator adds the Node need and verifies the check command again after this merges. The Node setup step in the CI workflow was likewise first asked for and then withdrawn by the orchestrator; the worker kept it and recorded it as a departure.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:13:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.33: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

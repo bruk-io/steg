@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:24:00Z'
+updated_date: '2026-11-15T17:25:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review", "rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -1278,6 +1279,15 @@ Findings: 1 Important, 3 nit. Cites: review, rust. The diff does not match the p
 Verified directly: every served method's arm checked individually against doc-2 section 8 and the sdk's own declared params for session (8/8 verbs), tab (8/8, partial), pane (13/13, partial) and api (3/3) - the tab.new finding above is the only parameter accepted by validate and then silently unacted on; every other declared flag on every served or partially-served method is either read and acted on, or is one of the plan's disclosed no-op cases (--force on *.close, session.new --focus/--no-focus). Positions: session.move and tab.move both convert correctly (1 -> kernel 0, tested; 0 -> BadRequest with no kernel call, tested for session.move and at the shared wire_position_to_index level for both). Completeness both ways: verified empirically, not just by reading the test - removed ("session","show") from session::HANDLED in a scratch edit, reran the completeness test, got the expected two-sided mismatch failure; separately added a bogus ("session","bogus") entry, reran, got the expected reverse-direction failure; reverted both (worktree clean). api.call: validated as refusing itself, refusing a missing/non-string target, and recursing through the same dispatch/validate path a direct call would take (byte-for-byte match test for pane.split; same BadRequest for an unknown inner method as a direct call gets), so it cannot reach anything a direct call could not. Kernel error mapping: exhaustive over all 13 variants steg_kernel::Error has on origin/main today, no wildcard arm, confirmed by reading kernel_error.rs directly - not missing any current variant. Of the four parallel tasks named, task-1.40 and task-1.42 each add kernel::Error variants this match does not yet cover (task-1.40: ProgramAlreadyStarted, ProgramNotStarted, ProgramStillRunning, ShellCannotRestart; task-1.42: ClientNotFound, ClientNotViewingPane, ClientNotViewingTab) - expected per the review brief, not a finding, but whichever of those merges first will break steg-server's build here until map_kernel_error is extended. Refusals create nothing: verified for session.new/tab.new/pane.split given cwd or program, and for pane.split given an invalid label (rolls back the split and the tab's current pane) - each checked before any Tree mutation in the source, and asserted by dedicated or table-driven tests comparing the whole tree/session/tab before and after. Typed results: Outcome's 9 variants match exactly what this task's arms produce, no unused variant. Evidence: just check recorded at commit ecad31448c56, which is HEAD; PR #33's CI ("check") is SUCCESS on that same SHA.
 
 plan-matched is "no": the plan's file list does not name crates/server/src/dispatch/api.rs (it put api.list/show/call's handling under mod.rs in the plan text) - a real new file beyond what was named, though it holds exactly what the plan described logically. Also disclosed in the notes: the completeness and kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as the plan's file list named, for a documented reason (HANDLED/NOT_YET_NOUNS are #[cfg(test)]-private). Both are departures the notes explain, not undisclosed ones, so neither is counted as the Important finding above, but the instructions call for "no" on any departure.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:25:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

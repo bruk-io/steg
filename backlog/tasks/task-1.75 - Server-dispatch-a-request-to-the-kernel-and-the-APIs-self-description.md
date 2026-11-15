@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:53:00Z'
+updated_date: '2026-11-15T17:10:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.75-server-dispatch-a-request-to-the-kernel
+  - https://github.com/bruk-io/steg/pull/33
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,10 @@ asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -783,6 +791,144 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:55:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at ecad31448c56:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (2.2s)
+ok      build (steg-sdk) (0.3s)
+ok      test (steg-sdk) (0.9s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Built as planned, one change: Context, Outcome/into_value, map_kernel_error
+(exhaustive over kernel::Error, 13 variants including the new Engine arm),
+session.rs/tab.rs/pane.rs/api.rs's served arms, the api.call rewrite-and-
+recurse, R115's --no-focus capture-and-restore (with a rollback on
+pane.split if the given label is rejected), and spikes/api-description/
+deleted. sdk gets one addition beyond the plan's own scope: ErrorCode::
+EngineFailed (exit status 1), since kernel::Error::Engine had no code to
+map to - flagged on the plan for the engineer, who approved it with the
+plan.
+
+Which test proves which clause:
+- AC #1 (validated, dispatched, typed result, unknown method/parameter
+  refused): every per-method test in crates/server/tests/dispatch.rs
+  (session_*/tab_*/pane_*/api_* tests); api_call_with_no_target_is_a_bad_
+  request and api_call_of_an_unknown_method_is_refused_the_same_way_a_
+  direct_call_would_be for validation through api.call's own path.
+- AC #2 (every described method has an arm and every arm is described,
+  both ways; a not-built method's own distinct error naming what it
+  waits on): dispatch::tests::every_described_method_has_exactly_one_
+  handler (crates/server/src/dispatch/mod.rs, both directions against
+  description().methods); tests/dispatch.rs's every_not_yet_scenario_
+  answers_not_implemented_yet_and_changes_nothing (19 scenarios: the 15
+  whole-method not-yet cases, tab.move --to, and session.new/tab.new/
+  pane.split's cwd-or-program branch), each checked for the error code,
+  the message naming what it waits on, and the tree unchanged;
+  every_described_method_gets_a_response_with_no_panic as the smoke test
+  against arm-count drift.
+- AC #3 (every served method's result serialises to exactly its declared
+  fields): session_show_matches_exactly_the_fields_the_description_
+  declares and session_list_matches_exactly_the_fields_the_description_
+  declares_per_record (the one AC #3 names, through a real dispatch call);
+  every_served_nothing_returning_method_answers_exactly_null and every_
+  served_identifier_returning_method_answers_exactly_one_id_field for the
+  shape of every other served method; api.list/show/call excluded per the
+  sdk's own documented exemption.
+- AC #4 (every kernel error maps, with the code and exit status the
+  description gives): kernel_error::tests, one test per kernel Error
+  variant (crates/server/src/dispatch/kernel_error.rs), including engine_
+  maps_to_engine_failed... no: the Engine arm has no unit test (would need
+  ghostty-vt as a direct steg-server dependency, which doc-16 R92 does not
+  allow) - the exhaustive match itself, which fails the build on an
+  unmapped variant, is the proof for that one arm; description::methods::
+  tests::errors_has_eleven_codes_with_their_exit_statuses (steg-sdk) for
+  the exit status table, including the new EngineFailed entry.
+- AC #5 (every method callable by name; api show with no target returns
+  the whole description; api list/show/call all work): api_list_returns_
+  every_method, api_show_with_a_target_returns_one_method, api_show_with_
+  no_target_returns_the_whole_description, api_show_an_unknown_method_is_
+  no_such_target, api_call_of_pane_split_gives_the_same_response_a_direct_
+  call_would (byte-for-byte against a direct call).
+- AC #6 (creating without focus leaves the previous focus in place, R115):
+  tab_new_with_no_focus_restores_the_previous_current_tab and pane_split_
+  with_no_focus_restores_the_previous_current_pane, each comparing the
+  whole session/tab before and after (label, colour/fill, the one new
+  tab/pane added, every pre-existing tab/pane byte-for-byte unchanged),
+  not just the one field expected to move; tab_new_with_no_focus_leaves_
+  the_original_tab_current and split_set_label_then_close_the_session as
+  the plan's two named end-to-end scenarios.
+- AC #7 (spikes/api-description/ deleted): the diff itself (first commit);
+  `just check`'s architecture and check-packages steps both passed after
+  the deletion, confirming nothing else referenced it. This dangles decision
+  -1 sections 3 and 9's citations of carry-one-method/measure.py, as
+  TASK-1.43 flagged twice already - not this task's to fix, decision text
+  changes only via a PR containing nothing else.
+
+just check recorded clean on the task repeatedly, including after
+rebasing onto origin/main twice (once before any code was written, once
+at the end - neither rebase touched crates/, only board files; TASK-1.40/
+1.42/1.70 are not yet merged to main). CI green on PR #33's head.
+
+Three findings beyond the approved plan, found while building, not
+previously flagged:
+1. pane.move's target tab needs a Direction Tree::move_pane_to_tab
+   requires, but doc-2 section 8's row for pane move has no direction
+   parameter. Dispatch defaults to Direction::Right (append at the end
+   of the target tab) - a per-call choice, not a method-level not-yet,
+   since the method is otherwise fully servable. Worth a line in doc-2
+   if a caller should ever be able to ask for a different position.
+2. api.call can never carry a target method's own `target` parameter:
+   api.call's own selector is itself named `target` (per TASK-1.43's own
+   review decision, matching the convention every other method's target
+   uses), so api::call's rewrite always removes the key named `target`
+   before building the inner request - there is no second key the inner
+   method's own target could arrive under. api.call of pane.split always
+   acts on the context's default pane, never a pane named explicitly.
+   doc-2 section 2 says api.call "is for agents, and for a method a
+   plugin adds before the CLI knows it" - an agent naming a specific pane
+   is exactly the case this blocks. Not fixed here: fixing it means
+   changing the description (a second key, or renaming the selector),
+   which this plan does not authorize.
+3. unset --label (and tab.unset/session.unset's own --label) requires
+   sending some Text value on the wire, which dispatch then discards -
+   unset always clears the label regardless of what value arrives.
+   unset --label arguably wants a Switch, not a Text parameter. Also
+   TASK-1.43's description (already reviewed); flagged, not changed.
+
+crates/server/tests/dispatch.rs carries a file-level
+#![expect(clippy::unwrap_used, reason = "...")]: clippy's own
+allow-unwrap-in-tests option (root clippy.toml) only recognises
+#[cfg(test)] unit test modules, not a file under tests/, even though
+the whole file is already test-only - same as kernel's and sdk's own
+clippy.toml comment on the same setting, just hitting its one gap.
+
+Departure from the plan's file list, noted as it happened: the
+completeness test and the kernel-error-mapping test live beside their
+own code in crates/server/src/dispatch/ (mod.rs, kernel_error.rs), not
+in tests/dispatch.rs as the plan's file list named - mod.rs's own
+HANDLED-checking test needs handled()/NOT_YET_NOUNS, which are private
+to the crate (and #[cfg(test)]-only, since nothing in the production
+path reads them), so an external functional test cannot reach them.
+Everything else the plan named for tests/dispatch.rs - the per-method
+tests, the Outcome-versus-declared-fields cross-check, the position
+boundary, the api.call tests, the --no-focus tests, the two end-to-end
+scenarios - landed there as planned.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -794,6 +940,38 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (f570689623ad, size-3): its worker may build it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T16:58:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:10:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, rust. The diff does not match the plan.
+
+[Compliance, Important] crates/server/src/dispatch/tab.rs:44 (`new`): tab.new's own description declares a `position` flag ("Where among its siblings the new tab goes. Defaults to the end" - crates/sdk/src/description/methods.rs:410-415), and doc-2 section 8 lists --position on `tab new`. The arm never reads it: it resolves cwd/program, label and focus, then calls tree.new_tab(session_id, label), which always appends at the end. tab.new --position 1 answers success with the new tab's id, but the tab lands at the end regardless of what was asked. This is not a not-yet case: Tree::move_tab already exists and tab.move's own arm already composes it with the same wire_position_to_index conversion, so new_tab-then-move_tab is available today. The plan's own re-applied test ("does the method's own returns/documented effect imply the flag's effect took hold? If yes and the kernel cannot honour it, refuse") was applied to --cwd/program, --force and session.new --focus, but position on tab.new is not on that list and is not among the three disclosed findings in the notes - it is exactly the "success handed back for something that quietly didn't happen" bug the plan's decision 4 was written to prevent for --cwd/program. No test in dispatch.rs calls tab.new with position.
+
+[Rust, Nit] crates/server/src/dispatch/mod.rs: the Context struct, the top-level dispatch function, and a dozen-plus helpers (target_session, resolve_pane_str, pane_mut, wire_position_to_index, etc.) live directly in mod.rs, against .claude/rules/rust.md's "lib.rs and mod.rs hold mod and pub use lines only. Behaviour lives in named modules." The plan itself named this file for this content, so it is not an unplanned departure, but it is worth a line for a later split.
+
+[Bugs, Nit] crates/server/tests/dispatch.rs: every_served_nothing_returning_method_answers_exactly_null and every_served_identifier_returning_method_answers_exactly_one_id_field cover only 3 and 1 of the roughly 14 served Nothing/Identifier-returning arms respectively, despite their "every" names. Not a functional hole - Outcome::into_value's own unit tests already guarantee the shape for every variant - but the test names overclaim what they check.
+
+[Evidence, Nit] crates/server/tests/dispatch.rs: the R115 --no-focus restore tests (pane_split_with_no_focus_restores_the_previous_current_pane, tab_new_with_no_focus_restores_the_previous_current_tab/tab_new_with_no_focus_leaves_the_original_tab_current) only run against a fresh tree with one pane/tab, so the split's target is trivially also the tab's current pane, and the session's current tab is trivially its only one. The harder cases (splitting a pane that is not current; a session whose current tab is not its first) are correct by inspection - pane::split reads find_tab(tree, tab_id).current() and tab::new reads session.current_tab(), never the target - but neither is exercised by a test.
+
+Verified directly: every served method's arm checked individually against doc-2 section 8 and the sdk's own declared params for session (8/8 verbs), tab (8/8, partial), pane (13/13, partial) and api (3/3) - the tab.new finding above is the only parameter accepted by validate and then silently unacted on; every other declared flag on every served or partially-served method is either read and acted on, or is one of the plan's disclosed no-op cases (--force on *.close, session.new --focus/--no-focus). Positions: session.move and tab.move both convert correctly (1 -> kernel 0, tested; 0 -> BadRequest with no kernel call, tested for session.move and at the shared wire_position_to_index level for both). Completeness both ways: verified empirically, not just by reading the test - removed ("session","show") from session::HANDLED in a scratch edit, reran the completeness test, got the expected two-sided mismatch failure; separately added a bogus ("session","bogus") entry, reran, got the expected reverse-direction failure; reverted both (worktree clean). api.call: validated as refusing itself, refusing a missing/non-string target, and recursing through the same dispatch/validate path a direct call would take (byte-for-byte match test for pane.split; same BadRequest for an unknown inner method as a direct call gets), so it cannot reach anything a direct call could not. Kernel error mapping: exhaustive over all 13 variants steg_kernel::Error has on origin/main today, no wildcard arm, confirmed by reading kernel_error.rs directly - not missing any current variant. Of the four parallel tasks named, task-1.40 and task-1.42 each add kernel::Error variants this match does not yet cover (task-1.40: ProgramAlreadyStarted, ProgramNotStarted, ProgramStillRunning, ShellCannotRestart; task-1.42: ClientNotFound, ClientNotViewingPane, ClientNotViewingTab) - expected per the review brief, not a finding, but whichever of those merges first will break steg-server's build here until map_kernel_error is extended. Refusals create nothing: verified for session.new/tab.new/pane.split given cwd or program, and for pane.split given an invalid label (rolls back the split and the tab's current pane) - each checked before any Tree mutation in the source, and asserted by dedicated or table-driven tests comparing the whole tree/session/tab before and after. Typed results: Outcome's 9 variants match exactly what this task's arms produce, no unused variant. Evidence: just check recorded at commit ecad31448c56, which is HEAD; PR #33's CI ("check") is SUCCESS on that same SHA.
+
+plan-matched is "no": the plan's file list does not name crates/server/src/dispatch/api.rs (it put api.list/show/call's handling under mod.rs in the plan text) - a real new file beyond what was named, though it holds exactly what the plan described logically. Also disclosed in the notes: the completeness and kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as the plan's file list named, for a documented reason (HANDLED/NOT_YET_NOUNS are #[cfg(test)]-private). Both are departures the notes explain, not undisclosed ones, so neither is counted as the Important finding above, but the instructions call for "no" on any departure.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:54:00Z'
+updated_date: '2026-11-15T17:08:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -24,8 +25,10 @@ asdlc_branch: task-1.74-kernel-scrollback-with-an-identity-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '02577a1ace6f'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=5'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -466,6 +469,40 @@ created: 2026-11-15T16:54:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.74: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T17:02:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 5 nit. Cites: review. The diff matches the plan.
+
+No Important findings. Checked clause by clause against doc-9 R15, doc-14, doc-16 R105, and decision-2 sections 3 and 6, with ghostty-vt 0.8.0's real source read from the cargo registry (render.rs, terminal.rs, screen.rs, style.rs) to verify every engine-API claim: RenderState::update's doc comment confirming dirty state is global and consumed on first read (grounding the one-RenderState-per-Terminal rule); Dirty::{Clean,Partial,Full} and RowIteration::next_dirty's own doc comment matching the Delta/Full branching in changes_since; Options::default().max_scrollback = 10_000_000 bytes and set_scrollback_max_bytes's own doc comment ("the first limit reached wins... None removes the byte limit") confirming the AC #1 fix is real and necessary; Style.fg_color/bg_color/underline_color are unresolved StyleColor on both the render-state and point-lookup paths, confirming resolved_cell_style's shared resolution is a genuine fix for a latent inconsistency, not redundant; Palette(pub [RgbColor; 256]) confirming the plan's departure (engine-level color_palette() instead of RenderState::colors()) is correctly unpacked via .0; PointCoordinate.y documented 0-indexed, "may exceed page size for screen/history tags", consistent with page()'s absolute addressing; grid_ref's own doc comment ("isn't meant to be used as the core of render loop... may require traversing the full scrollback page list") matching the plan's stated cost caveat.
+
+Row identity (AC #2) and the epoch rule (AC #3): offset/epoch arithmetic in page() (terminal.rs ~297-321) is correct by inspection at the boundaries named in review - the floor (first.offset < rows_scrolled_off), an id from a prior epoch (first.epoch != self.epoch), and one past the newest row (start >= total, verified off-by-one correct) - all answer gone, never substituted, matching Page's documented contract exactly. resize()'s unconditional epoch bump on any column-count change (regardless of whether a prune actually happened) is the plan's stated, deliberate answer to "pruning and reflow can't be told apart from outside" - confirmed against the engine's own set_scrollback_max_bytes doc comment, which admits page-granularity pruning is approximate by nature. changes_since (AC #4, #5) matches the plan's stated behaviour for every named case: no point, a stale point, a point from another caller, Unchanged on a second call with nothing written, and the single-shared-RenderState limitation demonstrated through the public API. Events are drained after every engine call that can queue one; none of this task's new methods (changes_since, scrollback_rows_kept, oldest_row, page) write to the engine, so none needed to. No new dependency in either Cargo.toml, crates/kernel/clippy.toml and boundaries.toml both unchanged, #![forbid(unsafe_code)] holds, no unwrap/panic outside #[cfg(test)], no tree/pane/session file touched. CI green at the PR's head a9c3437 (run 43737855693), matching the task's own last recorded `just check` at the same commit.
+
+Two things worth recording rather than treating as findings, since the review brief asked specifically about them: (1) the grounding experiment "a resize can itself prune, with no write() call anywhere near it" (distinct from reflow alone inflating total_rows) is not independently re-tested - the two resize/identity tests only show id retirement, which the code applies uniformly to every column-changing resize whether or not real pruning occurred, so they can't distinguish the two cases. Given the plan's own reasoning that pruning and reflow are observationally identical from outside the engine, a test isolating "real pruning happened" from "pure reflow" is likely not constructible even in principle, not just hard via the public API. (2) The second experimental claim ("a second independent RenderState's own first update() comes back Clean, having had the dirty state already consumed by the first") has no literal test either, and none is possible through Terminal's public API by design: Terminal intentionally creates exactly one RenderState for its whole life and never exposes a way to create a second. two_callers_sharing_one_terminal_must_each_track_their_own_point is the closest available proxy - it demonstrates the consequence (a second caller displaces the first as "current," and the first's own next call gets Full, not a delta) through the public API, which is the most that can be shown without the forbidden private-engine-field access testing-rust.md rules out.
+
+Nits (5, at the cap):
+- [Evidence, Nit] crates/kernel/src/terminal.rs: page() - no test requests a page that spans the seam between scrollback and the live viewport (e.g. starting a few rows before the end of scrollback and reading into the active screen). decision-2 section 3 names exactly this seam disagreeing as the historical bug that motivated absolute-identity addressing in the first place; every page test here stays wholly within one region.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:297-307 - no test exercises the newest-row boundary: the current last row's id resolving successfully, and exactly one id past it coming back gone. The code looks correct by inspection (`start >= total`), but only the oldest/pruned-floor boundary is exercised by a committed test; review asked for both ends.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:resize() - no test resizes to the exact same size (same cols and rows) to confirm a no-op resize does not bump the epoch. Only a column-changing resize and rows-only resizes (in both directions) are tested.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:page() - no test requests max_rows larger than what scrollback_rows_kept() actually holds. end = start.saturating_add(usize::from(max_rows)).min(total) looks correct by inspection, but this named scenario is untested.
+- [Evidence, Nit] See the two paragraphs above (grounding claims re-established by test): recorded as notes rather than counted again here.
+
+Checked and clean beyond the above: the sdk/kernel split (RowId/Update/Page carry no engine type, no serde derives, matching the rest of the screen family per the worker's own disclosed departure), the three disclosed plan departures (Terminal::page rename, engine-level color_palette() instead of RenderState::colors() to avoid stealing changes_since's dirty state, and the new oldest_row() accessor) are all sound engineering corrections with real reasons, not scope creep, and the rebase onto origin/main (no conflicts with the four parallel sdk/lib.rs-touching tasks) is exactly the known, accepted conflict named in the review brief.
+
+---
+
+created: 2026-11-15T17:08:00Z
+
+---
+
+After the clean review at a9c3437, the worker added four tests the review's nits asked for (23d5928: a page across the scrollback/live-screen seam, the newest-row boundary, a same-size resize, max_rows larger than what is kept) and merged main (head 7ea0bf5). Tests only, no non-test hunk; read by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 7ea0bf5.
 
 ---
 <!-- COMMENTS:END -->

@@ -3,10 +3,11 @@ id: TASK-1.69
 title: >-
   Workspace: the server's code kept apart from its clients, and the steg
   library's package
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:21:00Z'
+updated_date: '2026-11-15T02:23:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-39
+asdlc_branch: task-1.69-workspace-the-server-s-code-kept-apart
 ---
 
 ## Description

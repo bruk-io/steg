@@ -5,25 +5,27 @@
 #
 # Everything goes through `just` (the repository's CLAUDE.md): never cargo directly. Output is
 # quiet; a failing step prints the end of its output and the path of its full log under .quiet/.
+# The kernel links ghostty's VT engine, built by Zig from the vendored source in third_party/, so a
+# first build takes minutes and needs no network.
 
 [build]
 run = "just setup && just build"
-needs = ["just", "uv", "a Rust toolchain with cargo, rustfmt and clippy", "Xcode command line tools (gpui links against macOS frameworks)"]
-verified = 2026-11-14
+needs = ["just", "uv", "a Rust toolchain with cargo, rustfmt and clippy", "Xcode command line tools (gpui links against macOS frameworks)", "mise, which installs the pinned Zig that builds the terminal engine (`just setup` runs `mise install`)"]
+verified = 2026-11-15
 
 [test]
 run = "just test-all && just test-tools"
-needs = ["just", "uv", "a Rust toolchain", "Xcode command line tools (gpui links against macOS frameworks)"]
-verified = 2026-11-14
+needs = ["just", "uv", "a Rust toolchain", "Xcode command line tools (gpui links against macOS frameworks)", "mise, which installs the pinned Zig that builds the terminal engine (`just setup` runs `mise install`)"]
+verified = 2026-11-15
 
 [lint]
 run = "just check-fmt && just lint && just check-boundaries && just deny"
-needs = ["just", "uv", "a Rust toolchain with rustfmt and clippy", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)"]
-verified = 2026-11-14
+needs = ["just", "uv", "a Rust toolchain with rustfmt and clippy", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)", "mise, which installs the pinned Zig that builds the terminal engine (`just setup` runs `mise install`)"]
+verified = 2026-11-15
 
 # `just check` runs only the tests a change affects, so on the default branch it runs no crate tests.
 # It also validates the architecture model with LikeC4, run through npx.
 [check]
 run = "just check"
-needs = ["just", "uv", "a Rust toolchain", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)", "Node.js with npx (the architecture model is validated with LikeC4)"]
-verified = 2026-11-14
+needs = ["just", "uv", "a Rust toolchain", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)", "mise, which installs the pinned Zig that builds the terminal engine (`just setup` runs `mise install`)", "Node.js with npx (the architecture model is validated with LikeC4)"]
+verified = 2026-11-15

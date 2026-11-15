@@ -1,14 +1,13 @@
 ---
 id: TASK-1.43
 title: 'sdk: the API description, validation against it, and typed results'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:30:00Z'
+updated_date: '2026-11-15T15:32:00Z'
 labels:
   - size-4
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.36
@@ -455,6 +454,16 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 10, 9 without the Asdlc-Worker trailer.
+
+Fixed all three review findings:
+
+1. (Important) api.show and api.call's method-selector param was role: Flag. Changed both to role: Target, value: ValueKind::Text, named target (matching doc-2 section 2's positional convention and the naming convention every other method's target already uses) via a new target_of_kind() helper. Closed the hole: added description::methods::tests::every_method_has_a_target_exactly_as_doc_2_section_8_gives_it, which checks every one of the 38 methods against doc-2 section 8's Target column independently (role presence, required-ness, and value kind - ValueKind::Target for a domain path, ValueKind::Text for api.show/api.call's bare method name), not just the (noun, verb) pairs the old completeness test checked.
+
+2. (Nit) validate() now checks every present parameter's JSON value against its declared ValueKind (text/integer/boolean/choice/target/path/argv), not only Choice's closed set - a null or wrong-type value is BadRequest for any parameter, required or not, since required-ness only ever governed absence. The message names the parameter and the kind expected (description::request::tests::the_message_names_the_parameter_and_the_kind_expected). New tests: a_null_value_is_a_bad_request_whether_or_not_the_parameter_is_required, a_wrong_type_is_a_bad_request_for_every_kind, a_valid_request_using_every_kind_is_accepted.
+
+3. (Nit) pane.wait's --for is narrowed to doc-2 section 8's literal value, "exit" (ValueKind::Choice(["exit"])), not the 14-name event list it wrongly shared with event.watch. Its returns (the program's exit code) now matches the one value it declares. Its details text spells out the tension between section 5's "names come from the API description's event records" and section 8's literal "--for exit" row, and says this description takes section 8's literal wording rather than inventing a shared vocabulary - flagging it as something doc-2 itself should settle, not guessing. Test: pane_wait_for_is_exactly_the_one_value_doc_2_section_8_gives_it.
+
+68 steg-sdk tests (was 62; +1 from a removed-and-replaced test, +7 net new). just check recorded clean at the fix commit (78d10b8), and again after merging origin/main twice (TASK-1.39's screen module still hasn't landed on main; the only incoming changes were board-only). Pushed and CI green at 1c9abd3.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

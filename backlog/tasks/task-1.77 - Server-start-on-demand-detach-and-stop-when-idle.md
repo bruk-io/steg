@@ -4,7 +4,7 @@ title: 'Server: start on demand, detach, and stop when idle'
 status: To Do
 assignee: []
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-15T21:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -38,4 +38,6 @@ Builds on TASK-1.44's foreground serve(): the detach wraps that same loop. The w
 
 <!-- SECTION:NOTES:BEGIN -->
 Carried from TASK-1.70 (2026-11-15): the sdk exports run_fake_server_for_tests as a public, doc-hidden function behind the local-socket feature. TASK-1.44's plan found it cannot simply be removed (the sdk may not depend on the real binary), but the fixture could bind through the public socket_path itself; say in this task's plan whether to move it out of the public interface here.
+
+Carried from TASK-1.44's review (2026-11-15), for this task's plan: (1) the arbiter's liveness probe connects to a running server and is reported on the ConnectionEvent seam as a client arriving and leaving, so the idle rule must not let probes hold an idle server up, or must tell them apart. (2) Stop the server only through the one stop function TASK-1.44 leaves public after its review fix (the first version had a stop() that set the flag without waking accept, which would have hung an idle server: exactly this task's case). (3) On shutdown there is a window while connection threads are joined in which the listener is still bound; see TASK-1.44's notes for what a connecting client sees.
 <!-- SECTION:NOTES:END -->

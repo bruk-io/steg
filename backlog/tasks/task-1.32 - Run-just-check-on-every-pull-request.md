@@ -5,11 +5,15 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:40:00Z'
+updated_date: '2026-11-15T02:55:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-0
 dependencies: []
+references:
+  - task-1.32-run-just-check-on-every-pull-request
+  - https://github.com/bruk-io/steg/pull/8
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -18,6 +22,10 @@ asdlc_branch: task-1.32-run-just-check-on-every-pull-request
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '80329a1be2b3'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -83,6 +91,76 @@ ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T02:48:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-run-just-check-on-every-pull-request at 923b7794ce30:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (1.1s)
+skip    tests: this change touches no crate
+ok      tool tests (0.3s)
+```
+
+Built exactly per the approved plan: one new file, .github/workflows/ci.yml. Runs
+`just check` on pull_request and push to main, and `just test-all` in addition on push
+to main only (engineer's 2026-11-15 decision, recorded on the plan).
+
+Note on sequence: the PR (#8) was opened, its pull_request-triggered run went green,
+and it was merged to main by @brukhabtu before this task's full proof pass (the forced
+red/test/push-path runs below) was complete. The merged content is exactly what's
+described here; nothing further changed after the merge.
+
+Checks recorded locally with `asdlc record-check` (full output on the task):
+- `just check` — ok format check, ok lint, ok boundaries, ok licences, skip tests (no
+  crate touched by this diff, as the plan's Risks section anticipated), ok tool tests.
+
+Checks observed on GitHub Actions (can't run inside the worktree, reported here):
+- PR #8, run 43668957068 (pull_request): green in 1m29s. Log confirms every pinned
+  version actually resolved: macOS image 26.7.2, rustc/rustfmt/clippy 1.98.1/1.9.0/0.1.98
+  via rust-toolchain.toml's override (not the image's own 1.99.1 default), uv 0.13.8,
+  Python 3.15.2, just 1.59.0, cargo-deny 0.20.2. `just lint`'s workspace-wide clippy
+  (56.7s) compiled and linked the gpui-linked app crate on the runner. `test-all` step
+  correctly skipped (pull_request, not push).
+- Scratch PR (closed, branch deleted after observing): a deliberately broken
+  `cargo fmt --check` on a throwaway branch/PR made the run fail with exit 1 and a
+  readable diff + full-log pointer in the job log — proves AC #1's "a failing step
+  fails the run."
+- Scratch PR (closed, branch deleted after observing): touching `justfile` (a
+  steg-affected global file) on a throwaway branch/PR forced `test: all`; `cargo test
+  --workspace` (52.3s) actually ran and passed against the gpui-linked workspace, not
+  just clippy-compiled it.
+- Scratch push (branch deleted after observing): temporarily added a throwaway branch
+  to the workflow's `push.branches` to exercise the push-triggered path pre-merge
+  (branch protection scopes `push` to `main`, so this was the only way to test it
+  before merging); both `just check` and `just test-all` ran and passed on a direct
+  push event, in that order, confirming the engineer's addition works as decided.
+
+All three scratch branches and their PRs were closed/deleted; the merged content on
+main is only the real diff from PR #8, with no scratch commits ever landing on the
+task's own branch.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:54:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-fix-ci-concurrency at 18244a46ca90 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      tool tests (0.3s)
+```
+
+Commits since the review: 34, 33 without the Asdlc-Worker trailer.
+
+Check passed: `just test-all` exited 0 at 2026-11-15T02:55:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-fix-ci-concurrency at 18244a46ca90 with uncommitted changes:
+
+```text
+ok      tests (every crate) (19.8s)
+```
+
+Commits since the review: 34, 33 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -94,6 +172,34 @@ created: 2026-11-15T02:36:00Z
 ---
 
 Plan approved by @bruk (80329a1be2b3, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T02:48:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T02:52:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Reviewed after merge: PR #8 was merged to main before this review started, per the team lead's note. This review is of the merged change itself (gh pr diff 8, the merge commit on main, and the GitHub Actions runs since), not a branch diff.
+
+[Compliance, Important] .github/workflows/ci.yml:21-26 the concurrency group is keyed on github.ref with cancel-in-progress: true. This repo's asdlc board (backlog/) commits and pushes to origin/main on every board action (claims, check records, status updates, reviews...), and on main github.ref never changes between those pushes, so each board commit cancels the CI run the previous one started. Confirmed on GitHub: every push-to-main CI run since the #8 merge (~19 runs, e.g. 43669451825, 43669443820, 43669330261...) shows conclusion "cancelled", and `gh api .../jobs` on one of them returns zero jobs - the run is superseded before a single job even starts. No push-to-main run has completed (success or failure) since the merge. This leaves AC #1's push-to-main half unmet ("a pull request and a push to main each run `just check`, and a failing step fails the run" - on main it never runs to completion either way), and it nullifies the engineer's 2026-11-15 decision to add `just test-all` on push to main specifically to cover `cargo test` never running there - `test-all` never runs to completion on main either. The task's Proof section only exercised the push path on a disposable scratch branch, which receives no competing pushes, so this never surfaced before merge. Fix is in the workflow, not the worker's process: e.g. exclude push events from cancel-in-progress, or path-filter the push trigger to ignore backlog/**.
+
+[Evidence, Nit] Plan's Proof step 1 calls for `just check` and `just test-all` to both pass locally in the worktree as a sanity check before relying on CI; the notes only record a local `just check` run (twice: c492de56a0b8, then the final 923b7794ce30, which matches the branch head). No local `just test-all` record appears. Weak nit: the scratch-push branch's GitHub run did execute `test-all` on the real runner and passed, which is stronger evidence than a local run would have been, so this doesn't undermine the Evidence pass.
+
+plan-matched: yes - the diff is exactly the one file the plan named (.github/workflows/ci.yml), built in the plan's order. The concurrency-cancellation flaw is a consequence of the approved plan's own step 2 (the concurrency guard), not a departure the worker introduced.
 
 ---
 <!-- COMMENTS:END -->

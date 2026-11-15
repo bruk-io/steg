@@ -1,16 +1,19 @@
 ---
 id: TASK-1.41
 title: 'Kernel: status in the first release, and when each one ends'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:46:00Z'
+updated_date: '2026-11-15T20:49:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.40
+references:
+  - task-1.41-kernel-status-in-the-first-release-and
+  - https://github.com/bruk-io/steg/pull/38
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -778,6 +781,133 @@ ok      tool tests (1.3s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Built per the approved plan, in its order. PR: https://github.com/bruk-io/steg/pull/38
+
+## Coverage, clause by clause
+
+**AC #1, "A command pane is running while its program runs, and finished or failed
+from its exit code."** `steg_sdk::Status` (new, `crates/sdk/src/status.rs`) is set by
+`Pane::record_exit` from the same exit code `ProgramStatus` already carries: code 0 ->
+`Finished`, anything else -> `Failed { exit_code }`. Proven at the pure-logic level in
+`pane.rs`: `exiting_with_code_zero_is_finished`, `exiting_with_a_nonzero_code_is_failed`.
+Proven through the tree (the plumbing, not the logic again) by every test that reads
+`.status(moment)` off a pane fetched through `Tree`: `note_input_ends_a_finished_status_
+on_the_pane_it_was_sent_to`, `note_input_ends_a_failed_status_on_the_pane_it_was_sent_to`,
+`acknowledge_pane_ends_a_finished_status`, `acknowledge_pane_ends_a_failed_status`,
+`tab_shown_status_delegates_to_the_tabs_own_ranking`,
+`opening_a_tab_or_focusing_a_pane_ends_nothing`.
+
+**AC #1, second clause ("a command typed at a shell prompt... left to the task that
+gets a prompt-marked command's exit code out of the terminal engine").** Not built here,
+as the task's own wording now asks - nothing in this PR touches shell-prompt OSC 133
+handling.
+
+**AC #2, "Finished ends after 10 minutes."** `pane.rs`:
+`a_finished_status_is_still_shown_599_seconds_after_it_began`,
+`a_finished_status_is_gone_exactly_600_seconds_after_it_began`,
+`a_finished_status_is_gone_601_seconds_after_it_began` - the boundary is "ends at the
+mark, not only strictly after it" (`since.plus(FINISHED_LIFETIME) > now`). Verified by
+fault injection: shifted `FINISHED_LIFETIME` to 599s, `just test` failed exactly these
+two 599s-adjacent tests for exactly that reason, reverted, `just test` green again
+(both runs recorded).
+
+**AC #2, "... or on input to the pane."** `tree.rs`:
+`note_input_ends_a_finished_status_on_the_pane_it_was_sent_to`. `note_input`'s
+signature and return type are unchanged - the end is a side effect alongside its
+existing size-reapplication logic.
+
+**AC #2, "failed ends only on input."** `note_input_ends_a_failed_status_on_the_pane_
+it_was_sent_to`. Never a timer: `a_failed_status_never_expires_however_far_past_ten_
+minutes` (checked a year past `since`), and `next_status_deadline_is_none_for_failed`.
+
+**AC #2, "... or when told the person has dealt with it."** New `Tree::acknowledge_
+pane`. `acknowledge_pane_ends_a_failed_status`, `acknowledge_pane_is_a_no_op_when_the_
+pane_has_no_status`, `acknowledge_pane_on_an_unknown_pane_errors`.
+
+**Reading `acknowledge_pane` against decision-7 point 5** (restating the plan's
+reasoning here, as asked): I built it to clear *either* status, Finished or Failed
+alike - `acknowledge_pane_ends_a_finished_status` exists alongside the Failed test
+above - rather than scoping it to Failed only. decision-7 point 5 names "a key press or
+click in that pane" as an ending for *both* Finished and Failed; the acceptance
+criterion's wording only spells out "dealt with" for Failed because, for Finished,
+that ending is redundant with the ten-minute timer it already has, not because Finished
+is excluded from it. If the engineer reads the criterion's narrower wording as
+deliberate (Finished ends *only* by input or timer, never by acknowledgement), that's a
+one-line change to `Tree::acknowledge_pane` (match only `Failed` before clearing) and a
+dropped test.
+
+**AC #2, "opening a tab ends nothing."** `note_input` is the only thing that ends a
+status on "input"; neither `focus_pane`, `focus_tab` nor `focus_direction` calls
+`clear_status` anywhere. `opening_a_tab_or_focusing_a_pane_ends_nothing` exercises all
+three on a tab holding one Finished and one Failed pane and asserts both unchanged.
+Verified by fault injection: made `focus_pane` also call `clear_status`, `just test`
+failed exactly this test with the expected `None`-instead-of-`Some(Finished)` mismatch,
+reverted, `just test` green again (both runs recorded).
+
+**Two more ending-boundary tests the plan's "both ways" asked for:** `note_input_has_
+nothing_to_end_on_a_running_pane` and `clear_status_does_not_touch_a_running_status` -
+`Running` has no ending rule at all, so neither input nor acknowledgement touches it.
+This caught a real bug while building (below). `note_input_to_one_pane_does_not_end_
+another_panes_status_in_the_same_tab` - input is scoped to the one pane it was sent to.
+
+**AC #3, "A tab's shown status is the most pressing among its panes."** `Tab::shown_
+status`/`Tree::tab_shown_status`, ranked per decision-7's order (failed, finished,
+running in M1). `tab.rs` has all six orderings of two statuses across two panes
+(`shown_status_prefers_failed_over_running` and its reverse,
+`shown_status_prefers_finished_over_running` and its reverse,
+`shown_status_prefers_failed_over_finished` and its reverse), the tie-break toward the
+newer tick for each of the three statuses tied against itself
+(`shown_status_breaks_a_tie_between_two_{failed,finished,running}_panes_toward_the_
+newer_one`), and a pane whose Finished status has since expired falling through to the
+next (`shown_status_falls_through_to_the_next_pane_once_the_more_pressing_ones_status_
+has_expired`). `tree.rs`: `tab_shown_status_delegates_to_the_tabs_own_ranking`,
+`tab_shown_status_on_an_unknown_tab_errors`.
+
+**AC #3, "and a session has none."** Proven by absence, not a runtime assertion:
+`Session` (`crates/kernel/src/session.rs`) gains no status field or method in this PR,
+and the sdk description's `session_fields()` already has none (id, label, position,
+colour, current_tab).
+
+## A real bug the tests found while building
+
+`Pane::clear_status` was first written to unconditionally set `self.status = None`.
+`note_input_has_nothing_to_end_on_a_running_pane` (a new test, not an existing one)
+failed immediately: a Running pane's status was being erased by its own input, which
+is wrong - `Running` has no ending rule in R83 at all. Fixed by scoping `clear_status`
+to `Finished`/`Failed` only; the test itself was never touched.
+
+## Checks recorded (all via `asdlc record-check`, on this branch)
+
+- `just test`: failing (compile errors, new API not yet implemented) -> after
+  implementing `pane.rs` -> failing again (a caller in `tree.rs` not yet updated) ->
+  passing -> passing again after fixing an uncaught caller in
+  `crates/server/tests/real_pty.rs` (a departure noted on the task when I found it) ->
+  passing again after the `clear_status`/Running bug fix.
+- `just lint`, `just check`: both passing (format, lint, boundaries, licences, every
+  package built and tested alone, the architecture model, recipe names).
+- Fault injection #1 (`focus_pane` clearing status): failing, then reverted and
+  passing.
+- Fault injection #2 (`FINISHED_LIFETIME` off by one second): failing, then reverted
+  and passing.
+- `just check` re-run clean after rebasing onto `origin/main` once more (TASK-1.48
+  merged while this was in progress - `error.rs`/`lib.rs` conflicts were both
+  additive and resolved by keeping both sides; re-ran the `.status()`/`.record_exit(`
+  grep afterward, still confined to `pane.rs`/`tab.rs`/`tree.rs` and the one unrelated
+  `ExitStatus` call).
+- `just check` at the final head, after the push below: passing.
+
+## Departures from the plan (also already on the task's comments as they happened)
+
+- `crates/server/tests/real_pty.rs` (TASK-1.40's own functional test, already on
+  `origin/main`) called `Tree::record_exit` twice and wasn't caught by the plan's
+  call-site grep, which searched for `.status()`, not `record_exit`. Fixed both call
+  sites with `Moment::new(Duration::ZERO)`, since neither test asserts anything about
+  `Status`/timing.
+- `Pane::clear_status` needed the Running-exclusion fix above; not anticipated in the
+  plan's code sketch, which showed an unconditional clear.
+
+Everything else matches the approved plan as written.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

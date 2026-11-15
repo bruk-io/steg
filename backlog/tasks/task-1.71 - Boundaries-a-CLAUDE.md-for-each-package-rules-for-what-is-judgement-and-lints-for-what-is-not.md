@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:22:00Z'
+updated_date: '2026-11-15T03:23:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -445,3 +445,9 @@ orchestrator and @bruk to decide, not something this plan forces.
   task's new `deny-features`). Flagged above at each touch point; whichever
   lands second resolves the merge by hand, not blocking either plan.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-16 (R104, R110, R111) by @bruk.o: ok. Per-package clippy configuration refuses I/O in the sdk and the kernel, with the reason in the message; a deny-features table in boundaries.toml refuses the kernel turning on the sdk's socket provider; just lint runs with all features and the provider's module carries the one reasoned exemption; just packages joins just check to catch Cargo's feature unification. Each statement has one home: lint, a path-scoped rule, or a package's CLAUDE.md. After it merges the orchestrator trims the plugin's layer rules to pointers through asdlc-plugin. The cost of just packages in check is to be measured again once the kernel builds ghostty's engine.
+<!-- SECTION:NOTES:END -->

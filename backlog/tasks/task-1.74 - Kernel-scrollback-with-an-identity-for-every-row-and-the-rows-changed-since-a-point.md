@@ -3,16 +3,19 @@ id: TASK-1.74
 title: >-
   Kernel: scrollback with an identity for every row, and the rows changed since
   a point
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:51:00Z'
+updated_date: '2026-11-15T16:53:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.39
+references:
+  - task-1.74-kernel-scrollback-with-an-identity-for
+  - https://github.com/bruk-io/steg/pull/31
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -423,6 +426,24 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built as planned, with three small departures (also in commit message and PR body):
+
+1. The plan's method name `rows(first, max_rows)` collides with the existing `Terminal::rows(&self) -> Result<u16, Error>` (the terminal's height, from TASK-1.39). Built as `Terminal::page`.
+2. The plan's stated palette source for the scrollback/screen paging path ("the palette RenderState::colors() gives, read once via self.screen()'s own snapshot or a fresh one") would have called self.render.update() as a side effect, silently consuming the shared RenderState's dirty-tracking state that changes_since depends on - a real correctness bug found during build, not during planning. Built instead with the engine-level Terminal::color_palette() getter, which touches no RenderState at all.
+3. Added Terminal::oldest_row(&self) -> RowId, a small accessor not named in the plan: page() is unusable without some way for a caller to discover a valid starting id, and the plan did not name one.
+
+No serde wire form was given to RowId/Update/Page, matching the existing screen-family shapes (Screen/Cursor/Run/Row/CellStyle), none of which have one yet - keeps the whole family's wire-form decision in one place for TASK-1.47 (attach), where they first travel. No new dependency, boundaries.toml unchanged.
+
+Which test proves which clause, all in crates/kernel/src/terminal.rs's #[cfg(test)] module, through Terminal's own public methods only (no reads of the private engine field):
+
+- AC #1 (configurable limit, real count reported): scrollback_rows_kept_grows_as_lines_are_fed_in, the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up, the_line_limit_governs_even_past_the_engines_disabled_byte_limit (also proves the new set_scrollback_max_bytes(None) fix).
+- AC #2 (every id grows, never reused): every_row_id_grows_and_is_never_reused_for_different_content.
+- AC #3 (what a resize does to identity): a_column_changing_resize_retires_every_id_from_before_it, a_row_only_resize_never_retires_an_id.
+- AC #4 (rows changed since a point; a caller too far behind gets everything): changes_since_gives_a_full_screen_to_a_caller_with_no_point, changes_since_reports_unchanged_when_nothing_happened_since_the_last_call, changes_since_reports_a_delta_of_only_the_changed_rows, changes_since_gives_a_stale_or_foreign_point_a_full_screen_not_a_partial_one.
+- AC #5 (serves several readers, or names the task that will): two_callers_sharing_one_terminal_must_each_track_their_own_point - demonstrates the single-RenderState limitation directly through the public API, and the doc comments on changes_since name TASK-1.47's fan-out job precisely.
+
+just check recorded clean four times on the task, the last after rebasing onto origin/main with no conflicts (TASK-1.40/1.42/1.70's parallel work had not yet touched crates/kernel/src/terminal.rs or crates/sdk/src/screen.rs at rebase time). CI green on PR #31 at its head (run 43737855693).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

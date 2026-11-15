@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:56:00Z'
+updated_date: '2026-11-15T15:00:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -306,6 +306,14 @@ Check passed: `sh -c 'just check-boundaries && just test'` exited 0 at 2026-11-1
 ```text
 ok      boundaries (0.1s)
 ok      tests (every crate) (0.4s)
+```
+
+Check passed: `sh -c 'just check-fmt && just lint && just test'` exited 0 at 2026-11-15T15:00:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 128efc9b70ea with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.7s)
+ok      tests (every crate) (0.8s)
 ```
 <!-- SECTION:NOTES:END -->
 

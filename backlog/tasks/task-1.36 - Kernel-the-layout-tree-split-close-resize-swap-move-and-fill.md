@@ -1,14 +1,13 @@
 ---
 id: TASK-1.36
 title: 'Kernel: the layout tree: split, close, resize, swap, move and fill'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:46:00Z'
+updated_date: '2026-11-15T04:47:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.35
@@ -380,6 +379,20 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Fixed all four review findings (2 Important, 2 nits); no plan change needed, as the reviewer noted the logic was already correct everywhere traced.
+
+1. [Important] Deep nesting with repeated orientation untested, same shape as the mid-build bug. Added outer{mid{inner{A,B},C},D} (all Horizontal) fixtures: sdk layout.rs tests bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level (A), bordering_split_finds_the_matching_ancestor_at_a_middle_depth (C), bordering_split_finds_the_outermost_split_for_a_leaf_at_the_top_level (D), bordering_split_mut_also_finds_the_innermost_ancestor, and inherited_size_matches_the_innermost_bordering_split_at_each_depth (all three depths' sizes: 200x10, 400x10, 800x10). Kernel tab.rs test resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split builds the same shape via split_pane and asserts, by reading the private layout field, that resize_pane changes only the innermost split's ratio and leaves mid's and outer's at 500.
+
+Confirmed these catch the regression as asked: reverted bordering_split_ref, bordering_split_path and inherited_size_at to the old outermost-first check order locally, ran cargo test -p steg-sdk (3 failures) and cargo test -p steg-sdk -p steg-kernel (the kernel one surfaces too), recorded both failing runs with asdlc record-check (exit 101 each, visible on the task), then restored the fix and reran clean before continuing.
+
+2. [Important] move_pane_to_tab's SplitTooSmall refusal was untested. Added tree.rs's move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes: shrinks the target tab to 39 columns (halves to 19/19, under the floor), asserts the SplitTooSmall error naming the target's current pane, and compares the whole of both tabs (source and target) before and after via Tab's derived PartialEq, which covers layout, pane order, current pane and fill together in one assertion rather than four separate hand-picked ones.
+
+3. [Nit] resize_pane_clamps_upward_when_the_requested_ratio_would_starve_the_near_side (a too-low ratio clamps up to 200) and resize_pane_leaves_an_already_legal_ratio_unchanged (500 on a 100-column split returns 500 unchanged) — the shipped suite had only exercised the downward clamp.
+
+4. [Nit] closing_the_current_pane_whose_sibling_is_a_multi_leaf_split_picks_the_promoted_subtrees_first_leaf: builds {A, {B, C}} then swap_panes(A, C) so C (current) sits at the position whose sibling {B, A} is multi-leaf (swap moves positions, not the `current` id), then closes C and asserts current becomes B — the promoted subtree's own first leaf in R112 order, as the rule's wording says, named explicitly here since no prior test exercised a multi-leaf promotion.
+
+Re-merged origin/main twice more (board-only commits each time, no code conflicts) and recorded just check clean at the final head (efb640b) via asdlc record-check. Pushed to the same branch; pull request https://github.com/bruk-io/steg/pull/23 is unchanged (same branch, new commit).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

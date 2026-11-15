@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:11:00Z'
+updated_date: '2026-11-15T03:18:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.69
@@ -22,8 +23,10 @@ asdlc_branch: task-1.35-kernel-sessions-tabs-and-panes-as-one
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f3e4e6873d40'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=4'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -205,6 +208,25 @@ created: 2026-11-15T03:11:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.35: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:18:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 4 nit. Cites: review, rust. The diff does not match the plan.
+
+No Important findings. Reviewed the sdk/kernel diff (crates/sdk/src/{ids,colour,pane_kind,lib}.rs, crates/kernel/src/{ids,error,colour,pane,tab,session,tree,lib}.rs) against doc-15 (R6, R8, R12, R26, R93, R94, R109) and doc-16 (R101, R102, R104, R105), the team review policy, and .claude/rules/{architecture,rust,testing-rust}.md. Ran `just check` independently on this branch (8b9cafe): fmt, lint, boundaries, licences, tests, tool tests all pass, matching the task's last recorded check. Confirmed by grep that SessionId/TabId/PaneId/Colour/PaneKind are defined only under crates/sdk/src/ (AC #7), sdk and kernel have no serde/I/O dependencies, and boundaries.toml/Cargo.toml were untouched by this task as the notes claim. Traced tree.rs's close_pane/close_tab cascade by hand: session_id is correctly captured (tree.rs:172) before close_tab can remove the session that held it, and the Option<SessionId> threads through to ClosedPane without an unwrap - the logic the worker flagged is sound. The colour wrap-around (R109) and the last-pane/last-tab cascade (R94) each have a test at both the narrow unit level and the Tree level that would fail if the rule broke.
+
+Nits (4):
+1. [Compliance, Nit] tree.rs:214-219 (new_tab) and tree.rs:253-258 (new_pane) mint ids via self.ids before checking that the target session/tab exists, so a SessionNotFound/TabNotFound error still consumes an id for something never created. This contradicts the plan's step 10 ("Tree holds one Ids and uses it for every mint, so an id only ever names something actually being created"), and the notes don't mention the departure. No acceptance criterion or named dependent (TASK-1.38 needs ids unique and Display-able, not contiguous) needs gapless allocation, so this changes no observable behaviour, but it is a latent bug worth a follow-up: check existence via the immutable session()/session_owning_tab lookup before minting.
+2. [Evidence, Nit] Session::set_colour (session.rs:71) and Session::set_label (session.rs:60) have no test anywhere in the diff - only Tab's label is exercised indirectly (via Tree::new_tab) and Pane::set_label is tested directly. The implementation notes claim the 22 kernel unit tests cover "labelling... of sessions and tabs (AC #1)" and "colour assignment... (AC #3)," which overclaims: AC #3's "its colour can be changed" and AC #1's session-labelling are implemented but unverified by any test.
+3. [Rust, Nit] sdk/src/ids.rs's format_raw uses `{raw:08x}`, which is a minimum width, not a true fixed width: a raw value above u32::MAX prints more than 8 hex digits, so the doc comment's and the plan's "fixed-width hex string" claim isn't actually enforced for the type's full u64 range. Unlikely to be hit before the counter mints four billion ids, but worth noting.
+4. [Compliance, Nit] Tree::new_tab, Tree::new_pane and Tree::move_tab (tree.rs) are not in the plan's file list or order of work. The notes explain the departure (a pub(crate)-only Tab::add_pane/Session::add_tab/Session::move_tab failed the dead_code lint with no in-task production caller) and the three methods are tested and don't pre-empt TASK-1.36: new_pane only appends to the placeholder flat Vec<Pane> that 1.36's own plan note already expects to replace with a split-based layout tree, so its signature will be rewritten, not inherited. Flagged for --plan-matched=no since it is a real departure even though explained.
 
 ---
 <!-- COMMENTS:END -->

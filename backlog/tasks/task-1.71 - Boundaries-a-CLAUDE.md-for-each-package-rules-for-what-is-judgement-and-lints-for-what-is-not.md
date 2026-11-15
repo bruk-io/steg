@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:23:00Z'
+updated_date: '2026-11-15T03:27:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -18,6 +18,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.71-boundaries-a-claude-md-for-each-package
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd8f3885f55ed'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -450,4 +453,159 @@ orchestrator and @bruk to decide, not something this plan forces.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-16 (R104, R110, R111) by @bruk.o: ok. Per-package clippy configuration refuses I/O in the sdk and the kernel, with the reason in the message; a deny-features table in boundaries.toml refuses the kernel turning on the sdk's socket provider; just lint runs with all features and the provider's module carries the one reasoned exemption; just packages joins just check to catch Cargo's feature unification. Each statement has one home: lint, a path-scoped rule, or a package's CLAUDE.md. After it merges the orchestrator trims the plugin's layer rules to pointers through asdlc-plugin. The cost of just packages in check is to be measured again once the kernel builds ghostty's engine.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:25:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:25:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.4s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:26:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+```
+
+Check passed: `sh -c '! just lint'` exited 0 at 2026-11-15T03:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes, last 40 of 41 lines:
+
+```text
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71/crates/kernel)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/kernel/src/lib.rs:14:1
+   |
+14 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/kernel/src/lib.rs:15:5
+   |
+15 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/kernel/src/lib.rs:14:42
+   |
+14 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   |                                          ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the kernel
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+   = note: `-D clippy::disallowed-types` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_types)]`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/kernel/src/lib.rs:15:5
+   |
+15 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the kernel
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+
+error: could not compile `steg-kernel` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-kernel` (lib test) due to 3 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed on line 70 with exit code 101
+```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:26:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.4s)
+```
+
+Check passed: `sh -c '! just lint'` exited 0 at 2026-11-15T03:26:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes, last 40 of 41 lines:
+
+```text
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71/crates/sdk)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/sdk/src/lib.rs:15:1
+   |
+15 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/sdk/src/lib.rs:16:5
+   |
+16 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/sdk/src/lib.rs:15:42
+   |
+15 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   |                                          ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the sdk
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+   = note: `-D clippy::disallowed-types` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_types)]`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/sdk/src/lib.rs:16:5
+   |
+16 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the sdk
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+
+error: could not compile `steg-sdk` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-sdk` (lib test) due to 3 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed on line 70 with exit code 101
+```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:27:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.5s)
+```
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T03:24:00Z
+
+---
+
+Plan approved by @bruk (d8f3885f55ed, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

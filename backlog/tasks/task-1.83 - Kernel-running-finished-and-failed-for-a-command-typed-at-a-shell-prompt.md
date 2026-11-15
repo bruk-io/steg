@@ -570,6 +570,12 @@ error: test failed, to rerun pass `-p steg-kernel --lib`
 full output: .quiet/tests-p-steg-p-steg-kernel-p-steg-server.log
 error: recipe `test` failed with exit code 101
 ```
+
+Check passed: `just test` exited 0 at 2026-11-15T23:52:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-kernel -p steg-server) (7.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -20,4 +20,12 @@ steg-sdk = { path = "../sdk", default-features = false }
 # bytes and reading cells back is pure computation; the network fetch and the
 # Zig link happen at build time, before any of the kernel's own code runs
 # (.cargo/config.toml, mise.toml, third_party/README.md).
-ghostty-vt = "0.8"
+#
+# Pinned to the exact version, not a "0.8" range (TASK-1.79): the workspace
+# root `Cargo.toml`'s `[patch.crates-io]` entry replaces this exact version
+# with a patched, vendored copy (third_party/ghostty-vt-patched/). A caret
+# range would let an unpatched future 0.8.x satisfy this requirement too,
+# which would make the patch silently stop applying (or fail to resolve)
+# the next time `ghostty-vt` publishes - the vendored copy is only ever
+# verified against this one source.
+ghostty-vt = "=0.8.0+ghostty.1.4.0-main.83fb956"

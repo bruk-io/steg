@@ -1,0 +1,121 @@
+--- ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/src/terminal.rs (pristine, from crates.io)
++++ third_party/ghostty-vt-patched/src/terminal.rs (this repository)
+@@ -1,6 +1,16 @@
+ //! Types and functions around terminal state management.
+ //!
+ //! Adapted from libghostty-vt 0.2.2 (MIT OR Apache-2.0).
++//!
++//! **This file was changed from the upstream `ghostty-vt` 0.8.0 release**
++//! (Apache License 2.0, Section 4(b): "You must cause any modified files
++//! to carry prominent notices stating that You changed the files" - this
++//! is that notice). The change wires `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`
++//! as a new `Event::SemanticPrompt` variant (TASK-1.79, steg); every other
++//! file in this crate is unmodified. See `../../README.md` (this
++//! directory's own, not the crate's) for the exact diff, how to
++//! re-verify it against a pristine copy, and the procedure for dropping
++//! this patch once upstream carries the same change.
+ 
+ use std::{
+     ffi::c_void,
+@@ -981,6 +991,13 @@
+             cb_progress_report
+         );
+         install!(RENDER_HOLD, ffi::TerminalRenderHoldFn, cb_render_hold);
++        // steg patch (TASK-1.79): see this file's own changed-file notice
++        // at the top.
++        install!(
++            SEMANTIC_PROMPT,
++            ffi::TerminalSemanticPromptFn,
++            cb_semantic_prompt
++        );
+         Ok(())
+     }
+ }
+@@ -1045,6 +1062,41 @@
+     shared.events.push(Event::PwdChanged(pwd));
+ }
+ 
++// steg patch (TASK-1.79): wires `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`,
++// following `cb_pwd_changed`'s own shape above.
++unsafe extern "C" fn cb_semantic_prompt(
++    _t: ffi::Terminal,
++    ud: *mut c_void,
++    event: *const ffi::TerminalSemanticPrompt,
++) {
++    let shared = unsafe { shared_from_userdata(ud) };
++    // SAFETY: libghostty guarantees a valid, non-null event for the
++    // callback's duration - the same contract `cb_clipboard_write`'s
++    // `write` parameter already relies on, stated on the sys crate's own
++    // callback-type doc comment.
++    let event = unsafe { &*event };
++    let kind = match event.kind {
++        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_PROMPT_START => {
++            SemanticPromptKind::PromptStart
++        }
++        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_INPUT_START => {
++            SemanticPromptKind::InputStart
++        }
++        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_OUTPUT_START => {
++            SemanticPromptKind::OutputStart
++        }
++        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_COMMAND_END => {
++            SemanticPromptKind::CommandEnd
++        }
++        _ => return, // GHOSTTY_SEMANTIC_PROMPT_INVALID, or a future value.
++    };
++    shared.events.push(Event::SemanticPrompt(SemanticPromptEvent {
++        kind,
++        has_exit_code: event.has_exit_code,
++        exit_code: event.exit_code,
++    }));
++}
++
+ unsafe extern "C" fn cb_enquiry(_t: ffi::Terminal, ud: *mut c_void) -> ffi::String {
+     let shared = unsafe { shared_from_userdata(ud) };
+     match &shared.enquiry {
+@@ -1251,8 +1303,45 @@
+     /// Synchronized output (mode 2026) began (`true`) or ended (`false`).
+     /// See [`Terminal::set_render_hold`].
+     RenderHold(bool),
++    /// A step of OSC 133 shell-integration reporting (steg patch, TASK-1.79:
++    /// not part of upstream `ghostty-vt` 0.8.0 - see this file's own
++    /// changed-file notice at the top).
++    SemanticPrompt(SemanticPromptEvent),
++}
++
++/// One step of OSC 133 shell-integration reporting (steg patch, TASK-1.79).
++/// `command`/`error` (the C struct's other two fields) are deliberately
++/// left out: nothing reads them yet, and leaving them out means this
++/// patch never has to reason about their FFI string ownership.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct SemanticPromptEvent {
++    /// Which step this is.
++    pub kind: SemanticPromptKind,
++    /// Whether the shell reported an exit code. Only ever `true` for
++    /// [`SemanticPromptKind::CommandEnd`] - and even then, not always: a
++    /// bare `D` mark, or one whose code the engine's own OSC parser could
++    /// not read, both report `false` here, verified by test.
++    pub has_exit_code: bool,
++    /// The command's exit code. Meaningless unless `has_exit_code` is
++    /// `true` - never read without checking that flag first.
++    pub exit_code: i32,
+ }
+ 
++/// Which step of a command's lifecycle a [`SemanticPromptEvent`] reports
++/// (steg patch, TASK-1.79), mirroring `ghostty-vt-sys`'s own
++/// `SemanticPromptKind` one for one.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum SemanticPromptKind {
++    /// OSC 133 `A`: a shell prompt is starting.
++    PromptStart,
++    /// OSC 133 `B`: the person's input is starting.
++    InputStart,
++    /// OSC 133 `C`: the command started producing output.
++    OutputStart,
++    /// OSC 133 `D`: the command ended.
++    CommandEnd,
++}
++
+ /// Policy for clipboard writes by the running program.
+ #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+ pub enum ClipboardWritePolicy {

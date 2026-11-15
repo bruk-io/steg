@@ -38,7 +38,7 @@ pub use session::{Session, TabClosed};
 pub use setting::Settings;
 pub use tab::{DirectionalFocus, PaneClosed, Tab};
 pub use target::Candidate;
-pub use terminal::Terminal;
+pub use terminal::{CommandMark, Terminal};
 pub use tree::{ClosedPane, ExitOutcome, FocusMove, Focused, MovedPane, SizeChanged, Tree};
 
 #[cfg(test)]

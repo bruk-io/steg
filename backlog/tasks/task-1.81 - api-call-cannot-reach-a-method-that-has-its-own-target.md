@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:11:00Z'
+updated_date: '2026-11-15T21:13:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -383,6 +383,30 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/
  // --- shapes: Nothing/Identifier (AC #3) ------------------------------------
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 126 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T21:13:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (48.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (1.5s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (30.4s)
+ok      test (steg-server) (2.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

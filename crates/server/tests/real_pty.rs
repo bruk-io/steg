@@ -391,8 +391,18 @@ fn many_threads_opening_a_real_pty_at_once_never_fails() {
         for handle in handles {
             let (thread, result) = handle.join().expect("the spawning thread itself panicked");
             match result {
-                Ok(mut spawned) => {
-                    let _ = spawned.child.wait();
+                Ok(spawned) => {
+                    let status = wait_bounded(spawned.child, EVENT_TIMEOUT).unwrap_or_else(|_| {
+                        panic!(
+                            "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                             the real `sh -c true` never exited within {EVENT_TIMEOUT:?}"
+                        )
+                    });
+                    assert!(
+                        status.success(),
+                        "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                         expected `sh -c true` to exit 0, got {status:?}"
+                    );
                 }
                 Err(error) => panic!(
                     "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
@@ -401,4 +411,28 @@ fn many_threads_opening_a_real_pty_at_once_never_fails() {
             }
         }
     }
+}
+
+/// Waits for `child` to exit, bounded by `timeout` rather than a bare
+/// `Child::wait()` (that trait has no timeout of its own) - the same
+/// thread-plus-bounded-`recv` shape this file's own module doc promises
+/// for every wait. On a timeout, kills the child first (taken from it
+/// before the wait, since `wait()` itself owns `child` on its own
+/// thread by then) so a child that never exits is not left running
+/// behind a failed test, not just reported as one.
+fn wait_bounded(
+    mut child: Box<dyn portable_pty::Child + Send + Sync>,
+    timeout: Duration,
+) -> std::io::Result<portable_pty::ExitStatus> {
+    let mut killer = child.clone_killer();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(child.wait());
+    });
+    rx.recv_timeout(timeout).unwrap_or_else(|_| {
+        let _ = killer.kill();
+        Err(std::io::Error::other(format!(
+            "child never exited within {timeout:?}; killed it"
+        )))
+    })
 }

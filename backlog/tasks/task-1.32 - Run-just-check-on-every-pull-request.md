@@ -1,13 +1,14 @@
 ---
 id: TASK-1.32
 title: Run just check on every pull request
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:48:00Z'
+updated_date: '2026-11-15T02:52:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-0
 dependencies: []
 references:
@@ -21,8 +22,10 @@ asdlc_branch: task-1.32-run-just-check-on-every-pull-request
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '80329a1be2b3'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -157,6 +160,25 @@ created: 2026-11-15T02:48:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T02:52:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Reviewed after merge: PR #8 was merged to main before this review started, per the team lead's note. This review is of the merged change itself (gh pr diff 8, the merge commit on main, and the GitHub Actions runs since), not a branch diff.
+
+[Compliance, Important] .github/workflows/ci.yml:21-26 the concurrency group is keyed on github.ref with cancel-in-progress: true. This repo's asdlc board (backlog/) commits and pushes to origin/main on every board action (claims, check records, status updates, reviews...), and on main github.ref never changes between those pushes, so each board commit cancels the CI run the previous one started. Confirmed on GitHub: every push-to-main CI run since the #8 merge (~19 runs, e.g. 43669451825, 43669443820, 43669330261...) shows conclusion "cancelled", and `gh api .../jobs` on one of them returns zero jobs - the run is superseded before a single job even starts. No push-to-main run has completed (success or failure) since the merge. This leaves AC #1's push-to-main half unmet ("a pull request and a push to main each run `just check`, and a failing step fails the run" - on main it never runs to completion either way), and it nullifies the engineer's 2026-11-15 decision to add `just test-all` on push to main specifically to cover `cargo test` never running there - `test-all` never runs to completion on main either. The task's Proof section only exercised the push path on a disposable scratch branch, which receives no competing pushes, so this never surfaced before merge. Fix is in the workflow, not the worker's process: e.g. exclude push events from cancel-in-progress, or path-filter the push trigger to ignore backlog/**.
+
+[Evidence, Nit] Plan's Proof step 1 calls for `just check` and `just test-all` to both pass locally in the worktree as a sanity check before relying on CI; the notes only record a local `just check` run (twice: c492de56a0b8, then the final 923b7794ce30, which matches the branch head). No local `just test-all` record appears. Weak nit: the scratch-push branch's GitHub run did execute `test-all` on the real runner and passed, which is stronger evidence than a local run would have been, so this doesn't undermine the Evidence pass.
+
+plan-matched: yes - the diff is exactly the one file the plan named (.github/workflows/ci.yml), built in the plan's order. The concurrency-cancellation flaw is a consequence of the approved plan's own step 2 (the concurrency guard), not a departure the worker introduced.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,10 +1,11 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T23:32:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
+asdlc_branch: task-1.78-server-a-forced-close-ends-the-program
 ---
 
 ## Description

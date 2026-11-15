@@ -70,6 +70,12 @@ pub enum Incoming {
     UnknownStream { stream: u32, kind: Kind },
     /// The frame itself did not decode, or decoded but its payload was not
     /// valid JSON where JSON was expected.
+    ///
+    /// **Fatal, same as the [`FrameError`] it can come from
+    /// (`frame::Decoder::next_frame`'s own doc): this connection does not
+    /// resynchronise on its own.** [`Connection::poll`] called again after
+    /// one gives the identical `Malformed` again, for ever - the caller is
+    /// expected to drop the connection, not keep polling it.
     Malformed(String),
 }
 
@@ -123,6 +129,9 @@ impl Connection {
 
     /// Drains one decoded item, or `None` meaning "need more bytes": call
     /// [`Connection::receive`] again before calling this again.
+    ///
+    /// [`Incoming::Malformed`] is fatal (see its own doc): calling this
+    /// again afterwards repeats it, rather than ever recovering.
     pub fn poll(&mut self) -> Option<Incoming> {
         let frame = match self.decoder.next_frame() {
             Ok(Some(frame)) => frame,

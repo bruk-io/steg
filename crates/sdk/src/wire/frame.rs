@@ -147,6 +147,9 @@ pub fn encode_frame(frame: &Frame) -> Result<Vec<u8>, FrameError> {
 /// Owns its own accumulation buffer; the caller owns whatever it read bytes
 /// into and only ever hands over a borrowed slice through [`Decoder::push`]
 /// (doc-16 R102: who owns which buffer, stated once).
+///
+/// An error from [`Decoder::next_frame`] is fatal: see that method's own
+/// doc for what "fatal" means here and why.
 #[derive(Debug, Default)]
 pub struct Decoder {
     buf: Vec<u8>,
@@ -171,7 +174,17 @@ impl Decoder {
     /// [`MAX_FRAME`] - checked as soon as the 4-byte length prefix is
     /// available and before anything past it is read, so nothing is ever
     /// allocated for the declared body. [`FrameError::Malformed`] for a
-    /// header that does not name a known [`Kind`].
+    /// declared length under the 5-byte header (5 is the smallest a real
+    /// frame ever declares - a zero-payload frame), or for a header that
+    /// does not name a known [`Kind`].
+    ///
+    /// **An error is fatal to this decoder: it does not drain the bytes
+    /// that caused it.** Calling `next_frame` again after an error returns
+    /// the identical error again, for ever (pinned by this module's own
+    /// test) - there is no framing-level way to skip past bytes that did
+    /// not parse and find the start of the next frame, so a caller that
+    /// gets an error here is expected to drop the connection, not keep
+    /// polling it.
     ///
     /// `Ok(None)` means the buffer holds the start of a frame and no more:
     /// read more bytes, `push` them, and call again.
@@ -295,6 +308,108 @@ mod tests {
             decoder.next_frame(),
             Err(FrameError::Malformed(_))
         ));
+    }
+
+    /// The bound this task's review found with no test: a declared length
+    /// under the 5-byte header. 0 and 4 are refused; 5, the header's own
+    /// size (a zero-payload frame), is the smallest accepted - each fed
+    /// whole and a byte at a time, so a regression on either side of the
+    /// bound (an off-by-one, or indexing before the length check and
+    /// panicking) is caught.
+    #[test]
+    fn a_declared_length_of_zero_is_malformed_fed_whole() {
+        let mut decoder = Decoder::new();
+        decoder.push(&0_u32.to_be_bytes());
+        assert!(matches!(
+            decoder.next_frame(),
+            Err(FrameError::Malformed(_))
+        ));
+    }
+
+    #[test]
+    fn a_declared_length_of_zero_is_malformed_fed_a_byte_at_a_time() {
+        let mut decoder = Decoder::new();
+        let bytes = 0_u32.to_be_bytes();
+        for (i, byte) in bytes.iter().enumerate() {
+            decoder.push(std::slice::from_ref(byte));
+            let result = decoder.next_frame();
+            if i + 1 < bytes.len() {
+                assert_eq!(result, Ok(None), "the length isn't known yet");
+            } else {
+                assert!(matches!(result, Err(FrameError::Malformed(_))));
+            }
+        }
+    }
+
+    #[test]
+    fn a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole() {
+        let mut decoder = Decoder::new();
+        decoder.push(&4_u32.to_be_bytes());
+        assert!(matches!(
+            decoder.next_frame(),
+            Err(FrameError::Malformed(_))
+        ));
+    }
+
+    #[test]
+    fn a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time() {
+        let mut decoder = Decoder::new();
+        let bytes = 4_u32.to_be_bytes();
+        for (i, byte) in bytes.iter().enumerate() {
+            decoder.push(std::slice::from_ref(byte));
+            let result = decoder.next_frame();
+            if i + 1 < bytes.len() {
+                assert_eq!(result, Ok(None), "the length isn't known yet");
+            } else {
+                assert!(matches!(result, Err(FrameError::Malformed(_))));
+            }
+        }
+    }
+
+    #[test]
+    fn a_declared_length_of_five_the_smallest_accepted_decodes_an_empty_payload_fed_whole() {
+        let frame = Frame::hello(vec![]);
+        let bytes = encode_frame(&frame).unwrap();
+        assert_eq!(
+            bytes.len(),
+            4 + 5,
+            "sanity: the declared length is exactly 5"
+        );
+        let mut decoder = Decoder::new();
+        decoder.push(&bytes);
+        assert_eq!(decoder.next_frame().unwrap(), Some(frame));
+    }
+
+    #[test]
+    fn a_declared_length_of_five_decodes_fed_a_byte_at_a_time() {
+        let frame = Frame::hello(vec![]);
+        let bytes = encode_frame(&frame).unwrap();
+        let mut decoder = Decoder::new();
+        for (i, byte) in bytes.iter().enumerate() {
+            decoder.push(std::slice::from_ref(byte));
+            let decoded = decoder.next_frame().unwrap();
+            if i + 1 < bytes.len() {
+                assert_eq!(decoded, None, "frame should not be complete yet");
+            } else {
+                assert_eq!(decoded, Some(frame.clone()));
+            }
+        }
+    }
+
+    /// Nit from this task's review: pins the documented convention
+    /// (`next_frame`'s own doc comment) that an error does not drain the
+    /// buffer, so a caller that keeps polling after one sees it again, for
+    /// ever, rather than the decoder ever resynchronising on its own.
+    #[test]
+    fn a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection() {
+        let mut decoder = Decoder::new();
+        decoder.push(&4_u32.to_be_bytes());
+        let first = decoder.next_frame();
+        let second = decoder.next_frame();
+        let third = decoder.next_frame();
+        assert!(matches!(first, Err(FrameError::Malformed(_))));
+        assert_eq!(first, second);
+        assert_eq!(second, third);
     }
 
     #[test]

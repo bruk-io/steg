@@ -113,6 +113,16 @@ fn resolve_path(options: &ConnectOptions) -> PathBuf {
 /// Connects to a running server, or - with `autostart` and none running -
 /// spawns one and waits for its socket.
 ///
+/// This never waits on the spawned process (below): a bad `binary` - one
+/// that does not exist, or exists but cannot be executed - is reported as
+/// [`ConnectError::Spawn`] as soon as the spawn itself fails, without
+/// waiting out `connect_timeout`. A consumer that calls this with
+/// `autostart` many times over a long life (the app, reconnecting) can
+/// accumulate a process-table entry per call until it itself exits, for
+/// as long as the real server takes to detach and exit the process this
+/// spawned - entirely TASK-1.44's to keep short, not a cost this function
+/// can avoid by waiting, which R99 forbids it from doing.
+///
 /// # Errors
 /// [`ConnectError::NoServerRunning`] when nothing is listening and
 /// `autostart` is `false`; [`ConnectError::Spawn`] when `binary` could not
@@ -140,7 +150,11 @@ pub fn connect(options: &ConnectOptions) -> Result<UnixStream, ConnectError> {
     }
     // R99's detaching, re-parenting or double-fork, and stopping are the
     // server's own code; this drops the `Child` handle once spawn
-    // succeeds and never wait()s on it.
+    // succeeds and never wait()s on it. `spawn()` itself still fails
+    // synchronously when `binary` cannot be exec'd at all (missing, or
+    // not executable) - the OS reports that before this call returns, so
+    // `?` here returns `ConnectError::Spawn` immediately, before the
+    // retry loop and its deadline below are ever reached.
     command.spawn().map_err(ConnectError::Spawn)?;
 
     let deadline = Instant::now() + options.connect_timeout;

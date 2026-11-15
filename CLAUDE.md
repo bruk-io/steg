@@ -2,7 +2,7 @@
 
 Work is tracked on an asdlc board in this repository (`backlog/`). It is a shared board, so `asdlc board` commits each change and pushes it to `origin/main`; never edit `backlog/` by hand. This repository is registered as the project `bruk-io-steg`, and every task carries `--project bruk-io-steg`. asdlc refuses to work while this checkout has uncommitted changes, so code changes happen in a task's worktree.
 
-Releases are Backlog.md milestones, defined in the spec (`doc-1`, section 6): `m-0` M1 Local daily driver, `m-1` M2 Extendable, `m-2` M3 Remote and shared. Give every new task the milestone of the release it belongs to (`-m <id>`); the intent has none because it spans all three.
+Releases are Backlog.md milestones, defined in the spec (`doc-1`, section 6): `m-0` M1 Local daily driver, `m-1` M2 Extendable, `m-2` M3 Remote and shared. M1 is reached through two stopping points with milestones of their own: `m-3` M1a Works from the command line, then `m-4` M1b A window to work in; `m-0` holds what is left of M1 after them. Give every new task the milestone it belongs to (`-m <id>`), the stopping point's when it is M1 work one of them needs; the intent has none because it spans all three releases. Work the board in that order: `m-3` before `m-4` before `m-0`.
 
 ## Commands
 

@@ -8,8 +8,10 @@
 //! `Ids`, since deciding the next id is the kernel's own behaviour, not a
 //! shape; doc-16 R105).
 //!
-//! Each id's `Display` is a fixed-width hex string, long enough that an
-//! identifier's last four characters are still a meaningful match.
+//! Each id's `Display` is a hex string at least 8 digits wide, padded with
+//! leading zeros when the value is smaller and wider when it is not — long
+//! enough, in the common case, that an identifier's last four characters
+//! are still a meaningful match.
 
 use std::fmt;
 
@@ -25,7 +27,9 @@ pub struct TabId(u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PaneId(u64);
 
-/// Formats an identifier's raw value as a fixed-width hex string.
+/// Formats an identifier's raw value as hex, at least 8 digits wide: padded
+/// with leading zeros when `raw` is smaller, and wider (never truncated)
+/// when it is not.
 fn format_raw(f: &mut fmt::Formatter<'_>, raw: u64) -> fmt::Result {
     write!(f, "{raw:08x}")
 }
@@ -102,12 +106,22 @@ mod tests {
     }
 
     #[test]
-    fn display_is_fixed_width_hex() {
+    fn display_is_at_least_eight_hex_digits_wide() {
         assert_eq!(SessionId::from_raw(1).to_string(), "00000001");
         assert_eq!(TabId::from_raw(0xabcd).to_string(), "0000abcd");
         assert_eq!(
             PaneId::from_raw(u64::from(u32::MAX)).to_string(),
             "ffffffff"
+        );
+    }
+
+    #[test]
+    fn display_is_wider_than_eight_digits_for_a_larger_raw_value() {
+        // `format_raw` pads to a minimum of 8 digits; it does not truncate,
+        // so a value that needs more digits than that gets them.
+        assert_eq!(
+            SessionId::from_raw(u64::from(u32::MAX) + 1).to_string(),
+            "100000000"
         );
     }
 

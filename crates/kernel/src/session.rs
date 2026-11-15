@@ -223,4 +223,24 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn set_label_changes_it() {
+        let (mut session, _first_tab) = session_with_one_tab();
+        assert_eq!(session.label(), None);
+
+        session.set_label(Some("work".to_string()));
+
+        assert_eq!(session.label(), Some("work"));
+    }
+
+    #[test]
+    fn set_colour_changes_it() {
+        let (mut session, _first_tab) = session_with_one_tab();
+        assert_eq!(session.colour(), Colour::Violet);
+
+        session.set_colour(Colour::Green);
+
+        assert_eq!(session.colour(), Colour::Green);
+    }
 }

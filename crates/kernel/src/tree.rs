@@ -211,12 +211,21 @@ impl Tree {
         session_id: SessionId,
         label: Option<String>,
     ) -> Result<TabId, Error> {
-        let tab_id = self.ids.next_tab();
-        let pane_id = self.ids.next_pane();
-
-        let session = self
-            .session_mut(session_id)
+        // Check the target exists before minting anything: an id only
+        // ever names something actually being created, never a failed
+        // call (step 10 of the plan). Destructuring `self` into its
+        // fields, rather than calling `self.session_mut(...)`, is what
+        // lets `ids` be minted from while `session` (borrowed from
+        // `sessions`) is still held below.
+        let Self { ids, sessions } = self;
+        let session = sessions
+            .iter_mut()
+            .find(|session| session.id() == session_id)
             .ok_or(Error::SessionNotFound(session_id))?;
+
+        let tab_id = ids.next_tab();
+        let pane_id = ids.next_pane();
+
         let tab = session.add_tab(tab_id, pane_id, PaneKind::Terminal);
         tab.set_label(label);
 
@@ -244,21 +253,16 @@ impl Tree {
     ///
     /// Returns [`Error::TabNotFound`] if no session in the tree holds a
     /// tab with that id.
-    ///
-    /// # Panics
-    ///
-    /// Never in practice: the session this just found to hold `tab_id`
-    /// still holds it on the next line, since nothing else runs while this
-    /// method holds `&mut self`.
     pub fn new_pane(&mut self, tab_id: TabId, kind: PaneKind) -> Result<PaneId, Error> {
-        let pane_id = self.ids.next_pane();
-
-        let session = self
-            .session_owning_tab_mut(tab_id)
+        // Check the target exists before minting (see `new_tab`'s comment).
+        let Self { ids, sessions } = self;
+        let tab = sessions
+            .iter_mut()
+            .flat_map(Session::tabs_mut)
+            .find(|tab| tab.id() == tab_id)
             .ok_or(Error::TabNotFound(tab_id))?;
-        let tab = session
-            .tab_mut(tab_id)
-            .expect("session_owning_tab_mut only returns a session that holds this tab");
+
+        let pane_id = ids.next_pane();
         tab.add_pane(pane_id, kind);
 
         Ok(pane_id)
@@ -390,6 +394,38 @@ mod tests {
     }
 
     #[test]
+    fn a_failed_new_tab_does_not_consume_an_id() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None); // mints raw ids 0 (session), 1 (tab), 2 (pane)
+        let unknown_session = steg_sdk::SessionId::from_raw(999);
+
+        assert!(tree.new_tab(unknown_session, None).is_err());
+
+        // Had the failed call minted a tab id and a pane id before
+        // checking, this would mint raw 5, not 3.
+        let tab_id = tree.new_tab(session_id, None).unwrap();
+        assert_eq!(tab_id.into_raw(), 3);
+    }
+
+    #[test]
+    fn a_failed_new_pane_does_not_consume_an_id() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None); // mints raw ids 0, 1, 2
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let unknown_tab = steg_sdk::TabId::from_raw(999);
+
+        assert!(
+            tree.new_pane(unknown_tab, steg_sdk::PaneKind::Terminal)
+                .is_err()
+        );
+
+        // Had the failed call minted a pane id before checking, this
+        // would mint raw 4, not 3.
+        let pane_id = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
+        assert_eq!(pane_id.into_raw(), 3);
+    }
+
+    #[test]
     fn new_pane_adds_a_pane_to_an_existing_tab() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None);
@@ -414,6 +450,29 @@ mod tests {
         let session = tree.session(session_id).unwrap();
         assert_eq!(session.tabs()[0].id(), second_tab);
         assert_eq!(session.tabs()[1].id(), first_tab);
+    }
+
+    #[test]
+    fn session_mut_lets_a_caller_change_a_sessions_label_and_colour() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None);
+
+        let session = tree.session_mut(session_id).unwrap();
+        session.set_label(Some("work".to_string()));
+        session.set_colour(Colour::Green);
+
+        let session = tree.session(session_id).unwrap();
+        assert_eq!(session.label(), Some("work"));
+        assert_eq!(session.colour(), Colour::Green);
+    }
+
+    #[test]
+    fn new_session_sets_the_label_given_to_it() {
+        let mut tree = Tree::new();
+
+        let session_id = tree.new_session(Some("work".to_string()));
+
+        assert_eq!(tree.session(session_id).unwrap().label(), Some("work"));
     }
 
     #[test]

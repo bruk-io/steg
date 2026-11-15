@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.85
 title: 'Shell integration: steg''s shell panes emit prompt marks'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T21:43:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.76
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

@@ -1,9 +1,9 @@
 ---
-id: DRAFT-3
+id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T21:43:00Z'
 labels:
@@ -14,6 +14,7 @@ dependencies:
   - TASK-1.76
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

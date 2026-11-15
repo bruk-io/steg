@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.83
 title: 'Kernel: running, finished and failed for a command typed at a shell prompt'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T21:43:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.79
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

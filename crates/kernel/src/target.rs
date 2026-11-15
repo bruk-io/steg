@@ -645,7 +645,16 @@ mod tests {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();
         let tab_id = tree.new_tab(session_id, None).unwrap();
-        let pane_id = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
+        let first_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(tab_id)
+            .unwrap()
+            .panes()[0]
+            .id();
+        let pane_id = tree
+            .split_pane(first_pane, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+            .unwrap();
         tree.session_mut(session_id)
             .unwrap()
             .tab_mut(tab_id)

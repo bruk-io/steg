@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:38:00Z'
+updated_date: '2026-11-15T02:39:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -62,6 +62,8 @@ exactly.
    `format_violation` already prints the dependency and the reason, which is what
    AC#3 and R104 ask for. See "What `boundaries.py` can and cannot check" below for
    the one place this finding does *not* cover: R105's "without its optional parts."
+   That gap is a separate task being drafted; this task leaves it as found and does
+   not try to close it.
 
 4. **Every edge doc-16's table allows is wired into the real `Cargo.toml` files now,
    even though nothing uses it yet.** This matches the repository's own existing
@@ -73,6 +75,17 @@ exactly.
    `boundaries.toml` with nothing to show for it. AC#5's "builds and tests by itself"
    is then proof against real manifests, not against a table nobody's Cargo.toml
    matches.
+
+5. **A new `just packages` recipe, not raw `cargo build -p`/`cargo test -p`.** This
+   repository's commands go through `just`, never cargo directly (CLAUDE.md). Step 13
+   below adds a recipe that builds and tests every package by itself through
+   `steg-quiet`, so AC#5 ("each package builds and tests by itself", R107) is
+   something anyone can re-run later, not just a sequence of commands quoted in this
+   plan's proof. It stays outside `check` (mirroring how `test-all` also stays outside
+   `check`): `check` already runs every crate's tests through `test` whenever the
+   selection is `all`, which this task's `Cargo.toml`/`boundaries.toml`/`justfile`
+   changes make it anyway (see Risks), so running the same build and test a second
+   time, per package, inside `check` would just repeat work `check` already does.
 
 ## doc-16's table, and `boundaries.toml` after this task
 
@@ -123,10 +136,8 @@ It **cannot yet** enforce the feature-level half - that the dependency on `steg-
 specifically excludes the `local-socket` feature. That half is carried by
 `crates/kernel/Cargo.toml` writing `default-features = false` on the dependency
 (step 6 below) and by `.claude/rules/architecture.md` stating the rule for a reviewer
-to check, not by any command. If this needs to become mechanical later, the tool
-would need to run a feature-resolving `cargo metadata` (or `cargo tree -e features
--p steg-kernel`) and compare the resolved feature set, not just the dependency names -
-real new machinery, out of this task's scope and not attempted here.
+to check, not by any command. Closing this gap mechanically is already a separate
+task being drafted; it is left exactly as found here.
 
 ## Files, in order
 
@@ -202,6 +213,25 @@ real new machinery, out of this task's scope and not attempted here.
       table of which package may depend on which, with a reason for each; `just
       boundaries` fails on anything added that isn't listed (doc-16 R104)."
 
+13. **`justfile`** - add a recipe that builds and tests every package by itself
+    through `steg-quiet`, in the voice of the existing `test`/`test-tools` recipes:
+    ```
+    # build and test each package by itself (R107), so this is something anyone can run again
+    packages:
+        #!/usr/bin/env bash
+        set -euo pipefail
+        if [ "{{rust}}" = no ]; then echo "skip    packages: no Rust workspace yet"; exit 0; fi
+        for pkg in steg-sdk steg-kernel steg-server steg steg-app; do
+            {{quiet}} "build ($pkg)" -- cargo build -p "$pkg"
+            {{quiet}} "test ($pkg)" -- cargo test -p "$pkg"
+        done
+    ```
+    Not added to `check`'s recipe list (see decision 5): `check` already runs every
+    crate's tests together whenever `steg-affected` says `all`, which this task's own
+    changes to `Cargo.toml`/`boundaries.toml`/`justfile` guarantee it will (Risks,
+    below), so `packages` running the same work again inside `check` would be pure
+    repetition. It is its own recipe, run directly, the same way `test-all` is.
+
 ## For the orchestrator, through `asdlc-plugin` (not edited in this worktree)
 
 AC#6 keeps `plugins/bruk-io-steg/` out of this task. What it will need, so the
@@ -225,17 +255,21 @@ orchestrator can apply it deliberately rather than guess from the diff:
 - `rules/app.md`: add that the app depends on `steg-sdk`, never on `steg-server` or
   `steg-kernel`, enforced by `boundaries.toml` (doc-16 R98, R101).
 - `rules/server.md`: add `steg-sdk` beside `steg-kernel` as its allowed dependency.
+- `commands.toml`'s `[test]` entry (`just test-all && just test-tools`) could add
+  `just packages`, if the orchestrator wants the per-package build/test verified in
+  CI too; left to that judgement, not assumed here.
 
 ## Risks
 
-- **`steg-affected`'s `GLOBAL_FILES`** (`Cargo.toml`, `Cargo.lock`, `boundaries.toml`)
-  all change here, so `steg-affected` prints `all` and `just check` builds and tests
-  every crate, including `steg-app` linking `gpui` against macOS frameworks. Give
-  `record-check` the long timeout.
+- **`steg-affected`'s `GLOBAL_FILES`** (`Cargo.toml`, `Cargo.lock`, `boundaries.toml`,
+  and now `justfile` too, since step 13 edits it) all change here, so `steg-affected`
+  prints `all` and `just check` builds and tests every crate, including `steg-app`
+  linking `gpui` against macOS frameworks. Give `record-check` the long timeout.
 - **Feature-off-by-default is a manifest convention, not a check**, as above: nothing
   stops a later task from writing `steg-sdk = { path = "../sdk" }` with no
   `default-features = false` on a workspace member that shouldn't get `local-socket`.
-  Flagged in both the plan and the rule, not solved here.
+  Flagged in both the plan and the rule; a separate task is already being drafted to
+  close it, not this one.
 - **This is deliberate, lasting friction**: any later task giving `steg-sdk`,
   `steg-kernel`, `steg-server`, `steg` or `steg-app` a new dependency - workspace or
   external - edits that crate's `allow` list in `boundaries.toml` with a reason. That
@@ -248,11 +282,11 @@ orchestrator can apply it deliberately rather than guess from the diff:
 ## Proof
 
 1. `asdlc record-check` of `just check` on the tree as found, before any edit.
-2. After steps 1-12: `just check` (fmt, lint, `boundaries`, `deny`, the affected
+2. After steps 1-13: `just check` (fmt, lint, `boundaries`, `deny`, the affected
    tests - every crate's, per the risk above - and the tools' own tests). Record it.
-3. Per AC#5, individually: `cargo build -p steg-sdk`, `cargo build -p steg-kernel`,
-   `cargo build -p steg-server`, `cargo build -p steg`, `cargo build -p steg-app`, and
-   the matching `cargo test -p <name>` for each.
+3. Per AC#5: `just packages` (the new recipe), building and testing `steg-sdk`,
+   `steg-kernel`, `steg-server`, `steg` and `steg-app` each by themselves through
+   `steg-quiet`. Record it.
 4. **Two live demonstrations of AC#3/R104, not new fixture tests** (the check logic
    itself is `tools/tests/unit/test_boundaries.py`'s subject, unchanged here):
    - A disallowed workspace dependency: add `steg-server = { path = "../server" }` to

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:13:00Z'
+updated_date: '2026-11-15T22:14:00Z'
 labels:
   - size-5
   - changes-requested
@@ -991,6 +991,34 @@ running 1 test
 test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.25s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 101 at 2026-11-15T22:14:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... FAILED
+
+failures:
+
+---- pane_close_refuses_while_its_program_is_running_and_touches_nothing stdout ----
+
+thread 'pane_close_refuses_while_its_program_is_running_and_touches_nothing' (14478076) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_refuses_while_its_program_is_running_and_touches_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.

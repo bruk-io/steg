@@ -1,14 +1,13 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:20:00Z'
+updated_date: '2026-11-15T17:26:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -788,6 +787,21 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 30, 23 without the Asdlc-Worker trailer.
+
+Fixed the second review finding (whole_focus never read session.current_tab(), so the focus test could only catch half the fault space) and looked over every other "nothing changes"/"drops X" test in the diff as asked.
+
+whole_focus (crates/kernel/src/tree.rs) now captures, per row, (session, session's current_tab, this tab, this tab's current pane) - previously it omitted session.current_tab() entirely. Proved both halves bite, each its own recorded failing run, reverted after recording:
+- A scratch `self.focus_tab(owning_tab)` inside view_pane moved only the session's current tab (the fixture starts with a different tab current, so this was a real change, not a same-value no-op) - failed at "after view_pane" with the session's current_tab column differing.
+- A scratch `tab.focus(pane)` (via Tab::focus directly, not Tree::focus_pane, which would also move the session) inside view_pane moved only the owning tab's current pane - failed at "after view_pane" with the pane-current column differing.
+
+Audited every other test in the diff claiming "never"/"nothing changes"/"drops": two over-claimed what they verified, since the ids involved are retired for good and nothing could ever behaviourally observe a stale record for them either way.
+- closing_a_tab_drops_its_declared_size_record_from_every_client previously "proved" its claim by redeclaring on a different, surviving tab - which can't distinguish a purged record from a merely-unreachable one. Now asserts Client::declared_size(first_tab) directly (pub(crate), same crate as the test module).
+- closing_a_session_drops_every_clients_attachment_and_activity_for_it never checked the "activity" half of its own name. Now asserts Client::activity_in(session_id) directly, both Some before closing and None after.
+Everything else checked (viewing_alone_never_makes_a_client_latest, declare_size_never_fails_the_floor, the note_input no-op tests, the other closing_* tests) already asserts on a real, live derived value (latest_client, a declare_size Result, a surviving pane/tab's actual state) that could not pass vacuously - no further changes needed there.
+
+Merged origin/main twice: TASK-1.74's code changes (clean), then TASK-1.70's own ClientId/ClientKind definitions (add/add + content conflict in crates/sdk/src/ids.rs and client_kind.rs) - resolved by keeping mine as the designated canonical copy, folding in one improved doc-comment line from theirs about why ClientId lives in ids.rs rather than wire/.
+
+Check recorded: just check at the merged head (36f1c59), full suite green including steg-sdk's new local-socket feature tests from TASK-1.70's merge. Per @bruk's confirmation, PR #29's CI failure at this head is an account billing block (job never started, no steps run), not a code issue - not chased further; the recorded just check is the evidence.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

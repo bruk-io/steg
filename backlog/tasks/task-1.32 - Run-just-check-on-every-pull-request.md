@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:03:00Z'
+updated_date: '2026-11-15T03:04:00Z'
 labels:
   - size-2
   - changes-requested
@@ -20,7 +20,7 @@ project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.32-run-just-check-on-every-pull-request
 asdlc_plan_approved_by: bruk
-asdlc_plan_approved_hash: '80329a1be2b3'
+asdlc_plan_approved_hash: 'c6301b963301'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
@@ -249,6 +249,15 @@ Reviewed after merge: PR #8 was merged to main before this review started, per t
 [Evidence, Nit] Plan's Proof step 1 calls for `just check` and `just test-all` to both pass locally in the worktree as a sanity check before relying on CI; the notes only record a local `just check` run (twice: c492de56a0b8, then the final 923b7794ce30, which matches the branch head). No local `just test-all` record appears. Weak nit: the scratch-push branch's GitHub run did execute `test-all` on the real runner and passed, which is stronger evidence than a local run would have been, so this doesn't undermine the Evidence pass.
 
 plan-matched: yes - the diff is exactly the one file the plan named (.github/workflows/ci.yml), built in the plan's order. The concurrency-cancellation flaw is a consequence of the approved plan's own step 2 (the concurrency guard), not a departure the worker introduced.
+
+---
+
+author: @bruk
+created: 2026-11-15T03:04:00Z
+
+---
+
+Plan approved by @bruk (c6301b963301, size-2): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

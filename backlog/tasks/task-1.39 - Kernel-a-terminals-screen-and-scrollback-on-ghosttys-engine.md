@@ -1,10 +1,11 @@
 ---
 id: TASK-1.39
 title: 'Kernel: a terminal''s screen and scrollback on ghostty''s engine'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T13:47:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-9
+asdlc_branch: task-1.39-kernel-a-terminal-s-screen-and
 ---
 
 ## Description

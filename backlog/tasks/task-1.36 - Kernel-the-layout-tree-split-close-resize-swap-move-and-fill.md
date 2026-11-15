@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:38:00Z'
+updated_date: '2026-11-15T04:45:00Z'
 labels:
   - size-3
   - changes-requested
@@ -261,6 +261,53 @@ R112 (pane order, counted from one, unchanged by resize): panes_are_in_layout_or
 R113 / TASK-1.37's interface (Direction named distinctly from Orientation; Tab::neighbour/DirectionalFocus; exact-rectangle neighbour and wrap, not reading order): neighbour_returns_the_adjacent_pane_when_one_exists, neighbour_returns_edge_when_none_exists_and_wrap_is_false, neighbour_wraps_to_the_far_end_of_the_tabs_order_when_wrap_is_true (name predates the geometry rewrite; it now wraps by rectangle, verified correct for a two-pane tab), neighbour_and_wrap_are_both_edge_in_every_direction_for_a_single_pane_tab (tab.rs); sdk-level (crates/sdk/src/layout.rs): neighbour_moving_right_from_bottom_left_lands_on_bottom_right_not_top_right, neighbour_from_a_pane_spanning_two_rows_takes_the_upper_pane_across_a_column_split, wrap_from_the_rightmost_pane_lands_on_the_leftmost_pane_in_its_own_row_not_another_row, neighbour_is_none_for_a_single_pane_tab_in_every_direction, far_edge_pane_is_none_for_a_single_pane_tab_in_every_direction, leaf_rects_gives_adjacent_leaves_exactly_equal_touching_boundaries (the exactness claim), leaves_are_depth_first_first_before_second, leaf_sizes_sum_exactly_to_the_total_on_an_uneven_ratio, bordering_split_finds_the_nearest_ancestor_matching_the_directions_axis, bordering_split_is_none_at_the_tabs_own_edge, inherited_size_gives_a_splits_own_rectangle_before_its_own_ratio.
 
 Reviewer, please look closest at: the borrow-checker workarounds in layout.rs (bordering_split_mut computed via a path rather than a direct recursive &mut, and insert_leaf/remove_leaf mutating entirely in place via *layout = ... rather than returning references) — both are explained in their own doc comments, but are the least obvious code in this change. Also tab.rs's clamp_ratio_to_floor: it returns the nearest ratio to the request on either side (tested exactly in resize_pane_stops_exactly_at_the_floor_instead_of_going_below_it), which is a slightly more general reading of "stops at the floor" than a plain one-directional walk — flagged in the plan's notes as my own refinement during build, not a departure requiring replanning.
+
+Check FAILED: `cargo test -p steg-sdk -p steg-kernel` exited 101 at 2026-11-15T04:45:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at d2f05c6c834e with uncommitted changes, last 40 of 120 lines:
+
+```text
+test tree::tests::closing_a_sessions_only_tabs_only_pane_ends_the_session ... ok
+test tree::tests::closing_a_tabs_last_pane_closes_the_tab_without_ending_a_session_that_has_others ... ok
+test tree::tests::closing_one_of_several_panes_cascades_no_further_than_it_should ... ok
+test tree::tests::closing_one_of_several_tabs_cascades_no_further_than_it_should ... ok
+test tree::tests::move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane ... ok
+test tree::tests::move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes ... ok
+test tree::tests::move_pane_to_tab_leaves_both_tabs_with_a_valid_tree ... ok
+test tree::tests::move_pane_to_tab_refuses_a_panes_own_tab ... ok
+test tree::tests::move_session_reorders_and_rejects_an_out_of_range_position ... ok
+test tree::tests::move_tab_reorders_a_sessions_tabs ... ok
+test tree::tests::new_session_gives_the_first_five_sessions_distinct_colours_in_order ... ok
+test tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id ... ok
+test tab::tests::an_unrelated_already_under_floor_pane_does_not_block_a_resize_elsewhere ... ok
+test tree::tests::new_session_sets_the_label_given_to_it ... ok
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+
+failures:
+
+---- tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split stdout ----
+
+thread 'tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split' (4738308) panicked at crates/kernel/src/tab.rs:1072:9:
+assertion `left == right` failed
+  left: Ratio(700)
+ right: Ratio(500)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split
+
+test result: FAILED. 97 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

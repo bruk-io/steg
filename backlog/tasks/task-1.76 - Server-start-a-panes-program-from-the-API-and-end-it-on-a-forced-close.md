@@ -2310,4 +2310,20 @@ created: 2026-11-15T23:00:00Z
 From @bruk.o, with the second review's findings: the reviewer showed that this platform's openpty() races when called from several threads of one process (a bare libc call from 28 threads fails intermittently with no steg code loaded; ptys alive stayed near 22 of 511; disabling the sandbox changed nothing). The reviewer left open whether production code should change. Decision by the orchestrator, for the engineer to overrule: the server's real launcher serialises the pty-opening call with one process-wide lock held only for that call, with no retry. Reason: it removes the race at its cause for the server as well as the tests, where a limiter in the tests alone would leave any future caller that opens ptys from two threads exposed. The orchestrator's own earlier counter-argument (the pty limit and count) did not look at what actually failed; the reviewer's evidence is what stands.
 
 ---
+
+created: 2026-11-15T23:06:00Z
+
+---
+
+Second round's findings fixed.
+
+**Correction to this task's own earlier notes**: there is no sandbox pty-allocation ceiling, and no leak. What I wrote before was wrong; the reviewer isolated the real cause and it is recorded on this task - `openpty()` itself is not safe to call from several threads of one process at once on this platform, reproduced with a bare libc call, no Rust, none of this crate's own code loaded, with the number of live ptys staying around 22 of 511 throughout. Running the Bash sandbox disabled changed nothing either, so "sandbox" was never the right word for it. I withdraw that description.
+
+**Finding 1 (just check not reliable).** `RealLauncher::spawn` (`crates/server/src/pty.rs`) now serialises its own `openpty()` call behind a process-wide `OPENPTY_LOCK`, held only across that one call - never across `spawn_command` or anything that waits. No retry: a retry would hide the race, a lock removes it. New test `many_threads_opening_a_real_pty_at_once_never_fails` (`tests/real_pty.rs`): 32 real threads (this machine's own default `cargo test` concurrency), each opening a real pty through the real launcher at once (a `Barrier` makes every thread call `openpty` at the same instant, not merely overlapping), 10 rounds. Negative control recorded via `asdlc record-check`: lock removed, fails on round 1 of 10 with the identical `Os { code: -6 }`; lock restored, passes. `cargo test -p steg-server` (the full suite, default parallelism, the command `just test`/`just check` itself runs) recorded 20 times in a row via `asdlc record-check`: 0 failures across all 20. `just check` recorded 5 times in a row via `asdlc record-check`: 0 failures across all 5, each at the unmodified command (never `--test-threads=1`).
+
+**Finding 2 (no clean just check recorded at the head handed in).** Fixed by the above: `just check` now passes reliably at this head, recorded 5 times, unmodified.
+
+Head: merged origin/main first (board-only changes since the last merge; no new code). Running `just fmt`/`just lint` clean. Pushing now; `gh pr checks 40 --watch` next.
+
+---
 <!-- COMMENTS:END -->

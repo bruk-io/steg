@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:04:00Z'
+updated_date: '2026-11-15T18:30:00Z'
 labels:
   - size-3
   - changes-requested
@@ -509,6 +509,32 @@ The second half - a program that produces nothing at all before shutdown, such a
 [Tests, Nit] unbounded waits. Every events_rx.recv() in real_pty.rs is now recv_event(&events_rx) - recv_timeout(20s), fails with a message instead of hanging. ci.yml's check job gets timeout-minutes: 30, with a comment saying why.
 
 Rebased origin/main in twice more since the review: once for PR #31 (TASK-1.74, kernel scrollback - no code conflict, only backlog), once for PR #30 (TASK-1.70, sdk wire protocol and local-socket provider - auto-merged cleanly in crates/sdk/src/lib.rs, both sides' additions kept). just check recorded clean at the new head (format, lint, boundaries, licences, every package including the new steg-sdk "local-socket" feature test TASK-1.70 added, architecture, recipe names). CI green on pull request 32 at the pushed head (~3m54s).
+
+Check passed: `just check` exited 0 at 2026-11-15T18:30:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at e36657bf3d07 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

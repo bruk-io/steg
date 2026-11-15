@@ -1,16 +1,19 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:48:00Z'
+updated_date: '2026-11-15T16:58:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.39
+references:
+  - task-1.40-run-a-pane-s-program-and-know-when-it
+  - https://github.com/bruk-io/steg/pull/32
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +22,8 @@ asdlc_branch: task-1.40-run-a-pane-s-program-and-know-when-it
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r4
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -367,6 +372,67 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:50:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:51:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at 78c897c80feb:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (0.9s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Built as planned, no departures from the approved plan's design (a few implementation-level refinements, noted below).
+
+New: crates/sdk/src/program.rs (Program, ProgramStatus, the shapes that cross the API). Changed: crates/kernel/src/{pane,tree,error,lib,tab}.rs (Pane::start_program/record_exit/restart/closes_on_exit; Tree::start_program/record_exit/restart_program and ExitOutcome, reusing close_pane's own cascade; four new Error variants). New: crates/server/src/{pty,pane,env,error}.rs (ProgramLauncher/RealLauncher over portable-pty; the per-pane worker thread and PaneHandle; pane_environment; server's Error). Changed: crates/server/{Cargo.toml,src/lib.rs}, boundaries.toml (portable-pty, anyhow added to [steg-server]'s allow-list). New: crates/server/tests/{program,real_pty}.rs.
+
+Refinements from the plan's exact wording, each small and within the plan's own stated intent:
+- pane_environment takes just the current PATH value, not a full "base environment" list - portable_pty::CommandBuilder already seeds every other inherited variable from the current process's own environment on its own (its get_base_env()), so a full base list would have been redundant. STEG_SERVER/STEG_BIN_DIR are still data passed in, never computed inside the function, which was the point of that part of the plan.
+- Program::Shell resolves to a concrete argv entirely at the caller's discretion (LaunchSpec.argv is just a Vec<String>; crate::pane::start/restart take whatever argv the caller already resolved) - the plan didn't fix this detail, and real_pty.rs's tests just hand it a real shell command directly, so no resolution policy had to be invented for this task.
+
+Which test proves which clause:
+- AC #1 (runs the shell or a given command, in a given working directory): real_pty.rs::a_real_program_runs_in_the_given_working_directory (real sh -c pwd against a real temp dir), plus kernel's starting_a_program_records_it_as_running (the stored Program is exactly what was given).
+- AC #2 (exit code known; a command pane stays and can run again; a shell pane closes): kernel tests with no doubles - a_command_pane_stays_ended_and_does_not_close_on_exit, restarting_a_command_pane_resets_its_status_and_keeps_its_spec, a_shell_pane_closes_on_exit (pane.rs); a_command_panes_exit_stays_and_can_be_restarted, a_shell_panes_exit_closes_it_through_the_same_cascade_as_a_manual_close (tree.rs). Server: program.rs::restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run (FakeLauncher, orchestration). Real: real_pty.rs::a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again, a_shell_panes_real_exit_reaches_the_kernels_cascade (real /bin/sh, real exit codes, feeding the kernel's own record_exit with no doubles).
+- AC #3 (the five variables, and PATH): server/src/env.rs's own unit tests (exact built list, no doubles) plus real_pty.rs::a_real_programs_environment_carries_the_five_variables_and_path (a real sh -c env).
+
+just check recorded clean at each step (sdk+kernel first, then deny+boundaries after adding portable-pty/anyhow, then the full suite twice - once before and once after rebasing onto origin/main, which picked up TASK-1.42/1.70/1.74/1.75's board-only commits with no code conflicts). portable-pty's licence cleared just deny on the first try, so the engineer was not asked to widen deny.toml. CI green at PR #32 (both checks passed, ~3m40s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -378,6 +444,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (5e9ba0795787, size-3): its worker may build it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T16:58:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:31:00Z'
+updated_date: '2026-11-15T16:59:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.70-sdk-the-protocol-s-logic-and-the-local
+  - https://github.com/bruk-io/steg/pull/30
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,10 @@ asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2aa568c163d'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -431,6 +439,71 @@ ok      tool tests (1.6s)
 ok      architecture (1.6s)
 ok      recipe names (0.2s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:48:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at 974e2b165d9d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.1s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:50:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at 0b6aacde5acd:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Built as the approved plan's two commits, with the hard boundary kept: half A (crates/sdk/src/wire/) has zero I/O and zero feature-gating; half B (local_socket.rs, paths.rs) is entirely behind the local-socket feature and carries the crate's one #[expect].
+
+AC -> test:
+- AC #1 (frames/handshake/stream state, no I/O): wire/frame.rs, wire/handshake.rs, wire/connection.rs unit tests - all in-memory.
+- AC #2 (consumer supplies the transport; client+server in memory): crates/sdk/tests/connection.rs - a Role::Client and Role::Server Connection shuttling bytes through a plain Vec<u8>, no socket.
+- AC #3 (local-socket provider connects, or starts one and waits, or refuses to): crates/sdk/tests/local_socket.rs against a temp-dir listener and a fake-server-for-tests [[bin]] fixture - connects without spawning when a listener is bound, refuses with autostart:false, spawns and waits successfully, times out when nothing ever binds.
+- AC #4 (version mismatch names both versions): wire/handshake.rs's mismatch tests (both directions) and tests/connection.rs's end-to-end refusal case.
+- AC #5 (method called by name, validated against the Description, result/error matched by id, events as typed values, nothing hand-written): wire/connection.rs's call()/reply() and event-resolution tests, plus tests/connection.rs's full round trip; call() reuses TASK-1.43's description::validate, and events are resolved against the Description (Description::event(), a small addition mirroring method()) into Event vs UnknownEvent rather than a bare string.
+- AC #6 (no GPUI type/async runtime in the public interface): no code proof needed beyond boundaries.toml's [steg-sdk] allow list (serde, serde_json only) plus just check-boundaries - this task adds no dependency.
+
+Checks recorded on this task via asdlc record-check (just check, full green each time) before and after rebasing onto origin/main twice (TASK-1.40/1.42/1.74/1.75 landed board-notes commits in the meantime, no code collisions). CI on PR #30 passed.
+
+Three things worth a reviewer's attention, each already flagged in the plan or discovered while building:
+1. ClientId (ids.rs) and ClientKind (client_kind.rs) are TASK-1.42's own planned shapes; this task landed first, so they're created here exactly as that task's plan describes them (from_raw/into_raw/Display/FromStr/serde hex form; App/Cli/Plugin snake_case word). TASK-1.42 should find them already in place.
+2. The provider's spawn step runs the already-public `<binary> server start --on-demand`, not a private subcommand - description::methods' server.start method gained the on_demand switch the team lead and engineer approved, matching the already-updated doc-2 row.
+3. The local-socket feature's own behavioural tests had to move to an integration test (tests/local_socket.rs), not stay as local_socket.rs's own #[cfg(test)] unit tests: CARGO_BIN_EXE_<name> (needed to find the fixture binary) is only set for tests under tests/, not for a lib crate's own unit test binary - found while building, not assumed. That integration test carries its own second #[expect(clippy::disallowed_types)] (only that one lint fires there, not disallowed_methods) for the same reason the production module does - a test proving socket-finding behaviour has to touch a real socket. Also added a justfile step (check-packages runs steg-sdk a second time with --features local-socket) so these tests actually run under just check, since neither the default build/test nor lint's --all-features (which never executes a test) would otherwise exercise them.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -442,6 +515,38 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (d2aa568c163d, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:53:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:59:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Bugs/Evidence, Important] crates/sdk/src/wire/frame.rs:190-194 - Decoder::next_frame's check for a declared length smaller than the 5-byte header (returning FrameError::Malformed) has zero test coverage anywhere in the crate. This is exactly the hostile-input case the review brief named ("a length under the header size"); nothing in frame.rs's own tests, connection.rs's unit tests, or tests/connection.rs exercises it, so a regression here (e.g. an off-by-one on the bound, or a panic from indexing before the length check) would go undetected.
+
+[Bugs/Evidence, Important] crates/sdk/src/local_socket.rs:144 and crates/sdk/tests/local_socket.rs - connect()'s ConnectError::Spawn path (binary cannot be executed, with autostart:true and nothing listening) is never exercised through connect() in any test, even though the review brief explicitly named "what happens if the binary does not exist" as a case to prove. The two tests that build binary_that_cannot_execute() both short-circuit before Command::spawn() is ever called (one via an already-bound listener so connect succeeds first, one via autostart:false so the NoServerRunning branch returns first); the only test touching ConnectError::Spawn checks Display formatting of a fabricated error, not that connect() itself returns that variant on a real spawn failure.
+
+[Nit] crates/sdk/src/wire/frame.rs: next_frame does not drain the buffer on a Malformed error (unknown kind tag, undersized length), so a caller that calls poll() again after seeing one Malformed sees the identical error forever rather than the connection ever being able to recover. Likely fine if every caller treats Malformed as fatal and drops the connection, but that convention isn't stated.
+
+[Nit] crates/sdk/src/local_socket.rs: connect() never wait()s on the spawned Child (by design, per the plan). If a long-lived consumer (the app) calls connect with autostart repeatedly over its lifetime and the real server's own detach leaves a short-lived intermediate process, this accumulates zombie process-table entries until the consumer exits. Attributed to TASK-1.44's detaching code, but worth a line noting the consumer-side consequence explicitly.
+
+Everything else checked out: the two-commit boundary is clean (half A is I/O-free and feature-gate-free; half B is entirely behind local-socket, carrying the crate's one #[expect] plus its test-module twin, both scoped correctly per .claude/rules/sdk.md); the ClientId/ClientKind definitions match TASK-1.42's own plan verbatim (confirmed by reading TASK-1.42's plan directly); server.start's on_demand switch matches doc-2's already-approved row; no new dependency in Cargo.toml or boundaries.toml, and boundaries.toml's existing deny-features still blocks steg-kernel from local-socket; the justfile gap is fixed and CI on the PR's head commit (0b6aacde) shows "test (steg-sdk, local-socket)" actually running and passing under just check; the recorded just check is at the branch head. All the hostile-input cases I could find tests for (oversized length incl. the exact 0xFFFF_FFFF case, truncated/byte-at-a-time frames, two frames in one push, unknown kind tag, bad magic, non-JSON hello, missing field, unknown field ignored, client-newer and server-newer version mismatches both naming both versions, data on an unregistered stream, event name not in the Description) are present and look correct by inspection.
+
+A matching open draft already exists (DRAFT-1, "a named error/edge-case branch needs a test exercising it, not just a happy-path test", filed against TASK-1.39/TASK-1.35) that covers exactly this mistake pattern, so no new rule-change draft was filed for it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,16 +1,19 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:42:00Z'
+updated_date: '2026-11-15T16:58:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.75-server-dispatch-a-request-to-the-kernel
+  - https://github.com/bruk-io/steg/pull/33
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +22,8 @@ asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r5
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -551,6 +556,376 @@ Check passed: `just test` exited 0 at 2026-11-15T16:42:02+00:00 in /Users/brukha
 ```text
 ok      tests (every crate) (1.6s)
 ```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T16:48:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 64 lines:
+
+```text
+test session_show_with_an_unknown_target_is_no_such_target ... ok
+test api_show_an_unknown_method_is_no_such_target ... ok
+test session_show_matches_exactly_the_fields_the_description_declares ... ok
+test every_served_nothing_returning_method_answers_exactly_null ... ok
+test pane_focus_moves_to_the_neighbour ... ok
+test pane_swap_exchanges_two_panes ... ok
+test pane_set_zoomed_fills_and_unset_zoomed_unfills ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was ... ok
+test pane_close_removes_the_pane ... ok
+test api_show_with_a_target_returns_one_method ... ok
+test tab_move_with_position_reorders ... ok
+test tab_close_removes_it ... ok
+test tab_new_with_no_focus_leaves_the_original_tab_current ... ok
+test tab_focus_makes_it_current ... ok
+test split_set_label_then_close_the_session ... ok
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test api_list_returns_every_method ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... FAILED
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+failures:
+
+---- every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing stdout ----
+
+thread 'every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing' (6718242) panicked at crates/server/tests/dispatch.rs:143:9:
+event.watch: "not implemented yet: waiting on events (TASK-1.46)" does not name "Events"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing
+
+test result: FAILED. 35 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T16:48:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      tests (every crate) (1.0s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T16:48:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 64 lines:
+
+```text
+ 
+[31m-    let value = ok(dispatch(&mut tree, &api, &context, &request("api.show", vec![])));
+(B[m[32m+    let value = ok(dispatch(
+(B[m[32m+        &mut tree,
+(B[m[32m+        &api,
+(B[m[32m+        &context,
+(B[m[32m+        &request("api.show", vec![]),
+(B[m[32m+    ));
+(B[m 
+     assert_eq!(
+         value["methods"].as_array().unwrap().len(),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:732:
+ fn api_call_with_no_target_is_a_bad_request() {
+     let (mut tree, context, api) = fresh();
+ 
+[31m-    let error = err(dispatch(&mut tree, &api, &context, &request("api.call", vec![])));
+(B[m[32m+    let error = err(dispatch(
+(B[m[32m+        &mut tree,
+(B[m[32m+        &api,
+(B[m[32m+        &context,
+(B[m[32m+        &request("api.call", vec![]),
+(B[m[32m+    ));
+(B[m 
+     assert_eq!(error.code, ErrorCode::BadRequest);
+ }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:804:
+ fn every_served_nothing_returning_method_answers_exactly_null() {
+     let (mut tree, context, api) = fresh();
+     let second_pane = tree
+[31m-        .split_pane(context.default_pane, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+(B[m[32m+        .split_pane(
+(B[m[32m+            context.default_pane,
+(B[m[32m+            steg_sdk::Direction::Right,
+(B[m[32m+            steg_sdk::PaneKind::Terminal,
+(B[m[32m+        )
+(B[m         .unwrap();
+ 
+     for (method, extra) in [
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T16:48:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 65 lines:
+
+```text
+   |
+47 | fn handled() -> Vec<(&'static str, &'static str)> {
+   |    ^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: constant `NOT_YET_NOUNS` is never used
+  --> crates/server/src/dispatch/mod.rs:60:7
+   |
+60 | const NOT_YET_NOUNS: &[(&str, &str)] = &[
+   |       ^^^^^^^^^^^^^
+
+error: docs for function which may panic missing `# Panics` section
+   --> crates/server/src/dispatch/mod.rs:242:1
+    |
+242 | / pub fn dispatch(
+243 | |     tree: &mut Tree,
+244 | |     description: &Description,
+245 | |     context: &Context,
+246 | |     request: &Request,
+247 | | ) -> Response {
+    | |_____________^
+    |
+note: first possible panic found here
+   --> crates/server/src/dispatch/mod.rs:256:21
+    |
+256 |       let noun_verb = request
+    |  _____________________^
+257 | |         .method
+258 | |         .split_once('.')
+259 | |         .expect("validate already confirmed this method is in the description");
+    | |_______________________________________________________________________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+    = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: could not compile `steg-server` (lib) due to 4 previous errors
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T16:49:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 65 lines:
+
+```text
+   |
+25 |     let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is `None`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unwrap_used
+
+error: very complex type used. Consider factoring parts into `type` definitions
+  --> crates/server/tests/dispatch.rs:94:16
+   |
+94 |     let cases: Vec<(&str, Vec<(&str, Value)>, &str)> = vec![
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#type_complexity
+   = note: `-D clippy::type-complexity` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: used `unwrap()` on an `Option` value
+   --> crates/server/tests/dispatch.rs:222:18
+    |
+222 |     let method = api.method(dotted).unwrap();
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unwrap_used
+
+error: wildcard match will also match any future added variants
+   --> crates/server/tests/dispatch.rs:227:9
+    |
+227 |         other => panic!("{dotted}'s returns is not a record: {other:?}"),
+    |         ^^^^^ help: try: `other @ steg_sdk::Returns::Nothing | other @ steg_sdk::Returns::Identifier { .. } | other @ steg_sdk::Returns::Text`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg-server` (test "dispatch") due to 6 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:51:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (2.2s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (1.0s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (1.1s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (2.1s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:53:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:55:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at ecad31448c56:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (2.2s)
+ok      build (steg-sdk) (0.3s)
+ok      test (steg-sdk) (0.9s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Built as planned, one change: Context, Outcome/into_value, map_kernel_error
+(exhaustive over kernel::Error, 13 variants including the new Engine arm),
+session.rs/tab.rs/pane.rs/api.rs's served arms, the api.call rewrite-and-
+recurse, R115's --no-focus capture-and-restore (with a rollback on
+pane.split if the given label is rejected), and spikes/api-description/
+deleted. sdk gets one addition beyond the plan's own scope: ErrorCode::
+EngineFailed (exit status 1), since kernel::Error::Engine had no code to
+map to - flagged on the plan for the engineer, who approved it with the
+plan.
+
+Which test proves which clause:
+- AC #1 (validated, dispatched, typed result, unknown method/parameter
+  refused): every per-method test in crates/server/tests/dispatch.rs
+  (session_*/tab_*/pane_*/api_* tests); api_call_with_no_target_is_a_bad_
+  request and api_call_of_an_unknown_method_is_refused_the_same_way_a_
+  direct_call_would_be for validation through api.call's own path.
+- AC #2 (every described method has an arm and every arm is described,
+  both ways; a not-built method's own distinct error naming what it
+  waits on): dispatch::tests::every_described_method_has_exactly_one_
+  handler (crates/server/src/dispatch/mod.rs, both directions against
+  description().methods); tests/dispatch.rs's every_not_yet_scenario_
+  answers_not_implemented_yet_and_changes_nothing (19 scenarios: the 15
+  whole-method not-yet cases, tab.move --to, and session.new/tab.new/
+  pane.split's cwd-or-program branch), each checked for the error code,
+  the message naming what it waits on, and the tree unchanged;
+  every_described_method_gets_a_response_with_no_panic as the smoke test
+  against arm-count drift.
+- AC #3 (every served method's result serialises to exactly its declared
+  fields): session_show_matches_exactly_the_fields_the_description_
+  declares and session_list_matches_exactly_the_fields_the_description_
+  declares_per_record (the one AC #3 names, through a real dispatch call);
+  every_served_nothing_returning_method_answers_exactly_null and every_
+  served_identifier_returning_method_answers_exactly_one_id_field for the
+  shape of every other served method; api.list/show/call excluded per the
+  sdk's own documented exemption.
+- AC #4 (every kernel error maps, with the code and exit status the
+  description gives): kernel_error::tests, one test per kernel Error
+  variant (crates/server/src/dispatch/kernel_error.rs), including engine_
+  maps_to_engine_failed... no: the Engine arm has no unit test (would need
+  ghostty-vt as a direct steg-server dependency, which doc-16 R92 does not
+  allow) - the exhaustive match itself, which fails the build on an
+  unmapped variant, is the proof for that one arm; description::methods::
+  tests::errors_has_eleven_codes_with_their_exit_statuses (steg-sdk) for
+  the exit status table, including the new EngineFailed entry.
+- AC #5 (every method callable by name; api show with no target returns
+  the whole description; api list/show/call all work): api_list_returns_
+  every_method, api_show_with_a_target_returns_one_method, api_show_with_
+  no_target_returns_the_whole_description, api_show_an_unknown_method_is_
+  no_such_target, api_call_of_pane_split_gives_the_same_response_a_direct_
+  call_would (byte-for-byte against a direct call).
+- AC #6 (creating without focus leaves the previous focus in place, R115):
+  tab_new_with_no_focus_restores_the_previous_current_tab and pane_split_
+  with_no_focus_restores_the_previous_current_pane, each comparing the
+  whole session/tab before and after (label, colour/fill, the one new
+  tab/pane added, every pre-existing tab/pane byte-for-byte unchanged),
+  not just the one field expected to move; tab_new_with_no_focus_leaves_
+  the_original_tab_current and split_set_label_then_close_the_session as
+  the plan's two named end-to-end scenarios.
+- AC #7 (spikes/api-description/ deleted): the diff itself (first commit);
+  `just check`'s architecture and check-packages steps both passed after
+  the deletion, confirming nothing else referenced it. This dangles decision
+  -1 sections 3 and 9's citations of carry-one-method/measure.py, as
+  TASK-1.43 flagged twice already - not this task's to fix, decision text
+  changes only via a PR containing nothing else.
+
+just check recorded clean on the task repeatedly, including after
+rebasing onto origin/main twice (once before any code was written, once
+at the end - neither rebase touched crates/, only board files; TASK-1.40/
+1.42/1.70 are not yet merged to main). CI green on PR #33's head.
+
+Three findings beyond the approved plan, found while building, not
+previously flagged:
+1. pane.move's target tab needs a Direction Tree::move_pane_to_tab
+   requires, but doc-2 section 8's row for pane move has no direction
+   parameter. Dispatch defaults to Direction::Right (append at the end
+   of the target tab) - a per-call choice, not a method-level not-yet,
+   since the method is otherwise fully servable. Worth a line in doc-2
+   if a caller should ever be able to ask for a different position.
+2. api.call can never carry a target method's own `target` parameter:
+   api.call's own selector is itself named `target` (per TASK-1.43's own
+   review decision, matching the convention every other method's target
+   uses), so api::call's rewrite always removes the key named `target`
+   before building the inner request - there is no second key the inner
+   method's own target could arrive under. api.call of pane.split always
+   acts on the context's default pane, never a pane named explicitly.
+   doc-2 section 2 says api.call "is for agents, and for a method a
+   plugin adds before the CLI knows it" - an agent naming a specific pane
+   is exactly the case this blocks. Not fixed here: fixing it means
+   changing the description (a second key, or renaming the selector),
+   which this plan does not authorize.
+3. unset --label (and tab.unset/session.unset's own --label) requires
+   sending some Text value on the wire, which dispatch then discards -
+   unset always clears the label regardless of what value arrives.
+   unset --label arguably wants a Switch, not a Text parameter. Also
+   TASK-1.43's description (already reviewed); flagged, not changed.
+
+crates/server/tests/dispatch.rs carries a file-level
+#![expect(clippy::unwrap_used, reason = "...")]: clippy's own
+allow-unwrap-in-tests option (root clippy.toml) only recognises
+#[cfg(test)] unit test modules, not a file under tests/, even though
+the whole file is already test-only - same as kernel's and sdk's own
+clippy.toml comment on the same setting, just hitting its one gap.
+
+Departure from the plan's file list, noted as it happened: the
+completeness test and the kernel-error-mapping test live beside their
+own code in crates/server/src/dispatch/ (mod.rs, kernel_error.rs), not
+in tests/dispatch.rs as the plan's file list named - mod.rs's own
+HANDLED-checking test needs handled()/NOT_YET_NOUNS, which are private
+to the crate (and #[cfg(test)]-only, since nothing in the production
+path reads them), so an external functional test cannot reach them.
+Everything else the plan named for tests/dispatch.rs - the per-method
+tests, the Outcome-versus-declared-fields cross-check, the position
+boundary, the api.call tests, the --no-focus tests, the two end-to-end
+scenarios - landed there as planned.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -562,6 +937,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (f570689623ad, size-3): its worker may build it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T16:58:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

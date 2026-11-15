@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:45:00Z'
+updated_date: '2026-11-15T16:58:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
+references:
+  - task-1.42-kernel-clients-what-each-views-and-the
+  - https://github.com/bruk-io/steg/pull/29
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,10 @@ asdlc_branch: task-1.42-kernel-clients-what-each-views-and-the
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '571c32803ab2'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -443,6 +451,41 @@ ok      tool tests (1.1s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:46:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at b99b85096db9:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.1s)
+ok      build (steg-sdk) (0.3s)
+ok      test (steg-sdk) (0.9s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.7s)
+ok      architecture (1.5s)
+ok      recipe names (0.1s)
+```
+
+Built as planned, no departures. ClientKind/ClientId landed first (no conflict with TASK-1.70, which has not yet merged).
+
+Checks recorded on the task: just test (clean build, 0 new changes), just test (after full implementation, 172 kernel + 70 sdk tests passing), just check (full suite, format/lint/boundaries/licences/every package/architecture - all green), just check again after rebasing onto the latest origin/main (no code conflicts from TASK-1.40/1.70/1.74/1.75, which had only pushed board/task-file commits by then). CI on PR #29 passed.
+
+Tests mapped to acceptance criteria:
+- AC #1 (connect/leave; viewing follows from attachment): connect_client_then_disconnect_client_round_trips, disconnect_client_rejects_an_unknown_id, viewing_follows_from_attachment_not_a_separate_setter, view_pane_is_idempotent_and_rejects_an_unknown_pane, stop_viewing_rejects_a_pane_the_client_does_not_view, and connecting_viewing_declaring_and_disconnecting_never_change_focus (decision-5 point 4, R88).
+- AC #2 (latest is last input or declared size): viewing_alone_never_makes_a_client_latest, latest_client_is_none_when_nobody_views_the_session, latest_client_tracks_whoever_last_declared_or_sent_input, latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure (also proves the reapplied size on fallback).
+- AC #3 (terminal takes the latest's declared size; every other viewer is told): a_declaration_always_wins_regardless_of_magnitude, declare_size_reports_every_panes_absolute_size_and_every_viewer (SizeChanged.panes matches leaf_sizes, viewers lists every attached client), declare_size_never_fails_the_floor (R100's last clause), declare_size_requires_viewing_a_pane_in_the_tabs_session, note_input_reapplies_the_now_latest_clients_last_declared_size, note_input_is_a_no_op_when_the_client_has_no_declared_size, note_input_rejects_a_pane_the_client_does_not_view.
+- Cleanup on close (the plan's named risk area): closing_a_pane_a_client_views_drops_the_attachment_and_reapplies_the_session, closing_a_tab_drops_its_declared_size_record_from_every_client, closing_a_session_drops_every_clients_attachment_and_activity_for_it.
+
+Also added (per the plan's revision, approved alongside the build): Tab::size() public getter, paired with narrowing Tree::set_tab_size and Tab::set_size to pub(crate).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -454,6 +497,38 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (571c32803ab2, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T16:49:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T16:58:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 4 nit. Cites: review. The diff matches the plan.
+
+[Bugs, Important] crates/kernel/src/tree.rs:2216 connecting_viewing_declaring_and_disconnecting_never_change_focus builds a tree with exactly one tab and one pane, so session.current_tab() and tab.current() are structurally forced to that single id no matter what happens inside connect_client/view_pane/declare_size/note_input/disconnect_client. If any of those five operations internally called focus_pane or focus_tab, the before/after comparison would still pass, because focusing the only pane in the only tab lands back on the same id. This is the test the plan's PROOF section cites for R88/decision-5 point 4 ("focus never changes" across all five operations), and as written it cannot distinguish "focus never moved" from "focus moved and happened to return to the same place." A second tab and a second pane, with focus left on neither before the sequence runs, is needed to make this assertion real.
+
+[Bugs, Nit] crates/kernel/src/tree.rs:1155 note_input's no-op branch when the client's declared size already equals the tab's current size (the "no spurious change reported" case the plan's RISKS section names) has no test exercising it.
+
+[Bugs, Nit] crates/kernel/src/tree.rs:408-413 reapply_latest's branch where the newly-latest client has no declared size for a tab it views (the tab's size holds as it was) is implemented but untested; only the fallback-with-a-declared-size path is covered (latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure).
+
+[Evidence, Nit] crates/kernel/src/tree.rs:2582 closing_a_session_drops_every_clients_attachment_and_activity_for_it uses one client on one pane; the orchestrator's named risk case (two clients viewing different tabs of the same session, closed out from under them) isn't directly exercised by any test, though reading close_session/close_tab/forget_*_everywhere confirms the cleanup is correct there too (retain-based, no dangling references).
+
+[Bugs, Nit] crates/kernel/src/tree.rs:1029-1055 stop_viewing's doc comment says it recomputes the session's latest client only "if that leaves the client viewing nothing else in pane's session," but the code (line 1054) calls reapply_latest unconditionally. Harmless (the equal-size guard in reapply_latest makes the extra calls a no-op), but the comment doesn't describe what the code does.
+
+Everything else checked clean: ClientId/ClientKind mirror SessionId/PaneKind with full wire forms and round-trip tests, malformed ids are rejected via Result not panic; the activity tick is a private kernel counter advanced only by declare_size/note_input (view_pane never ticks, so viewing alone never makes a client latest) and ties cannot occur since each tick is minted once from one incrementing u64; declare_size bypasses the floor unconditionally while split_pane's own floor check is untouched by this diff; SizeChanged.panes matches Layout::leaf_sizes and SizeChanged.viewers lists every attached client, both asserted directly; set_tab_size and Tab::set_size narrowed to pub(crate) with no caller outside the kernel crate; Tab::size() added as a public read-only getter. just check passes at the branch head (b99b850), matching the recorded evidence and PR #29's green CI run on the same SHA.
 
 ---
 <!-- COMMENTS:END -->

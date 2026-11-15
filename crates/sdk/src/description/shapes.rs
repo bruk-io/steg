@@ -288,6 +288,8 @@ pub enum ErrorCode {
     AlreadyInTab,
     /// The method is described, but nothing yet implements it.
     NotImplementedYet,
+    /// The terminal engine (`ghostty-vt`) failed.
+    EngineFailed,
 }
 
 #[cfg(test)]

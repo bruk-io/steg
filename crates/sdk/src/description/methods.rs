@@ -1260,6 +1260,11 @@ fn errors() -> Vec<ErrorRecord> {
             summary: "The method is described, but nothing yet implements it".into(),
             exit_status: 1,
         },
+        ErrorRecord {
+            code: ErrorCode::EngineFailed,
+            summary: "The terminal engine failed".into(),
+            exit_status: 1,
+        },
     ]
 }
 
@@ -1450,11 +1455,11 @@ mod tests {
     }
 
     #[test]
-    fn errors_has_ten_codes_with_doc_2_section_6s_exit_statuses() {
+    fn errors_has_eleven_codes_with_their_exit_statuses() {
         use crate::description::shapes::ErrorCode;
 
         let api = description();
-        assert_eq!(api.errors.len(), 10);
+        assert_eq!(api.errors.len(), 11);
 
         let status_of = |code: ErrorCode| {
             api.errors
@@ -1463,6 +1468,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("{code:?} has no record"))
                 .exit_status
         };
+        // doc-2 section 6's own table, for the ten errors it names.
         assert_eq!(status_of(ErrorCode::BadRequest), 2);
         assert_eq!(status_of(ErrorCode::NoSuchTarget), 3);
         assert_eq!(status_of(ErrorCode::AmbiguousTarget), 3);
@@ -1473,6 +1479,12 @@ mod tests {
         assert_eq!(status_of(ErrorCode::PanesNotInSameTab), 1);
         assert_eq!(status_of(ErrorCode::AlreadyInTab), 1);
         assert_eq!(status_of(ErrorCode::NotImplementedYet), 1);
+        // `EngineFailed` (TASK-1.75): not in doc-2 section 6's table at all
+        // (it predates the terminal engine) - 1, "the command ran and
+        // failed", matches a genuine runtime failure better than status 2
+        // (bad usage) or 3 (a target problem). Flagged on the task for the
+        // engineer to confirm or overrule.
+        assert_eq!(status_of(ErrorCode::EngineFailed), 1);
     }
 
     #[test]

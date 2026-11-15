@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -681,6 +682,15 @@ Nits (3):
 - crates/server/tests/dispatch.rs:1122 api_call_with_no_method_is_a_bad_request only asserts error.code, so it would equally pass against the old "target"-reading code given an empty params vec - weaker than it needs to be, pre-existing pattern (same as the old api_call_with_no_target_is_a_bad_request).
 - No test exercises a present-but-non-text `method` value (e.g. an integer) for api.call's selector, only its absence. param_str's behaviour covers both paths identically, but only absence is exercised - a pre-existing gap (the old `target` selector had the same hole), not called for by this task's plan or ACs.
 - The "TASK-1.44 had merged" inaccuracy in the Implementation Notes (see item 8 above).
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:36:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

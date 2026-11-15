@@ -1,17 +1,20 @@
 ---
 id: TASK-1.37
 title: 'Kernel: focus as a path, set upward'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:10:00Z'
+updated_date: '2026-11-15T06:12:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
   - TASK-1.35
   - TASK-1.36
+references:
+  - task-1.37-kernel-focus-as-a-path-set-upward
+  - https://github.com/bruk-io/steg/pull/25
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -306,6 +309,62 @@ ok      tool tests (0.9s)
 ok      architecture (1.1s)
 ok      recipe names (0.0s)
 ```
+
+Built as planned, no departures.
+
+Session gets a current_tab field (non-optional, set in Session::new to
+first_tab), Tab gets a new pub(crate) `focus` method (membership-checked,
+same shape as fill_pane), and Tree gets focus_pane, focus_tab and
+focus_direction, returning a new Focused struct (session/tab/pane) and
+FocusMove enum.
+
+R114 and R115 were written into doc-15 after the plan's approval, settling
+the two choices the plan made: Session::close_tab repairs current_tab to
+the tab now at that place, or the new last tab (R114); Session::add_tab
+makes a new tab current unconditionally, mirroring Tab::split_pane's
+existing precedent for a new pane (R115) - --no-focus is left to the
+caller putting the previous focus back, as R115 says, with no kernel
+parameter for it.
+
+Which test proves which clause:
+- AC #1 (every session has a current tab, every tab a current pane):
+  session.rs: a_new_session_has_its_only_tab_as_current,
+  adding_a_tab_makes_it_current, closing_a_non_current_tab_leaves_current_tab_unchanged,
+  closing_the_current_tab_among_several_moves_current_to_the_tab_that_takes_its_place,
+  closing_the_current_tab_when_it_is_last_moves_current_to_the_new_last_tab,
+  move_tab_leaves_current_tab_unchanged. tree.rs:
+  closing_the_current_tabs_last_pane_cascades_and_repairs_the_sessions_current_tab
+  proves the repair also holds through Tree::close_pane's cascade. The
+  tab half was already proven by TASK-1.36 (split_pane_makes_the_new_pane_current,
+  closing_the_current_pane_moves_current_to_a_pane_that_still_exists).
+- AC #2 / R85 (focusing a pane makes its tab current in its session, in
+  the same step): tree.rs: focus_pane_moves_the_pane_and_its_tabs_level_together.
+  focus_tab_does_not_touch_any_tabs_current_pane is the contrast proving
+  tab focus stops at its own level (decision-5 point 1).
+- AC #3 (focus by direction moves to the neighbour, stays at the edge,
+  wraps when asked): tree.rs: focus_direction_moves_to_the_neighbour_and_reports_it,
+  focus_direction_at_the_edge_changes_nothing_and_reports_edge,
+  focus_direction_wraps_when_asked. The geometry (which pane is the
+  neighbour/wrap target) was already proven at the Layout/Tab level by
+  TASK-1.36.
+- AC #4 / R88 (nothing about clients changes when focus does): tree.rs:
+  focus_pane_changes_only_the_current_path_fields (clone before, patch by
+  hand through the same pub(crate) setters focus_pane uses, compare to
+  after - proves every other field is untouched).
+  move_pane_to_tabs_target_tabs_current_pane_moves_but_no_sessions_current_tab_does
+  is the contrast: a different R9 operation that also sets a tab's
+  current pane is not itself a focus.
+- R114 (close repair): the three session.rs tests named under AC #1 above.
+- R115 (new tab/pane becomes current at its own level only):
+  session.rs: adding_a_tab_makes_it_current; the pane half was already
+  TASK-1.36's split_pane_makes_the_new_pane_current.
+- Not-found cases: a_not_found_id_at_any_level_is_the_matching_error
+  (tree.rs) extended with focus_pane/focus_tab/focus_direction.
+
+Checks recorded on this task via asdlc record-check: `just check` exit 0,
+twice (once before the final rebase onto origin/main, once after - the
+rebase was a clean fast-forward of a never-before-pushed branch, no
+conflicts). CI on PR #25 (https://github.com/bruk-io/steg/pull/25) passed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

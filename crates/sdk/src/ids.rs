@@ -43,7 +43,12 @@ pub struct TabId(u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PaneId(u64);
 
-/// Identifies one client: one connection to a server (doc-15 R86).
+/// Identifies one client: one connection to a server (doc-15 R86), unique
+/// across a server's whole tree.
+///
+/// Defined here rather than in `crates/sdk/src/wire/`, because it is an
+/// identifier that crosses the API (doc-16 R105) and TASK-1.42's kernel
+/// client model needs it independently of the wire protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ClientId(u64);
 

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T17:12:00Z'
+updated_date: '2026-11-15T17:16:00Z'
 labels:
   - size-3
   - review-passed
@@ -669,6 +669,14 @@ CI on PR #30's head (6e18352) is green ("check" workflow, SUCCESS), and the reco
 [Nit] crates/sdk/tests/local_socket.rs, binary_that_exists_but_is_not_executable() - writes a uniquely-named temp file via std::fs::write and never removes it; harmless (OS temp dir, unique per process+counter) but a small accumulating leak across test runs.
 
 No findings repeat a mistake from an earlier review of a different task (the one earlier citation, DRAFT-1, already covers this pattern and was already filed), so no new rule-change draft.
+
+---
+
+created: 2026-11-15T17:16:00Z
+
+---
+
+After the clean second review at 6e18352, the worker removed the leftover temp file in tests/local_socket.rs with a delete-on-drop guard (7dec863) and merged main after TASK-1.74 landed (head f097569). Tests only besides the merge; the merged crates/sdk/src/lib.rs read by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at f097569.
 
 ---
 <!-- COMMENTS:END -->

@@ -4,11 +4,10 @@
 //!
 //! The sdk does no I/O of its own (R102): a consumer supplies the transport
 //! through an interface this crate defines, so it works on any runtime and
-//! over any channel a consumer can provide. The `local-socket` feature
-//! (declared in `Cargo.toml`) is this crate's own provider for the local
-//! socket - finding a server, starting one if there is none, and connecting
-//! (R103) - but it is declared and empty today: TASK-1.44 and draft-1 fill it
-//! in.
+//! over any channel a consumer can provide. The `local-socket` feature is
+//! this crate's own provider for the local socket - finding a server,
+//! starting one if there is none, and connecting (R103) - off by default,
+//! and the one place in this crate allowed real I/O.
 //!
 //! Identifiers, the colour set, pane kinds and client kinds are shapes that
 //! cross the API, so they are defined once, here (doc-16 R105), and the
@@ -27,6 +26,7 @@ mod layout;
 mod pane_kind;
 mod record;
 mod screen;
+mod wire;
 
 pub use client_kind::ClientKind;
 pub use colour::Colour;
@@ -41,3 +41,16 @@ pub use record::SessionRecord;
 pub use screen::{
     CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
 };
+pub use wire::{
+    CONTROL_STREAM, ClientHello, Connection, Control, Decoder, Frame, FrameError, Handshake,
+    Incoming, Kind, MAX_FRAME, MAX_PAYLOAD, PROTOCOL_VERSION, Refusal, Refused, Role as WireRole,
+    STEG_MAGIC, ServerHello, check_hello, encode_frame, parse_server_hello,
+};
+
+#[cfg(feature = "local-socket")]
+mod local_socket;
+#[cfg(feature = "local-socket")]
+pub use local_socket::{ConnectError, ConnectOptions, connect, run_fake_server_for_tests};
+
+mod paths;
+pub use paths::socket_path;

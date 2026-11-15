@@ -100,3 +100,9 @@ Proof:
 - Unit tests sit in `#[cfg(test)]` modules beside the logic they prove, per testing-rust.md; no doubles, since there's nothing outside the kernel to fake.
 - `crates/kernel/Cargo.toml` and `boundaries.toml` are unchanged — confirms AC #5's "the crate does no I/O" by construction, not just by the boundaries tool.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan held by @bruk.o, not sent for approval: it hand-rolls ids, colours and errors in the kernel on the assumption that the kernel depends on nothing. The engineer is settling whether the kernel may depend on an SDK with no I/O, in which case ids, the colour set and pane kinds are defined once there. To be revised once the architecture spec is on the board. Open for the engineer: which colour a sixth session takes when all five are in use (the plan proposes wrapping to violet).
+<!-- SECTION:NOTES:END -->

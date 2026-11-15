@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:31:00Z'
+updated_date: '2026-11-15T20:35:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -448,6 +448,51 @@ error[E0308]: mismatched types
 Some errors have detailed explanations: E0061, E0308.
 For more information about an error, try `rustc --explain E0061`.
 error: could not compile `steg-kernel` (lib test) due to 9 previous errors
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:35:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 41 lines:
+
+```text
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/steg)
+error[E0061]: this method takes 3 arguments but 2 arguments were supplied
+   --> crates/server/tests/real_pty.rs:198:14
+    |
+198 |         tree.record_exit(kernel_pane, 3).unwrap(),
+    |              ^^^^^^^^^^^---------------- argument #3 of type `Moment` is missing
+    |
+note: method defined here
+   --> crates/kernel/src/tree.rs:577:12
+    |
+577 |     pub fn record_exit(
+    |            ^^^^^^^^^^^
+help: provide the argument
+    |
+198 |         tree.record_exit(kernel_pane, 3, /* Moment */).unwrap(),
+    |                                        ++++++++++++++
+
+error[E0061]: this method takes 3 arguments but 2 arguments were supplied
+   --> crates/server/tests/real_pty.rs:245:24
+    |
+245 |     let outcome = tree.record_exit(kernel_pane, 7).unwrap();
+    |                        ^^^^^^^^^^^---------------- argument #3 of type `Moment` is missing
+    |
+note: method defined here
+   --> crates/kernel/src/tree.rs:577:12
+    |
+577 |     pub fn record_exit(
+    |            ^^^^^^^^^^^
+help: provide the argument
+    |
+245 |     let outcome = tree.record_exit(kernel_pane, 7, /* Moment */).unwrap();
+    |                                                  ++++++++++++++
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (test "real_pty") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
 ```

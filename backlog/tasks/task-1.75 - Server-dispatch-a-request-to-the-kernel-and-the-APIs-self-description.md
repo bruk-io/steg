@@ -602,6 +602,51 @@ Check passed: `just test` exited 0 at 2026-11-15T16:48:14+00:00 in /Users/brukha
 ```text
 ok      tests (every crate) (1.0s)
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T16:48:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 64 lines:
+
+```text
+ 
+[31m-    let value = ok(dispatch(&mut tree, &api, &context, &request("api.show", vec![])));
+(B[m[32m+    let value = ok(dispatch(
+(B[m[32m+        &mut tree,
+(B[m[32m+        &api,
+(B[m[32m+        &context,
+(B[m[32m+        &request("api.show", vec![]),
+(B[m[32m+    ));
+(B[m 
+     assert_eq!(
+         value["methods"].as_array().unwrap().len(),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:732:
+ fn api_call_with_no_target_is_a_bad_request() {
+     let (mut tree, context, api) = fresh();
+ 
+[31m-    let error = err(dispatch(&mut tree, &api, &context, &request("api.call", vec![])));
+(B[m[32m+    let error = err(dispatch(
+(B[m[32m+        &mut tree,
+(B[m[32m+        &api,
+(B[m[32m+        &context,
+(B[m[32m+        &request("api.call", vec![]),
+(B[m[32m+    ));
+(B[m 
+     assert_eq!(error.code, ErrorCode::BadRequest);
+ }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:804:
+ fn every_served_nothing_returning_method_answers_exactly_null() {
+     let (mut tree, context, api) = fresh();
+     let second_pane = tree
+[31m-        .split_pane(context.default_pane, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+(B[m[32m+        .split_pane(
+(B[m[32m+            context.default_pane,
+(B[m[32m+            steg_sdk::Direction::Right,
+(B[m[32m+            steg_sdk::PaneKind::Terminal,
+(B[m[32m+        )
+(B[m         .unwrap();
+ 
+     for (method, extra) in [
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

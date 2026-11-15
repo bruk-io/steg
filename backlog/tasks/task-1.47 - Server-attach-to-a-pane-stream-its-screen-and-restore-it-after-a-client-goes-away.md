@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T02:21:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -34,4 +34,5 @@ doc-8 R2, doc-9 R15, doc-15 R91. decision-2, sections 3, 5 and 6, including its 
 - [ ] #4 Input arrives on the stream the client attached with; each attachment declares a size, and an update reports the terminal's size when it changes
 - [ ] #5 A client killed mid-output and a new one attaching afterwards ends up with the server's screen and scrollback byte for byte, as an automated test
 - [ ] #6 `spikes/task-1.2-wire-protocol/` is deleted
+- [ ] #7 Attaching, input, scrollback pages and declaring a size are offered by the steg library, and this task's tests go through it (R101)
 <!-- AC:END -->

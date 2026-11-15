@@ -8,7 +8,7 @@ use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use steg_sdk::{
     ClientId, Connection, Frame, Handshake, Incoming, PROTOCOL_VERSION, Refusal, WireRole as Role,
@@ -59,23 +59,78 @@ fn next_local_client_id() -> ClientId {
     ClientId::from_raw(NEXT.fetch_add(1, Ordering::Relaxed))
 }
 
-/// Reads frames off `stream` until a complete one decodes, or the read
-/// times out / the stream closes. `connection` owns the decode buffer;
+/// How long is left before `deadline`, as of `now` - `None` once `now`
+/// has reached or passed it. Pure: both instants are given, not read
+/// from the clock itself, so this is tested with literal `Instant`s
+/// (a captured base plus `Duration` offsets) rather than real timing or
+/// sleeping.
+///
+/// Returns `None` for exactly zero remaining too, not only negative:
+/// `UnixStream::set_read_timeout(Some(Duration::ZERO))` itself errors
+/// on this platform (`cannot set a 0 duration timeout`, confirmed by a
+/// standalone two-line repro, not assumed) - "no time left" and
+/// "a non-zero instant away" must stay distinguishable to this
+/// function's own caller, which needs to tell "already expired" apart
+/// from "about to expire" without itself risking that error.
+fn time_remaining(deadline: Instant, now: Instant) -> Option<Duration> {
+    let remaining = deadline.checked_duration_since(now)?;
+    if remaining.is_zero() {
+        None
+    } else {
+        Some(remaining)
+    }
+}
+
+/// Reads frames off `stream` until a complete one decodes, the deadline
+/// passes, or the stream closes. `connection` owns the decode buffer;
 /// `stream` is read into a plain, short-lived local buffer each call -
 /// who owns which buffer, stated once, the same convention
 /// `steg_sdk::wire`'s own doc already states for its side.
 ///
-/// Returns `None` on a timed-out or failed read, or a clean close with
-/// nothing decoded yet. An oversized declared length is caught here too
-/// (`Decoder::next_frame`'s own `FrameError::TooLarge`, surfaced as
-/// `Incoming::Malformed`) - from only the 4-byte length prefix, with
-/// nothing allocated for the declared body, so a hostile client sees
-/// its refusal promptly rather than this waiting out the handshake
-/// timeout.
-fn read_one(stream: &mut UnixStream, connection: &mut Connection) -> Option<Incoming> {
+/// **One deadline for the whole handshake, not a per-read timeout that
+/// restarts on every byte.** A review of this task found the earlier
+/// version set `stream`'s read timeout once, up front, and never
+/// again - which bounds each individual `read()` call, not the time
+/// this function spends overall: a client sending one byte just inside
+/// every timeout window, never completing a frame, kept a connection
+/// (and its thread) alive for as long as it liked, each successful
+/// partial read resetting the per-call clock. `deadline` is computed
+/// once by the caller and carried through every iteration here
+/// instead: each `read()` is given only [`time_remaining`] until it,
+/// shrinking every time this loop goes around, and a `read()` is never
+/// attempted at all once that reaches zero - closed the same way a
+/// genuinely silent client already was, which is the correct outcome
+/// (AC #4's first clause: a connection that never completes its
+/// handshake is closed after a timeout - "never completes" does not
+/// stop meaning that just because bytes kept arriving one at a time).
+/// A hello that legitimately arrives in many small pieces still
+/// succeeds, as long as the last of them lands before `deadline` -
+/// nothing here penalises a slow but honest connection, only one that
+/// never finishes.
+///
+/// Returns `None` on an expired deadline, a timed-out or failed read,
+/// or a clean close with nothing decoded yet. An oversized declared
+/// length is caught here too (`Decoder::next_frame`'s own
+/// `FrameError::TooLarge`, surfaced as `Incoming::Malformed`) - from
+/// only the 4-byte length prefix, with nothing allocated for the
+/// declared body, so a hostile client sees its refusal promptly rather
+/// than this waiting out the deadline; `connection.poll()` is checked
+/// before the deadline on every iteration, so a frame that has already
+/// fully arrived (even right at the deadline) is still decoded and
+/// handed back, never silently dropped by a deadline check that ran
+/// first.
+fn read_one(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    deadline: Instant,
+) -> Option<Incoming> {
     loop {
         if let Some(incoming) = connection.poll() {
             return Some(incoming);
+        }
+        let remaining = time_remaining(deadline, Instant::now())?;
+        if stream.set_read_timeout(Some(remaining)).is_err() {
+            return None;
         }
         let mut buf = [0_u8; 4096];
         match stream.read(&mut buf) {
@@ -141,13 +196,14 @@ fn describe_non_hello(incoming: &Incoming) -> String {
     }
 }
 
-/// Sets the read timeout, reads the first frame, and classifies it.
+/// Computes the one deadline the whole handshake is held to (`Instant::now`
+/// read once, here, at the moment this connection starts its handshake -
+/// not re-read per read the way the timeout alone used to be), reads
+/// the first frame, and classifies it.
 fn first_frame(stream: &mut UnixStream, handshake_timeout: Duration) -> FirstFrame {
-    if stream.set_read_timeout(Some(handshake_timeout)).is_err() {
-        return FirstFrame::NoCompleteFrame;
-    }
+    let deadline = Instant::now() + handshake_timeout;
     let mut connection = Connection::new(Role::Server, description());
-    match read_one(stream, &mut connection) {
+    match read_one(stream, &mut connection, deadline) {
         None => FirstFrame::NoCompleteFrame,
         Some(Incoming::Hello(payload)) => FirstFrame::Hello(payload),
         Some(other) => FirstFrame::NotAHello(describe_non_hello(&other)),
@@ -242,5 +298,53 @@ pub fn handle(
 
     if let Some(events) = events {
         let _ = events.send(ConnectionEvent::Disconnected);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use super::time_remaining;
+
+    /// `Instant::now()` is read exactly once here, as a base - every
+    /// instant compared against it below is that base plus a literal
+    /// `Duration` offset, never a second real clock read or a sleep.
+    /// `time_remaining` itself takes both instants as plain arguments,
+    /// so this is testing the arithmetic, not real timing.
+    #[test]
+    fn well_before_the_deadline_leaves_most_of_it_remaining() {
+        let base = Instant::now();
+        let deadline = base + Duration::from_secs(10);
+        let now = base + Duration::from_secs(1);
+        assert_eq!(time_remaining(deadline, now), Some(Duration::from_secs(9)));
+    }
+
+    #[test]
+    fn one_nanosecond_before_the_deadline_is_still_some() {
+        let base = Instant::now();
+        let deadline = base + Duration::from_secs(10);
+        let now = deadline - Duration::from_nanos(1);
+        assert_eq!(time_remaining(deadline, now), Some(Duration::from_nanos(1)));
+    }
+
+    /// Exactly zero remaining is `None`, not `Some(Duration::ZERO)` -
+    /// `UnixStream::set_read_timeout(Some(Duration::ZERO))` itself
+    /// errors on this platform (confirmed by a standalone repro, not
+    /// assumed), so this function's own caller must never be handed a
+    /// zero duration to pass to it.
+    #[test]
+    fn exactly_at_the_deadline_is_none() {
+        let base = Instant::now();
+        let deadline = base + Duration::from_secs(10);
+        assert_eq!(time_remaining(deadline, deadline), None);
+    }
+
+    #[test]
+    fn past_the_deadline_is_none() {
+        let base = Instant::now();
+        let deadline = base + Duration::from_secs(10);
+        let now = deadline + Duration::from_secs(1);
+        assert_eq!(time_remaining(deadline, now), None);
     }
 }

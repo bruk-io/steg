@@ -498,3 +498,61 @@ fn stop_racing_a_client_connecting_still_returns_within_a_bound() {
         let _ = std::fs::remove_file(&lock_path);
     }
 }
+
+/// A trickling, mid-handshake client (`handshake.rs`'s own
+/// `a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline`
+/// proves the handshake deadline itself closes it) must not also be
+/// able to make a *stop* wait on it. This is a guard, not a new
+/// discovery: the mechanism - `shutdown(Both)` on the tracked clone
+/// unblocking the thread's own blocked `read()` regardless of what
+/// read timeout is set - is the same one
+/// `a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop`
+/// already proved, and a trickling connection's thread is blocked in
+/// exactly that kind of `read()` call (just with a shrinking deadline
+/// instead of no timeout at all) when `stop` is called. Driven off the
+/// events channel rather than a sleep, so `stop()` is called only once
+/// the trickler is confirmed connected and mid-handshake, not merely
+/// "probably by now".
+#[test]
+fn stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound() {
+    let (events_tx, events_rx) = mpsc::channel();
+    // Long enough that the handshake's own deadline is not what ends
+    // this test - only `stop()` is.
+    let (socket_path, _config, stop, server_thread) =
+        start_server(Duration::from_secs(30), Some(events_tx));
+
+    let mut trickler = UnixStream::connect(&socket_path).unwrap();
+    events_rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("Connected should arrive for the trickler");
+
+    let trickler_thread = std::thread::spawn(move || {
+        // A declared length `Decoder::next_frame` accepts but never
+        // completes, the same shape `handshake.rs`'s own trickle test
+        // uses - this connection must still be genuinely mid-handshake
+        // (nothing decoded yet) when `stop()` below fires.
+        let declared_len: u32 = 1_000_000;
+        let mut bytes = declared_len.to_be_bytes().to_vec();
+        bytes.extend(std::iter::repeat_n(0_u8, 20));
+        for byte in &bytes {
+            if trickler.write_all(std::slice::from_ref(byte)).is_err() {
+                break; // the server already closed its side - stop() won
+            }
+            std::thread::sleep(Duration::from_millis(40));
+        }
+    });
+
+    stop.stop();
+    join_within(server_thread, Duration::from_secs(5));
+    trickler_thread
+        .join()
+        .expect("the trickler thread should not panic");
+
+    let _ = std::fs::remove_file(&socket_path);
+    let lock_path = {
+        let mut p = socket_path.as_os_str().to_owned();
+        p.push(".lock");
+        PathBuf::from(p)
+    };
+    let _ = std::fs::remove_file(&lock_path);
+}

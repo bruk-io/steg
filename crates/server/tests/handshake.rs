@@ -449,3 +449,151 @@ fn a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_wit
 
     stop_server(&stop, handle);
 }
+
+/// A review of this task found the handshake timeout was, in the
+/// earlier version, per-`read()` rather than for the whole handshake:
+/// a client sending one byte just inside every timeout window, never
+/// completing a frame, kept its connection (and thread) open for as
+/// long as it liked, each successful partial read resetting the
+/// per-call clock. Proves the fix: a trickler sends one byte every
+/// 40ms for up to 1.6s - comfortably longer than the 300ms handshake
+/// timeout below, and well inside what the *old* per-read timeout
+/// would tolerate indefinitely - and the connection must still close
+/// at roughly the deadline, not after the trickle eventually stops.
+#[test]
+fn a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline() {
+    let handshake_timeout = Duration::from_millis(300);
+    let (socket_path, stop, handle) = start_server(handshake_timeout);
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let connected_at = Instant::now();
+
+    let mut trickler_stream = stream.try_clone().unwrap();
+    // Joined below on every path (including a `panic!` from this test
+    // itself unwinding past it is not a concern here - there is no
+    // early `panic!`/`?` between spawning this and joining it) - the
+    // same rule this task applies to every thread it spawns.
+    let trickler = std::thread::spawn(move || {
+        // A declared length well inside `Decoder::next_frame`'s own
+        // accepted range (`HEADER_LEN..=MAX_FRAME`) - large enough
+        // that the handful of bytes trickled after it never completes
+        // a frame, so `connection.poll()` keeps returning "need more"
+        // for the whole trickle (found necessary while writing this
+        // test: a declared length that is itself too small or too
+        // large fails fast at the framing level - a real but
+        // different, already-tested branch - rather than ever
+        // reaching the deadline this test means to exercise).
+        let declared_len: u32 = 1_000_000;
+        let mut bytes = declared_len.to_be_bytes().to_vec();
+        bytes.extend(std::iter::repeat_n(0_u8, 36));
+        for byte in &bytes {
+            if trickler_stream
+                .write_all(std::slice::from_ref(byte))
+                .is_err()
+            {
+                break; // the server already closed its side
+            }
+            std::thread::sleep(Duration::from_millis(40));
+        }
+    });
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut buf = [0_u8; 16];
+    let result = stream.read(&mut buf);
+    let elapsed = connected_at.elapsed();
+
+    trickler
+        .join()
+        .expect("the trickler thread should not panic");
+
+    match result {
+        Ok(0) => {} // a clean close
+        Ok(n) => panic!("expected the connection to close with no reply, got {n} bytes"),
+        Err(err) => assert_ne!(
+            err.kind(),
+            std::io::ErrorKind::WouldBlock,
+            "the connection should have closed near the handshake timeout, not the test's own 5s read timeout"
+        ),
+    }
+    assert!(
+        elapsed < handshake_timeout + Duration::from_secs(1),
+        "expected the deadline, not the still-running 1.6s trickle, to close this: closed after {elapsed:?} against a {handshake_timeout:?} handshake timeout"
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// A hello that legitimately arrives in many small pieces is not
+/// penalised by the deadline - only a connection that never finishes
+/// is. Each byte is sent 5ms apart, comfortably inside the 5s
+/// handshake timeout given below (the hello is well under 1s of bytes
+/// at that rate).
+#[test]
+fn a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted() {
+    let handshake_timeout = Duration::from_secs(5);
+    let (socket_path, stop, handle) = start_server(handshake_timeout);
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
+    let payload = serde_json::to_vec(&hello).unwrap();
+    let bytes = encode_frame(&Frame::hello(payload)).unwrap();
+    for byte in &bytes {
+        stream.write_all(std::slice::from_ref(byte)).unwrap();
+        std::thread::sleep(Duration::from_millis(5));
+    }
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let frame_payload = read_one_frame_payload(&mut stream);
+    parse_server_hello(&frame_payload)
+        .expect("a hello completed well inside the deadline should still be accepted");
+
+    stop_server(&stop, handle);
+}
+
+/// The other side of the same deadline: a hello that would only
+/// finish well *after* it (roughly twice the handshake timeout away,
+/// not a knife's-edge margin) is never accepted - closed with no
+/// reply, the same as a client that sent nothing at all, because
+/// nothing was ever fully decoded before the deadline passed. Either
+/// the client's own write fails partway through (the server has
+/// already shut the connection down) or it finishes sending and then
+/// observes the close on its next read - both are a fine, equally
+/// correct outcome for this test, only a hang or an accepted hello
+/// would not be.
+#[test]
+fn a_hello_completing_well_after_the_deadline_is_closed_with_no_reply() {
+    let handshake_timeout = Duration::from_millis(300);
+    let (socket_path, stop, handle) = start_server(handshake_timeout);
+
+    let mut stream = UnixStream::connect(&socket_path).unwrap();
+    let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
+    let payload = serde_json::to_vec(&hello).unwrap();
+    let bytes = encode_frame(&Frame::hello(payload)).unwrap();
+    let per_byte_delay = (handshake_timeout * 2) / u32::try_from(bytes.len()).unwrap();
+    for byte in &bytes {
+        if stream.write_all(std::slice::from_ref(byte)).is_err() {
+            break; // the server already closed its side - fine, see this test's own doc
+        }
+        std::thread::sleep(per_byte_delay);
+    }
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut buf = [0_u8; 16];
+    match stream.read(&mut buf) {
+        Ok(0) => {} // a clean close
+        Ok(n) => panic!("expected no reply and a close, got {n} bytes"),
+        Err(err) => assert_ne!(
+            err.kind(),
+            std::io::ErrorKind::WouldBlock,
+            "the connection should have closed once the deadline passed"
+        ),
+    }
+
+    stop_server(&stop, handle);
+}

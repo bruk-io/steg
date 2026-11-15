@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:26:00Z'
+updated_date: '2026-11-15T14:41:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -19,6 +19,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-9
 asdlc_branch: task-1.39-kernel-a-terminal-s-screen-and
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'b1c858e146a2'
+asdlc_plan_approved_size: size-4
 ---
 
 ## Description
@@ -306,3 +309,16 @@ scrollback task's single-reader method ends up implying.
 
 Plan for the narrowed task checked against doc-9 (R14, R16, R92, R116), doc-16 (R105) and decision-2 by @bruk.o: ok. A free-standing kernel Terminal over the engine, not stored on a pane; the screen read out as rows of styled runs with the cursor; the cell model with wide characters, underline style and colour, cursor shape and link presence; link_at for a cell's address; working directory and title copied out of the engine's events, which are drained after every write; resize. Drawing shapes are in the sdk with no new dependency. Named for later tasks: the engine's handles cannot move between threads, and pixel sizes are passed as zero until the clients-and-size task.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T14:41:00Z
+
+---
+
+Plan approved by @bruk (b1c858e146a2, size-4): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

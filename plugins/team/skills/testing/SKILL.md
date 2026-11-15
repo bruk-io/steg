@@ -68,6 +68,10 @@ Build it, take a screenshot, compare it with the design, and adjust. Two or thre
 
 A check or test that looks wrong is a finding on the task, not something to change now. Never weaken a check, skip a test or loosen an assertion to make a change pass.
 
+### Processes and threads
+
+Code that starts a child process or a thread owns its end. Before saying the task is done, list every path that can end it or drop its last handle (the ordinary end, an early return, an error branch, a shutdown) and check that each one still waits on the child or joins the thread, with a test for each path that uses a real process and a bounded wait. Where a path leaves one running on purpose, such as a server that outlives the client that started it, say so in the notes, with what is left behind and who takes it over.
+
 ## Recording the evidence
 
 Before saying a task is done, run the change's tier through `asdlc record-check`, from the task's worktree, so the reviewer judges the tool's output rather than an account of it:

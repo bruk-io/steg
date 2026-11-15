@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:01:00Z'
+updated_date: '2026-11-15T03:03:00Z'
 labels:
   - size-2
   - changes-requested
@@ -72,6 +72,42 @@ The repository's one check command has to run where nobody can forget it. doc-1,
 - In a second scratch commit, force the `test` step's selection away from `none` on the `pull_request` path (e.g. touch a file in `GLOBAL_FILES`/`GLOBAL_FOLDERS`, or temporarily swap `just check`'s `test` recipe for `test-all` in that run) and push; confirm `cargo test` actually executes against the `gpui`-linked workspace on the runner and passes; then revert the scratch commit so the merged diff is only `.github/workflows/ci.yml`.
 - To exercise the `push`-to-`main` path (and its `test-all` step) before merging anything to `main`, temporarily add the task's own branch to the workflow's `push.branches` list in a scratch commit, push, confirm both `just check` and `just test-all` run and pass on that event; then remove the task branch from the list again, leaving only `main`, before the final push.
 - Record each local command above with `asdlc record-check TASK-1.32 --in <worktree> --as bruk.w5 -- <command>`. The GitHub-side confirmations (status check present, run log contents, forced-red run, forced-test-run, push-path exercised) are read from the Actions UI/`gh run view` and reported in the task's notes instead, since they can't run inside the worktree.
+
+## Review fix (2026-11-15): concurrency corrected
+
+Review found the plan's own concurrency step (step 2, as built) cancelled every
+push-to-main CI run before a job started: `cancel-in-progress: true` on a group keyed
+by `github.ref`, and asdlc's board pushes to `origin/main` constantly with `github.ref`
+unchanged between those pushes on `main`. ~19 runs in a row were cancelled with zero
+jobs started, so neither AC #1's push-to-main half nor `just test-all` on push ever
+completed. Corrected on a fresh branch, `task-1.32-fix-ci-concurrency`, PR
+https://github.com/bruk-io/steg/pull/12:
+
+- `cancel-in-progress: ${{ github.event_name == 'pull_request' }}` — cancel a
+  superseded run only when it's a pull request iterating on one branch; never on push
+  to main.
+- `paths-ignore: [backlog/**, plugins/**]` on the `push` trigger, so a push where every
+  changed file is under the board or the agent plugins doesn't start a run at all. A
+  push that touches both the board and code still runs, since `paths-ignore` only skips
+  when every changed file matches.
+
+Proved before merge on a disposable scratch branch (`task-1.32-scratch-cancel`,
+temporarily added to `push.branches`, deleted after observing):
+- A push touching only a throwaway file under `plugins/**` started no run at all (run
+  list showed none).
+- A push touching that same file together with a real code file did start a run.
+- Two pushes to that branch close enough together that the second queued while the
+  first was still running: the first (run 43670166988) completed success, including
+  `just test-all`, instead of being cancelled; the second (run 43670217375) queued as
+  `pending`, then ran and completed success too, including `just test-all`. Neither was
+  cancelled.
+
+What this doesn't prove, and can only be confirmed on `main` itself after this PR
+merges: that a real board-only push to `main` (an `asdlc board`/`record-check` commit)
+starts no run, and that a real code push to `main` completes both `just check` and
+`just test-all` without being superseded by the board's own ongoing activity. The
+scratch branch reproduces the same trigger config but isn't `main`, so it doesn't
+receive the board's actual push traffic.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

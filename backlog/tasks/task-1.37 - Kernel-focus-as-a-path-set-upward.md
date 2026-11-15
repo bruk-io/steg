@@ -11,6 +11,7 @@ labels:
 milestone: m-0
 dependencies:
   - TASK-1.35
+  - TASK-1.36
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -90,3 +91,9 @@ Recipe names as they are on `origin/main` today (`just check`'s line there is `c
 - `just check` before the task is called done: `check-fmt`, `lint`, `check-boundaries` (the new `direction.rs` module is plain data with no I/O and no new external dependency, so it should pass with no change to `boundaries.toml`), `deny`, `test`, `test-tools`, `check-architecture`, `check-recipes`.
 - AC #3 has no proof here: it is out of scope for this task's commits (step 9), pending TASK-1.36 or a resequencing the engineer decides on.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Ordered after TASK-1.36 by @bruk.o on 2026-11-15. The plan written for this task says, rightly, that focusing by direction cannot be built on a tab's flat list of panes without inventing a geometry, and it would otherwise rewrite the same files the layout task rewrites. So the whole task waits for the layout tree and is built once. The plan stays on the task as the starting point; it is to be revised against TASK-1.36's result, which is asked to provide the direction shape in the sdk and a pane's neighbour in a direction. The claim was released to free the slot.
+<!-- SECTION:NOTES:END -->

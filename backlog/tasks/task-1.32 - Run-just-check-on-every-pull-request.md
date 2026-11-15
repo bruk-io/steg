@@ -1,19 +1,19 @@
 ---
 id: TASK-1.32
 title: Run just check on every pull request
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
 updated_date: '2026-11-15T03:04:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-0
 dependencies: []
 references:
   - task-1.32-run-just-check-on-every-pull-request
   - https://github.com/bruk-io/steg/pull/8
+  - https://github.com/bruk-io/steg/pull/12
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -210,6 +210,37 @@ ok      tool tests (0.2s)
 ```
 
 Commits since the review: 58, 54 without the Asdlc-Worker trailer.
+
+Fixed both review findings on a fresh branch (task-1.32-fix-ci-concurrency, PR #12,
+since PR #8's branch was already merged). Full reasoning and pre-merge proof are on
+the plan (see "Review fix (2026-11-15)", approved by @bruk, digest c6301b963301).
+
+[Important] Fixed: cancel-in-progress is now ${{ github.event_name == 'pull_request' }}
+(never for push), and the push trigger has paths-ignore: [backlog/**, plugins/**] so a
+push where every changed file is under the board or the agent plugins starts no run at
+all. Proved pre-merge on a disposable scratch branch (push is scoped to main, so this
+was the only way to exercise it before merging): a push touching only plugins/** started
+no run; a push touching plugins/** plus code did run; two close-together pushes both
+ran to completion (one queued instead of cancelling the other), including just test-all
+on both.
+
+What's only confirmable after this PR merges to main, stated plainly rather than faked:
+that a real asdlc board-only push to main starts no run, and that a real code push
+completes just check + just test-all without the board's own ongoing push traffic
+superseding it.
+
+[Nit] Fixed: recorded a local `just test-all` pass (19.8s), closing the plan's Proof
+step 1 gap the review found.
+
+Checks recorded with `asdlc record-check` (full output on the task): `just check`
+passed at 00cd2a125d66 (the branch's current head, after merging in main's intervening
+changes - the sdk crate split etc. - with no conflicts): ok format check, ok lint, ok
+boundaries, ok licences, skip tests (no crate touched), ok tool tests. `just test-all`
+passed separately (ok, 19.8s) at an earlier commit on the same branch, unaffected by
+the later merge.
+
+GitHub Actions (PR #12, run 43670483343, pull_request, at the branch's current head):
+green in 43s (cache hit from Swatinem/rust-cache).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

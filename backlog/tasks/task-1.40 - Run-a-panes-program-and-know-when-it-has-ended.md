@@ -1,13 +1,14 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:40:00Z'
+updated_date: '2026-11-15T18:04:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -23,8 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=4'
-asdlc_review_policies: ["review", "rust", "licence"]
+asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
 ---
 
@@ -553,6 +554,40 @@ Findings: 2 Important, 4 nit. Cites: review, rust, licence. The diff does not ma
 [Tests, Nit] No bound on how long a real-pty test, or the CI job itself, can run: real_pty.rs's waits are all unbounded `events_rx.recv()`, and .github/workflows/ci.yml's `check` job sets no `timeout-minutes`, so a misbehaving child would hang the job up to GitHub's 360-minute default on a macOS runner this file itself calls "billed at a premium."
 
 Evidence checked: just check (format, lint, boundaries, licences, affected+per-package tests, architecture, recipe names) run clean on this worktree at the branch head (78c897c80feb), matching the recorded check and PR #32's green CI run on the same commit. just deny passes; boundaries.toml's new allow entries have true reasons. crates/kernel/clippy.toml and crates/sdk/clippy.toml are unchanged - no new I/O exemption in the kernel, and no process/file/socket/clock type appears in any kernel or sdk signature. Kernel tests cover starting twice (errors), recording an exit before starting (errors), restart only once Ended and never for a Shell pane, and a shell pane's exit cascading through the exact tree used by a manual close, on a one-pane-tab/one-tab-session fixture (a_shell_panes_exit_closes_it_through_the_same_cascade_as_a_manual_close). Program/ProgramStatus have wire-form round-trip tests, including a negative exit code. Ran crates/server/tests/real_pty.rs five times in a row with no failures and no sleep-based waits (all blocking recv on the event the real program or a real EOF triggers). No unwrap outside tests; errors from send-to-a-dropped-receiver are handled with map_err, not a panic.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T17:44:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T18:04:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 4 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at head eb867f0dd397664d78bb3a6023520d13b228b2d8 (PR #32). just check passes clean on this worktree at that head (format, lint, boundaries, licences, every crate's tests, architecture, recipe names); PR #32's CI is green on the same commit (gh pr checks 32, ~3m55s, running `just check` per .github/workflows/ci.yml).
+
+[Compliance, Important] crates/server/src/dispatch/kernel_error.rs, crates/kernel/src/error.rs. Merging origin/main (the merge commit eb867f0 itself, authored on this branch) pulled in TASK-1.75's whole dispatch module. Its kernel_error.rs match is exhaustive over steg_kernel::Error, so the merge forced a real design decision that didn't exist when this task's plan was written: mapping all four of this task's new kernel errors (ProgramAlreadyStarted, ProgramNotStarted, ProgramStillRunning, ShellCannotRestart) to ErrorCode::ProgramRunning (git log --oneline -- crates/server/src/dispatch/kernel_error.rs shows the arms land in eb867f0 itself, not in TASK-1.75's own commits). The implementation notes log two other post-review rebases by name (TASK-1.74, TASK-1.70) but say nothing about this one; the one remaining mention of TASK-1.75 ("picked up TASK-1.42/1.70/1.74/1.75's board-only commits with no code conflicts") was true only of an earlier, pre-dispatch rebase and was never revisited once TASK-1.75 actually shipped ~1800 lines of dispatch code and forced this mapping choice - an unnamed departure, the same policy clause the first review already cited against anyhow. The choice is also wrong for two of the four: ErrorCode::ProgramRunning is documented (crates/sdk/src/description/shapes.rs:278) as "A program is still running and `--force` was not given" - fits ProgramAlreadyStarted/ProgramStillRunning, but is the literal opposite for ProgramNotStarted (no program is running at all) and unrelated for ShellCannotRestart (restart has no --force flag anywhere in doc-2). Confirmed none of the four is reachable through dispatch today (no call to start/shutdown/restart_program/record_exit anywhere under crates/server/src/dispatch/), so nothing breaks a client yet, but the exhaustive-match guard this file's own doc comment is proud of ("a new kernel error... refused here until someone decides what code it becomes") only catches a future missing arm, never a wrong existing one - this ships as the real client-facing code the day something wires restart/record_exit into dispatch, unless revisited first.
+
+[Evidence, Nit] The worker's last recorded check (775fcedcceee) predates eb867f0 (the merge above) by several commits; no asdlc record-check ran after it. I ran just check myself at eb867f0 and it passed clean, and CI is green on the same commit, so the evidence exists - just not self-recorded by the worker at the reviewed head.
+
+[Bugs, Nit] crates/server/src/pane.rs spawn_relay: the mid-run zombie/early-return bug from the first review is genuinely fixed - confirmed by reading the code, running cargo test -p steg-server --lib -- shutdown_mid_run (passes), and tracing PaneHandle::shutdown()'s real path by hand (Shutdown -> worker_loop breaks -> commands_rx drops -> the relay's next send fails -> break -> child.wait()), which holds even though the committed test drives spawn_relay directly with a bare channel rather than through PaneHandle::shutdown() itself. The second half - a program that writes nothing before shutdown (e.g. sleep 1000) leaves the relay thread blocked in read and the child running indefinitely - is honestly not fixed, and the notes say why in real technical detail (a separate try_clone_reader descriptor defeats the pty hang-up on this platform; a real fix needs unsafe and an ownership change outside this plan). Acceptable for this round: none of the three acceptance criteria touch pane shutdown, nothing in dispatch calls start/shutdown yet so the gap is unreachable by any current client path, and the plan itself excludes --force killing a running program. But the deferral ("left for the task that builds forced close") names no actual task - checked the board (asdlc board task list --plain) and no open task covers --force/killing a program yet, only code comments track it. DRAFT-2 already covers the general lesson from the first review, so no new draft is needed for the mistake itself, but this specific gap has no tracked home beyond a comment until a task exists for it.
+
+[Rust, Nit] Same file: child.wait()'s Err(_) => return also skips reporting anywhere that the exit code is unknown - the same "not every path that can end the child's lifecycle is handled" shape DRAFT-2 names, just on wait() failing outright rather than being skipped. Likely unreachable in practice; worth a comment saying the silence is deliberate.
+
+[Tests, Nit] shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output drives spawn_relay directly with a fresh channel and drop(rx), not through PaneHandle::start/shutdown(). Traced the public path by hand and it holds (above), but a test through the real public API would prove it more directly.
+
+Merge-kept-both-sides spot check: crates/kernel/src/error.rs, tree.rs, pane.rs and crates/sdk/src/lib.rs all still carry both TASK-1.40's additions and the other merged tasks' (TASK-1.70/1.74/1.75) side by side.
 
 ---
 <!-- COMMENTS:END -->

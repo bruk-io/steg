@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:35:00Z'
+updated_date: '2026-11-15T17:44:00Z'
 labels:
   - size-3
   - review-passed
@@ -911,6 +911,14 @@ Checked the merge: `git diff origin/main...HEAD` touches crates/sdk/src/ids.rs a
 Evidence note: PR #29's CI failure at this head is the account-billing job-start failure described in the review assignment (a run with no steps), not a code issue; not chased further. The recorded `just check` at 36f1c599061b, reproduced independently above, is the evidence judged.
 
 No findings. The diff matches the plan; no departures beyond the judgement calls already flagged and accepted in the plan and the first two reviews (the doc-14 unit framing, no label validation for clients, the latest-departure fallback, and the set_tab_size/Tab::set_size visibility narrowing).
+
+---
+
+created: 2026-11-15T17:44:00Z
+
+---
+
+After the clean third review at 36f1c59, the worker merged main (TASK-1.75's server dispatch had landed) and added arms for this task's three kernel errors in crates/server/src/dispatch/kernel_error.rs (16ae947): ClientNotFound -> NoSuchTarget; ClientNotViewingPane and ClientNotViewingTab -> BadRequest, with a test per mapping. The reviewer did not see this commit; read line by line by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 16ae947.
 
 ---
 <!-- COMMENTS:END -->

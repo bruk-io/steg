@@ -1,8 +1,9 @@
 ---
 id: TASK-1.67
 title: Break the second release into tasks
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-15T01:33:00Z'
 updated_date: '2026-11-15T02:23:00Z'
 labels:

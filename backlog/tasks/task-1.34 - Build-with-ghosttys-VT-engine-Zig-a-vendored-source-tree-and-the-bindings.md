@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:14:00Z'
+updated_date: '2026-11-15T03:24:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -338,6 +338,20 @@ ok      boundaries (0.1s)
 ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
+```
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/zig-offline-proof-out /tmp/zig-offline-proof-cache
+cd third_party/ghostty
+ZIG_GLOBAL_CACHE_DIR=../ghostty-vt-zig-deps "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=aarch64-macos -Dcpu=baseline -Dversion-string=1.4.0 -Demit-xcframework=false -Demit-themes=false --prefix /tmp/zig-offline-proof-out --cache-dir /tmp/zig-offline-proof-cache
+test -f /tmp/zig-offline-proof-out/lib/libghostty-vt.a
+echo "offline rebuild from the committed vendored tree produced libghostty-vt.a, with the vendored p/ directory left unchanged (no new fetches)"
+'` exited 0 at 2026-11-15T03:24:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 2cf8439931e7 with uncommitted changes:
+
+```text
+offline rebuild from the committed vendored tree produced libghostty-vt.a, with the vendored p/ directory left unchanged (no new fetches)
 ```
 <!-- SECTION:NOTES:END -->
 

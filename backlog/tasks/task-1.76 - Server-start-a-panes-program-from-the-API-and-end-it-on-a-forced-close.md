@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:12:00Z'
+updated_date: '2026-11-15T20:16:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -181,49 +181,49 @@ when it lands, its own resolved shell/home replaces
 `LoginShell` changes, because `program_from_request` and the two cwd rules
 below only ever see the already-resolved value.
 
-**Working directory, two rules, both buildable — I built the first**:
+**Working directory: the plan's default is rule B, described below; rule A
+is the described alternative; the engineer chooses at approval.**
 
-- **Rule A — `$HOME` always.** Every `session.new`/`tab.new`/`pane.split`
-  with no `cwd` given gets `login.home`. Needs nothing beyond what §1
-  already has.
-- **Rule B — inherit the live directory of the pane being split (for
-  `pane.split`), or of the session's current pane (for `tab.new`); `$HOME`
-  for `session.new`, which has no pane to inherit from.** This is what
-  `doc-9` R16 already says the server tracks — confirmed by reading
-  `crates/kernel/src/terminal.rs:452-459`: `Terminal::cwd()` returns the
-  *live* directory, last reported by a real OSC 7 from the shell actually
-  running there (not the pane's stored `Program::cwd()`, which is the
-  directory it *started* in and does not follow a later `cd` — the same
-  distinction TASK-1.40's own plan drew for `restart`). Needs one new,
-  small accessor, the same shape as the existing `snapshot()`: `PaneHandle::
-  cwd(&self) -> Result<Option<String>, Error>` (new `PaneCommand::Cwd
-  (Sender<Option<String>>)`, the worker replies `terminal.cwd().map(str::
-  to_string)`), called under `Runtime`'s lock before building the new
-  `LaunchSpec` — the source pane is already in `state.panes` at that point,
-  found via `tree.tab_owning_pane`/`session.current_tab()` + `tab.current()`
-  for `tab.new`'s case (the same lookup `dispatch::pane::split`'s own
-  rollback already does for "the tab's previous current pane", mod.rs/
-  pane.rs:88-90). Falls back to `login.home` in every case the chain does
-  not produce a real answer: no source pane at all (the session `tab.new`
-  targets has no tab/pane yet — true of nothing today, since `new_session`
-  always mints a first tab and pane together, but not assumed to stay true
-  forever), the source pane's `PaneHandle` not yet in `panes` (should not
-  happen under the one lock, but checked rather than `.expect()`ed), or the
-  source pane reporting no cwd yet (OSC 7 never fired). `PaneHandle::cwd`
-  itself uses a bounded `recv_timeout` (not a bare `recv`) on its reply
-  channel, falling back to `login.home` on timeout too — keeping §1's claim
-  that nothing under the lock blocks on another thread's progress literally
-  true even though this read is a channel round-trip to a pane's worker,
-  which could in principle be mid-`vt_write` on a large flood (R19's worst
-  case). A timeout here is treated the same as "no answer yet", not an
-  error.
+**Rule B (built) — inherit the live directory of the pane being split (for
+`pane.split`), or of the session's current pane (for `tab.new`); `$HOME`
+for `session.new`, which has no pane to inherit from, and whenever the
+chain below produces no answer.** This is what `doc-9` R16 already says
+the server tracks — confirmed by reading `crates/kernel/src/terminal.
+rs:452-459`: `Terminal::cwd()` returns the *live* directory, last reported
+by a real OSC 7 from the shell actually running there (not the pane's
+stored `Program::cwd()`, which is the directory it *started* in and does
+not follow a later `cd` — the same distinction TASK-1.40's own plan drew
+for `restart`). Needs one new, small accessor, the same shape as the
+existing `snapshot()`: `PaneHandle::cwd(&self) -> Result<Option<String>,
+Error>` (new `PaneCommand::Cwd(Sender<Option<String>>)`, the worker replies
+`terminal.cwd().map(str::to_string)`), called under `Runtime`'s lock before
+building the new `LaunchSpec` — the source pane is already in `state.panes`
+at that point, found via `tree.tab_owning_pane`/`session.current_tab()` +
+`tab.current()` for `tab.new`'s case (the same lookup `dispatch::pane::
+split`'s own rollback already does for "the tab's previous current pane",
+mod.rs/pane.rs:88-90). Falls back to `login.home` in every case the chain
+does not produce a real answer: no source pane at all (the session `tab.
+new` targets has no tab/pane yet — true of nothing today, since `new_
+session` always mints a first tab and pane together, but not assumed to
+stay true forever), the source pane's `PaneHandle` not yet in `panes`
+(should not happen under the one lock, but checked rather than
+`.expect()`ed), or the source pane reporting no cwd yet (OSC 7 never
+fired). `PaneHandle::cwd` itself uses a bounded `recv_timeout` (not a bare
+`recv`) on its reply channel, falling back to `login.home` on timeout too —
+keeping §1's claim that nothing under the lock blocks on another thread's
+progress literally true even though this read is a channel round-trip to a
+pane's worker, which could in principle be mid-`vt_write` on a large flood
+(R19's worst case). A timeout here is treated the same as "no answer yet",
+not an error. I built this one because it is what a real terminal
+multiplexer does, and it is enabled by state TASK-1.39 already tracks for
+exactly this reason (R16).
 
-**I built rule B** and am flagging it rather than deciding it unilaterally:
-it is what a real terminal multiplexer does, it is enabled by state TASK-1.39
-already tracks for exactly this reason (R16), and it costs one small
-accessor rather than new design. Rule A is simpler and needs nothing new;
-either is a small, isolated change (`program_from_request`'s one call site
-per method), so the choice does not gate the rest of this plan.
+**Rule A (not built, the described alternative) — `$HOME` always.** Every
+`session.new`/`tab.new`/`pane.split` with no `cwd` given gets `login.home`,
+unconditionally. **If the engineer picks this instead**: delete `PaneHandle
+::cwd` and `PaneCommand::Cwd` from `pane.rs`, and `program_from_request`'s
+caller passes `login.home` directly rather than resolving a source pane
+first — one function's body changes, nothing else in this plan does.
 
 `Program::Shell` resolves to `login.argv0` (never a second, separate
 environment read).
@@ -471,20 +471,36 @@ part two (the forced-close task) closes, starting from this section.
 already on all three methods' `errors` list, and its own doc comment ("A
 program is still running and `--force` was not given") is a verbatim match.
 
-**One new code is needed**, surfaced by §2's rollback, not by the four
-kernel errors the brief named: `ErrorCode::ProgramFailed` — "the program
-could not be started" (a real OS-level spawn failure). Nothing existing
-fits: `BadRequest` is "did not match the description" (validation-shaped)
-and maps to CLI exit status **2** ("bad usage"), confirmed from `crates/
-sdk/src/description/methods.rs:1472` — the request was fine, the OS refused
-it, which is doc-2 section 6's status **1** ("the command ran and failed").
-New code added to `ErrorCode` (shapes.rs), to the `exit_status` table
-(status 1), to `pane.split`/`tab.new`/`session.new`'s `errors` lists
-(methods.rs), mapped from `steg_server::Error::Pty` in a new `crates/
-server/src/dispatch/server_error.rs`. **Flagged for the engineer as its own
-item**: this is new public surface in the sdk's description, which the
-generated CLI (TASK-1.49/1.50, not yet built) will consume mechanically
-(R32) — not an internal refactor.
+### For the engineer: a new public error code, `ErrorCode::ProgramFailed`
+
+Surfaced by §2's rollback, not by the four kernel errors the brief named:
+a real OS-level spawn failure (a bad command, and, pending the `cwd`
+experiment, possibly a bad working directory) needs a code, and nothing
+existing fits. `BadRequest` is "did not match the description"
+(validation-shaped) and maps to CLI exit status **2** ("bad usage"),
+confirmed from `crates/sdk/src/description/methods.rs:1472` — but the
+request here was perfectly well-formed; the OS refused it, which is
+doc-2 section 6's status **1** ("the command ran and failed").
+
+**This does not add a new row to doc-2 section 6's table of exit
+statuses** — all six already exist, and `ProgramFailed` maps to the
+existing status **1**, the same one `ProgramRunning`/`SplitTooSmall`/
+`EngineFailed` already use. Nothing in doc-2's own prose names error
+codes at all (that table is generated from the sdk's description, not
+written by hand), so there is no doc-2 text to edit either way. **What
+does change, and is new public surface the generated CLI (TASK-1.49/1.50,
+not yet built) will consume mechanically (R32), not an internal
+refactor**:
+- `crates/sdk/src/description/shapes.rs` — a new `ErrorCode::
+  ProgramFailed` variant.
+- its `ErrorRecord` entry (wherever the sdk builds `description().errors`
+  from each `ErrorCode`) — summary text, `exit_status: 1`.
+- `crates/sdk/src/description/methods.rs` — added to `pane.split`/
+  `tab.new`/`session.new`'s own `errors: vec![...]` lists, the three
+  methods that can now fail to start a real program.
+- `crates/server/src/dispatch/server_error.rs` (new) — maps
+  `steg_server::Error::Pty` to it; this file, not `kernel_error.rs`,
+  since the source is the server's own I/O, never the kernel's.
 
 **The four kernel errors the brief named, checked against doc-2, each with
 a reason, none changed**:

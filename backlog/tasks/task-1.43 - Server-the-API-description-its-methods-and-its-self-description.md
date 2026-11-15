@@ -1,11 +1,11 @@
 ---
 id: TASK-1.43
 title: 'sdk: the API description, validation against it, and typed results'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:10:00Z'
+updated_date: '2026-11-15T15:15:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -14,6 +14,9 @@ dependencies:
   - TASK-1.37
   - TASK-1.38
   - TASK-1.69
+references:
+  - task-1.43-server-the-api-description-its-methods
+  - https://github.com/bruk-io/steg/pull/28
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -22,6 +25,8 @@ asdlc_branch: task-1.43-server-the-api-description-its-methods
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6427b7d1fb39'
 asdlc_plan_approved_size: size-4
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -384,6 +389,19 @@ ok      tool tests (1.0s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built the sdk half as planned: crates/sdk/src/description/ (shapes.rs, request.rs, methods.rs) with all 38 methods from doc-2 section 8, 14 M1 events (R38), and ten errors carrying doc-2 section 6's exit statuses; validate() checks a request against the description with no I/O; crates/sdk/src/record.rs's SessionRecord, the one new typed result (session.list/show are the only served methods whose returns is a record today); wire forms for the sdk's existing shapes (ids.rs, colour.rs, pane_kind.rs, layout.rs); boundaries.toml + Cargo.toml for serde/serde_json, named under R106.
+
+Which test proves which clause:
+- AC #1: description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_38_pairs, no_method_or_param_summary_or_param_summary_is_empty, no_method_declares_a_cli_only_flag_as_a_parameter, a_method_has_at_most_one_target_and_at_most_one_program.
+- AC #2: description::request::tests::an_unknown_method_is_a_bad_request, a_parameter_the_description_does_not_declare_is_a_bad_request, a_missing_required_parameter_is_a_bad_request, a_value_outside_a_closed_set_is_a_bad_request; no I/O is also what steg-sdk's own clippy.toml mechanically refuses (just lint, part of just check).
+- AC #3: round-trip tests in ids.rs, colour.rs, pane_kind.rs, layout.rs, record.rs; record::tests::matches_the_fields_session_show_and_session_list_declare ties SessionRecord to the description.
+- AC #4: description::methods::tests::events_has_r38s_fourteen_m1_names_each_once, errors_has_ten_codes_with_doc_2_section_6s_exit_statuses, every_error_a_method_names_has_a_record.
+- AC #5: boundaries.toml's [steg-sdk] entry itself, with its reason; just check-boundaries and just deny, part of just check.
+
+just check recorded clean on the task multiple times, including after rebasing onto origin/main twice (TASK-1.39 landed on main mid-build but never touched crates/sdk, so no conflict). CI passed on PR #28.
+
+Departure from the plan: none - built in the order the plan laid out, steps 1-7.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -463,6 +481,15 @@ created: 2026-11-15T14:41:00Z
 ---
 
 Plan approved by @bruk (6427b7d1fb39, size-4): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:15:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.43: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

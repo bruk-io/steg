@@ -1,15 +1,18 @@
 ---
 id: TASK-1.69
 title: 'Workspace: the five packages of doc-16, and the check that holds them apart'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:47:00Z'
+updated_date: '2026-11-15T02:48:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.69-workspace-the-server-s-code-kept-apart
+  - https://github.com/bruk-io/steg/pull/11
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -423,6 +426,39 @@ ok      licences (0.7s)
 ok      tests (every crate) (1.6s)
 ok      tool tests (0.3s)
 ```
+
+Built exactly as planned, with one departure found while building: deleting
+crates/cli broke tools/tests/adapter/test_affected_real_workspace.py, which
+asserts crates_from_metadata's output against this repository's real cargo
+metadata, hard-coded to the old five crate names and edges. just check caught
+it; fixed in the same pass (the test's fixtures now describe the real
+post-task workspace - steg-sdk replacing steg-cli, every package's
+depends_on updated, the crates/cli selection case replaced with
+crates/sdk/src/lib.rs expecting every package). Recorded as a comment on the
+task, not a plan rewrite, since the plan itself still held.
+
+Workspace now has five packages: steg-sdk (new, no I/O, local-socket feature
+declared and empty), steg-kernel, steg-server, steg (binary, CLI merged in,
+steg-cli deleted), steg-app. boundaries.toml holds a full allow-list table for
+all five, each with a reason citing doc-16. .claude/rules/architecture.md
+cites doc-16 for the rules that moved and the two that are new. A new
+`just packages` recipe builds and tests each package standalone.
+plugins/bruk-io-steg/ was not touched (AC#6); the plan's "For the
+orchestrator" section lists what layers.toml and its rule files need.
+
+Checks recorded on the task:
+- `just check`: passing before any edit, after the edits, and again after
+  rebasing onto origin/main.
+- `just packages`: all five packages build and test standalone.
+- `uv run --project tools pytest -q tools/tests`: 31 passed.
+- Two live demonstrations of `just boundaries` refusing a disallowed
+  dependency (steg-app -> steg-server, and steg-kernel -> tokio), each with
+  its reason, reverted before commit (not recorded as a check, since nothing
+  was committed in that state).
+
+The boundaries.py feature-level gap (it cannot see whether a crate's sdk
+dependency enables local-socket) is left exactly as found, per the plan - a
+separate task is already being drafted for it.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

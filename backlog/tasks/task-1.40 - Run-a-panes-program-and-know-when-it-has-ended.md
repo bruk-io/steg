@@ -1,14 +1,13 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:35:00Z'
+updated_date: '2026-11-15T17:40:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -491,6 +490,24 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 58, 51 without the Asdlc-Worker trailer.
+
+Review findings, clause by clause:
+
+[Bugs, Important] spawn_relay zombie/leaked-thread on shutdown. Fixed the first half completely: a failed send of PtyBytes now breaks the read loop (stops forwarding) instead of returning early, and always falls through to child.wait() - a dropped receiver never again skips reaping the child. Proven to bite: restored the early return in a scratch edit, ran `cargo test -p steg-server --lib -- shutdown_mid_run`, recorded the failing run with asdlc record-check (exit 101, "pid still exists: child.wait() was skipped, leaving a zombie"), then restored the fix and reran clean. New unit test crates/server/src/pane.rs::shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output, driving spawn_relay directly against a real pty running `sh -c 'sleep 1; echo done'`.
+
+The second half - a program that produces nothing at all before shutdown, such as `sleep 1000` - does not reduce to the same fix, and I could not land it as asked. Direct probing (not assumption) shows the review's suggested mechanism does not work on this platform: dropping the worker's writer and the resize closure's MasterPty (what a real shutdown drops) does not deliver the pty's hang-up while the relay thread's own cloned reader (MasterPty::try_clone_reader, a genuinely separate descriptor) keeps a master-side reference open - the kernel's hang-up condition needs every master-side descriptor closed, not just those two. A probe that also closes the reader clone does see a real SIGHUP and reaps cleanly, but the relay thread cannot close its own clone before its blocked read() returns, which is the thread this gap is about in the first place. A fix would mean giving the relay a descriptor it owns and can close itself - replacing try_clone_reader with a raw fd from MasterPty::as_raw_fd and rebuilding resize without the trait object - real surgery on RealLauncher's ownership shape and the first unsafe code in this crate, not a one-line change, so I did not attempt it under this round. No kill is added either way: this task's plan already leaves killing a running program to the forced-close task, and that is now also the only way to end this specific case, since the natural hang-up this review asked for does not reach a program with an open reader clone standing in its way. Named as a known gap in crates/server/src/pane.rs's own module doc and in spawn_relay's comment, with the probe's findings written down there rather than just here, and the one test I could land (shutdown_mid_run_...) kept; I did not keep a second test asserting the gap itself.
+
+[Compliance, Important] anyhow not named as a departure. Removed anyhow as a direct dependency and from boundaries.toml entirely. Error::Pty now holds Box<dyn std::error::Error + Send + Sync>; each portable-pty call site converts with `.into()`. This also fixes the Rust nit below for free. anyhow remains a transitive dependency of portable-pty itself (visible in `cargo tree -p portable-pty`), which is portable-pty's own business, not this crate's.
+
+[Evidence, Nit] no ENOENT test. Added crates/server/tests/real_pty.rs::a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join, asserting Err(Error::Pty(_)) from steg_server::start with a real RealLauncher and a nonexistent binary.
+
+[Rust, Nit] Error::Pty's source() returned None. Fixed as a side effect of the anyhow removal above: source() now returns Some(cause.as_ref()), a real cause.
+
+[Licence, Nit] licences of the new crates, checked against the current Cargo.lock myself (cargo tree -p portable-pty -e normal --format "{p} {l}"), not copied: portable-pty 0.9.0 MIT (direct); transitively, anyhow 1.0.104 MIT OR Apache-2.0, downcast-rs 1.2.1 MIT/Apache-2.0, filedescriptor 0.8.3 MIT, nix 0.28.0 MIT, serial2 0.2.39 BSD-2-Clause OR Apache-2.0, shell-words 1.1.1 MIT/Apache-2.0, log 0.4.35 MIT OR Apache-2.0 (plus its own small subtree: serde_core, value-bag, value-bag-serde1, erased-serde, typeid, serde_fmt, all MIT OR Apache-2.0), libc/cfg-if/bitflags MIT OR Apache-2.0 (already present elsewhere in the tree too). shared_library 0.1.9 and cfg_aliases (0.1.1 and 0.2.2) appear in Cargo.lock as portable-pty's own Windows-only dependencies, resolved for completeness but never built or linked on this macOS-only project (deny.toml's [graph].targets covers only macOS) - not evaluated by `just deny`, and I did not chase their exact licence text since nothing here depends on it. All permissive, nothing GPL/AGPL; `just deny` passes.
+
+[Tests, Nit] unbounded waits. Every events_rx.recv() in real_pty.rs is now recv_event(&events_rx) - recv_timeout(20s), fails with a message instead of hanging. ci.yml's check job gets timeout-minutes: 30, with a comment saying why.
+
+Rebased origin/main in twice more since the review: once for PR #31 (TASK-1.74, kernel scrollback - no code conflict, only backlog), once for PR #30 (TASK-1.70, sdk wire protocol and local-socket provider - auto-merged cleanly in crates/sdk/src/lib.rs, both sides' additions kept). just check recorded clean at the new head (format, lint, boundaries, licences, every package including the new steg-sdk "local-socket" feature test TASK-1.70 added, architecture, recipe names). CI green on pull request 32 at the pushed head (~3m54s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

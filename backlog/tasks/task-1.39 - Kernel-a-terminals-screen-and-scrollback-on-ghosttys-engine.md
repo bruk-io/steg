@@ -3,7 +3,7 @@ id: TASK-1.39
 title: >-
   Kernel: a terminal on ghostty's engine: its screen, its cells and what it
   reports
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'

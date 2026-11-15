@@ -17,8 +17,8 @@
 # whom"), one entry per package.
 
 [steg-sdk]
-reason = "the sdk is steg's public interface and does no I/O of its own; it has nothing of steg's to depend on (doc-16 R101, R102)"
-allow = []
+reason = "the sdk is steg's public interface and does no I/O of its own, and has nothing of steg's to depend on (doc-16 R101, R102); serde and serde_json are allowed as the one exception R106 names, for data and serialisation only - they give the description, its methods, events and errors, and the shapes that cross the API (identifiers, colour, pane kind, orientation, ratio, layout, and session records) their wire form"
+allow = ["serde", "serde_json"]
 
 [steg-kernel]
 reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105); ghostty-vt is the terminal engine doc-16 lists under the kernel (R92) - its Rust API does no I/O at runtime, feeding bytes and reading cells back is pure computation, and the network fetch and Zig link its build needs happen before any of the kernel's own code runs, from a vendored copy (third_party/README.md)"

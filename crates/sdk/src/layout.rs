@@ -7,10 +7,17 @@
 //! for. Doc-15 overloads the English word "direction" for both; the two are
 //! named distinctly here so the code never confuses them.
 
+use serde::de::Error as _;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 use crate::ids::PaneId;
 
 /// A split's own axis (R95).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// Crosses the API as its own word (`"horizontal"`, `"vertical"`), same as
+/// [`crate::Colour`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Orientation {
     /// The split's two children sit side by side: a left pane and a right
     /// pane.
@@ -61,7 +68,10 @@ impl Direction {
 ///
 /// Fixed-point, not `f64`, so every type that holds one — [`Layout`], and
 /// the kernel's `Tab` and `Session` above it — keeps deriving `Eq` and
-/// `Hash`.
+/// `Hash`. That is the in-process representation only: R95 doesn't mandate
+/// it, and the wire form (`Serialize`/`Deserialize`, below) is the plain
+/// fraction doc-15 R95 and doc-14 describe — an `f64` strictly between 0
+/// and 1 — converted to and from permille at the edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Ratio(u16);
 
@@ -81,6 +91,33 @@ impl Ratio {
     #[must_use]
     pub const fn permille(self) -> u16 {
         self.0
+    }
+}
+
+impl Serialize for Ratio {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_f64(f64::from(self.0) / 1000.0)
+    }
+}
+
+impl<'de> Deserialize<'de> for Ratio {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = f64::deserialize(deserializer)?;
+        if !(value > 0.0 && value < 1.0) {
+            return Err(D::Error::custom(format!(
+                "{value} is not a ratio strictly between 0 and 1"
+            )));
+        }
+        let permille = (value * 1000.0).round();
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "permille is finite and strictly within 0.0..1000.0, checked above"
+        )]
+        let permille = permille as u16;
+        Ratio::new(permille).ok_or_else(|| {
+            D::Error::custom(format!("{value} is not a ratio strictly between 0 and 1"))
+        })
     }
 }
 
@@ -116,7 +153,13 @@ impl Size {
 /// A tab's layout: a tree whose leaves are panes and whose other nodes are
 /// splits (R95). Reported to clients whole (doc-16 R105), so this shape —
 /// not just the pane data at its leaves — lives in the sdk.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// Serde's default, externally-tagged representation (`{"pane": "<id>"}` /
+/// `{"split": {...}}`) is used, not an internally-tagged one: an internal
+/// tag needs every variant to serialize as a map, and `Pane`'s single
+/// `PaneId` field serializes as a plain string.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Layout {
     /// A leaf: one pane fills this part of the tab.
     Pane(PaneId),
@@ -629,6 +672,84 @@ mod tests {
 
     fn pane(raw: u64) -> PaneId {
         PaneId::from_raw(raw)
+    }
+
+    #[test]
+    fn orientation_serde_round_trips_through_its_own_word() {
+        for orientation in [Orientation::Horizontal, Orientation::Vertical] {
+            let json = serde_json::to_string(&orientation).unwrap();
+            assert_eq!(
+                serde_json::from_str::<Orientation>(&json).unwrap(),
+                orientation
+            );
+        }
+        assert_eq!(
+            serde_json::to_string(&Orientation::Horizontal).unwrap(),
+            "\"horizontal\""
+        );
+    }
+
+    #[test]
+    fn ratio_serialises_as_a_fraction_between_zero_and_one() {
+        assert_eq!(
+            serde_json::to_string(&Ratio::new(500).unwrap()).unwrap(),
+            "0.5"
+        );
+    }
+
+    #[test]
+    fn ratio_round_trips_through_an_uneven_value() {
+        // 333/1000 does not divide evenly; this is the case most likely to
+        // expose a rounding bug in the f64 conversion.
+        let ratio = Ratio::new(333).unwrap();
+        let json = serde_json::to_string(&ratio).unwrap();
+        let back: Ratio = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.permille(), 333);
+    }
+
+    #[test]
+    fn ratio_round_trips_through_several_values() {
+        for permille in [1_u16, 42, 250, 500, 667, 999] {
+            let ratio = Ratio::new(permille).unwrap();
+            let json = serde_json::to_string(&ratio).unwrap();
+            let back: Ratio = serde_json::from_str(&json).unwrap();
+            assert_eq!(back.permille(), permille, "round-tripping {json}");
+        }
+    }
+
+    #[test]
+    fn ratio_deserialize_rejects_zero_and_one() {
+        assert!(serde_json::from_str::<Ratio>("0.0").is_err());
+        assert!(serde_json::from_str::<Ratio>("1.0").is_err());
+    }
+
+    #[test]
+    fn ratio_deserialize_rejects_outside_zero_to_one() {
+        assert!(serde_json::from_str::<Ratio>("-0.5").is_err());
+        assert!(serde_json::from_str::<Ratio>("1.5").is_err());
+    }
+
+    #[test]
+    fn layout_serde_round_trips_a_split_with_two_leaves() {
+        let layout = Layout::Split {
+            orientation: Orientation::Horizontal,
+            ratio: Ratio::new(500).unwrap(),
+            first: Box::new(Layout::Pane(pane(1))),
+            second: Box::new(Layout::Pane(pane(2))),
+        };
+
+        let json = serde_json::to_string(&layout).unwrap();
+        assert_eq!(
+            serde_json::from_str::<Layout>(&json).unwrap(),
+            layout,
+            "round-tripped through {json}"
+        );
+    }
+
+    #[test]
+    fn layout_pane_leaf_serialises_as_an_object_keyed_pane() {
+        let json = serde_json::to_value(Layout::Pane(pane(1))).unwrap();
+        assert!(json.get("pane").is_some(), "{json}");
     }
 
     fn split(orientation: Orientation, permille: u16, first: Layout, second: Layout) -> Layout {

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:34:00Z'
+updated_date: '2026-11-15T19:43:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -26,7 +26,7 @@ doc-11: R50, R82, R83. decision-7. The first release shows only what steg can kn
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A pane is running while its foreground program runs, and finished or failed from its exit code, including for a command typed at a shell prompt that reports prompt marks
+- [ ] #1 A command pane is running while its program runs, and finished or failed from its exit code. A command typed at a shell prompt is left to the task that gets a prompt-marked command's exit code out of the terminal engine
 - [ ] #2 Finished ends after 10 minutes or on input to the pane; failed ends only on input or when told the person has dealt with it; opening a tab ends nothing
 - [ ] #3 A tab's shown status is the most pressing among its panes, and a session has none
 <!-- AC:END -->
@@ -386,6 +386,12 @@ merged. No behavioural change, comment-only.
   it, `just check`'s `cargo clippy -D warnings` fails on the first test that needs a real
   `Instant`, since std gives no other way to construct one.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default. The worker found, by reading ghostty-vt 0.8 and ghostty-vt-sys, that the engine's safe API does not surface a prompt-marked command's exit code (the data is behind OPT_SEMANTIC_PROMPT in the sys bindings, which the safe crate never wires, and the kernel forbids unsafe). Criterion 1 is narrowed to command panes; finished and failed for a command typed at a shell prompt is a draft under TASK-1 that depends on this task.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

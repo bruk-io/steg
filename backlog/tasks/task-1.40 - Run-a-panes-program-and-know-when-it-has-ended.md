@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:26:00Z'
+updated_date: '2026-11-15T16:35:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -328,6 +328,15 @@ test-to-clause mapping in section 6.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9 (R13, R16), doc-15 (R97), doc-2 section 4, doc-8 (R1, R99) and doc-16 by @bruk.o: ok. The kernel holds what a pane's program is and its status, as shapes defined in the sdk, and the rule for what happens when it ends, reusing the tree's close cascade; the server launches through an interface of its own that the kernel never sees. One thread per pane owns its terminal for the pane's life, with a short relay thread per run; opening the pseudo-terminal and spawning happen on the control thread so a bad command is an ordinary error. portable-pty is added to the server only, its licence to be confirmed by just deny. Tests use a real pseudo-terminal and wait on events, never a sleep. Left to TASK-1.44: where the server's own environment comes from.
+
+Check passed: `sh -c 'just check-fmt && just lint && just check-boundaries && just test'` exited 0 at 2026-11-15T16:35:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.3s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

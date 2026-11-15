@@ -1,9 +1,11 @@
 ---
 id: TASK-1.31
 title: 'Licence check: allow permissive licences, keep refusing GPL and AGPL'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
+updated_date: '2026-11-15T02:22:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -12,6 +14,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.31-licence-check-allow-permissive-licences
 ---
 
 ## Description

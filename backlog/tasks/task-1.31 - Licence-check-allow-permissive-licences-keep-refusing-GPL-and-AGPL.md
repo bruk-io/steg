@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:40:00Z'
+updated_date: '2026-11-15T02:41:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -21,8 +22,9 @@ asdlc_branch: task-1.31-licence-check-allow-permissive-licences
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c2afd9822006'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -208,6 +210,23 @@ created: 2026-11-15T02:40:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.31: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:41:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings. Checked: deny.toml diff (origin/main...HEAD) is exactly one new allow-list entry, "CDLA-Permissive-2.0", with a comment naming the dependency chain (webpki-root-certs -> ureq -> ghostty-vt-sys build) and authority (R59/doc-13, decision-3, Bruk 2026-11-15). No [licenses.exceptions], no [[licenses.clarify]], no --exclude, no skipped crate (AC#3). decision-3 itself is untouched, as the plan requires. Single commit, matches the recorded diff exactly.
+
+Evidence: four recorded runs match the plan's AC#1/AC#2 probes - GPL crate refused before the change, ghostty-vt's webpki-root-certs chain refused before the change, both passing after the deny.toml edit (direct `just deny` and the independent spike corroboration). The final `just check` (ok) was recorded at commit b6cf2f8cee84, the exact hash of this branch's HEAD, so it ran after the last commit.
+
+Compliance: matches R59's wording exactly (permissive licences allowed, GPL/AGPL refused) and decision-3's explicit recommendation to widen the allow-list rather than add a per-crate exception; .claude/rules/licence.md's "never add an exception to make a check pass" is satisfied since this was an engineer-approved policy widening (plan approved by @bruk, size-2), not a worker bypass. Size-2 plan approval present and correctly formatted.
 
 ---
 <!-- COMMENTS:END -->

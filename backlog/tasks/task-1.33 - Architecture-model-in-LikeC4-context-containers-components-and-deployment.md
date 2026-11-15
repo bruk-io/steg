@@ -1,9 +1,11 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
+updated_date: '2026-11-15T02:22:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -12,6 +14,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.33-architecture-model-in-likec4-context
 ---
 
 ## Description

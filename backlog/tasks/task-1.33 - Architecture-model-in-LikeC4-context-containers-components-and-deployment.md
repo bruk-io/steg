@@ -5,11 +5,15 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:03:00Z'
+updated_date: '2026-11-15T03:09:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-0
 dependencies: []
+references:
+  - task-1.33-architecture-model-in-likec4-context
+  - https://github.com/bruk-io/steg/pull/14
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -18,6 +22,10 @@ asdlc_branch: task-1.33-architecture-model-in-likec4-context
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7ade241dd954'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -187,6 +195,33 @@ ok      tests (every crate) (0.3s)
 ok      tool tests (0.2s)
 ok      architecture (1.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:04:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at af41e2487577:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+```
+
+Built the LikeC4 architecture model under architecture/ exactly as planned and approved, with the departures recorded above (TASK-1.69 already merged so crates/ already matches doc-16's five packages; .github/workflows/ci.yml appeared on main after this branch was cut, so a pinned actions/setup-node step was added to it per the engineer's instruction; plugins/bruk-io-steg/commands.toml deliberately left untouched per the engineer's instruction).
+
+Checks recorded on this task:
+- just check: exit 0 (baseline, before this task's changes)
+- just check: exit 0 (after the full build, pre-rebase)
+- just check: exit 0 (final, after rebasing onto origin/main twice to pick up TASK-1.69's crate reorg and the new CI workflow)
+
+Also proved by hand, not recorded as a check: deliberately broke architecture/models/steg/steg.c4, confirmed `just check` fails (AC #5), restored it, confirmed `just check` passes again.
+
+c4lint.py (the skill's own authoring linter, not wired into just check) reports 0 errors and 6 warnings, all "vague title 'depends on'" on the six component-level dependency edges that mirror doc-16's own "May depend on" table wording verbatim - these are expected and not fixed with an invented, more specific verb, since doc-16 itself only says "may depend on," not what for.
+
+Follow-up for the orchestrator, not done here per the engineer's instruction: add "Node.js (npx, for `just architecture`)" to plugins/bruk-io-steg/commands.toml's [check].needs and re-verify [check] through asdlc-plugin once this PR merges.
+
+PR: https://github.com/bruk-io/steg/pull/14
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -198,6 +233,36 @@ created: 2026-11-15T02:52:00Z
 ---
 
 Plan approved by @bruk (7ade241dd954, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:04:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.33: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:09:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Evidence, Important] Task notes: "Also proved by hand, not recorded as a check: deliberately broke architecture/models/steg/steg.c4, confirmed `just check` fails (AC #5), restored it, confirmed `just check` passes again." The approved plan's own proof for AC #5 requires the failing run to be "recorded on the task," matching review.md's Evidence rule verbatim ("a proof step the plan or an acceptance criterion calls for that the notes describe but no recorded run shows, even when it was a demonstration meant to be reverted"). Only a prose description exists; no recorded check run shows the failure.
+
+[Evidence, Important] The plan's proof for AC #6 requires every element's title to be "listed against its source in the build notes." No such listing appears anywhere in the task's implementation notes - AC #6 is asserted done but its required evidence is entirely absent.
+
+[Compliance, Important] The approved plan's "Consequences" section commits to updating plugins/bruk-io-steg/commands.toml's [check].needs (to add Node.js/npx) and re-stamping its verified date "as part of this task's build." The diff does not touch commands.toml; it is deliberately left stale (needs still omits Node, verified still reads the pre-change 2026-11-14). The notes attribute this skip to "the engineer's instruction," but no such instruction is recorded anywhere on the task (its only comments are the plan approval and this review's claim) - an unrecorded, unverifiable departure from an explicit, already-approved plan commitment. commands.toml now misdescribes what `just check` requires on a clean checkout.
+
+[Compliance, Nit] .github/workflows/ci.yml's new setup-node step comment claims node-version "24.22.0" is "matching the local pin," but the repository has no .nvmrc/.node-version/mise.toml - there is no local pin to match.
+
+Checked and clean: the model's elements and edges exactly match doc-16's Level 1-3 tables (7 dependency edges = doc-16's 6 "may depend on" rows with stegPkg -> sdk correctly duplicated across server and cli; no extra elements or edges); AC #2's shared-component duplication is correct; the deployment and dynamic views match doc-16's deployment section and decision-5's R88 concern; the actions/setup-node SHA (949feb2413d6458794dcd2491c4babbbce0c15c1) verified against GitHub's v7.1.0 tag; the ci.yml addition does not textually or semantically conflict with PR #12 (disjoint regions of the file, ~40 lines apart); size-2 plan approval is recorded (@bruk, 7ade241dd954); the three recorded `just check` runs are on this branch, the final one at the branch's current HEAD (af41e24) with no uncommitted changes.
 
 ---
 <!-- COMMENTS:END -->

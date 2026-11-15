@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:01:00Z'
+updated_date: '2026-11-15T03:09:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -146,6 +146,17 @@ ok      boundaries (0.1s)
 ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:09:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.35 on task-1.35-kernel-sessions-tabs-and-panes-as-one at 1d256ad14af0 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (17.9s)
+ok      tool tests (0.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

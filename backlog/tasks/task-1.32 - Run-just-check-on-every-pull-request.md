@@ -1,31 +1,32 @@
 ---
 id: TASK-1.32
 title: Run just check on every pull request
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:03:00Z'
+updated_date: '2026-11-15T03:04:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-0
 dependencies: []
 references:
   - task-1.32-run-just-check-on-every-pull-request
   - https://github.com/bruk-io/steg/pull/8
+  - https://github.com/bruk-io/steg/pull/12
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.32-run-just-check-on-every-pull-request
 asdlc_plan_approved_by: bruk
-asdlc_plan_approved_hash: '80329a1be2b3'
+asdlc_plan_approved_hash: 'c6301b963301'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -210,6 +211,37 @@ ok      tool tests (0.2s)
 ```
 
 Commits since the review: 58, 54 without the Asdlc-Worker trailer.
+
+Fixed both review findings on a fresh branch (task-1.32-fix-ci-concurrency, PR #12,
+since PR #8's branch was already merged). Full reasoning and pre-merge proof are on
+the plan (see "Review fix (2026-11-15)", approved by @bruk, digest c6301b963301).
+
+[Important] Fixed: cancel-in-progress is now ${{ github.event_name == 'pull_request' }}
+(never for push), and the push trigger has paths-ignore: [backlog/**, plugins/**] so a
+push where every changed file is under the board or the agent plugins starts no run at
+all. Proved pre-merge on a disposable scratch branch (push is scoped to main, so this
+was the only way to exercise it before merging): a push touching only plugins/** started
+no run; a push touching plugins/** plus code did run; two close-together pushes both
+ran to completion (one queued instead of cancelling the other), including just test-all
+on both.
+
+What's only confirmable after this PR merges to main, stated plainly rather than faked:
+that a real asdlc board-only push to main starts no run, and that a real code push
+completes just check + just test-all without the board's own ongoing push traffic
+superseding it.
+
+[Nit] Fixed: recorded a local `just test-all` pass (19.8s), closing the plan's Proof
+step 1 gap the review found.
+
+Checks recorded with `asdlc record-check` (full output on the task): `just check`
+passed at 00cd2a125d66 (the branch's current head, after merging in main's intervening
+changes - the sdk crate split etc. - with no conflicts): ok format check, ok lint, ok
+boundaries, ok licences, skip tests (no crate touched), ok tool tests. `just test-all`
+passed separately (ok, 19.8s) at an earlier commit on the same branch, unaffected by
+the later merge.
+
+GitHub Actions (PR #12, run 43670483343, pull_request, at the branch's current head):
+green in 43s (cache hit from Swatinem/rust-cache).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -249,6 +281,24 @@ Reviewed after merge: PR #8 was merged to main before this review started, per t
 [Evidence, Nit] Plan's Proof step 1 calls for `just check` and `just test-all` to both pass locally in the worktree as a sanity check before relying on CI; the notes only record a local `just check` run (twice: c492de56a0b8, then the final 923b7794ce30, which matches the branch head). No local `just test-all` record appears. Weak nit: the scratch-push branch's GitHub run did execute `test-all` on the real runner and passed, which is stronger evidence than a local run would have been, so this doesn't undermine the Evidence pass.
 
 plan-matched: yes - the diff is exactly the one file the plan named (.github/workflows/ci.yml), built in the plan's order. The concurrency-cancellation flaw is a consequence of the approved plan's own step 2 (the concurrency guard), not a departure the worker introduced.
+
+---
+
+author: @bruk
+created: 2026-11-15T03:04:00Z
+
+---
+
+Plan approved by @bruk (c6301b963301, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:04:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

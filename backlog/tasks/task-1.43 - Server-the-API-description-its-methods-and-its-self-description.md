@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:26:00Z'
+updated_date: '2026-11-15T14:41:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -19,6 +19,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-13
 asdlc_branch: task-1.43-server-the-api-description-its-methods
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '6427b7d1fb39'
+asdlc_plan_approved_size: size-4
 ---
 
 ## Description
@@ -344,6 +347,15 @@ Tie it together with a test, not just prose: for every served method whose `retu
 - `spikes/api-description/` deleted.
 
 One more thing worth re-flagging when that task is drafted in full: deleting `spikes/api-description/` leaves decision-1 sections 3 and 9's citations of `carry-one-method`/`measure.py` dangling. Decision text changes only via a PR containing nothing else — not any worker's to fix unprompted, but worth a line in that task's own notes too.
+
+---
+
+author: @bruk
+created: 2026-11-15T14:41:00Z
+
+---
+
+Plan approved by @bruk (6427b7d1fb39, size-4): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

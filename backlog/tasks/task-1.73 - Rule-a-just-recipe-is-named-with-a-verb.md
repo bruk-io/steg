@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:27:00Z'
+updated_date: '2026-11-15T03:28:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -151,3 +151,9 @@ Only the judgement half lives here (the variant pattern, why the exemption holds
 
 Commands go through `just` except step 3 (a deliberate, reverted demonstration of the justfile itself) and step 5 (a verification grep, not a build step).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked by @bruk.o against the engineer's words (a just recipe is a verb): ok. Five renames, a check that reads the recipes from just itself and fails on a first word not on a list of verbs, a path-scoped rule, and every reference updated in the same change, with no alias left. It collides on two lines with TASK-1.71 (the check recipe's dependency list, and one line of architecture.md); whichever lands second rebases. The plugin's commands and rules are the orchestrator's, through asdlc-plugin, after the merge.
+<!-- SECTION:NOTES:END -->

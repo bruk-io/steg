@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:15:00Z'
+updated_date: '2026-11-15T16:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-12
 asdlc_branch: task-1.42-kernel-clients-what-each-views-and-the
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '571c32803ab2'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -293,3 +296,16 @@ Commands: `just check` (kernel + sdk affected), `just test`.
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-15 (R86, R89, R91), doc-14, decision-5 and decision-6 by @bruk.o: ok. A client is kernel data with an id and a kind defined once in the sdk; what it views is derived from the panes it is attached to; the latest client in a session is derived from a counter the kernel advances, never a clock; a client declares a whole tab's size in cells, which becomes the tab's size when that client is the latest, and every viewer is told each pane's size. When the latest client leaves, the next most recently active viewer's declared size applies. Tab::size is added as a getter and set_tab_size narrows to the crate. For the engineer: a client declares a tab's size, not a size per pane, and what happens when the latest leaves is this plan's choice. Pixel size stays a named gap for the server task that joins a pane to its terminal.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T16:26:00Z
+
+---
+
+Plan approved by @bruk (571c32803ab2, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

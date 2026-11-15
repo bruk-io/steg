@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:00:00Z'
+updated_date: '2026-11-15T19:03:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -336,3 +336,9 @@ without a `use` beyond `std`; `steg-server`'s existing `serde_json` allowance al
   paragraph), the architecture model (unaffected — no new package, no new cross-package
   edge), and the justfile's own recipe-naming check.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-10 (R22, R80), decision-9, doc-2 and doc-16 by @bruk.o: ok to build as written if the engineer confirms three things the plan itself raises. (1) Overrides are kept in memory for the life of the server, which is what decision-9 point 2 says ('lasts for this run of the server') and point 1 requires ('there is no separate settings file'); the consequence is that an override is lost when the server stops, including an on-demand server's 30-second idle stop (doc-8 R99) and a reboot, so acceptance criterion 2 holds only while the server keeps running. (2) The one setting seeded is 'appearance' (system, light, dark; R24). (3) doc-2 gains a 'setting' noun with list, show, set and unset; the orchestrator makes that edit once approved. Layering matches doc-16: the list of settings in the sdk, the rule in the kernel with no I/O, the remembering in the server. No new dependency.
+<!-- SECTION:NOTES:END -->

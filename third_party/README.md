@@ -50,9 +50,17 @@ run from this directory populated exactly this) extracts every dependency it res
 `third_party/ghostty/zig-pkg/`, byte-identical to what's already vendored, compressed, at
 `ghostty-vt-zig-deps/p/` - this is almost certainly how a 29 MB, 687-file copy of that content
 ended up committed here once (found in review). `.gitignore` excludes `third_party/ghostty/zig-pkg/`
-as a second guard, but the real fix is at the cause: never run `zig build` against this directory
-without also setting `ZIG_LOCAL_PKG_DIR` to somewhere outside it (the "refreshing" procedure below
-does this).
+and `third_party/ghostty/.zig-cache/` as a second guard, but the real fix is at the cause: never
+run `zig build` against this directory without also setting `ZIG_LOCAL_PKG_DIR` and `--cache-dir`
+to somewhere outside it (the "refreshing" procedure below does this).
+
+This doesn't reintroduce the surprise the paragraph above removed a vendored `.gitignore` to avoid:
+that one could have hidden a file *git already tracked* from `git status` without anyone adding
+it on purpose. These two root-level entries do the opposite - they stop an accidental `git add`
+from tracking Zig's own build-time litter in the first place - and `git status`'s blind spot for
+them is a known, named trade-off: checking for the directories directly (`test ! -d
+third_party/ghostty/zig-pkg`), not `git status --porcelain`, is how this task's own recorded
+proof confirms they're gone.
 
 ## `ghostty-vt-zig-deps/`
 

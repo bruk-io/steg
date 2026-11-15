@@ -67,4 +67,6 @@ The repository's one check command has to run where nobody can forget it. doc-1,
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-1 section 7 by @bruk.o: ok against the acceptance criteria. One thing for the engineer to decide: just check selects tests by diff against origin/main, so on a push to main it runs no crate tests. The orchestrator suggests the push-to-main run also does just test-all.
+
+Revised plan checked by @bruk.o: ok. It adds just test-all on push to main, as the engineer decided on 2026-11-15, and proves the push path before merge.
 <!-- SECTION:NOTES:END -->

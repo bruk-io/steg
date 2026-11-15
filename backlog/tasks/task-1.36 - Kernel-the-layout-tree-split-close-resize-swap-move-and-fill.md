@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -434,6 +435,15 @@ Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/kernel/src/tab.rs close_pane / remove_pane_for_move: the current-pane repair ("set current to the first entry of layout.leaves() for whatever now occupies its place") is only tested when the promoted sibling is a single leaf. No test closes the current pane when its sibling is itself a multi-leaf split, which is the case the "first entry of... whatever now occupies its place" wording specifically exists for.
 
 Everything else checked out. AC #1-#6 each have a specific test behind every clause, including both floor dimensions (split_pane_is_refused_when_the_undivided_dimension_is_already_under_the_floor) and the subtree-scoped resize floor (an_unrelated_already_under_floor_pane_does_not_block_a_resize_elsewhere). R112's panes()/layout.leaves() sync is enforced by one helper (reorder_panes_to_match_layout) and guarded by a debug_assert on every path that leaves a tab non-empty. R113's neighbour/far_edge_pane geometry uses exact Fraction cross-multiplication with no floating point anywhere, and I verified the tie-break and the diagonal/tall-pane cases named in the plan by reading the code and the existing tests. Tree::new_pane/Tab::add_pane are fully removed with no remaining callers (confirmed by git grep); target.rs's resolve functions were updated for the new split_pane-based API and still pass. just check (fmt, lint, boundaries, licences, affected tests, per-package build/test, tool tests, architecture) passes cleanly when run directly against the PR's head commit a41ec39, matching the PR's own CI run (43677018327, SUCCESS) on that same commit; the task's two recorded `just check` runs were made against local worktree commits that, by timestamp, bracket the final "Format target.rs" commit correctly (the second recorded check's timestamp postdates that commit by about 13 seconds), so the recorded evidence is not stale despite the differing commit hashes (expected from the worktree-to-pushed-branch rebase).
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:47:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.36: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

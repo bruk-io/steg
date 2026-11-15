@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:04:00Z'
+updated_date: '2026-11-15T23:05:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2049,6 +2049,32 @@ test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 TOTAL FAILURES: 0 / 20
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T23:05:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (7.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (4.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (3.7s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
 ```
 
 Commits since the review: 16, 16 without the Asdlc-Worker trailer.

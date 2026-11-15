@@ -18,3 +18,48 @@ steg-sdk = { path = "../sdk" }
 # section 9).
 portable-pty = "0.9"
 serde_json = "1"
+# The arbiter's lock (`nix::fcntl::Flock`, R99) and the owner checks
+# (`nix::unistd::geteuid`, AC #1) TASK-1.44 (part A) needs and std does
+# not expose. Pinned to "0.28" to resolve to the same line already in
+# the workspace's Cargo.lock through portable-pty's own dependency on it
+# - `cargo tree -p steg-server -i nix` is the check that this crate did
+# not add a second version; portable-pty's own choice of nix version is
+# outside this task's control and could move it later. `fs` for
+# `Flock`/`FlockArg`, `user` for `geteuid` - confirmed by compiling and
+# running exactly these calls, not assumed: `geteuid` needs `user`
+# specifically, it is not in nix's unguarded base surface.
+nix = { version = "0.28", default-features = false, features = ["fs", "user"] }
+
+[features]
+# Gates the race test's own fixture binary and the integration test
+# that drives it (below) - a review of this task's own nit found the
+# earlier version of this file left `race-attempt` always built, with
+# no feature to turn it off, unlike the sdk's own `fake-server-for
+# -tests` (gated on its `local-socket` feature). Off by default, so an
+# ordinary `cargo build -p steg-server` produces no extra binary; the
+# justfile's own `check-packages` turns it on specifically to run
+# `race.rs`, the same pattern that feature already uses for the sdk.
+race-fixture = []
+
+# The race test's own fixture (`tests/race.rs`, AC #2): calls
+# `steg_server::attempt` directly and prints which `Arbitration` it got,
+# flushed before it would otherwise block in `run`, so eight of these
+# spawned at once prove exactly one becomes the server. Gated behind
+# `race-fixture`, above.
+[[bin]]
+name = "race-attempt"
+path = "tests/fixtures/race_attempt.rs"
+required-features = ["race-fixture"]
+
+# Declared explicitly (autodiscovery alone cannot carry
+# `required-features`) so this one test is skipped, not built, without
+# `race-fixture` - the same reason the binary above is gated. Every
+# other file under `tests/` keeps autodiscovery (`autotests` is still
+# its default `true`; declaring this one does not turn it off for the
+# others - confirmed by running `cargo test -p steg-server` both with
+# and without the feature and checking which test binaries ran, not
+# assumed).
+[[test]]
+name = "race"
+path = "tests/race.rs"
+required-features = ["race-fixture"]

@@ -26,8 +26,8 @@ allow = ["steg-sdk", "ghostty-vt"]
 deny-features = { "steg-sdk" = ["local-socket"] }
 
 [steg-server]
-reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98); portable-pty is the pseudo-terminal and process-spawn dependency for running a pane's program (TASK-1.40), already exercised against this exact shape in-repo by spikes/task-1.2-wire-protocol (decision-3 section 9); serde_json is allowed for data and serialisation only - dispatch's Outcome::into_value builds the JSON payload Response::Ok carries, from the sdk's own typed results (TASK-1.75), the same reason the sdk itself depends on serde_json"
-allow = ["steg-kernel", "steg-sdk", "portable-pty", "serde_json"]
+reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98); portable-pty is the pseudo-terminal and process-spawn dependency for running a pane's program (TASK-1.40), already exercised against this exact shape in-repo by spikes/task-1.2-wire-protocol (decision-3 section 9); serde_json is allowed for data and serialisation only - dispatch's Outcome::into_value builds the JSON payload Response::Ok carries, from the sdk's own typed results (TASK-1.75), the same reason the sdk itself depends on serde_json; nix is the arbiter's lock (fcntl::Flock) and the owner checks (unistd::geteuid) TASK-1.44 (part A) needs and std does not expose, pinned to the version already resolved in the workspace through portable-pty's own dependency on it"
+allow = ["steg-kernel", "steg-sdk", "portable-pty", "serde_json", "nix"]
 
 [steg]
 reason = "the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own"

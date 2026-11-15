@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:01:00Z'
+updated_date: '2026-11-15T22:02:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -437,6 +437,51 @@ Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'`
 
 ```text
 ok      tests (every crate) (4.5s)
+```
+
+Check FAILED: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 101 at 2026-11-15T22:02:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes, last 40 of 64 lines:
+
+```text
+  left: []
+ right: [OutputStarted, Ended { exit_code: Some(0) }]
+
+---- terminal::tests::output_started_mark_on_osc_133_c stdout ----
+
+thread 'terminal::tests::output_started_mark_on_osc_133_c' (14347606) panicked at crates/kernel/src/terminal.rs:856:9:
+assertion `left == right` failed
+  left: []
+ right: [OutputStarted]
+
+---- terminal::tests::command_ended_with_a_malformed_exit_code_reports_none stdout ----
+
+thread 'terminal::tests::command_ended_with_a_malformed_exit_code_reports_none' (14347592) panicked at crates/kernel/src/terminal.rs:899:9:
+assertion `left == right` failed
+  left: []
+ right: [Ended { exit_code: None }]
+
+---- terminal::tests::two_output_started_marks_in_a_row_are_both_kept stdout ----
+
+thread 'terminal::tests::two_output_started_marks_in_a_row_are_both_kept' (14347618) panicked at crates/kernel/src/terminal.rs:931:9:
+assertion `left == right` failed
+  left: []
+ right: [OutputStarted, OutputStarted, Ended { exit_code: Some(7) }]
+
+
+failures:
+    terminal::tests::a_mark_split_across_two_writes_still_resolves
+    terminal::tests::command_ended_fires_with_no_preceding_output_started
+    terminal::tests::command_ended_with_a_malformed_exit_code_reports_none
+    terminal::tests::command_ended_with_its_exit_code_on_osc_133_d
+    terminal::tests::command_ended_with_no_exit_code_reports_none
+    terminal::tests::output_started_mark_on_osc_133_c
+    terminal::tests::take_command_marks_drains_what_it_returns
+    terminal::tests::two_output_started_marks_in_a_row_are_both_kept
+
+test result: FAILED. 272 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

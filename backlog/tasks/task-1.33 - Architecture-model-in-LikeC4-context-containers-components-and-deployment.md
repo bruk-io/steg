@@ -169,6 +169,12 @@ ok      licences (0.7s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ```
+
+Departures from the approved plan during build (plan text unchanged, approval holds):
+
+- TASK-1.69 merged to main while this plan was approved (pull request 11). Its crates/ reorg already matches doc-16's five packages exactly (crates/kernel, crates/sdk, crates/server, crates/steg, crates/app, no separate CLI crate), so the plan's "today's crates/ doesn't yet match doc-16" caveat no longer applies - the two are already in step.
+- Rebased onto origin/main before building (branch had never been pushed), which brought in .github/workflows/ci.yml - a file that didn't exist when the plan was written. Per the engineer's instruction at plan approval, added a pinned actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 step (node-version "24.22.0", matching the local pin) to that workflow, after the just/cargo-deny install step and before the cargo cache step, so just check's new architecture recipe can find npx in CI.
+- Per the engineer's instruction, plugins/bruk-io-steg/commands.toml is deliberately left untouched in this worktree. Follow-up for the orchestrator after this merges: add "Node.js (npx, for `just architecture`)" to commands.toml's [check].needs and re-verify [check] through asdlc-plugin (its verified date is stale once this lands).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

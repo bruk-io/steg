@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:44:00Z'
+updated_date: '2026-11-15T16:45:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -419,6 +419,29 @@ warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-kernel` (lib test) due to 8 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:45:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.2s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (1.1s)
+ok      build (steg-kernel) (0.9s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

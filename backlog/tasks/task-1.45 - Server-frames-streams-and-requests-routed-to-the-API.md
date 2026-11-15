@@ -1,10 +1,11 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T23:32:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -18,6 +19,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-15
+asdlc_branch: task-1.45-server-frames-streams-and-requests
 ---
 
 ## Description

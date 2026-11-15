@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:55:00Z'
+updated_date: '2026-11-15T02:56:00Z'
 labels:
   - size-2
   - changes-requested
@@ -483,6 +483,19 @@ FAILED  boundaries (exit 1, 0.1s)
 steg-kernel depends on tokio, which is not on its allow list in boundaries.toml (the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)).
 full output: .quiet/boundaries.log
 error: recipe `boundaries` failed on line 73 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:56:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.6s)
+ok      tool tests (0.2s)
 ```
 
 Commits since the review: 0.

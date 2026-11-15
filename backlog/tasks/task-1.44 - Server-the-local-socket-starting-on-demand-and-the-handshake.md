@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:25:00Z'
+updated_date: '2026-11-15T20:32:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -474,6 +474,51 @@ failures:
     arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server
 
 test result: FAILED. 48 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:32:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 30f6ac77b152 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test bind::tests::a_second_bind_replaces_the_first_at_the_same_path ... FAILED
+test arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server ... ok
+kill: 50325: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- arbiter::tests::attempt_becomes_the_server_when_nothing_is_there stdout ----
+
+thread 'arbiter::tests::attempt_becomes_the_server_when_nothing_is_there' (10647160) panicked at crates/server/src/arbiter.rs:377:17:
+assertion `left == right` failed
+  left: 493
+ right: 384
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- bind::tests::a_real_bind_sets_0600_under_the_ambient_umask stdout ----
+
+thread 'bind::tests::a_real_bind_sets_0600_under_the_ambient_umask' (10647167) panicked at crates/server/src/bind.rs:95:9:
+assertion `left == right` failed
+  left: 493
+ right: 384
+
+---- bind::tests::a_second_bind_replaces_the_first_at_the_same_path stdout ----
+
+thread 'bind::tests::a_second_bind_replaces_the_first_at_the_same_path' (10647168) panicked at crates/server/src/bind.rs:142:9:
+assertion `left == right` failed
+  left: 493
+ right: 384
+
+
+failures:
+    arbiter::tests::attempt_becomes_the_server_when_nothing_is_there
+    bind::tests::a_real_bind_sets_0600_under_the_ambient_umask
+    bind::tests::a_second_bind_replaces_the_first_at_the_same_path
+
+test result: FAILED. 46 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
 
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/tests-every-crate.log

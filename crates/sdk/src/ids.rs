@@ -2,8 +2,8 @@
 //!
 //! A session id is not a tab id, and neither is a pane id or a client id:
 //! each is its own type, so the compiler refuses the mix-up a bare `u64`
-//! would allow (rust.md). Nothing outside this crate mints one from nothing —
-//! a value comes from `from_raw`, which this crate uses to decode an
+//! would allow (rust.md). Nothing outside this crate mints one from nothing
+//! — a value comes from `from_raw`, which this crate uses to decode an
 //! identifier off the wire, and which the kernel uses to mint a fresh one
 //! (steg-kernel's `Ids`, since deciding the next id is the kernel's own
 //! behaviour, not a shape; doc-16 R105).
@@ -43,10 +43,11 @@ pub struct TabId(u64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PaneId(u64);
 
-/// Identifies one client connection, unique across a server's whole tree.
+/// Identifies one client: one connection to a server (doc-15 R86), unique
+/// across a server's whole tree.
 ///
-/// Also defined here, rather than in `crates/sdk/src/wire/`, because it is
-/// an identifier that crosses the API (doc-16 R105) and TASK-1.42's kernel
+/// Defined here rather than in `crates/sdk/src/wire/`, because it is an
+/// identifier that crosses the API (doc-16 R105) and TASK-1.42's kernel
 /// client model needs it independently of the wire protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ClientId(u64);

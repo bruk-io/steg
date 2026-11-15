@@ -26,9 +26,10 @@ use steg_sdk::{ApiError, ErrorCode};
 #[must_use]
 pub fn map_kernel_error(error: Error) -> ApiError {
     match &error {
-        Error::SessionNotFound(_) | Error::TabNotFound(_) | Error::PaneNotFound(_) => {
-            ApiError::new(ErrorCode::NoSuchTarget, error.to_string())
-        }
+        Error::SessionNotFound(_)
+        | Error::TabNotFound(_)
+        | Error::PaneNotFound(_)
+        | Error::ClientNotFound(_) => ApiError::new(ErrorCode::NoSuchTarget, error.to_string()),
         Error::TargetNotFound { candidates, .. } => with_candidates(
             ApiError::new(ErrorCode::NoSuchTarget, error.to_string()),
             candidates,
@@ -41,6 +42,19 @@ pub fn map_kernel_error(error: Error) -> ApiError {
             ApiError::new(ErrorCode::PositionOutOfRange, error.to_string())
         }
         Error::InvalidLabel(_) | Error::InvalidTargetPath(_) => {
+            ApiError::new(ErrorCode::BadRequest, error.to_string())
+        }
+        // No dedicated code exists for a client acting on a pane or tab
+        // it is not attached to, unlike `SplitTooSmall`/`NoSplitInDirection`/
+        // `PanesNotInSameTab`/`AlreadyInTab` below, each of which already
+        // has exactly one dispatch call site today (doc-2's `client` noun
+        // has none yet - TASK-1.42 built the kernel side only, no dispatch
+        // method). Borrowing one of those would mislead a client into
+        // reading the wrong operation off the code; `BadRequest` is this
+        // file's own existing bucket for "doesn't fit the described shape
+        // given what's known", the same reasoning `InvalidLabel`/
+        // `InvalidTargetPath` above already rest on.
+        Error::ClientNotViewingPane { .. } | Error::ClientNotViewingTab { .. } => {
             ApiError::new(ErrorCode::BadRequest, error.to_string())
         }
         Error::SplitTooSmall { .. } => ApiError::new(ErrorCode::SplitTooSmall, error.to_string()),
@@ -64,7 +78,7 @@ fn with_candidates(mut error: ApiError, candidates: &[steg_kernel::Candidate]) -
 mod tests {
     use super::map_kernel_error;
     use steg_kernel::{Candidate, Error};
-    use steg_sdk::{Direction, ErrorCode, PaneId, SessionId, TabId};
+    use steg_sdk::{ClientId, Direction, ErrorCode, PaneId, SessionId, TabId};
 
     #[test]
     fn not_found_ids_map_to_no_such_target_with_no_candidates() {
@@ -80,6 +94,33 @@ mod tests {
         assert_eq!(
             map_kernel_error(Error::PaneNotFound(PaneId::from_raw(1))).code,
             ErrorCode::NoSuchTarget
+        );
+    }
+
+    #[test]
+    fn client_not_found_maps_to_no_such_target() {
+        let mapped = map_kernel_error(Error::ClientNotFound(ClientId::from_raw(1)));
+        assert_eq!(mapped.code, ErrorCode::NoSuchTarget);
+        assert!(mapped.candidates.is_empty());
+    }
+
+    #[test]
+    fn client_not_viewing_pane_or_tab_maps_to_bad_request() {
+        assert_eq!(
+            map_kernel_error(Error::ClientNotViewingPane {
+                client: ClientId::from_raw(1),
+                pane: PaneId::from_raw(1),
+            })
+            .code,
+            ErrorCode::BadRequest
+        );
+        assert_eq!(
+            map_kernel_error(Error::ClientNotViewingTab {
+                client: ClientId::from_raw(1),
+                tab: TabId::from_raw(1),
+            })
+            .code,
+            ErrorCode::BadRequest
         );
     }
 

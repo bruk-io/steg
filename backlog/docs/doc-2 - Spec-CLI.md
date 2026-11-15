@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T16:27:00Z'
+updated_date: '2026-11-15T19:12:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -75,6 +75,7 @@ The description describes itself: `api.list` and `api.show` are methods like any
 | `event` | Something the server reports as it happens | M1 |
 | `api` | The API's own description, and a way to call any method | M1 |
 | `client` | One connection to the server: a window of the app, a CLI call, a plugin | M1 |
+| `setting` | A value the server remembers, overriding its default until changed again or until the server stops (decision-9). Not the configuration file | M1 |
 | `config` | The user's configuration | M2 |
 | `plugin` | A Python plugin the config lists | M2 |
 | `action` | A named operation, built in or from a plugin | M2 |
@@ -277,6 +278,10 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `event watch` | session | `--for <event>` to filter on the server; all sessions with `--all`. The only stream in M1 |
 | `client list` | none | Every client connected to the server. Command line clients only with `--all` |
 | `client show` | client | What it is, and the sessions it views |
+| `setting list` | none | Every setting, its current value and its default |
+| `setting show` | setting | One setting: its name, current value and default |
+| `setting set` | setting | `--value <text>`. The setting is named by the positional and its new value is the flag, since here the property is the thing addressed |
+| `setting unset` | setting | Clears the override, so the setting returns to its default |
 | `api list` | none | Every method, one per line |
 | `api show` | method | One method in full |
 | `api call` | method | Parameters as JSON on standard input |

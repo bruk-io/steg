@@ -1059,6 +1059,30 @@ error: recipe `test` failed with exit code 101
 ```
 
 Commits since the review: 26, 24 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T17:16:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at f6eb7a45144c with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.1s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:1066:
+                 .filter(|p| p.required)
+                 .map(|p| (p.name.as_str(), minimal_value(&p.value)))
+                 .collect();
+[31m-            let error = err(dispatch(&mut tree, &api, &context, &request(&dotted, params)));
+(B[m[32m+            let error = err(dispatch(
+(B[m[32m+                &mut tree,
+(B[m[32m+                &api,
+(B[m[32m+                &context,
+(B[m[32m+                &request(&dotted, params),
+(B[m[32m+            ));
+(B[m             assert_eq!(error.code, ErrorCode::NotImplementedYet, "{dotted}");
+             continue;
+         }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
+
+Commits since the review: 26, 24 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

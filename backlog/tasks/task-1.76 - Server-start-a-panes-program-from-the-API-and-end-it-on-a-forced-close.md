@@ -1037,6 +1037,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; fin
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime tab_close_refuses_while_any_of_its_panes_is_running -- --test-threads=1` exited 101 at 2026-11-15T22:14:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14482648) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

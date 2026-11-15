@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:39:00Z'
+updated_date: '2026-11-15T02:40:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -306,4 +306,6 @@ orchestrator can apply it deliberately rather than guess from the diff:
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan held by @bruk.o, not sent for approval: the engineer is settling the repository's architecture (an SDK with no I/O that holds the API description, the CLI merged into the steg binary crate, the kernel allowed to depend on the SDK). This plan was written against the earlier shape (a steg-client crate, a separate steg-cli). It is to be rewritten once the architecture spec is on the board. Also: the plugin under plugins/bruk-io-steg is changed through asdlc-plugin, not in a task's worktree.
+
+Rewritten plan checked against doc-16 by @bruk.o: ok. Five packages with doc-16's table in boundaries.toml, the sdk empty with its local-socket feature off by default, the CLI merged into steg, each package built and tested by itself through a just recipe. Known gap, left to the boundaries task: the check cannot see the kernel turning on an sdk feature. The plugin changes it lists are the orchestrator's, through asdlc-plugin, after this merges.
 <!-- SECTION:NOTES:END -->

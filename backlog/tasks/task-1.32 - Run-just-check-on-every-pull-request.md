@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:36:00Z'
+updated_date: '2026-11-15T02:40:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -72,6 +72,17 @@ The repository's one check command has to run where nobody can forget it. doc-1,
 Plan checked against doc-1 section 7 by @bruk.o: ok against the acceptance criteria. One thing for the engineer to decide: just check selects tests by diff against origin/main, so on a push to main it runs no crate tests. The orchestrator suggests the push-to-main run also does just test-all.
 
 Revised plan checked by @bruk.o: ok. It adds just test-all on push to main, as the engineer decided on 2026-11-15, and proves the push path before merge.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:40:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-run-just-check-on-every-pull-request at c492de56a0b8 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (14.0s)
+ok      boundaries (0.2s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

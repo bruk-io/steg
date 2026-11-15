@@ -1,10 +1,11 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-15T20:27:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
+asdlc_branch: task-1.81-api-call-cannot-reach-a-method-that-has
 ---
 
 ## Description

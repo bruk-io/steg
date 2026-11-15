@@ -1,0 +1,29 @@
+# Layers of bruk-io/steg, as globs relative to its root. The first layer whose globs match a
+# file is its layer, so narrow layers go first. Each layer has one rule in rules/ whose
+# frontmatter says `layer: <name>` and uses the same globs. Format: docs/repo-plugins.md.
+
+[layers.kernel]
+paths = ["crates/kernel/**"]
+summary = "steg-kernel: session, tab and pane state and its rules. Logic only, no I/O and no dependencies."
+
+[layers.server]
+paths = ["crates/server/**"]
+summary = "steg-server: the kernel plus the local socket. The only owner of state and of running programs."
+depends_on = ["kernel"]
+
+[layers.cli]
+paths = ["crates/cli/**"]
+summary = "steg-cli: a thin client whose commands come from the API description."
+
+[layers.app]
+paths = ["crates/app/**"]
+summary = "steg-app: the GPUI window. A client that draws what the server reports."
+
+[layers.binary]
+paths = ["crates/steg/**"]
+summary = "steg: the binary crate that puts the server and the CLI into one program."
+depends_on = ["server", "cli"]
+
+[layers.tools]
+paths = ["tools/**", "justfile", "Cargo.toml", "boundaries.toml", "deny.toml", "clippy.toml"]
+summary = "The repository's own checks: the justfile and the Python tools behind it (steg-affected, steg-boundaries, steg-quiet)."

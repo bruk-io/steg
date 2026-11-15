@@ -1,0 +1,28 @@
+# Verified commands for bruk-io/steg. Each runs from the repository's root unless `cwd` says
+# otherwise. A command becomes verified only by running it, never by hand:
+#   asdlc-plugin verify-command <code repository> <name>
+# writes today's date to `verified` when it passes on a clean checkout of the default branch.
+#
+# Everything goes through `just` (the repository's CLAUDE.md): never cargo directly. Output is
+# quiet; a failing step prints the end of its output and the path of its full log under .quiet/.
+
+[build]
+run = "just setup && just build"
+needs = ["just", "uv", "a Rust toolchain with cargo, rustfmt and clippy", "Xcode command line tools (gpui links against macOS frameworks)"]
+verified = 2026-11-14
+
+[test]
+run = "just test-all && just test-tools"
+needs = ["just", "uv", "a Rust toolchain", "Xcode command line tools (gpui links against macOS frameworks)"]
+verified = 2026-11-14
+
+[lint]
+run = "just fmt-check && just lint && just boundaries && just deny"
+needs = ["just", "uv", "a Rust toolchain with rustfmt and clippy", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)"]
+verified = 2026-11-14
+
+# `just check` runs only the tests a change affects, so on the default branch it runs no crate tests.
+[check]
+run = "just check"
+needs = ["just", "uv", "a Rust toolchain", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)"]
+verified = 2026-11-14

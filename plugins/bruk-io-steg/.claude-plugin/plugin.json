@@ -1,0 +1,8 @@
+{
+  "name": "bruk-io-steg",
+  "version": "0.1.0",
+  "description": "Conventions, layers and verified commands for bruk-io/steg.",
+  "author": {
+    "name": "The team"
+  }
+}

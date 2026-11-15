@@ -9,6 +9,11 @@
       "name": "team",
       "source": "./plugins/team",
       "description": "The team's own skills and rules: how we test and verify work, and the contract written for a large feature."
+    },
+    {
+      "name": "bruk-io-steg",
+      "source": "./plugins/bruk-io-steg",
+      "description": "Conventions, layers and verified commands for bruk-io/steg."
     }
   ]
 }

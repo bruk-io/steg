@@ -446,6 +446,51 @@ Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
 
 For more information, try '--help'.
 ```
+
+Check FAILED: `cargo test -p steg-kernel setting::tests::set_rejects` exited 101 at 2026-11-15T19:18:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 42 lines:
+
+```text
+  --> crates/kernel/src/setting.rs:96:4
+   |
+96 | fn accepts(kind: &ValueKind, value: &str) -> bool {
+   |    ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-kernel` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.48s
+     Running unittests src/lib.rs (target/debug/deps/steg_kernel-5f124207887fe9ee)
+
+running 2 tests
+test setting::tests::set_rejects_a_value_outside_the_closed_set ... FAILED
+test setting::tests::set_rejects_an_unknown_setting_name ... FAILED
+
+failures:
+
+---- setting::tests::set_rejects_a_value_outside_the_closed_set stdout ----
+
+thread 'setting::tests::set_rejects_a_value_outside_the_closed_set' (8122526) panicked at crates/kernel/src/setting.rs:138:9:
+assertion `left == right` failed
+  left: Ok(())
+ right: Err(InvalidSettingValue { name: "appearance", value: "neon" })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- setting::tests::set_rejects_an_unknown_setting_name stdout ----
+
+thread 'setting::tests::set_rejects_an_unknown_setting_name' (8122527) panicked at crates/kernel/src/setting.rs:129:9:
+assertion `left == right` failed
+  left: Ok(())
+ right: Err(UnknownSetting("nonsense"))
+
+
+failures:
+    setting::tests::set_rejects_a_value_outside_the_closed_set
+    setting::tests::set_rejects_an_unknown_setting_name
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 219 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

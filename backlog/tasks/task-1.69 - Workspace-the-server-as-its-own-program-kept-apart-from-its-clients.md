@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:54:00Z'
+updated_date: '2026-11-15T02:55:00Z'
 labels:
   - size-2
   - changes-requested
@@ -464,6 +464,17 @@ Checks recorded on the task:
 The boundaries.py feature-level gap (it cannot see whether a crate's sdk
 dependency enables local-socket) is left exactly as found, per the plan - a
 separate task is already being drafted for it.
+
+Check FAILED: `just boundaries` exited 1 at 2026-11-15T02:55:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734 with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg-app depends on steg-server, which is not on its allow list in boundaries.toml (the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)).
+full output: .quiet/boundaries.log
+error: recipe `boundaries` failed on line 73 with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

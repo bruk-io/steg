@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:15:00Z'
+updated_date: '2026-11-15T16:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'f570689623ad'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -502,3 +505,16 @@ declares") applies only where both sides exist and are comparable:
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-8 (R36, R37), doc-2, doc-15 (R115), doc-16 and decision-1 by @bruk.o: ok. Dispatch is a function from a request and a context to a response over the tree; every one of the 38 methods has an arm, real or answering not built with what it waits on, checked both ways; a working directory or a program given to session new, tab new or pane split is refused until TASK-1.40 lands, and nothing a caller would notice missing is accepted silently; kernel errors are matched exhaustively. For the engineer: a new error code, EngineFailed, with exit status 1, and pane resize and tab move --to answer not built for now. Kept as one change.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T16:26:00Z
+
+---
+
+Plan approved by @bruk (f570689623ad, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

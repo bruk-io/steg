@@ -338,6 +338,17 @@ mod tests {
     }
 
     #[test]
+    fn close_session_removes_it_directly() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None);
+
+        tree.close_session(session_id).unwrap();
+
+        assert!(tree.session(session_id).is_none());
+        assert!(tree.sessions().is_empty());
+    }
+
+    #[test]
     fn closing_a_sessions_only_tabs_only_pane_ends_the_session() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None);
@@ -350,6 +361,23 @@ mod tests {
         assert_eq!(closed.session, Some(session_id));
         assert!(tree.session(session_id).is_none());
         assert!(tree.sessions().is_empty());
+    }
+
+    #[test]
+    fn closing_a_tabs_last_pane_closes_the_tab_without_ending_a_session_that_has_others() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None);
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+
+        let closed = tree.close_pane(first_pane).unwrap();
+
+        assert_eq!(closed.tab, Some(first_tab));
+        assert_eq!(closed.session, None);
+        let session = tree.session(session_id).unwrap();
+        assert_eq!(session.tabs().len(), 1);
+        assert_eq!(session.tabs()[0].id(), second_tab);
     }
 
     #[test]

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.32
 title: Run just check on every pull request
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:11:00Z'
+updated_date: '2026-11-15T03:13:00Z'
 labels:
   - size-2
   - review-passed

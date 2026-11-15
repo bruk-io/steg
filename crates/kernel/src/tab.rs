@@ -3,6 +3,7 @@
 use steg_sdk::{PaneId, PaneKind, TabId};
 
 use crate::error::Error;
+use crate::label;
 use crate::pane::Pane;
 
 /// What happened when a pane was closed.
@@ -51,8 +52,14 @@ impl Tab {
     }
 
     /// Sets or clears this tab's label.
-    pub fn set_label(&mut self, label: Option<String>) {
-        self.label = label;
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidLabel`] if `label` contains `/`, or is made
+    /// only of digits (doc-2 section 4).
+    pub fn set_label(&mut self, label: Option<String>) -> Result<(), Error> {
+        self.label = label::validate(label)?;
+        Ok(())
     }
 
     /// This tab's panes, in order.
@@ -146,5 +153,26 @@ mod tests {
         let unknown = PaneId::from_raw(999);
 
         assert_eq!(tab.close_pane(unknown), Err(Error::PaneNotFound(unknown)));
+    }
+
+    #[test]
+    fn set_label_changes_it() {
+        let (mut tab, _first) = tab_with_one_pane();
+        assert_eq!(tab.label(), None);
+
+        tab.set_label(Some("logs".to_string())).unwrap();
+
+        assert_eq!(tab.label(), Some("logs"));
+    }
+
+    #[test]
+    fn set_label_rejects_an_invalid_label() {
+        let (mut tab, _first) = tab_with_one_pane();
+
+        assert_eq!(
+            tab.set_label(Some("123".to_string())),
+            Err(Error::InvalidLabel("123".to_string()))
+        );
+        assert_eq!(tab.label(), None);
     }
 }

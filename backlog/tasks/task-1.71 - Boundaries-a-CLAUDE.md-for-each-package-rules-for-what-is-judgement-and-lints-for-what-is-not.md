@@ -3,14 +3,14 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:37:00Z'
+updated_date: '2026-11-15T04:01:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.69
@@ -26,8 +26,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd8f3885f55ed'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
 ---
 
@@ -808,6 +807,74 @@ demonstrations that were reverted. `just check` recorded clean before any
 change, after the clippy.toml/justfile changes, after the Python/boundaries.toml
 changes, after the CLAUDE.md and rules changes, and once more after rebasing
 onto origin/main just before pushing.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:41:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at ada4026cced6 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (2.3s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.7s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (0.3s)
+ok      architecture (1.0s)
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Fixed the one Important finding and checked for the same mistake elsewhere.
+
+crates/sdk/CLAUDE.md:6-8 duplicated .claude/rules/sdk.md:11-13's R106 content
+verbatim ("a required dependency is for data and serialisation only", the
+GPUI/async-runtime ban). Removed from CLAUDE.md. While there, corrected the
+remaining dependency line to match boundaries.toml's actual `[steg-sdk]`
+table (an empty allow list, so "nothing" is accurate; the sdk may not depend
+on anything, steg's or external, not only "any other steg package" - the
+narrower phrasing I'd had was itself slightly wrong, independent of the
+duplication).
+
+Read the other four CLAUDE.md files against every rule that applies to their
+package (the new .claude/rules/{sdk,kernel,server}.md plus the repo-wide
+architecture.md, grepped for shared multi-word phrases, not just eyeballed)
+and found two more of the same mistake:
+- crates/app/CLAUDE.md's "with no private channel" restated
+  architecture.md's R36 bullet ("The app gets no private channel, so
+  anything the app can do, the CLI and a plugin can do too"). Removed.
+- crates/server/CLAUDE.md's "owns every session, tab, pane and running
+  program" restated .claude/rules/server.md's R1/R2 bullet verbatim.
+  Removed.
+crates/kernel/CLAUDE.md and crates/steg/CLAUDE.md had no overlapping phrase
+with kernel.md, architecture.md, or (for steg, which has no new rule of its
+own from this task) architecture.md - left unchanged. Confirmed with a grep
+for each phrase judged ("no private channel", "owns every session", "GPUI
+type", "async runtime", "data and serialisation", "server logic", "never
+keeps a copy", "optional parts", "no I/O") across all five CLAUDE.md files
+and the four rule files together - each now appears in exactly one file.
+
+PR 18 (the just-recipe rename) was still open, not merged, when checked
+(`gh pr view 18` and `git show origin/main:justfile`) - left every recipe
+name as it was (`packages`, `boundaries`, `fmt-check`, `architecture`,
+`affected`), matching the instruction for that case.
+
+Brought in origin/main with a merge (the branch was already pushed): PR 15
+(TASK-1.35) landed real code in crates/kernel/src (pane, session, tab, tree,
+colour, error, ids) and crates/sdk/src (colour, ids, pane_kind) since this
+task's last review. No conflicts. Recorded `just check` clean against that
+real code with the clippy.toml/boundaries.toml changes from this task still
+in place - the new disallowed-types/methods lists don't false-positive on
+any of it.
+
+Pull request (unchanged): https://github.com/bruk-io/steg/pull/17
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -851,6 +918,58 @@ Everything else checked out:
 - CI (the "check" workflow) is green on the pull request's head commit (9f9585e).
 - AC#6 is answered in the plan/notes for the orchestrator, and plugins/ is untouched in this branch, confirmed with git diff --stat.
 - The just-recipes-not-cargo-test-p departure in the CLAUDE.md files matches root CLAUDE.md's own instruction and is explained in the notes.
+
+---
+
+created: 2026-11-15T03:47:00Z
+
+---
+
+From @bruk.o: commits after the hand-back. The worker handed this back to review at an earlier head, then, on the orchestrator's instruction and before any reviewer claimed it, merged origin/main (pull requests 15 and 18) and switched every old just recipe name to the new one. The board takes no recorded check on a task that is In Review, so the check at the new head 5ba2098 is pull request 17's CI run 43673858878 (success), plus a just check the worker ran unrecorded. Conflicts resolved in .claude/rules/architecture.md, crates/kernel/Cargo.toml and the justfile. The reviewer is asked to review at 5ba2098 and to confirm no old recipe name remains in this change's files.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:47:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.71: a same-machine review: it waited 6m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:56:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review at 5ba2098 (confirmed via `gh run view 43673858878 --json headSha` = 5ba2098c4ca666...), after the worker merged origin/main (PR15 real kernel/sdk code, PR18 just-recipe rename) and switched every old recipe name. No findings.
+
+Verified independently, not just from the notes:
+- Lint mechanism, both crates separately: appended a `std::fs::File` canary to crates/kernel/src/lib.rs and separately to crates/sdk/src/lib.rs, ran `cargo clippy -p <crate> --all-targets --all-features -- -D warnings` for each (not `just lint`, which can't tell "no per-crate file" apart from "per-crate file present and fine" since clippy reads only the first clippy.toml found walking up and does not merge). Both failed with "doc-16 R110: no file I/O in the <crate>", confirming each crate's own clippy.toml - not the root's - is what's taking effect. Reverted both; worktree clean.
+- No `#[allow(clippy::...)]` or `#[expect(clippy::...)]` anywhere in crates/kernel/src or crates/sdk/src (grepped) - PR15's real kernel/sdk code (pane, session, tab, tree, colour, error, ids) passes the new disallowed-types/methods lists with no exemption added to make it pass.
+- Ran check-fmt, lint, check-boundaries, deny, test-tools, check-recipes, check-packages directly in a fresh worktree at this head: all pass. check-packages builds/tests each of the five crates alone.
+- Old recipe names: grepped all 18 changed files for both `just <name>` and bare/backticked `boundaries|packages|fmt-check|architecture|affected`. Every hit is a Python module/binary name (steg_tools.boundaries, steg-affected, steg-boundaries) or an unrelated word (cargo metadata's own "packages" key, a local `affected` set in affected.py's own logic), not a just-recipe reference. None remain.
+- justfile's `check:` line names `check-packages` once and `check-recipes` once, and carries forward both tasks' independent additions (this task's `--all-features` on `lint` and the detailed `check-packages` body/comment; the other task's check-* renames and `check-recipes`). Compared crates/kernel/Cargo.toml, justfile and .claude/rules/architecture.md at both merge parents (dd13f2d this task's tip, c99b00c origin/main) against the resolved result: each conflict resolution kept this task's new content and adopted the renamed recipe names from the other side; nothing from either parent is missing in the result.
+- R111 sweep across architecture.md, sdk.md, kernel.md, server.md, just-recipes.md and the five CLAUDE.md files, read in full: the earlier Important finding (R106 content duplicated in sdk/CLAUDE.md and sdk.md) is fixed and the worker's own re-check (app/CLAUDE.md, server/CLAUDE.md) holds up - re-verified by reading all nine files myself rather than trusting the notes. Two near-misses judged and found not to violate R111: (1) kernel.md and sdk.md each end with an identical-except-crate-name bullet about their clippy.toml's disallowed list being curated/non-exhaustive - each is `paths`-scoped to only its own crate, so no single read ever loads both, the same mechanism that lets the five CLAUDE.md files share a "Tests:" boilerplate line without that being a second CLAUDE.md-vs-CLAUDE.md violation; (2) app/CLAUDE.md's "a client of the server like any other, through the sdk and the public API" and architecture.md's "every client uses the one public API... (R36)" share a subject but one is CLAUDE.md's required identity statement (what the package is) and the other is the behavioural rule (no private channel) - different categories under R111's own split, not a restatement.
+- Traced where R98/R105's old architecture.md bullet ("the server's code is in packages no client depends on... the kernel may depend on the sdk only without its optional parts") went, since it isn't in server.md/kernel.md/sdk.md either: it's now carried as the "May depend on"/"May not depend on" lines of app/CLAUDE.md, kernel/CLAUDE.md and server/CLAUDE.md - exactly the level AC#4/R111 assign to CLAUDE.md. Not named explicitly among "the two bullets" plan section 4 lists replacing, but consistent with the plan's own rule ("architecture.md keeps only genuinely cross-package judgement") and with AC#4's design; nothing lost.
+- Read tools/src/steg_tools/affected.py and boundaries.py in full (not just the diff hunks) against the python/code-design rules that load on reading them: new Crate fields and BoundaryRule/FeatureViolation are frozen dataclasses, no new public name lacks an external caller, no inheritance, logic stays pure/data-in-data-out with I/O only in main(). No finding.
+
+Bookkeeping: AC#2's own text still says "just boundaries"/`just check-boundaries` is what satisfies it post-rename (the criterion predates TASK-1.73's rename) - noting here so it isn't later scored unmet over a name change this task wasn't responsible for.
+
+CI (pull request 17's run 43673858878) is green at this exact head. plugins/ untouched in this branch (git diff --stat confirms). AC#6 is answered in the plan for the orchestrator.
+
+---
+
+created: 2026-11-15T03:59:00Z
+
+---
+
+From @bruk.o: one merge after the clean review. The review by @bruk.r2 passed head 5ba2098 with no findings. Pull request 19 then merged and conflicted with this change in .claude/rules/architecture.md. The board takes no recorded check on a task whose review has passed, so the worker merged origin/main and pushed without asdlc record-check; the check at the new head ea4f50b is pull request 17's CI run 43674687585 (success), plus a just check the worker ran unrecorded. The resolution touched only the last two bullets of .claude/rules/architecture.md: this task's rewritten dependency-table bullet is kept, followed by main's new LikeC4 MCP server bullet, unchanged. Nothing else in the change differs from the reviewed head.
 
 ---
 <!-- COMMENTS:END -->

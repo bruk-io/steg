@@ -20,10 +20,10 @@ affected := "uv run --quiet --project tools steg-affected"
 # the empty string, not a failure - `just` evaluates every backtick on every invocation
 # (even `just fmt` or `just deny`, which never touch Zig), so this must never error on a
 # machine with no mise at all. A recipe that actually compiles the workspace exports `ZIG`
-# from it, conditionally (see `lint`/`test`/`test-all`/`packages`/`build`/`run` below); every
-# other recipe is unaffected. Left unset rather than exported empty on purpose: an empty
-# `ZIG` is worse than an unset one - `ghostty-vt-sys`'s own build.rs checks `ZIG` first and
-# would try to run it verbatim, where an unset `ZIG` falls through to that build.rs's own
+# from it, conditionally (see `lint`/`test`/`test-all`/`check-packages`/`build`/`run` below);
+# every other recipe is unaffected. Left unset rather than exported empty on purpose: an
+# empty `ZIG` is worse than an unset one - `ghostty-vt-sys`'s own build.rs checks `ZIG` first
+# and would try to run it verbatim, where an unset `ZIG` falls through to that build.rs's own
 # fallback chain (a bare `zig` on PATH, then its own `mise which zig`, then a panic that says
 # exactly what to install).
 zig := `mise which zig 2>/dev/null || true`
@@ -32,8 +32,8 @@ zig := `mise which zig 2>/dev/null || true`
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, the tools' own tests, and the architecture model
-check: fmt-check lint boundaries deny test test-tools architecture
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, and this file's own recipe names
+check: check-fmt lint check-boundaries deny test check-packages test-tools check-architecture check-recipes
 
 # Seeds Zig's own package cache (`ZIG_GLOBAL_CACHE_DIR`, .cargo/config.toml) from the
 # committed, read-only tarballs in third_party/ghostty-vt-zig-deps/p/, so a real build never
@@ -71,11 +71,17 @@ test-all: zig-deps-seeded
 test-tools:
     @{{quiet}} "tool tests" -- uv run --quiet --project tools pytest -q tools/tests
 
-# build and test each package selected alone (`cargo -p`), so this is something anyone can run again
-packages: zig-deps-seeded
+# build and test each package alone (`cargo -p`, no `--all-features`, deliberately - see below): part of
+# `check`, because a `--workspace` build unifies an optional feature on for every member that shares the
+# dependency, even one whose own Cargo.toml never asked for it (doc-16 R105, R110); building each package
+# by itself is the only way to prove the kernel never ends up able to compile against the sdk's optional
+# parts, whatever some other member turns on in the same `--workspace` run. Also, with ghostty-vt now a
+# real dependency (TASK-1.34), this is the step that pays Zig's build cost for steg-kernel alone - seeded
+# from the vendored tarballs first so it never reaches the network.
+check-packages: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
-    if [ "{{rust}}" = no ]; then echo "skip    packages: no Rust workspace yet"; exit 0; fi
+    if [ "{{rust}}" = no ]; then echo "skip    check-packages: no Rust workspace yet"; exit 0; fi
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
     for pkg in steg-sdk steg-kernel steg-server steg steg-app; do
         {{quiet}} "build ($pkg)" -- cargo build -p "$pkg"
@@ -87,23 +93,26 @@ fmt:
     @if [ "{{rust}}" = no ]; then echo "skip    format: no Rust workspace yet"; else {{quiet}} "format" -- cargo fmt --all; fi
 
 # fail if the code is not formatted
-fmt-check:
+check-fmt:
     @if [ "{{rust}}" = no ]; then echo "skip    format check: no Rust workspace yet"; else {{quiet}} "format check" -- cargo fmt --all --check; fi
 
-# lints, with warnings as errors
+# lints, with warnings as errors. --all-features so a feature-gated module (such as the sdk's
+# local-socket provider, R103) is linted too, not silently skipped by every check that runs here.
+# Seeded first (zig-deps-seeded): --all-features turns on steg-sdk's local-socket feature for
+# everything in the --workspace build, which still links ghostty-vt through steg-kernel.
 lint: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{rust}}" = no ]; then echo "skip    lint: no Rust workspace yet"; exit 0; fi
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
-    {{quiet}} "lint" -- cargo clippy --workspace --all-targets -- -D warnings
+    {{quiet}} "lint" -- cargo clippy --workspace --all-targets --all-features -- -D warnings
 
 # refuse a dependency whose licence is not allowed (MIT project, nothing GPL or AGPL)
 deny:
     @if [ "{{rust}}" = no ]; then echo "skip    licences: no Rust workspace yet"; else {{quiet}} "licences" -- cargo deny check licenses; fi
 
 # refuse a crate dependency that crosses the boundaries in .claude/rules/architecture.md (boundaries.toml)
-boundaries:
+check-boundaries:
     @if [ "{{rust}}" = no ]; then echo "skip    boundaries: no Rust workspace yet"; else {{quiet}} "boundaries" -- uv run --quiet --project tools steg-boundaries; fi
 
 # install or check what the recipes need beyond Rust itself (cargo-deny first, then the
@@ -139,9 +148,13 @@ run: zig-deps-seeded
     cargo run --package steg-app
 
 # which crates this change affects: all, none, or the -p flags `just test` passes to cargo
-affected:
+show-affected:
     @{{affected}}
 
 # the architecture model (architecture/) validates against the LikeC4 grammar (doc-16, R108)
-architecture:
+check-architecture:
     @{{quiet}} "architecture" -- npx --yes likec4@1.61.0 validate architecture
+
+# a recipe's name starts with a verb on the list kept in tools/src/steg_tools/recipes.py (.claude/rules/just-recipes.md)
+check-recipes:
+    @{{quiet}} "recipe names" -- uv run --quiet --project tools steg-recipes

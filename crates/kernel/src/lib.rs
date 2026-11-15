@@ -19,15 +19,18 @@
 mod colour;
 mod error;
 mod ids;
+mod label;
 mod pane;
 mod session;
 mod tab;
+mod target;
 mod tree;
 
 pub use error::Error;
 pub use pane::Pane;
 pub use session::{Session, TabClosed};
 pub use tab::{PaneClosed, Tab};
+pub use target::Candidate;
 pub use tree::{ClosedPane, Tree};
 
 #[cfg(test)]

@@ -3,6 +3,7 @@
 use steg_sdk::{Colour, PaneId, PaneKind, TabId};
 
 use crate::error::Error;
+use crate::label;
 use crate::tab::Tab;
 
 /// What happened when a tab was closed.
@@ -57,8 +58,14 @@ impl Session {
     }
 
     /// Sets or clears this session's label.
-    pub fn set_label(&mut self, label: Option<String>) {
-        self.label = label;
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidLabel`] if `label` contains `/`, or is made
+    /// only of digits (doc-2 section 4).
+    pub fn set_label(&mut self, label: Option<String>) -> Result<(), Error> {
+        self.label = label::validate(label)?;
+        Ok(())
     }
 
     /// This session's colour (R26).
@@ -229,9 +236,20 @@ mod tests {
         let (mut session, _first_tab) = session_with_one_tab();
         assert_eq!(session.label(), None);
 
-        session.set_label(Some("work".to_string()));
+        session.set_label(Some("work".to_string())).unwrap();
 
         assert_eq!(session.label(), Some("work"));
+    }
+
+    #[test]
+    fn set_label_rejects_an_invalid_label() {
+        let (mut session, _first_tab) = session_with_one_tab();
+
+        assert_eq!(
+            session.set_label(Some("work/logs".to_string())),
+            Err(Error::InvalidLabel("work/logs".to_string()))
+        );
+        assert_eq!(session.label(), None);
     }
 
     #[test]

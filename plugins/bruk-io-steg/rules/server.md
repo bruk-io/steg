@@ -7,6 +7,5 @@ paths:
 
 Applies to code in crates/server.
 
-- The server depends on `steg-kernel` and `steg-sdk` and on no client; `boundaries.toml` holds the list (doc-16 on the board, R98 and R104).
-- It is a consumer of the sdk like any client: framing, the handshake and the API description come from there, and the server adds the socket and the routing (R101).
-- How it starts, detaches and stops is doc-8 R99, and that code lives here, not in any client.
+- What this package is and how to test it: `crates/server/CLAUDE.md`. The judgement its boundary needs: `.claude/rules/server.md`. Both load when you work in these files, so they are not repeated here.
+- The specs it serves are on the board: doc-8 for the server and its lifecycle (R99), doc-14 for the wire protocol, and decision-1 and decision-2 under backlog/decisions/.

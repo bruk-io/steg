@@ -647,6 +647,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 117 with exit code 1
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T16:48:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 65 lines:
+
+```text
+   |
+47 | fn handled() -> Vec<(&'static str, &'static str)> {
+   |    ^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: constant `NOT_YET_NOUNS` is never used
+  --> crates/server/src/dispatch/mod.rs:60:7
+   |
+60 | const NOT_YET_NOUNS: &[(&str, &str)] = &[
+   |       ^^^^^^^^^^^^^
+
+error: docs for function which may panic missing `# Panics` section
+   --> crates/server/src/dispatch/mod.rs:242:1
+    |
+242 | / pub fn dispatch(
+243 | |     tree: &mut Tree,
+244 | |     description: &Description,
+245 | |     context: &Context,
+246 | |     request: &Request,
+247 | | ) -> Response {
+    | |_____________^
+    |
+note: first possible panic found here
+   --> crates/server/src/dispatch/mod.rs:256:21
+    |
+256 |       let noun_verb = request
+    |  _____________________^
+257 | |         .method
+258 | |         .split_once('.')
+259 | |         .expect("validate already confirmed this method is in the description");
+    | |_______________________________________________________________________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+    = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: could not compile `steg-server` (lib) due to 4 previous errors
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -85,7 +85,7 @@ pub(crate) fn not_implemented_yet(waiting_on: &str) -> ApiError {
 }
 
 /// A `BadRequest` naming `message` — for a malformed value `validate`
-/// itself cannot catch (such as `api.call`'s own `target`, checked before
+/// itself cannot catch (such as `api.call`'s own `method`, checked before
 /// the generic validation step runs at all; see `api::call`).
 pub(crate) fn bad_request(message: impl Into<String>) -> ApiError {
     ApiError::new(ErrorCode::BadRequest, message.into())

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T21:38:00Z'
+updated_date: '2026-11-15T22:14:00Z'
 labels:
   - size-5
   - changes-requested
@@ -951,6 +951,180 @@ Coverage, clause by clause:
 - **AC #6** ("the kernel errors... map to an API error code that says what happened; whether each needs its own code is decided in the plan"): `map_kernel_error`'s existing tests, unchanged. `shapes.rs`/`methods.rs`'s own `ProgramFailed` tests (the new `errors_has_twelve_codes_with_their_exit_statuses`, extended; the three methods' own `errors` lists). `no_described_method_can_reach_restart_program_or_record_exit` is the negative assertion: no method names a `restart` verb, so `ShellCannotRestart`/`ProgramNotStarted` stay unreachable and undecided, as the plan said.
 
 `just check` recorded clean at the final head, `fdef2fe` (rebased onto `origin/main` after TASK-1.48 merged; TASK-1.41's own rename/`Moment` change had not merged as of this rebase, so there was nothing further to adapt to - checked directly in `crates/kernel/src/pane.rs` before pushing, not assumed). Pushed, PR opened: https://github.com/bruk-io/steg/pull/40.
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 101 at 2026-11-15T22:13:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... FAILED
+
+failures:
+
+---- runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap stdout ----
+
+thread 'runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap' (14462749) panicked at crates/server/src/runtime.rs:1200:17:
+pane 00000002 never reported pty size 20 30; last screen: "20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 20.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 0 at 2026-11-15T22:13:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.25s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 101 at 2026-11-15T22:14:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... FAILED
+
+failures:
+
+---- pane_close_refuses_while_its_program_is_running_and_touches_nothing stdout ----
+
+thread 'pane_close_refuses_while_its_program_is_running_and_touches_nothing' (14478076) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_refuses_while_its_program_is_running_and_touches_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 0 at 2026-11-15T22:14:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime tab_close_refuses_while_any_of_its_panes_is_running -- --test-threads=1` exited 101 at 2026-11-15T22:14:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14482648) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime tab_close_refuses_while_any_of_its_panes_is_running -- --test-threads=1` exited 0 at 2026-11-15T22:14:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running -- --test-threads=1` exited 101 at 2026-11-15T22:14:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... FAILED
+
+failures:
+
+---- session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running stdout ----
+
+thread 'session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running' (14490142) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running -- --test-threads=1` exited 0 at 2026-11-15T22:14:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:36:00Z'
+updated_date: '2026-11-15T21:56:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.48
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd5c2871b65a2'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -691,6 +691,29 @@ created: 2026-11-15T21:36:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:45:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at PR #39 head a6b4c4e609b2a98a4e6558f186e95b07e247f0a5. CI green on this head (gh pr checks 39). My own `just check` run clean on this head in a fresh detached review worktree.
+
+Round-one Important finding and nits re-verified myself, not just read: restored the old read-and-strip of "target" in crates/server/src/dispatch/api.rs as a scratch edit (reverted after), ran `cargo test --test dispatch api_call`: all 13 of 13 api_call_* tests failed, including api_call_refuses_to_call_itself (now fails "target: must be text" vs expected "api.call cannot call api.call" - correctly distinguishing "selector missing" from "refuses to call itself", which is exactly what round one found broken) and api_call_with_no_method_is_a_bad_request (now asserts the message too). Restored the fix: all 13 passed again. The round-one Important finding and nits 1-2 are genuinely fixed.
+
+Diff since 2d63736 (git diff 2d63736..a6b4c4e): the merge of origin/main (ea5b810, bringing in TASK-1.41's Moment/Status work) touched crates/kernel, crates/sdk/{lib,program,status}.rs and unrelated doc comments in methods.rs's tab_fields/pane_fields - none of it in the files this task owns (dispatch/api.rs, dispatch/mod.rs, api.call's Param literal). git diff origin/main...HEAD confirms the net diff is exactly the four expected files (methods.rs, dispatch/api.rs, dispatch/mod.rs, dispatch.rs) with only this task's content - TASK-1.41's work shows up nowhere in it. TASK-1.41 (PR #38) is MERGED; TASK-1.44 (PR #37) is OPEN - confirmed via `gh pr view`, matching the notes' dated correction of the earlier wrong claim.
+
+[Evidence, Nit] The task's last recorded `just check` exit 0 (2026-11-15T21:32:44Z) names the pre-commit tree "ea5b8100a7c9 with uncommitted changes", not the head a6b4c4e those uncommitted changes became - no recorded run names a6b4c4e itself. `git diff --stat ea5b810..a6b4c4e` is +31 lines in dispatch.rs only (the two test strengthenings just verified above), so the recorded tree and the reviewed head are the same content; confirmed independently by green CI on a6b4c4e and by running `just check` myself clean on a6b4c4e. Not Important: no behaviour, criterion, or check is actually unverified, only the recorded-run label is one commit behind.
+
+--plan-matched no, carried over from round one and still true of the whole diff being judged (not just the delta): the plan's proof section called for tests-first then the rename, and the worker built the rename first (disclosed in the notes); crates/server/src/dispatch/mod.rs (one doc-comment word) is touched and isn't in the plan's "Files that change" list (also disclosed). Both are genuine, disclosed departures, not separate findings.
+
+No other findings: AC #1-#4 each have a real test behind them (the 41-method parity loop with a panic! fallback, the three named-target tests asserting both halves, the three settings-by-name tests, the strengthened unknown-method and new inner-validation-failure tests comparing whole ApiError, the sdk invariant test); doc_2_section_8_targets and every_method_has_a_target_... are unaffected (role-based, not name-based) and still pass; no architecture boundary crossed (sdk/server only); no mocking crate, no sleep-to-wait, tests use real Tree/fakes per .claude/rules/testing-rust.md.
 
 ---
 <!-- COMMENTS:END -->

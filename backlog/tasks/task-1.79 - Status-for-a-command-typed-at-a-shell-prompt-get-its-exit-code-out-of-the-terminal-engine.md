@@ -1,13 +1,13 @@
 ---
 id: TASK-1.79
 title: >-
-  Status for a command typed at a shell prompt: get its exit code out of the
-  terminal engine
+  Terminal: surface a prompt-marked command's start and end, with its exit code,
+  from the engine
 status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T21:42:00Z'
+updated_date: '2026-11-15T22:11:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
 asdlc_branch: task-1.79-status-for-a-command-typed-at-a-shell
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '8ee9fd39c481'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -27,165 +30,121 @@ Split from TASK-1.41 (2026-11-15). doc-11: R50, R82, R83; decision-7; doc-9 for 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A command typed at a shell prompt that reports prompt marks (OSC 133) shows running while it runs and finished or failed from its exit code when it ends (R50, R82), in a shell pane whose shell never exits between commands
-- [ ] #2 How the exit code leaves the engine is decided in the plan with the alternatives weighed: a change contributed to or carried against the ghostty-vt crate so its safe API surfaces the semantic-prompt callback; a small foreign-interface module outside the kernel over ghostty-vt-sys; or another route found by reading the engine. A second parser over the pty bytes kept in step with the engine is the last resort and needs the engineer's word
-- [ ] #3 The kernel still has no unsafe code and no I/O; anything foreign lives in one small module behind a safe API in a crate allowed to hold it (doc-16, .claude/rules/rust.md), and any change to vendored or patched dependencies is recorded where TASK-1.34 recorded the build
-- [ ] #4 A shell that reports no prompt marks shows no finished or failed status for typed commands and nothing is guessed; the ending rules of TASK-1.41 apply unchanged to statuses that arrive this way
+- [ ] #1 The kernel's Terminal reports, as data, when a prompt-marked command starts producing output and when it ends with its exit code (OSC 133 C and D), from real escape sequences fed to a real terminal; a sequence with no exit code, a malformed one, and marks arriving out of order are each handled and tested
+- [ ] #2 The route is the one the plan weighed and chose: the safe ghostty-vt crate patched to wire the engine's semantic-prompt callback, carried in this repository so the build stays offline (R92), with the alternatives and why they fail recorded; a second parser over the pty bytes is not built
+- [ ] #3 The kernel still has no unsafe code and no I/O; the patch is as small as it can be, its licence and origin are recorded where TASK-1.34 recorded the build (third_party/README.md), the build from a clean checkout with no network still works, and how to drop the patch when upstream has the change is written down
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-## Recommendation up front
+## Decision this plan asks the engineer to confirm at approval
 
-Route **(a)**: patch the safe `ghostty-vt` crate (Rust-only, ~25 lines in one file) to wire
-`GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`, carried as a pinned fork via `[patch.crates-io]`
-under the *same* crate name/version so no other file in the repo (`boundaries.toml`,
-every `Cargo.toml`) has to change. **Built, not just sketched**: I applied this exact
-patch to a scratch copy of the real vendored 0.8.0 source, pointed this worktree's
-`Cargo.toml` at it via `[patch.crates-io]` with a `path` dependency, and ran `just build`
-- the full pipeline (`ghostty-vt-sys`'s Zig/C build against the vendored `third_party/`
-tree, unchanged, through `ghostty-vt`'s own build, through `steg-kernel`) succeeded.
-I then added a temporary test directly in `crates/kernel/src/terminal.rs` that feeds the
-literal bytes `\x1b]133;D;3\x07` into a real `Terminal` and asserts the patched crate's
-`Event::SemanticPrompt` comes back with `has_exit_code: true, exit_code: 3` - it passed
-(`cargo test -p steg-kernel --lib scratch_semantic_prompt_event_reaches_the_engine`, 1
-passed). All experimental edits (`Cargo.toml`, `Cargo.lock`, `crates/kernel/src/
-terminal.rs`) were then reverted with `git checkout --`; the worktree is clean and
-nothing of this experiment is committed. Open an issue/PR against upstream
-(`prabirshrestha/gpui-cn`) at the same time; if it never lands, the fork is maintained
-indefinitely at this size and cost - a real but small ongoing cost, named as a risk below,
-not hidden.
+**The route is (a): patch the safe `ghostty-vt` crate's `terminal.rs` to wire
+`GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`, vendored under `third_party/` as a `path`
+dependency through `[patch.crates-io]`, same crate name and version as crates.io's
+0.8.0.** I built this, not just sketched it (below). The two-line alternative: a pinned
+`git` dependency instead of a vendored `path` one - simpler to update when the patch is
+re-derived against a new upstream version, but it is a new network source at `cargo
+fetch` time (crates.io's registry already is one for every dependency; this would add
+GitHub specifically). It does not reopen R92's closed surface (`tip.files.ghostty.org`
+etc.) either way, since the patch never touches `ghostty-vt-sys`'s own build. I recommend
+the vendored path dependency, both for consistency with how `ghostty`'s own C/Zig source
+is already vendored here and because it is the form I actually built and tested below -
+nothing stops the engineer from choosing `git` instead; the patch content is identical.
 
-**AC #1 cannot be satisfied by this task alone, and I'm saying so rather than building
-around it quietly.** `record_exit`/`PaneEvent::Exited` already has no call site that
-turns it into a `Tree::record_exit` call anywhere in this repo - that loop is TASK-1.76's
-own, still To Do, and its own module comment calls it "a known gap, unreachable by any
-client today." The two new `PaneEvent` variants this task adds have exactly the same
-gap: nothing today reads `PaneEvent` and calls `Tree` with a real `Moment`. AC #1 asks
-for an end-to-end, observable "shows running... finished or failed," and that cannot be
-demonstrated without that loop existing somewhere. See piece 4 and the split below for
-the engineer's two choices.
+## What I built, not inferred
 
-**Engineer decisions this plan surfaces, not mine to make:**
-1. Fork-and-patch `ghostty-vt` now (route a, built and proven above), vendored as a
-   `path` dependency under `third_party/` (consistent with how `ghostty`'s own source is
-   vendored, and the form I actually tested) or pulled via a pinned `git` dependency
-   (simpler to update, but a new network source at `cargo fetch` time -
-   crates.io/github.com, not `tip.files.ghostty.org`, so it does not reopen R92's closed
-   surface, but it is a new one). I recommend the vendored path dependency, both for
-   consistency with this repo's existing policy and because it's the form I verified.
-2. Whether steg ships/sources ghostty's own shell-integration scripts (zsh/bash/fish/
-   elvish; **nushell's ghostty integration never emits OSC 133 at all** - checked by
-   reading it, not assumed) automatically for every shell pane, or leaves that to the
-   person's own shell config. `ghostty-vt` already carries these scripts
-   (`shell_integration::resources_dir()`) and the exit code is really in them
-   (`\e]133;D;$status\a`, read directly out of the vendored zsh/bash/fish/elvish scripts).
-   This is R82/decision-7's whole premise ("depend on the shell reporting prompt marks")
-   and AC #4 is explicitly fine with "no marks, no guess" - so this is a UX/adoption
-   decision, not a correctness one, and I'm not deciding it here. One constraint is not
-   optional, though: `resources_dir()` writes files to a cache directory (its own doc
-   comment says so), which is real file I/O - `crates/kernel/clippy.toml`'s
-   `disallowed-methods` already forbids exactly this shape (`std::fs::write`,
-   `create_dir_all`, etc., "doc-16 R110: no file I/O in the kernel"), so whatever calls it
-   has to live in the server (or `steg`), never the kernel, wherever `LaunchSpec`'s
-   environment is already built.
-3. If (a) falls through (upstream refuses a patch of this shape, or the engineer declines
-   to carry a fork at all): the stopgap is **(d)**, scoped as tightly as I can state it -
-   see "If route (a) fails" below. I recommend against building it pre-emptively.
-4. The split below (five tasks). Only the first two need no new decision from TASK-1.76.
-   The third is independent too. The fourth is where AC #1's gap above lives - whether to
-   fold the `PaneEvent` → `Tree` loop into this task's own scope (duplicating or
-   preempting part of TASK-1.76) or to accept that AC #1 is only demonstrable end to end
-   once TASK-1.76's loop exists, with this task building everything short of that.
+All of the following was run in this worktree and then fully reverted (`git checkout --
+Cargo.toml Cargo.lock crates/kernel/src/terminal.rs`; `git status --porcelain` empty
+afterward - nothing of this is committed):
 
-## What I verified by reading or running, vs. what I infer
+1. Copied the real vendored `ghostty-vt` 0.8.0 source
+   (`~/.cargo/registry/src/*/ghostty-vt-0.8.0+*`) to a scratch directory, dropped the
+   registry-only files that never belong in a vendored copy (`Cargo.toml.orig`,
+   `Cargo.lock`, `.cargo-ok`, `.cargo_vcs_info.json` - none of these exist in, e.g., a
+   `cargo vendor` tree either), and applied the patch below to its one file,
+   `src/terminal.rs`.
+2. Pointed this worktree's root `Cargo.toml` at the scratch copy via
+   `[patch.crates-io]` with a `path` entry, keeping the crate's own `Cargo.toml` (name
+   `ghostty-vt`, version `0.8.0+ghostty.1.4.0-main.83fb956`, licence `Apache-2.0`)
+   byte-for-byte unchanged from the registry's own normalized copy - confirmed by `diff`.
+   **One change this experiment left out that the real build needs**: `crates/kernel/
+   Cargo.toml`'s dependency line, `ghostty-vt = "0.8"`, is a caret range - if an
+   unpatched `0.8.1` (or any later `0.8.x`) ever publishes, it satisfies that range too,
+   and `[patch.crates-io]`'s pin to the exact `0.8.0+ghostty.1.4.0-main.83fb956` build
+   would then mismatch and either stop applying or fail to resolve. The real patch
+   tightens that line to `ghostty-vt = "=0.8.0+ghostty.1.4.0-main.83fb956"`, with a
+   comment saying why the pin is load-bearing (the vendored patch is derived from, and
+   only verified against, exactly that source) - the one-word difference between "a
+   fork we carry" and "a fork that silently stops being used."
+3. `just build`: the whole pipeline - `ghostty-vt-sys`'s Zig/C build against the
+   vendored `third_party/ghostty` tree (untouched by this patch), through the patched
+   `ghostty-vt`, through `steg-kernel` - succeeded.
+4. Added a temporary test directly in `crates/kernel/src/terminal.rs` (same module as
+   the private `engine` field, so it could call `term.engine.vt_write` and
+   `term.engine.events()` directly - the real public surface this task adds,
+   `take_command_marks`, does not exist yet) covering every case AC #1 names, each with
+   real bytes:
+   - `C` then `D;0` → `OutputStart`, then `CommandEnd{has_exit_code: true, exit_code: 0}`.
+   - A bare `D` (no code at all) → `CommandEnd{has_exit_code: false, exit_code: 0}`
+     (`exit_code`'s value is garbage/default when `has_exit_code` is `false` - never
+     read without checking the flag first, which is exactly why the kernel's own type,
+     below, makes it an `Option` rather than carrying both fields separately).
+   - A malformed code, `D;abc` → **also** `CommandEnd{has_exit_code: false, exit_code:
+     0}` - the engine's own OSC 133 parser degrades a value it can't parse the same way
+     it handles no value at all. Verified, not assumed: this means the kernel needs no
+     extra validation of its own for this case - trusting `has_exit_code` is already
+     correct.
+   - `D;5` with no `C` beforehand at all (a fresh terminal) → fires anyway,
+     `CommandEnd{has_exit_code: true, exit_code: 5}`. The engine enforces no ordering
+     ("Shells differ in what they report... handle each event on its own" - the sys
+     crate's own doc comment on the callback type, read directly).
+   - Two `C`s in a row, then `D;7` → **two** separate `OutputStart` events, not deduped,
+     then `CommandEnd{has_exit_code: true, exit_code: 7}` ("a shell may start the same
+     prompt more than once... treat a repeated `PROMPT_START` as harmless" - the same
+     doc comment, and this test shows the rule extends to `OUTPUT_START` too). Passing
+     each one through rather than deduping is this plan's choice - idempotency, if
+     wanted, belongs to whatever reads `take_command_marks` next, not to this crate.
+   - `D;9` split across two separate `vt_write` calls (`"\x1b]133;D;"` then `"9\x07"`) →
+     still correctly reassembled into `CommandEnd{has_exit_code: true, exit_code: 9}` -
+     the real engine's own OSC parser carries the partial sequence's state across the
+     two calls. This is the concrete case for why route (d), a second byte-scanner over
+     the raw pty stream, would have to reimplement this buffering itself rather than
+     getting it free from the real parser.
+5. **Negative control**: commented out the one new `install!(SEMANTIC_PROMPT, ...)`
+   line (nothing else changed) and reran the same test - it failed immediately (`case 1
+   (C then D;0): []` - no events at all, the first assertion's `panicked at ...
+   assertion failed`). Restored the line; reran; passing again. This is the proof that
+   the test is actually exercising the wiring, not something else.
+6. **Clean-checkout, no-network re-proof**: `cargo clean -p ghostty-vt-sys` (removing
+   595.8 MiB of build output, forcing a full rebuild) then `env
+   GHOSTTY_SOURCE_URL=unreachable just build` - passing in 39.6s, exactly TASK-1.34's
+   own proof shape, now re-run with the patch present. Confirms the patch (Rust-only,
+   one file in the *safe* crate) does not reopen the network surface `ghostty-vt-sys`'s
+   build already closed - it was never touched.
+7. `just check` - format, lint, boundaries, licences, every package built and tested
+   alone, the architecture model, recipe names - **all passing** with the patch in
+   place (`ok` on every one of its 19 lines, re-run in full, not inferred from a
+   partial run). This is the direct answer to "what do `boundaries.toml`, `deny.toml`
+   and the licence check need": **nothing** - the `licences` step passed outright,
+   because the crate's name, version and licence are identical to the unpatched 0.8.0,
+   so `[steg-kernel]`'s existing `allow = [..., "ghostty-vt"]` in `boundaries.toml` and
+   `cargo-deny`'s existing Apache-2.0 allow-list in `deny.toml` both already cover a
+   path-dependency copy of the same crate without any edit to either file.
 
-**Read directly, this session**, against the real vendored sources on this machine
-(`~/.cargo/registry/src/*/ghostty-vt-sys-0.8.0+*/src/bindings.rs`,
-`~/.cargo/registry/src/*/ghostty-vt-0.8.0+*/src/{terminal,screen,osc,shell_integration}.rs`,
-and the shell-integration scripts the crate embeds), and against this repo's own
-`crates/kernel/src/{pane,terminal}.rs`, `crates/kernel/src/tree.rs`,
-`crates/server/src/pane.rs`, `third_party/README.md`, `.cargo/config.toml`,
-`boundaries.toml`, `deny.toml`, doc-9, doc-11, doc-16, decision-3, decision-7,
-`.claude/rules/rust.md`, and TASK-1.34/1.41's own notes and review comments:
+## The patch itself (one file, +49 lines, 0 deletions - measured with `diff -u` against
+## the pristine registry copy)
 
-- `TerminalSemanticPrompt` (`ghostty-vt-sys` 0.8.0, `bindings.rs:3291-3330`) carries
-  `kind` (`PROMPT_START`/`INPUT_START`/`OUTPUT_START`/`COMMAND_END`), `has_exit_code`,
-  `exit_code` (i32, can be negative), `command` (the about-to-run command line, set on
-  `OUTPUT_START` only) and `error` (rarely sent). The callback type
-  `TerminalSemanticPromptFn` and the option tag `TerminalOption::SEMANTIC_PROMPT = 42`
-  both exist in the sys crate today.
-- `ghostty-vt` 0.8.0's safe `Terminal::install_callbacks` (`terminal.rs:945-985`) wires
-  eleven callbacks through one macro (`install!(OPT, FnType, cb_fn)`) and
-  **`SEMANTIC_PROMPT` is not among them** - confirmed by reading the whole function, not
-  by its absence from a grep. `Event` (`terminal.rs:1223-1254`) has no variant for it
-  either. The pattern every existing callback follows (e.g. `cb_pwd_changed`,
-  `terminal.rs:1042-1046`) is three lines: read the `shared` state from userdata, pull
-  the C struct's fields into an owned `Event::Variant`, push it.
-- The handle's internals are `pub(crate)`: `Terminal.inner: NonNull<ffi::TerminalImpl>`
-  (`pub(crate)` even in the newer 0.9.0, checked both), `shared: NonNull<Shared>`
-  (private), `fn as_raw(&self) -> ffi::Terminal` (`pub(crate)`), `fn set`/`set_ptr`
-  (`pub(crate)`). **There is no accessor at all that crosses the crate boundary with the
-  raw pointer or the installed-callback state.** This is why I'm folding the task's
-  routes (a) and (b) into one finding below rather than weighing them as genuinely
-  separate options.
-- `RowSemanticPrompt` (`screen.rs:398-411`, `RowData::SEMANTIC_PROMPT`) - the one piece
-  of OSC 133 state the safe API *does* expose today - has exactly three values: `None`,
-  `Prompt`, `Continuation`. No `Command`/`Output` state, no exit code, nowhere in that
-  path. Confirms route (c) cannot answer AC #1 at all, not just imperfectly.
-- Checked the newest release on crates.io, not assumed stale: `ghostty-vt` 0.9.0
-  (`+ghostty-vt.1.0.1`, published 2026-11-14, one day before this task) and its matching
-  `ghostty-vt-sys` 0.9.0. Downloaded and extracted both (crates.io's download endpoint
-  needs a `User-Agent` header or it 403s; no credentials involved). Same finding:
-  `SEMANTIC_PROMPT` still unwired, `inner`/`as_raw` still `pub(crate)`. 0.9.0 also
-  switches `ghostty-vt-sys`'s vendoring model from "download Ghostty's own source and
-  build the whole engine with Zig" to "link a prebuilt `libghostty-vt` release artifact
-  (an xcframework/static-lib), falling back to a source build" - a materially different
-  vendoring shape from what TASK-1.34 built and documented, so upgrading to 0.9.0 later
-  is its own task, independent of this one, and not something I'm recommending here.
-- Checked upstream's own issue tracker (`prabirshrestha/gpui-cn`, the `ghostty-vt`
-  maintainer - this is their own GPUI UI-kit application; `ghostty-vt` is a sub-crate of
-  it, not a standalone terminal-engine project) via the GitHub API: no open or closed
-  issue mentions `semantic_prompt` or program-status wiring. The repo is active (25
-  issues, most closed, a release as recent as yesterday), so a PR has a real chance of
-  review, but nothing says it will land on M1's timeline.
-- Confirmed the exit code really is on the wire: read the vendored zsh, bash, fish and
-  elvish integration scripts byte for byte. zsh: `print -nu $_ghostty_fd
-  '\e]133;D;'$cmd_status'\a'`. bash: `printf "\e]133;D;%s;aid=%s\a" "$ret" "$BASHPID"`.
-  fish: `echo -en "\e]133;D;$status\a"`. elvish: `printf "\e]133;D;"$exit-status";aid="$pid"\a"`.
-  All four also have a bare-`D`-with-no-code path (an unclosed prior mark being closed),
-  so `has_exit_code` genuinely varies even with real integration - never assume it's
-  always true for `COMMAND_END`.
-- Read `crates/kernel/src/pane.rs` (TASK-1.41, on `origin/main`) and `crates/server/src/
-  pane.rs` (TASK-1.40) in full. **The kernel's `Terminal` (the ghostty-vt wrapper) is not
-  owned by `Pane`/`Tree` at all** - it lives on the server's per-pane worker thread
-  (`crates/server/src/pane.rs::worker_loop`), which already drains `ghostty_vt::Event`
-  inside `Terminal::write` (title/pwd today) on every `PtyBytes` command, and already has
-  exactly the channel shape this task needs: `PaneEvent` (`Send`, crosses to wherever
-  `Tree` lives) is how `Exited{pane, exit_code}` already travels, for TASK-1.76 to one
-  day call `Tree::record_exit` with a `Moment` it reads itself. That call site does not
-  exist yet (`record_exit` has no caller anywhere in `crates/server/src/*.rs` except
-  tests) - TASK-1.76 is still To Do. This is the key architectural fact the split below
-  is built on.
-
-**Inferred / judgement, flagged as such:**
-- That vendoring the patched `ghostty-vt` as a `path` dependency (not `git`) is the
-  better fit for this repo - inferred from decision-3/R92's existing preference for
-  vendoring over any new network source, not read as a rule that forbids `git` deps.
-- That `note_command_output_started`/`note_command_ended` (names below) should accept
-  any pane kind, not just `Program::Shell` - my reading of "harmless either way", open to
-  the engineer scoping it to shells only.
-- Everything about whether this is too small/large a set of tasks, and the exact task
-  boundaries - judgement, see the split.
-
-## Route (a)/(b), merged: the actual patch
-
-`terminal.rs`, inside `install_callbacks`'s macro list, one more line:
+In `install_callbacks`, one more line in the existing macro list:
 ```rust
-install!(SEMANTIC_PROMPT, ffi::TerminalSemanticPromptFn, cb_semantic_prompt);
+install!(
+    SEMANTIC_PROMPT,
+    ffi::TerminalSemanticPromptFn,
+    cb_semantic_prompt
+);
 ```
-and, alongside `cb_pwd_changed`, a new extern "C" fn of the same shape:
+A new callback, next to `cb_pwd_changed`, following that function's exact shape:
 ```rust
 unsafe extern "C" fn cb_semantic_prompt(
     _t: ffi::Terminal,
@@ -193,200 +152,440 @@ unsafe extern "C" fn cb_semantic_prompt(
     event: *const ffi::TerminalSemanticPrompt,
 ) {
     let shared = unsafe { shared_from_userdata(ud) };
+    // SAFETY: libghostty guarantees a valid, non-null event for the
+    // callback's duration - the same contract `cb_clipboard_write`'s
+    // `write` parameter already relies on, stated on the sys crate's own
+    // callback-type doc comment.
     let event = unsafe { &*event };
+    let kind = match event.kind {
+        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_OUTPUT_START => SemanticPromptKind::OutputStart,
+        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_COMMAND_END => SemanticPromptKind::CommandEnd,
+        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_PROMPT_START => SemanticPromptKind::PromptStart,
+        ffi::SemanticPromptKind::GHOSTTY_SEMANTIC_PROMPT_INPUT_START => SemanticPromptKind::InputStart,
+        _ => return, // GHOSTTY_SEMANTIC_PROMPT_INVALID or a future value.
+    };
     shared.events.push(Event::SemanticPrompt(SemanticPromptEvent {
-        kind: semantic_prompt_kind_from(event.kind),
+        kind,
         has_exit_code: event.has_exit_code,
         exit_code: event.exit_code,
     }));
 }
 ```
-plus a new, small public enum/struct beside `Event` (`command`/`error` left off for M1 -
-nothing downstream needs them yet, and the struct can grow non-breakingly):
+and a new `Event::SemanticPrompt(SemanticPromptEvent)` variant plus the small
+`SemanticPromptEvent`/`SemanticPromptKind` types it carries - `kind`, `has_exit_code`
+(`bool`), `exit_code` (`i32`) only; `command` and `error` (the struct's other two
+fields, both FFI-owned strings) are left off entirely, since nothing in this task reads
+them and leaving them out means this patch never has to reason about their ownership or
+lifetime at all. `kind`/`has_exit_code`/`exit_code` are plain `Copy` scalars - no
+pointer, no slice, no string handling anywhere in this patch.
+
+**Why this adds no unsafe code to *our* crates, not just "not much":**
+`ghostty-vt` is a dependency, not a workspace member (`Cargo.toml`'s `[workspace]
+members` list does not name it), so none of our own lints apply to it -
+`undocumented_unsafe_blocks`, `crates/kernel/clippy.toml`'s I/O bans, `#![forbid(
+unsafe_code)]` in `crates/kernel/src/lib.rs` - the same as today, for the unpatched
+0.8.0, which already does plenty of unsafe FFI work throughout this exact file. This
+patch adds four lines of `unsafe` (`shared_from_userdata(ud)` and `&*event`), both
+already-established patterns in the same file (`cb_pwd_changed` for the first;
+`cb_clipboard_write`'s `&*write` for the second), with a `// SAFETY:` comment on the one
+dereference, matching that crate's own existing convention. The kernel's own new code
+(below) is plain safe Rust - no `unsafe` anywhere, so `#![forbid(unsafe_code)]` is
+unaffected, confirmed by it building at all (that attribute makes any violation a
+compile error, not a lint).
+
+## Vendoring and the licence record (AC #3)
+
+`third_party/ghostty-vt-patched/` (new): the vendored crate source (508 KB on disk,
+measured - trivial next to `third_party/ghostty/`'s 23 MB and `ghostty-vt-zig-deps/`'s
+7.1 MB), plus a committed unified diff,
+`third_party/ghostty-vt-patched/semantic-prompt.patch`, generated with
+`diff -u <pristine 0.8.0>/src/terminal.rs third_party/ghostty-vt-patched/src/terminal.rs`
+against the exact registry copy named below - this is the "mechanical way to check it's
+identical but for the patch" asked for: anyone can re-fetch `ghostty-vt =
+"=0.8.0+ghostty.1.4.0-main.83fb956"` into a scratch directory with `cargo vendor` or by
+reading it straight out of `~/.cargo/registry/src/*/`, diff it against the committed
+tree, and confirm the only difference is exactly that one patch file's content applied
+to exactly that one file. I'll write this as a documented command in
+`third_party/README.md`, in the same section as the record below, rather than a script
+that itself needs maintaining - `diff -rq` between the two trees, ignoring the
+registry's own build-metadata files, is the whole check, and `diff -rq` already proved
+it during this plan's own verification (one file differs: `src/terminal.rs`; nothing
+else).
+
+`third_party/README.md` gains a new section, in the same place TASK-1.34's own record
+lives, stating: the upstream crate's name, version and licence (unchanged: `ghostty-vt`,
+`0.8.0+ghostty.1.4.0-main.83fb956`, Apache-2.0, carrying the same NOTICE obligation
+decision-3 section 6 already names); that the patch is `semantic-prompt.patch`, applied
+to `src/terminal.rs` only, and what it wires (one callback, `GHOSTTY_TERMINAL_OPT_
+SEMANTIC_PROMPT`); the exact `diff -rq` command above to re-verify; and the drop
+procedure below.
+
+**Why 0.8.0, not the newer 0.9.0 (checked, not assumed):** I downloaded and extracted
+`ghostty-vt` 0.9.0 (`+ghostty-vt.1.0.1`, released 2026-11-14, from crates.io - needs a
+`User-Agent` header on the request or it 403s, no credentials involved) and its matching
+`ghostty-vt-sys`. `GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT` is still unwired there too -
+same gap, same patch would be needed. But 0.9.0 also switches `ghostty-vt-sys`'s whole
+vendoring model, from "download Ghostty's own C/Zig source and build the engine with
+Zig" (what TASK-1.34 built and `third_party/` already holds) to "link a prebuilt
+`libghostty-vt` release artifact, falling back to a source build of a different,
+narrower release tarball." Adopting 0.9.0 would mean redoing TASK-1.34's whole
+offline-build apparatus for no benefit to this task - the gap this patch closes exists
+identically in both versions. Staying on 0.8.0 is a deliberate scope decision; a later
+upgrade is its own, unrelated task.
+
+## The kernel side (AC #1, point 4)
+
+`crates/kernel/src/terminal.rs` gains one new, small, kernel-owned type - never the
+engine's own `ghostty_vt::terminal::SemanticPromptEvent`/`SemanticPromptKind` crossing
+out of this module, so nothing downstream has to depend on `ghostty-vt`'s own shapes to
+read this (the same reasoning `steg_sdk::Status` already follows for not being
+`ghostty_vt`'s types, one layer further in):
+
 ```rust
-pub struct SemanticPromptEvent {
-    pub kind: SemanticPromptKind,
-    pub has_exit_code: bool,
-    pub exit_code: i32,
-}
-pub enum SemanticPromptKind { PromptStart, InputStart, OutputStart, CommandEnd }
-```
-and one new `Event::SemanticPrompt(SemanticPromptEvent)` variant. This is the whole
-patch: no `unsafe` beyond what every other callback in this file already does (each with
-its own `// SAFETY:` comment, same pattern), no Zig/C change, no build-script change.
-`GHOSTTY_SEMANTIC_PROMPT_INVALID` maps to... nothing sensible; I'd make
-`semantic_prompt_kind_from` return `Option<SemanticPromptKind>` and drop the event
-silently on `INVALID` (the sys crate's own doc never says a real shell sends it).
-
-**Vendoring it:** copy the crate's source (Apache-2.0, same licence as the unpatched
-0.8.0; carries the same NOTICE obligation already named in decision-3 section 6) into
-`third_party/ghostty-vt-patched/` (or similar), apply the diff above, and point
-`crates/kernel/Cargo.toml`'s existing `ghostty-vt = "0.8"` at it via
-`[patch.crates-io]` in the workspace root `Cargo.toml` - keeping the package name and
-version compatible so `boundaries.toml`'s `[steg-kernel] allow = [..., "ghostty-vt"]`
-and every other reference to the crate name needs no change. `third_party/README.md`
-gets a new section recording this exactly where TASK-1.34 recorded the Zig/C vendoring -
-the diff, the upstream issue/PR link once filed, the licence (unchanged, Apache-2.0), and
-the maintenance plan (re-diff against each upstream release; drop the patch the day
-upstream wires it itself).
-
-**If route (a) fails** (upstream refuses, or the engineer declines to carry a fork): the
-stopgap is a parser that recognises *only* the literal `ESC ] 1 3 3 ; D ( ; <digits> )?
-(BEL | ESC \)` byte sequence in the raw bytes a shell pane's `PtyBytes` carries, run
-*alongside* (never replacing) the real engine write, feeding a result into the same
-`Tree::note_command_ended` this plan builds either way. Named risks, stated plainly
-because decision-3's own argument for choosing ghostty over alacritty was exactly "a
-second parser over every byte of output on the hot path" (section 4) - this reopens
-precisely that cost, for one sequence: it has no VT/string-literal state, so a program
-that `cat`s a file containing that literal byte sequence as *data* (not a real mark)
-would misfire; a mark split across two `PtyBytes` chunks needs its own small buffering,
-duplicating what the real engine's OSC parser already does correctly; and it is a
-second thing to keep in step with ghostty's own grammar if it ever changes. This needs
-the engineer's explicit word before being built, as the task's own AC #2 says, and I'm
-not building any of it now.
-
-## The kernel operations (point 4)
-
-`record_exit` as it stands is for a pane's *own* program ending (`ProgramStatus`,
-`closes_on_exit`'s cascade) - a shell pane's program is the shell itself, which does not
-exit between typed commands, so reusing `record_exit` here is wrong, exactly as the task
-brief warns. Two new, narrower operations instead, modelled on `start_program`/
-`record_exit`'s own split but touching only `status`, never `program_status`:
-
-`crates/kernel/src/pane.rs`:
-- `pub(crate) fn note_command_output_started(&mut self, tick: u64)` - sets
-  `status = Some(StatusRecord { kind: StatusKind::Running, tick })`, nothing else. Fires
-  on OSC 133 `C` (`OutputStart`).
-- `pub(crate) fn note_command_ended(&mut self, exit_code: i32, now: Moment, tick: u64)` -
-  sets `status` to `Finished`/`Failed` exactly as `record_exit` already decides
-  (factor that one `if exit_code == 0 {..} else {..}` out of `record_exit` into a small
-  private `fn status_kind_for_exit(exit_code: i32, now: Moment) -> StatusKind` both call,
-  so the two can never silently diverge). Fires on OSC 133 `D` *only when
-  `has_exit_code`* - when it isn't, nothing is called at all (AC #4's "nothing is
-  guessed" extends to a bare `D` too, which real shells do send sometimes, per the
-  script excerpts above).
-
-`crates/kernel/src/tree.rs`:
-- `pub fn note_command_output_started(&mut self, pane: PaneId) -> Result<(), Error>` -
-  looks the pane up (`Error::PaneNotFound`, the one guard every other pane op has),
-  takes the tree's own `tick()` the same way `start_program` does, delegates.
-- `pub fn note_command_ended(&mut self, pane: PaneId, exit_code: i32, now: Moment) ->
-  Result<(), Error>` - same guard, delegates. No `ExitOutcome`, no cascade: this never
-  closes a pane.
-
-Both accept any pane kind unconditionally (judgement call above) rather than checking
-`Program::Shell` - open to the engineer narrowing it.
-
-Between commands (OSC 133 `A`/`B`, prompt/input start): nothing happens. R82 is scoped to
-"running while it runs" and M1 has no `Waiting`; a shell sitting idle at its own prompt,
-with the previous command's status already cleared by a keystroke
-(`Tree::note_input`, unchanged), correctly shows no status at all until the next command's
-`C` arrives - not a gap, the right answer for "nothing is running."
-
-## Wiring it live (point 4, "what the server passes in")
-
-Exactly where `PaneEvent::Exited` already sits, next to it:
-```rust
-pub enum PaneEvent {
-    Exited { pane: PaneId, exit_code: i32 },
-    CommandOutputStarted { pane: PaneId },
-    CommandEnded { pane: PaneId, exit_code: i32 },
+/// What a shell reported about a prompt-marked command, from OSC 133 (doc-9
+/// R14; TASK-1.79). Only `C` (output started) and `D` (command ended) -
+/// this task's own scope; `A`/`B` (prompt/input start) are read by
+/// `command_mark_from` and dropped, since nothing yet needs them. Adding a
+/// variant for them later is additive.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandMark {
+    /// OSC 133 `C`: the command started producing output.
+    OutputStarted,
+    /// OSC 133 `D`: the command ended. `None` when the shell reported no
+    /// exit code (a bare `D`) or one the engine's own OSC parser could not
+    /// read (checked by test: both report the same way) - never guessed.
+    Ended { exit_code: Option<i32> },
 }
 ```
-`worker_loop`'s `PtyBytes` arm, right after `terminal.write(&bytes)`, drains whatever new
-semantic-prompt events that write queued (same shape `Terminal::drain_events` already
-uses for title/pwd - a new `Terminal::take_semantic_prompt_events(&mut self) ->
-Vec<SemanticPromptEvent>` or similar) and sends the matching `PaneEvent`s. A `Moment` is
-never read in this module - exactly as today, it has no clock and sends raw facts; the
-real clock reading happens where `Tree` lives, which is the same place TASK-1.76 will
-(or does) read a `Moment` before calling `record_exit`. That call site does not exist in
-this repo today for *any* `PaneEvent`, which is the reason this plan does not try to
-build "wire `CommandEnded` into a live `Tree`" as part of this task - see the split.
 
-## Splitting (point 5)
+`Terminal` gains one new private field, `command_marks: Vec<CommandMark>`, and
+`drain_events` gains one more arm:
+```rust
+Event::SemanticPrompt(prompt) => {
+    if let Some(mark) = command_mark_from(prompt) {
+        self.command_marks.push(mark);
+    }
+}
+```
+with a small free function:
+```rust
+fn command_mark_from(event: ghostty_vt::terminal::SemanticPromptEvent) -> Option<CommandMark> {
+    use ghostty_vt::terminal::SemanticPromptKind;
+    match event.kind {
+        SemanticPromptKind::OutputStart => Some(CommandMark::OutputStarted),
+        SemanticPromptKind::CommandEnd => Some(CommandMark::Ended {
+            exit_code: event.has_exit_code.then_some(event.exit_code),
+        }),
+        SemanticPromptKind::PromptStart | SemanticPromptKind::InputStart => None,
+    }
+}
+```
+and a new public, draining accessor - a queue, not continuous state like `cwd`/`title`,
+because more than one mark can arrive from a single `write` (case 5 above: two
+`OutputStarted`s), and none should be lost between two callers' reads:
+```rust
+/// Every `CommandMark` queued since the last call (doc-9 R14, OSC 133;
+/// TASK-1.79). Drains what it returns - nothing here is continuous state
+/// like `cwd`/`title`; it is a sequence of discrete occurrences.
+///
+/// Unbounded until a caller exists: nothing in this task calls this, so
+/// in the repository's shipped state after this task merges,
+/// `command_marks` grows for the whole life of any pane whose shell
+/// emits OSC 133 - one `CommandMark` (8 bytes: a discriminant plus an
+/// `Option<i32>`) per `C` or `D`, bounded in practice by how fast a
+/// person can type commands, not by anything this method enforces. A
+/// cap would be dead code with nothing to exercise it before the next
+/// draft (the kernel operations, or the server's wiring) calls this and
+/// actually drains it - named here deliberately, not added, so a
+/// reviewer sees it was decided rather than missed.
+pub fn take_command_marks(&mut self) -> Vec<CommandMark> {
+    std::mem::take(&mut self.command_marks)
+}
+```
+This is the whole new kernel surface for this task - no change to `Pane`/`Tree`/the
+server (those are the other, now-separate drafts); `take_command_marks` is called by
+nothing yet, same as `cwd()`/`title()` had no caller the task that added them built
+either.
 
-Not one reviewable change - five pieces, three genuinely independent of each other and
-two coupled to TASK-1.76's own unbuilt wiring:
+## Proof (AC #1, #3; point 5)
 
-1. **Patch `ghostty-vt`, vendor it, surface `SemanticPromptEvent` from the kernel's
-   `Terminal`.** AC #2, half of AC #3 (the vendoring record). Proof: real OSC 133 byte
-   sequences (`A`, `B`, `C`, bare `D`, `D;0`, `D;3`, a mark split across two `write`
-   calls, and a mark with no shell integration active at all producing nothing) fed
-   straight into `Terminal::new`/`write`, asserting on the drained events - no server, no
-   real shell, no pty. Independent of every other piece.
-2. **The kernel operations** (`note_command_output_started`/`note_command_ended`,
-   `status_kind_for_exit` factored out). Rest of AC #3 (no unsafe, no I/O - this is pure
-   `Pane`/`Tree` logic). Proof: literal `Moment`s and ticks, mirroring `record_exit`'s
-   own existing tests one for one, plus the "ends with no exit code does nothing" case
-   and "AC #4 guessed-nothing" case at the pane level. Independent of piece 1 - can build
-   against hand-constructed `SemanticPromptEvent` values without the real patch existing
-   yet, though it reads more honestly built after piece 1 lands.
-3. **Wire pieces 1+2 together inside the server's per-pane worker thread**
-   (`PaneEvent::CommandOutputStarted`/`CommandEnded`, the `PtyBytes` arm). Depends on 1
-   and 2. Proof: a real pty, a real shell with ghostty's shipped integration sourced
-   (zsh, bash and fish at minimum - elvish/nushell if the engineer wants the full set),
-   asserting the right `PaneEvent`s come out of `events_rx`, the same style
-   `real_pty.rs` already uses for `Exited`. **Still does not call `Tree`** - there is
-   nowhere to call it from yet, same as `Exited` today.
-4. **The call site that turns a `PaneEvent` into a `Tree` call with a real `Moment` -
-   where AC #1's gap, named above, actually lives.** This is the same gap
-   `PaneEvent::Exited` already has, and TASK-1.76 is where it's named as a "known gap,
-   unreachable by any client today." Without this loop existing somewhere, AC #1 is not
-   demonstrable end to end, no matter how well 1-3 and 5 land. Two choices, the
-   engineer's:
-   - **(i)** Fold one small control-thread loop - reading `PaneEvent`, reading a real
-     clock once per event, calling `Tree::record_exit`/`note_command_output_started`/
-     `note_command_ended` - into *this* task's own scope, ahead of TASK-1.76, which then
-     reuses it for `Exited` when it lands. This is the only way AC #1 gets a real,
-     end-to-end proof inside TASK-1.79 itself.
-   - **(ii)** Leave it to TASK-1.76, and accept that TASK-1.79 proves AC #1's *logic*
-     fully (pieces 1-3, each demonstrated independently, as precisely as AC #2-#4 ask)
-     but its end-to-end, observable claim waits until TASK-1.76 merges. State that
-     explicitly on this task rather than marking AC #1 done on partial evidence.
-5. **Shell integration itself** (decision #2 above) - whether/how steg gets
-   `GHOSTTY_RESOURCES_DIR` pointed at `shell_integration::resources_dir()` for a shell
-   pane, or documents it for the person to opt into. Depends on nothing above
-   technically (it's independent of whether the kernel can *read* the marks), but is
-   pointless to ship before piece 1 exists and this task's own AC #1 needs it to be true
-   for the end-to-end proof. I'd sequence it after 1-3, built once there's something for
-   it to feed.
+Each of the six cases above becomes its own `#[test]` in `crates/kernel/src/terminal.rs`
+'s existing test module, through the real public surface (`term.write(bytes)`, which
+calls `vt_write` and `drain_events` together, then `term.take_command_marks()`), not
+the private `engine` field the scratch verification used directly - that shortcut only
+existed because `take_command_marks` doesn't exist yet, and the real test's sequence
+(one call that writes-and-drains, then a separate call that takes the queue) is a
+translation of what was verified, not a literal copy of the scratch code (which called
+`vt_write` and `events()` separately, with nothing draining into a kernel-owned queue
+in between). Concretely:
+`output_started_mark_on_osc_133_c`, `command_ended_with_its_exit_code_on_osc_133_d`,
+`command_ended_with_no_exit_code_reports_none` (bare `D`),
+`command_ended_with_a_malformed_exit_code_reports_none` (`D;abc`),
+`command_ended_fires_with_no_preceding_output_started` (`D;5` alone),
+`two_output_started_marks_in_a_row_are_both_kept` (`C`, `C`, `D;7` → two marks, not one),
+`a_mark_split_across_two_writes_still_resolves` (`D;` / `9\x07` across two `write` calls).
+Each feeds the exact byte sequences already verified above, so the test's expected
+value is something this plan already ran against the real engine, not a guess.
 
-What proves what, by AC: AC #1 needs 1+2+3+4+5 together (end to end) but the *logic* is
-fully proven by 1+2 alone, each in isolation, before 3/4/5 exist. AC #2 is this plan.
-AC #3 is 1 (vendoring record) + 2 (kernel purity). AC #4 is provable at both the piece-1
-level (no marks in -> nothing out) and the piece-2 level (no exit code -> no call) without
-needing a real shell at all, plus once more end to end with a real shell that has no
-integration (`sh` with nothing sourced).
+**Negative control, recorded on the task, not just described here**: build once with
+the `install!(SEMANTIC_PROMPT, ...)` line commented out - every one of the above tests
+that expects a mark fails with an empty `Vec`; restore the line - all pass. This is the
+same proof already run during this plan's own verification (above), re-run once more
+against the real test names once they exist, and both runs' `just test` output recorded
+with `asdlc record-check`.
+
+**Clean, no-network build**, recorded the same way TASK-1.34's own AC #1 proof was:
+`cargo clean -p ghostty-vt-sys && env GHOSTTY_SOURCE_URL=unreachable just build` -
+already run once during this plan's verification (39.6s, passing); re-run and recorded
+once the real patch is committed.
+
+**`just check`** (format, lint, boundaries, licences, every package's own tests, the
+architecture model, recipe names) - already run in full with the patch in place during
+this plan's own verification, 19/19 `ok`, proving AC #3's "no unsafe code and no I/O"
+in our own crates holds (the kernel still builds under `#![forbid(unsafe_code)]`;
+`crates/kernel/clippy.toml`'s I/O bans see nothing new to flag, since
+`take_command_marks`/`command_mark_from` do no I/O of their own) and that
+`boundaries.toml`/`deny.toml` need no edit. Re-run and recorded with `asdlc
+record-check` once the real patch and tests are committed, not just the scratch copy.
 
 ## Files
 
-- `third_party/ghostty-vt-patched/` (new, vendored fork) or a pinned `git` dependency -
-  engineer's call (point 1 above); workspace root `Cargo.toml` (`[patch.crates-io]`);
-  `third_party/README.md` (new section, same place TASK-1.34's record lives).
-- `crates/kernel/src/terminal.rs` (patch content lives in the vendored crate, not here;
-  this file's `drain_events`/a new `take_semantic_prompt_events` accessor - piece 1).
-- `crates/kernel/src/pane.rs` (`note_command_output_started`, `note_command_ended`,
-  `status_kind_for_exit` factored out of `record_exit` - piece 2).
-- `crates/kernel/src/tree.rs` (the two matching public methods - piece 2).
-- `crates/server/src/pane.rs` (`PaneEvent` gains two variants, `worker_loop`'s `PtyBytes`
-  arm drains and forwards them - piece 3).
-- Wherever TASK-1.76 puts its `PaneEvent` → `Tree` loop (piece 4, raised with that task's
-  planner rather than claimed here).
-- Shell-integration sourcing, file(s) TBD by the engineer's decision #2 (piece 5).
+- `third_party/ghostty-vt-patched/` (new: the vendored, patched crate source, ~508 KB)
+  and `third_party/ghostty-vt-patched/semantic-prompt.patch` (the diff, for mechanical
+  re-verification).
+- `third_party/README.md` (new section, same place TASK-1.34's record lives).
+- Workspace root `Cargo.toml` (`[patch.crates-io]`).
+- `crates/kernel/src/terminal.rs` (`CommandMark`, the new `command_marks` field,
+  `drain_events`'s new arm, `command_mark_from`, `take_command_marks`, the seven tests).
 
-## Risks
+## Upstream (AC #2's "contributed to"; raised, not opened)
 
-- **Upstream never lands it.** Named above; the fork is small (~25 lines, Rust-only,
-  no Zig/C) so carrying it indefinitely is cheap, but it is a real, standing maintenance
-  item - every future `ghostty-vt` bump needs the patch re-applied by hand until dropped.
-- **`has_exit_code` is sometimes false even with real integration** (the bare-`D` case,
-  found in all four scripts read) - `note_command_ended` must never be called for that
-  case, or AC #4's "nothing is guessed" is silently violated for a real shell, not just
-  an unintegrated one.
-- **Piece 4's ownership.** If TASK-1.76 is already past its own planning by the time this
-  lands, its plan won't mention `CommandOutputStarted`/`CommandEnded` - whoever reviews
-  either task should check the other.
-- **`ghostty-vt` 0.9.0 exists and is newer.** Not adopting it here (different vendoring
-  shape entirely) is a deliberate scope decision, not an oversight - named so a later
-  reader doesn't "fix" this plan by bumping the version and finding the same gap.
+The change to propose to `prabirshrestha/gpui-cn` (the `ghostty-vt` maintainer) is
+exactly the patch above - small, additive, no behavioural change to anything existing,
+following the crate's own established per-callback pattern to the letter. I'm not
+opening an issue or a PR; that's the engineer's to do or to ask for, as the team's rule
+on raising things upstream says. **Drop procedure, once upstream carries it**: bump
+`ghostty-vt` past whatever version wires `SEMANTIC_PROMPT` itself, delete `[patch.
+crates-io]`'s entry and `third_party/ghostty-vt-patched/`, and update
+`command_mark_from` to match the real `ghostty_vt::terminal::Event`'s new variant (its
+exact shape may not match this patch's `SemanticPromptEvent`/`SemanticPromptKind`
+verbatim - that's exactly why `CommandMark` is our own type and `command_mark_from` is
+the one function that would need to change, not anything downstream of
+`take_command_marks`).
+
+## Risk
+
+**Upstream never lands it, or lands a differently-shaped version.** Named above; the
+patch is small enough (one file, +49 lines, no Zig/C) that carrying it indefinitely is
+cheap, but every future bump of `ghostty-vt` needs the patch re-applied and re-verified
+against the new source by hand (the `diff -rq` check above) until it's dropped.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default, along the five pieces the worker's plan proposed. This task is now piece one: the patch to ghostty-vt and the kernel's Terminal surfacing the event. Drafts under TASK-1 take the rest: status from a typed command in the kernel; the server passing the event to the kernel; shell integration so the marks are emitted. The worker's fourth piece (a loop turning a pane event into a kernel call with a clock reading) is not a draft: TASK-1.76, in progress, builds exactly that (Runtime::apply_event), so the server piece depends on it. The plan on this task was written for all five and is to be rewritten for piece one.
+
+Rewritten plan for piece one checked against doc-9, doc-11 (R50, R82), decision-3, doc-16 and .claude/rules/rust.md by @bruk.o: ok. The route is a 49-line addition to one file of the safe ghostty-vt crate (0.8.0, Apache-2.0), vendored under third_party/ghostty-vt-patched (508 KB) through [patch.crates-io] with the diff committed beside it and the kernel's dependency pinned to the exact version so the patch cannot silently stop applying; the worker built it, fed real OSC 133 sequences through a real kernel Terminal, ran a negative control, the offline build and just check, on a scratch copy, before writing the plan. Our crates gain no unsafe code: the kernel surfaces its own CommandMark type and a draining accessor. Nothing is opened upstream; the proposal and the steps to drop the patch are written down. Decisions for the engineer at approval: the path dependency over a git dependency. Noted, not a fault: the queue of marks has no consumer until the kernel status task (a draft) drains it.
+
+Check FAILED: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 101 at 2026-11-15T22:00:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes, last 40 of 64 lines:
+
+```text
+   --> crates/kernel/src/terminal.rs:884:18
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+884 |             term.take_command_marks(),
+    |                  ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:894:26
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+894 |         let first = term.take_command_marks();
+    |                          ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:895:27
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+895 |         let second = term.take_command_marks();
+    |                           ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:910:25
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+910 |         assert_eq!(term.take_command_marks(), vec![]);
+    |                         ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+Some errors have detailed explanations: E0004, E0432, E0599.
+For more information about an error, try `rustc --explain E0004`.
+error: could not compile `steg-kernel` (lib test) due to 12 previous errors
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 0 at 2026-11-15T22:01:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      tests (every crate) (4.5s)
+```
+
+Check FAILED: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 101 at 2026-11-15T22:02:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes, last 40 of 64 lines:
+
+```text
+  left: []
+ right: [OutputStarted, Ended { exit_code: Some(0) }]
+
+---- terminal::tests::output_started_mark_on_osc_133_c stdout ----
+
+thread 'terminal::tests::output_started_mark_on_osc_133_c' (14347606) panicked at crates/kernel/src/terminal.rs:856:9:
+assertion `left == right` failed
+  left: []
+ right: [OutputStarted]
+
+---- terminal::tests::command_ended_with_a_malformed_exit_code_reports_none stdout ----
+
+thread 'terminal::tests::command_ended_with_a_malformed_exit_code_reports_none' (14347592) panicked at crates/kernel/src/terminal.rs:899:9:
+assertion `left == right` failed
+  left: []
+ right: [Ended { exit_code: None }]
+
+---- terminal::tests::two_output_started_marks_in_a_row_are_both_kept stdout ----
+
+thread 'terminal::tests::two_output_started_marks_in_a_row_are_both_kept' (14347618) panicked at crates/kernel/src/terminal.rs:931:9:
+assertion `left == right` failed
+  left: []
+ right: [OutputStarted, OutputStarted, Ended { exit_code: Some(7) }]
+
+
+failures:
+    terminal::tests::a_mark_split_across_two_writes_still_resolves
+    terminal::tests::command_ended_fires_with_no_preceding_output_started
+    terminal::tests::command_ended_with_a_malformed_exit_code_reports_none
+    terminal::tests::command_ended_with_its_exit_code_on_osc_133_d
+    terminal::tests::command_ended_with_no_exit_code_reports_none
+    terminal::tests::output_started_mark_on_osc_133_c
+    terminal::tests::take_command_marks_drains_what_it_returns
+    terminal::tests::two_output_started_marks_in_a_row_are_both_kept
+
+test result: FAILED. 272 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 0 at 2026-11-15T22:02:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      tests (every crate) (4.2s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; env GHOSTTY_SOURCE_URL=unreachable just build'` exited 0 at 2026-11-15T22:03:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      build (39.2s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just check'` exited 0 at 2026-11-15T22:06:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (39.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (32.3s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (39.2s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (39.2s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just check'` exited 0 at 2026-11-15T22:10:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at da963c8efdb6:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just check'` exited 0 at 2026-11-15T22:11:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 32ab0d9176f5:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (4.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-15T21:55:00Z
+
+---
+
+Plan rewritten for piece one (ghostty-vt patch + kernel Terminal event surfacing only). Scratch verification run during planning, outside the normal record-check flow since it was against a scratch copy of the crate, not this worktree's own committed code: applied the patch to a scratch copy of the real vendored ghostty-vt 0.8.0, pointed this worktree's Cargo.toml at it via [patch.crates-io], and ran (1) just build - full Zig/C + kernel pipeline passing; (2) a temporary test feeding the six real byte sequences AC #1 names (C then D;0; bare D; malformed D;abc; D with no preceding C; two Cs then D; a mark split across two vt_write calls) - all six behaved as the rewritten plan now states, including that a malformed exit code degrades the same way a missing one does (has_exit_code: false); (3) a negative control - commented out the one new install! line, the same test failed with zero events, restored it, passing again; (4) cargo clean -p ghostty-vt-sys && GHOSTTY_SOURCE_URL=unreachable just build - passing in 39.6s, re-confirming TASK-1.34's offline-build proof still holds with the patch present; (5) just check in full - 19/19 ok, confirming boundaries.toml and deny.toml need no edit. All experimental edits (Cargo.toml, Cargo.lock, crates/kernel/src/terminal.rs) were reverted with git checkout -- after each round; the worktree was clean (git status --porcelain empty) before and after.
+
+---
+
+author: @bruk
+created: 2026-11-15T21:56:00Z
+
+---
+
+Plan approved by @bruk (8ee9fd39c481, size-5): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

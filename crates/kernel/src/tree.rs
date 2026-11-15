@@ -1026,10 +1026,16 @@ impl Tree {
         Ok(())
     }
 
-    /// Detaches `client` from `pane`. If that leaves the client viewing
-    /// nothing else in `pane`'s session, the latest client there is
-    /// recomputed and reapplied exactly as [`Tree::disconnect_client`]
-    /// does for every session a departing client viewed.
+    /// Detaches `client` from `pane`. Unconditionally recomputes and
+    /// reapplies `pane`'s session's latest client afterwards, the same
+    /// [`Tree::reapply_latest`] call [`Tree::disconnect_client`] makes for
+    /// every session a departing client viewed - not only when this was
+    /// `client`'s last pane in that session. Running it even when `client`
+    /// still views other panes there is harmless and simpler than
+    /// tracking whether it was needed: `reapply_latest`'s own equal-size
+    /// guard makes the extra calls a no-op, and a client losing just one
+    /// of several attachments can still change which tabs the session's
+    /// latest client views, so the recompute is correct to run either way.
     ///
     /// # Errors
     ///
@@ -2212,37 +2218,115 @@ mod tests {
         );
     }
 
+    /// Captures every one of `tree`'s sessions' current tab and every
+    /// tab's current pane - the whole focus state R88/decision-5 point 4
+    /// says a client operation must never touch - as one comparable
+    /// value.
+    fn whole_focus(tree: &Tree) -> Vec<(steg_sdk::SessionId, steg_sdk::TabId, steg_sdk::PaneId)> {
+        tree.sessions()
+            .iter()
+            .flat_map(|session| {
+                let session_id = session.id();
+                session
+                    .tabs()
+                    .iter()
+                    .map(move |tab| (session_id, tab.id(), tab.current()))
+            })
+            .collect()
+    }
+
     #[test]
-    fn connecting_viewing_declaring_and_disconnecting_never_change_focus() {
+    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus() {
         let mut tree = Tree::new();
-        let session_id = tree.new_session(None).unwrap();
-        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
-        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
-        let focus_before = (
-            tree.session(session_id).unwrap().current_tab(),
-            tree.session(session_id)
+
+        // Session A: two tabs, each with two panes. Splitting makes the
+        // new pane current, and a new tab becomes its session's current
+        // tab (R115) - so the deliberately-unfocused target, tab_a1's
+        // *first* pane, falls out of this setup with no extra focus call
+        // of our own that could itself get the baseline wrong.
+        let session_a = tree.new_session(None).unwrap();
+        let tab_a1 = tree.session(session_a).unwrap().tabs()[0].id();
+        let a1_first = tree.session(session_a).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            a1_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        let tab_a2 = tree.new_tab(session_a, None).unwrap();
+        let a2_first = tree
+            .session(session_a)
+            .unwrap()
+            .tab(tab_a2)
+            .unwrap()
+            .panes()[0]
+            .id();
+        tree.split_pane(
+            a2_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        // Session B: a second session, a bystander the client never
+        // touches - its focus is a control that must also hold still.
+        let session_b = tree.new_session(None).unwrap();
+        let b1_first = tree.session(session_b).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            b1_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        let tab_b2 = tree.new_tab(session_b, None).unwrap();
+        let b2_first = tree
+            .session(session_b)
+            .unwrap()
+            .tab(tab_b2)
+            .unwrap()
+            .panes()[0]
+            .id();
+        tree.split_pane(
+            b2_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        // Confirm the deliberate mismatch before touching any client:
+        // session A's current tab is tab_a2, not tab_a1 - the tab the
+        // client is about to view and act on - and tab_a1's current pane
+        // is its *second* pane, not `a1_first`.
+        assert_eq!(tree.session(session_a).unwrap().current_tab(), tab_a2);
+        assert_ne!(
+            tree.session(session_a)
                 .unwrap()
-                .tab(tab_id)
+                .tab(tab_a1)
                 .unwrap()
                 .current(),
+            a1_first
         );
+
+        let before = whole_focus(&tree);
 
         let client = tree.connect_client(steg_sdk::ClientKind::App, None);
-        tree.view_pane(client, pane).unwrap();
-        tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24))
-            .unwrap();
-        tree.note_input(client, pane).unwrap();
-        tree.disconnect_client(client).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after connect_client");
 
-        let focus_after = (
-            tree.session(session_id).unwrap().current_tab(),
-            tree.session(session_id)
-                .unwrap()
-                .tab(tab_id)
-                .unwrap()
-                .current(),
-        );
-        assert_eq!(focus_before, focus_after);
+        tree.view_pane(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after view_pane");
+
+        tree.declare_size(client, tab_a1, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        assert_eq!(whole_focus(&tree), before, "after declare_size");
+
+        tree.note_input(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after note_input");
+
+        tree.stop_viewing(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after stop_viewing");
+
+        tree.disconnect_client(client).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after disconnect_client");
     }
 
     #[test]
@@ -2320,6 +2404,46 @@ mod tests {
             Some(steg_sdk::Size::new(80, 24)),
             "falling back to a reapplies its own last-declared size"
         );
+    }
+
+    #[test]
+    fn reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let a = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let b = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(a, pane).unwrap();
+        tree.view_pane(b, pane).unwrap();
+        tree.declare_size(a, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        // `b` becomes latest by sending input, never by declaring a size.
+        tree.note_input(b, pane).unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
+
+        // `a` leaves; `reapply_latest` recomputes latest as `b` again (no
+        // change there) and tries to reapply `b`'s declared size - `b`
+        // has none, so the tab's size holds as it was, and no change is
+        // reported.
+        let changes = tree.disconnect_client(a).unwrap();
+
+        assert_eq!(
+            changes,
+            Vec::new(),
+            "b, the remaining latest, has no declared size to reapply"
+        );
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24)),
+            "the tab's size holds as it was"
+        );
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
     }
 
     #[test]
@@ -2481,6 +2605,30 @@ mod tests {
     }
 
     #[test]
+    fn note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+        tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        // The tab's size is already exactly what this client declared -
+        // nothing to reapply, so no change is reported.
+        assert_eq!(tree.note_input(client, pane).unwrap(), None);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24))
+        );
+    }
+
+    #[test]
     fn note_input_rejects_a_pane_the_client_does_not_view() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();
@@ -2593,5 +2741,71 @@ mod tests {
 
         assert_eq!(tree.client(client).unwrap().viewing(), &[]);
         assert_eq!(tree.sessions_viewed(client).unwrap(), Vec::new());
+    }
+
+    #[test]
+    fn closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        let first_client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let second_client = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(first_client, first_pane).unwrap();
+        tree.view_pane(second_client, second_pane).unwrap();
+
+        tree.close_session(session_id).unwrap();
+
+        // Nothing is left naming either gone pane or the gone tab, for
+        // either client.
+        assert_eq!(tree.client(first_client).unwrap().viewing(), &[]);
+        assert_eq!(tree.client(second_client).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(first_client).unwrap(), Vec::new());
+        assert_eq!(tree.sessions_viewed(second_client).unwrap(), Vec::new());
+    }
+
+    #[test]
+    fn closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        let leaving = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let staying = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(leaving, first_pane).unwrap();
+        tree.view_pane(staying, second_pane).unwrap();
+        tree.declare_size(staying, second_tab, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        tree.close_tab(first_tab).unwrap();
+
+        // The session survives (it had a second tab), so this is the
+        // non-cascading path - only `leaving`'s attachment to the now-gone
+        // tab is dropped.
+        assert_eq!(tree.client(leaving).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(leaving).unwrap(), Vec::new());
+        assert_eq!(tree.client(staying).unwrap().viewing(), &[second_pane]);
+        assert_eq!(
+            tree.sessions_viewed(staying).unwrap(),
+            vec![session_id],
+            "staying still views the surviving tab, so it still views the session"
+        );
     }
 }

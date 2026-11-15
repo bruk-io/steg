@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:41:00Z'
+updated_date: '2026-11-15T02:43:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -321,6 +321,51 @@ ok      boundaries (0.1s)
 ok      licences (0.7s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T02:43:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at dfebbf69b590 with uncommitted changes, last 40 of 41 lines:
+
+```text
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (18.3s)
+FAILED  tool tests (exit 1, 0.2s)
+FF.............................                                          [100%]
+=================================== FAILURES ===================================
+__________ test_the_five_real_crates_and_their_real_dependency_edges ___________
+
+    def test_the_five_real_crates_and_their_real_dependency_edges() -> None:
+        by_name = {crate.name: crate for crate in real_crates()}
+>       assert by_name.keys() == {"steg-kernel", "steg-server", "steg-cli", "steg", "steg-app"}
+E       AssertionError: assert dict_keys(['s..., 'steg-app']) == {'steg', 'ste...'steg-server'}
+E         
+E         Extra items in the left set:
+E         'steg-sdk'
+E         Extra items in the right set:
+E         'steg-cli'
+E         Use -v to get more diff
+
+tools/tests/adapter/test_affected_real_workspace.py:21: AssertionError
+____________________ test_selection_against_the_real_crates ____________________
+
+    def test_selection_against_the_real_crates() -> None:
+        crates = real_crates()
+        assert selection(("crates/kernel/src/lib.rs",), crates) == "-p steg -p steg-kernel -p steg-server"
+        assert selection(("crates/app/src/main.rs",), crates) == "-p steg-app"
+>       assert selection(("crates/cli/src/lib.rs",), crates) == "-p steg -p steg-cli"
+E       AssertionError: assert 'none' == '-p steg -p steg-cli'
+E         
+E         - -p steg -p steg-cli
+E         + none
+
+tools/tests/adapter/test_affected_real_workspace.py:45: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/adapter/test_affected_real_workspace.py::test_the_five_real_crates_and_their_real_dependency_edges
+FAILED tools/tests/adapter/test_affected_real_workspace.py::test_selection_against_the_real_crates
+2 failed, 29 passed in 0.11s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 43 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

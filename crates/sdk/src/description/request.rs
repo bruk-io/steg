@@ -59,6 +59,38 @@ impl ApiError {
     }
 }
 
+/// Whether `value` is one `kind` accepts. `Value::Null` matches no kind
+/// (every arm below checks a positive shape - a string, a number, a
+/// boolean, an array - so a present-but-null value falls through every
+/// one), which is what makes a null value refused for any parameter,
+/// required or not, with no separate null check needed.
+fn matches_kind(value: &Value, kind: &ValueKind) -> bool {
+    match kind {
+        ValueKind::Text | ValueKind::Target | ValueKind::Path => value.is_string(),
+        ValueKind::Integer => value.is_i64() || value.is_u64(),
+        ValueKind::Boolean => value.is_boolean(),
+        ValueKind::Choice(words) => value
+            .as_str()
+            .is_some_and(|given| words.iter().any(|word| word == given)),
+        ValueKind::Argv => value
+            .as_array()
+            .is_some_and(|items| items.iter().all(Value::is_string)),
+    }
+}
+
+/// What `kind` is, for an error message naming it (`"{param} must be {kind}"`).
+fn kind_description(kind: &ValueKind) -> String {
+    match kind {
+        ValueKind::Text => "text".into(),
+        ValueKind::Integer => "an integer".into(),
+        ValueKind::Boolean => "a boolean".into(),
+        ValueKind::Choice(words) => format!("one of {}", words.join(", ")),
+        ValueKind::Target => "a target".into(),
+        ValueKind::Path => "a path".into(),
+        ValueKind::Argv => "a program and its arguments".into(),
+    }
+}
+
 /// Checks a request against the description: the only thing that says what
 /// the API accepts. Does no I/O, and reaches for nothing outside
 /// `description` and `request` — `steg-sdk`'s own `clippy.toml` refuses a
@@ -69,8 +101,9 @@ impl ApiError {
 ///
 /// [`ErrorCode::BadRequest`] when the method is not in the description, a
 /// parameter is not one the method declares, a required parameter is
-/// missing, or a value is given for a closed set (`ValueKind::Choice`) that
-/// is not one of its words.
+/// missing, or a parameter that is present (including a required one) does
+/// not match its declared kind - `null`, a value of the wrong JSON type, or
+/// a word outside a closed set (`ValueKind::Choice`).
 pub fn validate(description: &Description, request: &Request) -> Result<(), ApiError> {
     let Some(method) = description.method(&request.method) else {
         return Err(ApiError::new(
@@ -98,16 +131,13 @@ pub fn validate(description: &Description, request: &Request) -> Result<(), ApiE
     }
 
     for param in &method.params {
-        if let (Some(value), ValueKind::Choice(words)) =
-            (request.params.get(&param.name), &param.value)
+        if let Some(value) = request.params.get(&param.name)
+            && !matches_kind(value, &param.value)
         {
-            let given = value.as_str().unwrap_or_default();
-            if !words.iter().any(|word| word == given) {
-                return Err(ApiError::new(
-                    ErrorCode::BadRequest,
-                    format!("{} must be one of {}", param.name, words.join(", ")),
-                ));
-            }
+            return Err(ApiError::new(
+                ErrorCode::BadRequest,
+                format!("{} must be {}", param.name, kind_description(&param.value)),
+            ));
         }
     }
 
@@ -116,7 +146,7 @@ pub fn validate(description: &Description, request: &Request) -> Result<(), ApiE
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
+    use serde_json::{Value, json};
 
     use super::{ApiError, Request, validate};
     use crate::description::shapes::{
@@ -133,6 +163,19 @@ mod tests {
         }
     }
 
+    /// A plain flag param of the given name and kind, for the fixture
+    /// below - every kind `ValueKind` has, so `validate`'s type check is
+    /// exercised against all of them, not just `Choice`.
+    fn param(name: &str, value: ValueKind, required: bool) -> Param {
+        Param {
+            name: name.into(),
+            role: Role::Flag,
+            value,
+            required,
+            summary: String::new(),
+        }
+    }
+
     fn description_with_one_method() -> Description {
         Description {
             api_version: Version { major: 1, minor: 0 },
@@ -144,20 +187,17 @@ mod tests {
                 summary: String::new(),
                 details: String::new(),
                 params: vec![
-                    Param {
-                        name: "direction".into(),
-                        role: Role::Flag,
-                        value: ValueKind::Choice(vec!["left".into(), "right".into()]),
-                        required: true,
-                        summary: String::new(),
-                    },
-                    Param {
-                        name: "label".into(),
-                        role: Role::Flag,
-                        value: ValueKind::Text,
-                        required: false,
-                        summary: String::new(),
-                    },
+                    param(
+                        "direction",
+                        ValueKind::Choice(vec!["left".into(), "right".into()]),
+                        true,
+                    ),
+                    param("label", ValueKind::Text, false),
+                    param("rows", ValueKind::Integer, false),
+                    param("focus", ValueKind::Boolean, false),
+                    param("cwd", ValueKind::Path, false),
+                    param("to", ValueKind::Target, false),
+                    param("args", ValueKind::Argv, false),
                 ],
                 returns: Returns::Identifier { of: "pane".into() },
                 errors: vec![ErrorCode::BadRequest],
@@ -187,7 +227,7 @@ mod tests {
         let description = description_with_one_method();
         let asked = request(
             "pane.split",
-            vec![("direction", json!("right")), ("rows", json!(10))],
+            vec![("direction", json!("right")), ("nonexistent", json!(10))],
         );
         expect_bad_request(validate(&description, &asked));
     }
@@ -211,6 +251,74 @@ mod tests {
         let description = description_with_one_method();
         let asked = request("pane.split", vec![("direction", json!("right"))]);
         assert!(validate(&description, &asked).is_ok());
+    }
+
+    #[test]
+    fn a_valid_request_using_every_kind_is_accepted() {
+        let description = description_with_one_method();
+        let asked = request(
+            "pane.split",
+            vec![
+                ("direction", json!("right")),
+                ("label", json!("logs")),
+                ("rows", json!(10)),
+                ("focus", json!(true)),
+                ("cwd", json!("/tmp")),
+                ("to", json!("work/2/logs")),
+                ("args", json!(["htop", "-d", "5"])),
+            ],
+        );
+        assert!(validate(&description, &asked).is_ok());
+    }
+
+    /// A null is refused for a parameter whether or not it is required -
+    /// required-ness only governs *absence*, and a present null is never
+    /// a value any kind accepts.
+    #[test]
+    fn a_null_value_is_a_bad_request_whether_or_not_the_parameter_is_required() {
+        let description = description_with_one_method();
+        expect_bad_request(validate(
+            &description,
+            &request("pane.split", vec![("direction", Value::Null)]),
+        ));
+        expect_bad_request(validate(
+            &description,
+            &request(
+                "pane.split",
+                vec![("direction", json!("right")), ("label", Value::Null)],
+            ),
+        ));
+    }
+
+    #[test]
+    fn a_wrong_type_is_a_bad_request_for_every_kind() {
+        let description = description_with_one_method();
+        let base = |extra: (&str, serde_json::Value)| {
+            request("pane.split", vec![("direction", json!("right")), extra])
+        };
+
+        expect_bad_request(validate(&description, &base(("label", json!(42)))));
+        expect_bad_request(validate(&description, &base(("rows", json!("ten")))));
+        expect_bad_request(validate(&description, &base(("focus", json!("yes")))));
+        expect_bad_request(validate(&description, &base(("cwd", json!(42)))));
+        expect_bad_request(validate(&description, &base(("to", json!(42)))));
+        expect_bad_request(validate(&description, &base(("args", json!("htop")))));
+        expect_bad_request(validate(&description, &base(("args", json!([1, 2])))));
+    }
+
+    #[test]
+    fn the_message_names_the_parameter_and_the_kind_expected() {
+        let description = description_with_one_method();
+        let error = validate(
+            &description,
+            &request(
+                "pane.split",
+                vec![("direction", json!("right")), ("rows", json!("ten"))],
+            ),
+        )
+        .expect_err("a string is not an integer");
+        assert!(error.message.contains("rows"), "{}", error.message);
+        assert!(error.message.contains("integer"), "{}", error.message);
     }
 
     #[test]

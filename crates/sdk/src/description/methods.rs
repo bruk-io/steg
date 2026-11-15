@@ -36,7 +36,7 @@ pub fn description() -> Description {
     let mut methods = Vec::new();
     methods.extend(session_methods());
     methods.extend(tab_methods());
-    methods.extend(pane_methods(&event_names));
+    methods.extend(pane_methods());
     methods.extend(server_methods());
     methods.extend(event_methods(&event_names));
     methods.extend(client_methods());
@@ -63,21 +63,29 @@ fn method(noun: &str, verb: &str) -> MethodName {
     }
 }
 
-fn target(summary: &str) -> Param {
+/// A role: Target parameter named `target` (doc-2 section 2: "its target
+/// parameter is the positional"), whatever kind of value it takes — a
+/// session/tab/pane path (`ValueKind::Target`, resolved by R10's rules) for
+/// most methods, or plain text for the two whose target is a method name,
+/// not a domain path (`api.show`/`api.call`; a method name is never
+/// resolved by R10, so `ValueKind::Target` would be the wrong kind for it
+/// even though the role is right).
+fn target_of_kind(value: ValueKind, required: bool, summary: &str) -> Param {
     Param {
         name: "target".into(),
         role: Role::Target,
-        value: ValueKind::Target,
-        required: false,
+        value,
+        required,
         summary: summary.into(),
     }
 }
 
+fn target(summary: &str) -> Param {
+    target_of_kind(ValueKind::Target, false, summary)
+}
+
 fn required_target(summary: &str) -> Param {
-    Param {
-        required: true,
-        ..target(summary)
-    }
+    target_of_kind(ValueKind::Target, true, summary)
 }
 
 fn flag(name: &str, value: ValueKind, required: bool, summary: &str) -> Param {
@@ -537,7 +545,7 @@ fn pane_fields() -> Vec<Field> {
     ]
 }
 
-fn pane_methods(event_names: &[String]) -> Vec<Method> {
+fn pane_methods() -> Vec<Method> {
     vec![
         Method {
             name: method("pane", "list"),
@@ -793,17 +801,25 @@ fn pane_methods(event_names: &[String]) -> Vec<Method> {
         Method {
             name: method("pane", "wait"),
             summary: "Block until a named condition, then exit".into(),
-            details: "Exits 0 once the condition is met and prints the event that ended the \
-                      wait; a wait that times out is status 1, which is a script's one way to \
-                      tell \"the wait failed\" from \"the program failed\" (doc-2 section 6)."
+            details: "Exits 0 once the condition is met; a wait that times out is status 1, \
+                      which is a script's one way to tell \"the wait failed\" from \"the \
+                      program failed\" (doc-2 section 6). doc-2 section 8 gives `--for` one \
+                      value in the first release, `exit`, for which section 6 says this \
+                      prints the program's own exit code. `exit` is this method's own word for \
+                      that condition, not the dotted `pane.exited` event name event.watch's \
+                      `--for` uses - doc-2 section 5 says both draw from \"the API description's \
+                      event records\", but section 8's own row for this method writes `exit` \
+                      literally, so that is what is declared here rather than guessed; if a \
+                      shared vocabulary across the two commands is intended, that is doc-2's \
+                      to settle, not this description's to invent."
                 .into(),
             params: vec![
                 target("The pane to wait on. Defaults to the current pane"),
                 flag(
                     "for",
-                    ValueKind::Choice(event_names.to_vec()),
+                    ValueKind::Choice(vec!["exit".into()]),
                     true,
-                    "What to wait for",
+                    "What to wait for. The first release has one condition, `exit`",
                 ),
                 flag(
                     "timeout",
@@ -816,7 +832,7 @@ fn pane_methods(event_names: &[String]) -> Vec<Method> {
                 fields: vec![field(
                     "exit_code",
                     ValueKind::Integer,
-                    "The program's own exit code, for a `pane.exited` wait",
+                    "The program's own exit code",
                 )],
             },
             errors: vec![
@@ -1146,8 +1162,7 @@ fn api_methods() -> Vec<Method> {
                       the API's own version — in one answer, for a client that cannot import \
                       the Rust value (decision-1: \"served to anyone who asks\")."
                 .into(),
-            params: vec![flag(
-                "target",
+            params: vec![target_of_kind(
                 ValueKind::Text,
                 false,
                 "The method to show, by its dotted name. With none, the whole description",
@@ -1163,12 +1178,11 @@ fn api_methods() -> Vec<Method> {
             summary: "Call any method by name".into(),
             details: "For an agent, and for a method a plugin adds before the CLI knows it. \
                       Never the documented way to do something that has a command of its own. \
-                      `method` names which method to call; every other parameter given is that \
+                      `target` names which method to call; every other parameter given is that \
                       method's own, by its own declared names — nothing is nested under a second \
                       key, so a method's parameters are never named twice."
                 .into(),
-            params: vec![flag(
-                "method",
+            params: vec![target_of_kind(
                 ValueKind::Text,
                 true,
                 "The method to call, by its dotted name",
@@ -1454,18 +1468,120 @@ mod tests {
     }
 
     #[test]
-    fn panes_wait_for_and_events_watch_for_are_drawn_from_the_same_event_names() {
+    fn event_watch_for_is_drawn_from_the_event_names() {
         let api = description();
         let event_names: HashSet<&str> = api.events.iter().map(|e| e.name.as_str()).collect();
 
-        let pane_wait = api.method("pane.wait").unwrap();
-        let for_param = pane_wait.params.iter().find(|p| p.name == "for").unwrap();
+        let event_watch = api.method("event.watch").unwrap();
+        let for_param = event_watch.params.iter().find(|p| p.name == "for").unwrap();
         let crate::description::shapes::ValueKind::Choice(words) = &for_param.value else {
-            panic!("pane.wait's for is a closed set");
+            panic!("event.watch's for is a closed set");
         };
         assert_eq!(
             words.iter().map(String::as_str).collect::<HashSet<_>>(),
             event_names
         );
+    }
+
+    /// doc-2 section 8 gives `pane wait`'s `--for` exactly one value in
+    /// the first release, `exit` - not the dotted event names
+    /// `event.watch`'s `--for` draws from. See the method's own `details`
+    /// for why the two are not unified here.
+    #[test]
+    fn pane_wait_for_is_exactly_the_one_value_doc_2_section_8_gives_it() {
+        let api = description();
+        let pane_wait = api.method("pane.wait").unwrap();
+        let for_param = pane_wait.params.iter().find(|p| p.name == "for").unwrap();
+        assert_eq!(
+            for_param.value,
+            crate::description::shapes::ValueKind::Choice(vec!["exit".into()])
+        );
+    }
+
+    /// doc-2 section 8's Target column, written out independently of the
+    /// description: `None` for "none"; `Some((required, value))` for every
+    /// other row, where `required` is whether doc-2's own text (section
+    /// 4's context fallback, or `api show`'s stated "with none, the whole
+    /// description") gives it a default, and `value` is `ValueKind::Target`
+    /// for a session/tab/pane/client path and `ValueKind::Text` for the
+    /// two whose target is a bare method name (`api show`/`api call`).
+    fn doc_2_section_8_targets() -> Vec<(
+        &'static str,
+        Option<(bool, crate::description::shapes::ValueKind)>,
+    )> {
+        use crate::description::shapes::ValueKind;
+
+        vec![
+            ("session.list", None),
+            ("session.show", Some((false, ValueKind::Target))),
+            ("session.new", None),
+            ("session.close", Some((false, ValueKind::Target))),
+            ("session.move", Some((false, ValueKind::Target))),
+            ("session.set", Some((false, ValueKind::Target))),
+            ("session.unset", Some((false, ValueKind::Target))),
+            ("session.focus", Some((false, ValueKind::Target))),
+            ("tab.list", Some((false, ValueKind::Target))),
+            ("tab.show", Some((false, ValueKind::Target))),
+            ("tab.new", Some((false, ValueKind::Target))),
+            ("tab.close", Some((false, ValueKind::Target))),
+            ("tab.move", Some((false, ValueKind::Target))),
+            ("tab.set", Some((false, ValueKind::Target))),
+            ("tab.unset", Some((false, ValueKind::Target))),
+            ("tab.focus", Some((false, ValueKind::Target))),
+            ("pane.list", Some((false, ValueKind::Target))),
+            ("pane.show", Some((false, ValueKind::Target))),
+            ("pane.split", Some((false, ValueKind::Target))),
+            ("pane.close", Some((false, ValueKind::Target))),
+            ("pane.move", Some((false, ValueKind::Target))),
+            ("pane.set", Some((false, ValueKind::Target))),
+            ("pane.unset", Some((false, ValueKind::Target))),
+            ("pane.focus", Some((false, ValueKind::Target))),
+            ("pane.resize", Some((false, ValueKind::Target))),
+            ("pane.swap", Some((false, ValueKind::Target))),
+            ("pane.send", Some((false, ValueKind::Target))),
+            ("pane.capture", Some((false, ValueKind::Target))),
+            ("pane.wait", Some((false, ValueKind::Target))),
+            ("server.show", None),
+            ("server.start", None),
+            ("server.stop", None),
+            ("event.watch", Some((false, ValueKind::Target))),
+            ("client.list", None),
+            ("client.show", Some((true, ValueKind::Target))),
+            ("api.list", None),
+            ("api.show", Some((false, ValueKind::Text))),
+            ("api.call", Some((true, ValueKind::Text))),
+        ]
+    }
+
+    /// The hole the review found: the completeness test above only checks
+    /// the set of `(noun, verb)` pairs, which says nothing about whether a
+    /// method's positional is actually `role: Target` (`api.show`/
+    /// `api.call` had `role: Flag` instead, which a CLI generated from this
+    /// description would turn into `--target <method>` rather than doc-2
+    /// section 2's positional `steg api show <method>`). This test checks
+    /// every method against doc-2 section 8's Target column directly,
+    /// independently of whatever `target()`/`target_of_kind()` calls the
+    /// method literals happen to make.
+    #[test]
+    fn every_method_has_a_target_exactly_as_doc_2_section_8_gives_it() {
+        let api = description();
+        for (dotted, expected) in doc_2_section_8_targets() {
+            let described = api
+                .method(dotted)
+                .unwrap_or_else(|| panic!("{dotted} is not described"));
+            match expected {
+                None => assert!(
+                    described.target().is_none(),
+                    "{dotted}'s Target column is \"none\", so it should have no Target-role param"
+                ),
+                Some((required, value)) => {
+                    let target = described
+                        .target()
+                        .unwrap_or_else(|| panic!("{dotted} should have a Target-role param"));
+                    assert_eq!(target.required, required, "{dotted}'s target required-ness");
+                    assert_eq!(target.value, value, "{dotted}'s target value kind");
+                }
+            }
+        }
     }
 }

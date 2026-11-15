@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:42:00Z'
+updated_date: '2026-11-15T02:43:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -25,11 +25,12 @@ doc-16 is the architecture, written at the levels of the C4 model; this task dra
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A LikeC4 model in the repository has the system context, the containers (the server, the CLI, Steg.app, a plugin) and the components (sdk, kernel, server, `steg`, app) exactly as doc-16 gives them, including which package may depend on which
-- [ ] #2 A deployment view shows one window holding a client to a local server and another to a remote one
-- [ ] #3 Two dynamic views: attaching to a pane, and focusing a pane with the path updating upward
-- [ ] #4 `just check` validates the model and fails when it does not validate (R108)
-- [ ] #5 Every name in the model is a word doc-16, doc-15 or doc-1's vocabulary uses, with the same meaning
+- [ ] #1 A LikeC4 model in the repository has the system context (with a plugin and a remote host as external systems), the containers (the server, the CLI, Steg.app) and the components (sdk, kernel, server, `steg`, app) as doc-16 gives them, including which package may depend on which
+- [ ] #2 A package built into several containers appears as a component of each of them, not as the child of one
+- [ ] #3 A deployment view shows one window holding a client to a local server and another to a remote one
+- [ ] #4 Two dynamic views: attaching to a pane, and focusing a pane with the path updating upward
+- [ ] #5 `just check` validates the model and fails when it does not validate (R108)
+- [ ] #6 Every name in the model is a word doc-16, doc-15 or doc-1's vocabulary uses, with the same meaning
 <!-- AC:END -->
 
 ## Implementation Plan

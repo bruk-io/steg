@@ -21,6 +21,7 @@ mod colour;
 mod error;
 mod ids;
 mod label;
+mod moment;
 mod pane;
 mod session;
 mod setting;
@@ -31,6 +32,7 @@ mod tree;
 
 pub use client::Client;
 pub use error::Error;
+pub use moment::Moment;
 pub use pane::Pane;
 pub use session::{Session, TabClosed};
 pub use setting::Settings;

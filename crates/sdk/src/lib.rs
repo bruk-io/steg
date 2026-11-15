@@ -10,9 +10,9 @@
 //! and the one place in this crate allowed real I/O.
 //!
 //! Identifiers, the colour set, pane kinds, client kinds, a pane's
-//! program and the settings registry are shapes that cross the API, so
-//! they are defined once, here (doc-16 R105), and the kernel uses them
-//! rather than defining its own.
+//! program, its status and the settings registry are shapes that cross
+//! the API, so they are defined once, here (doc-16 R105), and the kernel
+//! uses them rather than defining its own.
 //! Each of those shapes also has its wire form here - how it serialises
 //! and deserialises - and `description` holds the API itself, as one
 //! value (decision-1): every method, event and error, and `validate`, the
@@ -28,6 +28,7 @@ mod program;
 mod record;
 mod screen;
 mod setting;
+mod status;
 mod wire;
 
 pub use client_kind::ClientKind;
@@ -45,6 +46,7 @@ pub use screen::{
     CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
 };
 pub use setting::{Setting, settings};
+pub use status::Status;
 pub use wire::{
     CONTROL_STREAM, ClientHello, Connection, Control, Decoder, Frame, FrameError, Handshake,
     Incoming, Kind, MAX_FRAME, MAX_PAYLOAD, PROTOCOL_VERSION, Refusal, Refused, Role as WireRole,

@@ -1,9 +1,10 @@
 //! A tab: an ordered page within a session, and its layout tree (R95).
 
-use steg_sdk::{Direction, Layout, Orientation, PaneId, PaneKind, Ratio, Size, TabId};
+use steg_sdk::{Direction, Layout, Orientation, PaneId, PaneKind, Ratio, Size, Status, TabId};
 
 use crate::error::Error;
 use crate::label;
+use crate::moment::Moment;
 use crate::pane::Pane;
 
 /// R100: no split or resize leaves a terminal pane smaller than this.
@@ -470,6 +471,29 @@ impl Tab {
         debug_assert!(self.panes_match_layout());
     }
 
+    /// The pane whose status this tab's ring stands for, as of `now` -
+    /// doc-11 R50/decision-7 point 2: "the most pressing of its panes".
+    /// `None` if no pane in this tab currently has a status (every pane's
+    /// program is either not yet started or has had its status cleared).
+    ///
+    /// Ranked by [`rank`] (decision-7's own order: waiting, failed, bell,
+    /// finished, running - M1 has only the last three), and, among panes
+    /// tied on that, by each pane's own activity tick, the newer one
+    /// winning (decision-7 point 3: "how pressing, then newest, never
+    /// first in first out") - recomputed fresh from every pane each call,
+    /// never cached, the same way `Tree`'s own "latest client" is for
+    /// R91 (TASK-1.42).
+    pub(crate) fn shown_status(&self, now: Moment) -> Option<PaneId> {
+        self.panes
+            .iter()
+            .filter_map(|pane| {
+                pane.status_for_ranking(now)
+                    .map(|(status, tick)| (pane.id(), status, tick))
+            })
+            .max_by_key(|(_, status, tick)| (std::cmp::Reverse(rank(*status)), *tick))
+            .map(|(id, _, _)| id)
+    }
+
     /// Reorders `panes` to match `layout.leaves()` — the single place
     /// R112's order is enforced, rather than hand-computing the right
     /// insertion point in every method that changes the tree's shape.
@@ -647,11 +671,60 @@ fn swap_leaves(layout: &mut Layout, a: PaneId, b: PaneId) {
     }
 }
 
+/// How pressing a [`Status`] is, for [`Tab::shown_status`] (decision-7:
+/// "waiting, failed, bell, finished, running" - M1 has only the last
+/// three). Lower is more pressing. Private: nothing outside this one
+/// ranking needs an ordering over `Status`, and the sdk type itself stays
+/// plain data with no opinion on how its variants compare (doc-16 R105 is
+/// about shapes that cross the API, not about every reader's own use of
+/// one).
+fn rank(status: Status) -> u8 {
+    match status {
+        Status::Failed { .. } => 0,
+        Status::Finished => 1,
+        Status::Running => 2,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{DirectionalFocus, Tab};
     use crate::error::Error;
-    use steg_sdk::{Direction, Layout, PaneId, PaneKind, Ratio, Size, TabId};
+    use crate::moment::Moment;
+    use std::time::Duration;
+    use steg_sdk::{Direction, Layout, PaneId, PaneKind, Program, Ratio, Size, TabId};
+
+    fn moment(secs: u64) -> Moment {
+        Moment::new(Duration::from_secs(secs))
+    }
+
+    fn command() -> Program {
+        Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: "/tmp".to_string(),
+        }
+    }
+
+    /// Starts `pane`'s program (so it has a status at all) and immediately
+    /// exits it with `exit_code`, stamped with `tick` - the tie-break
+    /// `shown_status` tests exercise directly.
+    fn finish_or_fail(tab: &mut Tab, pane: PaneId, exit_code: i32, tick: u64) {
+        tab.pane_mut(pane)
+            .unwrap()
+            .start_program(command(), tick)
+            .unwrap();
+        tab.pane_mut(pane)
+            .unwrap()
+            .record_exit(exit_code, moment(0), tick)
+            .unwrap();
+    }
+
+    fn start_running(tab: &mut Tab, pane: PaneId, tick: u64) {
+        tab.pane_mut(pane)
+            .unwrap()
+            .start_program(command(), tick)
+            .unwrap();
+    }
 
     fn tab_with_one_pane() -> (Tab, PaneId) {
         let first = PaneId::from_raw(1);
@@ -1289,5 +1362,142 @@ mod tests {
                 DirectionalFocus::Edge
             );
         }
+    }
+
+    // --- shown_status (doc-11 R50, decision-7; TASK-1.41) -----------------
+
+    #[test]
+    fn shown_status_is_none_when_no_pane_has_a_status() {
+        let (tab, _first) = tab_with_one_pane();
+
+        assert_eq!(tab.shown_status(moment(0)), None);
+    }
+
+    #[test]
+    fn shown_status_prefers_failed_over_running() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        start_running(&mut tab, first, 0);
+        finish_or_fail(&mut tab, second, 1, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_prefers_running_over_failed_when_order_is_reversed() {
+        // Same two statuses as the test above, named the other way round
+        // on the layout - proving `shown_status` ranks by status, not by
+        // a pane's position (R112's order plays no part here).
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 1, 0);
+        start_running(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(first));
+    }
+
+    #[test]
+    fn shown_status_prefers_finished_over_running() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        start_running(&mut tab, first, 0);
+        finish_or_fail(&mut tab, second, 0, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_prefers_running_over_finished_when_order_is_reversed() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 0, 0);
+        start_running(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(first));
+    }
+
+    #[test]
+    fn shown_status_prefers_failed_over_finished() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 0, 0);
+        finish_or_fail(&mut tab, second, 1, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_prefers_failed_over_finished_when_order_is_reversed() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 1, 0);
+        finish_or_fail(&mut tab, second, 0, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(first));
+    }
+
+    #[test]
+    fn shown_status_breaks_a_tie_between_two_failed_panes_toward_the_newer_one() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 1, 0);
+        finish_or_fail(&mut tab, second, 1, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_breaks_a_tie_between_two_finished_panes_toward_the_newer_one() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 0, 1);
+        finish_or_fail(&mut tab, second, 0, 0);
+
+        // `first` has the newer tick (1 > 0) even though it was created
+        // and positioned before `second` - the tie-break is the tick,
+        // never R112's order.
+        assert_eq!(tab.shown_status(moment(0)), Some(first));
+    }
+
+    #[test]
+    fn shown_status_breaks_a_tie_between_two_running_panes_toward_the_newer_one() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        start_running(&mut tab, first, 0);
+        start_running(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(second));
+    }
+
+    #[test]
+    fn shown_status_falls_through_to_the_next_pane_once_the_more_pressing_ones_status_has_expired()
+    {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        finish_or_fail(&mut tab, first, 0, 0); // Finished, expires at 600s.
+        start_running(&mut tab, second, 1);
+
+        assert_eq!(tab.shown_status(moment(0)), Some(first));
+        assert_eq!(tab.shown_status(moment(600)), Some(second));
     }
 }

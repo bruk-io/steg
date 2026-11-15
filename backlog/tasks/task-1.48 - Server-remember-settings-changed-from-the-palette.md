@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:19:00Z'
+updated_date: '2026-11-15T19:22:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -580,6 +580,51 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-15T19:22:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 113 lines:
+
+```text
+test api_call_of_pane_split_gives_the_same_response_a_direct_call_would ... ok
+test every_nothing_or_identifier_returning_method_matches_its_declared_shape ... ok
+test pane_split_with_a_program_refuses_and_creates_nothing ... ok
+test pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was ... ok
+test pane_split_with_no_focus_restores_the_previous_current_pane ... ok
+test pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/program.rs (target/debug/deps/program-89613f7a57fade38)
+
+running 5 tests
+test a_programs_exit_code_reaches_the_event_channel ... ok
+test resize_reaches_the_terminal_even_with_no_program_running ... ok
+test a_pane_with_no_program_running_accepts_input_as_a_no_op ... ok
+test output_printed_before_exit_is_in_the_snapshot ... ok
+test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 5 tests
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

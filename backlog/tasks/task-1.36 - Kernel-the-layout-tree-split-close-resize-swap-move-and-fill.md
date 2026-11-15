@@ -1,11 +1,11 @@
 ---
 id: TASK-1.36
 title: 'Kernel: the layout tree: split, close, resize, swap, move and fill'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:54:00Z'
+updated_date: '2026-11-15T04:59:00Z'
 labels:
   - size-3
   - review-passed

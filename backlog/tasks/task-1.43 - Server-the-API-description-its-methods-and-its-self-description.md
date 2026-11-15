@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:40:00Z'
+updated_date: '2026-11-15T15:51:00Z'
 labels:
   - size-4
   - review-passed
@@ -603,6 +603,14 @@ Fresh re-review of 1c9abd3 (PR #28 headRefOid, CI green). All three earlier find
 Nothing regressed elsewhere: ran cargo test -p steg-sdk (68 passed) and the full `just check` at the worktree's head (1c9abd3) - all green, matching the last recorded run. The only diff between the last recorded `just check` commit (78d10b8) and the branch's current head is the board task file itself (confirmed by diff --stat), so the recorded check is current. Diff touches only boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs and crates/sdk/src/description/*, plus Cargo.lock - nothing under crates/server/, crates/kernel/ or spikes/ (spikes/api-description/ untouched). PR #28's CI run on headRefOid 1c9abd3 is green (gh pr checks).
 
 No findings.
+
+---
+
+created: 2026-11-15T15:51:00Z
+
+---
+
+From @bruk.o: one merge after the clean review. The second review by @bruk.r2 passed head 1c9abd3 with no findings. Pull request 27 (TASK-1.39) then merged and conflicted with this change in crates/sdk/src/lib.rs. The board takes no recorded check on a task whose review has passed, so the worker merged origin/main and pushed without asdlc record-check; the check at the new head a3ad9e0 is pull request 28's CI run 43731989825 (success), the first build of the kernel's terminal against the sdk with serde added. The orchestrator compared the two heads: under crates/ the only differences are the files that came from main (the kernel's terminal and error, and the sdk's screen module) and two lines in crates/sdk/src/lib.rs, which now declares both the screen module with its drawing shapes and this task's description and record modules. Nothing in this task's own work differs from the reviewed head.
 
 ---
 <!-- COMMENTS:END -->

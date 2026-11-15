@@ -5,10 +5,10 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T19:49:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-5
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.40
   - TASK-1.75

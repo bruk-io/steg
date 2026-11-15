@@ -1,11 +1,11 @@
 ---
 id: TASK-1.76
-title: 'Server: start a pane''s program from the API, and end it on a forced close'
+title: 'Server: start a pane''s program from the API, and size it'
 status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T19:41:00Z'
+updated_date: '2026-11-15T19:42:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -31,11 +31,11 @@ Cites doc-2 sections 8 and 9, doc-8 (R97, R99), doc-15, doc-16 (R101-R108: the k
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 pane split, tab new and session new given a program or a working directory start that program in the new pane through the server's pane runtime, where today dispatch refuses them; with neither, the new pane runs the login shell (doc-2 section 8, doc-8 R99 for the environment once TASK-1.44 provides it)
-- [ ] #2 pane show reports the running program and, once it has ended, its exit code; a shell pane that exits closes through the same cascade as a manual close (R97)
+- [ ] #1 pane split, tab new and session new given a program or a working directory start that program in the new pane through the server's pane runtime, where today dispatch refuses them; with neither, the new pane runs the login shell (doc-2 section 8). A program that cannot be started is reported and leaves no pane behind
+- [ ] #2 pane show reports the running program and, once it has ended, its exit code; a shell pane that exits closes through the same cascade as a manual close (R97), including the last pane of the last tab of a session
 - [ ] #3 A change of a tab's size reaches every terminal in it: the kernel's size for each pane is applied to its terminal and to its pty, and the pixel cell size Terminal::resize needs has a stated source
-- [ ] #4 pane close, tab close and session close without --force refuse while a program is running, with the ProgramRunning code; with --force the program is ended, its exit is observed, and its relay thread ends, for a program that is producing output and for one that prints nothing (the case TASK-1.40 left: a silent program kept the relay blocked in read and the child alive)
-- [ ] #5 No path that can end a pane leaves a child unreaped or a thread running: shown by tests with real programs and bounded waits, and no unsafe code is added without it being named in the plan and approved
+- [ ] #4 pane close, tab close and session close without --force refuse while a program is running, with the ProgramRunning code, and change nothing; --force stays as it is today until the forced-close task
+- [ ] #5 Every path this task creates that can end a pane (a normal exit, a shell's exit cascade, a start that fails) leaves no child unreaped and no thread running, shown by tests with real programs and bounded waits; no unsafe code is added
 - [ ] #6 The kernel errors ProgramNotStarted and ShellCannotRestart, and ClientNotViewingPane and ClientNotViewingTab if a method here can return them, map to an API error code that says what happened; whether each needs its own code is decided in the plan against doc-2
 <!-- AC:END -->
 
@@ -638,3 +638,9 @@ Clause by clause:
   (nothing this task adds reaches them) — a negative assertion, naming the
   claim rather than leaving it implicit.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default, along the seam this task's description named and the worker's plan recommended. This task is now part one: programs started from the API, exits, sizes, and the refusal to close a running program without --force. Part two, a draft under TASK-1 depending on this task, takes --force actually ending a program (the worker's plan section 5 from 'With --force' onward, and the experiment it names). The plan on this task was written for both parts and is to be rewritten for part one only.
+<!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:10:00Z'
+updated_date: '2026-11-15T22:11:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -537,6 +537,30 @@ ok      build (steg-server) (0.1s)
 ok      test (steg-server) (1.4s)
 ok      build (steg) (0.1s)
 ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just check'` exited 0 at 2026-11-15T22:11:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 32ab0d9176f5:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (4.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
 ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.2s)
 ok      tool tests (1.2s)

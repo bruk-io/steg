@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:26:00Z'
+updated_date: '2026-11-15T17:27:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -873,6 +874,15 @@ All four nits from the prior review are fixed with real outcome assertions, not 
 The prior Important finding (the focus test was structurally unable to fail: one tab, one pane) is genuinely fixed for pane-level focus: the rebuilt connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus uses two sessions, each with two tabs of two panes, deliberately unfocuses the pane the client acts on, and the worker's recorded run (injecting `focus_pane` into view_pane, exit 101, failure at "after view_pane", then reverted) is honest proof that this half of the check bites.
 
 [Bugs, Important] crates/kernel/src/tree.rs:2236 (helper `whole_focus`, :2222) The new helper's own doc comment claims to capture "every one of tree's sessions' current tab and every tab's current pane," but its body only yields `(session.id(), tab.id(), tab.current())` for every tab - it never calls `session.current_tab()`. Session-level current-tab is a distinct, separately-set field (session.rs:27, set via Tree::focus_tab/focus_pane -> Session::set_current_tab), not derivable from tab.current(). The plan's own PROOF section for this test says it "asserts the tree's focus path (current_tab, current_pane) is unchanged throughout" - decision-5 point 1 makes that path session -> current tab -> current pane, so leaving current_tab out of the captured state asserts only half the path, every time. I confirmed this bites: injecting a fault into view_pane that calls session.set_current_tab (moving session_a's current tab from tab_a2 to tab_a1, touching no tab's current pane) left the test passing unchanged (cargo test -p steg-kernel, not a recorded just-test check - a probe only, reverted after). This is the same shape of gap the prior review found (a test for this exact invariant that cannot detect a real class of the violation it claims to rule out), now on the other half of the focus path; the worker's own recorded failing run only exercised the pane-level half.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:27:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

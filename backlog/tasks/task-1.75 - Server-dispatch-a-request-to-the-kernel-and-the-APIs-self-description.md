@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:42:00Z'
+updated_date: '2026-11-15T16:48:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -550,6 +550,51 @@ Check passed: `just test` exited 0 at 2026-11-15T16:42:02+00:00 in /Users/brukha
 
 ```text
 ok      tests (every crate) (1.6s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T16:48:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 64 lines:
+
+```text
+test session_show_with_an_unknown_target_is_no_such_target ... ok
+test api_show_an_unknown_method_is_no_such_target ... ok
+test session_show_matches_exactly_the_fields_the_description_declares ... ok
+test every_served_nothing_returning_method_answers_exactly_null ... ok
+test pane_focus_moves_to_the_neighbour ... ok
+test pane_swap_exchanges_two_panes ... ok
+test pane_set_zoomed_fills_and_unset_zoomed_unfills ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was ... ok
+test pane_close_removes_the_pane ... ok
+test api_show_with_a_target_returns_one_method ... ok
+test tab_move_with_position_reorders ... ok
+test tab_close_removes_it ... ok
+test tab_new_with_no_focus_leaves_the_original_tab_current ... ok
+test tab_focus_makes_it_current ... ok
+test split_set_label_then_close_the_session ... ok
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test api_list_returns_every_method ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... FAILED
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+failures:
+
+---- every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing stdout ----
+
+thread 'every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing' (6718242) panicked at crates/server/tests/dispatch.rs:143:9:
+event.watch: "not implemented yet: waiting on events (TASK-1.46)" does not name "Events"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing
+
+test result: FAILED. 35 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

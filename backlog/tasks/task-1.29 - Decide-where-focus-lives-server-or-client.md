@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.29
 title: 'Decide where focus lives: server or client'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-14T17:29:00Z'
 updated_date: '2026-11-15T00:13:00Z'

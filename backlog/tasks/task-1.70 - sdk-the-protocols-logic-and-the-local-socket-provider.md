@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:13:00Z'
+updated_date: '2026-11-15T16:15:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -403,4 +403,6 @@ architecture, recipe names); `just test` for the affected-crate subset while ite
 
 <!-- SECTION:NOTES:BEGIN -->
 Order changed by @bruk.o on 2026-11-15: the handshake and framing are this task's and the server's socket task (TASK-1.44) uses them, so this comes first. The local-socket provider is tested here against a listener in a temporary directory; starting a real server end to end is proved in TASK-1.44.
+
+Revised plan checked against doc-14, doc-8 (R3, R39, R99), doc-16 (R101 to R106) and decision-2 by @bruk.o: ok. The protocol is logic that takes bytes and gives bytes and typed items, with one Connection type both ends drive and no transport trait; no dependency is added. ClientKind and ClientId come from TASK-1.42's definitions. The local-socket provider is blocking std behind its feature, tested against a plain listener. For the engineer, a change to doc-2 and the API description: server start gains an --on-demand switch, which is what the provider runs to bring a server into being; the server's side of that is TASK-1.44's. One pull request with two commits is recommended.
 <!-- SECTION:NOTES:END -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.34
 title: 'Build with ghostty''s VT engine: Zig, a vendored source tree, and the bindings'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T07:02:00Z'
+updated_date: '2026-11-15T13:47:00Z'
 labels:
   - size-3
   - review-passed

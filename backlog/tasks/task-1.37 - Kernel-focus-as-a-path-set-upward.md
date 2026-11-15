@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:24:00Z'
+updated_date: '2026-11-15T13:51:00Z'
 labels:
   - size-2
   - review-passed
@@ -430,6 +430,14 @@ created: 2026-11-15T06:24:00Z
 ---
 
 From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head d766015 with five nits, all tests that exercised less than their names claimed. The board takes no recorded check on a task whose review has passed, so the worker strengthened the tests and pushed without asdlc record-check; the check at the new head 589b4e3 is pull request 25's CI run 43685128929 (success). The orchestrator compared the two commits: one file differs, crates/kernel/src/tree.rs, in 18 places, every one of them inside its #[cfg(test)] module, which begins at line 702; no line of non-test code changed. So the reviewed logic is what merges, with stronger tests: focusing on a tree where both current fields really change; R114's repair reached through the move cascade; an edge with other panes and tabs present; the wrap test asserting the tree's state; and not-found cases against a populated tree.
+
+---
+
+created: 2026-11-15T13:51:00Z
+
+---
+
+From @bruk.o: what merged, and that main is sound. The review by @bruk.r1 passed head d766015; tests were strengthened at 589b4e3 (recorded above). Pull request 20 then merged and conflicted in crates/kernel/src/lib.rs. A merge of origin/main was pushed to the branch from GitHub's side as 3e16979, and the engineer merged pull request 25 at 13:46 UTC, before any check had finished on 3e16979 and before a review of the resolution. Checked afterwards by the orchestrator: the only hand-resolved file was crates/kernel/src/lib.rs, which keeps both main's ghostty doc line and test module and this task's Focused and FocusMove exports; the pushed merge was identical, outside backlog/, to the merge the worker had made independently; against the reviewed code, crates/kernel/src differs only by the 50 lines that came from main. On main after the merge: just test-all passes locally (every crate, 78.7s), just check passes locally, and the push run on the merge commit 8ccd37e (43720755293) succeeded.
 
 ---
 <!-- COMMENTS:END -->

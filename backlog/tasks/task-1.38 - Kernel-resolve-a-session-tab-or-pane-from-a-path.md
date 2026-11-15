@@ -1,7 +1,7 @@
 ---
 id: TASK-1.38
 title: 'Kernel: resolve a session, tab or pane from a path'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
@@ -11,6 +11,9 @@ labels:
 milestone: m-0
 dependencies:
   - TASK-1.35
+references:
+  - task-1.38-kernel-resolve-a-session-tab-or-pane
+  - https://github.com/bruk-io/steg/pull/22
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -354,6 +357,19 @@ ok      tool tests (0.9s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built exactly as planned (no departures).
+
+What was built: crates/kernel/src/target.rs (the four-kind matcher resolve(), Candidate, and Tree::resolve_session/resolve_tab_path/resolve_pane_path, Session::resolve_tab, Tab::resolve_pane) and crates/kernel/src/label.rs (the single label::validate used by every setter). error.rs gained InvalidLabel/InvalidTargetPath/TargetNotFound/TargetAmbiguous and dropped Copy. set_label on Session/Tab/Pane and Tree::new_session/new_tab now return Result; all existing kernel tests updated accordingly.
+
+Which test proves which clause:
+- AC #1 (full id -> label ignoring case -> position -> suffix >=4 chars, stopping at the first kind that matches): target::tests::resolve_matches_a_full_identifier_before_any_other_kind, ..._a_label_case_insensitively_when_no_identifier_matches, ..._by_one_based_position_when_no_identifier_or_label_matches, ..._an_identifier_suffix_of_four_or_more_characters, resolve_never_tries_a_suffix_shorter_than_four_characters, resolve_stops_at_label_even_when_an_ambiguous_label_match_would_also_match_by_suffix (proves "stopping at the first kind" means >=1 match, not exactly 1, per R10's "never a guess").
+- AC #2 (matches nothing or more than one is an error listing candidates, does nothing): resolve_reports_not_found_with_every_candidate_when_nothing_matches, resolve_reports_ambiguous_with_only_the_matched_candidates_when_more_than_one_matches, tree_resolve_session_resolves_by_label_and_errors_when_ambiguous, session_resolve_tab_and_tab_resolve_pane_use_the_same_order, split_path_rejects_a_path_with_more_parts_than_the_maximum, split_path_rejects_an_empty_segment, split_path_accepts_up_to_the_maximum_number_of_parts, resolve_pane_path_rejects_a_path_with_the_wrong_number_of_segments, resolve_tab_path_falls_back_to_the_default_session_when_the_session_part_is_left_out, resolve_tab_path_uses_an_explicit_session_part_over_the_default, resolve_pane_path_falls_back_to_the_given_defaults_when_parts_are_left_out.
+- AC #3 (label with '/' or all-digits refused, enforced at every setter): label::tests::rejects_a_label_containing_a_slash, ..._made_only_of_digits, ..._accepts_an_ordinary_label, ..._accepts_a_label_that_mixes_digits_and_letters, ..._passes_a_cleared_label_through_unchanged; plus one rejection test at every setter: pane::tests::set_label_rejects_an_invalid_label, tab::tests::set_label_rejects_an_invalid_label, session::tests::set_label_rejects_an_invalid_label, tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id, tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id.
+
+Position for a pane is R112 (added by the engineer during build, per the plan's flagged open question): a tab's panes are ordered as the layout tree's leaves, a split's first child before its second, counted from one. Tab::resolve_pane's doc comment and target.rs's kind-3 comment cite R112 directly; the code already read position through Tab::panes(), so no behaviour changed.
+
+just check recorded three times on this task: once as the pre-build baseline, once after the design was complete, once against the final pushed commit — all green (format, lint, boundaries, licences, affected tests -p steg -p steg-kernel -p steg-server, tool tests, architecture, recipe names). The repository gained crates/app, crates/server and crates/steg (and a workspace clippy.toml) from main partway through the build via two rebases; both picked those up with no conflicts and no change needed on this task's side.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -2,7 +2,26 @@
 # table here is unrestricted. Checked by `tools/src/steg_tools/boundaries.py`, run
 # as `just boundaries`; adding a dependency to a restricted crate that isn't on its
 # list is a deliberate edit to this file, not something to remember separately.
+#
+# This table is doc-16's level-3 dependency table (section "Who may depend on
+# whom"), one entry per package.
+
+[steg-sdk]
+reason = "the sdk is steg's public interface and does no I/O of its own; it has nothing of steg's to depend on (doc-16 R101, R102)"
+allow = []
 
 [steg-kernel]
-reason = "the kernel does no I/O of its own (.claude/rules/architecture.md)"
-allow = []
+reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)"
+allow = ["steg-sdk"]
+
+[steg-server]
+reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98)"
+allow = ["steg-kernel", "steg-sdk"]
+
+[steg]
+reason = "the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own"
+allow = ["steg-sdk", "steg-server"]
+
+[steg-app]
+reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)"
+allow = ["steg-sdk", "gpui"]

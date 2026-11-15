@@ -1,0 +1,15 @@
+[package]
+name = "steg-sdk"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# R103: the local-socket provider is optional and off by default. Declared and
+# empty here - no optional dependency or `cfg`-gated code sits behind it yet;
+# TASK-1.44 (the server's local socket) and draft-1 (the client side of the
+# connection) fill it in.
+local-socket = []

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:52:00Z'
+updated_date: '2026-11-15T19:13:00Z'
 labels:
   - size-3
   - review-passed

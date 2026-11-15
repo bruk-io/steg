@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:46:00Z'
+updated_date: '2026-11-15T02:47:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -392,6 +392,14 @@ ok      build (steg) (0.2s)
 ok      test (steg) (0.1s)
 ok      build (steg-app) (0.6s)
 ok      test (steg-app) (0.3s)
+```
+
+Check passed: `uv run --project tools pytest -q tools/tests` exited 0 at 2026-11-15T02:47:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at dfebbf69b590 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp0dXsRU` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+...............................                                          [100%]
+31 passed in 0.09s
 ```
 <!-- SECTION:NOTES:END -->
 

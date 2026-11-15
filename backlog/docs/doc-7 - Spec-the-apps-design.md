@@ -3,7 +3,7 @@ id: doc-7
 title: 'Spec: the app''s design'
 type: specification
 created_date: '2026-11-15T00:22:00Z'
-updated_date: '2026-11-15T00:30:00Z'
+updated_date: '2026-11-15T00:48:00Z'
 ---
 Intent: TASK-1. Delivers the design section that TASK-1.27 asks for (its criterion 3), as a document of its own because it is too long for a section of doc-1.
 
@@ -263,7 +263,7 @@ For Bruk to decide. None is resolved here.
 - [ ] Do the values marked (proposed) stand: D14, D23, D27, D47, D75, D77, D87?
 - [ ] Carried forward: more tabs than fit the top bar, many session chips, reordering tabs, and moving a pane to another tab are not designed. Bruk parked them on 2026-11-14 to come back to; they do not block the first window.
 - [ ] Carried forward: whether a session can be ended from the top bar, where chips have no x. Today it can only be ended there from the palette.
-- [ ] Carried forward to TASK-1.29: whether two windows on one session share one pane layout and one focused tab.
+- [x] Whether two windows on one session share one pane layout and one focused tab. Decided 2026-11-15: they do, because the server holds both (doc-1, R85 and R89). "In view" in this document is the app's judgement, as doc-1 R90 defines it.
 - [ ] Carried forward to TASK-1.30: promotion, and its CLI form. Lifetimes are settled in D109.
 
 ## 6. Out of scope

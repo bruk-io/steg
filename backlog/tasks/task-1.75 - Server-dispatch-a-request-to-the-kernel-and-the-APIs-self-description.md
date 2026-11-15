@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:18:00Z'
+updated_date: '2026-11-15T17:20:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1133,6 +1133,32 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 26, 24 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:20:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at e0abcd99f7ef:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (3.0s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (28.6s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.3s)
+ok      test (steg-server) (0.8s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 42, 35 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:49:00Z'
+updated_date: '2026-11-15T20:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -22,6 +22,8 @@ asdlc_branch: task-1.41-kernel-status-in-the-first-release-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ed724e8c9084'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -943,6 +945,15 @@ created: 2026-11-15T20:35:00Z
 ---
 
 Departure from the plan: crates/server/tests/real_pty.rs (TASK-1.40's own functional test, already on origin/main) calls Tree::record_exit twice and wasn't caught by the plan's call-site grep (which searched for '.status()', not 'record_exit' - record_exit's own signature change was already known/planned, just not that this file called it). Fixed both call sites with Moment::new(Duration::ZERO), since neither test asserts anything about Status/timing - they're proving a real exit code reaches the kernel's cascade, nothing about when.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T20:50:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.41: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

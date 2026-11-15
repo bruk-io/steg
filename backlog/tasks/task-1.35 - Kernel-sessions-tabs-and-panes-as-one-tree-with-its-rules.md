@@ -5,11 +5,12 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:31:00Z'
+updated_date: '2026-11-15T02:34:00Z'
 labels:
   - size-3
 milestone: m-0
-dependencies: []
+dependencies:
+  - TASK-1.69
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,7 +21,7 @@ asdlc_branch: task-1.35-kernel-sessions-tabs-and-panes-as-one
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-doc-15: R6, R8, R12, R26, R93, R94. The kernel is logic only (the repository's architecture rule): data in, data out, no I/O.
+doc-15: R6, R8, R12, R26, R93, R94, R109. doc-16 R105: the kernel is logic only and may depend on the sdk without its optional parts; identifiers, the colour set and pane kinds cross the API, so they are defined in the sdk and used here, not written twice. This task adds those shapes to the sdk. Revise the plan to this description; the earlier plan was written before doc-16 existed.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
@@ -30,6 +31,8 @@ doc-15: R6, R8, R12, R26, R93, R94. The kernel is logic only (the repository's a
 - [ ] #3 A new session takes the next of the five colours not in use, and its colour can be changed
 - [ ] #4 A pane has a kind, and nothing in the tree assumes it is a terminal
 - [ ] #5 The crate does no I/O, and the boundaries check passes
+- [ ] #6 When all five colours are in use, a new session takes the first colour again (R109)
+- [ ] #7 Identifiers, the colour set and pane kinds are defined once, in the sdk (doc-16 R105)
 <!-- AC:END -->
 
 ## Implementation Plan

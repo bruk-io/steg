@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:23:00Z'
+updated_date: '2026-11-15T06:27:00Z'
 labels:
   - size-3
   - changes-requested
@@ -798,6 +798,29 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+mkdir -p /tmp/ghostty-refresh-global-cache/p
+cp third_party/ghostty-vt-zig-deps/p/*.tar.gz /tmp/ghostty-refresh-global-cache/p/
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  ZIG_GLOBAL_CACHE_DIR=/tmp/ghostty-refresh-global-cache ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache
+done
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+test -z "$(git status --porcelain third_party | grep -v "^D " | grep -v "README.md")"
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+echo "offline rebuild for both Darwin targets, using the committed vendored tarballs copied into a scratch global-cache dir (never pointed at third_party/ directly, matching justfile'"'"'s zig-deps-seeded), produced libghostty-vt.a with no network and left third_party/ untouched"
+'` exited 0 at 2026-11-15T06:27:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+offline rebuild for both Darwin targets, using the committed vendored tarballs copied into a scratch global-cache dir (never pointed at third_party/ directly, matching justfile's zig-deps-seeded), produced libghostty-vt.a with no network and left third_party/ untouched
 ```
 
 Commits since the review: 0.

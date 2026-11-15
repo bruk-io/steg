@@ -544,6 +544,51 @@ Check passed: `just lint` exited 0 at 2026-11-15T03:26:43+00:00 in /Users/brukha
 ```text
 ok      lint (0.4s)
 ```
+
+Check passed: `sh -c '! just lint'` exited 0 at 2026-11-15T03:26:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes, last 40 of 41 lines:
+
+```text
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71/crates/sdk)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/sdk/src/lib.rs:15:1
+   |
+15 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/sdk/src/lib.rs:16:5
+   |
+16 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/sdk/src/lib.rs:15:42
+   |
+15 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   |                                          ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the sdk
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+   = note: `-D clippy::disallowed-types` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_types)]`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/sdk/src/lib.rs:16:5
+   |
+16 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the sdk
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+
+error: could not compile `steg-sdk` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-sdk` (lib test) due to 3 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed on line 70 with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

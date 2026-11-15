@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T21:38:00Z'
+updated_date: '2026-11-15T22:31:00Z'
 labels:
   - size-5
   - changes-requested
@@ -951,6 +951,910 @@ Coverage, clause by clause:
 - **AC #6** ("the kernel errors... map to an API error code that says what happened; whether each needs its own code is decided in the plan"): `map_kernel_error`'s existing tests, unchanged. `shapes.rs`/`methods.rs`'s own `ProgramFailed` tests (the new `errors_has_twelve_codes_with_their_exit_statuses`, extended; the three methods' own `errors` lists). `no_described_method_can_reach_restart_program_or_record_exit` is the negative assertion: no method names a `restart` verb, so `ShellCannotRestart`/`ProgramNotStarted` stay unreachable and undecided, as the plan said.
 
 `just check` recorded clean at the final head, `fdef2fe` (rebased onto `origin/main` after TASK-1.48 merged; TASK-1.41's own rename/`Moment` change had not merged as of this rebase, so there was nothing further to adapt to - checked directly in `crates/kernel/src/pane.rs` before pushing, not assumed). Pushed, PR opened: https://github.com/bruk-io/steg/pull/40.
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 101 at 2026-11-15T22:13:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... FAILED
+
+failures:
+
+---- runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap stdout ----
+
+thread 'runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap' (14462749) panicked at crates/server/src/runtime.rs:1200:17:
+pane 00000002 never reported pty size 20 30; last screen: "20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n20 61\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 20.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 0 at 2026-11-15T22:13:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.25s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 101 at 2026-11-15T22:14:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... FAILED
+
+failures:
+
+---- pane_close_refuses_while_its_program_is_running_and_touches_nothing stdout ----
+
+thread 'pane_close_refuses_while_its_program_is_running_and_touches_nothing' (14478076) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_refuses_while_its_program_is_running_and_touches_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_refuses_while_its_program_is_running_and_touches_nothing -- --test-threads=1` exited 0 at 2026-11-15T22:14:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.57s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.00s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime tab_close_refuses_while_any_of_its_panes_is_running -- --test-threads=1` exited 101 at 2026-11-15T22:14:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14482648) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime tab_close_refuses_while_any_of_its_panes_is_running -- --test-threads=1` exited 0 at 2026-11-15T22:14:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.56s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test runtime session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running -- --test-threads=1` exited 101 at 2026-11-15T22:14:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... FAILED
+
+failures:
+
+---- session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running stdout ----
+
+thread 'session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running' (14490142) panicked at crates/server/tests/runtime.rs:78:32:
+expected Response::Error, got null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test runtime session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running -- --test-threads=1` exited 0 at 2026-11-15T22:14:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 1 test
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.01s
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:16:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 75 lines:
+
+```text
+test program_param::tests::an_empty_program_array_is_a_command_with_no_arguments_not_a_shell ... ok
+test program_param::tests::no_program_and_no_cwd_is_a_shell_at_the_default ... ok
+test dispatch::tests::every_described_method_has_exactly_one_handler ... ok
+test runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once ... ok
+test runtime::tests::apply_event_closes_a_shell_pane_through_the_same_cascade_as_a_manual_close ... ok
+test runtime::tests::apply_event_records_an_exit_and_leaves_a_command_pane_in_place ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... FAILED
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+kill: 25632: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+kill: 25632: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 25600: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended stdout ----
+
+thread 'runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended' (14526986) panicked at crates/server/src/runtime.rs:1624:9:
+the program must have fully ended, not merely exited the pty
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended
+
+test result: FAILED. 53 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:17:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+test runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+kill: 32309: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::stop_tests::stop_ends_a_silent_program ... FAILED
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 32305: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test runtime::stop_tests::stop_ends_a_program_producing_output ... FAILED
+
+failures:
+
+---- runtime::stop_tests::stop_ends_a_silent_program stdout ----
+
+thread 'runtime::stop_tests::stop_ends_a_silent_program' (14561511) panicked at crates/server/src/runtime.rs:1605:9:
+stop must end the program too
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- runtime::stop_tests::stop_ends_a_program_producing_output stdout ----
+
+thread 'runtime::stop_tests::stop_ends_a_program_producing_output' (14561510) panicked at crates/server/src/runtime.rs:1565:13:
+never saw a pid written to /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-stop-test-00000002.pid
+
+
+failures:
+    runtime::stop_tests::stop_ends_a_program_producing_output
+    runtime::stop_tests::stop_ends_a_silent_program
+
+test result: FAILED. 52 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.08s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:18:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+
+     Running tests/runtime.rs (target/debug/deps/runtime-45e63e48b5c485fa)
+
+running 18 tests
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14575341) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:18:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+
+     Running tests/runtime.rs (target/debug/deps/runtime-45e63e48b5c485fa)
+
+running 18 tests
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... FAILED
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+
+failures:
+
+---- pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap stdout ----
+
+thread 'pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap' (14578713) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:19:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... FAILED
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14584940) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap stdout ----
+
+thread 'pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap' (14584919) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:19:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... FAILED
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+
+failures:
+
+---- session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running stdout ----
+
+thread 'session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running' (14590009) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14590017) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 101 at 2026-11-15T22:23:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... FAILED
+
+failures:
+
+---- runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap stdout ----
+
+thread 'runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap' (14640237) panicked at crates/server/src/runtime.rs:1383:13:
+assertion `left == right` failed
+  left: 10
+ right: 20
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 0 at 2026-11-15T22:23:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.22s
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T22:24:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (32.4s)
+ok      test (steg-server) (3.6s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (1.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:25:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6, last 40 of 75 lines:
+
+```text
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... FAILED
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_split_through_api_call_starts_a_real_program ... FAILED
+test session_new_through_api_call_starts_a_real_program ... ok
+
+failures:
+
+---- tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind stdout ----
+
+thread 'tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind' (14675606) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- session_new_through_api_call_with_no_program_runs_the_login_shell stdout ----
+
+thread 'session_new_through_api_call_with_no_program_runs_the_login_shell' (14675594) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14675602) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- pane_split_through_api_call_starts_a_real_program stdout ----
+
+thread 'pane_split_through_api_call_starts_a_real_program' (14675581) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    pane_split_through_api_call_starts_a_real_program
+    session_new_through_api_call_with_no_program_runs_the_login_shell
+    tab_close_refuses_while_any_of_its_panes_is_running
+    tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind
+
+test result: FAILED. 14 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:25:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6, last 40 of 68 lines:
+
+```text
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_through_api_call_starts_a_real_program ... FAILED
+test tab_new_through_api_call_starts_a_real_program ... FAILED
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+
+failures:
+
+---- pane_split_through_api_call_starts_a_real_program stdout ----
+
+thread 'pane_split_through_api_call_starts_a_real_program' (14681008) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- tab_new_through_api_call_starts_a_real_program stdout ----
+
+thread 'tab_new_through_api_call_starts_a_real_program' (14681030) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_split_through_api_call_starts_a_real_program
+    tab_new_through_api_call_starts_a_real_program
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:25:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6, last 40 of 68 lines:
+
+```text
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_through_api_call_starts_a_real_program ... FAILED
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... FAILED
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+
+failures:
+
+---- pane_split_through_api_call_starts_a_real_program stdout ----
+
+thread 'pane_split_through_api_call_starts_a_real_program' (14687044) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind stdout ----
+
+thread 'tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind' (14687067) panicked at crates/server/tests/runtime.rs:71:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_split_through_api_call_starts_a_real_program
+    tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:29:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 68 lines:
+
+```text
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test tab_new_through_api_call_starts_a_real_program ... FAILED
+test pane_split_through_api_call_starts_a_real_program ... FAILED
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+
+failures:
+
+---- tab_new_through_api_call_starts_a_real_program stdout ----
+
+thread 'tab_new_through_api_call_starts_a_real_program' (14755415) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane_split_through_api_call_starts_a_real_program stdout ----
+
+thread 'pane_split_through_api_call_starts_a_real_program' (14755405) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    pane_split_through_api_call_starts_a_real_program
+    tab_new_through_api_call_starts_a_real_program
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 85, 80 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 68 lines:
+
+```text
+
+     Running tests/runtime.rs (target/debug/deps/runtime-45e63e48b5c485fa)
+
+running 18 tests
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... FAILED
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+
+failures:
+
+---- tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind stdout ----
+
+thread 'tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind' (14759412) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 85, 80 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:30:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 75 lines:
+
+```text
+
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 18 tests
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+failures:
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14778813) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_refuses_while_any_of_its_panes_is_running
+
+test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 85, 80 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:30:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 68 lines:
+
+```text
+test tab_close_refuses_while_any_of_its_panes_is_running ... FAILED
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... FAILED
+test tab_new_through_api_call_starts_a_real_program ... FAILED
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+
+failures:
+
+---- session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended stdout ----
+
+thread 'session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended' (14783761) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tab_close_refuses_while_any_of_its_panes_is_running stdout ----
+
+thread 'tab_close_refuses_while_any_of_its_panes_is_running' (14783766) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- pane_split_with_a_bad_command_leaves_no_new_pane_behind stdout ----
+
+thread 'pane_split_with_a_bad_command_leaves_no_new_pane_behind' (14783745) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- tab_new_through_api_call_starts_a_real_program stdout ----
+
+thread 'tab_new_through_api_call_starts_a_real_program' (14783768) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+
+failures:
+    pane_split_with_a_bad_command_leaves_no_new_pane_behind
+    session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended
+    tab_close_refuses_while_any_of_its_panes_is_running
+    tab_new_through_api_call_starts_a_real_program
+
+test result: FAILED. 14 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 85, 80 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:31:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 68 lines:
+
+```text
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... FAILED
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... FAILED
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+
+failures:
+
+---- pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap stdout ----
+
+thread 'pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap' (14786900) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+
+---- tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind stdout ----
+
+thread 'tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind' (14786927) panicked at crates/server/tests/runtime.rs:73:35:
+expected Response::Ok, got ApiError { code: ProgramFailed, message: "the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: \"Unknown error: -6\" }", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap
+    tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind
+
+test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 85, 80 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

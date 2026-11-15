@@ -3,16 +3,20 @@ id: TASK-1.79
 title: >-
   Terminal: surface a prompt-marked command's start and end, with its exit code,
   from the engine
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:10:00Z'
+updated_date: '2026-11-15T22:30:00Z'
 labels:
   - size-5
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.41
+references:
+  - task-1.79-status-for-a-command-typed-at-a-shell
+  - https://github.com/bruk-io/steg/pull/41
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
@@ -20,6 +24,9 @@ asdlc_branch: task-1.79-status-for-a-command-typed-at-a-shell
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8ee9fd39c481'
 asdlc_plan_approved_size: size-5
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -543,6 +550,53 @@ ok      tool tests (1.2s)
 ok      architecture (1.1s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just check'` exited 0 at 2026-11-15T22:11:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 32ab0d9176f5:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (4.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Built per the approved plan, in its order: brought in origin/main (TASK-1.41, TASK-1.81, both confirmed not touching crates/kernel/src/terminal.rs - checked by git log on that path, not assumed); derived third_party/ghostty-vt-patched/ from the exact registry copy of ghostty-vt 0.8.0; applied the one-file patch; committed semantic-prompt.patch beside it; pinned crates/kernel/Cargo.toml's dependency to the exact patched version; added the workspace root [patch.crates-io] entry; wrote third_party/README.md's new section (provenance, maintainer/repository confirmed via the crate's own Cargo.toml and crates.io's owners API - prabirshrestha/gpui-cn - the re-verification commands, the Apache-2.0 changed-file notice, and the drop procedure); built the kernel's CommandMark type, drain_events's new arm, command_mark_from, and Terminal::take_command_marks, test-first (the nine tests landed before the implementation and failed to compile, recorded).
+
+Checks recorded on this task (asdlc record-check), in order:
+1. just test - FAILED (E0599/E0432, CommandMark/take_command_marks don't exist yet) - the nine tests landing before the implementation.
+2. just test - passing, once the kernel implementation was added.
+3. Negative control on the real committed patch: the one new install!(SEMANTIC_PROMPT, ...) line commented out (nothing else changed) - just test FAILED, all eight marks-expecting tests with an empty queue (the ninth, no-prompt-marks-at-all, correctly still passed). Restored; just test passing again.
+4. cargo clean -p ghostty-vt-sys, then env GHOSTTY_SOURCE_URL=unreachable just build - passing (39.2s), re-confirming TASK-1.34's offline-build proof holds with the patch present.
+5. just check - passing in full (format, lint, boundaries, licences, every package built/tested alone, architecture, recipe names) at an intermediate head.
+6. just check - passing again after rebasing onto origin/main a second time (a few more board-only commits landed) and once more at the final pushed head.
+7. GitHub: PR #41's own CI run (43767882924, at 32ab0d9) green, 3m53s (the one-time Zig-link cost on a clean runner, consistent with TASK-1.34's own notes on this).
+
+Mechanical re-verification run on the real committed files, not described secondhand: diff -rq between a pristine ~/.cargo/registry copy of ghostty-vt 0.8.0 and third_party/ghostty-vt-patched/ shows only src/terminal.rs differs (plus the registry-only files never vendored, and the added semantic-prompt.patch itself); applying that committed patch file to a fresh pristine copy with patch -p0 reproduces the vendored src/terminal.rs byte for byte (diff -u, empty output) - run twice, once right after writing the patch and once again after the negative-control round-trip, both clean.
+
+## Coverage, clause by clause
+
+AC #1 ("The kernel's Terminal reports, as data, when a prompt-marked command starts producing output and when it ends with its exit code... a sequence with no exit code, a malformed one, and marks arriving out of order are each handled and tested"): crates/kernel/src/terminal.rs's new CommandMark enum (OutputStarted / Ended { exit_code: Option<i32> }) and Terminal::take_command_marks(), fed real OSC 133 bytes through Terminal::write in nine tests: output_started_mark_on_osc_133_c (C alone); command_ended_with_its_exit_code_on_osc_133_d (C then D;0); command_ended_with_no_exit_code_reports_none (a bare D); command_ended_with_a_malformed_exit_code_reports_none (D;abc - verified the engine's own OSC parser degrades this the same way it handles no code at all, has_exit_code: false either way, so no extra validation was needed); command_ended_fires_with_no_preceding_output_started (D;5 alone - marks arriving out of order, the engine enforces no ordering); two_output_started_marks_in_a_row_are_both_kept (two Cs, each kept, not deduped); a_mark_split_across_two_writes_still_resolves (D; / 9\x07 across two separate write calls - the real engine's own parser buffers the split); take_command_marks_drains_what_it_returns; a_shell_with_no_prompt_marks_produces_no_command_marks (plain text, no OSC 133 at all, produces an empty queue - nothing guessed). Two more tests than the plan's own six cases named (the drain-itself and no-marks-at-all cases), additive, not a reduction.
+
+AC #2 ("The route is the one the plan weighed and chose... with the alternatives and why they fail recorded; a second parser over the pty bytes is not built"): the plan on this task records the chosen route (patching the safe ghostty-vt crate) and why the two other named alternatives fail - a foreign-interface module outside the kernel over ghostty-vt-sys collapses into the same route as patching ghostty-vt itself, since the safe Terminal's raw handle is pub(crate) with no cross-crate accessor in either 0.8.0 or the newer 0.9.0 (checked both); reading engine state after each write (row semantic-prompt marks) cannot answer this at all, since RowSemanticPrompt carries no exit code and no Command/Output state anywhere in that path (checked by reading screen.rs). No second parser over the pty bytes was built - the one parser touched is the real engine's own, inside the patch.
+
+AC #3 ("The kernel still has no unsafe code and no I/O; the patch is as small as it can be, its licence and origin are recorded where TASK-1.34 recorded the build... the build from a clean checkout with no network still works, and how to drop the patch... is written down"): no unsafe code or I/O was added to any of steg's own crates - crates/kernel/src/lib.rs's #![forbid(unsafe_code)] is unaffected (confirmed by it building at all, since that attribute makes a violation a compile error), and crates/kernel/clippy.toml's I/O bans see nothing new to flag, since take_command_marks/command_mark_from do no I/O of their own; ghostty-vt is a dependency, not a workspace member, so none of those lints ever reach the four lines of already-established-pattern unsafe the patch itself adds (shared_from_userdata, already used by every other callback in that file; &*event, the same shape cb_clipboard_write's &*write already uses, with a // SAFETY: comment following that crate's own convention). The patch is one file, +49 lines, 0 deletions (measured with diff -u against the pristine registry copy) - the smallest shape that wires one callback following the crate's own existing per-callback pattern. Licence and origin: third_party/README.md's new ghostty-vt-patched/ section records the crate's name/version/licence (Apache-2.0, unchanged), its maintainer and repository (prabirshrestha/gpui-cn, read from the crate's own Cargo.toml and confirmed against crates.io's owners API, not assumed), the Apache-2.0 Section 4(b) changed-file notice (both in that README section and at the top of the patched file itself), and why 0.8.0 rather than the newer 0.9.0 (checked directly: same gap exists there too, and 0.9.0 switches the whole vendoring model, which would mean redoing TASK-1.34's apparatus for no benefit to this task). The clean-checkout, no-network build (cargo clean -p ghostty-vt-sys; GHOSTTY_SOURCE_URL=unreachable; just build) passes, recorded above. The drop procedure is written down in third_party/README.md's new section: bump the pin past whatever version wires the callback itself, delete the vendored directory and the [patch.crates-io] entry, and update command_mark_from to match the real upstream Event's shape (CommandMark, steg's own type, insulates everything downstream of take_command_marks from needing to change). Proposing this upstream was raised on the task as the engineer's to do or ask for; nothing was opened.
+
+Departure from the plan, worth naming: nine tests were built, not the plan's own six named cases - two more (the drain-itself test, and the no-prompt-marks-at-all test) were added because they were cheap and directly provable once the other seven existed, not because anything in the plan was wrong.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -562,6 +616,43 @@ created: 2026-11-15T21:56:00Z
 ---
 
 Plan approved by @bruk (8ee9fd39c481, size-5): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T22:16:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.79: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T22:30:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Reviewed at head 32ab0d9176f51c62d96f3b8bdbb977fd9ffbdc0a (PR #41, CI SUCCESS on this same OID).
+
+Verified independently, not just read:
+- Vendored tree vs. registry: diff -rq between third_party/ghostty-vt-patched/ and the exact registry copy (~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/) shows exactly one source difference, src/terminal.rs, plus the expected registry-only files never vendored (.cargo-ok, .cargo_vcs_info.json, Cargo.lock, Cargo.toml.orig) and the added semantic-prompt.patch. Cargo.toml, LICENSE, LICENSE-GHOSTTY and build.rs are byte-identical to the registry copy (diff empty). File permissions match (all 644, no executable bit added). Committed patch applied with `patch -p0` to a fresh pristine copy reproduces the vendored terminal.rs byte for byte (diff -u empty).
+- The patch (crate's terminal.rs, +49 lines): cb_semantic_prompt's signature matches ffi::TerminalSemanticPromptFn exactly (terminal: Terminal, userdata: *mut c_void, event: *const TerminalSemanticPrompt, returning unit); the kind match is exhaustive with an explicit `_ => return` only for GHOSTTY_SEMANTIC_PROMPT_INVALID/future values; install!(SEMANTIC_PROMPT, ...) wires Opt::SEMANTIC_PROMPT (=42), matching the sys crate's own doc comment for that slot. No catch_unwind exists anywhere in this crate's terminal.rs (checked by grep), so the new callback doesn't change the crate's existing no-panic-guard posture; it does strictly less than its neighbours (three Copy scalars, one Vec::push, no UTF-8 decoding, no unwrap/indexing) so it adds no panic path the crate doesn't already accept. The deref `&*event` and its SAFETY comment follow cb_clipboard_write's own existing pattern. `command`/`error` (the struct's FFI string fields) are correctly left unread, avoiding any string-lifetime question. The struct's `size` field needs checking only for fields added after the struct's introduction; kind/has_exit_code/exit_code have been present since introduction per the sys crate's own doc, so not checking it is sanctioned, not an omission.
+- Our crates: `#![forbid(unsafe_code)]` unchanged in crates/kernel/src/lib.rs; boundaries.toml, deny.toml and crates/kernel/clippy.toml show zero diff against origin/main. Cargo.lock's ghostty-vt entry carries no `source =`/`checksum` line (resolved as a path dependency), and `cargo check -p steg-kernel` printed `Compiling ghostty-vt v0.8.0+... (.../third_party/ghostty-vt-patched)`, confirming the vendored path copy is what actually builds. Removing the `[patch.crates-io]` entry and rebuilding reproduces exactly the compile errors the notes describe (E0432/E0425/E0599, SemanticPromptKind/SemanticPromptEvent/Event::SemanticPrompt missing) against the real unpatched registry crate - the patch is load-bearing, not cosmetic.
+- Kernel side: CommandMark is the kernel's own enum, never ghostty_vt's SemanticPromptEvent/SemanticPromptKind crossing out of terminal.rs (command_mark_from is private); drain_events's match on Event stays an explicit enumeration (no `_` arm), so PwdChanged/TitleChanged keep their order and nothing is dropped - rust.md's wildcard_enum_match_arm forced the new arm to exist rather than silently ignoring it. All nine recorded tests pass; I additionally wrote and ran two tests not in the diff (a mark during the alternate screen, and a mark after a resize, both named in this review's brief) directly against the real engine - both produced the expected marks, confirming the behaviour the brief asked about, then discarded the scratch tests (not committed).
+- Negative control reproduced independently on the real committed crate file (not the scratch copy): commenting out the one `install!(SEMANTIC_PROMPT, ...)` line and running `cargo test -p steg-kernel --lib` fails the same 8 tests the task's own notes name (empty-queue assertions), restoring it passes all 280. Offline build reproduced independently: `cargo clean -p ghostty-vt-sys && GHOSTTY_SOURCE_URL=unreachable just build` passes in 40.8s. `just check` reproduced independently: 19/19 ok at this head.
+- Licence/provenance: third_party/ghostty-vt-patched/Cargo.toml's `repository = "https://github.com/prabirshrestha/gpui-cn"` and `license = "Apache-2.0"` match third_party/README.md's claims exactly. The changed-file notice (Apache-2.0 S4(b)) is present at the top of the patched file. Size: du -sh reports 512K for third_party/ghostty-vt-patched/ (README states ~500 KB/508 KB - consistent, naming the measured number here).
+
+Finding:
+[Compliance, Nit] crates/kernel/Cargo.toml:24-31 and third_party/README.md's ghostty-vt-patched section both say the exact-version pin (`ghostty-vt = "=0.8.0+ghostty.1.4.0-main.83fb956"`) is "specifically so this patch can never silently stop applying" against a newer 0.8.x. Cargo discards semver build-metadata in a version requirement: removing the `[patch.crates-io]` entry and re-resolving against this same manifest line prints "version requirement '=0.8.0+ghostty.1.4.0-main.83fb956' for dependency 'ghostty-vt' includes semver metadata which will be ignored" - the real constraint cargo enforces is `=0.8.0`, not the full build-tagged string. The protective intent still holds in practice (`=0.8.0` already excludes an unpatched 0.8.1, the stated risk, and the vendored copy's own version satisfies `=0.8.0` too), so this isn't a behavioural bug, but the comment and README overstate what the pin mechanically does, which could mislead whoever next re-derives this patch against a different 0.8.x into thinking the full build tag is what's being matched.
+
+plan-matched: no, for the record, not as a fault - two departures the worker's own notes name or that are a direct, undisputed consequence of what the plan specified: (1) notes head "Departure from the plan, worth naming: nine tests were built, not the plan's own six[/seven] named cases," explained in the notes; (2) the diff touches crates/kernel/src/lib.rs (`pub use terminal::{CommandMark, Terminal}`), which the plan's Files list does not itemise, but is the mechanical re-export of the public type the plan did specify.
+
+No Important finding. Point-by-point verification (vendoring, the patch itself, our crates' unsafe/IO posture, the kernel's own type and drain_events, evidence, licence/record, offline build size) all checked out against the primary sources, not just the notes.
 
 ---
 <!-- COMMENTS:END -->

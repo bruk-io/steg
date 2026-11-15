@@ -4,7 +4,7 @@ title: 'Server: frames, streams, and requests routed to the API'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T14:41:00Z'
+updated_date: '2026-11-15T20:02:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.43
   - TASK-1.70
   - TASK-1.75
+  - TASK-1.76
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -32,3 +33,9 @@ decision-2, sections 1 and 3: length-prefixed frames on one multiplexed connecti
 - [ ] #3 Control is written before terminal data, so a flood on one stream does not delay a control call, shown by a test
 - [ ] #4 Framing, the handshake and stream state come from the sdk (TASK-1.70, doc-16 R101); the server adds only the socket and the routing
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Dependency added by @bruk.o 2026-11-15: TASK-1.76 introduces the server's Runtime (the tree, the pane handles and one handle() entry point); this task routes frames into it rather than into dispatch directly. The session count the idle rule needs (TASK-1.77) comes from here.
+<!-- SECTION:NOTES:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:00:00Z'
+updated_date: '2026-11-15T22:01:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -431,6 +431,12 @@ For more information about an error, try `rustc --explain E0004`.
 error: could not compile `steg-kernel` (lib test) due to 12 previous errors
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 0 at 2026-11-15T22:01:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      tests (every crate) (4.5s)
 ```
 <!-- SECTION:NOTES:END -->
 

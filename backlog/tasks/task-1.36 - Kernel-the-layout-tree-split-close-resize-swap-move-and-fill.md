@@ -22,6 +22,8 @@ asdlc_branch: task-1.36-kernel-the-layout-tree-split-close
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc26154daf58'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -267,6 +269,15 @@ created: 2026-11-15T04:07:00Z
 ---
 
 Plan approved by @bruk (dc26154daf58, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:30:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.36: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

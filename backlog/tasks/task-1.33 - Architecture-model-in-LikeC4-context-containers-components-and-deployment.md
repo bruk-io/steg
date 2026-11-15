@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:33:00Z'
+updated_date: '2026-11-15T02:34:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -20,15 +20,16 @@ asdlc_branch: task-1.33-architecture-model-in-likec4-context
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-doc-1 has only a five-row table of parts, and the model of servers, clients and windows was got wrong three times before decision-5 fixed it. This is the picture: how steg is divided into running parts. It is not the domain, which is doc-15.
+doc-16 is the architecture, written at the levels of the C4 model; this task draws it (R108). The model of servers, clients and windows was got wrong three times before decision-5 fixed it, which is why it is drawn. It is not the domain, which is doc-15. Revise the plan to this description; the earlier plan was written before doc-16 existed.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A LikeC4 model in the repository validates, with a system context view, a container view (app, server, CLI, a plugin), and component views of the server and the app
+- [ ] #1 A LikeC4 model in the repository has the system context, the containers (the server, the CLI, Steg.app, a plugin) and the components (sdk, kernel, server, `steg`, app) exactly as doc-16 gives them, including which package may depend on which
 - [ ] #2 A deployment view shows one window holding a client to a local server and another to a remote one
 - [ ] #3 Two dynamic views: attaching to a pane, and focusing a pane with the path updating upward
-- [ ] #4 Every name in the model is a word doc-15 or doc-1's vocabulary uses, with the same meaning
+- [ ] #4 `just check` validates the model and fails when it does not validate (R108)
+- [ ] #5 Every name in the model is a word doc-16, doc-15 or doc-1's vocabulary uses, with the same meaning
 <!-- AC:END -->
 
 ## Implementation Plan

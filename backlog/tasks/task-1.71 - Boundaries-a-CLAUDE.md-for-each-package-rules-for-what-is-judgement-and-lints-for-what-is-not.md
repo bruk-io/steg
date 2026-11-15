@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:28:00Z'
+updated_date: '2026-11-15T03:29:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -606,6 +606,15 @@ Check passed: `just boundaries` exited 0 at 2026-11-15T03:28:56+00:00 in /Users/
 
 ```text
 ok      boundaries (0.1s)
+```
+
+Check passed: `sh -c '! just boundaries'` exited 0 at 2026-11-15T03:29:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg-kernel turns on steg-sdk's "local-socket" feature, which its rule in boundaries.toml denies (the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)).
+full output: .quiet/boundaries.log
+error: recipe `boundaries` failed on line 78 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

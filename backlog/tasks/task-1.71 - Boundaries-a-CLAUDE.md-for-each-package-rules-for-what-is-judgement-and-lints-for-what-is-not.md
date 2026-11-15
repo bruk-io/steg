@@ -538,6 +538,12 @@ error: could not compile `steg-kernel` (lib test) due to 3 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed on line 70 with exit code 101
 ```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:26:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

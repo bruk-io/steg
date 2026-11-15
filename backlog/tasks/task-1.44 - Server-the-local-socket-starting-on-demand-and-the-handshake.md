@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:15:00Z'
+updated_date: '2026-11-15T22:17:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1238,6 +1238,33 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T22:17:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at cd1eced5eb04:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (13.3s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.3s)
+ok      build (steg-kernel) (0.7s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (29.7s)
+ok      test (steg-server) (6.2s)
+ok      test (steg-server, race-fixture) (7.4s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.6s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 39, 36 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

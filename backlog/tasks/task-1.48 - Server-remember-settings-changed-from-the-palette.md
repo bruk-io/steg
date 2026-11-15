@@ -1,16 +1,19 @@
 ---
 id: TASK-1.48
 title: 'Server: remember settings changed from the palette'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:28:00Z'
+updated_date: '2026-11-15T19:31:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
   - TASK-1.75
+references:
+  - task-1.48-server-remember-settings-changed-from
+  - https://github.com/bruk-io/steg/pull/34
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -719,6 +722,21 @@ ok      tool tests (1.2s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)
 ```
+
+Built per the approved plan, with the engineer's three confirmations: in-memory override for the life of the server (decision-9 #1/#2, doc-8 R2/R3), appearance (R24) as the seeded setting, and doc-2's setting noun/commands already written by the engineer - matched exactly by the sdk's doc-2-mirroring tests (doc_2_section_8, doc_2_section_8_targets).
+
+One departure from the plan, mechanical only: didn't extend fresh()'s 3-tuple return in crates/server/tests/dispatch.rs as the plan said. Instead every existing dispatch(...) call site got a disposable &mut Settings::new() inserted (a scripted, compiler-verified substitution over all ~50 sites) since none of those pre-existing tests touch settings at all; the new setting_* tests each build their own named `let mut settings = Settings::new();` where a shared instance across calls actually matters (set-then-read, unset-then-read, the fresh-Tree-over-the-same-Settings test). Smaller diff than threading a 4-tuple through every destructuring site, same effect.
+
+Coverage, clause by clause:
+- AC #1 (read/change/list through the API): setting.list/show/set/unset server functional tests (crates/server/tests/dispatch.rs: setting_list_returns_every_registered_setting_with_its_current_value, setting_show_returns_one_setting_in_full, setting_set_changes_the_value_the_next_read_sees, setting_unset_reverts_to_the_default), each with its own refusal test (setting_show_an_unknown_name_is_no_such_target, setting_set_rejects_an_unknown_name_with_no_such_target, setting_set_rejects_a_value_outside_the_closed_set_with_bad_request, setting_unset_an_unknown_name_is_no_such_target), each traced down to kernel unit tests (crates/kernel/src/setting.rs: set_rejects_an_unknown_setting_name, set_rejects_a_value_outside_the_closed_set, unset_still_rejects_an_unknown_setting_name, value_of_rejects_an_unknown_setting_name, a_rejected_set_changes_nothing) and kernel_error.rs mapping tests (unknown_setting_maps_to_no_such_target, invalid_setting_value_maps_to_bad_request).
+- AC #2, "applies at once": setting_set_changes_the_value_the_next_read_sees - a set then an independent show call over the same Settings value, no cache, no event to wait on.
+- AC #2, "still there after quit and reopened": proved only as far as this layer reaches (no socket/process lifecycle yet, TASK-1.44/1.45 unbuilt) - an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings builds a fresh Tree/Context (standing in for a new client) over the same Settings (standing in for the server outliving the app). This does not prove a server restart survives; that is the named, now-answered design question on the plan (in-memory only, per decision-9).
+- AC #3 (no config file read or written): true by construction - nothing added touches std::fs anywhere; the kernel half is also checked by clippy::disallowed_types/disallowed_methods (architecture.md's mechanism), which just check's lint step covers.
+- The unreachable!() arm in kernel::setting::accepts (ValueKind::Target/Path/Argv can never be a setting's own declared kind) is not covered by a runtime test that reaches it - it cannot be reached without a registry entry that is itself wrong. What enforces the invariant instead: steg_sdk::setting::tests::no_setting_declares_a_target_path_or_argv_value asserts every registry entry's own declared ValueKind is never Target/Path/Argv, so a future entry that gets this wrong fails in the sdk's own tests before the kernel's unreachable!() would ever be exercised.
+
+Deliberate failing runs recorded on the task, to show the refusal tests bite: with crates/kernel/src/setting.rs's Settings::set temporarily skipping its registry lookup, `cargo test -p steg-kernel setting::tests::set_rejects` failed both set_rejects_an_unknown_setting_name and set_rejects_a_value_outside_the_closed_set (exit 101); restored, and the full suite (cargo test -p steg-kernel, 221 tests) passed again unchanged.
+
+Checks recorded on the task: cargo test -p steg-sdk, cargo test -p steg-kernel (passing and the deliberate failing run above), cargo test -p steg-server, and just check - twice, once before the final rebase onto origin/main and once after, both green (format, lint, boundaries, licences, every package's own tests, tool tests, the architecture model, recipe names). No new dependency and no boundaries.toml/deny.toml change.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

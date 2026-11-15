@@ -21,6 +21,8 @@ asdlc_branch: task-1.81-api-call-cannot-reach-a-method-that-has
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd5c2871b65a2'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -460,6 +462,15 @@ created: 2026-11-15T21:01:00Z
 ---
 
 Plan approved by @bruk (d5c2871b65a2, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:17:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

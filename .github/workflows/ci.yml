@@ -100,6 +100,16 @@ jobs:
         # --all-targets` and `cargo test`/`test-all` rebuild gpui from scratch on every
         # run, on a runner class billed at a premium.
 
+      - name: SCRATCH - block the ghostty-vt-sys network surfaces
+        # TASK-1.34 scratch proof: never merged. Confirms `just check` passes with no
+        # access to the domains ghostty-vt-sys's build.rs would otherwise reach, proving
+        # the vendored tree (third_party/README.md) is actually what the build uses.
+        run: |
+          echo "127.0.0.1 tip.files.ghostty.org" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 deps.files.ghostty.org" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 codeberg.org" | sudo tee -a /etc/hosts
+          cat /etc/hosts
+
       - name: just check
         run: just check
 

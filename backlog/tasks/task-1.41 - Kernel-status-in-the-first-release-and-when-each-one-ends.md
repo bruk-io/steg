@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:41:00Z'
+updated_date: '2026-11-15T20:42:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -582,6 +582,51 @@ Check passed: `just test` exited 0 at 2026-11-15T20:41:10+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.8s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T20:42:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_current_pane_moves_only_the_tabs_own_current_pane ... ok
+test tree::tests::set_tab_current_pane_rejects_an_unknown_tab_or_pane ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing ... FAILED
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::start_program_on_an_unknown_pane_errors ... ok
+test tree::tests::start_program_records_it_on_the_newly_minted_pane ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test tree::tests::tab_of_pane_finds_the_tab_holding_a_pane ... ok
+test tree::tests::tab_of_pane_is_none_for_an_unknown_pane ... ok
+test tree::tests::tab_shown_status_delegates_to_the_tabs_own_ranking ... ok
+test tree::tests::tab_shown_status_on_an_unknown_tab_errors ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing stdout ----
+
+thread 'tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing' (11402834) panicked at crates/kernel/src/tree.rs:3481:9:
+assertion `left == right` failed
+  left: None
+ right: Some(Finished)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::opening_a_tab_or_focusing_a_pane_ends_nothing
+
+test result: FAILED. 259 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

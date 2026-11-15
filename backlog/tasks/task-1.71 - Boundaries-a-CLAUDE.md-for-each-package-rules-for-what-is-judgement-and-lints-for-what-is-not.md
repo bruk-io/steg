@@ -493,6 +493,51 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (0.2s)
 ok      architecture (1.0s)
 ```
+
+Check passed: `sh -c '! just lint'` exited 0 at 2026-11-15T03:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes, last 40 of 41 lines:
+
+```text
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71/crates/kernel)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/kernel/src/lib.rs:14:1
+   |
+14 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/kernel/src/lib.rs:15:5
+   |
+15 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/kernel/src/lib.rs:14:42
+   |
+14 | pub fn demo_disallowed_io(path: &str) -> std::fs::File {
+   |                                          ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the kernel
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+   = note: `-D clippy::disallowed-types` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::disallowed_types)]`
+
+error: use of a disallowed type `std::fs::File`
+  --> crates/kernel/src/lib.rs:15:5
+   |
+15 |     std::fs::File::open(path).expect("demo only")
+   |     ^^^^^^^^^^^^^
+   |
+   = note: doc-16 R110: no file I/O in the kernel
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#disallowed_types
+
+error: could not compile `steg-kernel` (lib) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-kernel` (lib test) due to 3 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed on line 70 with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

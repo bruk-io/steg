@@ -1,16 +1,19 @@
 ---
 id: TASK-1.35
 title: 'Kernel: sessions, tabs and panes as one tree, with its rules'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:10:00Z'
+updated_date: '2026-11-15T03:11:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.69
+references:
+  - task-1.35-kernel-sessions-tabs-and-panes-as-one
+  - https://github.com/bruk-io/steg/pull/15
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -169,6 +172,17 @@ ok      licences (0.6s)
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.5s)
 ok      tool tests (0.3s)
 ```
+
+Built per the approved plan, with two deviations noted here since the plan predates TASK-1.69 merging:
+
+- crates/kernel/Cargo.toml already had steg-sdk = { path = "../sdk", default-features = false }, and boundaries.toml already allowed it, both from TASK-1.69. This task made no manifest or boundaries.toml changes, only added crates/sdk/src/{ids,colour,pane_kind}.rs and crates/kernel/src/{ids,error,colour,pane,tab,session,tree}.rs plus the two lib.rs files.
+- The plan left Tab::add_pane, Session::add_tab and Session::move_tab as pub(crate) with no production caller inside this task, expecting a later task to call them. Building them that way failed just lint: rustc's dead_code lint flags a pub(crate) item used only by its own #[cfg(test)] module, and #[expect(dead_code, ...)] doesn't fix it either, since the lint doesn't fire in the test build (where the tests do use it) but does in the plain lib build - so the expectation is 'unfulfilled' in one build and a real warning in the other. Fixed by adding the Tree-level public entry points the plan's own dependents will want anyway: Tree::new_tab, Tree::new_pane and Tree::move_tab, which call through to the pub(crate) methods as real production code. This also directly serves AC #1's 'tabs can be created... and reordered' more literally than the plan's session-creation-time-only tab, so it's an extension of the plan's own intent, not a departure from it.
+
+Checks recorded on the task via asdlc record-check: just check, before any edit and again after the final rebase onto origin/main, both exit 0 (fmt, lint, boundaries, licences, affected tests covering steg-kernel/steg-sdk and every crate that depends on them, tool tests). Also ran cargo doc --no-deps on both crates locally (no warnings) and grepped crates/kernel and crates/sdk to confirm SessionId/TabId/PaneId/Colour/PaneKind are defined only in crates/sdk/src/ (AC #7) - neither is itself recorded as a asdlc check since they're not the repository's check commands.
+
+22 kernel unit tests and 3 sdk unit tests cover every acceptance criterion: creation/labelling/reordering/closing of sessions and tabs (AC #1), the last-pane/last-tab cascade (AC #2), colour assignment in R26's fixed order and its wrap at a sixth concurrent session (AC #3, #6), PaneKind with no kernel code assuming Terminal (AC #4), and not-found errors at every level.
+
+Reviewer, please look closest at: tree.rs's close_pane/close_tab cascade (the session id is captured before close_tab can remove the session that held it, since TabClosed doesn't carry a session id) and the choice to add Tree::new_tab/new_pane/move_tab (not in the original plan's step list, explained above).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

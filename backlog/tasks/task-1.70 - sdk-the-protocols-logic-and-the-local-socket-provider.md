@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:15:00Z'
+updated_date: '2026-11-15T16:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd2aa568c163d'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -406,3 +409,16 @@ Order changed by @bruk.o on 2026-11-15: the handshake and framing are this task'
 
 Revised plan checked against doc-14, doc-8 (R3, R39, R99), doc-16 (R101 to R106) and decision-2 by @bruk.o: ok. The protocol is logic that takes bytes and gives bytes and typed items, with one Connection type both ends drive and no transport trait; no dependency is added. ClientKind and ClientId come from TASK-1.42's definitions. The local-socket provider is blocking std behind its feature, tested against a plain listener. For the engineer, a change to doc-2 and the API description: server start gains an --on-demand switch, which is what the provider runs to bring a server into being; the server's side of that is TASK-1.44's. One pull request with two commits is recommended.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T16:26:00Z
+
+---
+
+Plan approved by @bruk (d2aa568c163d, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:32:00Z'
+updated_date: '2026-11-15T03:34:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -170,6 +170,15 @@ ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ok      architecture (0.8s)
+```
+
+Check FAILED: `just check-recipes` exited 1 at 2026-11-15T03:34:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+FAILED  recipe names (exit 1, 0.0s)
+`just nope` isn't named with a verb: 'nope' isn't on the allowed list in tools/src/steg_tools/recipes.py. A recipe is something you tell the repository to do, so its name starts with the action, such as `test-all` or `check-boundaries`. Extend the list there if this is genuinely a new verb; never skip this check.
+full output: .quiet/recipe-names.log
+error: recipe `check-recipes` failed on line 103 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

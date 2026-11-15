@@ -375,6 +375,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 117 with exit code 1
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T16:44:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at c8dc7cdd8d3d with uncommitted changes, last 40 of 65 lines:
+
+```text
+     |         ++
+
+error: docs for function which may panic missing `# Panics` section
+    --> crates/kernel/src/tree.rs:1111:5
+     |
+1111 | /     pub fn note_input(
+1112 | |         &mut self,
+1113 | |         client: ClientId,
+1114 | |         pane: PaneId,
+1115 | |     ) -> Result<Option<SizeChanged>, Error> {
+     | |___________________________________________^
+     |
+note: first possible panic found here
+    --> crates/kernel/src/tree.rs:1119:23
+     |
+1119 |           let session = self
+     |  _______________________^
+1120 | |             .session_id_owning_tab(tab)
+1121 | |             .expect("a tab found above always has an owning session");
+     | |_____________________________________________________________________^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+
+error: docs for function which may panic missing `# Panics` section
+    --> crates/kernel/src/tree.rs:1200:5
+     |
+1200 |     pub fn latest_client(&self, session: SessionId) -> Result<Option<ClientId>, Error> {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+note: first possible panic found here
+    --> crates/kernel/src/tree.rs:1205:30
+     |
+1205 |                 let client = self.client(id).expect("just listed as a viewer");
+     |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+
+error: could not compile `steg-kernel` (lib) due to 8 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-kernel` (lib test) due to 8 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

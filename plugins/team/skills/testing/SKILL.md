@@ -78,4 +78,6 @@ asdlc record-check <task-id> --as <worker> -- <command>
 
 It runs the command, exits with its code, and appends to the task the command, its exit code, the worktree, branch and commit it ran on, and the tail of its output; only the worker holding the task can record on it. Checks can take minutes: give the Bash call a long timeout (up to 600000 ms) or run it in the background and wait for it. For a bug, also record the failing run of the reproducing test from step 1, before the fix.
 
+Every proof step the plan or an acceptance criterion calls for is recorded this way, including a demonstration you will revert and never commit, such as showing that a check refuses a disallowed change. Record it while the tree is in that state, then revert. `record-check` records a run on a tree with uncommitted changes, so "nothing was committed" is no reason to describe a run in the notes instead: a reviewer cannot judge a run that was only described.
+
 Done is measured against the task's acceptance criteria, written as things a check can show ("every test in `test_status.py` passes", "the lint command exits 0"). Whether the task closes is decided by its reviewer, not here.

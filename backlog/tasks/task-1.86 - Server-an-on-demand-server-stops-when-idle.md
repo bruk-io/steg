@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T23:40:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.45
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

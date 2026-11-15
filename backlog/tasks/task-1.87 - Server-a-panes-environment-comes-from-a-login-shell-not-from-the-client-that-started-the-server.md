@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T23:40:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.77
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

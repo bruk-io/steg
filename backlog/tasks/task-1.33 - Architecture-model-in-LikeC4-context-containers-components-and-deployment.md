@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:15:00Z'
+updated_date: '2026-11-15T03:17:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7ade241dd954'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -381,6 +381,32 @@ created: 2026-11-15T03:13:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.33: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:17:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Fresh re-review, all three earlier Important findings verified fixed:
+
+- [Evidence] AC #5: a recorded FAILED `just check` run exists at 2026-11-15T03:10:55Z (6ee794d1b96e, uncommitted deliberately-broken architecture/models/steg/steg.c4, `architecture` recipe exit 1 with the likec4 parse error) followed by a recorded passing run at 03:11:10Z (6ee794d1b96e, clean tree). This matches the plan's AC #5 proof requirement.
+- [Evidence] AC #6: the task notes now contain the title-to-source table, traced by hand against doc-16's Level 1/2/3 tables, doc-15's "The things" table and doc-1 section 4's vocabulary/section 7's Parts table. Spot-checked several rows (e.g. "Client"/"Window" correctly sourced to doc-15 vs. doc-1 respectively, "A host" to doc-1 section 4) and they check out.
+- [Compliance] plugins/bruk-io-steg/commands.toml: still untouched in the diff, as the orchestrator's comment #4 records and explains (a repository plugin is changed only through asdlc-plugin, after merge, per the engineer's instruction given at build start). This is a genuine, recorded departure from the approved plan's Consequences section, hence --plan-matched no, but it is explained and not an Important finding on its own.
+
+Also independently confirmed, per this re-review's specific asks:
+- .github/workflows/ci.yml: `git diff origin/main -- .github/workflows/ci.yml` is empty on this branch's current head (6ee794d1b96e) — byte-identical to main, the Node setup step the worker added and then reverted leaves no trace.
+- PR #14's CI run on this exact head (43671326909, headRefOid 6ee794d1b96e92770b5d0954c8dd30d0430c91dc) is SUCCESS, and its log shows `just check` actually running the new `architecture` recipe and passing it (`ok architecture (17.8s)`), with no setup-node step — Node resolves natively on the hosted image, confirming the worker's empirical claim.
+- Model content: all 7 component dependency edges match doc-16's "who may depend on" table exactly (sdk duplicated into server/cli/app per AC #2, steg duplicated into server/cli); the deployment view's single app instance connects to both a local and a #planned remote server instance (AC #3); both dynamic views are container-level and focus-a-pane.c4 states R88 explicitly (AC #4); plan approval is recorded (@bruk, 7ade241dd954, size-2); diff file list matches the plan's file-by-file list.
+
+[Evidence, Nit] The plan's file-by-file section for views/steg/packages.c4 says it was "Verified with `npx likec4 start` during the build; if the boundaries don't render on their own, the three containers are added to `include` explicitly and that's noted as a bend." No recorded confirmation of this manual render check appears in the notes. Low weight: this check is about visual rendering, not modeled separately from the AC #1 proof (which cites only `likec4 validate` and the row-by-row table check), and the conditional bend was never invoked, which is itself consistent with the boundaries rendering correctly. Not promoted to Important.
+
+Checked and otherwise clean: shared/_spec.c4's new #shared tag has no style block, matching the plan's "no style initially" decision; justfile's architecture recipe is wired into check's recipe line; no scope creep beyond the plan's file list; c4lint's 6 "vague title" warnings are expected (mirror doc-16's own "may depend on" wording) and not treated as a finding.
 
 ---
 <!-- COMMENTS:END -->

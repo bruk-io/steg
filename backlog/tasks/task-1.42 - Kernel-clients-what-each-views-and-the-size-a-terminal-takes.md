@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:13:00Z'
+updated_date: '2026-11-15T17:18:00Z'
 labels:
   - size-3
   - changes-requested
@@ -635,6 +635,133 @@ Updated clause list (adds to the previous notes' mapping):
 - AC #1 "focus never changes": connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus (rebuilt, proven to bite).
 - AC #3 "terminal takes the latest's declared size" (no-op cases): note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size, reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size.
 - Cleanup on close (two distinct tabs/clients): closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it, closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab.
+
+Check passed: `just test` exited 0 at 2026-11-15T17:15:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.4s)
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check FAILED: `just test` exited 101 at 2026-11-15T17:16:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::every_row_id_grows_and_is_never_reused_for_different_content ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus stdout ----
+
+thread 'tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus' (7217532) panicked at crates/kernel/src/tree.rs:2346:9:
+assertion `left == right` failed: after view_pane
+  left: [(SessionId(0), TabId(1), TabId(1), PaneId(3)), (SessionId(0), TabId(1), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+ right: [(SessionId(0), TabId(4), TabId(1), PaneId(3)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check FAILED: `just test` exited 101 at 2026-11-15T17:16:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::note_input_is_a_no_op_when_the_client_has_no_declared_size ... ok
+test tree::tests::note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size ... ok
+test tree::tests::note_input_reapplies_the_now_latest_clients_last_declared_size ... ok
+test tree::tests::note_input_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::stop_viewing_rejects_a_pane_the_client_does_not_view ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::a_column_changing_resize_retires_every_id_from_before_it ... ok
+test terminal::tests::every_row_id_grows_and_is_never_reused_for_different_content ... ok
+test terminal::tests::the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus stdout ----
+
+thread 'tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus' (7224642) panicked at crates/kernel/src/tree.rs:2347:9:
+assertion `left == right` failed: after view_pane
+  left: [(SessionId(0), TabId(4), TabId(1), PaneId(2)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+ right: [(SessionId(0), TabId(4), TabId(1), PaneId(3)), (SessionId(0), TabId(4), TabId(4), PaneId(6)), (SessionId(7), TabId(11), TabId(8), PaneId(10)), (SessionId(7), TabId(11), TabId(11), PaneId(13))]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tree::tests::connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:18:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.5s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.0s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

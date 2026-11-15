@@ -1,12 +1,12 @@
-//! Identifiers for a session, a tab and a pane.
+//! Identifiers for a session, a tab, a pane and a client.
 //!
-//! A session id is not a tab id, and neither is a pane id: each is its own
-//! type, so the compiler refuses the mix-up a bare `u64` would allow
-//! (rust.md). Nothing outside this crate mints one from nothing — a value
-//! comes from `from_raw`, which this crate uses to decode an identifier off
-//! the wire, and which the kernel uses to mint a fresh one (steg-kernel's
-//! `Ids`, since deciding the next id is the kernel's own behaviour, not a
-//! shape; doc-16 R105).
+//! A session id is not a tab id, and neither is a pane id or a client id:
+//! each is its own type, so the compiler refuses the mix-up a bare `u64`
+//! would allow (rust.md). Nothing outside this crate mints one from nothing —
+//! a value comes from `from_raw`, which this crate uses to decode an
+//! identifier off the wire, and which the kernel uses to mint a fresh one
+//! (steg-kernel's `Ids`, since deciding the next id is the kernel's own
+//! behaviour, not a shape; doc-16 R105).
 //!
 //! Each id's `Display` is a hex string at least 8 digits wide, padded with
 //! leading zeros when the value is smaller and wider when it is not — long
@@ -42,6 +42,14 @@ pub struct TabId(u64);
 /// Identifies one pane, unique across a server's whole tree.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PaneId(u64);
+
+/// Identifies one client connection, unique across a server's whole tree.
+///
+/// Also defined here, rather than in `crates/sdk/src/wire/`, because it is
+/// an identifier that crosses the API (doc-16 R105) and TASK-1.42's kernel
+/// client model needs it independently of the wire protocol.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClientId(u64);
 
 /// Formats an identifier's raw value as hex, at least 8 digits wide: padded
 /// with leading zeros when `raw` is smaller, and wider (never truncated)
@@ -176,15 +184,58 @@ impl<'de> Deserialize<'de> for PaneId {
     }
 }
 
+impl ClientId {
+    /// Builds a client id from a raw value, such as one decoded off the wire.
+    #[must_use]
+    pub const fn from_raw(raw: u64) -> Self {
+        Self(raw)
+    }
+
+    /// Returns the id's raw value, such as to encode it onto the wire.
+    #[must_use]
+    pub const fn into_raw(self) -> u64 {
+        self.0
+    }
+}
+
+impl fmt::Display for ClientId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        format_raw(f, self.0)
+    }
+}
+
+impl FromStr for ClientId {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        parse_raw(s).map(Self::from_raw)
+    }
+}
+
+impl Serialize for ClientId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'de> Deserialize<'de> for ClientId {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        String::deserialize(deserializer)?
+            .parse()
+            .map_err(D::Error::custom)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{PaneId, SessionId, TabId};
+    use super::{ClientId, PaneId, SessionId, TabId};
 
     #[test]
     fn from_raw_round_trips_through_into_raw() {
         assert_eq!(SessionId::from_raw(42).into_raw(), 42);
         assert_eq!(TabId::from_raw(42).into_raw(), 42);
         assert_eq!(PaneId::from_raw(42).into_raw(), 42);
+        assert_eq!(ClientId::from_raw(42).into_raw(), 42);
     }
 
     #[test]
@@ -202,12 +253,17 @@ mod tests {
                 PaneId::from_raw(raw).to_string().parse(),
                 Ok(PaneId::from_raw(raw))
             );
+            assert_eq!(
+                ClientId::from_raw(raw).to_string().parse(),
+                Ok(ClientId::from_raw(raw))
+            );
         }
     }
 
     #[test]
     fn from_str_rejects_a_non_hex_string() {
         assert!("not-hex".parse::<SessionId>().is_err());
+        assert!("not-hex".parse::<ClientId>().is_err());
     }
 
     #[test]
@@ -221,12 +277,21 @@ mod tests {
                 "serialises as its Display string"
             );
             assert_eq!(serde_json::from_str::<SessionId>(&json).unwrap(), id);
+
+            let client_id = ClientId::from_raw(raw);
+            let client_json = serde_json::to_string(&client_id).unwrap();
+            assert_eq!(client_json, format!("\"{client_id}\""));
+            assert_eq!(
+                serde_json::from_str::<ClientId>(&client_json).unwrap(),
+                client_id
+            );
         }
     }
 
     #[test]
     fn deserialize_rejects_a_non_hex_string() {
         assert!(serde_json::from_str::<SessionId>("\"not-hex\"").is_err());
+        assert!(serde_json::from_str::<ClientId>("\"not-hex\"").is_err());
     }
 
     #[test]
@@ -237,6 +302,7 @@ mod tests {
             PaneId::from_raw(u64::from(u32::MAX)).to_string(),
             "ffffffff"
         );
+        assert_eq!(ClientId::from_raw(1).to_string(), "00000001");
     }
 
     #[test]
@@ -254,5 +320,6 @@ mod tests {
         assert_ne!(SessionId::from_raw(1), SessionId::from_raw(2));
         assert_ne!(TabId::from_raw(1), TabId::from_raw(2));
         assert_ne!(PaneId::from_raw(1), PaneId::from_raw(2));
+        assert_ne!(ClientId::from_raw(1), ClientId::from_raw(2));
     }
 }

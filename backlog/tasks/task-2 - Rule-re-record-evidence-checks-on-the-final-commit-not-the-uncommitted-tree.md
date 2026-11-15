@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-2
 title: 'Rule: re-record evidence checks on the final commit, not the uncommitted tree'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-14T05:23:00Z'
 labels:

@@ -4,12 +4,12 @@ title: 'Server: remember settings changed from the palette'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T14:41:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
-  - TASK-1.43
+  - TASK-1.75
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

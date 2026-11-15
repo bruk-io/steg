@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:02:00Z'
+updated_date: '2026-11-15T22:03:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -488,6 +488,12 @@ Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'`
 
 ```text
 ok      tests (every crate) (4.2s)
+```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; env GHOSTTY_SOURCE_URL=unreachable just build'` exited 0 at 2026-11-15T22:03:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      build (39.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

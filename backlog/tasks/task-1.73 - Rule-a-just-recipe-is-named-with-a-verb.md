@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:28:00Z'
+updated_date: '2026-11-15T03:31:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.73-rule-a-just-recipe-is-named-with-a-verb
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd0193248f056'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -157,3 +160,16 @@ Commands go through `just` except step 3 (a deliberate, reverted demonstration o
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked by @bruk.o against the engineer's words (a just recipe is a verb): ok. Five renames, a check that reads the recipes from just itself and fails on a first word not on a list of verbs, a path-scoped rule, and every reference updated in the same change, with no alias left. It collides on two lines with TASK-1.71 (the check recipe's dependency list, and one line of architecture.md); whichever lands second rebases. The plugin's commands and rules are the orchestrator's, through asdlc-plugin, after the merge.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T03:31:00Z
+
+---
+
+Plan approved by @bruk (d0193248f056, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

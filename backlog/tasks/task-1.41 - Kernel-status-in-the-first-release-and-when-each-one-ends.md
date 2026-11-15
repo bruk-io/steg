@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:50:00Z'
+updated_date: '2026-11-15T20:57:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -22,8 +23,9 @@ asdlc_branch: task-1.41-kernel-status-in-the-first-release-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ed724e8c9084'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=3'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -954,6 +956,38 @@ created: 2026-11-15T20:50:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.41: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T20:57:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. The diff does not match the plan.
+
+Reviewed at head 4169a94 (4169a943a8a3aed6929dd2bb89297ec6cc10489f): matches the task's final recorded `just check` pass and PR #38's headRefOid; `gh pr checks 38` is green on that same head.
+
+No findings.
+
+Checked specifically:
+- Time: `Moment` (crates/kernel/src/moment.rs) is a plain newtype over `Duration`, constructible with literals; no `Instant`/`SystemTime::now()` anywhere in the diff; `crates/kernel/clippy.toml` is unchanged (no new exception); no test needs a clippy `#[expect]`.
+- Boundary: 599/600/601s tests exist with literal Moments (pane.rs); a query moment earlier than the stored one is tested (`a_moment_earlier_than_when_the_status_began_still_reads_as_not_yet_expired`) and reads as not-yet-expired, matching the stated rule.
+- Ending rules both ways: input ends Finished and Failed and leaves Running/another pane in the same tab untouched (tree.rs tests); `acknowledge_pane` ends either; the timer ends Finished only, never Failed (`a_failed_status_never_expires_however_far_past_ten_minutes`); opening/focusing a tab or pane ends nothing, proven on a tab holding one Finished and one Failed pane. Both recorded fault injections (`focus_pane` clearing status; `FINISHED_LIFETIME` off by one second) are real: their logged failures in the task's notes match the code they describe (the 599s test and the `next_status_deadline` test both fail exactly as the off-by-one fault predicts).
+- acknowledge_pane vs decision-7 point 5 vs AC #2's wording: the worker's reading is right. decision-7 point 5 and doc-15's own state diagram both say Finished ends "on a key press or click ... or 10 minutes" and Failed ends "on a key press or click ... never a timer" - click ends both. AC #2's "failed ends only on input or when told the person has dealt with it" uses "only" to rule out a timer for Failed, not to exclude Finished from acknowledgement. Clearing both in `acknowledge_pane` matches the decision record.
+- Tab order: decision-7's exact order (failed, finished, running in M1), tie-break toward the newest tick, all six orderings of the three statuses across two panes, all three tie-break cases, and a pane whose Finished status has expired falling through - all present and passing (tab.rs).
+- next_status_deadline: correct with several panes/tabs (earliest wins) and none; the already-past-deadline case is tested at the pane level but not combined with other panes at the tree level (nit below).
+- Rename (`Pane::status` -> `program_status`): every caller checked (`grep -rn "\.status("` across crates); the one survivor, `crates/server/src/pane.rs:423`, is `std::process::Command::status()` (`ExitStatus`), not `Pane`, as the notes say.
+- Restart/re-exit: start->exit->restart leaves Running (pane-level test); no test runs a second exit or input in between, but each of start_program/record_exit/restart sets `self.status` unconditionally from a freshly-read `self.tick()`, so there is no stale-state path for a bug to hide in (nit below).
+- Coverage notes: clause by clause, departures named (real_pty.rs's two uncaught record_exit call sites; the clear_status Running-exclusion fix). No undisclosed departure found elsewhere - the note_input placement of clear_status (before, not strictly "after", the plan's prose) is required, not a bug: two early returns in note_input's size-reapplication logic sit before where the plan's wording would place it, and putting clear_status fully after them would skip the clear whenever a client had no declared size or it already matched, breaking AC #2's "or on input to the pane." Plan-matched is still recorded `no` for the two departures the notes already name.
+- doc-11/decision-7/doc-15/doc-16: Status is additive to ProgramStatus, not a replacement; no I/O or boundary violation; no new dependency (Cargo.toml/boundaries.toml untouched); "a session has none" verified directly - session.rs is absent from the diff and session_fields() carries no status field.
+
+Nits (3):
+1. [Bugs] crates/kernel/src/tree.rs next_status_deadline tests - no tree-level case combines several panes with one whose deadline has already passed; only tested in isolation at the pane level.
+2. [Bugs] crates/kernel/src/pane.rs / tree.rs - no test runs the full restart/re-exit cycle (start, exit, restart, exit again, with input in between) checking status and tick at each step; only a single restart after one exit is covered.
+3. [Evidence] crates/kernel/src/tree.rs:opening_a_tab_or_focusing_a_pane_ends_nothing - the plan's Proof section said this test would capture next_status_deadline before and after every focus operation too; it only asserts status(moment(0)) after. Cosmetic: the recorded fault injection (making focus_pane call clear_status) still fails this test as expected.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:32:00Z'
+updated_date: '2026-11-15T16:44:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -323,6 +323,12 @@ Check passed: `just test` exited 0 at 2026-11-15T16:32:37+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (42.3s)
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T16:44:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.4s)
 ```
 <!-- SECTION:NOTES:END -->
 

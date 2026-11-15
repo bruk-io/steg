@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:53:00Z'
+updated_date: '2026-11-15T06:22:00Z'
 labels:
   - size-3
   - changes-requested
@@ -746,6 +746,26 @@ recorded here as the plan instructs for a small departure):
 PR: https://github.com/bruk-io/steg/pull/20, branch
 `task-1.34-build-with-ghostty-s-vt-engine-zig-a`, up to date with `origin/main` as of this
 note.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  ZIG_GLOBAL_CACHE_DIR=../ghostty-vt-zig-deps ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache
+done
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -z "$(git status --porcelain third_party/ghostty | grep -v "^D ")"
+echo "offline rebuild for both Darwin targets from the committed vendored tree produced libghostty-vt.a, with ZIG_LOCAL_PKG_DIR redirected outside the repo; third_party/ghostty left byte-for-byte as committed (no zig-pkg/ or .zig-cache/ written)"
+'` exited 0 at 2026-11-15T06:22:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 043be079b8f7 with uncommitted changes:
+
+```text
+offline rebuild for both Darwin targets from the committed vendored tree produced libghostty-vt.a, with ZIG_LOCAL_PKG_DIR redirected outside the repo; third_party/ghostty left byte-for-byte as committed (no zig-pkg/ or .zig-cache/ written)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

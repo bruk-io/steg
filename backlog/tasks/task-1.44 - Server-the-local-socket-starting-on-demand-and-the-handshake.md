@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:02:00Z'
+updated_date: '2026-11-15T21:03:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -818,6 +818,28 @@ Decision this task made that the plan didn't: whether "finished handles are reap
 Proof added, mapped to the acceptance criteria already in the plan: AC #4 (the fix to connection.rs is what makes its first clause - "closed after a timeout" - actually hold once a shutdown handle is kept around; `shutdown.rs`'s two new tests cover its second clause under a stop, not just under simple idling as `handshake.rs` already proved) and AC #5 (run/serve remain directly, foreground-testable - these are still all in-process or fixture-binary tests, nothing added that needs a `steg` binary). AC #1, #2, #3 are unaffected by this change and keep the proof already recorded.
 
 "No sleeps as synchronisation, with one named exception" (AC #4's second clause, as the plan's own Proof section states): unaffected - the new tests wait on real events (a channel, is_finished(), a bounded read observing a close) except where the plan's own named exception already applies, which none of these new tests are.
+
+---
+
+created: 2026-11-15T21:03:00Z
+
+---
+
+Coverage against the five acceptance criteria, clause by clause, including today's additions:
+
+#1 (mode and path checked and trusted, not assumed): unchanged by today's work. socket_mode.rs (real umask 0, real bind, asserts 0600) and paths.rs's existing_file_trust/directory_is_safe unit tests (absent, ours-and-dead, not-a-socket, not-ours fabricated, world-writable directory) - all still green, recorded.
+
+#2 (one survivor; a dead server's socket replaced): unchanged. arbiter::decide's exhaustive pure unit tests; race.rs's eight-simultaneous-starts and killed-holder tests, plus the in-process arbitration-timeout test - run 10 times consecutively today with no failure, recorded as one check.
+
+#3 (version mismatch names both): unchanged. handshake.rs's a_version_mismatch_names_both_versions_over_a_real_connection, green.
+
+#4 (handshake timeout closes; completed-and-idle does not): directly touched by today's fix. handshake.rs's two existing tests (closed after timeout with no stop involved; not closed for idling past the timeout) are green, and the first of those is what caught the real regression (connection.rs's missing shutdown()) before any new test was even run - confirmed by reverting my connection.rs fix and re-running just that test, which failed the same way, then restoring it. Two new tests in shutdown.rs extend this clause under a *stop*, which the plan's original proof section didn't separately name: a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop (stop with an idle, handshake-completed client connected: run returns within a 5s bound, and the client's own read then sees the connection closed) and a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop (stop while a handshake is stalled: run returns within a 5s bound, not left waiting on the connection's own, deliberately long 30s handshake timeout).
+
+#5 (sdk's handshake; foreground, no detach, testable alone): unchanged in kind, strengthened by today's regression: before today's fix, a test driving run()/serve() directly with one idle completed connection would have hung on stop() with no bound at all - the exact failure mode "testable alone" is meant to rule out. Every test proving this (today's included) still drives serve/attempt/run directly, in-process or via the existing fixture binary, with no steg binary anywhere in the suite.
+
+Additional proof beyond the five criteria, for the thread-joining rule itself: listen::tests::a_finished_connection_is_removed_and_a_still_open_one_is_kept and ::an_empty_set_is_left_empty (reap_finished's own predicate, in-process, real UnixStream::pair and real threads); shutdown.rs::many_short_connections_do_not_grow_the_tracked_set (end-to-end: 200 connect/handshake/close cycles plus one trigger connection, fd count before vs. after). "Prove one bites": removed the shutdown-and-join step in run() (replaced with a bare double-drop), ran `cargo test -p steg-server --test shutdown`, and a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop failed by its 5s bound exactly as expected (not a hang) - recorded on this task, then the step was restored and the full suite re-confirmed green.
+
+Checks recorded on this task today, in order: the failing `cargo test -p steg-server --test shutdown` with the join step removed (proving the test bites); 10 consecutive `cargo test -p steg-server --test race` runs (proving AC #2's race and timeout tests are not flaky); 5 consecutive `cargo test -p steg-server --test shutdown` runs (proving the new tests are not flaky); and `just check` at the final head, all green - that last one is the final state this task is handed off on.
 
 ---
 <!-- COMMENTS:END -->

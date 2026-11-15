@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=4'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -625,6 +626,15 @@ Reviewed at head eb867f0dd397664d78bb3a6023520d13b228b2d8 (PR #32). just check p
 [Tests, Nit] shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output drives spawn_relay directly with a fresh channel and drop(rx), not through PaneHandle::start/shutdown(). Traced the public path by hand and it holds (above), but a test through the real public API would prove it more directly.
 
 Merge-kept-both-sides spot check: crates/kernel/src/error.rs, tree.rs, pane.rs and crates/sdk/src/lib.rs all still carry both TASK-1.40's additions and the other merged tasks' (TASK-1.70/1.74/1.75) side by side.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T18:37:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

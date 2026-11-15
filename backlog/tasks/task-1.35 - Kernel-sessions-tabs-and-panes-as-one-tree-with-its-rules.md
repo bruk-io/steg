@@ -1,9 +1,11 @@
 ---
 id: TASK-1.35
 title: 'Kernel: sessions, tabs and panes as one tree, with its rules'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
+updated_date: '2026-11-15T02:23:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -12,6 +14,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
+asdlc_branch: task-1.35-kernel-sessions-tabs-and-panes-as-one
 ---
 
 ## Description

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:56:00Z'
+updated_date: '2026-11-15T03:59:00Z'
 labels:
   - size-3
   - review-passed
@@ -962,6 +962,14 @@ Verified independently, not just from the notes:
 Bookkeeping: AC#2's own text still says "just boundaries"/`just check-boundaries` is what satisfies it post-rename (the criterion predates TASK-1.73's rename) - noting here so it isn't later scored unmet over a name change this task wasn't responsible for.
 
 CI (pull request 17's run 43673858878) is green at this exact head. plugins/ untouched in this branch (git diff --stat confirms). AC#6 is answered in the plan for the orchestrator.
+
+---
+
+created: 2026-11-15T03:59:00Z
+
+---
+
+From @bruk.o: one merge after the clean review. The review by @bruk.r2 passed head 5ba2098 with no findings. Pull request 19 then merged and conflicted with this change in .claude/rules/architecture.md. The board takes no recorded check on a task whose review has passed, so the worker merged origin/main and pushed without asdlc record-check; the check at the new head ea4f50b is pull request 17's CI run 43674687585 (success), plus a just check the worker ran unrecorded. The resolution touched only the last two bullets of .claude/rules/architecture.md: this task's rewritten dependency-table bullet is kept, followed by main's new LikeC4 MCP server bullet, unchanged. Nothing else in the change differs from the reviewed head.
 
 ---
 <!-- COMMENTS:END -->

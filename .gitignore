@@ -6,3 +6,11 @@ target/
 __pycache__/
 .pytest_cache/
 .venv/
+
+# Zig's own build-time state, if `zig build` is ever run directly against the
+# vendored tree at third_party/ghostty/ instead of through `cargo build` (which
+# always builds from a copy under target/, never here). TASK-1.34, third_party/README.md:
+# a second guard, not the fix - the fix is setting ZIG_LOCAL_PKG_DIR and --cache-dir
+# away from this tree whenever that's done.
+third_party/ghostty/zig-pkg/
+third_party/ghostty/.zig-cache/

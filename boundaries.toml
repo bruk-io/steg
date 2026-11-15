@@ -21,8 +21,8 @@ reason = "the sdk is steg's public interface and does no I/O of its own; it has 
 allow = []
 
 [steg-kernel]
-reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)"
-allow = ["steg-sdk"]
+reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105); ghostty-vt is the terminal engine doc-16 lists under the kernel (R92) - its Rust API does no I/O at runtime, feeding bytes and reading cells back is pure computation, and the network fetch and Zig link its build needs happen before any of the kernel's own code runs, from a vendored copy (third_party/README.md)"
+allow = ["steg-sdk", "ghostty-vt"]
 deny-features = { "steg-sdk" = ["local-socket"] }
 
 [steg-server]

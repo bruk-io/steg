@@ -1,0 +1,14 @@
+# Pins the Zig toolchain `ghostty-vt-sys` needs to build ghostty's VT engine
+# (doc-16, R92; decision-3). 0.17.1 is the version decision-3 section 8 verified
+# links against this machine's macOS SDK - Zig 0.15.x, which ghostty's own
+# upstream `build.zig` once required, cannot.
+#
+# This file is the single place the version is written. `ghostty-vt-sys`'s own
+# `build.rs` falls back to `mise which zig`, but it runs that from its own
+# crate directory (the cargo registry cache for a crates.io dependency), never
+# from this repository, so it can't see this pin on its own. `justfile`
+# resolves `ZIG` from here explicitly, in the one or two recipes that actually
+# compile the workspace, so the pin reaches the build without making every
+# recipe depend on mise being installed.
+[tools]
+zig = "0.17.1"

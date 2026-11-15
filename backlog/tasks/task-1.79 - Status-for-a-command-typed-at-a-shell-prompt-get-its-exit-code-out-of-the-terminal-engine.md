@@ -3,10 +3,11 @@ id: TASK-1.79
 title: >-
   Status for a command typed at a shell prompt: get its exit code out of the
   terminal engine
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T20:06:00Z'
+updated_date: '2026-11-15T21:27:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -15,6 +16,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
+asdlc_branch: task-1.79-status-for-a-command-typed-at-a-shell
 ---
 
 ## Description

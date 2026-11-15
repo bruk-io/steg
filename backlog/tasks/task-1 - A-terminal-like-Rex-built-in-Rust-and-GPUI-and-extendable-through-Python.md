@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T01:00:00Z'
+updated_date: '2026-11-15T01:09:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -70,6 +70,8 @@ Decided 2026-11-15 (Bruk): settings follow the convention of code configs. A set
 2026-11-15: Bruk read the day's spec work (doc-7 new; doc-1, doc-2 and doc-5 revised) and said it looks good. Recorded as he said it; the values doc-7 marks (proposed) were not gone through one by one, and doc-1's header still says draft.
 
 Decided 2026-11-15 (Bruk): the terminal emulation library is ghostty's VT engine, which is doc-6's recommendation. doc-6 names what follows from it and none of these is decided yet: the licence policy has to allow CDLA-Permissive-2.0 or exclude build-only dependencies, because the repository's own licence check refuses the ghostty path today; R19's first sentence needs replacing, since neither candidate meets 16 ms once the wait for the display is counted; and the build needs a Zig toolchain and a vendored source tree. The dependency doc-6 names is ghostty-vt 0.8 over ghostty 1.4.0-main, not libghostty-vt 0.2.2, which could not be built.
+
+2026-11-15: Bruk accepted the three consequences of choosing ghostty's VT engine. Written into doc-1: R19 replaced with 12 ms to paint and 20 ms to frame at the 95th percentile; R59 now says the licence check allows permissive licences including CDLA-Permissive-2.0 and refuses GPL and AGPL; R92 added for the library and its build. The licence wording follows the archived TASK-1.28's title; the repository's deny.toml has not been changed and needs a task.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

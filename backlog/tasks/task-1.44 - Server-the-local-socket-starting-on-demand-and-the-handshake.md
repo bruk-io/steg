@@ -1191,6 +1191,53 @@ test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --features race-fixture --test race || exit 1; done'` exited 0 at 2026-11-15T22:15:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 99 lines:
+
+```text
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,11 +3,11 @@ id: TASK-1.74
 title: >-
   Kernel: scrollback with an identity for every row, and the rows changed since
   a point
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:08:00Z'
+updated_date: '2026-11-15T18:49:00Z'
 labels:
   - size-3
   - review-passed

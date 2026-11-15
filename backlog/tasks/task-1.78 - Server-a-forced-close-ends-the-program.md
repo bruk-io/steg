@@ -1,7 +1,7 @@
 ---
-id: DRAFT-5
+id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T19:42:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.76
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

@@ -1,9 +1,9 @@
 ---
-id: DRAFT-6
+id: TASK-1.79
 title: >-
   Status for a command typed at a shell prompt: get its exit code out of the
   terminal engine
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T19:43:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.41
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-6
 ---
 
 ## Description

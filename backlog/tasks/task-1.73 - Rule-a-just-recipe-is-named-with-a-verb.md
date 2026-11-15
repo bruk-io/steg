@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.73
 title: 'Rule: a just recipe is named with a verb'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T03:12:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:50:00Z'
+updated_date: '2026-11-15T03:58:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -314,6 +314,19 @@ skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:58:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.38 on task-1.38-kernel-resolve-a-session-tab-or-pane at 1025d7d9c81d with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-kernel -p steg-server) (0.1s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

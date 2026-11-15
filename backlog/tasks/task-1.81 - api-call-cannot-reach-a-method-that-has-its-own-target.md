@@ -1,7 +1,7 @@
 ---
-id: DRAFT-5
+id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T20:14:00Z'
 updated_date: '2026-11-15T20:23:00Z'
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.48
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

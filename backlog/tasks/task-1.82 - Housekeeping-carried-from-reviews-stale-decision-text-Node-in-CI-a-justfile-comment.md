@@ -1,9 +1,9 @@
 ---
-id: DRAFT-6
+id: TASK-1.82
 title: >-
   Housekeeping carried from reviews: stale decision text, Node in CI, a justfile
   comment
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-0
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-6
 ---
 
 ## Description

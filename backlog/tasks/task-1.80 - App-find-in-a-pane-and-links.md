@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.80
 title: 'App: find in a pane, and links'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-15T20:06:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.57
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

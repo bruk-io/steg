@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:37:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -635,6 +634,31 @@ created: 2026-11-15T18:37:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T18:45:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Reviewed at head b71ba40fbe3877fc93ec238172359e49f68bf79f (PR #32). CI green on this exact head (gh pr checks 32, 2m7s; gh pr view 32 --json headRefOid confirms b71ba40). Ran `just check` myself on a fresh worktree at this head: clean (format, lint, boundaries, licences, every crate's tests, architecture, recipe names). Also ran `cargo test -p steg-server -p steg-kernel` directly: all passing, including the real-pty tests and the renamed spawn_relay unit test.
+
+Read every non-test hunk changed since the second review's head (eb867f0) line by line: crates/server/src/dispatch/kernel_error.rs and crates/server/src/pane.rs (diff eb867f0..HEAD touches only these two code files plus four backlog/notes files - confirmed via `git diff --stat`).
+
+kernel_error.rs: ProgramAlreadyStarted and ProgramStillRunning now map to ErrorCode::ProgramRunning; ProgramNotStarted and ShellCannotRestart now map to the existing ErrorCode::BadRequest (no new ErrorCode added), each with a comment explaining why, following TASK-1.42's own BadRequest precedent in this file. Verified the grouping's premise against crates/kernel/src/pane.rs::Pane::restart directly: with status == None it does return Error::ProgramStillRunning (the "no program yet" case falls under the same "not Ended" guard as "still running"), so the new comment's claim is accurate. Verified ErrorCode::ProgramRunning's doc line in crates/sdk/src/description/shapes.rs matches what the comment quotes. The grouped test was split into two, one per mapping. The notes now name this as a departure forced by merging TASK-1.75's dispatch module, with all four mappings and the reasoning spelled out, and DRAFT-4 ("Server: start a pane's program from the API, and end it on a forced close") exists as the home for wiring these into dispatch later.
+
+pane.rs: the wait()'s Err(_) => return arm now has a comment explaining the silence is deliberate (no real exit code to report, no "unknown" PaneEvent variant). The module doc and spawn_relay's comment were reworded to state precisely what's proven: a failed forward because the worker is gone no longer skips child.wait() for a program that ends on its own - narrower than "shutdown ends a program producing output," which the worker discovered (by writing the public-path test round 2 asked for) is not true. Re-verified "unreachable by any client today" still holds at this head: grepped crates/server/src/dispatch/ for PaneHandle/start/restart_program/record_exit - none are called, only named in comments and one not-yet-implemented match arm. DRAFT-4's AC #4 names the broader shutdown gap exactly. The round-2 ask for a mid-run-shutdown test through the public PaneHandle path was attempted and not shipped, because it asserts something false (shutdown reliably ending a running program) - the worker's own notes say this plainly, including the two controlled runs that confirmed it isn't a test-harness artefact. This is a corrected premise from the first/second reviews, not an ignored finding, and it touches no acceptance criterion (none of AC #1-3 is about shutdown) and nothing reachable by a client today, so it doesn't rise to Important.
+
+Evidence: the worker's last recorded `just check` (2026-11-15T18:30:28Z, "with uncommitted changes") ran at commit e36657b, 17 seconds before b71ba40 was committed. Checked whether anything beyond notes/merge differs between the two: `git diff eb867f0..e36657b` on both code files is empty (e36657b is the board-only merge the notes describe), so the "uncommitted changes" the check ran against are exactly b71ba40's content - the recorded check did cover this round's real fix, just before it was committed. Combined with CI green and my own clean `just check`/crate-test runs at b71ba40 itself, the evidence is sound at the reviewed head.
+
+No Important findings. plan-matched is "no": the ErrorCode mapping fix (dispatch/kernel_error.rs) is still not a file any plan section names, the same departure the prior two reviews also marked "no" for (anyhow, and now this). Naming the departure in the notes resolves the Compliance finding, not the plan match.
+
+Checked asdlc board draft list: DRAFT-2 (wait()-every-path) and DRAFT-3 (departures belong in notes) already cover the lessons this round's fixes were about. No new rule-change draft filed - nothing here is a mistake not already drafted.
 
 ---
 <!-- COMMENTS:END -->

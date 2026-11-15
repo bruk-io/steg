@@ -1,9 +1,11 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and end it on a forced close'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
+updated_date: '2026-11-15T19:13:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -14,6 +16,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.76-server-start-a-pane-s-program-from-the
 ---
 
 ## Description

@@ -142,12 +142,30 @@ straight from crates.io.
   sub-crate of that person's own GPUI UI-kit application, not a standalone
   terminal-engine project; worth knowing when judging how quickly an upstream
   contribution might be reviewed.
-- Vendored from `~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/`
-  (the exact version `crates/kernel/Cargo.toml` pins `ghostty-vt` to - an exact pin, not
-  a range, specifically so this patch can never silently stop applying against a newer
-  `0.8.x`), with the registry-only files a vendored copy never needs removed
-  (`Cargo.toml.orig`, `Cargo.lock`, `.cargo-ok`, `.cargo_vcs_info.json`); everything else
-  copied unchanged.
+- Vendored from `~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/`,
+  with the registry-only files a vendored copy never needs removed (`Cargo.toml.orig`,
+  `Cargo.lock`, `.cargo-ok`, `.cargo_vcs_info.json`); everything else copied unchanged.
+  `crates/kernel/Cargo.toml` pins `ghostty-vt = "=0.8.0"` - not the full build-metadata
+  string: semver build metadata is never part of a version *requirement* and cargo
+  ignores it when matching (confirmed: writing it produces cargo's own warning,
+  "includes semver metadata which will be ignored"), so `=0.8.0` is the real, and the
+  most precise, constraint - it refuses any version but `0.8.0` itself, patched or not,
+  which an unpatched future `0.8.1` would not satisfy. What actually selects the
+  *patched* copy over crates.io's real `0.8.0` is the workspace root `Cargo.toml`'s
+  `[patch.crates-io]` entry, not this requirement string on its own - that entry
+  replaces every resolution of `ghostty-vt` from crates.io with the vendored copy
+  outright, and the requirement only has to accept whatever version the vendored copy's
+  own `Cargo.toml` declares. **What makes the patch stop applying, confirmed by
+  experiment**: bumping the vendored copy's own declared version to something `=0.8.0`
+  no longer accepts (tried a fake `0.8.1+test`) makes cargo print a warning naming the
+  patch and saying it "was not used in the crate graph", then silently fall back to
+  crates.io's real, unpatched `0.8.0` - the same would happen if the
+  `[patch.crates-io]` entry were removed or misconfigured. That warning is easy to miss
+  in a long build log, but the fallback is not survivable here regardless: unpatched
+  `ghostty-vt` has no `Event::SemanticPrompt` variant, so `crates/kernel/src/
+  terminal.rs`'s own code referencing it fails to compile outright - verified by running
+  the bumped-version experiment through to a real compile error, not stopping at the
+  warning.
 - Checked whether the newer `ghostty-vt` 0.9.0 (`+ghostty-vt.1.0.1`, released
   2026-11-14) already wires this: it doesn't (same gap, read directly from its own
   `terminal.rs`), and it also switches `ghostty-vt-sys`'s whole vendoring model from

@@ -1,10 +1,11 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, starting on demand, and the handshake'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:01:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
 milestone: m-0

@@ -12,7 +12,7 @@ steg's CLI commands, its self-description, its reference documentation and what 
 
 steg's API is defined once as data in Rust, as one value in one module. That value is compiled into the single binary, and the server also serves it unchanged to anyone who asks. Every other consumer reads it; nothing downstream names a method, a parameter, a flag or an exit status of its own.
 
-Status: proposed. The spike's document asks for Bruk's approval of the decision and the format, and that has not been recorded.
+Confirmed by Bruk on 2026-11-15.
 
 ## Consequences
 

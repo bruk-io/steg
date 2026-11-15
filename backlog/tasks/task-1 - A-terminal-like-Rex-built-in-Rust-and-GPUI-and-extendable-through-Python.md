@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T01:28:00Z'
+updated_date: '2026-11-15T02:15:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -121,6 +121,55 @@ Accepted by @bruk. Draft ids are reused once promoted, so refer to these by thei
 - DRAFT-26 -> TASK-1.25
 - DRAFT-27 -> TASK-1.26
 - DRAFT-28 -> TASK-1.27
+
+---
+
+author: @bruk
+created: 2026-11-15T02:15:00Z
+
+---
+
+Accepted by @bruk. Draft ids are reused once promoted, so refer to these by their new ids (asdlc_accepted_from on each keeps the old one):
+
+- DRAFT-1 -> TASK-1.31
+- DRAFT-2 -> TASK-1.32
+- DRAFT-3 -> TASK-1.33
+- DRAFT-4 -> TASK-1.34
+- DRAFT-5 -> TASK-1.35
+- DRAFT-6 -> TASK-1.36
+- DRAFT-7 -> TASK-1.37
+- DRAFT-8 -> TASK-1.38
+- DRAFT-9 -> TASK-1.39
+- DRAFT-10 -> TASK-1.40
+- DRAFT-11 -> TASK-1.41
+- DRAFT-12 -> TASK-1.42
+- DRAFT-13 -> TASK-1.43
+- DRAFT-14 -> TASK-1.44
+- DRAFT-15 -> TASK-1.45
+- DRAFT-16 -> TASK-1.46
+- DRAFT-17 -> TASK-1.47
+- DRAFT-18 -> TASK-1.48
+- DRAFT-19 -> TASK-1.49
+- DRAFT-20 -> TASK-1.50
+- DRAFT-21 -> TASK-1.51
+- DRAFT-22 -> TASK-1.52
+- DRAFT-23 -> TASK-1.53
+- DRAFT-24 -> TASK-1.54
+- DRAFT-25 -> TASK-1.55
+- DRAFT-26 -> TASK-1.56
+- DRAFT-27 -> TASK-1.57
+- DRAFT-28 -> TASK-1.58
+- DRAFT-29 -> TASK-1.59
+- DRAFT-30 -> TASK-1.60
+- DRAFT-31 -> TASK-1.61
+- DRAFT-32 -> TASK-1.62
+- DRAFT-33 -> TASK-1.63
+- DRAFT-34 -> TASK-1.64
+- DRAFT-35 -> TASK-1.65
+- DRAFT-36 -> TASK-1.66
+- DRAFT-37 -> TASK-1.67
+- DRAFT-38 -> TASK-1.68
+- DRAFT-39 -> TASK-1.69
 
 ---
 <!-- COMMENTS:END -->

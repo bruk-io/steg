@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:34:00Z'
+updated_date: '2026-11-15T02:42:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -35,96 +35,125 @@ doc-16 is the architecture, written at the levels of the C4 model; this task dra
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+Revised 2026-11-15 for doc-16 (replaces the earlier plan, which was written before doc-16 existed).
+
 ## Where the model lives
 
-A new top-level directory `architecture/` (sibling to `crates/`, `spikes/`, `tools/`), scaffolded with the `c4-architecture:likec4-diagrams` skill's `scaffold.py`:
+Unchanged: a new top-level `architecture/` directory (sibling to `crates/`, `spikes/`, `tools/`), scaffolded once with:
 
 ```
 python3 <skill-dir>/tools/scaffold.py architecture --system steg
 ```
 
-(Not `docs/`: board docs already live in `backlog/docs/`, and a second `docs/` would be confused with that.) This writes `.likec4rc`, `shared/_spec.c4` (the unmodified canonical spec — no custom kinds are needed), `models/landscape.c4`, `views/landscape.c4`, `dynamic_views/cross-system/_scenarios.c4`, and the `models/steg/`, `views/steg/`, `dynamic_views/steg/` folders. `scaffold.py` has real write side effects and no dry-run and no real `--help` (confirmed while planning: `-h`/`--help` is swallowed as the target-dir argument and a scaffold gets written at that literal path — do not pass either flag to it; two stray `--help`/`-h` directories it produced while planning were already deleted). Run it exactly once, idempotently, as the first build step, before any element file is written by hand.
+`scaffold.py` has real write side effects and no dry-run, and its `-h`/`--help` is swallowed as the target-dir argument (confirmed while planning; two stray scaffolds it produced outside the worktree were already deleted). Run it exactly once, before any element file is written by hand.
 
-## The four structural decisions (own these before writing elements, so a reviewer doesn't have to ask)
+## Six structural decisions, two of them flagged for the engineer
 
-1. **Kernel and the steg library are components, never containers.** doc-1 §7 calls the kernel "a Rust library" and doc-15 calls it "the library that holds state and has no socket and no window" — not separately deployable. The steg library (R101) is likewise a library "no server logic," built into the CLI and the app. AC #1 names exactly four containers — app, server, CLI, a plugin — and that is the full container list. The kernel is a component of the server; the steg library is a component that appears once inside the CLI's description and once as a real component in the app's component view (the app is the one that gets a formal component view per AC #1).
-2. **The one binary (R61/R98) is a deployment fact, not a reason to merge containers.** Server and CLI stay two containers — two process spaces with different lifecycles (R99 vs R33-35) — even though `cargo build` produces one executable (`crates/steg`). The fact is carried in prose (container descriptions, and a note on the deployment node), not in the model's shape.
-3. **Window and Client are never boxes at container or deployment level.** decision-5: a Client is one connection to one server; a Window is drawn by the app and belongs to it, not to any server. Both are real **components inside the app's own component view** (that is in-process grouping, which is exactly what a component is for), but neither becomes a container, an external system, or a deployment node. AC #2's "one window holding a client to a local server and another to a remote one" is satisfied by two relationships between deployed **app** and **server** instances, titled to say exactly that (e.g. `'the window's second client attaches to, over SSH'`) — not by drawing Window/Client boxes on the deployment diagram.
-4. **AC #4's vocabulary is doc-15's "The things" table (Server, Session, Tab, Pane, Program, Status, Client) + doc-1 §4's vocabulary table (Host, Window, Focus, Action, Event, and the rest) + the exact words doc-1 §7's Parts table and doc-8's own section headings use for the parts AC #1 requires by name (Kernel, Server, the steg library, CLI, Steg.app, Plugins, and "API" from doc-8's "### API" heading, "socket" from R5).** No element invents a synonym for any of these (no "Connection" for Client, no "Viewport" for Window, no "Local socket" — R5 just says "socket," so the component is titled `Socket`, not embellished). This reading is a judgment call, flagged below for the engineer: AC #1 and a literal "only doc-1 §4's table" reading of AC #4 would otherwise conflict, since §4 alone has no word for Server, App, CLI or Plugin.
+1. **Plugin is modeled once, as a container — not also as an external system.** doc-16's Level 1 table lists "A plugin (M2)" as External; its Level 2 table lists "A plugin (M2)" as a Container. A single LikeC4 element cannot be both an `externalSystem` (top-level, black box) and a `container` (nested in `steg`), and AC #1 fixes the container list explicitly (`server, CLI, Steg.app, a plugin`), so the model resolves toward Level 2: `plugin` is a container of `steg`, full stop, and the System Context view simply does not show it — context views never show containers. **Flagged for the engineer:** doc-16 itself disagrees with itself here across its own two tables; R108's "this spec is right" clause can't adjudicate a spec that contradicts itself, so this is a one-line confirmation to get at plan approval, not a silent call.
+2. **`remoteHost` stays an external system only** — it appears in Level 1 and in the deployment view (as a deployment node `instanceOf steg.server`, a different element in a different diagram kind), never as a fifth container. Level 2's container table doesn't list it, and doc-16's own Deployment section treats "a server on another machine" as the same `steg` software deployed elsewhere, not a new container.
+3. **`sdk`'s single LikeC4 parent is a modeling artifact, not a claim about ownership — flagged for the engineer.** doc-16 says sdk is "Built into: the server, the CLI, the app" (three containers), but a LikeC4 component can nest under exactly one container. Nesting it under `server` would read as "the server owns the sdk," which is the exact inversion R98 and R101 exist to prevent (clients depend on the sdk *instead of* the server). I nest it under `cli` instead — slightly less misleading, since CLI's own package (`steg`) is already doc-16's "entry point" into the whole binary — and the component's own description says explicitly that the nesting is a LikeC4 constraint, not an ownership claim, and that `kernel`, the `server` package and the `app` package all depend on it from outside the box it happens to be drawn in.
+4. **"Built into" is prose, never a LikeC4 relationship.** The only arrows the packages view draws are doc-16's "May depend on" table (6 edges: `kernel → sdk`, `server → kernel`, `server → sdk`, `` `steg` → sdk ``, `` `steg` → server ``, `app → sdk`). Which container(s) a package is compiled into is stated in that package's `description`, because it is a build/packaging fact, not a call.
+5. **Cross-container dependency edges carry no `technology`, on purpose.** Four of the six edges above cross the container boundary I had to draw for nesting (`kernel → sdk`, `server(pkg) → sdk`, `` `steg` → server(pkg) ``, `app(pkg) → sdk`) — but they are Cargo compile-time dependencies, not runtime calls over a socket or any other protocol, so the hard rule requiring `technology` on a relationship that "crosses a process boundary" doesn't apply in spirit even though it nominally crosses a container box in this drawing. Each such relationship gets a title (`'depends on'`) and the file carries one comment explaining why there's no `technology` field. `c4lint.py` (run by hand during the build, not wired into `just check`) may well flag this mechanically; if it does, that finding goes in the task's build notes, not silenced with an invented `technology 'Rust'`.
+6. **This task draws the model; it does not touch Cargo.** doc-16 describes an intended package structure (`sdk`, `kernel`, `server`, `` `steg` ``, `app` — explicitly "no steg-client and no separate CLI package") that does not match the repository's current `crates/` layout (`crates/kernel`, `crates/server`, `crates/cli`, `crates/app`, `crates/steg`). R104's actual enforcement — `boundaries.toml`, the real crate reorg that retires `crates/cli` — is TASK-1.69's job ("Workspace: the server's code kept apart from its clients, and the steg library's package"). This task writes `architecture/` only; nothing under `crates/`, `boundaries.toml`, `Cargo.toml` or `layers.toml` changes. The mismatch between the drawn model and today's `crates/` is expected, not drift, and is worth saying once in the PR description so it isn't mistaken for an oversight.
 
-## File-by-file plan (one element per file, children via `extend <full FQN>`, per the skill's file-layout rule)
+## File-by-file plan
 
 ```
 architecture/
   models/
-    landscape.c4                        — bruk = person 'Bruk' (doc-1 §2); bruk -> steg.app and bruk -> steg.cli, titled from doc-1 §1/§3, no technology (person -> container UI edges don't need one)
+    landscape.c4
+      — personAtMac = person 'The person at the Mac' (doc-16 Level 1)
+      — programsInPanes = externalSystem 'Programs in panes' { description 'A shell, an editor, an agent. steg starts them, feeds them input and reads their output. Some drive steg back through the CLI.' }
+      — macos = externalSystem 'macOS' { description 'Windows, pseudo-terminals, the clipboard, the system's light or dark setting.' }
+      — remoteHost = externalSystem 'A remote host' { #planned description 'Another machine running a steg server (M3).' }
+      — personAtMac -> steg 'uses, through its window and its CLI'
+      — steg -> programsInPanes 'starts, feeds input to and reads output from'
+      — programsInPanes -> steg 'drives back, through the CLI'
+      — steg -> macos 'opens windows on, allocates pseudo-terminals from, and reads the system theme from'
+      — steg -> remoteHost 'connects to, as a client, over SSH' { #planned }
     steg/
-      steg.c4                           — steg = softwareSystem 'Steg' (doc-1 §1's one-paragraph description)
-      _relationships.c4                 — steg.app -> steg.server, steg.cli -> steg.server, steg.plugin -> steg.server, each { technology 'socket' } (R5); titles name what each client does (R98)
-      server.c4                         — extend steg { server = container 'Server' } — technology 'Rust'; description from R1, R98, R61
-      app.c4                            — extend steg { app = container 'Steg.app' } — technology 'Rust, GPUI'; description from R20, R21, doc-1 §7
-      cli.c4                            — extend steg { cli = container 'CLI' } — technology 'Rust'; description from R32, R61, notes it is built on the steg library like the app (R101)
-      plugin.c4                         — extend steg { plugin = container 'Plugin' } — technology 'Python'; description from doc-1 §7 and R47, one process per plugin; tag #planned (M2, doc-1 release table)
+      steg.c4                — steg = softwareSystem 'steg' { description 'Runs programs in terminals, keeps them running without a window, and can be driven from scripts.' }
+      _relationships.c4      — container-level "talks to" edges, extend steg { }:
+                                server -> programsInPanes 'starts, feeds input to and reads output from' { technology 'pseudo-terminal' }
+                                cli -> server 'calls, over its socket, through the public API' { technology 'socket' }
+                                app -> server 'calls, over its socket, through the public API' { technology 'socket' }
+                                plugin -> server 'calls, over its socket, through the public API' { technology 'socket' }   (plugin's relationship carries #planned too, M2)
+      server.c4               — extend steg { server = container 'The server' } — technology 'Rust'; description 'One process per person per machine. Owns every session, tab, pane and running program (R1).'
+      cli.c4                  — extend steg { cli = container 'The CLI' } — technology 'Rust'; description 'A short-lived process for one command.'
+      app.c4                  — extend steg { app = container 'Steg.app' } — technology 'Rust, GPUI'; description 'The window. Draws what the server reports.'
+      plugin.c4               — extend steg { plugin = container 'A plugin' } — technology 'Python'; #planned; description 'One Python process per plugin (M2).'
       server/
-        kernel.c4                       — extend steg.server { kernel = component 'Kernel' } — technology 'Rust library, steg-kernel'; description from doc-15 R93-R97, R85-R91, R10, R91 (whose client's size a terminal takes), and the architecture rule ("logic only, no I/O")
-        socket.c4                       — extend steg.server { socket = component 'Socket' } — description from R5, R39, R99 (on-demand start, detach, handshake, version check, idle stop)
-        api.c4                          — extend steg.server { api = component 'API' } — description from R36-R39 (self-describing, versioned, routes to the kernel, publishes events)
-        _relationships.c4               — socket -> api 'hands each request to, once the handshake is done'; api -> kernel 'reads and changes sessions, tabs and panes through'; kernel -> api 'tells of changes, for the API to publish as events (R38)'
+        kernel.c4             — extend steg.server { kernel = component 'kernel' } — description 'The server's logic: the tree, layout, focus, status, the terminal engine. No I/O (R105).'
+        server-pkg.c4         — extend steg.server { serverPkg = component 'server' } — description 'The kernel plus sockets, pseudo-terminals, processes and the clock. Does I/O (per doc-16's package table).'
+        _relationships.c4     — serverPkg -> kernel 'depends on'
+      cli/
+        sdk.c4                — extend steg.cli { sdk = component 'sdk' } — description 'The public interface: the API description, the shapes that cross the API, and the protocol's logic (R101). No I/O of its own (R102); a consumer supplies the transport. No GPUI type, no particular async runtime, in its public interface (R106). Nested here only because a LikeC4 component has one parent — the kernel, the server package and the app package all depend on it from their own containers; it belongs to none of them (R98).'
+        steg-pkg.c4           — extend steg.cli { stegPkg = component 'steg' } — description 'The CLI, and the entry point that starts the server (R98). Built into the server and the CLI — they ship as one binary.'
+        _relationships.c4     — stegPkg -> sdk 'depends on'
       app/
-        window.c4                       — extend steg.app { window = component 'Window' } — description from R20, R87 (holds one client per server, shows one session at a time)
-        client.c4                       — extend steg.app { client = component 'Client' } — description from R86 (one connection to one server, views zero or more sessions)
-        steg-library.c4                 — extend steg.app { stegLibrary = component 'Steg library' } — description from R101
-        _relationships.c4               — window -> client 'holds one per server it uses, and shows the session one of them views (R87)'; client -> stegLibrary 'uses, to find or start a server, connect, call a method and subscribe to events (R101)'
+        app-pkg.c4            — extend steg.app { appPkg = component 'app' } — description 'The GPUI window. Does I/O.'
+      _package-dependencies.c4 — the four cross-container edges from doc-16's dependency table, with a file-level comment explaining why none carries `technology` (compile-time crate dependencies, not runtime calls):
+                                steg.server.kernel -> steg.cli.sdk 'depends on'
+                                steg.server.serverPkg -> steg.cli.sdk 'depends on'
+                                steg.cli.stegPkg -> steg.server.serverPkg 'depends on, as the entry point that starts it (R98)'
+                                steg.app.appPkg -> steg.cli.sdk 'depends on'
   views/
+    landscape.c4 (scaffold default, left as-is — one system, so it adds nothing beyond Context, but isn't pruned)
     steg/
-      context.c4                        — view stegContext of steg { include steg, bruk } — AC #1's system context view
-      containers.c4                     — view stegContainers of steg { include * } — pulls in bruk via the connected-neighbors rule; AC #1's container view
-      components-server.c4              — view of steg.server { include * } — AC #1's server component view
-      components-app.c4                 — view of steg.app { include * } — AC #1's app component view
-      deployment.c4                     — views { deployment view stegDeployment { include ** } } — AC #2, reads the nodes from architecture/deployment/steg.c4
+      context.c4              — view stegContext of steg { title 'System Context — steg'; include steg, personAtMac, programsInPanes, macos, remoteHost }
+      containers.c4           — view stegContainers of steg { title 'Containers — steg'; include * }
+      packages.c4             — view stegPackages of steg { title 'Components — the packages, and what each may depend on'; include steg.server.*, steg.cli.*, steg.app.* } — children-only predicate; LikeC4 should draw the three container boundaries around their packages automatically. Verified with `npx likec4 start` during the build: if the boundaries don't render, the container elements are added to `include` explicitly and that bend (mixing container and component boxes in one view) is noted on the task, not silently done.
+      deployment.c4            — views { deployment view stegDeployment { title 'Deployment — steg'; include ** } }
   dynamic_views/
+    cross-system/_scenarios.c4 (scaffold default, left empty — one system)
     steg/
-      attach-to-a-pane.c4               — AC #3, container level: bruk -> app 'opens'; app -> server 'asks to attach to the pane, to view it' { technology 'socket' }; server -> app 'sends its current screen and scrollback, then streams further output'
-      focus-a-pane.c4                   — AC #3, container level: bruk -> cli 'runs `pane focus` against'; cli -> server 'asks to focus a pane' { technology 'socket' }; a step description (not a separate box — would mix levels) notes the server itself sets the path upward, the pane's tab becoming current and that tab's session becoming current (R85); server -> app 'reports the pane focused and its tab now current' (R38). The view's own description states explicitly that this never changes which session any window shows (R88) — the exact mistake decision-5 records being made three times.
+      attach-to-a-pane.c4     — container level: personAtMac -> app 'opens'; app -> server 'asks to attach to the pane, to view it' { technology 'socket' }; server -> app 'sends its current screen and scrollback, then streams further output'
+      focus-a-pane.c4         — container level: personAtMac -> cli 'runs `pane focus` against'; cli -> server 'asks to focus a pane' { technology 'socket' }; a step description notes the server itself sets the path upward — the pane's tab becoming current and that tab's session becoming current (R85) — without a separate box, since that would mix levels; server -> app 'reports the pane focused and its tab now current'. The view's own title/description states this never changes which session any window shows (R88) — the exact mistake decision-5 records being made three times.
   deployment/
-    steg.c4                             — deployment { environment ... { node 'Bruk's Mac' { instanceOf steg.app; instanceOf steg.cli; instanceOf steg.server } ; node 'A remote Mac' { instanceOf steg.server } } } plus the two relationships AC #2 needs: app -> server (same node, local) and app -> server (remote node) { technology 'SSH' } (R55), each titled to say which of the window's two clients it is. The remote node and its edge are tagged #planned (M3, doc-13); a node description notes the local server and CLI instances are the same `steg` binary (R61, R98).
+    steg.c4                   — deployment { environment 'Where steg runs' { node 'A host' { instanceOf steg.app; instanceOf steg.cli; instanceOf steg.server } ; node 'A remote host' { #planned; instanceOf steg.server } } } plus:
+                                 steg.app -> steg.server 'a window's client attaches to' (on 'A host') { technology 'socket' }
+                                 steg.app -> steg.server 'the same window's second client attaches to' (on 'A remote host') { technology 'SSH'; #planned }
+                                 a description on 'A host' notes its app, CLI and server instances are the same `steg` binary for the server+CLI half (R61, R98)
 ```
 
-`views/landscape.c4` (scaffold default) and `dynamic_views/cross-system/_scenarios.c4` are left as scaffolded (there is only one software system, so a System Landscape view adds nothing beyond the Context view and is not one of AC #1-3's required views; it is not deleted because `scaffold.py` is idempotent and re-running it should not need re-pruning).
+## `#planned` tag: verify it renders, don't assume it
+
+`shared/_spec.c4` (copied unmodified from the skill's canonical spec) declares `tag planned` with no attached style. The primary signal for "this is M2 or M3, not M1" is the prose already in each element's description (every M2/M3 element's description says so in words); `#planned` is applied everywhere alongside that prose as a bonus (useful later for `where tag is #planned` predicates), but the plan does not rely on it rendering distinguishably. If a visual distinction turns out to matter once `npx likec4 start` is run during the build, adding a `style` block for the `planned` tag in `shared/_spec.c4` is a one-line follow-up, not assumed here. (`#planned` must be the first thing inside an element's body, before `description`/`technology`.)
 
 ## Validation command, and whether it joins `just check`
+
+Unchanged from the first plan:
 
 ```
 npx --yes likec4@1.61.0 validate architecture
 ```
 
-Version-pinned literally in the command (1.61.0 is current as of today, confirmed via `npm view likec4 version`; the build step re-confirms this is still the intended pin, not latest-at-build-time — unpinned `npx likec4` would let a future breaking release silently break CI). This is the command recorded as the architecture model's proof; the skill's own `c4lint.py` (which additionally enforces this skill's authoring rules — kinds, nesting, titles, technology, level-mixing) runs only during the build, by hand, from its path under the plugin cache — it is not persisted into the repo or the justfile, because that path does not exist in CI or on another contributor's machine.
-
-**It joins `just check`.** Add a recipe:
+Version-pinned (1.61.0 confirmed current via `npm view likec4 version` while planning; the build step re-confirms the pin is still intended, not "whatever's latest"). **It joins `just check`** (R108: "The repository's check validates the model," and `just check` is "what a change must pass before it is called done"), via a new recipe:
 
 ```
-# the architecture model (architecture/) validates
+# the architecture model (architecture/) validates (R108)
 architecture:
     @{{quiet}} "architecture" -- npx --yes likec4@1.61.0 validate architecture
 ```
 
-and add `architecture` to `check`'s recipe line (`check: fmt-check lint boundaries deny test test-tools architecture`). Justification: `just check` is defined as "what a change must pass before it is called done," and every one of its existing steps except `test` already runs unconditionally on every invocation regardless of the diff (fmt-check, lint, boundaries, deny) — there is direct precedent for an always-run structural check, and a model nobody is forced to keep passing is how it rots silently.
+added to `check`'s recipe line (`check: fmt-check lint boundaries deny test test-tools architecture`). Consequences, named up front rather than surfacing at review:
 
-Consequences to flag for the engineer at approval, not hidden until review:
-
-- **Node becomes a hard requirement for `just check`**, which `just-check-on-every-pr` (TASK-1.32) runs on every PR. `plugins/bruk-io-steg/commands.toml`'s `[check]` stanza needs `"Node.js (npx, for \`just architecture\`)"` added to `needs`, and its `verified = 2026-11-14` date is stale the moment this merges — re-verifying it (`asdlc-plugin verify-command bruk-io-steg check`) is a step in this task's build, not a follow-up.
-- No skip-if-Node-missing guard: the justfile's own header says a step does its real work or fails, none passes by doing nothing.
-- No `.gitignore` change is expected: `npx --yes` resolves into npm's own cache outside the repo, not into a local `node_modules/`. The build step confirms `git status` is clean after running validate once, and only then adds a `.gitignore` line if something unexpected was left behind.
-- `layers.toml` is left unchanged. `steg-boundaries` reads only Cargo crate manifests and `steg-affected` only picks crate test selection from `Cargo.toml`/`Cargo.lock`/crate folders; `architecture/**` matching no layer there does not break either check (confirmed by reading `tools/src/steg_tools/boundaries.py` and `affected.py`).
+- **Node becomes a hard requirement for `just check`**, which TASK-1.32 runs on every PR. `plugins/bruk-io-steg/commands.toml`'s `[check]` stanza needs a `"Node.js (npx, for \`just architecture\`)"` line added to `needs`, and its `verified = 2026-11-14` date is stale the moment this merges — re-verifying it is part of this task's build, not a follow-up.
+- No skip-if-Node-missing guard, matching the justfile's own rule that a step does its real work or fails; none passes by doing nothing.
+- No `.gitignore` change is expected (`npx --yes` resolves into npm's own cache, not a local `node_modules/`); the build step confirms `git status` is clean after running validate once before deciding otherwise.
+- `layers.toml` is left unchanged — `steg-boundaries` and `steg-affected` (`tools/src/steg_tools/boundaries.py`, `affected.py`) only read Cargo manifests and crate folders; `architecture/**` matching no layer there breaks neither.
+- AC #4 says `just check` must fail when the model does not validate — proved during the build by breaking a `.c4` file on purpose, running `just check`, confirming it fails, then fixing it.
 
 ## Proof for the acceptance criteria
 
-- AC #1: `npx --yes likec4@1.61.0 validate architecture` passes, and `views/steg/context.c4`, `containers.c4`, `components-server.c4`, `components-app.c4` exist and each render on `npx likec4 start` (checked by hand during build, not persisted as a check).
-- AC #2: `views/steg/deployment.c4` + `deployment/steg.c4` exist and validate; the two app→server relationship titles name "the window" and "a client" on each edge.
-- AC #3: `dynamic_views/steg/attach-to-a-pane.c4` and `focus-a-pane.c4` exist, both container-level, both validate.
-- AC #4: every element name checked by hand against doc-15's table, doc-1 §4's table, and doc-1 §7's Parts table / doc-8's "API" and "socket," as the four structural decisions above state; no element is tagged or named from any other source.
+- AC #1: `npx --yes likec4@1.61.0 validate architecture` passes; `views/steg/context.c4`, `containers.c4`, `packages.c4` exist, each scoped and titled as above, and the container/package names and the dependency edges are checked by hand against doc-16's Level 2 and Level 3 tables, row by row.
+- AC #2: `views/steg/deployment.c4` + `deployment/steg.c4` exist and validate; the two app→server relationship titles each name "a window" and "a client."
+- AC #3: `dynamic_views/steg/attach-to-a-pane.c4` and `focus-a-pane.c4` exist, both container-level, both validate, and `focus-a-pane.c4`'s description states R88 explicitly.
+- AC #4: `just check` is run once with the model intact (passes) and once with a deliberately broken `.c4` file (fails), both outcomes recorded on the task.
+- AC #5: every element's title traces to a word in doc-16's three tables, doc-15's "The things" table, or doc-1 §4's vocabulary table — checked by hand, listed against its source in the build notes.
 
-## Risk flagged for the engineer
+## What's flagged for the engineer at plan approval
 
-AC #4's exact scope (doc-1 §4's literal Vocabulary section alone vs. doc-1's words generally, including §7's Parts table) is read generously above because a literal-§4-only reading cannot satisfy AC #1's named containers (app, server, CLI, plugin — none of which doc-1 §4 defines). Worth a one-line confirmation at plan approval rather than a review finding.
+1. doc-16 disagrees with itself on whether "a plugin" is External (Level 1) or a Container (Level 2); this plan resolves it toward Level 2 because AC #1 names it as a container. Confirm, or say which table doc-16 means to fix.
+2. `sdk` is nested under `cli` rather than `server` for the reason given in decision 3 above; confirm this reading is acceptable, since no single-parent placement is fully faithful to a package three containers are built from.
 <!-- SECTION:PLAN:END -->

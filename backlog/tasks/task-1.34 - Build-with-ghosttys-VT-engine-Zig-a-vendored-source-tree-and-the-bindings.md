@@ -1,10 +1,11 @@
 ---
 id: TASK-1.34
 title: 'Build with ghostty''s VT engine: Zig, a vendored source tree, and the bindings'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T02:46:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.34-build-with-ghostty-s-vt-engine-zig-a
 ---
 
 ## Description

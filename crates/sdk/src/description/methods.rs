@@ -880,9 +880,17 @@ fn server_methods() -> Vec<Method> {
         Method {
             name: method("server", "start"),
             summary: "Start the server, with no clients attached".into(),
-            details: "Stays up with no clients, unlike a server started on demand (doc-8 R99)."
+            details: "Stays up with no clients. With on_demand, it is the kind a client \
+                      starts when it finds no server: it stops itself after 30 seconds with \
+                      no sessions and no clients (doc-8 R99). `steg server start \
+                      --on-demand` is what the sdk's local-socket provider runs (TASK-1.70)."
                 .into(),
-            params: Vec::new(),
+            params: vec![switch(
+                "on_demand",
+                "Start as an on-demand server, which stops itself after 30 seconds with no \
+                 sessions and no clients (doc-8 R99), rather than staying up until told to \
+                 stop",
+            )],
             returns: Returns::Nothing,
             errors: vec![ErrorCode::BadRequest],
             since: VERSION,

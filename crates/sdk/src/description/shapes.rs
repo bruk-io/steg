@@ -29,6 +29,15 @@ impl Description {
         self.methods.iter().find(|m| m.name.dotted() == dotted)
     }
 
+    /// Finds an event by its name, such as `pane.closed` (R38). Used to
+    /// resolve an event arriving on the wire against the description that
+    /// declared it (`wire::connection`), rather than leaving it as a bare
+    /// string nobody checked.
+    #[must_use]
+    pub fn event(&self, name: &str) -> Option<&Event> {
+        self.events.iter().find(|event| event.name == name)
+    }
+
     /// The nouns, in the order they first appear. `steg` alone lists these.
     #[must_use]
     pub fn nouns(&self) -> Vec<&str> {
@@ -388,7 +397,12 @@ mod tests {
                     ..example_method()
                 },
             ],
-            events: Vec::new(),
+            events: vec![Event {
+                name: "pane.closed".into(),
+                summary: "A pane ended".into(),
+                fields: Vec::new(),
+                since: Version { major: 1, minor: 0 },
+            }],
             errors: vec![ErrorRecord {
                 code: ErrorCode::BadRequest,
                 summary: "bad request".into(),
@@ -402,6 +416,16 @@ mod tests {
         let description = example_description();
         assert_eq!(description.method("pane.list").unwrap().name.verb, "list");
         assert!(description.method("pane.nonexistent").is_none());
+    }
+
+    #[test]
+    fn event_finds_by_name() {
+        let description = example_description();
+        assert_eq!(
+            description.event("pane.closed").unwrap().name,
+            "pane.closed"
+        );
+        assert!(description.event("pane.nonexistent").is_none());
     }
 
     #[test]

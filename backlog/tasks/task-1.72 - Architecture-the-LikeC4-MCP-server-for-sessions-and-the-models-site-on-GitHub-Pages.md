@@ -23,6 +23,8 @@ asdlc_branch: task-1.72-architecture-the-likec4-mcp-server-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '367ae3e2b7cc'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -197,6 +199,15 @@ created: 2026-11-15T03:31:00Z
 ---
 
 Plan approved by @bruk (367ae3e2b7cc, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:38:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.72: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

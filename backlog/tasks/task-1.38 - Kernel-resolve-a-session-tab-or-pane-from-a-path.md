@@ -302,6 +302,19 @@ build begins and after each meaningful step, per the team's testing policy.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-15 (R10), doc-2 section 4 and doc-16 (R105) by @bruk.o: ok. The four kinds of match are tried in order and stop at the first that matches anything; a miss or an ambiguous match is an error listing candidates; one validate function is called by every way of setting a label, before any id is minted. Nothing new goes in the sdk: a target crosses the API as text, and mapping the kernel's error to a wire error is TASK-1.43's. For the engineer: what a pane's position means once a tab's panes are a tree of splits is not written anywhere; the plan uses the order the tab lists its panes in, and the orchestrator proposes that be the order of the layout tree's leaves, first child before second.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:50:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.38 on task-1.38-kernel-resolve-a-session-tab-or-pane at 1025d7d9c81d:
+
+```text
+ok      format check (0.1s)
+ok      lint (14.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

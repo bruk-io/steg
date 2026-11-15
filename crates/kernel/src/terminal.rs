@@ -1255,6 +1255,103 @@ mod tests {
         assert_ne!(new_text, oldest_text);
     }
 
+    #[test]
+    fn a_page_spanning_the_seam_between_scrollback_and_the_active_screen_reads_consecutive_rows_in_order()
+     {
+        // decision-2 section 3 names exactly this seam - a page that
+        // starts in scrollback and crosses into the live screen - as the
+        // historical bug absolute identity was built to fix (two
+        // different moments stitched together at the seam).
+        let mut term = Terminal::new(10, 3, 1000).unwrap();
+        for i in 0..20 {
+            term.write(format!("L{i:02}\r\n").as_bytes());
+        }
+
+        let scrollback = term.scrollback_rows_kept().unwrap();
+        let viewport_rows = usize::from(term.rows().unwrap());
+        let floor = term.oldest_row();
+        assert!(
+            scrollback >= 2,
+            "need at least two scrollback rows before the seam for this test"
+        );
+
+        // Two rows before the seam, reading straight through it.
+        let start = RowId {
+            epoch: floor.epoch,
+            offset: floor.offset + scrollback as u64 - 2,
+        };
+        let max_rows = 2 + viewport_rows as u16;
+
+        let page = term.page(start, max_rows).unwrap();
+
+        assert_eq!(page.rows.len(), usize::from(max_rows));
+        for pair in page.rows.windows(2) {
+            assert_eq!(pair[0].0.epoch, pair[1].0.epoch);
+            assert_eq!(
+                pair[1].0.offset,
+                pair[0].0.offset + 1,
+                "ids across the seam must stay consecutive"
+            );
+        }
+
+        // The last `viewport_rows` entries are exactly today's active
+        // screen, read independently through `screen()`: the two reads
+        // must agree row for row across the seam.
+        let screen = term.screen().unwrap();
+        for i in 0..viewport_rows {
+            let (_, page_row) = &page.rows[2 + i];
+            assert_eq!(
+                *page_row, screen.rows[i],
+                "row {i} of the active area should match between page() and screen()"
+            );
+        }
+    }
+
+    #[test]
+    fn the_newest_rows_id_resolves_and_one_past_it_is_gone() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+
+        let floor = term.oldest_row();
+        let total = term.scrollback_rows_kept().unwrap() + usize::from(term.rows().unwrap());
+        let newest_offset = floor.offset + total as u64 - 1;
+
+        let newest = RowId {
+            epoch: floor.epoch,
+            offset: newest_offset,
+        };
+        assert!(
+            !term.page(newest, 1).unwrap().rows.is_empty(),
+            "the newest row's own id should resolve"
+        );
+
+        let one_past = RowId {
+            epoch: floor.epoch,
+            offset: newest_offset + 1,
+        };
+        assert!(
+            term.page(one_past, 1).unwrap().rows.is_empty(),
+            "one past the newest row should be reported gone, not substituted"
+        );
+    }
+
+    #[test]
+    fn a_page_request_larger_than_what_is_kept_returns_only_what_exists() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+
+        let floor = term.oldest_row();
+        let total = term.scrollback_rows_kept().unwrap() + usize::from(term.rows().unwrap());
+
+        let page = term.page(floor, u16::MAX).unwrap();
+
+        assert_eq!(
+            page.rows.len(),
+            total,
+            "a page request larger than what is kept must return only what exists, not pad or error"
+        );
+    }
+
     // --- AC #3: what a resize does to row identity ---
 
     #[test]
@@ -1294,6 +1391,31 @@ mod tests {
             "a row-only resize must not retire this id"
         );
         assert_eq!(before_text, after.rows[0].1[0].text);
+    }
+
+    #[test]
+    fn a_resize_to_the_same_size_does_not_end_the_epoch() {
+        let mut term = Terminal::new(10, 3, 100).unwrap();
+        for i in 0..10 {
+            term.write(format!("line{i:02}\r\n").as_bytes());
+        }
+        let id = term.oldest_row();
+        let before = term.page(id, 1).unwrap();
+        assert!(!before.rows.is_empty());
+
+        term.resize(10, 3).unwrap(); // same cols, same rows: a true no-op
+
+        assert_eq!(
+            term.oldest_row(),
+            id,
+            "a no-op resize must not move the floor or bump the epoch"
+        );
+        let after = term.page(id, 1).unwrap();
+        assert!(
+            !after.rows.is_empty(),
+            "a no-op resize must not retire this id"
+        );
+        assert_eq!(before.rows[0].1, after.rows[0].1);
     }
 
     // --- AC #4: the rows changed since a given point ---

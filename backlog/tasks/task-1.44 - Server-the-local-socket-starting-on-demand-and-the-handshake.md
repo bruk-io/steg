@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:03:00Z'
+updated_date: '2026-11-15T22:12:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1050,6 +1050,53 @@ Review findings fixed at head 100bc99 (PR #37, CI green: check passed in 4m7s). 
 [Nits] race-attempt is now feature-gated (confirmed an ordinary build produces no extra binary, and just check still runs the race test via a new check-packages line); the arbiter's probe showing up on the ConnectionEvent seam is documented as a TASK-1.77 caveat; the listener now closes immediately after the accept loop stops rather than after the connection-join phase, closing the window a connecting client could be queued-then-reset in (fixed, not only documented); error.rs's stale plan metadata is confirmed byte-identical to origin/main and noted here, plan left untouched.
 
 Checks recorded, in order: the failing handshake test with finding #1 reverted; the failing shutdown test with finding #2 reverted (using the corrected idle-server tests, after catching my own test-design bug); 10 consecutive race-fixture race-test runs; 10 consecutive shutdown-test runs; just check at the merged final head (100bc99, after merging origin/main - brought in TASK-1.41's kernel/sdk changes, no conflicts). Full writeup with code-level detail is in the task's own notes (two comments posted this round).
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test handshake'` exited 101 at 2026-11-15T22:12:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 48 lines:
+
+```text
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... FAILED
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... FAILED
+
+failures:
+
+---- a_hello_completing_well_after_the_deadline_is_closed_with_no_reply stdout ----
+
+thread 'a_hello_completing_well_after_the_deadline_is_closed_with_no_reply' (14451002) panicked at crates/server/tests/handshake.rs:588:18:
+expected no reply and a close, got 16 bytes
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline stdout ----
+
+thread 'a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline' (14450994) panicked at crates/server/tests/handshake.rs:518:5:
+expected the deadline, not the still-running 1.6s trickle, to close this: closed after 2.016281959s against a 300ms handshake timeout
+
+
+failures:
+    a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline
+    a_hello_completing_well_after_the_deadline_is_closed_with_no_reply
+
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+
+error: test failed, to rerun pass `-p steg-server --test handshake`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

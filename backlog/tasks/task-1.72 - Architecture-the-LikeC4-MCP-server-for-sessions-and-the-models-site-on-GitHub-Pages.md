@@ -3,10 +3,11 @@ id: TASK-1.72
 title: >-
   Architecture: the LikeC4 MCP server for sessions, and the model's site on
   GitHub Pages
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T02:53:00Z'
+updated_date: '2026-11-15T03:20:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -17,6 +18,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.72-architecture-the-likec4-mcp-server-for
 ---
 
 ## Description

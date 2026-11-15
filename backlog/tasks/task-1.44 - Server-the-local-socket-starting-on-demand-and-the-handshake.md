@@ -546,3 +546,9 @@ by this choice.
   but that is TASK-1.70's own test scaffolding and has no bearing on any of this task's nine
   criteria.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-8 (R1, R3-R5, R39, R98, R99), doc-13 (R60, R61), doc-14, doc-16 and decision-2 section 7 by @bruk.o: sound, not yet put up for approval. Four things for the engineer or the worker first. (1) Size: the plan itself says this is two reviewable changes (A: socket, arbiter, handshake; B: detach, login environment, idle rule, entry point); the engineer decides whether to split the task. (2) Unsafe: the plan adds libc with a hand-written sys.rs (flock, setsid, getpwuid_r, fcntl), an unsafe pre_exec closure and FromRawFd. nix 0.28/0.29 (MIT) is already in Cargo.lock through portable-pty and offers safe wrappers for all four calls, and stage 2 calling setsid itself at start-up (it is not a process-group leader) would remove the pre_exec closure; ask the worker to reduce unsafe to the one FromRawFd block or say why not. (3) STEG_TEST_REPORT_OUTCOME_TO is a test-only hook in the shipped binary; prefer stage 1 printing its outcome (started / already running) on standard output, which a person also benefits from. (4) State what a client sees when it connects in the instant an idle server is stopping (accept closed, socket file removed, lock released, in which order), and that the session count wired to zero must be replaced by TASK-1.45. Layering matches doc-16 and R98: nothing is added to the sdk, and crates/steg gains only the entry point.
+<!-- SECTION:NOTES:END -->

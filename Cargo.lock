@@ -5273,6 +5273,7 @@ dependencies = [
 name = "steg-server"
 version = "0.1.0"
 dependencies = [
+ "nix 0.28.0",
  "portable-pty",
  "serde_json",
  "steg-kernel",

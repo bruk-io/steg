@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:56:00Z'
+updated_date: '2026-11-15T16:58:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -22,6 +22,8 @@ asdlc_branch: task-1.40-run-a-pane-s-program-and-know-when-it
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r4
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -442,6 +444,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (5e9ba0795787, size-3): its worker may build it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T16:58:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

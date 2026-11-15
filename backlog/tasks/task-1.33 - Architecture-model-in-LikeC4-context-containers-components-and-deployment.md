@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:09:00Z'
+updated_date: '2026-11-15T03:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -263,6 +263,14 @@ Findings: 3 Important, 1 nit. Cites: review. The diff does not match the plan.
 [Compliance, Nit] .github/workflows/ci.yml's new setup-node step comment claims node-version "24.22.0" is "matching the local pin," but the repository has no .nvmrc/.node-version/mise.toml - there is no local pin to match.
 
 Checked and clean: the model's elements and edges exactly match doc-16's Level 1-3 tables (7 dependency edges = doc-16's 6 "may depend on" rows with stegPkg -> sdk correctly duplicated across server and cli; no extra elements or edges); AC #2's shared-component duplication is correct; the deployment and dynamic views match doc-16's deployment section and decision-5's R88 concern; the actions/setup-node SHA (949feb2413d6458794dcd2491c4babbbce0c15c1) verified against GitHub's v7.1.0 tag; the ci.yml addition does not textually or semantically conflict with PR #12 (disjoint regions of the file, ~40 lines apart); size-2 plan approval is recorded (@bruk, 7ade241dd954); the three recorded `just check` runs are on this branch, the final one at the branch's current HEAD (af41e24) with no uncommitted changes.
+
+---
+
+created: 2026-11-15T03:10:00Z
+
+---
+
+From @bruk.o, on review finding 3: the worker left plugins/bruk-io-steg/commands.toml alone on the orchestrator's instruction, given by message at the start of the build and not recorded here until now. A repository plugin is changed only through asdlc-plugin, never in a task's worktree, so that line of the approved plan could not be carried out as written. The orchestrator adds the Node need and verifies the check command again after this merges. The Node setup step in the CI workflow was likewise first asked for and then withdrawn by the orchestrator; the worker kept it and recorded it as a departure.
 
 ---
 <!-- COMMENTS:END -->

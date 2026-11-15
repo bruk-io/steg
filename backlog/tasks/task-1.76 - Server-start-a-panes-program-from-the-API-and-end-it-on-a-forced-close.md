@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:00:00Z'
+updated_date: '2026-11-15T23:03:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1961,6 +1961,35 @@ Review findings fixed (3 Important, 1 nit) plus the engineer's cwd ask, at head 
 Checks: `cargo test -p steg-server --lib --tests -- --test-threads=1` run 10+ times through this round, 0 failures, 144 tests at the final head. Local `just check` is flaky specifically in `tests/runtime.rs` under this sandbox's own default parallelism (quantified: clean through 12 threads, fails from 16 up, confirmed independent of other processes) - a real pty-allocation ceiling in this sandbox, not a code defect; recorded both clean and failing runs rather than hiding either. PR #40's own CI (a clean machine) is green: `test (steg-server)` passed on the very first run; the one CI failure was an unrelated `likec4` MCP smoke-test timeout in `tools/` (nothing in this diff touches `tools/` or `architecture/`), which passed on a re-run of just that job.
 
 Pushed to the same branch, PR #40 updated.
+
+Check FAILED: `cargo test -p steg-server --test real_pty many_threads_opening_a_real_pty_at_once_never_fails` exited 101 at 2026-11-15T23:03:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 1 test
+test many_threads_opening_a_real_pty_at_once_never_fails ... FAILED
+
+failures:
+
+---- many_threads_opening_a_real_pty_at_once_never_fails stdout ----
+
+thread 'many_threads_opening_a_real_pty_at_once_never_fails' (14987896) panicked at crates/server/tests/real_pty.rs:397:31:
+round 1/10, thread 13/32: RealLauncher::spawn failed under concurrent opens: the pseudo-terminal failed: failed to openpty: Os { code: -6, kind: Uncategorized, message: "Unknown error: -6" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    many_threads_opening_a_real_pty_at_once_never_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.77s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

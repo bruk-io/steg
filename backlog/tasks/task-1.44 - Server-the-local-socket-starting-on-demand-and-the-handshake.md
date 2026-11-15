@@ -43,6 +43,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=3'
 asdlc_review_policies: ["review", "rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1173,6 +1174,15 @@ Three new tests in shutdown.rs: stop_on_a_genuinely_idle_server_returns_from_run
 [Nit #4 - error.rs listed as modified but unchanged] Confirmed with git diff origin/main -- crates/server/src/error.rs: byte-identical. Stale plan metadata from the plan's own modified-files list (section 6 of the plan already explains why no new Error variant was needed) - noted here per the review's own ask, plan left untouched.
 
 Checks recorded on this task for this round, in order: the failing cargo test -p steg-server --test handshake with the malformed-hello fix reverted (finding #1's prove-one-bites); the failing cargo test -p steg-server --test shutdown with stop()'s wakeup disabled, using the corrected idle-server tests (finding #2's prove-one-bites, redone after catching my own test-design bug); 10 consecutive cargo test -p steg-server --features race-fixture --test race runs; 10 consecutive cargo test -p steg-server --test shutdown runs; just check at the merged final head.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T21:49:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -413,4 +413,12 @@ created: 2026-11-15T19:34:00Z
 Plan written. One open question blocks half of AC #1, needs the engineer's decision before build: ghostty-vt 0.8 (the exact vendored dependency) does not surface a prompt-marked command's exit code anywhere in its safe Rust API (verified by reading ghostty-vt-sys's bindings.rs, which has the data behind an OPT_SEMANTIC_PROMPT callback the safe ghostty-vt crate never wires, and ghostty-vt's own terminal.rs Event enum, which has no such variant). That blocks Finished/Failed for a command typed at a shell prompt (the Program::Shell half of AC #1) - a vendored-dependency gap, not a kernel design choice, and not something to work around with a hand-rolled OSC 133 parser. Program::Command panes, and AC #2 and #3 in full, are unaffected and planned in full below. Two options for the engineer, both outside this task's own scope to decide: descope the Shell-prompt clause to a follow-up task against the ghostty-vt dependency, or make wiring that callback a prerequisite of this one. See the plan for the full writeup and reasoning.
 
 ---
+
+created: 2026-11-15T19:46:00Z
+
+---
+
+Plan revised per team-lead's feedback: dropped the ghostty-vt blocking question (AC #1 now scopes it out, confirmed from the task's own updated wording); replaced std::time::Instant with a new kernel-owned Moment type (crates/kernel/src/moment.rs) - a newtype over Duration, constructible in tests with no clock and no clippy exception, with the 'earlier moment than one passed before' rule stated explicitly (no subtraction is ever defined, so there's no path that could panic; a stale or backward-looking now just reads a Finished status as not-yet-expired); kept the tree's existing tick() counter for decision-7's ordering tie-break, reasoned explicitly against folding that into Moment too; kept acknowledge_pane clearing both Finished and Failed, with the AC-vs-decision-7 reconciliation now flagged to also go in the build-time notes; and added the rename-fallout and record_exit-signature risks naming TASK-1.76 and TASK-1.48 by name, with phase 2's first step re-running the call-site grep against origin/main.
+
+---
 <!-- COMMENTS:END -->

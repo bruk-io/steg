@@ -1,13 +1,14 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T21:22:00Z'
+updated_date: '2026-11-15T21:36:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -23,8 +24,10 @@ asdlc_branch: task-1.76-server-start-a-pane-s-program-from-the
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '308d35ef87d0'
 asdlc_plan_approved_size: size-5
-asdlc_reviewer: bruk.r4
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=1'
+asdlc_review_policies: ["review", "testing-rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -968,6 +971,36 @@ created: 2026-11-15T21:22:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T21:36:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 1 nit. Cites: review, testing-rust. The diff does not match the plan.
+
+Head reviewed: fdef2fe3f96799b2895406f66e75887f032f8251 (task's own recorded clean `just check`, and PR #40's CI `check` SUCCESS on the same SHA). Ran the server crate's tests 5+ times myself (`just test`, plus a direct `cargo test -p steg-server`): 0 failures across all runs, all real-pty/runtime integration suites included.
+
+Important findings:
+
+1. [Bugs, Compliance] crates/server/src/runtime.rs:153-163 (Runtime::handle), crates/server/src/dispatch/api.rs:56-78 (api::call) - a request for session.new/tab.new/pane.split made through api.call (decision-1's generic call path) never reaches Runtime::start_and_dispatch's start-wrapper. Runtime::handle matches on the literal request.method, which for such a call is "api.call", not one of the three starting methods, so it falls to the `_` arm and calls the plain, unchanged dispatch::dispatch. api::call rewrites and recurses into that same plain dispatch, which mints the pane/tab/session (pane.rs's split, tab.rs's new, session.rs's new) but never calls tree.start_program or pane::start - both of those only happen in Runtime::start_and_dispatch, which this path never runs. The result: a pane left with program() == None and status() == None permanently, no PaneHandle, no process, and Response::Ok with no error - breaking the very invariant the plan's own S1 lock argument and PaneRecord.status's own doc rest on ("never observed from outside that pairing"), and failing AC #1 for this path (no program is ever started, not even the login shell). crates/server/tests/dispatch.rs's own pane_split_with_a_program_mints_a_pane_but_does_not_start_it documents exactly this gap at the plain-dispatch layer and calls it fine because "that is Runtime's own job, right after this same call" - true when the method is called directly, false when it arrives through api.call. dispatch.rs:1136 (api_call_of_pane_split_gives_the_same_response_a_direct_call_would) tests api.call's equivalence only against plain dispatch(), never against Runtime::handle, so this never surfaced. Nothing in the plan or notes names this as a known gap.
+
+2. [Evidence, Compliance] crates/server/src/runtime.rs:849 (a_tabs_declared_size_reaches_every_pane_including_one_split_in_afterward) - the plan's own S4 proof promised pane.split, pane.resize, pane.close and a swap all driven through Runtime::handle with terminal/pty checks after each. Only split is exercised (pane.resize is still not_implemented_yet, but pane.close and swap are both dispatchable today and are simply absent, with no note explaining why). More importantly, the one case that is built proves nothing about the general step it claims to: I disabled the reapply_every_sized_tab(&mut state) call in start_and_dispatch's success arm (runtime.rs:291) as a negative control and the test still passed unchanged. The split used is direction:"right" (divides columns, not rows), the test only ever asserts screen.rows.len() (never a column count), and the new pane's row count already comes from the initial LaunchSpec size resolved directly from tab_sizes_now at mint time (runtime.rs:264-279), independent of the general step entirely. The implementation notes' claim that this test proves "the general step, not only the start path" is not backed by what the test actually checks.
+
+3. [Bugs] crates/server/src/runtime.rs - Runtime has no Drop impl and no shutdown/stop method anywhere; nothing ever sends PaneCommand::Shutdown to a live pane, joins the drain thread (_drain), or ends a process. Every pane's worker thread holds its own clone of the PaneEvent Sender, so dropping Runtime does not even close the drain thread's channel - the drain thread, every pane's worker/relay threads, and every real child process (e.g. the real `sh -c 'sleep 100'` programs crates/server/tests/runtime.rs's own session_with_a_long_running_pane and the sizing tests start) all outlive a dropped Runtime indefinitely, with no path back to them. This is exactly one of the paths today's own new team rule and AC #5 call out by name ("the runtime itself being dropped"), and unlike the --force orphan (named explicitly in S5 as a stated, deliberate gap with its own test), this path is not named anywhere in the plan or the notes as something left for a later task.
+
+Nit (1):
+- [Tests] crates/server/src/runtime.rs:793,949 and crates/server/tests/runtime.rs:130 synchronise with bounded std::thread::sleep polling loops rather than an event, which testing-rust.md's "no test sleeps to wait" rule disallows - each is reasoned about and bounded (20s) in its own comment, but is still sleep-based polling, not a channel wait.
+
+Plan match: mostly followed (owning structure, cwd rule B, pane.show, the pure close-refusal, error codes, the lookup.rs move - all confirmed a straight move/build with no behaviour drift), but the S1 departure the notes already name (Runtime, not the dispatch arm, calls start_program) has the undocumented api.call consequence in finding 1, and the S4 proof section's own promised coverage (close, swap; a test that would actually fail without the general step) was not built, contradicting the notes' own coverage claim for AC #3.
+
+No unsafe code anywhere in the diff (confirmed directly, not just by the worker's own grep). No new dependency. doc-2/doc-8/doc-9/doc-16 boundaries held: kernel diff (tree.rs) is pure with its own unit tests; server owns all I/O; sdk's ProgramFailed/PaneRecord additions are typed, serde-derived, and mirror-tested against the description.
+
+Item 8 (main moved): TASK-1.48 (Settings on dispatch) is correctly adapted (State.settings threaded through, confirmed by reading runtime.rs). TASK-1.41 (Moment on record_exit, Pane::status -> program_status) and TASK-1.81 (api.call's selector) have not merged as of fdef2fe; when TASK-1.41 lands, apply_event_locked's record_exit call and the three dispatch close arms' pane.status() calls will need updating to the new name/signature - not yet a problem, but worth the next worker's attention, and TASK-1.81's api.call rename is adjacent to finding 1 above.
 
 ---
 <!-- COMMENTS:END -->

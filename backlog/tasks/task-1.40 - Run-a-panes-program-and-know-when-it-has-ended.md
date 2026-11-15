@@ -337,6 +337,13 @@ ok      lint (1.3s)
 ok      boundaries (0.1s)
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.3s)
 ```
+
+Check passed: `sh -c 'just deny && just check-boundaries'` exited 0 at 2026-11-15T16:35:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      licences (0.6s)
+ok      boundaries (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,14 +1,13 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
 updated_date: '2026-11-15T17:05:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -616,6 +615,25 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 35, 34 without the Asdlc-Worker trailer.
+
+Fixed all five findings from @bruk.r1's review.
+
+1 (Important). connecting_viewing_declaring_and_disconnecting_never_change_focus was rebuilt as connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus: two sessions, each with two tabs of two panes (splitting makes the new pane current and a new tab becomes its session's current tab, so the deliberately-unfocused target - tab_a1's first pane - needed no extra focus call of its own). The client views and acts on a1_first, which is neither session A's current tab (tab_a2 is) nor tab_a1's own current pane (its second pane is, from the split). A whole_focus() helper captures every session's current tab and every tab's current pane across both sessions, compared after each of connect_client, view_pane, declare_size, note_input, stop_viewing and disconnect_client. Proved it bites: added `let _ = self.focus_pane(pane);` inside view_pane, ran `asdlc record-check -- just test` (recorded, exit 101, failed exactly at "after view_pane"), then reverted it and confirmed `just test` passes clean again.
+
+2 (nit). Added note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size.
+
+3 (nit). Added reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size: b becomes latest via note_input (never declares), a then disconnects, and reapply_latest's "no declared size" branch is hit directly - asserts an empty Vec<SizeChanged> and the tab's size unchanged.
+
+4 (nit). Added closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it and closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab: two clients, each viewing a different tab of one session; one test closes the whole session, the other closes just one tab (session survives). Both assert nothing is left naming a gone pane or tab, and that the staying client (in the tab-close case) still correctly views the session.
+
+5 (nit). stop_viewing's doc comment now says what the code does - it unconditionally recomputes and reapplies the session's latest, not only when the client's last attachment in that session is gone - and says why that's correct (reapply_latest's own equal-size guard makes the extra calls a no-op, and losing even one attachment can change which tabs the latest client views).
+
+No plan changes. Checks recorded: the failing `just test` proving finding 1 bites; `just check` (full suite) after all fixes, both before and after merging the latest origin/main (board-only changes, no code conflicts from TASK-1.40/1.70/1.74). CI on PR #29 passed at the new head.
+
+Updated clause list (adds to the previous notes' mapping):
+- AC #1 "focus never changes": connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus (rebuilt, proven to bite).
+- AC #3 "terminal takes the latest's declared size" (no-op cases): note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size, reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size.
+- Cleanup on close (two distinct tabs/clients): closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it, closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

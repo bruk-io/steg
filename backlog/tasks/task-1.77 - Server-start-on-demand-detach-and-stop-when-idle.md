@@ -1,11 +1,11 @@
 ---
 id: TASK-1.77
-title: 'Server: start on demand, detach, and stop when idle'
+title: 'Server: start on demand and detach, from the steg entry point'
 status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T23:39:00Z'
+updated_date: '2026-11-15T23:40:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,13 +27,12 @@ Builds on TASK-1.44's foreground serve(): the detach wraps that same loop. The w
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The first client that needs a server starts one through the sdk's local-socket provider; a server started explicitly stays up with no clients
-- [ ] #2 A server started on demand keeps running after the client that started it exits or is killed, and its panes' environment comes from a login shell, not from that client (R99); capturing that environment cannot hang the server on a slow or interactive profile
-- [ ] #3 A server started on demand stops after 30 seconds with no sessions and no clients; one with a session, or one started explicitly, does not; a client still in its handshake counts as a client (R99)
-- [ ] #4 Two real clients starting a server at the same moment end up connected to the same one (R99), shown with real processes
-- [ ] #5 A client's part in starting a server is to run the server's program and wait for the socket; it holds none of the logic above (R98), and nothing is added to the sdk
-- [ ] #6 steg server start and steg server start --on-demand run the server, and say on standard output whether a server was started or one was already running; no test-only hook is added to the shipped binary
-- [ ] #7 Every child this code spawns is waited on along every path or the notes say why not, including what the client that started the server is left holding
+- [ ] #1 The first client that needs a server starts one through the sdk's local-socket provider; a server started explicitly stays up with no clients and runs in the foreground of the terminal or supervisor that started it (R3, R99)
+- [ ] #2 A server started on demand keeps running after the client that started it exits or is killed outright, shown with real processes
+- [ ] #3 Two real clients starting a server at the same moment end up connected to the same one (R99), shown with real processes
+- [ ] #4 A client's part in starting a server is to run the server's program and wait for the socket; it holds none of the logic above (R98), and nothing is added to the sdk
+- [ ] #5 steg server start and steg server start --on-demand run the server, and say on standard output whether a server was started or one was already running, with the exit statuses doc-2 gives; no test-only hook is added to the shipped binary
+- [ ] #6 Every child this code spawns is waited on along every path or the notes say why not, including what the client that started the server is left holding, proven by test; no unsafe code is added
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -683,4 +682,6 @@ server has stopped).
 Carried from TASK-1.70 (2026-11-15): the sdk exports run_fake_server_for_tests as a public, doc-hidden function behind the local-socket feature. TASK-1.44's plan found it cannot simply be removed (the sdk may not depend on the real binary), but the fixture could bind through the public socket_path itself; say in this task's plan whether to move it out of the public interface here.
 
 Carried from TASK-1.44's review (2026-11-15), for this task's plan: (1) the arbiter's liveness probe connects to a running server and is reported on the ConnectionEvent seam as a client arriving and leaving, so the idle rule must not let probes hold an idle server up, or must tell them apart. (2) Stop the server only through the one stop function TASK-1.44 leaves public after its review fix (the first version had a stop() that set the flag without waking accept, which would have hung an idle server: exactly this task's case). (3) On shutdown there is a window while connection threads are joined in which the listener is still bound; see TASK-1.44's notes for what a connecting client sees.
+
+Split on 2026-11-15 under the engineer's standing decision to split by default, into the three pieces the worker's plan proposed. This task is now the first: the entry point, starting on demand, detaching, and two clients converging. The idle stop and the server's login-shell environment are drafts under TASK-1. The plan on this task was written for all three and is to be rewritten for this piece only.
 <!-- SECTION:NOTES:END -->

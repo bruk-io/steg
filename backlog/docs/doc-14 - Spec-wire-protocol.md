@@ -3,7 +3,7 @@ id: doc-14
 title: 'Spec: wire protocol'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T01:15:00Z'
+updated_date: '2026-11-15T01:23:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -107,7 +107,6 @@ decides it.
 
 - [ ] The smallest pane in rows and columns, so the CLI cannot split a pane to nothing (also in doc-8).
 - [ ] Whether telling the server a person has dealt with a pane is its own request or a flag on focusing it. This spec assumes its own.
-- [ ] decision-2 is still proposed: Bruk has not confirmed that the answer is a snapshot followed by screen updates. Everything here assumes it stands.
 - [ ] An event addressed to one client is new. Every other event goes to every subscriber.
 - [ ] A real SSH channel has not been tested, only a relay over two pipes.
 

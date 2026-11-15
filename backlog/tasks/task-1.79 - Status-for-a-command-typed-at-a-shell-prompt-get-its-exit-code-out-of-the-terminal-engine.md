@@ -483,6 +483,12 @@ error: test failed, to rerun pass `-p steg-kernel --lib`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
 ```
+
+Check passed: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 0 at 2026-11-15T22:02:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes:
+
+```text
+ok      tests (every crate) (4.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

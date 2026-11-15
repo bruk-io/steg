@@ -87,7 +87,7 @@ impl ProgramLauncher for RealLauncher {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(Error::Pty)?;
+            .map_err(|cause| Error::Pty(cause.into()))?;
 
         let mut command =
             portable_pty::CommandBuilder::from_argv(spec.argv.iter().map(OsString::from).collect());
@@ -96,7 +96,10 @@ impl ProgramLauncher for RealLauncher {
             command.env(key, value);
         }
 
-        let child = pair.slave.spawn_command(command).map_err(Error::Pty)?;
+        let child = pair
+            .slave
+            .spawn_command(command)
+            .map_err(|cause| Error::Pty(cause.into()))?;
         // Dropping the slave is what lets the program's own exit reach the
         // reader as end-of-file: the pty's slave side only closes once
         // nothing holds it open, and this process's own copy is the thing
@@ -104,8 +107,14 @@ impl ProgramLauncher for RealLauncher {
         // program ended. The pane and its screen stay: that is R2").
         drop(pair.slave);
 
-        let reader = pair.master.try_clone_reader().map_err(Error::Pty)?;
-        let writer = pair.master.take_writer().map_err(Error::Pty)?;
+        let reader = pair
+            .master
+            .try_clone_reader()
+            .map_err(|cause| Error::Pty(cause.into()))?;
+        let writer = pair
+            .master
+            .take_writer()
+            .map_err(|cause| Error::Pty(cause.into()))?;
         let master = pair.master;
         let resize: Box<dyn Fn(u16, u16) -> Result<(), Error> + Send> =
             Box::new(move |cols, rows| {
@@ -116,7 +125,7 @@ impl ProgramLauncher for RealLauncher {
                         pixel_width: 0,
                         pixel_height: 0,
                     })
-                    .map_err(Error::Pty)
+                    .map_err(|cause| Error::Pty(cause.into()))
             });
 
         Ok(SpawnedProgram {

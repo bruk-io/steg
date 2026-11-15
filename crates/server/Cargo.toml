@@ -17,7 +17,3 @@ steg-sdk = { path = "../sdk" }
 # `spikes/task-1.2-wire-protocol/probe-server/src/pty.rs` (decision-3
 # section 9).
 portable-pty = "0.9"
-# portable-pty's own error type, named directly in `crate::error::Error` so
-# a pty failure's real cause (ENOENT, a permission error, ...) isn't
-# flattened to a string before it reaches whoever reports it.
-anyhow = "1"

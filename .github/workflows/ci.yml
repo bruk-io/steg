@@ -47,6 +47,11 @@ jobs:
     # hosted Apple Silicon image; it ships rustup, cargo, rustfmt and clippy already,
     # but not `just` or `uv`, so both are installed below at pinned versions.
     runs-on: macos-26
+    # Without this, a misbehaving child process in a real-pty test (TASK-1.40) could
+    # run up to GitHub's own 360-minute default on a macOS runner this file itself
+    # calls "billed at a premium" - 30 minutes is generous for `just check` on a warm
+    # cache and still cuts that worst case by an order of magnitude.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

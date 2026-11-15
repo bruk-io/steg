@@ -10,7 +10,15 @@ pub enum Error {
     Kernel(steg_kernel::Error),
     /// The pseudo-terminal could not be opened, or the program could not
     /// be spawned in it (for instance, the command does not exist).
-    Pty(anyhow::Error),
+    ///
+    /// `portable-pty`'s own errors are `anyhow::Error`, which does not
+    /// implement `std::error::Error` itself (by design, so `?` composes
+    /// without specialisation conflicts there) - converted at each call
+    /// site with `.into()` into this boxed form instead, which does, so
+    /// the real cause stays reachable through `source()` below rather
+    /// than only through `Display`. This also means this crate does not
+    /// need `anyhow` as a dependency of its own just to name the type.
+    Pty(Box<dyn std::error::Error + Send + Sync>),
     /// Reading from, or writing to, the pseudo-terminal failed.
     Io(std::io::Error),
     /// A pane's worker thread is no longer there to answer - the pane was
@@ -34,11 +42,8 @@ impl std::error::Error for Error {
         match self {
             Error::Kernel(cause) => Some(cause),
             Error::Io(cause) => Some(cause),
-            // `anyhow::Error` does not implement `std::error::Error` itself
-            // (by design, so `?` composes without specialisation
-            // conflicts); its own `Display` already carries the full
-            // chain, which is what the line above prints.
-            Error::Pty(_) | Error::PaneGone => None,
+            Error::Pty(cause) => Some(cause.as_ref()),
+            Error::PaneGone => None,
         }
     }
 }

@@ -5,17 +5,33 @@
 //! a real `wait()`. Orchestration (restart, resize, the no-program state)
 //! is proven fast and without doubles in `program.rs`.
 //!
-//! No test here sleeps to wait for anything: every wait is a blocking
-//! `recv` on the event channel the real program's own end (or the real
-//! pty reaching end-of-file) triggers.
+//! No test here sleeps to wait for anything: every wait is a `recv` -
+//! bounded, never unbounded, so a real program that never ends fails the
+//! test with a message instead of hanging the job - on the event channel
+//! the real program's own end (or the real pty reaching end-of-file)
+//! triggers.
 
 use std::sync::Arc;
 use std::sync::mpsc;
+use std::time::Duration;
 
 use steg_kernel::{ExitOutcome, Tree};
 use steg_sdk::{PaneId, Program, Screen};
 
-use steg_server::{LaunchSpec, PaneEvent, RealLauncher};
+use steg_server::{Error, LaunchSpec, PaneEvent, RealLauncher};
+
+/// How long any one real-pty test waits for an event before failing with
+/// a message, rather than hanging indefinitely on a misbehaving child
+/// (generous: these are real, short programs on a real pty, which should
+/// each take well under a second).
+const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// Blocks for one [`PaneEvent`], bounded by [`EVENT_TIMEOUT`].
+fn recv_event(events_rx: &mpsc::Receiver<PaneEvent>) -> PaneEvent {
+    events_rx
+        .recv_timeout(EVENT_TIMEOUT)
+        .unwrap_or_else(|_| panic!("no PaneEvent within {EVENT_TIMEOUT:?}"))
+}
 
 fn screen_text(screen: &Screen) -> String {
     screen
@@ -62,10 +78,7 @@ fn a_real_program_runs_in_the_given_working_directory() {
     )
     .unwrap();
 
-    assert_eq!(
-        events_rx.recv().unwrap(),
-        PaneEvent::Exited { pane, exit_code: 0 }
-    );
+    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 0 });
 
     let screen = handle.snapshot().unwrap();
     let reported = std::fs::canonicalize(screen_text(&screen).trim()).unwrap();
@@ -105,7 +118,7 @@ fn a_real_programs_environment_carries_the_five_variables_and_path() {
     )
     .unwrap();
 
-    events_rx.recv().unwrap();
+    recv_event(&events_rx);
 
     let screen = handle.snapshot().unwrap();
     let text = screen_text(&screen);
@@ -149,10 +162,7 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     )
     .unwrap();
 
-    assert_eq!(
-        events_rx.recv().unwrap(),
-        PaneEvent::Exited { pane, exit_code: 3 }
-    );
+    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 3 });
     let screen = handle.snapshot().unwrap();
     assert!(
         screen_text(&screen).contains("hi"),
@@ -185,10 +195,7 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
 
     // Restarting the server's own pane runs the same command again.
     handle.restart(command_spec).unwrap();
-    assert_eq!(
-        events_rx.recv().unwrap(),
-        PaneEvent::Exited { pane, exit_code: 3 }
-    );
+    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 3 });
     handle.shutdown();
 }
 
@@ -208,10 +215,7 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
 
     handle.send_input(b"exit 7\n".to_vec()).unwrap();
 
-    assert_eq!(
-        events_rx.recv().unwrap(),
-        PaneEvent::Exited { pane, exit_code: 7 }
-    );
+    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 7 });
 
     // The kernel's own cascade (no doubles): a shell pane's real exit
     // code closes it, the same cascade a manual close runs.
@@ -234,4 +238,30 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     assert_eq!(closed.session, Some(session_id));
 
     handle.shutdown();
+}
+
+#[test]
+fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
+    let (events_tx, _events_rx) = mpsc::channel();
+    let cwd = std::env::temp_dir();
+
+    let result = steg_server::start(
+        spec(
+            vec!["steg-this-program-does-not-exist-anywhere-on-path"],
+            cwd.to_str().unwrap(),
+            Vec::new(),
+        ),
+        PaneId::from_raw(1),
+        Arc::new(RealLauncher),
+        events_tx,
+    );
+
+    assert!(
+        matches!(result, Err(Error::Pty(_))),
+        "expected Err(Error::Pty(_)) synchronously from start(), got {}",
+        match result {
+            Ok(_) => "Ok(_)".to_string(),
+            Err(e) => e.to_string(),
+        }
+    );
 }

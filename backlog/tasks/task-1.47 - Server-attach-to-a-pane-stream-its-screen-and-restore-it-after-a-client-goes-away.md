@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T14:41:00Z'
+updated_date: '2026-11-15T20:03:00Z'
 labels:
   - size-5
 milestone: m-0
@@ -15,6 +15,7 @@ dependencies:
   - TASK-1.42
   - TASK-1.40
   - TASK-1.74
+  - TASK-1.76
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

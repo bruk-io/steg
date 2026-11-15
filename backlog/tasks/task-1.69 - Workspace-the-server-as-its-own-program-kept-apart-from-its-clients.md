@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -598,6 +599,15 @@ Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
 Plan-matched is reported as "no" because `tools/tests/adapter/test_affected_real_workspace.py` is not in the plan's "Files, in order" list; this is explained on the task (comment #2: deleting `crates/cli` broke the adapter test's hard-coded fixtures, fixed in the same pass) so it is not raised as its own finding.
 
 Everything else checked clean: boundaries.toml's five tables are a literal match for doc-16's "who may depend on whom" table and each carries a reason citing doc-16; every manifest edge (sdk/kernel/server/steg/app) matches the plan exactly; crates/cli's deletion and its doc comment's fold into crates/steg/src/main.rs match doc-16's component table (R98); the sdk crate is I/O-free with `local-socket` declared and empty, off by default (R102, R103); the kernel's sdk dependency is `default-features = false` (R105); .claude/rules/architecture.md's new bullets cite doc-16 correctly; plugins/bruk-io-steg/ is correctly left untouched per AC#6, with the "For the orchestrator" section listing what's needed; plan approval by @bruk is recorded (size-2); and the PR's CI run (43669467226) is green on the exact PR head commit (df8f9a21d734), covering format, lint, boundaries, licences, every crate's tests and tool tests.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:56:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.69: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

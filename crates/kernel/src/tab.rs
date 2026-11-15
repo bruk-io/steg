@@ -617,7 +617,7 @@ fn swap_leaves(layout: &mut Layout, a: PaneId, b: PaneId) {
 mod tests {
     use super::{DirectionalFocus, Tab};
     use crate::error::Error;
-    use steg_sdk::{Direction, PaneId, PaneKind, Ratio, Size, TabId};
+    use steg_sdk::{Direction, Layout, PaneId, PaneKind, Ratio, Size, TabId};
 
     fn tab_with_one_pane() -> (Tab, PaneId) {
         let first = PaneId::from_raw(1);
@@ -872,6 +872,33 @@ mod tests {
     }
 
     #[test]
+    fn closing_the_current_pane_whose_sibling_is_a_multi_leaf_split_picks_the_promoted_subtrees_first_leaf()
+     {
+        let (mut tab, a) = tab_with_one_pane();
+        let b = PaneId::from_raw(2);
+        let c = PaneId::from_raw(3);
+        tab.split_pane(a, Direction::Right, b, PaneKind::Terminal)
+            .unwrap(); // {A, B}
+        tab.split_pane(b, Direction::Down, c, PaneKind::Terminal)
+            .unwrap(); // {A, {B, C}}
+        assert_eq!(tab.current(), c);
+
+        // Swap A and C's *positions*, not `current` (which stays the id
+        // "C", untouched by a swap): C now sits where A was, at the
+        // root's first slot, whose sibling is the multi-leaf {B, A}
+        // split (A having swapped into C's old slot).
+        tab.swap_panes(a, c).unwrap();
+        assert_eq!(tab.current(), c);
+
+        tab.close_pane(c).unwrap();
+
+        // The promoted subtree is {first: B, second: A}; current moves
+        // to its *first* leaf in R112 order — B, not A, even though A
+        // is also still in the tab.
+        assert_eq!(tab.current(), b);
+    }
+
+    #[test]
     fn closing_a_filled_pane_clears_the_fill() {
         let (mut tab, first) = tab_with_one_pane();
         let second = PaneId::from_raw(2);
@@ -969,6 +996,96 @@ mod tests {
             .resize_pane(first, Direction::Right, Ratio::new(700).unwrap())
             .unwrap();
         assert_eq!(applied, Ratio::new(700).unwrap());
+    }
+
+    #[test]
+    fn resize_pane_clamps_upward_when_the_requested_ratio_would_starve_the_near_side() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        tab.set_size(Size::new(100, 10));
+
+        // Asking for 50 (first gets 5 columns, under the floor) clamps
+        // up to 200 (first: 20, second: 80) — the mirror image of
+        // `resize_pane_stops_exactly_at_the_floor_instead_of_going_below_it`,
+        // which only exercised the downward clamp.
+        let applied = tab
+            .resize_pane(first, Direction::Right, Ratio::new(50).unwrap())
+            .unwrap();
+
+        assert_eq!(applied, Ratio::new(200).unwrap());
+    }
+
+    #[test]
+    fn resize_pane_leaves_an_already_legal_ratio_unchanged() {
+        let (mut tab, first) = tab_with_one_pane();
+        let second = PaneId::from_raw(2);
+        tab.split_pane(first, Direction::Right, second, PaneKind::Terminal)
+            .unwrap();
+        tab.set_size(Size::new(100, 10));
+
+        // 500 (50 and 50 columns) is already well clear of the floor,
+        // with a known size: the clamp search's first check (try the
+        // request itself) should succeed immediately.
+        let applied = tab
+            .resize_pane(first, Direction::Right, Ratio::new(500).unwrap())
+            .unwrap();
+
+        assert_eq!(applied, Ratio::new(500).unwrap());
+    }
+
+    /// `outer{mid{inner{A,B},C},D}`, all `Horizontal` — the same shape
+    /// named in the review finding that this mid-build bug exposed in
+    /// `bordering_split`'s ancestor walk, built here through the public
+    /// `split_pane` (not a hand-built `Layout`, since this test is
+    /// specifically about `resize_pane` going through both
+    /// `bordering_split` and `bordering_split_mut`).
+    #[test]
+    fn resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split() {
+        let (mut tab, a) = tab_with_one_pane();
+        let d = PaneId::from_raw(2);
+        let c = PaneId::from_raw(3);
+        let b = PaneId::from_raw(4);
+        tab.split_pane(a, Direction::Right, d, PaneKind::Terminal)
+            .unwrap(); // outer{A,D}
+        tab.split_pane(a, Direction::Right, c, PaneKind::Terminal)
+            .unwrap(); // outer{mid{A,C},D}
+        tab.split_pane(a, Direction::Right, b, PaneKind::Terminal)
+            .unwrap(); // outer{mid{inner{A,B},C},D}
+
+        tab.resize_pane(a, Direction::Right, Ratio::new(700).unwrap())
+            .unwrap();
+
+        // Read the raw tree (this test is inside `tab`'s own module, so
+        // the private `layout` field is visible) to confirm only the
+        // innermost split's ratio changed — the outermost-ancestor bug
+        // this guards against would have changed `outer`'s instead.
+        let Layout::Split {
+            ratio: outer_ratio,
+            first: mid,
+            ..
+        } = &tab.layout
+        else {
+            panic!("expected a split");
+        };
+        assert_eq!(*outer_ratio, Ratio::new(500).unwrap());
+        let Layout::Split {
+            ratio: mid_ratio,
+            first: inner,
+            ..
+        } = mid.as_ref()
+        else {
+            panic!("expected a split");
+        };
+        assert_eq!(*mid_ratio, Ratio::new(500).unwrap());
+        let Layout::Split {
+            ratio: inner_ratio, ..
+        } = inner.as_ref()
+        else {
+            panic!("expected a split");
+        };
+        assert_eq!(*inner_ratio, Ratio::new(700).unwrap());
     }
 
     #[test]

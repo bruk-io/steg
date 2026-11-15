@@ -930,6 +930,60 @@ mod tests {
     }
 
     #[test]
+    fn move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes()
+     {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_tab_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+        // 39 columns halves to 19 and 19 — under the 20-column floor.
+        tree.set_tab_size(second_tab, steg_sdk::Size::new(39, 10))
+            .unwrap();
+
+        // The whole of both tabs, before the refused move — `Tab`
+        // derives `PartialEq`, so this one comparison covers layout,
+        // pane order, current pane and fill together, not just whatever
+        // a hand-picked set of assertions happened to check.
+        let source_before = tree
+            .session(session_id)
+            .unwrap()
+            .tab(first_tab)
+            .unwrap()
+            .clone();
+        let target_before = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .clone();
+
+        let result = tree.move_pane_to_tab(first_pane, second_tab, steg_sdk::Direction::Right);
+
+        assert_eq!(
+            result,
+            Err(crate::error::Error::SplitTooSmall {
+                pane: second_tab_pane
+            })
+        );
+        assert_eq!(
+            tree.session(session_id).unwrap().tab(first_tab).unwrap(),
+            &source_before
+        );
+        assert_eq!(
+            tree.session(session_id).unwrap().tab(second_tab).unwrap(),
+            &target_before
+        );
+    }
+
+    #[test]
     fn panes_are_in_layout_order_after_a_move() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();

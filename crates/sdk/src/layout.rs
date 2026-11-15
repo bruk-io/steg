@@ -818,4 +818,118 @@ mod tests {
         // The root split's own inherited size is the whole tab.
         assert_eq!(size, Size::new(100, 20));
     }
+
+    /// `outer{mid{inner{A,B},C},D}`, all `Horizontal` — three ancestor
+    /// splits of the *same* orientation stacked on top of one another.
+    /// This is exactly the shape that exposed a mid-build bug: an
+    /// earlier version of the ancestor walk matched the *outermost*
+    /// qualifying split (here, `outer`) instead of the nearest one
+    /// (`inner`), because it checked a node's own match before trying
+    /// its child's. Named to match the review finding's own example.
+    fn deeply_nested_same_orientation() -> (Layout, PaneId, PaneId, PaneId, PaneId) {
+        let a = pane(1);
+        let b = pane(2);
+        let c = pane(3);
+        let d = pane(4);
+        let inner = split(
+            Orientation::Horizontal,
+            500,
+            Layout::Pane(a),
+            Layout::Pane(b),
+        );
+        let mid = split(Orientation::Horizontal, 500, inner, Layout::Pane(c));
+        let outer = split(Orientation::Horizontal, 500, mid, Layout::Pane(d));
+        (outer, a, c, d, b)
+    }
+
+    fn leaf_id(layout: &Layout) -> PaneId {
+        match layout {
+            Layout::Pane(id) => *id,
+            Layout::Split { .. } => panic!("expected a leaf, found a split"),
+        }
+    }
+
+    #[test]
+    fn bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level() {
+        let (layout, a, _c, _d, b) = deeply_nested_same_orientation();
+
+        let found = layout
+            .bordering_split(a, Direction::Right)
+            .expect("A has a bordering split to its right");
+        // The innermost split (A|B), not mid (inner|C) or outer (mid|D).
+        let Layout::Split { first, second, .. } = found else {
+            panic!("expected a split");
+        };
+        assert_eq!(leaf_id(first), a);
+        assert_eq!(leaf_id(second), b);
+    }
+
+    #[test]
+    fn bordering_split_finds_the_matching_ancestor_at_a_middle_depth() {
+        let (layout, _a, c, _d, _b) = deeply_nested_same_orientation();
+
+        // C is `mid`'s second child; moving Left from C borders `mid`
+        // itself (inner|C), not `outer`.
+        let found = layout
+            .bordering_split(c, Direction::Left)
+            .expect("C has a bordering split to its left");
+        let Layout::Split { first, second, .. } = found else {
+            panic!("expected a split");
+        };
+        assert_eq!(leaf_id(second), c);
+        assert!(matches!(first.as_ref(), Layout::Split { .. }));
+    }
+
+    #[test]
+    fn bordering_split_finds_the_outermost_split_for_a_leaf_at_the_top_level() {
+        let (layout, _a, _c, d, _b) = deeply_nested_same_orientation();
+
+        // D is `outer`'s second child; moving Left from D borders
+        // `outer` itself — the only correct answer at this depth.
+        let found = layout
+            .bordering_split(d, Direction::Left)
+            .expect("D has a bordering split to its left");
+        let Layout::Split { second, .. } = found else {
+            panic!("expected a split");
+        };
+        assert_eq!(leaf_id(second), d);
+    }
+
+    #[test]
+    fn bordering_split_mut_also_finds_the_innermost_ancestor() {
+        let (mut layout, a, _c, _d, b) = deeply_nested_same_orientation();
+
+        let found = layout
+            .bordering_split_mut(a, Direction::Right)
+            .expect("A has a bordering split to its right");
+        let Layout::Split { first, second, .. } = found else {
+            panic!("expected a split");
+        };
+        assert_eq!(leaf_id(first), a);
+        assert_eq!(leaf_id(second), b);
+    }
+
+    #[test]
+    fn inherited_size_matches_the_innermost_bordering_split_at_each_depth() {
+        let (layout, a, c, d, _b) = deeply_nested_same_orientation();
+        let total = Size::new(800, 10);
+
+        // A's bordering split is `inner`, which inherits half of `mid`'s
+        // share, which is half of `outer`'s share: 800 / 2 / 2 = 200.
+        assert_eq!(
+            layout.inherited_size(a, Direction::Right, total),
+            Some(Size::new(200, 10))
+        );
+        // C's bordering split is `mid`, which inherits half of `outer`'s
+        // share: 800 / 2 = 400.
+        assert_eq!(
+            layout.inherited_size(c, Direction::Left, total),
+            Some(Size::new(400, 10))
+        );
+        // D's bordering split is `outer`, the root: the whole tab.
+        assert_eq!(
+            layout.inherited_size(d, Direction::Left, total),
+            Some(total)
+        );
+    }
 }

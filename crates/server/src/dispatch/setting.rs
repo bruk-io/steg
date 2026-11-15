@@ -34,11 +34,22 @@ pub(super) fn dispatch(
 }
 
 /// `request`'s `target`, as the setting's name — required on every verb
-/// but `list` (`validate` already refuses its absence before this runs;
-/// this is defence for a call path that skips `validate`, such as a
-/// future direct caller).
+/// but `list`. `target` is declared `required: true` with
+/// `ValueKind::Text`, so `validate` already refuses an absent or
+/// wrong-typed one before this module is ever reached through either
+/// real entry point (`mod.rs`'s top-level `dispatch`, and `api.call`'s
+/// own recursion through it, which calls that same `dispatch`). Both
+/// cases below are reachable only by calling this module's own
+/// `dispatch` directly, bypassing `validate` — which the tests below do,
+/// so each message stays the true story for its own case rather than one
+/// message covering both.
 fn target_name(request: &Request) -> Result<&str, ApiError> {
-    param_str(request, "target").ok_or_else(|| bad_request("target: must be text"))
+    match request.params.get("target") {
+        None => Err(bad_request("needs target")),
+        Some(value) => value
+            .as_str()
+            .ok_or_else(|| bad_request("target must be text")),
+    }
 }
 
 fn record_of(settings: &Settings, name: &str) -> Result<SettingRecord, ApiError> {
@@ -83,4 +94,75 @@ fn unset(settings: &mut Settings, request: &Request) -> Result<Outcome, ApiError
     let name = target_name(request)?;
     settings.unset(name).map_err(map_kernel_error)?;
     Ok(Outcome::Nothing)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+    use steg_kernel::Settings;
+    use steg_sdk::{ErrorCode, Request};
+
+    use super::dispatch;
+
+    fn request(method: &str, pairs: Vec<(&str, serde_json::Value)>) -> Request {
+        Request {
+            method: method.into(),
+            params: pairs.into_iter().map(|(k, v)| (k.to_owned(), v)).collect(),
+        }
+    }
+
+    #[test]
+    fn an_absent_target_says_so_rather_than_claiming_the_wrong_type() {
+        let mut settings = Settings::new();
+        let error = dispatch(&mut settings, &request("setting.show", vec![]), "show")
+            .expect_err("no target at all");
+        assert_eq!(error.code, ErrorCode::BadRequest);
+        assert_eq!(error.message, "needs target");
+    }
+
+    #[test]
+    fn a_non_text_target_says_so_rather_than_claiming_it_is_missing() {
+        let mut settings = Settings::new();
+        let error = dispatch(
+            &mut settings,
+            &request("setting.show", vec![("target", json!(42))]),
+            "show",
+        )
+        .expect_err("a number, not text");
+        assert_eq!(error.code, ErrorCode::BadRequest);
+        assert_eq!(error.message, "target must be text");
+    }
+
+    /// `set`'s own "needs value" refusal is unreachable the same way as
+    /// `target_name`'s two cases above - `value` is `required: true`
+    /// with `ValueKind::Text`, so `validate` already refuses either case
+    /// before this module runs. Both sub-cases reach the one message
+    /// here, unlike `target_name`'s two.
+    #[test]
+    fn an_absent_value_is_a_bad_request() {
+        let mut settings = Settings::new();
+        let error = dispatch(
+            &mut settings,
+            &request("setting.set", vec![("target", json!("appearance"))]),
+            "set",
+        )
+        .expect_err("no value at all");
+        assert_eq!(error.code, ErrorCode::BadRequest);
+        assert_eq!(error.message, "needs value");
+    }
+
+    #[test]
+    fn a_non_text_value_is_also_a_bad_request() {
+        let mut settings = Settings::new();
+        let error = dispatch(
+            &mut settings,
+            &request(
+                "setting.set",
+                vec![("target", json!("appearance")), ("value", json!(42))],
+            ),
+            "set",
+        )
+        .expect_err("a number, not text");
+        assert_eq!(error.code, ErrorCode::BadRequest);
+    }
 }

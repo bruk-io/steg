@@ -1660,3 +1660,57 @@ fn an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_setting
 
     assert_eq!(value["value"], json!("dark"));
 }
+
+/// `api.call`'s own `target` (the method to call) and `setting.show`'s
+/// own `target` (the setting's name) are the same wire key, and
+/// `api::call` always strips it from the outer request before building
+/// the inner one (`api.rs::call`). For `session`/`tab`/`pane`, whose own
+/// target is optional with a context default, that is silently harmless:
+/// `api.call` just always falls back to the default, the same reason
+/// `api_call_of_pane_split_gives_the_same_response_a_direct_call_would`
+/// above never gives `pane.split` an explicit target either.
+/// `setting.show`'s target is required with no default, so it can never
+/// be reached through `api.call` at all, a genuine, pre-existing gap in
+/// `api::call` (not introduced here, and not this task's to fix: fixing
+/// it would change `api.rs`, and would affect every required-target
+/// method, not just `setting`). Proven and documented here rather than
+/// silently left untested.
+#[test]
+fn api_call_cannot_reach_setting_show_because_its_own_target_is_also_named_target() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("api.call", vec![("target", json!("setting.show"))]),
+    ));
+
+    assert_eq!(error.code, ErrorCode::BadRequest);
+    assert_eq!(error.message, "setting.show needs target");
+}
+
+/// The same gap, for `setting.set` - even with its other parameter
+/// (`value`) given correctly, the inner call is still missing the one
+/// `api.call` always strips.
+#[test]
+fn api_call_cannot_reach_setting_set_for_the_same_reason() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "api.call",
+            vec![("target", json!("setting.set")), ("value", json!("light"))],
+        ),
+    ));
+
+    assert_eq!(error.code, ErrorCode::BadRequest);
+    assert_eq!(error.message, "setting.set needs target");
+}

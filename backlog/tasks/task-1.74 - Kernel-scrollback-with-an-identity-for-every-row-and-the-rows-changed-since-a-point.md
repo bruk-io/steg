@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:26:00Z'
+updated_date: '2026-11-15T16:29:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -324,6 +324,21 @@ decision.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9 (R15), doc-14 and decision-2 by @bruk.o: ok. Both open questions settled by experiment on the real engine. A row's identity is scoped to an epoch: writing increments a counter as rows are dropped; a resize that changes the column count ends the epoch, because a reflow and a real drop cannot be told apart, and a caller holding ids from an earlier epoch is told those rows are gone. A resize of rows only changes nothing. A terminal keeps exactly one render state: a second one silently misses changes the first consumed, shown by test, so several readers are served by copying one update to each, which is TASK-1.47's.
+
+Check passed: `just check-packages` exited 0 at 2026-11-15T16:29:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.74 on task-1.74-kernel-scrollback-with-an-identity-for at c8dc7cdd8d3d:
+
+```text
+ok      build (steg-sdk) (3.7s)
+ok      test (steg-sdk) (2.4s)
+ok      build (steg-kernel) (49.1s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (20.8s)
+ok      test (steg-app) (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

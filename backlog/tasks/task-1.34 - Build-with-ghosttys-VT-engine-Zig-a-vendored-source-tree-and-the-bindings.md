@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:28:00Z'
+updated_date: '2026-11-15T04:30:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -510,6 +510,29 @@ ok      test (steg) (0.1s)
 ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.2s)
 ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `env GHOSTTY_SOURCE_URL=http://127.0.0.1:1/unreachable just check` exited 0 at 2026-11-15T04:30:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 47715cff72c0:
+
+```text
+ok      format check (0.1s)
+ok      lint (39.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (39.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (38.5s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```

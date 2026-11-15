@@ -19,8 +19,8 @@ affected := "uv run --quiet --project tools steg-affected"
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, the tools' own tests, and the architecture model
-check: fmt-check lint boundaries deny test test-tools architecture
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, the tools' own tests, the architecture model, and this file's own recipe names
+check: check-fmt lint check-boundaries deny test test-tools check-architecture check-recipes
 
 # the tests for the crates this change touches and the crates that depend on them (steg-affected chooses)
 test:
@@ -43,7 +43,7 @@ test-tools:
     @{{quiet}} "tool tests" -- uv run --quiet --project tools pytest -q tools/tests
 
 # build and test each package selected alone (`cargo -p`), so this is something anyone can run again
-packages:
+check-packages:
     #!/usr/bin/env bash
     set -euo pipefail
     if [ "{{rust}}" = no ]; then echo "skip    packages: no Rust workspace yet"; exit 0; fi
@@ -57,7 +57,7 @@ fmt:
     @if [ "{{rust}}" = no ]; then echo "skip    format: no Rust workspace yet"; else {{quiet}} "format" -- cargo fmt --all; fi
 
 # fail if the code is not formatted
-fmt-check:
+check-fmt:
     @if [ "{{rust}}" = no ]; then echo "skip    format check: no Rust workspace yet"; else {{quiet}} "format check" -- cargo fmt --all --check; fi
 
 # lints, with warnings as errors
@@ -69,7 +69,7 @@ deny:
     @if [ "{{rust}}" = no ]; then echo "skip    licences: no Rust workspace yet"; else {{quiet}} "licences" -- cargo deny check licenses; fi
 
 # refuse a crate dependency that crosses the boundaries in .claude/rules/architecture.md (boundaries.toml)
-boundaries:
+check-boundaries:
     @if [ "{{rust}}" = no ]; then echo "skip    boundaries: no Rust workspace yet"; else {{quiet}} "boundaries" -- uv run --quiet --project tools steg-boundaries; fi
 
 # install or check what the recipes need beyond Rust itself (cargo-deny first). Safe to run again
@@ -91,9 +91,13 @@ run:
     @if [ "{{rust}}" = no ]; then echo "skip    run: no Rust workspace yet"; else cargo run --package steg-app; fi
 
 # which crates this change affects: all, none, or the -p flags `just test` passes to cargo
-affected:
+show-affected:
     @{{affected}}
 
 # the architecture model (architecture/) validates against the LikeC4 grammar (doc-16, R108)
-architecture:
+check-architecture:
     @{{quiet}} "architecture" -- npx --yes likec4@1.61.0 validate architecture
+
+# a recipe's name starts with a verb on the list kept in tools/src/steg_tools/recipes.py (.claude/rules/just-recipes.md)
+check-recipes:
+    @{{quiet}} "recipe names" -- uv run --quiet --project tools steg-recipes

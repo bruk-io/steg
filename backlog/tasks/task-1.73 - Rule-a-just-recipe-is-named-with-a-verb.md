@@ -1,13 +1,14 @@
 ---
 id: TASK-1.73
 title: 'Rule: a just recipe is named with a verb'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:36:00Z'
+updated_date: '2026-11-15T03:43:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.33
@@ -22,8 +23,9 @@ asdlc_branch: task-1.73-rule-a-just-recipe-is-named-with-a-verb
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd0193248f056'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -259,6 +261,29 @@ created: 2026-11-15T03:36:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.73: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:41:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff matches the plan.
+
+[Bugs, Nit] justfile:49 - inside check-packages, the skip message still reads "skip    packages: no Rust workspace yet". The recipe itself was correctly renamed to check-packages everywhere else (the AC#3/AC#5 grep for `just packages` rightly finds nothing), but this one line prints a bare "packages" in the pattern `skip <recipe-name>:` used by every other recipe's skip message (compare check-boundaries's "skip boundaries"). Not an AC#5 violation since the grep that AC checked for was `just <old-name>`, but it's the one surviving spot a reader would notice the old noun in output.
+
+Everything else checked out:
+- No leftover `just boundaries|packages|affected|architecture|fmt-check` reference anywhere outside backlog/ and plugins/bruk-io-steg/ (re-ran the task's own grep plus a broader scan myself).
+- check-recipes genuinely reads `just --dump --dump-format json` (workspace.just_dump), and the Check FAILED entry for the deliberate `nope:` recipe is a real recorded run (exit 1, message naming the file), not just described in prose.
+- Private-recipe exemption is by the dump's `"private"` bool, not by name: `default` isn't on ALLOWED_VERBS, yet the real-workspace adapter test and my own `just check-recipes` run both pass, which only works if the private flag is what's exempting it.
+- No alias left behind: no `alias` line in the justfile, and the adapter test's `dump["aliases"] == {}` passed.
+- CI workflow (.github/workflows/ci.yml) names only `check`/`test-all`, neither renamed - nothing to update there, as the plan said.
+- Independently reran `just check-recipes` (ok) and the tools test suite (40 passed) on this head commit myself, not just trusting the recorded notes.
+- Checked PR 18's CI run directly: run 43673097145, conclusion SUCCESS, on headSha 56eada5b62ba32728058d8bb689e0e0b1c4e1a58, which matches the PR's current head and the task's recorded "Check passed" commit.
+- Coexistence with TASK-1.71 (PR 17): the two shared lines (justfile's check: dependency list, and .claude/rules/architecture.md's last bullet) are both edited by each PR, so whichever lands second gets an ordinary textual merge conflict - nothing is silently undone there. TASK-1.71 does add new files (crates/*/CLAUDE.md, .claude/rules/kernel.md, .claude/rules/sdk.md) that reference the old `just boundaries`/`just packages` names; those are new, non-conflicting files, so if TASK-1.71 merges after TASK-1.73 they will reintroduce old names outside backlog/plugins with no merge conflict to flag it, and check-recipes can't catch it since it checks recipe names, not prose references to them. That's a risk for TASK-1.71's own review when it lands, not a defect in this diff.
 
 ---
 <!-- COMMENTS:END -->

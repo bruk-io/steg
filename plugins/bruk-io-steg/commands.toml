@@ -17,7 +17,7 @@ needs = ["just", "uv", "a Rust toolchain", "Xcode command line tools (gpui links
 verified = 2026-11-14
 
 [lint]
-run = "just fmt-check && just lint && just boundaries && just deny"
+run = "just check-fmt && just lint && just check-boundaries && just deny"
 needs = ["just", "uv", "a Rust toolchain with rustfmt and clippy", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)"]
 verified = 2026-11-14
 

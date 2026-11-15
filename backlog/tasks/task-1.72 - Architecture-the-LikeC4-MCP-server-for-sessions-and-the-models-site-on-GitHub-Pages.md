@@ -1,17 +1,21 @@
 ---
 id: TASK-1.72
 title: 'Architecture: the LikeC4 MCP server for sessions'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:37:00Z'
+updated_date: '2026-11-15T03:44:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.33
   - TASK-1.32
+references:
+  - task-1.72-architecture-the-likec4-mcp-server-for
+  - https://github.com/bruk-io/steg/pull/19
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,6 +24,9 @@ asdlc_branch: task-1.72-architecture-the-likec4-mcp-server-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '367ae3e2b7cc'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=5'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -153,6 +160,36 @@ Permission allow rule (../../steg/.claude/settings.local.json): Bash(git -C /Use
 attachToAPane focusAPane index stegContainers stegContext stegDeployment stegPackages
 personAtMac programsInPanes macos plugin remoteHost steg steg.app steg.app.appPkg steg.app.sdk steg.cli steg.cli.sdk steg.cli.stegPkg steg.server steg.server.kernel steg.server.sdk steg.server.serverPkg steg.server.stegPkg
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:38:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72 on task-1.72-architecture-the-likec4-mcp-server-for at 5f440ca665b2:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+```
+
+Built as planned, scoped to AC#1 only (the Pages half was paused by the engineer before the build phase and its acceptance criteria were removed).
+
+What was built:
+- .mcp.json at the repository root: a project-scoped stdio server (likec4 mcp --stdio), pinned to likec4@1.61.0, the same version the model-validating `just` recipe checks against. The path arg uses ${CLAUDE_PROJECT_DIR:-.}/architecture so it resolves correctly from a task's worktree, not just the main checkout.
+- tools/src/steg_tools/likec4_mcp.py: a pure JSON-RPC response parser (parse_project_summary) plus one function (read_project_summary) that owns the subprocess and pipe - the only I/O in the module.
+- tools/tests/unit/test_likec4_mcp.py: unit tests for the parser against hand-built responses, no doubles.
+- tools/tests/adapter/test_likec4_mcp_smoke.py: an adapter test that runs the exact pinned command .mcp.json declares against this repository's real architecture/ model and asserts the seven real view ids (index, stegContext, stegContainers, stegPackages, stegDeployment, attachToAPane, focusAPane) and one element id per package (sdk, kernel, server, steg, app) come back. This now runs on every `just test-tools` / `just check`.
+- .claude/rules/architecture.md: one bullet pointing agents at the MCP server instead of reading architecture/ by hand (placed there only, not doc-16, per the engineer's direction).
+
+Which recorded check proves which clause of AC#1:
+- "configures LikeC4's MCP server... pinned to the same LikeC4 version the check uses": .mcp.json's args pin likec4@1.61.0, matching the justfile's model-validating recipe's own npx pin - visible in the diff, confirmed passing by the `just check` record-check (its "architecture" step runs the same pinned version).
+- "a session started in the repository can list the model's views and elements through it, shown by a recorded run": two recorded proofs -
+  1. `uv run --project tools pytest -v tools/tests/adapter/test_likec4_mcp_smoke.py tools/tests/unit/test_likec4_mcp.py` - the mechanical, repeatable proof: the pinned stdio server answers for the real model and every expected view/element id is present.
+  2. `timeout 180 claude -p "..." --allowedTools mcp__likec4` - a real Claude Code session, using only the likec4 MCP tools (no file reads under architecture/), printing all 7 view ids and all 17 element ids correctly. This is the literal "a session... can list" demonstration. Per code.claude.com/docs/en/mcp, a `claude -p` run loads a project-scoped .mcp.json server without the interactive approval prompt; the first *interactive* `claude` session in this repository will still see a one-time "Pending approval" for this server (not a bug - `claude mcp reset-project-choices` resets it).
+- `just check` recorded clean both before and after rebasing onto origin/main (no divergence either time - this branch was never pushed before this task).
+
+Departure from the plan: none. The plan's Part 1 was built as written; Part 2 (Pages) was dropped from scope before the build phase per the engineer, not by me.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -164,6 +201,39 @@ created: 2026-11-15T03:31:00Z
 ---
 
 Plan approved by @bruk (367ae3e2b7cc, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:38:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.72: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:44:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 5 nit. The diff does not match the plan.
+
+No Important findings; verdict clean. Pages work correctly absent from the diff (5 files: .claude/rules/architecture.md, .mcp.json, tools/src/steg_tools/likec4_mcp.py, tools/tests/adapter/test_likec4_mcp_smoke.py, tools/tests/unit/test_likec4_mcp.py - no workflow, no repository settings).
+
+AC#1: .mcp.json pins likec4@1.61.0, matching justfile's `architecture` recipe (npx --yes likec4@1.61.0 validate architecture) - the same version the check uses. The "session can list" clause has a real recorded-check entry (not prose): `timeout 180 claude -p '...' --allowedTools mcp__likec4` exited 0, recorded with asdlc record-check, run inside steg.worktrees/task-1.72 and printing all 7 view ids and 17 element ids - direct evidence the worktree case (not just the main checkout) resolves correctly via ${CLAUDE_PROJECT_DIR:-.}. The adapter test backs this mechanically: `test-tools` runs `uv run ... pytest -q tools/tests` unconditionally (justfile:43), so it cannot have been skipped when the "tool tests" step passed on PR19's head commit 5f440ca in CI run 43673271987 (SUCCESS).
+
+Nits (5):
+[Compliance, Nit] Implementation notes' "Departure from the plan: none" mislabels a disclosed delta: "What was built" correctly names tools/src/steg_tools/likec4_mcp.py and tools/tests/unit/test_likec4_mcp.py, neither in the approved plan (which put the protocol-speaking logic inline in one test file, tools/tests/test_likec4_mcp_smoke.py). The module/unit-test split itself is sound - required even, by plugins/team/rules/testing-python.md's four-layer tests/unit|functional|adapter|e2e layout and the pure-core/thin-shell style - but the summary line should say so rather than deny any departure.
+[Bugs, Nit] tools/src/steg_tools/likec4_mcp.py:124-131 (read_project_summary) reads exactly two lines and assumes they are the replies to ids 1 and 2. A notification from the server has no "id", would land under key None in parse_project_summary's by_id map, and would displace one of the two expected reads - parse_project_summary would then raise LookupError spuriously instead of the loop waiting for id 2 specifically. False-negative only, bounded by the existing timeout.
+[Bugs, Nit] Same function: stderr=subprocess.PIPE is opened but never drained or surfaced. On a TimeoutError or LookupError the server's own diagnostic output is discarded, leaving a CI failure with no clue why.
+[Nit] likec4_mcp.py:8 `from __future__ import annotations` is unneeded - tools/pyproject.toml pins requires-python >=3.15 - and isn't caught by ruff's default rule set (no pyupgrade/UP rules enabled here).
+[Compliance, Nit] .claude/rules/architecture.md: PR19's new bullet is appended directly after the "dependency from one crate on another" bullet, the exact line PR17/TASK-1.71 rewrites. Purely textual: the content composes cleanly (no semantic contradiction), but whoever merges second will hit a merge conflict there to resolve by hand.
+
+plan-matched=no: the extra production module and unit-test file are a real departure from the plan's named files, even though it's disclosed in full in "What was built" and backed by the testing-python layout rule.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:22:00Z'
+updated_date: '2026-11-15T22:34:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -40,10 +41,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c074345d1296'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1479,6 +1478,31 @@ created: 2026-11-15T22:22:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T22:34:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+No findings. Reviewed at head cd1eced5eb04a2ad08edce23562e6f73725c7e72 (origin/main...HEAD diff in a detached worktree), matching the task's own recorded final `just check` and PR #37's headRefOid (confirmed via `gh pr view 37 --json headRefOid`). PR #37 CI ("check") green at this same head in 3m55s (confirmed via `gh pr checks 37`). I also ran `just check` myself at this head: green, all 19 steps.
+
+This round addresses review #3's one Important finding: the handshake timeout was per-read (UnixStream::set_read_timeout bounds one read() call, reset on every successful partial read), not per-handshake, so a client trickling one byte inside every window held a connection and its thread open indefinitely.
+
+Fix verified by reading connection.rs line by line: `first_frame` computes `deadline = Instant::now() + handshake_timeout` once, when the connection's thread first runs `first_frame` (connection.rs:204) - not at `accept()` (listen.rs spawns the thread after `accept()` returns, with only `reap_finished`/`try_clone` in between). This means a slow thread start gives a client *more* wall-clock time from `connect()` than the configured timeout, never less - the safe direction, not attacker-extendable past one timeout's worth per thread, and in practice negligible: my own scratch repro (a 500ms `handshake_timeout`, a trickling client, run outside this worktree against the public `steg_server` API, then deleted) measured the connection closing at 501.27ms - about one `read()`'s worth of overshoot, not a multiple, confirming the deadline bounds the whole handshake tightly. `read_one` (connection.rs:122-142) calls `time_remaining(deadline, Instant::now())?` before every read and returns early via `?` on `None`, so `stream.set_read_timeout(Some(Duration::ZERO))` is unreachable by construction - confirmed by the code path and `time_remaining`'s own `exactly_at_the_deadline_is_none` unit test (connection.rs:337-341). `time_remaining`'s 4 unit tests (well-before, one-nanosecond-before, exactly-at, past) are pure arithmetic over literal `Instant`s, no sleeping.
+
+Audited the brief's other named waits, reading the code rather than taking the notes' own audit on trust: the arbitration retry loop (arbiter.rs:221, :252) takes one deadline before the loop and checks it before each `thread::sleep`, already bounded. The accept wake-up (`wake_accept`, listen.rs:138-140) is a plain `UnixStream::connect` to a local socket - succeeds or fails immediately, nothing to bound. The shutdown-then-join loop (listen.rs:293-296) relies on `shutdown(Both)` forcibly unblocking a sibling's blocked read; I reproduced this myself for the write side too (a client that connects, sends an undecodable first frame, and never reads the refusal reply, then `stop()`: my scratch repro returned in 313µs, confirming the small reply write never blocks `stop()`, consistent with the notes' own SO_SNDBUF measurement). The post-handshake hold-open read is deliberately unbounded per AC #4's second clause and correctly untouched.
+
+Ran `cargo test -p steg-server --test handshake` 10x (13/13 green every time, including the 3 new trickle/deadline tests), `cargo test -p steg-server --test shutdown` 8x (8/8 green every time, including the new trickling-handshake-stop test), and `cargo test -p steg-server --features race-fixture --test race` 8x (3/3 green every time) - no flake in any of the 26 runs.
+
+Plan-matched: no, unchanged from both prior reviews' call - the thread-joining step, the listener-closing-before-join reordering, the race-fixture feature/justfile line, and now `time_remaining`/the one-deadline handshake are all absent from the approved plan (digest c074345d1296). All are disclosed in the task's notes with reasons, so none are findings; the field itself is factual, not a judgement on the disclosure.
+
+No rule-change draft filed: no findings this round to repeat a past mistake with.
 
 ---
 <!-- COMMENTS:END -->

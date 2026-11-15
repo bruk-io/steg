@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T21:56:00Z'
+updated_date: '2026-11-15T22:00:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -387,6 +387,51 @@ against the new source by hand (the `diff -rq` check above) until it's dropped.
 Split on 2026-11-15 under the engineer's standing decision to split by default, along the five pieces the worker's plan proposed. This task is now piece one: the patch to ghostty-vt and the kernel's Terminal surfacing the event. Drafts under TASK-1 take the rest: status from a typed command in the kernel; the server passing the event to the kernel; shell integration so the marks are emitted. The worker's fourth piece (a loop turning a pane event into a kernel call with a clock reading) is not a draft: TASK-1.76, in progress, builds exactly that (Runtime::apply_event), so the server piece depends on it. The plan on this task was written for all five and is to be rewritten for piece one.
 
 Rewritten plan for piece one checked against doc-9, doc-11 (R50, R82), decision-3, doc-16 and .claude/rules/rust.md by @bruk.o: ok. The route is a 49-line addition to one file of the safe ghostty-vt crate (0.8.0, Apache-2.0), vendored under third_party/ghostty-vt-patched (508 KB) through [patch.crates-io] with the diff committed beside it and the kernel's dependency pinned to the exact version so the patch cannot silently stop applying; the worker built it, fed real OSC 133 sequences through a real kernel Terminal, ran a negative control, the offline build and just check, on a scratch copy, before writing the plan. Our crates gain no unsafe code: the kernel surfaces its own CommandMark type and a draining accessor. Nothing is opened upstream; the proposal and the steps to drop the patch are written down. Decisions for the engineer at approval: the path dependency over a git dependency. Noted, not a fault: the queue of marks has no consumer until the kernel status task (a draft) drains it.
+
+Check FAILED: `bash -lc 'export ZIG="$(mise which zig 2>/dev/null)"; just test'` exited 101 at 2026-11-15T22:00:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.79 on task-1.79-status-for-a-command-typed-at-a-shell at 9f68d4a4688b with uncommitted changes, last 40 of 64 lines:
+
+```text
+   --> crates/kernel/src/terminal.rs:884:18
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+884 |             term.take_command_marks(),
+    |                  ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:894:26
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+894 |         let first = term.take_command_marks();
+    |                          ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:895:27
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+895 |         let second = term.take_command_marks();
+    |                           ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+error[E0599]: no method named `take_command_marks` found for struct `terminal::Terminal` in the current scope
+   --> crates/kernel/src/terminal.rs:910:25
+    |
+ 33 | pub struct Terminal {
+    | ------------------- method `take_command_marks` not found for this struct
+...
+910 |         assert_eq!(term.take_command_marks(), vec![]);
+    |                         ^^^^^^^^^^^^^^^^^^ method not found in `terminal::Terminal`
+
+Some errors have detailed explanations: E0004, E0432, E0599.
+For more information about an error, try `rustc --explain E0004`.
+error: could not compile `steg-kernel` (lib test) due to 12 previous errors
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

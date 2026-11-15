@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:24:00Z'
+updated_date: '2026-11-15T03:25:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -453,6 +453,18 @@ orchestrator and @bruk to decide, not something this plan forces.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-16 (R104, R110, R111) by @bruk.o: ok. Per-package clippy configuration refuses I/O in the sdk and the kernel, with the reason in the message; a deny-features table in boundaries.toml refuses the kernel turning on the sdk's socket provider; just lint runs with all features and the provider's module carries the one reasoned exemption; just packages joins just check to catch Cargo's feature unification. Each statement has one home: lint, a path-scoped rule, or a package's CLAUDE.md. After it merges the orchestrator trims the plugin's layer rules to pointers through asdlc-plugin. The cost of just packages in check is to be measured again once the kernel builds ghostty's engine.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:25:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

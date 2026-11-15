@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.28
 title: >-
   Loosen the licence check: allow permissive licences, keep refusing GPL and
   AGPL
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-14T05:32:00Z'
 labels:

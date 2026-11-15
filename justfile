@@ -19,8 +19,8 @@ affected := "uv run --quiet --project tools steg-affected"
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, the tools' own tests, and the architecture model
-check: fmt-check lint boundaries deny test test-tools architecture
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, and the architecture model
+check: fmt-check lint boundaries deny test packages test-tools architecture
 
 # the tests for the crates this change touches and the crates that depend on them (steg-affected chooses)
 test:
@@ -42,7 +42,11 @@ test-all:
 test-tools:
     @{{quiet}} "tool tests" -- uv run --quiet --project tools pytest -q tools/tests
 
-# build and test each package selected alone (`cargo -p`), so this is something anyone can run again
+# build and test each package alone (`cargo -p`, no `--all-features`, deliberately - see below): part of
+# `check`, because a `--workspace` build unifies an optional feature on for every member that shares the
+# dependency, even one whose own Cargo.toml never asked for it (doc-16 R105, R110); building each package
+# by itself is the only way to prove the kernel never ends up able to compile against the sdk's optional
+# parts, whatever some other member turns on in the same `--workspace` run.
 packages:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -60,9 +64,10 @@ fmt:
 fmt-check:
     @if [ "{{rust}}" = no ]; then echo "skip    format check: no Rust workspace yet"; else {{quiet}} "format check" -- cargo fmt --all --check; fi
 
-# lints, with warnings as errors
+# lints, with warnings as errors. --all-features so a feature-gated module (such as the sdk's
+# local-socket provider, R103) is linted too, not silently skipped by every check that runs here
 lint:
-    @if [ "{{rust}}" = no ]; then echo "skip    lint: no Rust workspace yet"; else {{quiet}} "lint" -- cargo clippy --workspace --all-targets -- -D warnings; fi
+    @if [ "{{rust}}" = no ]; then echo "skip    lint: no Rust workspace yet"; else {{quiet}} "lint" -- cargo clippy --workspace --all-targets --all-features -- -D warnings; fi
 
 # refuse a dependency whose licence is not allowed (MIT project, nothing GPL or AGPL)
 deny:

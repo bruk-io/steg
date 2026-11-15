@@ -60,7 +60,24 @@ def test_crates_are_read_from_cargo_metadata() -> None:
             {"id": "other-id", "name": "not-a-member", "manifest_path": "/work/steg/vendor/x/Cargo.toml", "dependencies": []},
         ],
     }
+    # Neither dependency dict says `features`/`uses_default_features`, matching real `cargo
+    # metadata` output for an edge with no `features = [...]` and no `default-features = false` -
+    # Cargo's own default is "uses default features", so `default_features_on` names both here.
     assert crates_from_metadata(metadata, root) == (
-        Crate("steg-kernel", "crates/kernel", frozenset(), frozenset({"serde"})),
-        Crate("steg-server", "crates/server", frozenset({"steg-kernel"}), frozenset({"steg-kernel", "tokio"})),
+        Crate(
+            "steg-kernel",
+            "crates/kernel",
+            frozenset(),
+            frozenset({"serde"}),
+            frozenset(),
+            frozenset({"serde"}),
+        ),
+        Crate(
+            "steg-server",
+            "crates/server",
+            frozenset({"steg-kernel"}),
+            frozenset({"steg-kernel", "tokio"}),
+            frozenset(),
+            frozenset({"steg-kernel", "tokio"}),
+        ),
     )

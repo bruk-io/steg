@@ -1,16 +1,19 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:55:00Z'
+updated_date: '2026-11-15T16:58:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.75-server-dispatch-a-request-to-the-kernel
+  - https://github.com/bruk-io/steg/pull/33
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -806,6 +809,121 @@ ok      tool tests (1.2s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Built as planned, one change: Context, Outcome/into_value, map_kernel_error
+(exhaustive over kernel::Error, 13 variants including the new Engine arm),
+session.rs/tab.rs/pane.rs/api.rs's served arms, the api.call rewrite-and-
+recurse, R115's --no-focus capture-and-restore (with a rollback on
+pane.split if the given label is rejected), and spikes/api-description/
+deleted. sdk gets one addition beyond the plan's own scope: ErrorCode::
+EngineFailed (exit status 1), since kernel::Error::Engine had no code to
+map to - flagged on the plan for the engineer, who approved it with the
+plan.
+
+Which test proves which clause:
+- AC #1 (validated, dispatched, typed result, unknown method/parameter
+  refused): every per-method test in crates/server/tests/dispatch.rs
+  (session_*/tab_*/pane_*/api_* tests); api_call_with_no_target_is_a_bad_
+  request and api_call_of_an_unknown_method_is_refused_the_same_way_a_
+  direct_call_would_be for validation through api.call's own path.
+- AC #2 (every described method has an arm and every arm is described,
+  both ways; a not-built method's own distinct error naming what it
+  waits on): dispatch::tests::every_described_method_has_exactly_one_
+  handler (crates/server/src/dispatch/mod.rs, both directions against
+  description().methods); tests/dispatch.rs's every_not_yet_scenario_
+  answers_not_implemented_yet_and_changes_nothing (19 scenarios: the 15
+  whole-method not-yet cases, tab.move --to, and session.new/tab.new/
+  pane.split's cwd-or-program branch), each checked for the error code,
+  the message naming what it waits on, and the tree unchanged;
+  every_described_method_gets_a_response_with_no_panic as the smoke test
+  against arm-count drift.
+- AC #3 (every served method's result serialises to exactly its declared
+  fields): session_show_matches_exactly_the_fields_the_description_
+  declares and session_list_matches_exactly_the_fields_the_description_
+  declares_per_record (the one AC #3 names, through a real dispatch call);
+  every_served_nothing_returning_method_answers_exactly_null and every_
+  served_identifier_returning_method_answers_exactly_one_id_field for the
+  shape of every other served method; api.list/show/call excluded per the
+  sdk's own documented exemption.
+- AC #4 (every kernel error maps, with the code and exit status the
+  description gives): kernel_error::tests, one test per kernel Error
+  variant (crates/server/src/dispatch/kernel_error.rs), including engine_
+  maps_to_engine_failed... no: the Engine arm has no unit test (would need
+  ghostty-vt as a direct steg-server dependency, which doc-16 R92 does not
+  allow) - the exhaustive match itself, which fails the build on an
+  unmapped variant, is the proof for that one arm; description::methods::
+  tests::errors_has_eleven_codes_with_their_exit_statuses (steg-sdk) for
+  the exit status table, including the new EngineFailed entry.
+- AC #5 (every method callable by name; api show with no target returns
+  the whole description; api list/show/call all work): api_list_returns_
+  every_method, api_show_with_a_target_returns_one_method, api_show_with_
+  no_target_returns_the_whole_description, api_show_an_unknown_method_is_
+  no_such_target, api_call_of_pane_split_gives_the_same_response_a_direct_
+  call_would (byte-for-byte against a direct call).
+- AC #6 (creating without focus leaves the previous focus in place, R115):
+  tab_new_with_no_focus_restores_the_previous_current_tab and pane_split_
+  with_no_focus_restores_the_previous_current_pane, each comparing the
+  whole session/tab before and after (label, colour/fill, the one new
+  tab/pane added, every pre-existing tab/pane byte-for-byte unchanged),
+  not just the one field expected to move; tab_new_with_no_focus_leaves_
+  the_original_tab_current and split_set_label_then_close_the_session as
+  the plan's two named end-to-end scenarios.
+- AC #7 (spikes/api-description/ deleted): the diff itself (first commit);
+  `just check`'s architecture and check-packages steps both passed after
+  the deletion, confirming nothing else referenced it. This dangles decision
+  -1 sections 3 and 9's citations of carry-one-method/measure.py, as
+  TASK-1.43 flagged twice already - not this task's to fix, decision text
+  changes only via a PR containing nothing else.
+
+just check recorded clean on the task repeatedly, including after
+rebasing onto origin/main twice (once before any code was written, once
+at the end - neither rebase touched crates/, only board files; TASK-1.40/
+1.42/1.70 are not yet merged to main). CI green on PR #33's head.
+
+Three findings beyond the approved plan, found while building, not
+previously flagged:
+1. pane.move's target tab needs a Direction Tree::move_pane_to_tab
+   requires, but doc-2 section 8's row for pane move has no direction
+   parameter. Dispatch defaults to Direction::Right (append at the end
+   of the target tab) - a per-call choice, not a method-level not-yet,
+   since the method is otherwise fully servable. Worth a line in doc-2
+   if a caller should ever be able to ask for a different position.
+2. api.call can never carry a target method's own `target` parameter:
+   api.call's own selector is itself named `target` (per TASK-1.43's own
+   review decision, matching the convention every other method's target
+   uses), so api::call's rewrite always removes the key named `target`
+   before building the inner request - there is no second key the inner
+   method's own target could arrive under. api.call of pane.split always
+   acts on the context's default pane, never a pane named explicitly.
+   doc-2 section 2 says api.call "is for agents, and for a method a
+   plugin adds before the CLI knows it" - an agent naming a specific pane
+   is exactly the case this blocks. Not fixed here: fixing it means
+   changing the description (a second key, or renaming the selector),
+   which this plan does not authorize.
+3. unset --label (and tab.unset/session.unset's own --label) requires
+   sending some Text value on the wire, which dispatch then discards -
+   unset always clears the label regardless of what value arrives.
+   unset --label arguably wants a Switch, not a Text parameter. Also
+   TASK-1.43's description (already reviewed); flagged, not changed.
+
+crates/server/tests/dispatch.rs carries a file-level
+#![expect(clippy::unwrap_used, reason = "...")]: clippy's own
+allow-unwrap-in-tests option (root clippy.toml) only recognises
+#[cfg(test)] unit test modules, not a file under tests/, even though
+the whole file is already test-only - same as kernel's and sdk's own
+clippy.toml comment on the same setting, just hitting its one gap.
+
+Departure from the plan's file list, noted as it happened: the
+completeness test and the kernel-error-mapping test live beside their
+own code in crates/server/src/dispatch/ (mod.rs, kernel_error.rs), not
+in tests/dispatch.rs as the plan's file list named - mod.rs's own
+HANDLED-checking test needs handled()/NOT_YET_NOUNS, which are private
+to the crate (and #[cfg(test)]-only, since nothing in the production
+path reads them), so an external functional test cannot reach them.
+Everything else the plan named for tests/dispatch.rs - the per-method
+tests, the Outcome-versus-declared-fields cross-check, the position
+boundary, the api.call tests, the --no-focus tests, the two end-to-end
+scenarios - landed there as planned.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:30:00Z'
+updated_date: '2026-11-15T21:31:00Z'
 labels:
   - size-2
   - changes-requested
@@ -524,6 +524,33 @@ failures:
 test result: FAILED. 0 passed; 13 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch api_call'` exited 0 at 2026-11-15T21:31:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running tests/dispatch.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/target/debug/deps/dispatch-0966d0aaecb212ef)
+
+running 13 tests
+test api_call_refuses_to_call_itself ... ok
+test api_call_of_session_set_names_the_target_session_not_the_context_default ... ok
+test api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_call_would ... ok
+test api_call_reaches_setting_set_with_its_required_target ... ok
+test api_call_with_no_method_is_a_bad_request ... ok
+test api_call_of_pane_split_gives_the_same_response_a_direct_call_would ... ok
+test api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be ... ok
+test api_call_of_tab_set_names_the_target_tab_not_the_context_default ... ok
+test api_call_reaches_setting_show_with_its_required_target ... ok
+test api_call_of_pane_set_names_the_target_pane_not_the_context_default ... ok
+test api_call_reaches_setting_unset_with_its_required_target ... ok
+test api_call_with_a_non_text_method_is_a_bad_request ... ok
+test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.01s
 ```
 
 Commits since the review: 15, 13 without the Asdlc-Worker trailer.

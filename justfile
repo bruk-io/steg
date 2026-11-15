@@ -1,3 +1,7 @@
+# SCRATCH: this comment exists only to force steg-affected's "all" selection, so CI
+# runs `cargo test --workspace` for once, proving it executes on the macOS runner. It
+# is reverted before TASK-1.32 is finished.
+#
 # The project's entrypoints. `just` lists them. Agents and people run these, never cargo directly,
 # so the same thing runs by hand, in a task's worktree and in CI.
 #

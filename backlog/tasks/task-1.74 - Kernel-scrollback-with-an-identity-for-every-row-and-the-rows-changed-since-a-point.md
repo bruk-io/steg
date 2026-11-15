@@ -3,16 +3,20 @@ id: TASK-1.74
 title: >-
   Kernel: scrollback with an identity for every row, and the rows changed since
   a point
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:48:00Z'
+updated_date: '2026-11-15T17:08:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.39
+references:
+  - task-1.74-kernel-scrollback-with-an-identity-for
+  - https://github.com/bruk-io/steg/pull/31
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -21,6 +25,10 @@ asdlc_branch: task-1.74-kernel-scrollback-with-an-identity-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '02577a1ace6f'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=5'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -400,6 +408,47 @@ ok      test (steg) (0.1s)
 ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.2s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T16:51:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.74 on task-1.74-kernel-scrollback-with-an-identity-for at a9c3437efe6e:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Built as planned, with three small departures (also in commit message and PR body):
+
+1. The plan's method name `rows(first, max_rows)` collides with the existing `Terminal::rows(&self) -> Result<u16, Error>` (the terminal's height, from TASK-1.39). Built as `Terminal::page`.
+2. The plan's stated palette source for the scrollback/screen paging path ("the palette RenderState::colors() gives, read once via self.screen()'s own snapshot or a fresh one") would have called self.render.update() as a side effect, silently consuming the shared RenderState's dirty-tracking state that changes_since depends on - a real correctness bug found during build, not during planning. Built instead with the engine-level Terminal::color_palette() getter, which touches no RenderState at all.
+3. Added Terminal::oldest_row(&self) -> RowId, a small accessor not named in the plan: page() is unusable without some way for a caller to discover a valid starting id, and the plan did not name one.
+
+No serde wire form was given to RowId/Update/Page, matching the existing screen-family shapes (Screen/Cursor/Run/Row/CellStyle), none of which have one yet - keeps the whole family's wire-form decision in one place for TASK-1.47 (attach), where they first travel. No new dependency, boundaries.toml unchanged.
+
+Which test proves which clause, all in crates/kernel/src/terminal.rs's #[cfg(test)] module, through Terminal's own public methods only (no reads of the private engine field):
+
+- AC #1 (configurable limit, real count reported): scrollback_rows_kept_grows_as_lines_are_fed_in, the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up, the_line_limit_governs_even_past_the_engines_disabled_byte_limit (also proves the new set_scrollback_max_bytes(None) fix).
+- AC #2 (every id grows, never reused): every_row_id_grows_and_is_never_reused_for_different_content.
+- AC #3 (what a resize does to identity): a_column_changing_resize_retires_every_id_from_before_it, a_row_only_resize_never_retires_an_id.
+- AC #4 (rows changed since a point; a caller too far behind gets everything): changes_since_gives_a_full_screen_to_a_caller_with_no_point, changes_since_reports_unchanged_when_nothing_happened_since_the_last_call, changes_since_reports_a_delta_of_only_the_changed_rows, changes_since_gives_a_stale_or_foreign_point_a_full_screen_not_a_partial_one.
+- AC #5 (serves several readers, or names the task that will): two_callers_sharing_one_terminal_must_each_track_their_own_point - demonstrates the single-RenderState limitation directly through the public API, and the doc comments on changes_since name TASK-1.47's fan-out job precisely.
+
+just check recorded clean four times on the task, the last after rebasing onto origin/main with no conflicts (TASK-1.40/1.42/1.70's parallel work had not yet touched crates/kernel/src/terminal.rs or crates/sdk/src/screen.rs at rebase time). CI green on PR #31 at its head (run 43737855693).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -411,6 +460,49 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (02577a1ace6f, size-3): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T16:54:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.74: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T17:02:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 5 nit. Cites: review. The diff matches the plan.
+
+No Important findings. Checked clause by clause against doc-9 R15, doc-14, doc-16 R105, and decision-2 sections 3 and 6, with ghostty-vt 0.8.0's real source read from the cargo registry (render.rs, terminal.rs, screen.rs, style.rs) to verify every engine-API claim: RenderState::update's doc comment confirming dirty state is global and consumed on first read (grounding the one-RenderState-per-Terminal rule); Dirty::{Clean,Partial,Full} and RowIteration::next_dirty's own doc comment matching the Delta/Full branching in changes_since; Options::default().max_scrollback = 10_000_000 bytes and set_scrollback_max_bytes's own doc comment ("the first limit reached wins... None removes the byte limit") confirming the AC #1 fix is real and necessary; Style.fg_color/bg_color/underline_color are unresolved StyleColor on both the render-state and point-lookup paths, confirming resolved_cell_style's shared resolution is a genuine fix for a latent inconsistency, not redundant; Palette(pub [RgbColor; 256]) confirming the plan's departure (engine-level color_palette() instead of RenderState::colors()) is correctly unpacked via .0; PointCoordinate.y documented 0-indexed, "may exceed page size for screen/history tags", consistent with page()'s absolute addressing; grid_ref's own doc comment ("isn't meant to be used as the core of render loop... may require traversing the full scrollback page list") matching the plan's stated cost caveat.
+
+Row identity (AC #2) and the epoch rule (AC #3): offset/epoch arithmetic in page() (terminal.rs ~297-321) is correct by inspection at the boundaries named in review - the floor (first.offset < rows_scrolled_off), an id from a prior epoch (first.epoch != self.epoch), and one past the newest row (start >= total, verified off-by-one correct) - all answer gone, never substituted, matching Page's documented contract exactly. resize()'s unconditional epoch bump on any column-count change (regardless of whether a prune actually happened) is the plan's stated, deliberate answer to "pruning and reflow can't be told apart from outside" - confirmed against the engine's own set_scrollback_max_bytes doc comment, which admits page-granularity pruning is approximate by nature. changes_since (AC #4, #5) matches the plan's stated behaviour for every named case: no point, a stale point, a point from another caller, Unchanged on a second call with nothing written, and the single-shared-RenderState limitation demonstrated through the public API. Events are drained after every engine call that can queue one; none of this task's new methods (changes_since, scrollback_rows_kept, oldest_row, page) write to the engine, so none needed to. No new dependency in either Cargo.toml, crates/kernel/clippy.toml and boundaries.toml both unchanged, #![forbid(unsafe_code)] holds, no unwrap/panic outside #[cfg(test)], no tree/pane/session file touched. CI green at the PR's head a9c3437 (run 43737855693), matching the task's own last recorded `just check` at the same commit.
+
+Two things worth recording rather than treating as findings, since the review brief asked specifically about them: (1) the grounding experiment "a resize can itself prune, with no write() call anywhere near it" (distinct from reflow alone inflating total_rows) is not independently re-tested - the two resize/identity tests only show id retirement, which the code applies uniformly to every column-changing resize whether or not real pruning occurred, so they can't distinguish the two cases. Given the plan's own reasoning that pruning and reflow are observationally identical from outside the engine, a test isolating "real pruning happened" from "pure reflow" is likely not constructible even in principle, not just hard via the public API. (2) The second experimental claim ("a second independent RenderState's own first update() comes back Clean, having had the dirty state already consumed by the first") has no literal test either, and none is possible through Terminal's public API by design: Terminal intentionally creates exactly one RenderState for its whole life and never exposes a way to create a second. two_callers_sharing_one_terminal_must_each_track_their_own_point is the closest available proxy - it demonstrates the consequence (a second caller displaces the first as "current," and the first's own next call gets Full, not a delta) through the public API, which is the most that can be shown without the forbidden private-engine-field access testing-rust.md rules out.
+
+Nits (5, at the cap):
+- [Evidence, Nit] crates/kernel/src/terminal.rs: page() - no test requests a page that spans the seam between scrollback and the live viewport (e.g. starting a few rows before the end of scrollback and reading into the active screen). decision-2 section 3 names exactly this seam disagreeing as the historical bug that motivated absolute-identity addressing in the first place; every page test here stays wholly within one region.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:297-307 - no test exercises the newest-row boundary: the current last row's id resolving successfully, and exactly one id past it coming back gone. The code looks correct by inspection (`start >= total`), but only the oldest/pruned-floor boundary is exercised by a committed test; review asked for both ends.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:resize() - no test resizes to the exact same size (same cols and rows) to confirm a no-op resize does not bump the epoch. Only a column-changing resize and rows-only resizes (in both directions) are tested.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:page() - no test requests max_rows larger than what scrollback_rows_kept() actually holds. end = start.saturating_add(usize::from(max_rows)).min(total) looks correct by inspection, but this named scenario is untested.
+- [Evidence, Nit] See the two paragraphs above (grounding claims re-established by test): recorded as notes rather than counted again here.
+
+Checked and clean beyond the above: the sdk/kernel split (RowId/Update/Page carry no engine type, no serde derives, matching the rest of the screen family per the worker's own disclosed departure), the three disclosed plan departures (Terminal::page rename, engine-level color_palette() instead of RenderState::colors() to avoid stealing changes_since's dirty state, and the new oldest_row() accessor) are all sound engineering corrections with real reasons, not scope creep, and the rebase onto origin/main (no conflicts with the four parallel sdk/lib.rs-touching tasks) is exactly the known, accepted conflict named in the review brief.
+
+---
+
+created: 2026-11-15T17:08:00Z
+
+---
+
+After the clean review at a9c3437, the worker added four tests the review's nits asked for (23d5928: a page across the scrollback/live-screen seam, the newest-row boundary, a same-size resize, max_rows larger than what is kept) and merged main (head 7ea0bf5). Tests only, no non-test hunk; read by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 7ea0bf5.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,16 +1,20 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:50:00Z'
+updated_date: '2026-11-15T17:12:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.70-sdk-the-protocol-s-logic-and-the-local
+  - https://github.com/bruk-io/steg/pull/30
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,9 @@ asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2aa568c163d'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -479,6 +486,112 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built as the approved plan's two commits, with the hard boundary kept: half A (crates/sdk/src/wire/) has zero I/O and zero feature-gating; half B (local_socket.rs, paths.rs) is entirely behind the local-socket feature and carries the crate's one #[expect].
+
+AC -> test:
+- AC #1 (frames/handshake/stream state, no I/O): wire/frame.rs, wire/handshake.rs, wire/connection.rs unit tests - all in-memory.
+- AC #2 (consumer supplies the transport; client+server in memory): crates/sdk/tests/connection.rs - a Role::Client and Role::Server Connection shuttling bytes through a plain Vec<u8>, no socket.
+- AC #3 (local-socket provider connects, or starts one and waits, or refuses to): crates/sdk/tests/local_socket.rs against a temp-dir listener and a fake-server-for-tests [[bin]] fixture - connects without spawning when a listener is bound, refuses with autostart:false, spawns and waits successfully, times out when nothing ever binds.
+- AC #4 (version mismatch names both versions): wire/handshake.rs's mismatch tests (both directions) and tests/connection.rs's end-to-end refusal case.
+- AC #5 (method called by name, validated against the Description, result/error matched by id, events as typed values, nothing hand-written): wire/connection.rs's call()/reply() and event-resolution tests, plus tests/connection.rs's full round trip; call() reuses TASK-1.43's description::validate, and events are resolved against the Description (Description::event(), a small addition mirroring method()) into Event vs UnknownEvent rather than a bare string.
+- AC #6 (no GPUI type/async runtime in the public interface): no code proof needed beyond boundaries.toml's [steg-sdk] allow list (serde, serde_json only) plus just check-boundaries - this task adds no dependency.
+
+Checks recorded on this task via asdlc record-check (just check, full green each time) before and after rebasing onto origin/main twice (TASK-1.40/1.42/1.74/1.75 landed board-notes commits in the meantime, no code collisions). CI on PR #30 passed.
+
+Three things worth a reviewer's attention, each already flagged in the plan or discovered while building:
+1. ClientId (ids.rs) and ClientKind (client_kind.rs) are TASK-1.42's own planned shapes; this task landed first, so they're created here exactly as that task's plan describes them (from_raw/into_raw/Display/FromStr/serde hex form; App/Cli/Plugin snake_case word). TASK-1.42 should find them already in place.
+2. The provider's spawn step runs the already-public `<binary> server start --on-demand`, not a private subcommand - description::methods' server.start method gained the on_demand switch the team lead and engineer approved, matching the already-updated doc-2 row.
+3. The local-socket feature's own behavioural tests had to move to an integration test (tests/local_socket.rs), not stay as local_socket.rs's own #[cfg(test)] unit tests: CARGO_BIN_EXE_<name> (needed to find the fixture binary) is only set for tests under tests/, not for a lib crate's own unit test binary - found while building, not assumed. That integration test carries its own second #[expect(clippy::disallowed_types)] (only that one lint fires there, not disallowed_methods) for the same reason the production module does - a test proving socket-finding behaviour has to touch a real socket. Also added a justfile step (check-packages runs steg-sdk a second time with --features local-socket) so these tests actually run under just check, since neither the default build/test nor lint's --all-features (which never executes a test) would otherwise exercise them.
+
+Check FAILED: `cargo test -p steg-sdk --lib wire::frame` exited 101 at 2026-11-15T17:03:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at 0b6aacde5acd with uncommitted changes, last 40 of 47 lines:
+
+```text
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_whole ... ok
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_declared_length_of_five_decodes_fed_a_byte_at_a_time ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::a_declared_length_of_five_the_smallest_accepted_decodes_an_empty_payload_fed_whole ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole ... FAILED
+test wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time ... FAILED
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... FAILED
+
+failures:
+
+---- wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole stdout ----
+
+thread 'wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole' (7018920) panicked at crates/sdk/src/wire/frame.rs:348:9:
+assertion failed: matches!(decoder.next_frame(), Err(FrameError::Malformed(_)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time stdout ----
+
+thread 'wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time' (7018919) panicked at crates/sdk/src/wire/frame.rs:364:17:
+assertion failed: matches!(result, Err(FrameError::Malformed(_)))
+
+---- wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection stdout ----
+
+thread 'wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection' (7018924) panicked at crates/sdk/src/wire/frame.rs:406:9:
+assertion failed: matches!(first, Err(FrameError::Malformed(_)))
+
+
+failures:
+    wire::frame::tests::a_declared_length_of_four_is_malformed_fed_a_byte_at_a_time
+    wire::frame::tests::a_declared_length_of_four_the_largest_refused_length_is_malformed_fed_whole
+    wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection
+
+test result: FAILED. 11 passed; 3 failed; 0 ignored; 0 measured; 96 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:06:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at a4a7c3556368 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 24, 24 without the Asdlc-Worker trailer.
+
+Review findings addressed (PR 30, commit 6e18352):
+
+1. Important - Decoder::next_frame's declared-length-under-the-header bound had no test. Added wire/frame.rs tests at the bound: 0 and 4 (refused as Malformed) and 5 (the smallest accepted, a zero-payload frame), each fed whole and a byte at a time - six new tests. Bit the proof: temporarily changed `declared_len < HEADER_LEN` to `declared_len < HEADER_LEN - 1`, ran `cargo test -p steg-sdk --lib wire::frame` through asdlc record-check (recorded exit 101, three of the new tests failed exactly as expected), then restored the original bound and confirmed green again.
+
+2. Important - connect()'s ConnectError::Spawn was never reached through connect() itself. Added two tests in tests/local_socket.rs: a binary path that does not exist, and a real file that exists but is not executable (written via std::fs::write with no execute bit) - both with autostart on and nothing listening, both now asserting connect() returns Err(ConnectError::Spawn(_)). The does-not-exist test also times the call and asserts it returns in well under a second against a 5-second connect_timeout: spawn() fails synchronously when exec itself fails, so connect() returns ConnectError::Spawn immediately, before ever reaching the retry loop's deadline - stated now on connect()'s own doc comment, and in an inline comment at the spawn() call site.
+
+3. Nit - stated the convention that a Decoder::next_frame error (TooLarge/Malformed) is fatal: it does not drain the buffer, so calling it again repeats the identical error for ever rather than ever resynchronising; documented on Decoder's own struct doc, next_frame's doc, Incoming::Malformed's doc, and Connection::poll's doc (the caller is expected to drop the connection, not keep polling it). Pinned with a new wire/frame.rs test asserting three successive next_frame() calls after one Malformed input all return the same error.
+
+4. Nit - documented on connect()'s doc comment that it never wait()s on the spawned child, and what that means for a long-lived consumer (the app) calling it with autostart repeatedly: a process-table entry accumulates per call until the consumer itself exits, for as long as the real server takes to detach and exit the process this spawned - attributed to TASK-1.44's own detaching code to keep short, which this function cannot avoid by waiting (R99 forbids that). Also left as a line here for TASK-1.44 to read when it builds the real detaching.
+
+No plan change - all four are within the approved design (tests and doc comments), not new behaviour.
+
+Checks: `just check` recorded via asdlc record-check at the new head (full green), after merging origin/main (board-notes-only commits from TASK-1.40/1.42/1.74/1.75's workers landed in the meantime, no code collisions - confirmed by diffing crates/ and justfile against origin/main before merging). CI on PR 30's new head (6e18352) passed.
+
+AC -> test list from the original build is unchanged in substance; the two Important findings' fixes slot into the existing AC #1 (frame/decoder, no I/O) and AC #3 (local-socket provider) rows - AC #1's proof now also covers the declared-length-under-header bound explicitly, and AC #3's proof now also covers the Spawn error path explicitly, both previously implied but untested.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -490,6 +603,72 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (d2aa568c163d, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:53:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:59:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Bugs/Evidence, Important] crates/sdk/src/wire/frame.rs:190-194 - Decoder::next_frame's check for a declared length smaller than the 5-byte header (returning FrameError::Malformed) has zero test coverage anywhere in the crate. This is exactly the hostile-input case the review brief named ("a length under the header size"); nothing in frame.rs's own tests, connection.rs's unit tests, or tests/connection.rs exercises it, so a regression here (e.g. an off-by-one on the bound, or a panic from indexing before the length check) would go undetected.
+
+[Bugs/Evidence, Important] crates/sdk/src/local_socket.rs:144 and crates/sdk/tests/local_socket.rs - connect()'s ConnectError::Spawn path (binary cannot be executed, with autostart:true and nothing listening) is never exercised through connect() in any test, even though the review brief explicitly named "what happens if the binary does not exist" as a case to prove. The two tests that build binary_that_cannot_execute() both short-circuit before Command::spawn() is ever called (one via an already-bound listener so connect succeeds first, one via autostart:false so the NoServerRunning branch returns first); the only test touching ConnectError::Spawn checks Display formatting of a fabricated error, not that connect() itself returns that variant on a real spawn failure.
+
+[Nit] crates/sdk/src/wire/frame.rs: next_frame does not drain the buffer on a Malformed error (unknown kind tag, undersized length), so a caller that calls poll() again after seeing one Malformed sees the identical error forever rather than the connection ever being able to recover. Likely fine if every caller treats Malformed as fatal and drops the connection, but that convention isn't stated.
+
+[Nit] crates/sdk/src/local_socket.rs: connect() never wait()s on the spawned Child (by design, per the plan). If a long-lived consumer (the app) calls connect with autostart repeatedly over its lifetime and the real server's own detach leaves a short-lived intermediate process, this accumulates zombie process-table entries until the consumer exits. Attributed to TASK-1.44's detaching code, but worth a line noting the consumer-side consequence explicitly.
+
+Everything else checked out: the two-commit boundary is clean (half A is I/O-free and feature-gate-free; half B is entirely behind local-socket, carrying the crate's one #[expect] plus its test-module twin, both scoped correctly per .claude/rules/sdk.md); the ClientId/ClientKind definitions match TASK-1.42's own plan verbatim (confirmed by reading TASK-1.42's plan directly); server.start's on_demand switch matches doc-2's already-approved row; no new dependency in Cargo.toml or boundaries.toml, and boundaries.toml's existing deny-features still blocks steg-kernel from local-socket; the justfile gap is fixed and CI on the PR's head commit (0b6aacde) shows "test (steg-sdk, local-socket)" actually running and passing under just check; the recorded just check is at the branch head. All the hostile-input cases I could find tests for (oversized length incl. the exact 0xFFFF_FFFF case, truncated/byte-at-a-time frames, two frames in one push, unknown kind tag, bad magic, non-JSON hello, missing field, unknown field ignored, client-newer and server-newer version mismatches both naming both versions, data on an unregistered stream, event name not in the Description) are present and look correct by inspection.
+
+A matching open draft already exists (DRAFT-1, "a named error/edge-case branch needs a test exercising it, not just a happy-path test", filed against TASK-1.39/TASK-1.35) that covers exactly this mistake pattern, so no new rule-change draft was filed for it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T17:09:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T17:12:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff matches the plan.
+
+Second review, head 6e18352 (PR #30). Both Important findings from the prior review (bruk.r2, 0b6aacde) are genuinely fixed:
+
+1. [Bugs/Evidence] crates/sdk/src/wire/frame.rs - Decoder::next_frame's declared-length-under-header bound (HEADER_LEN=5) is now covered by six new tests (declared length 0 and 4 refused as Malformed, 5 accepted as the smallest zero-payload frame, each fed whole and a byte at a time). The worker recorded a deliberate-fault run (temporarily changed the bound to `< HEADER_LEN - 1`) that failed exactly these new tests (exit 101, recorded on the task at 17:03:35), then restored it - real proof the tests can fail.
+
+2. [Bugs/Evidence] crates/sdk/src/local_socket.rs - connect()'s ConnectError::Spawn path is now reached through connect() itself by two new tests in tests/local_socket.rs (autostart:true, nothing listening, binary path nonexistent or non-executable-but-present). Read connect()'s production code (crates/sdk/src/local_socket.rs:131-170): both paths genuinely call Command::spawn() and surface its io::Error via ConnectError::Spawn - not a fabricated-error Display test. The "elapsed < 1s against a 5s connect_timeout" assertion is not flake-prone: spawn() failure (ENOENT/EACCES) is a synchronous syscall failure, not a scheduling-dependent wait.
+
+Both nits from the prior review are addressed with doc comments (Decoder's struct doc, next_frame's doc, Incoming::Malformed's doc, Connection::poll's doc stating the fatal/non-draining convention; connect()'s doc stating the never-wait()s-on-the-child consequence for a long-lived caller), each pinned by a test where one was feasible (next_frame's "repeats forever" test).
+
+CI on PR #30's head (6e18352) is green ("check" workflow, SUCCESS), and the recorded `just check` at this head shows "test (steg-sdk, local-socket)" passing, so the local-socket feature's tests are proven to run under just check (the justfile gap fix, verified at justfile:98-117, and boundaries.toml's steg-sdk allow-list/deny-features, verified unchanged). No new dependency. ClientId/ClientKind, the doc-2 on_demand switch, and the two-commit half A/half B boundary all match the plan, consistent with the prior review's own findings on those points, which I re-checked by reading the diff directly rather than relying on the earlier review's word.
+
+[Nit] crates/sdk/tests/local_socket.rs, binary_that_exists_but_is_not_executable() - writes a uniquely-named temp file via std::fs::write and never removes it; harmless (OS temp dir, unique per process+counter) but a small accumulating leak across test runs.
+
+No findings repeat a mistake from an earlier review of a different task (the one earlier citation, DRAFT-1, already covers this pattern and was already filed), so no new rule-change draft.
 
 ---
 <!-- COMMENTS:END -->

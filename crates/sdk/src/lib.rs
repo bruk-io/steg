@@ -37,4 +37,6 @@ pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
 pub use record::SessionRecord;
-pub use screen::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Screen, Underline, Wide};
+pub use screen::{
+    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+};

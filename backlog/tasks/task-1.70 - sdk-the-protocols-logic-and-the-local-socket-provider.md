@@ -1,16 +1,19 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:50:00Z'
+updated_date: '2026-11-15T16:53:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.43
+references:
+  - task-1.70-sdk-the-protocol-s-logic-and-the-local
+  - https://github.com/bruk-io/steg/pull/30
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -479,6 +482,23 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
 ```
+
+Built as the approved plan's two commits, with the hard boundary kept: half A (crates/sdk/src/wire/) has zero I/O and zero feature-gating; half B (local_socket.rs, paths.rs) is entirely behind the local-socket feature and carries the crate's one #[expect].
+
+AC -> test:
+- AC #1 (frames/handshake/stream state, no I/O): wire/frame.rs, wire/handshake.rs, wire/connection.rs unit tests - all in-memory.
+- AC #2 (consumer supplies the transport; client+server in memory): crates/sdk/tests/connection.rs - a Role::Client and Role::Server Connection shuttling bytes through a plain Vec<u8>, no socket.
+- AC #3 (local-socket provider connects, or starts one and waits, or refuses to): crates/sdk/tests/local_socket.rs against a temp-dir listener and a fake-server-for-tests [[bin]] fixture - connects without spawning when a listener is bound, refuses with autostart:false, spawns and waits successfully, times out when nothing ever binds.
+- AC #4 (version mismatch names both versions): wire/handshake.rs's mismatch tests (both directions) and tests/connection.rs's end-to-end refusal case.
+- AC #5 (method called by name, validated against the Description, result/error matched by id, events as typed values, nothing hand-written): wire/connection.rs's call()/reply() and event-resolution tests, plus tests/connection.rs's full round trip; call() reuses TASK-1.43's description::validate, and events are resolved against the Description (Description::event(), a small addition mirroring method()) into Event vs UnknownEvent rather than a bare string.
+- AC #6 (no GPUI type/async runtime in the public interface): no code proof needed beyond boundaries.toml's [steg-sdk] allow list (serde, serde_json only) plus just check-boundaries - this task adds no dependency.
+
+Checks recorded on this task via asdlc record-check (just check, full green each time) before and after rebasing onto origin/main twice (TASK-1.40/1.42/1.74/1.75 landed board-notes commits in the meantime, no code collisions). CI on PR #30 passed.
+
+Three things worth a reviewer's attention, each already flagged in the plan or discovered while building:
+1. ClientId (ids.rs) and ClientKind (client_kind.rs) are TASK-1.42's own planned shapes; this task landed first, so they're created here exactly as that task's plan describes them (from_raw/into_raw/Display/FromStr/serde hex form; App/Cli/Plugin snake_case word). TASK-1.42 should find them already in place.
+2. The provider's spawn step runs the already-public `<binary> server start --on-demand`, not a private subcommand - description::methods' server.start method gained the on_demand switch the team lead and engineer approved, matching the already-updated doc-2 row.
+3. The local-socket feature's own behavioural tests had to move to an integration test (tests/local_socket.rs), not stay as local_socket.rs's own #[cfg(test)] unit tests: CARGO_BIN_EXE_<name> (needed to find the fixture binary) is only set for tests under tests/, not for a lib crate's own unit test binary - found while building, not assumed. That integration test carries its own second #[expect(clippy::disallowed_types)] (only that one lint fires there, not disallowed_methods) for the same reason the production module does - a test proving socket-finding behaviour has to touch a real socket. Also added a justfile step (check-packages runs steg-sdk a second time with --features local-socket) so these tests actually run under just check, since neither the default build/test nor lint's --all-features (which never executes a test) would otherwise exercise them.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

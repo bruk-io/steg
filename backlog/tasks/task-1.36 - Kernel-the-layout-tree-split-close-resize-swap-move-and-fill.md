@@ -1,14 +1,14 @@
 ---
 id: TASK-1.36
 title: 'Kernel: the layout tree: split, close, resize, swap, move and fill'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:38:00Z'
+updated_date: '2026-11-15T04:59:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.35
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc26154daf58'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
 ---
 
@@ -261,6 +260,139 @@ R112 (pane order, counted from one, unchanged by resize): panes_are_in_layout_or
 R113 / TASK-1.37's interface (Direction named distinctly from Orientation; Tab::neighbour/DirectionalFocus; exact-rectangle neighbour and wrap, not reading order): neighbour_returns_the_adjacent_pane_when_one_exists, neighbour_returns_edge_when_none_exists_and_wrap_is_false, neighbour_wraps_to_the_far_end_of_the_tabs_order_when_wrap_is_true (name predates the geometry rewrite; it now wraps by rectangle, verified correct for a two-pane tab), neighbour_and_wrap_are_both_edge_in_every_direction_for_a_single_pane_tab (tab.rs); sdk-level (crates/sdk/src/layout.rs): neighbour_moving_right_from_bottom_left_lands_on_bottom_right_not_top_right, neighbour_from_a_pane_spanning_two_rows_takes_the_upper_pane_across_a_column_split, wrap_from_the_rightmost_pane_lands_on_the_leftmost_pane_in_its_own_row_not_another_row, neighbour_is_none_for_a_single_pane_tab_in_every_direction, far_edge_pane_is_none_for_a_single_pane_tab_in_every_direction, leaf_rects_gives_adjacent_leaves_exactly_equal_touching_boundaries (the exactness claim), leaves_are_depth_first_first_before_second, leaf_sizes_sum_exactly_to_the_total_on_an_uneven_ratio, bordering_split_finds_the_nearest_ancestor_matching_the_directions_axis, bordering_split_is_none_at_the_tabs_own_edge, inherited_size_gives_a_splits_own_rectangle_before_its_own_ratio.
 
 Reviewer, please look closest at: the borrow-checker workarounds in layout.rs (bordering_split_mut computed via a path rather than a direct recursive &mut, and insert_leaf/remove_leaf mutating entirely in place via *layout = ... rather than returning references) — both are explained in their own doc comments, but are the least obvious code in this change. Also tab.rs's clamp_ratio_to_floor: it returns the nearest ratio to the request on either side (tested exactly in resize_pane_stops_exactly_at_the_floor_instead_of_going_below_it), which is a slightly more general reading of "stops at the floor" than a plain one-directional walk — flagged in the plan's notes as my own refinement during build, not a departure requiring replanning.
+
+Check FAILED: `cargo test -p steg-sdk -p steg-kernel` exited 101 at 2026-11-15T04:45:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at d2f05c6c834e with uncommitted changes, last 40 of 120 lines:
+
+```text
+test tree::tests::closing_a_sessions_only_tabs_only_pane_ends_the_session ... ok
+test tree::tests::closing_a_tabs_last_pane_closes_the_tab_without_ending_a_session_that_has_others ... ok
+test tree::tests::closing_one_of_several_panes_cascades_no_further_than_it_should ... ok
+test tree::tests::closing_one_of_several_tabs_cascades_no_further_than_it_should ... ok
+test tree::tests::move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane ... ok
+test tree::tests::move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes ... ok
+test tree::tests::move_pane_to_tab_leaves_both_tabs_with_a_valid_tree ... ok
+test tree::tests::move_pane_to_tab_refuses_a_panes_own_tab ... ok
+test tree::tests::move_session_reorders_and_rejects_an_out_of_range_position ... ok
+test tree::tests::move_tab_reorders_a_sessions_tabs ... ok
+test tree::tests::new_session_gives_the_first_five_sessions_distinct_colours_in_order ... ok
+test tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id ... ok
+test tab::tests::an_unrelated_already_under_floor_pane_does_not_block_a_resize_elsewhere ... ok
+test tree::tests::new_session_sets_the_label_given_to_it ... ok
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+
+failures:
+
+---- tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split stdout ----
+
+thread 'tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split' (4738308) panicked at crates/kernel/src/tab.rs:1072:9:
+assertion `left == right` failed
+  left: Ratio(700)
+ right: Ratio(500)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split
+
+test result: FAILED. 97 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk` exited 101 at 2026-11-15T04:45:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at d2f05c6c834e with uncommitted changes, last 40 of 55 lines:
+
+```text
+test layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor ... FAILED
+test layout::tests::leaf_sizes_sum_exactly_to_the_total_on_an_uneven_ratio ... ok
+test layout::tests::leaf_rects_gives_adjacent_leaves_exactly_equal_touching_boundaries ... ok
+test layout::tests::leaves_are_depth_first_first_before_second ... ok
+test layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth ... FAILED
+test layout::tests::neighbour_from_a_pane_spanning_two_rows_takes_the_upper_pane_across_a_column_split ... ok
+test layout::tests::neighbour_is_none_at_the_tabs_own_edge ... ok
+test layout::tests::neighbour_is_none_for_a_single_pane_tab_in_every_direction ... ok
+test layout::tests::neighbour_moving_right_from_bottom_left_lands_on_bottom_right_not_top_right ... ok
+test layout::tests::wrap_from_the_rightmost_pane_lands_on_the_leftmost_pane_in_its_own_row_not_another_row ... ok
+
+failures:
+
+---- layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level stdout ----
+
+thread 'layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level' (4740840) panicked at crates/sdk/src/layout.rs:838:37:
+expected a leaf, found a split
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor stdout ----
+
+thread 'layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor' (4740845) panicked at crates/sdk/src/layout.rs:838:37:
+expected a leaf, found a split
+
+---- layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth stdout ----
+
+thread 'layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth' (4740848) panicked at crates/sdk/src/layout.rs:909:9:
+assertion `left == right` failed
+  left: Some(Size { columns: 800, rows: 10 })
+ right: Some(Size { columns: 200, rows: 10 })
+
+
+failures:
+    layout::tests::bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level
+    layout::tests::bordering_split_mut_also_finds_the_innermost_ancestor
+    layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth
+
+test result: FAILED. 18 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T04:46:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at efb640b67adf:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Fixed all four review findings (2 Important, 2 nits); no plan change needed, as the reviewer noted the logic was already correct everywhere traced.
+
+1. [Important] Deep nesting with repeated orientation untested, same shape as the mid-build bug. Added outer{mid{inner{A,B},C},D} (all Horizontal) fixtures: sdk layout.rs tests bordering_split_finds_the_innermost_ancestor_not_the_outermost_at_the_deepest_level (A), bordering_split_finds_the_matching_ancestor_at_a_middle_depth (C), bordering_split_finds_the_outermost_split_for_a_leaf_at_the_top_level (D), bordering_split_mut_also_finds_the_innermost_ancestor, and inherited_size_matches_the_innermost_bordering_split_at_each_depth (all three depths' sizes: 200x10, 400x10, 800x10). Kernel tab.rs test resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split builds the same shape via split_pane and asserts, by reading the private layout field, that resize_pane changes only the innermost split's ratio and leaves mid's and outer's at 500.
+
+Confirmed these catch the regression as asked: reverted bordering_split_ref, bordering_split_path and inherited_size_at to the old outermost-first check order locally, ran cargo test -p steg-sdk (3 failures) and cargo test -p steg-sdk -p steg-kernel (the kernel one surfaces too), recorded both failing runs with asdlc record-check (exit 101 each, visible on the task), then restored the fix and reran clean before continuing.
+
+2. [Important] move_pane_to_tab's SplitTooSmall refusal was untested. Added tree.rs's move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes: shrinks the target tab to 39 columns (halves to 19/19, under the floor), asserts the SplitTooSmall error naming the target's current pane, and compares the whole of both tabs (source and target) before and after via Tab's derived PartialEq, which covers layout, pane order, current pane and fill together in one assertion rather than four separate hand-picked ones.
+
+3. [Nit] resize_pane_clamps_upward_when_the_requested_ratio_would_starve_the_near_side (a too-low ratio clamps up to 200) and resize_pane_leaves_an_already_legal_ratio_unchanged (500 on a 100-column split returns 500 unchanged) — the shipped suite had only exercised the downward clamp.
+
+4. [Nit] closing_the_current_pane_whose_sibling_is_a_multi_leaf_split_picks_the_promoted_subtrees_first_leaf: builds {A, {B, C}} then swap_panes(A, C) so C (current) sits at the position whose sibling {B, A} is multi-leaf (swap moves positions, not the `current` id), then closes C and asserts current becomes B — the promoted subtree's own first leaf in R112 order, as the rule's wording says, named explicitly here since no prior test exercised a multi-leaf promotion.
+
+Re-merged origin/main twice more (board-only commits each time, no code conflicts) and recorded just check clean at the final head (efb640b) via asdlc record-check. Pushed to the same branch; pull request https://github.com/bruk-io/steg/pull/23 is unchanged (same branch, new commit).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -302,6 +434,44 @@ Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/kernel/src/tab.rs close_pane / remove_pane_for_move: the current-pane repair ("set current to the first entry of layout.leaves() for whatever now occupies its place") is only tested when the promoted sibling is a single leaf. No test closes the current pane when its sibling is itself a multi-leaf split, which is the case the "first entry of... whatever now occupies its place" wording specifically exists for.
 
 Everything else checked out. AC #1-#6 each have a specific test behind every clause, including both floor dimensions (split_pane_is_refused_when_the_undivided_dimension_is_already_under_the_floor) and the subtree-scoped resize floor (an_unrelated_already_under_floor_pane_does_not_block_a_resize_elsewhere). R112's panes()/layout.leaves() sync is enforced by one helper (reorder_panes_to_match_layout) and guarded by a debug_assert on every path that leaves a tab non-empty. R113's neighbour/far_edge_pane geometry uses exact Fraction cross-multiplication with no floating point anywhere, and I verified the tie-break and the diagonal/tall-pane cases named in the plan by reading the code and the existing tests. Tree::new_pane/Tab::add_pane are fully removed with no remaining callers (confirmed by git grep); target.rs's resolve functions were updated for the new split_pane-based API and still pass. just check (fmt, lint, boundaries, licences, affected tests, per-package build/test, tool tests, architecture) passes cleanly when run directly against the PR's head commit a41ec39, matching the PR's own CI run (43677018327, SUCCESS) on that same commit; the task's two recorded `just check` runs were made against local worktree commits that, by timestamp, bracket the final "Format target.rs" commit correctly (the second recorded check's timestamp postdates that commit by about 13 seconds), so the recorded evidence is not stale despite the differing commit hashes (expected from the worktree-to-pushed-branch rebase).
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:47:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.36: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:54:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review from a fresh read of the diff at origin/task-1.36-kernel-the-layout-tree-split-close head (efb640b) against the plan, AC #1-#6, and doc-15 R100/R112/R113, in a fresh worktree.
+
+All four prior findings are closed, each independently verified, not just read:
+
+1. [bordering_split outermost-vs-innermost regression test] Reproduced the mistake myself in a scratch copy of crates/sdk/src/layout.rs (swapped each of bordering_split_ref/bordering_split_path/inherited_size_at to check the current split's own match before recursing into the child holding the pane, instead of after). Running cargo test -p steg-sdk and cargo test -p steg-sdk -p steg-kernel against that mutation reproduces exactly the two failing runs the task already has recorded (same test names, same assertion values: Ratio(700) vs Ratio(500) in tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split; Some(Size{800,10}) vs Some(Size{200,10}) in layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth; the two bordering_split_finds_the_innermost.../bordering_split_mut_also_finds... panics at nearby but not identical line numbers, as expected since the mutation deletes a few lines). Reverted the mutation; working tree is clean. The four new tests (sdk-level outer{mid{inner{A,B},C},D} fixtures at three depths, plus the kernel-level resize test reading the private layout field) do catch the regression.
+
+2. [move_pane_to_tab floor refusal, both tabs unchanged] tree.rs:933 (move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes) compares both the source and target Tab by Tab's own derived PartialEq (tab.rs:53, deriving over all seven fields: id, label, panes, layout, current, fill, size — not a manual impl that could skip one), and Pane (pane.rs:13) derives PartialEq over all three of its fields too. The equality used genuinely covers everything the plan's "atomic" claim depends on.
+
+3. [resize clamp upward / already-legal ratio] tab.rs:1002 and tab.rs:1021 both present and correct: 50 permille on a 100-column split clamps up to 200 (20/80), and 500 on the same split (already legal) returns unchanged.
+
+4. [closing the current pane when the promoted sibling is a multi-leaf split] tab.rs:875. Traced it against remove_leaf (tab.rs:578): the test's premise holds (current is genuinely c after the two splits, confirmed by the test's own assert before the swap), swap_panes never touches self.current (confirmed by reading swap_panes and swap_leaves, neither mentions current), and remove_leaf's promoted_leaf is literally promoted.leaves().first().copied() — the promoted subtree's first leaf in R112 order, exactly as close_pane's doc comment and the plan describe. The test and the code agree.
+
+Read crates/kernel/src/tab.rs and crates/kernel/src/tree.rs in full (not just the four areas above): would_violate_floor_inserting checks both dimensions via satisfies_floor_sizes regardless of which axis the split divides (AC #5's "in either dimension"); move_pane_to_tab checks the target's floor (tree.rs:470) before any source-tab mutation (remove_pane_for_move is called after, at tree.rs:483); PanesNotInSameTab (the one new Error variant I hadn't seen constructed from a grep-only pass) is built and tested at tree.rs:380 and tree.rs:1016-1036; close_pane's debug_assert!(panes_match_layout()) correctly sits after the tab-now-empty early return in every one of the three mutating paths that can empty a tab (close_pane, remove_pane_for_move). Also read error.rs, lib.rs x2 and target.rs's diff in full: small, consistent with the plan, nothing missed.
+
+No regressions since the first review: diffed 531a3df (the fix commit) against the two merge commits that followed and confirmed the fix itself touched only test code plus one import line, and `just check` passes clean at HEAD (efb640b) when run directly in a fresh worktree, matching the task's own recorded run. PR #23's CI (run 43678259820) is SUCCESS on headRefOid efb640b, the same commit. No code conflicts from main (board-only commits, confirmed by the diffs between the three merge commits).
+
+No new findings.
 
 ---
 <!-- COMMENTS:END -->

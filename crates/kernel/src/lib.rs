@@ -29,9 +29,9 @@ mod tree;
 pub use error::Error;
 pub use pane::Pane;
 pub use session::{Session, TabClosed};
-pub use tab::{PaneClosed, Tab};
+pub use tab::{DirectionalFocus, PaneClosed, Tab};
 pub use target::Candidate;
-pub use tree::{ClosedPane, Tree};
+pub use tree::{ClosedPane, MovedPane, Tree};
 
 #[cfg(test)]
 mod tests {

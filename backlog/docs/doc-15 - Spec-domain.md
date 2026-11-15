@@ -3,12 +3,12 @@ id: doc-15
 title: 'Spec: domain'
 type: specification
 created_date: '2026-11-15T01:28:00Z'
-updated_date: '2026-11-15T04:07:00Z'
+updated_date: '2026-11-15T06:05:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
 - Rests on: decision-5 (focus, clients and windows), decision-6 (terminal size), decision-7 (status).
-- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R109 (the colour a sixth session takes), R112 (the order of a tab's panes), R113 (a pane's neighbour in a direction) and R100 were added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
+- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R109 (the colour a sixth session takes), R112 (the order of a tab's panes), R113 (a pane's neighbour in a direction), R114 and R115 (a session's current tab when one closes and when one is made) and R100 were added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
 
 ## Scope
 
@@ -80,6 +80,8 @@ server
 - R85 (M1). Focus is a path down a server's tree, held by that server: each session has a
   current tab, and each tab has a current pane. Focusing a pane makes its tab the current
   tab of its session as well. There is no focus across servers.
+- R114 (M1). When a session's current tab closes, the tab that takes its place in the order becomes current, or the last tab when the closed one was last. Closing any other tab, and reordering tabs, leaves the current tab as it was.
+- R115 (M1). A new tab becomes its session's current tab, as a new pane becomes its tab's current pane. Creating something makes it current in its own parent only; setting the whole path is what focusing does (R85). Creating without taking focus is done by putting the previous focus back.
 - R86 (M1). A client is one connection to one server. Every client can learn of every
   session on that server and of changes to them. A client views zero or more sessions,
   which is what brings it their terminals' contents; the protocol sets no limit on how

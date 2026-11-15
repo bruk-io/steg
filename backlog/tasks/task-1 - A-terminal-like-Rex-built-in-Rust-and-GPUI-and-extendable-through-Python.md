@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:22:00Z'
+updated_date: '2026-11-15T00:25:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -57,6 +57,12 @@ It is "personal, but assume after a few months I may want to distribute."
 - [ ] #6 An agent working in a pane can show the user a file in another pane from the CLI, such as a Markdown document with proper Markdown rendering
 - [ ] #7 Each session can have its own colour, which a running agent can change from the CLI
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decided 2026-11-15 (Bruk): session colour follows the design artifact. In M1 each session has one of the five colours (violet, pink, orange, blue, green): a new session takes the next one not in use, and 'Session: Set colour' in the palette changes it. An arbitrary colour or gradient set from the CLI stays in M2. doc-1's R26 and the release table are to be reworded for this.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:00:00Z'
+updated_date: '2026-11-15T16:10:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -36,10 +36,12 @@ doc-15: R86, R89, R91. decision-5 and decision-6.
 <!-- SECTION:PLAN:BEGIN -->
 Scope: kernel-only data model for clients, viewing, "latest", and the size a terminal
 takes (doc-15 R86, R89, R91; decision-5; decision-6). Builds on main as merged
-(terminal.rs, screen.rs landed from TASK-1.39's PR). No server, no socket, no thread
-model: TASK-1.44/45/47 build the connection and attachment streaming on top of what
-this task returns; TASK-1.40 (parallel, in planning) is not depended on for anything
-below.
+(terminal.rs/screen.rs from TASK-1.39's PR, and the sdk's serde/description/record
+additions from TASK-1.43's PR). No server, no socket: this task returns plain data
+(`SizeChanged`) that TASK-1.40's `PaneHandle::resize` and TASK-1.44/45/47's connection
+and attachment streaming consume, but builds against none of them directly - there is
+no code dependency on TASK-1.40 landing first, only a naming one (cited below, where
+it closes a gap this plan previously left unnamed).
 
 THE UNIT (settles brief point 4, flagged as this plan's one real decision):
 doc-14 says "each attachment declares its own size... the size the terminal would
@@ -60,11 +62,21 @@ this explicitly for review since a reviewer holding doc-14's words literally wil
 read a tab-level kernel API as contradicting it otherwise.
 
 DATA MODEL
-- sdk (`crates/sdk/src/ids.rs`): add `ClientId`, same shape as `SessionId`/`TabId`/
-  `PaneId` (from_raw/into_raw/Display, same derives). Update the module doc comment
-  ("a session, a tab, a pane" -> "... and a client").
-- sdk (new `crates/sdk/src/client_kind.rs`, mirroring `pane_kind.rs`): `ClientKind`
-  enum `App`, `Cli`, `Plugin` (doc-14: the hello's `kind`). Exported from `lib.rs`.
+- sdk (`crates/sdk/src/ids.rs`): add `ClientId`, the full wire form the other three ids
+  now have on main (landed after this plan's first draft, from TASK-1.43's work merging
+  in): `from_raw`/`into_raw`, `Display` (hex, >=8 digits), `FromStr` parsing `Display`'s
+  own string, and `Serialize`/`Deserialize` via `collect_str`/parse-from-string - exactly
+  `SessionId`'s four impls, copied. Mirror its five tests too (round-trip through
+  `into_raw`, `FromStr` parses what `Display` prints, rejects non-hex, serde round-trips
+  through that same string, serde rejects non-hex, display width). Update the module doc
+  comment ("a session, a tab, a pane" -> "..., a pane and a client").
+- sdk (new `crates/sdk/src/client_kind.rs`, mirroring `pane_kind.rs` exactly, including its
+  serde: `#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]`,
+  `#[serde(rename_all = "snake_case")]`, and a round-trip test): `ClientKind` enum `App`,
+  `Cli`, `Plugin` (doc-14: the hello's `kind`). Exported from `lib.rs`. TASK-1.70 (sdk
+  protocol logic, planned in parallel) also needs this type for its `ClientHello` and has
+  been told to use this one rather than define its own - whichever of the two tasks lands
+  second just imports it, no merge conflict on either side.
 - kernel (new `crates/kernel/src/client.rs`): `Client { id: ClientId, kind: ClientKind,
   label: Option<String>, viewing: Vec<PaneId>, declared: Vec<(TabId, Size)>, activity:
   Vec<(SessionId, u64)> }` with read-only getters (`id`, `kind`, `label`, `viewing`).
@@ -178,58 +190,71 @@ except through a client's declared activity. Flagging this visibility change
 explicitly since it narrows an existing public method - confirm with the engineer/
 reviewer rather than treating it as a plain internal refactor.
 
+Paired with that narrowing: add `Tab::size(&self) -> Option<Size>` (`tab.rs`, beside
+`fill`/`current`), a public read-only getter - today there is only the setter. TASK-1.75
+(server dispatch) flagged that it cannot serve `pane resize` without a way to read a tab's
+current size (e.g. for `pane show`/`tab show`'s report), independent of this task's own
+write path. Read-only, so it does not reopen who may set the size - `set_tab_size` stays
+the only setter and still narrows to `pub(crate)` as above.
+
 CLEANUP ON CLOSE: `Tree::close_pane`/`close_tab`/`close_session` (`tree.rs` ~193-289)
 must also drop the closed pane(s) from every client's `viewing` and `declared` lists,
 and run `reapply_latest` for any session whose latest client's view just changed as a
 result. Existing tests for those three methods must keep passing unmodified; new
 tests cover a client viewing a pane that gets closed out from under it.
 
-PIXEL SIZE (brief point 4, last clause): not carried by this task. `Size` (`sdk/
-layout.rs:91`) is explicitly cells-only ("never pixels - the kernel does no I/O and
-reads no screen"), and R102/R105 forbid the kernel or sdk holding one. `terminal.rs`'s
-own comment names "TASK-1.42" as plumbing a real size through `Terminal::resize`, but
-`Terminal::resize` takes `(cols, rows)` only - this task supplies exactly that, via
-`SizeChanged.panes`, once some later task actually holds a `Terminal` inside a `Pane`
-(no task does today - TASK-1.40's brief is running the program, not wiring a
-`Terminal` into `Pane`; that wiring is an open gap, not yet named on the board).
-Pixel geometry for `engine.resize`'s width/height (CSI 14/16/18 t, mode 2048) stays a
-named, unfixed gap: left for whichever task wires a pane to a `Terminal` and the
-app's pixel metrics (candidate: TASK-1.47, which already "reports a terminal's size
-in updates" - but it isn't decided there yet either). Recommend: leave `terminal.rs`
-unchanged in this task, and flag on the board (comment, not a contract-change label -
-this doesn't contradict doc-16, it is simply not assigned anywhere yet) that the
-pixel-size carrier needs a home once TASK-1.40 lands.
+PIXEL SIZE / TERMINAL WIRING (brief point 4, last clause): TASK-1.40's plan (approved by
+@bruk.o) names the join point this plan could before only guess at. One thread per pane
+owns the kernel `Terminal` for the pane's whole life, behind `PaneHandle`
+(`crates/server/src/pane.rs`); `PaneHandle::resize(cols, rows)` "resizes the Terminal and
+the pty master together, one call", and that plan names this task as its caller directly:
+"TASK-1.42's job is feeding it a real client-declared size." So the join is: for every
+`(pane, size)` pair in a `SizeChanged.panes`, the server calls that pane's
+`PaneHandle::resize(size.columns(), size.rows())`. This task supplies `SizeChanged.panes`
+itself; TASK-1.40 supplies the call it feeds into; whichever of TASK-1.44/45/47 wires a real
+connection's declared size into `Tree::declare_size`/`note_input` is what runs both ends at
+once. Nothing to build here beyond what is already in this plan - citing it so the plan
+reads as landing in a known slot, not an unnamed one.
+Pixel geometry itself (`engine.resize`'s width/height, for CSI 14/16/18 t and mode 2048) is
+still not carried by either plan: `PaneHandle::resize`'s own signature is `(cols, rows)`,
+no pixel parameters, and `Size` (`sdk/layout.rs:91`) stays explicitly cells-only ("never
+pixels"), as R102/R105 require. That stays a genuinely open, unassigned gap after both
+plans - flagged again rather than guessed at, since neither task closes it.
 
 ORDER OF WORK
-1. sdk: `ClientId` in `ids.rs`, `ClientKind` in new `client_kind.rs`, export both from
-   `lib.rs`. Unit tests mirroring the existing id tests (round-trip, Display width,
-   distinct values).
+1. sdk: `ClientId` in `ids.rs` with its full wire form (`from_raw`/`into_raw`/`Display`/
+   `FromStr`/`Serialize`/`Deserialize`) and its five mirrored tests; `ClientKind` in new
+   `client_kind.rs` with its serde derives and round-trip test, mirroring `pane_kind.rs`.
+   Export both from `lib.rs`.
 2. kernel: `Ids::next_client`; new `client.rs` with `Client` and its getters; export
    `Client` from `lib.rs`.
-3. kernel: `Tree` gains the `clients: Vec<Client>` field and `activity: u64` counter
+3. kernel: `Tab::size(&self) -> Option<Size>` getter (`tab.rs`) - independent of
+   everything else here, lands early so TASK-1.75 can pick it up as soon as this task's
+   branch is up, rather than waiting on steps 4-7.
+4. kernel: `Tree` gains the `clients: Vec<Client>` field and `activity: u64` counter
    plus `tick`; `connect_client`, `clients`, `client`, `disconnect_client` (with
-   `reapply_latest` stubbed to "nothing to reapply yet" until step 5).
-4. kernel: `view_pane`, `stop_viewing`, `sessions_viewed`, `clients_viewing`, and the
+   `reapply_latest` stubbed to "nothing to reapply yet" until step 6).
+5. kernel: `view_pane`, `stop_viewing`, `sessions_viewed`, `clients_viewing`, and the
    private `session_owning_pane` helper. Tests for AC #1: connect, view, viewing
    derives the session list, stop_viewing/disconnect remove it, focus never moves.
-5. kernel: `declare_size`, `note_input`, `latest_client`, `reapply_latest` filled in,
+6. kernel: `declare_size`, `note_input`, `latest_client`, `reapply_latest` filled in,
    narrow `set_tab_size` to `pub(crate)`. Tests for AC #2 and #3: latest tracks input
    and declares; a declaration always wins; departure falls back to the next viewer
    or to none; a smaller declared size never errors on the floor; `SizeChanged.panes`
    matches `leaf_sizes`; `viewers` lists every client on that tab.
-6. Wire the close-pane/tab/session cleanup (above) and its tests.
-7. `error.rs`: add `ClientNotFound`, `ClientNotViewingPane`, `ClientNotViewingTab`,
+7. Wire the close-pane/tab/session cleanup (above) and its tests.
+8. `error.rs`: add `ClientNotFound`, `ClientNotViewingPane`, `ClientNotViewingTab`,
    with `Display`/`source` arms alongside the existing ones.
-8. `just check` for the kernel and sdk crates; fix anything the workspace-wide lints
+9. `just check` for the kernel and sdk crates; fix anything the workspace-wide lints
    (`boundaries.toml`, `clippy.toml`) flag.
 
 RISKS
-- The close-cascade touch points (step 6) are the part most likely to have a case
+- The close-cascade touch points (step 7) are the part most likely to have a case
   this plan missed (e.g. a pane closing because it was the tab's last one, cascading
   to the session, while a client views exactly that pane) - budget time for it, not
   just the straight-line API.
 - `pub(crate)` on `set_tab_size` could break a test outside this crate if one exists;
-  confirmed by grep there is none today, but re-check after step 5.
+  confirmed by grep there is none today, but re-check after step 6.
 - The doc-14 unit framing (this plan's main call) is the one point most likely to
   draw review pushback; said explicitly above so it is discussed before, not during,
   review.
@@ -249,13 +274,10 @@ PROOF (test -> AC clause)
   latest; departure falls back to the next most recently active remaining viewer, or
   `None` with nobody left.
 - AC #3 "terminal takes the latest's declared size": `declare_size`'s `SizeChanged.
-  panes` matches `Layout::leaf_sizes(size)` for the tab's current layout; a
-  non-latest client's `declare_size` still updates its own stored size (visible once
-  it later becomes latest) but does not change `Tab.size` at declare time - wait,
-  this can't happen per "a declaration always wins", so this test instead proves that
-  claim directly: two clients each declare different sizes on the same tab, and the
-  tab's size is always the one most recently declared, regardless of magnitude
-  (smaller or larger).
+  panes` matches `Layout::leaf_sizes(size)` for the tab's current layout; and, proving
+  "a declaration always wins" directly: two clients each declare a different size on
+  the same tab, in turn, and the tab's size is always the one most recently declared,
+  regardless of magnitude (smaller or larger than the one before it).
 - AC #3 "every other viewer is told": `SizeChanged.viewers` lists every client
   `view_pane`-ed onto that tab's panes, including ones that didn't trigger the
   change.

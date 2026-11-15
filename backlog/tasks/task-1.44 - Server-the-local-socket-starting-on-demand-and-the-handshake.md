@@ -1,17 +1,20 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:04:00Z'
+updated_date: '2026-11-15T21:08:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.69
   - TASK-1.70
+references:
+  - task-1.44-server-the-local-socket-starting-on
+  - https://github.com/bruk-io/steg/pull/37
 modified_files:
   - crates/server/src/config.rs
   - crates/server/src/paths.rs
@@ -801,6 +804,22 @@ ok      tool tests (1.1s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Finished taking over from a worker stopped mid-build (orchestrator's mistake, not its work). Inherited: head d7a4dea pushed/green, a merge of origin/main (55592e0), and one uncommitted edit in listen.rs applying today's thread-joining rule to run()'s accept loop (track a try_clone'd stream beside each JoinHandle; shut down and join every open connection on stop, before closing the listener/removing the socket/releasing the lock).
+
+Found the inherited edit incomplete and fixed it, both written up in full on the task's notes:
+
+1. connections only ever grew - nothing reaped an already-finished entry, leaking memory and fds without bound on a long-lived server. Added reap_finished, called once per accept, removing/joining entries whose JoinHandle::is_finished(). Proved by listen::tests (the predicate, in-process) and shutdown.rs::many_short_connections_do_not_grow_the_tracked_set (200 connections come and go, fd count before/after a trigger connection).
+
+2. Proving the shutdown-and-join step mattered exposed a real regression: holding a try_clone'd duplicate fd per connection means a plain close() (returning from connection::handle) no longer fully closes the socket while the duplicate is held, so a timed-out handshake stopped closing for the peer - caught by handshake.rs's own pre-existing a_connection_that_never_sends_a_hello_is_closed_after_the_timeout, which started failing deterministically. Fixed in connection.rs: shutdown(Both) on every exit path, which acts on the socket regardless of outstanding duplicates.
+
+Also joined shutdown.rs's own pre-existing test's previously-detached server thread, and added tests for stop with an idle completed connection (returns within a 5s bound, client sees the close) and stop during a stalled handshake (returns within a 5s bound, not the connection's own 30s timeout).
+
+"Prove one bites": removed the shutdown-and-join step (bare double-drop), ran `cargo test -p steg-server --test shutdown`, a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop failed by its 5s bound exactly as expected (not a hang) - recorded on the task, then restored.
+
+Checks recorded, in order: the failing shutdown test with the join step removed; 10 consecutive `cargo test -p steg-server --test race` runs (no flake); 5 consecutive `cargo test -p steg-server --test shutdown` runs (no flake); `just check` at the final head (12d6802, after merging origin/main) - green, the state this is handed off on. PR #37's CI (`check`) passed on the same head in 3m15s.
+
+Departure from the plan (plan digest c074345d1296, not edited): the plan's own shutdown section named only the accept/close/remove-file/release-lock ordering, with no thread-joining, because the team rule merged after the plan was approved. The ordering itself is unchanged; what's added is making sure every thread this task's loop spawns is actually brought down first. Full writeup, including what this means for part B (TASK-1.77, whose idle stop calls the same Stopper), and coverage against all five acceptance criteria clause by clause, is in the task's own notes (two comments posted today).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

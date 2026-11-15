@@ -1,11 +1,11 @@
 ---
 id: TASK-1.69
 title: 'Workspace: the five packages of doc-16, and the check that holds them apart'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:58:00Z'
+updated_date: '2026-11-15T03:00:00Z'
 labels:
   - size-2
   - review-passed

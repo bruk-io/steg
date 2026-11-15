@@ -1,13 +1,13 @@
 ---
 id: TASK-1.79
 title: >-
-  Status for a command typed at a shell prompt: get its exit code out of the
-  terminal engine
+  Terminal: surface a prompt-marked command's start and end, with its exit code,
+  from the engine
 status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T21:42:00Z'
+updated_date: '2026-11-15T21:43:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -27,10 +27,9 @@ Split from TASK-1.41 (2026-11-15). doc-11: R50, R82, R83; decision-7; doc-9 for 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A command typed at a shell prompt that reports prompt marks (OSC 133) shows running while it runs and finished or failed from its exit code when it ends (R50, R82), in a shell pane whose shell never exits between commands
-- [ ] #2 How the exit code leaves the engine is decided in the plan with the alternatives weighed: a change contributed to or carried against the ghostty-vt crate so its safe API surfaces the semantic-prompt callback; a small foreign-interface module outside the kernel over ghostty-vt-sys; or another route found by reading the engine. A second parser over the pty bytes kept in step with the engine is the last resort and needs the engineer's word
-- [ ] #3 The kernel still has no unsafe code and no I/O; anything foreign lives in one small module behind a safe API in a crate allowed to hold it (doc-16, .claude/rules/rust.md), and any change to vendored or patched dependencies is recorded where TASK-1.34 recorded the build
-- [ ] #4 A shell that reports no prompt marks shows no finished or failed status for typed commands and nothing is guessed; the ending rules of TASK-1.41 apply unchanged to statuses that arrive this way
+- [ ] #1 The kernel's Terminal reports, as data, when a prompt-marked command starts producing output and when it ends with its exit code (OSC 133 C and D), from real escape sequences fed to a real terminal; a sequence with no exit code, a malformed one, and marks arriving out of order are each handled and tested
+- [ ] #2 The route is the one the plan weighed and chose: the safe ghostty-vt crate patched to wire the engine's semantic-prompt callback, carried in this repository so the build stays offline (R92), with the alternatives and why they fail recorded; a second parser over the pty bytes is not built
+- [ ] #3 The kernel still has no unsafe code and no I/O; the patch is as small as it can be, its licence and origin are recorded where TASK-1.34 recorded the build (third_party/README.md), the build from a clean checkout with no network still works, and how to drop the patch when upstream has the change is written down
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -390,3 +389,9 @@ integration (`sh` with nothing sourced).
   shape entirely) is a deliberate scope decision, not an oversight - named so a later
   reader doesn't "fix" this plan by bumping the version and finding the same gap.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default, along the five pieces the worker's plan proposed. This task is now piece one: the patch to ghostty-vt and the kernel's Terminal surfacing the event. Drafts under TASK-1 take the rest: status from a typed command in the kernel; the server passing the event to the kernel; shell integration so the marks are emitted. The worker's fourth piece (a loop turning a pane event into a kernel call with a clock reading) is not a draft: TASK-1.76, in progress, builds exactly that (Runtime::apply_event), so the server piece depends on it. The plan on this task was written for all five and is to be rewritten for piece one.
+<!-- SECTION:NOTES:END -->

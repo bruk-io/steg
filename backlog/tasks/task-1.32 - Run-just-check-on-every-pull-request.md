@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:52:00Z'
+updated_date: '2026-11-15T02:54:00Z'
 labels:
   - size-2
   - changes-requested
@@ -140,6 +140,19 @@ Checks observed on GitHub Actions (can't run inside the worktree, reported here)
 All three scratch branches and their PRs were closed/deleted; the merged content on
 main is only the real diff from PR #8, with no scratch commits ever landing on the
 task's own branch.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:54:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-fix-ci-concurrency at 18244a46ca90 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      tool tests (0.3s)
+```
+
+Commits since the review: 34, 33 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -87,6 +87,8 @@ pub enum Error {
         /// The tab it is already in.
         tab: TabId,
     },
+    /// The terminal engine (`ghostty-vt`) failed (TASK-1.39).
+    Engine(ghostty_vt::Error),
 }
 
 impl fmt::Display for Error {
@@ -136,8 +138,27 @@ impl fmt::Display for Error {
             Error::AlreadyInTab { pane, tab } => {
                 write!(f, "pane {pane} is already in tab {tab}")
             }
+            Error::Engine(cause) => write!(f, "the terminal engine failed: {cause}"),
         }
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::Engine(cause) => Some(cause),
+            Error::SessionNotFound(_)
+            | Error::TabNotFound(_)
+            | Error::PaneNotFound(_)
+            | Error::PositionOutOfRange { .. }
+            | Error::InvalidLabel(_)
+            | Error::InvalidTargetPath(_)
+            | Error::TargetNotFound { .. }
+            | Error::TargetAmbiguous { .. }
+            | Error::SplitTooSmall { .. }
+            | Error::NoSplitInDirection { .. }
+            | Error::PanesNotInSameTab { .. }
+            | Error::AlreadyInTab { .. } => None,
+        }
+    }
+}

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:48:00Z'
+updated_date: '2026-11-15T16:49:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -689,6 +689,51 @@ note: first possible panic found here
 
 error: could not compile `steg-server` (lib) due to 4 previous errors
 error: could not compile `steg-server` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T16:49:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes, last 40 of 65 lines:
+
+```text
+   |
+25 |     let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: if this value is `None`, it will panic
+   = help: consider using `expect()` to provide a better panic message
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unwrap_used
+
+error: very complex type used. Consider factoring parts into `type` definitions
+  --> crates/server/tests/dispatch.rs:94:16
+   |
+94 |     let cases: Vec<(&str, Vec<(&str, Value)>, &str)> = vec![
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#type_complexity
+   = note: `-D clippy::type-complexity` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+error: used `unwrap()` on an `Option` value
+   --> crates/server/tests/dispatch.rs:222:18
+    |
+222 |     let method = api.method(dotted).unwrap();
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: if this value is `None`, it will panic
+    = help: consider using `expect()` to provide a better panic message
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#unwrap_used
+
+error: wildcard match will also match any future added variants
+   --> crates/server/tests/dispatch.rs:227:9
+    |
+227 |         other => panic!("{dotted}'s returns is not a record: {other:?}"),
+    |         ^^^^^ help: try: `other @ steg_sdk::Returns::Nothing | other @ steg_sdk::Returns::Identifier { .. } | other @ steg_sdk::Returns::Text`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg-server` (test "dispatch") due to 6 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
 ```

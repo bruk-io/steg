@@ -3,7 +3,7 @@ id: doc-5
 title: 'Decision: steg''s wire protocol'
 type: specification
 created_date: '2026-11-14T05:13:00Z'
-updated_date: '2026-11-14T05:13:00Z'
+updated_date: '2026-11-15T00:51:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python"
 - Spec: doc-1. This is design decision 2 in its section 7, and it serves R1, R2, R36 and R39.
@@ -11,6 +11,7 @@ updated_date: '2026-11-14T05:13:00Z'
   `spikes/task-1.2-wire-protocol/`; TASK-1.12 deletes that directory when the real attach path
   lands.
 - Status: the spike's answer. One recommendation is Bruk's to confirm (section 10).
+- Extended 2026-11-15 with section 13, which is not the spike's: it is what the protocol has to carry for the decisions Bruk made that day on focus, clients, terminal size, status and pane layout (doc-1 R83 to R91). Sections 1 to 12 are unchanged, and nothing in section 13 was measured.
 
 ## 1. The decision, in one page
 
@@ -414,3 +415,117 @@ instrument, which is TASK-1.1's decision and not this one's. `portable-pty` 0.9.
 `cargo-deny` is not installed on this machine and there is no root workspace yet, so `just deny`
 cannot be the proof here. The inventory above is `cargo tree -e normal --format "{p} {l}"` read by
 hand, as TASK-1.1 did, and TASK-1.5 owns the mechanical check.
+
+## 13. What the protocol carries beyond terminals
+
+Written by @bruk.o on 2026-11-15 from decisions Bruk made that day. It is a proposal for
+TASK-1.10 (methods), TASK-1.11 (events) and TASK-1.12 (attach) to build from and correct, not a
+result. It adds no frame kind and changes nothing in sections 1 to 7: everything here is control
+JSON on stream 0, or a field on a message that already exists. Method and event names below are
+placeholders; the real ones come from the API description (doc-4, R38).
+
+### 13.1 Two ways a client relates to a session
+
+doc-1 R86 says a client knows about every session on its server and views zero or more of them.
+On the wire those are two different things, and section 1's attachments are the second.
+
+- **Knowing about sessions** is a subscription on stream 0. A client asks for the tree and then
+  receives events as it changes. This is what the app's bar and palette are drawn from, and it
+  costs no terminal traffic.
+- **Viewing** is holding attachments (section 3) to panes. A client views a session when it is
+  attached to at least one of that session's panes. In M1 the app attaches to the panes of the tab
+  it is showing and to nothing else, so a tab that is not on screen streams nothing.
+
+So "which sessions does this client view" is never sent by the client; the server reads it off
+the attachments.
+
+### 13.2 The tree, and the focus path in it
+
+The tree snapshot, returned by one request and kept current by events:
+
+```
+session  id, label, position, colour, current_tab
+tab      id, label, title, position, current_pane, layout, shown_status
+pane     id, label, title, cwd, program, exit_code, status
+```
+
+- **Focus is two fields:** a session's `current_tab` and a tab's `current_pane` (R85). Nothing
+  else on the wire says "focused".
+- A request to focus a pane sets the pane's tab's `current_pane` and, if that tab was not
+  current, its session's `current_tab`, in one step on the server. One event reports the whole
+  path, `{session, tab, pane}`, so no client ever sees the two halves apart.
+- Focusing never touches attachments (R88).
+
+### 13.3 Clients
+
+- The hello (section 7) gains two keys, which is allowed because unknown keys are ignored: `kind`,
+  one of `app`, `cli` or `plugin`, and an optional `label`. The server's reply gains `client`, the
+  identifier it has given this connection.
+- `client.list` returns each client's identifier, kind, label, the sessions it views (from its
+  attachments), and when it was last active. Events report a client connecting, leaving, and
+  starting or stopping viewing a session.
+- **Asking a client to show a session** (doc-2, `session focus`) is the one message addressed to a
+  single client. It is an event on stream 0 delivered only to that client, carrying the session.
+  The server does not wait for it to be obeyed: which session a window shows is the app's (R87).
+  The caller's request succeeds once the event is queued.
+
+### 13.4 The size of a terminal
+
+Section 5 left this open: sizes are carried per attachment, and which wins was undecided. R91
+decides it.
+
+- Each attachment still declares its own size, at attach and whenever the client's pane changes
+  size. That is the size the terminal would have in that client.
+- The server remembers, per session, the **latest client**: the last one to send input on an
+  attachment in that session, or to declare a new size on one.
+- A terminal takes the size the latest client has declared for it. If the latest client has no
+  attachment to that pane, its size does not change.
+- When a terminal's size changes, every attachment to it is told. The snapshot already carries a
+  size (section 3); an update gains an optional `size` for the same purpose. A client draws at
+  that size, top left, padded or cropped (R91).
+
+### 13.5 Status
+
+- A pane's `status` is one record or nothing: `kind`, `progress` where known, `since`, and
+  `ends_at` where the kind has a lifetime (R83). In M1 the kinds are running, finished and failed,
+  set by the server from the program's exit status (R82). M2 adds what the status protocol
+  reports.
+- **The server owns the lifetimes.** It clears a finished status after 10 minutes and a bell after
+  30 seconds, and it clears finished, failed and the bell when input arrives for that pane. A
+  click is not input, so the app sends one small request saying the person has dealt with that
+  pane. Opening a tab sends nothing and clears nothing.
+- **The server chooses what a tab shows.** A tab's `shown_status` names the pane whose status the
+  tab's ring stands for, by the order in doc-7 D67. It is computed once, on the server, so the
+  app, the CLI and a plugin cannot disagree. Promotion (R84, M2) is the server choosing
+  differently; no client needs to know why.
+- Status changes are events, each carrying the pane and its new record or nothing.
+
+### 13.6 Pane layout
+
+- A tab's `layout` is a tree: a node is either a pane, or a split with a direction, a ratio
+  between 0 and 1, and two children. A tab also has `zoomed`, a pane or nothing, for fill.
+- Ratios, not sizes, are what the server holds, which is why every client shares the proportions
+  (R89) while each has its own pixels.
+- Splitting, closing, resizing, swapping and filling are requests that change this tree, and each
+  is reported as one event carrying the tab's new layout whole. A layout is small, and sending it
+  whole means a client never has to apply a change to a tree it might have wrong.
+
+### 13.7 What this leaves open
+
+1. **The smallest pane.** doc-7 D47 gives it in pixels, which only the app knows. The server needs
+   a floor of its own in rows and columns so that the CLI cannot split a pane to nothing. Not
+   chosen here.
+2. **Whether a request to deal with a pane is its own method or a flag on focusing it.** 13.5
+   assumes its own.
+3. **Section 10 is still unanswered:** that the answer to the spike's first criterion is a
+   snapshot followed by screen updates. Everything in this section assumes it stands.
+4. **Events addressed to one client** (13.3) are new. Every other event in this document goes to
+   every subscriber.
+
+### 13.8 Who inherits this
+
+- **TASK-1.6**: the layout tree of 13.6, and the two focus fields of 13.2.
+- **TASK-1.10**: the tree request, the focus requests, `client.list`, and the request of 13.5.
+- **TASK-1.11**: the events of 13.2 to 13.6, including the one addressed to a single client.
+- **TASK-1.12**: the latest client and the size rule of 13.4, and `size` on an update.
+- **TASK-1.9**: the two new keys in the hello and the identifier in its reply.

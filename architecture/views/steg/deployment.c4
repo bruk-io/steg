@@ -1,0 +1,18 @@
+// Deployment — steg. doc-16's Deployment section: one window holding a
+// client to a local server, and in M3 another to a remote one. Reads the
+// nodes and instances from architecture/deployment/steg.c4.
+views {
+  deployment view stegDeployment {
+    title 'Deployment — steg'
+    include *, env.host.app, env.host.cli, env.host.server, env.remoteMac.server
+    // The container-level app -> server relationship (models/steg/_relationships.c4)
+    // and the deployment-only one declared in deployment/steg.c4 both connect
+    // these two instances; without an override their titles merge into one
+    // truncated '[...]' edge label (the known LikeC4 trap). Pin this view to the
+    // deployment-specific wording, since this view exists to say which client
+    // (the window's) attaches to which server instance.
+    include env.host.app -> env.host.server with {
+      title "a window's client attaches to"
+    }
+  }
+}

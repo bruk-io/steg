@@ -1,16 +1,20 @@
 ---
 id: TASK-1.35
 title: 'Kernel: sessions, tabs and panes as one tree, with its rules'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:09:00Z'
+updated_date: '2026-11-15T03:18:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.69
+references:
+  - task-1.35-kernel-sessions-tabs-and-panes-as-one
+  - https://github.com/bruk-io/steg/pull/15
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,10 @@ asdlc_branch: task-1.35-kernel-sessions-tabs-and-panes-as-one
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f3e4e6873d40'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=4'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -158,6 +166,28 @@ ok      licences (0.6s)
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (17.9s)
 ok      tool tests (0.2s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:10:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.35 on task-1.35-kernel-sessions-tabs-and-panes-as-one at 8b9cafec29f3:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.5s)
+ok      tool tests (0.3s)
+```
+
+Built per the approved plan, with two deviations noted here since the plan predates TASK-1.69 merging:
+
+- crates/kernel/Cargo.toml already had steg-sdk = { path = "../sdk", default-features = false }, and boundaries.toml already allowed it, both from TASK-1.69. This task made no manifest or boundaries.toml changes, only added crates/sdk/src/{ids,colour,pane_kind}.rs and crates/kernel/src/{ids,error,colour,pane,tab,session,tree}.rs plus the two lib.rs files.
+- The plan left Tab::add_pane, Session::add_tab and Session::move_tab as pub(crate) with no production caller inside this task, expecting a later task to call them. Building them that way failed just lint: rustc's dead_code lint flags a pub(crate) item used only by its own #[cfg(test)] module, and #[expect(dead_code, ...)] doesn't fix it either, since the lint doesn't fire in the test build (where the tests do use it) but does in the plain lib build - so the expectation is 'unfulfilled' in one build and a real warning in the other. Fixed by adding the Tree-level public entry points the plan's own dependents will want anyway: Tree::new_tab, Tree::new_pane and Tree::move_tab, which call through to the pub(crate) methods as real production code. This also directly serves AC #1's 'tabs can be created... and reordered' more literally than the plan's session-creation-time-only tab, so it's an extension of the plan's own intent, not a departure from it.
+
+Checks recorded on the task via asdlc record-check: just check, before any edit and again after the final rebase onto origin/main, both exit 0 (fmt, lint, boundaries, licences, affected tests covering steg-kernel/steg-sdk and every crate that depends on them, tool tests). Also ran cargo doc --no-deps on both crates locally (no warnings) and grepped crates/kernel and crates/sdk to confirm SessionId/TabId/PaneId/Colour/PaneKind are defined only in crates/sdk/src/ (AC #7) - neither is itself recorded as a asdlc check since they're not the repository's check commands.
+
+22 kernel unit tests and 3 sdk unit tests cover every acceptance criterion: creation/labelling/reordering/closing of sessions and tabs (AC #1), the last-pane/last-tab cascade (AC #2), colour assignment in R26's fixed order and its wrap at a sixth concurrent session (AC #3, #6), PaneKind with no kernel code assuming Terminal (AC #4), and not-found errors at every level.
+
+Reviewer, please look closest at: tree.rs's close_pane/close_tab cascade (the session id is captured before close_tab can remove the session that held it, since TabClosed doesn't carry a session id) and the choice to add Tree::new_tab/new_pane/move_tab (not in the original plan's step list, explained above).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -169,6 +199,34 @@ created: 2026-11-15T02:41:00Z
 ---
 
 Plan approved by @bruk (f3e4e6873d40, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.35: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:18:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 4 nit. Cites: review, rust. The diff does not match the plan.
+
+No Important findings. Reviewed the sdk/kernel diff (crates/sdk/src/{ids,colour,pane_kind,lib}.rs, crates/kernel/src/{ids,error,colour,pane,tab,session,tree,lib}.rs) against doc-15 (R6, R8, R12, R26, R93, R94, R109) and doc-16 (R101, R102, R104, R105), the team review policy, and .claude/rules/{architecture,rust,testing-rust}.md. Ran `just check` independently on this branch (8b9cafe): fmt, lint, boundaries, licences, tests, tool tests all pass, matching the task's last recorded check. Confirmed by grep that SessionId/TabId/PaneId/Colour/PaneKind are defined only under crates/sdk/src/ (AC #7), sdk and kernel have no serde/I/O dependencies, and boundaries.toml/Cargo.toml were untouched by this task as the notes claim. Traced tree.rs's close_pane/close_tab cascade by hand: session_id is correctly captured (tree.rs:172) before close_tab can remove the session that held it, and the Option<SessionId> threads through to ClosedPane without an unwrap - the logic the worker flagged is sound. The colour wrap-around (R109) and the last-pane/last-tab cascade (R94) each have a test at both the narrow unit level and the Tree level that would fail if the rule broke.
+
+Nits (4):
+1. [Compliance, Nit] tree.rs:214-219 (new_tab) and tree.rs:253-258 (new_pane) mint ids via self.ids before checking that the target session/tab exists, so a SessionNotFound/TabNotFound error still consumes an id for something never created. This contradicts the plan's step 10 ("Tree holds one Ids and uses it for every mint, so an id only ever names something actually being created"), and the notes don't mention the departure. No acceptance criterion or named dependent (TASK-1.38 needs ids unique and Display-able, not contiguous) needs gapless allocation, so this changes no observable behaviour, but it is a latent bug worth a follow-up: check existence via the immutable session()/session_owning_tab lookup before minting.
+2. [Evidence, Nit] Session::set_colour (session.rs:71) and Session::set_label (session.rs:60) have no test anywhere in the diff - only Tab's label is exercised indirectly (via Tree::new_tab) and Pane::set_label is tested directly. The implementation notes claim the 22 kernel unit tests cover "labelling... of sessions and tabs (AC #1)" and "colour assignment... (AC #3)," which overclaims: AC #3's "its colour can be changed" and AC #1's session-labelling are implemented but unverified by any test.
+3. [Rust, Nit] sdk/src/ids.rs's format_raw uses `{raw:08x}`, which is a minimum width, not a true fixed width: a raw value above u32::MAX prints more than 8 hex digits, so the doc comment's and the plan's "fixed-width hex string" claim isn't actually enforced for the type's full u64 range. Unlikely to be hit before the counter mints four billion ids, but worth noting.
+4. [Compliance, Nit] Tree::new_tab, Tree::new_pane and Tree::move_tab (tree.rs) are not in the plan's file list or order of work. The notes explain the departure (a pub(crate)-only Tab::add_pane/Session::add_tab/Session::move_tab failed the dead_code lint with no in-task production caller) and the three methods are tested and don't pre-empt TASK-1.36: new_pane only appends to the placeholder flat Vec<Pane> that 1.36's own plan note already expects to replace with a split-based layout tree, so its signature will be rewritten, not inherited. Flagged for --plan-matched=no since it is a real departure even though explained.
 
 ---
 <!-- COMMENTS:END -->

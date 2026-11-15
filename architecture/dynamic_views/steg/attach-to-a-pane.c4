@@ -1,0 +1,15 @@
+// Dynamic — attaching to a pane. Container level (steg, Steg.app, the
+// server). AC #4.
+views {
+  dynamic view attachToAPane {
+    title 'Dynamic — attaching to a pane'
+
+    personAtMac -> steg.app 'opens'
+    steg.app -> steg.server 'asks to attach to the pane, to view it' {
+      technology 'socket'
+    }
+    steg.server -> steg.app 'sends its current screen and scrollback, then streams further output'
+
+    include steg.app, steg.server
+  }
+}

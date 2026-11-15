@@ -1,0 +1,9 @@
+// Container: Steg.app (doc-16, Level 2).
+model {
+  extend steg {
+    app = container 'Steg.app' {
+      technology 'Rust, GPUI'
+      description 'The window. Draws what the server reports.'
+    }
+  }
+}

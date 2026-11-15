@@ -1,0 +1,9 @@
+// Container: The CLI (doc-16, Level 2).
+model {
+  extend steg {
+    cli = container 'The CLI' {
+      technology 'Rust'
+      description 'A short-lived process for one command.'
+    }
+  }
+}

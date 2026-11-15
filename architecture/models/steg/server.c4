@@ -1,0 +1,9 @@
+// Container: The server (doc-16, Level 2).
+model {
+  extend steg {
+    server = container 'The server' {
+      technology 'Rust'
+      description 'One process per person per machine. Owns every session, tab, pane and running program (R1).'
+    }
+  }
+}

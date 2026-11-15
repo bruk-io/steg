@@ -1,0 +1,16 @@
+// Component-level "may depend on" edges for the packages built into the
+// server (doc-16, Level 3, "Who may depend on whom"). Every pair here
+// shares this one container, because doc-16's "Built into" column was
+// chosen so that a dependency always has somewhere to be drawn without
+// crossing a container boundary (TASK-1.33's plan). None of these is a
+// runtime call, so none carries `technology` — these are Cargo compile-time
+// dependencies.
+model {
+  extend steg.server {
+    kernel -> sdk 'depends on'
+    serverPkg -> kernel 'depends on'
+    serverPkg -> sdk 'depends on'
+    stegPkg -> sdk 'depends on'
+    stegPkg -> serverPkg 'depends on, as the entry point that starts it (R98)'
+  }
+}

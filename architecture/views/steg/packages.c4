@@ -1,0 +1,10 @@
+// Components — the packages, and what each may depend on (doc-16, Level 3).
+// Pulls in all eight component instances (kernel, server, sdk x3, steg x2,
+// app) across the three containers that hold them; LikeC4 draws the three
+// container boundaries around their own children automatically.
+views {
+  view stegPackages of steg {
+    title 'Components — the packages, and what each may depend on'
+    include steg.server.*, steg.cli.*, steg.app.*
+  }
+}

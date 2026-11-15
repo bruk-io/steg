@@ -1,14 +1,14 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:09:00Z'
+updated_date: '2026-11-15T03:19:00Z'
 labels:
   - size-2
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -23,7 +23,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7ade241dd954'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
 ---
@@ -222,6 +222,107 @@ c4lint.py (the skill's own authoring linter, not wired into just check) reports 
 Follow-up for the orchestrator, not done here per the engineer's instruction: add "Node.js (npx, for `just architecture`)" to plugins/bruk-io-steg/commands.toml's [check].needs and re-verify [check] through asdlc-plugin once this PR merges.
 
 PR: https://github.com/bruk-io/steg/pull/14
+
+Check FAILED: `just check` exited 1 at 2026-11-15T03:10:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 6ee794d1b96e with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+FAILED  architecture (exit 1, 0.9s)
+[2m03:10:55.732[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mlayout[22m wasm[0m
+[2m03:10:55.738[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mworkspace:[22m /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33/architecture[0m
+[2m03:10:55.746[0m [1m[32mINFO [0m [1m[36mlikec4.server.projects[0m add [32m'architecture'[39m
+[2m03:10:55.746[0m [1m[32mINFO [0m [1m[36mlikec4.server.workspace[0m loaded [33m1[39m projects
+[2m03:10:55.853[0m [1m[32mINFO [0m [1m[36mlikec4.lang[0m [2mworkspace:[22m found 27 source files[0m
+[2m03:10:55.853[0m [1m[31mERROR[0m [1m[36mlikec4[0m Invalid /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33/architecture/models/steg/steg.c4
+    [2mLine 10: [22m[31mExpecting token of type 'EOF' but found `this`.[39m[0m
+[2m03:10:55.978[0m [1m[31mERROR[0m [1m[36mlikec4.c4:validate[0m [31m[31m✗ Invalid[31m[2m (27 files, 1 errors)[22m[39m[0m
+[2m03:10:55.978[0m [1m[32mINFO [0m [1m[36mlikec4.c4:validate[0m [32mvalidate 246ms[39m[0m
+full output: .quiet/architecture.log
+error: recipe `architecture` failed on line 99 with exit code 1
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:11:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 6ee794d1b96e:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+AC #6 evidence: every element's title traced to its source, checked by hand against doc-16's own tables, doc-15's "The things" table, and doc-1 section 4's vocabulary table. One row per distinct title; sdk and `steg` are each declared three and two times respectively (AC #2), all identical, so listed once.
+
+| Title | Kind | Source |
+|---|---|---|
+| The person at the Mac | person | doc-16, Level 1, "Element" column |
+| steg | softwareSystem | doc-16, Level 1 ("steg" row) and the system's own name throughout doc-16/doc-1 |
+| Programs in panes | externalSystem | doc-16, Level 1 |
+| macOS | externalSystem | doc-16, Level 1 |
+| A plugin | externalSystem | doc-16, Level 1 (and Level 2's prose: "A plugin is not a container of steg's... it is an external system in the context above") |
+| A remote host | externalSystem, and deployment node | doc-16, Level 1; also doc-1 section 4 vocabulary's "Host" entry ("A machine running a steg server") |
+| The server | container | doc-16, Level 2 |
+| The CLI | container | doc-16, Level 2 |
+| Steg.app | container | doc-16, Level 2; also doc-1 section 7's Parts table ("Steg.app (GPUI)") |
+| kernel | component | doc-16, Level 3, "Package" column |
+| server | component | doc-16, Level 3 |
+| sdk | component (x3: server, cli, app) | doc-16, Level 3 |
+| steg | component (x2: server, cli) | doc-16, Level 3 (written `` `steg` `` there) |
+| app | component | doc-16, Level 3 |
+| A host | deployment node | doc-1 section 4 vocabulary's "Host" entry; paired with "A remote host" above, both reusing doc-16's own words from the Deployment section ("one Mac... another to a server on another machine") |
+
+Relationship/technology vocabulary, not element names but checked the same way: "window" and "client" (doc-15's "The things" table has Client; doc-1 section 4 has Window; doc-16's own Deployment section uses both: "one Steg.app whose windows each hold a client to that server"), "socket" (doc-16, Level 2's "over its socket"; R5), "pseudo-terminal" (doc-16, Level 1's "pseudo-terminals"), "SSH" (R55).
+
+Not domain vocabulary, and not claimed as such: the `#shared` and `#planned` tags are LikeC4 modeling annotations (like the `container`/`component` kind keywords themselves), not words drawn from the specs - `#planned` marks M2/M3 scope and `#shared` marks a package duplicated across containers per AC #2. Both are documented as additions in the plan's structural decisions.
+
+Update on comment #4's last sentence: the Node setup step has since been fully reverted, not kept. `.github/workflows/ci.yml` on this branch is now byte-for-byte identical to origin/main (`git diff origin/main -- .github/workflows/ci.yml` is empty) - confirmed after merging origin/main (which had since picked up PR #12's unrelated ci.yml changes) in cleanly.
+
+Per the engineer's correction (relayed by the orchestrator): GitHub's hosted macos-26 image ships Node already, so `npx` resolves there with no setup step. Confirmed empirically, not just by the engineer's claim: a one-off diagnostic (`node --version` prepended to the `architecture` recipe, committed, pushed, read from the run, then reverted - net effect on the committed tree is zero) showed this PR's own CI run used **Node v24.22.2** natively (run https://github.com/bruk-io/steg/actions/runs/43670816613, job step "just check", timestamp 2026-11-15T03:08:46Z, log line "v24.22.2"). That commit and its revert are both on this branch's history for anyone who wants to see the raw log line in context; the final diff against origin/main for ci.yml and the justfile's `architecture` recipe is clean (no diagnostic left in).
+
+Follow-up for the orchestrator, not done in this PR: pin Node in `.github/workflows/ci.yml` (version now known: 24.22.2 as of 2026-11-15, the hosted image's own version, not independently chosen) - separate from, and in addition to, the commands.toml follow-up already recorded in comment #4.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:12:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 6ee794d1b96e:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Fixed each review finding:
+
+[Evidence, Important] AC #5 proof: redid the demonstration as a recorded run, not prose. Broke architecture/models/steg/steg.c4 again, ran `asdlc record-check ... -- just check`, which recorded the failing run (exit 1, the architecture recipe's likec4 validate error) on the task; restored the file and recorded a second, passing run.
+
+[Evidence, Important] AC #6 proof: added the missing listing to the task's notes - every distinct element title against its source (doc-16's Level 1/2/3 tables, doc-15's "The things" table, doc-1 section 4's vocabulary table), plus the relationship/technology vocabulary and an explicit note that #shared/#planned are modeling tags, not domain words.
+
+[Compliance, Important] commands.toml: the orchestrator recorded the instruction on the task (comment #4) - a repository plugin is changed only through asdlc-plugin, never in a task's worktree, so that line of the approved plan can't be carried out from here regardless. Left as is.
+
+Separately, the engineer corrected the CI-workflow decision after this review ran: GitHub's hosted macos-26 image ships Node already, so no setup step is needed, and the plan isn't edited for it. Fully reverted the Node step (two commits: add, then revert; `.github/workflows/ci.yml` is now byte-for-byte identical to origin/main). Confirmed empirically which Node version CI actually uses via a one-off diagnostic (committed, read from the run, reverted - net zero on the tree): v24.22.2, from this PR's own CI run. Recorded that version and listed "pin Node in ci.yml" as a follow-up in the task's notes, as instructed.
+
+[Compliance, Nit] Moot: the ci.yml change it was about no longer exists.
+
+Also merged origin/main in (branch already pushed, so merge not rebase) to pick up PR #12's unrelated ci.yml changes (the paths-ignore/conditional cancel-in-progress fix) cleanly, no conflicts.
+
+Final `just check`: exit 0, recorded on the task.
+
+Small process note: two of this worker's own commits since the first review - 9b82b31 ("Revert \"CI: install a pinned Node...\"") and e932dfe ("Revert \"Temporary: print the Node version...\"") - were made with `git revert --no-edit`, which reuses the original commit message and doesn't attach a trailer. Both are self-reverts within this same build (add a thing, then immediately undo it), net code effect zero. Not fixed by rewriting history (amending or rebasing commits already pushed is avoided per policy); recorded here instead for anyone totting up attribution.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -263,6 +364,49 @@ Findings: 3 Important, 1 nit. Cites: review. The diff does not match the plan.
 [Compliance, Nit] .github/workflows/ci.yml's new setup-node step comment claims node-version "24.22.0" is "matching the local pin," but the repository has no .nvmrc/.node-version/mise.toml - there is no local pin to match.
 
 Checked and clean: the model's elements and edges exactly match doc-16's Level 1-3 tables (7 dependency edges = doc-16's 6 "may depend on" rows with stegPkg -> sdk correctly duplicated across server and cli; no extra elements or edges); AC #2's shared-component duplication is correct; the deployment and dynamic views match doc-16's deployment section and decision-5's R88 concern; the actions/setup-node SHA (949feb2413d6458794dcd2491c4babbbce0c15c1) verified against GitHub's v7.1.0 tag; the ci.yml addition does not textually or semantically conflict with PR #12 (disjoint regions of the file, ~40 lines apart); size-2 plan approval is recorded (@bruk, 7ade241dd954); the three recorded `just check` runs are on this branch, the final one at the branch's current HEAD (af41e24) with no uncommitted changes.
+
+---
+
+created: 2026-11-15T03:10:00Z
+
+---
+
+From @bruk.o, on review finding 3: the worker left plugins/bruk-io-steg/commands.toml alone on the orchestrator's instruction, given by message at the start of the build and not recorded here until now. A repository plugin is changed only through asdlc-plugin, never in a task's worktree, so that line of the approved plan could not be carried out as written. The orchestrator adds the Node need and verifies the check command again after this merges. The Node setup step in the CI workflow was likewise first asked for and then withdrawn by the orchestrator; the worker kept it and recorded it as a departure.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:13:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.33: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:17:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Fresh re-review, all three earlier Important findings verified fixed:
+
+- [Evidence] AC #5: a recorded FAILED `just check` run exists at 2026-11-15T03:10:55Z (6ee794d1b96e, uncommitted deliberately-broken architecture/models/steg/steg.c4, `architecture` recipe exit 1 with the likec4 parse error) followed by a recorded passing run at 03:11:10Z (6ee794d1b96e, clean tree). This matches the plan's AC #5 proof requirement.
+- [Evidence] AC #6: the task notes now contain the title-to-source table, traced by hand against doc-16's Level 1/2/3 tables, doc-15's "The things" table and doc-1 section 4's vocabulary/section 7's Parts table. Spot-checked several rows (e.g. "Client"/"Window" correctly sourced to doc-15 vs. doc-1 respectively, "A host" to doc-1 section 4) and they check out.
+- [Compliance] plugins/bruk-io-steg/commands.toml: still untouched in the diff, as the orchestrator's comment #4 records and explains (a repository plugin is changed only through asdlc-plugin, after merge, per the engineer's instruction given at build start). This is a genuine, recorded departure from the approved plan's Consequences section, hence --plan-matched no, but it is explained and not an Important finding on its own.
+
+Also independently confirmed, per this re-review's specific asks:
+- .github/workflows/ci.yml: `git diff origin/main -- .github/workflows/ci.yml` is empty on this branch's current head (6ee794d1b96e) — byte-identical to main, the Node setup step the worker added and then reverted leaves no trace.
+- PR #14's CI run on this exact head (43671326909, headRefOid 6ee794d1b96e92770b5d0954c8dd30d0430c91dc) is SUCCESS, and its log shows `just check` actually running the new `architecture` recipe and passing it (`ok architecture (17.8s)`), with no setup-node step — Node resolves natively on the hosted image, confirming the worker's empirical claim.
+- Model content: all 7 component dependency edges match doc-16's "who may depend on" table exactly (sdk duplicated into server/cli/app per AC #2, steg duplicated into server/cli); the deployment view's single app instance connects to both a local and a #planned remote server instance (AC #3); both dynamic views are container-level and focus-a-pane.c4 states R88 explicitly (AC #4); plan approval is recorded (@bruk, 7ade241dd954, size-2); diff file list matches the plan's file-by-file list.
+
+[Evidence, Nit] The plan's file-by-file section for views/steg/packages.c4 says it was "Verified with `npx likec4 start` during the build; if the boundaries don't render on their own, the three containers are added to `include` explicitly and that's noted as a bend." No recorded confirmation of this manual render check appears in the notes. Low weight: this check is about visual rendering, not modeled separately from the AC #1 proof (which cites only `likec4 validate` and the row-by-row table check), and the conditional bend was never invoked, which is itself consistent with the boundaries rendering correctly. Not promoted to Important.
+
+Checked and otherwise clean: shared/_spec.c4's new #shared tag has no style block, matching the plan's "no style initially" decision; justfile's architecture recipe is wired into check's recipe line; no scope creep beyond the plan's file list; c4lint's 6 "vague title" warnings are expected (mirror doc-16's own "may depend on" wording) and not treated as a finding.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,0 +1,9 @@
+// Component: kernel, built into the server only (doc-16, Level 3).
+model {
+  extend steg.server {
+    kernel = component 'kernel' {
+      technology 'Rust library'
+      description "The server's logic: the tree, layout, focus, status, the terminal engine. No I/O (R105)."
+    }
+  }
+}

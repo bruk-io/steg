@@ -1,0 +1,11 @@
+// Component: server, built into the server only (doc-16, Level 3). Titled
+// 'server' like the package; the element id is serverPkg only to avoid
+// clashing with the server container's own id.
+model {
+  extend steg.server {
+    serverPkg = component 'server' {
+      technology 'Rust'
+      description 'The kernel plus sockets, pseudo-terminals, processes and the clock. Does I/O.'
+    }
+  }
+}

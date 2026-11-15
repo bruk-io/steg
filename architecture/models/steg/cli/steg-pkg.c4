@@ -1,0 +1,12 @@
+// Component: `steg`, built into the CLI as well as the server (doc-16,
+// Level 3). One of two identical declarations — see
+// models/steg/server/steg-pkg.c4 for the other and the reasoning.
+model {
+  extend steg.cli {
+    stegPkg = component 'steg' {
+      #shared
+      technology 'Rust'
+      description 'The CLI, and the entry point that starts the server (R98). Built into the server and the CLI, which ship as one binary.'
+    }
+  }
+}

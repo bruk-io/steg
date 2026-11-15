@@ -1,11 +1,11 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:45:00Z'
+updated_date: '2026-11-15T21:56:00Z'
 labels:
   - size-2
   - review-passed

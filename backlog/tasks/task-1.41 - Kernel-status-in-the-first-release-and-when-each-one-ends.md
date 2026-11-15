@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:36:00Z'
+updated_date: '2026-11-15T20:37:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -507,6 +507,51 @@ Check passed: `just lint` exited 0 at 2026-11-15T20:36:52+00:00 in /Users/brukha
 
 ```text
 ok      lint (47.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T20:37:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m         assert_eq!(pane.program(), Some(&command("/tmp")));
+     }
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/sdk/src/status.rs:64:
+     fn running_serde_round_trips_through_its_own_word() {
+         let json = serde_json::to_string(&Status::Running).unwrap();
+         assert_eq!(json, "\"running\"");
+[31m-        assert_eq!(serde_json::from_str::<Status>(&json).unwrap(), Status::Running);
+(B[m[32m+        assert_eq!(
+(B[m[32m+            serde_json::from_str::<Status>(&json).unwrap(),
+(B[m[32m+            Status::Running
+(B[m[32m+        );
+(B[m     }
+ 
+     #[test]
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/sdk/src/status.rs:71:
+     fn finished_serde_round_trips_through_its_own_word() {
+         let json = serde_json::to_string(&Status::Finished).unwrap();
+         assert_eq!(json, "\"finished\"");
+[31m-        assert_eq!(serde_json::from_str::<Status>(&json).unwrap(), Status::Finished);
+(B[m[32m+        assert_eq!(
+(B[m[32m+            serde_json::from_str::<Status>(&json).unwrap(),
+(B[m[32m+            Status::Finished
+(B[m[32m+        );
+(B[m     }
+ 
+     #[test]
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/server/tests/real_pty.rs:243:
+     )
+     .unwrap();
+ 
+[31m-    let outcome = tree.record_exit(kernel_pane, 7, Moment::new(Duration::ZERO)).unwrap();
+(B[m[32m+    let outcome = tree
+(B[m[32m+        .record_exit(kernel_pane, 7, Moment::new(Duration::ZERO))
+(B[m[32m+        .unwrap();
+(B[m     let ExitOutcome::Closed(closed) = outcome else {
+         panic!("expected the shell pane's real exit to close it, got {outcome:?}");
+     };
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

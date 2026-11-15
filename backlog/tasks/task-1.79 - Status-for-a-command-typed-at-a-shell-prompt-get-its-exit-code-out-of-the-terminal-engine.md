@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:30:00Z'
+updated_date: '2026-11-15T22:43:00Z'
 labels:
   - size-5
   - review-passed
@@ -653,6 +653,14 @@ Finding:
 plan-matched: no, for the record, not as a fault - two departures the worker's own notes name or that are a direct, undisputed consequence of what the plan specified: (1) notes head "Departure from the plan, worth naming: nine tests were built, not the plan's own six[/seven] named cases," explained in the notes; (2) the diff touches crates/kernel/src/lib.rs (`pub use terminal::{CommandMark, Terminal}`), which the plan's Files list does not itemise, but is the mechanical re-export of the public type the plan did specify.
 
 No Important finding. Point-by-point verification (vendoring, the patch itself, our crates' unsafe/IO posture, the kernel's own type and drain_events, evidence, licence/record, offline build size) all checked out against the primary sources, not just the notes.
+
+---
+
+created: 2026-11-15T22:43:00Z
+
+---
+
+After the clean review at 32ab0d9, the worker corrected the one nit (33b66ed) and merged main (head 8269821): the kernel's requirement on ghostty-vt is now written =0.8.0, since cargo ignores build metadata in a requirement, and the comment there and third_party/README.md now say what the requirement constrains, that [patch.crates-io] is what selects the patched copy, and that if the patch ever stopped applying the kernel would fail to compile. Cargo.lock is unchanged. Comments, the README and that one string only; read line by line by @bruk.o. The reviewer did not see this commit. The board locks a task after a clean review, so the check is the pull request's CI: green at 8269821.
 
 ---
 <!-- COMMENTS:END -->

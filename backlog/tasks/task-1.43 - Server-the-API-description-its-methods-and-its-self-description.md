@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:32:00Z'
+updated_date: '2026-11-15T15:40:00Z'
 labels:
   - size-4
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.36
@@ -26,10 +27,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6427b7d1fb39'
 asdlc_plan_approved_size: size-4
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -581,6 +580,29 @@ created: 2026-11-15T15:32:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.43: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:40:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Fresh re-review of 1c9abd3 (PR #28 headRefOid, CI green). All three earlier findings verified closed, not just claimed:
+
+(1) api.show and api.call now declare target with role: Target, value: ValueKind::Text, name "target" (crates/sdk/src/description/methods.rs, target_of_kind helper). The new test every_method_has_a_target_exactly_as_doc_2_section_8_gives_it was checked row by row against doc-2 section 8's Target column by hand (all 38 methods) and matches. Independence confirmed empirically: flipped api.show's role back to Flag in a scratch edit (discarded after) and the test failed with "api.show should have a Target-role param" - it is not vacuously passing. api.show's required:false rests on the board's recorded decision (comment #1, confirmed by Bruk: "api.show with no target returns the whole description"), not on section 8's text itself, which is the correct provenance per decision-1's "served to anyone who asks". client.show's required:true is correctly the one exception, matching doc-2's lack of a STEG_CLIENT context default.
+
+(2) validate() (crates/sdk/src/description/request.rs) now type-checks every present parameter (any kind, required or not) via matches_kind, and refuses null (every arm is a positive shape test, so null falls through all of them with no separate check needed). Verified every declared kind with a wrong type and with null (both required and optional parameters) via the existing test suite, confirmed a valid request using every kind passes, and added a throwaway test (discarded after) sending a nested object, an array-of-objects, and a float where an integer is declared: all three are refused as BadRequest with no panic. A JSON literal beyond f64 range is rejected by serde_json's own parser before validate ever sees it, so that edge is not reachable code the sdk itself needs to guard. Error message names the parameter and the kind expected, confirmed by the_message_names_the_parameter_and_the_kind_expected.
+
+(3) pane.wait's --for is narrowed to the literal "exit" (ValueKind::Choice(["exit"])), matching doc-2 section 8's own row text exactly, with returns Record{exit_code} matching section 6's "prints the program's own exit code". This narrowing is correct, not a removal of spec-given functionality: section 8 is the one row that actually governs pane.wait, and gives it exactly one condition. There is a genuine tension elsewhere in doc-2 worth raising as a question for the engineer, not a finding against the worker: section 5's --for row says both wait and event.watch draw their names "from the API description's event records (R38)", but R38's event records are dotted names (pane.exited, not exit); section 8's literal "exit" is not one of them. The worker already surfaced this in the method's own `details` text and did not guess at a shared vocabulary doc-2 itself hasn't fixed - that is the right call given the instruction to flag an unsettled contradiction rather than resolve it silently.
+
+Nothing regressed elsewhere: ran cargo test -p steg-sdk (68 passed) and the full `just check` at the worktree's head (1c9abd3) - all green, matching the last recorded run. The only diff between the last recorded `just check` commit (78d10b8) and the branch's current head is the board task file itself (confirmed by diff --stat), so the recorded check is current. Diff touches only boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs and crates/sdk/src/description/*, plus Cargo.lock - nothing under crates/server/, crates/kernel/ or spikes/ (spikes/api-description/ untouched). PR #28's CI run on headRefOid 1c9abd3 is green (gh pr checks).
+
+No findings.
 
 ---
 <!-- COMMENTS:END -->

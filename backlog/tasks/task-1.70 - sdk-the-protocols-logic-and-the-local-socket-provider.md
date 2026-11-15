@@ -1,11 +1,11 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T17:16:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
   - review-passed

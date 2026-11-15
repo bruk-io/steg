@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:20:00Z'
+updated_date: '2026-11-15T16:00:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -30,3 +30,238 @@ doc-15: R86, R89, R91. decision-5 and decision-6.
 - [ ] #2 The latest client in a session is the last to send input or declare a new size
 - [ ] #3 A terminal takes the size the latest client declared for it, and every other viewer is told that size
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Scope: kernel-only data model for clients, viewing, "latest", and the size a terminal
+takes (doc-15 R86, R89, R91; decision-5; decision-6). Builds on main as merged
+(terminal.rs, screen.rs landed from TASK-1.39's PR). No server, no socket, no thread
+model: TASK-1.44/45/47 build the connection and attachment streaming on top of what
+this task returns; TASK-1.40 (parallel, in planning) is not depended on for anything
+below.
+
+THE UNIT (settles brief point 4, flagged as this plan's one real decision):
+doc-14 says "each attachment declares its own size... the size the terminal would
+have in that client" (per pane, per attachment). But the kernel already on main holds
+size per TAB (`Tab.size: Option<Size>`), and R100's floor is judged only from a tab
+total through `Layout::leaf_sizes` (`tab.rs` `satisfies_floor_sizes`/`would_violate_
+floor_inserting`). A client declaring per-pane sizes directly can't feed that floor
+check (there is no total to invert leaf_sizes from) and can't keep R95's shared
+proportions true (two clients' independent per-pane sets need not tile). So: what a
+client declares IN is a whole tab's size in cells (the tab it is viewing, since R89/
+decision-5 point 5 - all viewers of a session share one current tab). That becomes,
+when the client is latest, the existing `Tab.size` via the existing `Tree::set_tab_
+size`. What a client is told, OUT, per pane, is `Layout::leaf_sizes(tab.size)` -
+exactly doc-14's "an update gains an optional size" per pane. doc-14's "per-attachment
+size" is therefore the report direction, not the accept direction; nothing on the
+wire doc changes, this is just naming which half of it this task builds. Flagging
+this explicitly for review since a reviewer holding doc-14's words literally will
+read a tab-level kernel API as contradicting it otherwise.
+
+DATA MODEL
+- sdk (`crates/sdk/src/ids.rs`): add `ClientId`, same shape as `SessionId`/`TabId`/
+  `PaneId` (from_raw/into_raw/Display, same derives). Update the module doc comment
+  ("a session, a tab, a pane" -> "... and a client").
+- sdk (new `crates/sdk/src/client_kind.rs`, mirroring `pane_kind.rs`): `ClientKind`
+  enum `App`, `Cli`, `Plugin` (doc-14: the hello's `kind`). Exported from `lib.rs`.
+- kernel (new `crates/kernel/src/client.rs`): `Client { id: ClientId, kind: ClientKind,
+  label: Option<String>, viewing: Vec<PaneId>, declared: Vec<(TabId, Size)>, activity:
+  Vec<(SessionId, u64)> }` with read-only getters (`id`, `kind`, `label`, `viewing`).
+  `viewing`/`declared`/`activity` stay crate-private, mutated only through `Tree`, to
+  keep "who is latest" derivable in one place (`Tree`) rather than recomputable
+  wrongly from two structs. Plain `Vec`, linear scan: matches every other collection
+  in this crate (`Tab.panes`, `Session.tabs`), no new dependency, and these lists are
+  at most a handful of entries.
+  No label validation: `label::validate` exists for R10's target grammar (no `/`, not
+  all-digits), and R10 does not make a client addressable by label at all (doc-15's
+  table of addressable things is sessions/tabs/panes only). Reusing it for clients
+  would invent a rule nothing asks for. Flagging this as a judgement call to confirm,
+  not a silent decision: doc-14 just says the hello "gains... an optional label" with
+  no format rule.
+- kernel (`ids.rs`): add `Ids::next_client(&mut self) -> ClientId`, same shared
+  counter as the other three (`next_raw`) - identity minting, not activity ordering,
+  so this is exactly the existing pattern, no new design.
+- kernel (`tree.rs`): add a private `activity: u64` field on `Tree` (not on `Ids`:
+  activity order is "has this happened more recently than that", never serialised,
+  never an identifier - conflating it with id minting would leak sequence semantics
+  into identifiers that must never carry one). A private `fn tick(&mut self) -> u64`
+  increments and returns it. This is not reading a clock - it is the kernel advancing
+  its own state - so `crates/kernel/clippy.toml`'s disallowed list does not fire and
+  no trait/double is needed for `just test`'s no-doubles rule.
+
+DERIVED, NEVER STORED
+- "Viewing": `Client.viewing` is attachment data (the smallest thing TASK-1.47 can
+  drive - quoting doc-14: "'which sessions does this client view' is never sent by
+  the client; the server reads it off the attachments"). There is no `views: Vec
+  <SessionId>` field anywhere; `Tree::sessions_viewed(client)` derives it by mapping
+  each viewed pane to its owning session (dedup).
+- "Latest in a session": not stored either. `Tree::latest_client(session)` derives
+  it as the client, among those currently viewing (`sessions_viewed` includes this
+  session), with the highest `activity` entry for that session. `None` if nobody
+  views it. This makes "what happens when the latest leaves" fall out for free: it is
+  recomputed fresh from whoever is left, with no special-cased departure state to
+  keep in sync. decision-6 does not say what happens when the latest client leaves;
+  this plan decides it (fall back to the next most recently active remaining viewer,
+  or no latest at all) and flags it as reversible, not as settled by the decision
+  record.
+- A declaration always wins: declaring a size is itself an activity event, so right
+  after it, that client trivially holds the freshest tick of anyone - it is
+  unconditionally the new latest, and its size is unconditionally applied. The one
+  place a client's stored `declared` size matters without a fresh declare is when
+  the latest changes for another reason (input elsewhere, or a departure): then the
+  newly-latest client's last-declared size for each tab it views is what gets
+  (re)applied, which is why `declared` has to be kept per client rather than computed
+  only at declare-time. This is the one subtle clause worth its own test.
+
+TREE API (house pattern: a "what happened" struct per operation, like `Focused`/
+`ClosedPane`/`MovedPane`/`TabClosed`, so TASK-1.46 raises one event with no further
+lookup - and `Candidate`'s own precedent for keeping wire-shape mapping out of the
+kernel: "mapping a kernel error to a wire shape is the API description's job
+(TASK-1.43), not this module's").
+
+New struct in `tree.rs`:
+  SizeChanged { tab: TabId, size: Size, panes: Vec<(PaneId, Size)>, viewers:
+  Vec<ClientId> }
+  - `panes` is `Layout::leaf_sizes(size)` - what the server resizes each pane's
+    Terminal to and reports to each attachment (AC #3's "told that size").
+  - `viewers` is every client currently viewing this tab, from `clients_viewing`.
+
+New `Tree` methods:
+  - `connect_client(kind, label) -> ClientId` - mints via `Ids::next_client`. Nothing
+    about focus or any session/tab/pane touched (AC #1, decision-5 point 4; tested).
+  - `clients(&self) -> &[Client]`, `client(&self, id) -> Option<&Client>`.
+  - `disconnect_client(&mut self, id) -> Result<Vec<SizeChanged>, Error>` - removes
+    the client, then for every session it was viewing, recomputes `latest_client` and
+    reapplies that client's declared size for each tab it views there (shared helper
+    below). `Error::ClientNotFound(ClientId)` if unknown.
+  - `view_pane(&mut self, client, pane) -> Result<(), Error>` - adds `pane` to
+    `client.viewing` if not already there (idempotent). No size, no activity: viewing
+    alone is not "input or resize" (R91's own wording). `Error::ClientNotFound`,
+    `Error::PaneNotFound`.
+  - `stop_viewing(&mut self, client, pane) -> Result<Vec<SizeChanged>, Error>` -
+    removes `pane`; if that leaves the client viewing nothing in `pane`'s session,
+    runs the same recompute-and-reapply helper `disconnect_client` uses, scoped to
+    that one session. `Error::ClientNotFound`, `Error::ClientNotViewingPane { client,
+    pane }` if it wasn't viewing it.
+  - `declare_size(&mut self, client, tab, size) -> Result<SizeChanged, Error>` -
+    requires the client to already view some pane in `tab`'s session (else
+    `Error::ClientNotViewingTab { client, tab }` - a client must attach before it
+    declares, matching doc-14's "at attach and whenever..."); records `size` in
+    `client.declared`; ticks activity for (client, tab's session); calls the existing
+    `Tree::set_tab_size(tab, size)` unconditionally (AC #3, R100's last clause: a
+    declaration never fails the floor, it only crops/pads - tested); returns the
+    `SizeChanged`. `Error::TabNotFound`, `Error::ClientNotFound` also possible.
+  - `note_input(&mut self, client, pane) -> Result<Option<SizeChanged>, Error>` -
+    requires viewing (`Error::ClientNotViewingPane`); ticks activity for (client,
+    pane's session); looks up this client's `declared` size for pane's tab; if none,
+    or it already equals the tab's current size, returns `Ok(None)` (no-op); else
+    applies it via `set_tab_size` and returns `Ok(Some(SizeChanged{..}))` - this is
+    the "latest changed by input, not by a fresh declare" path (AC #2's "last to send
+    input", tested).
+  - `sessions_viewed(&self, client) -> Result<Vec<SessionId>, Error>`,
+    `clients_viewing(&self, session) -> Result<Vec<ClientId>, Error>`,
+    `latest_client(&self, session) -> Result<Option<ClientId>, Error>` - read-only
+    derivations, exposed directly so tests (and later the server) can assert/query
+    them without relying on a side effect's return value.
+  - Private helper `fn reapply_latest(&mut self, session) -> Vec<SizeChanged>`: the
+    recompute-and-reapply logic shared by `disconnect_client` and `stop_viewing`.
+  - A private immutable `fn session_owning_pane(&self, pane) -> Option<SessionId>`
+    (today only `tab_owning_pane_mut`/`session_owning_tab_mut` exist, both `_mut`,
+    `tree.rs:174`/`208`). Used by `declare_size`, `note_input`, `sessions_viewed`.
+
+VISIBILITY: `Tree::set_tab_size` (`tree.rs:575`) narrows from `pub` to `pub(crate)`.
+Its own doc comment already names this task's caller ("the server... calls this
+whenever it learns a new size"); now that caller is `declare_size`/`reapply_latest`
+inside this same crate, and nothing outside the kernel should set a tab's size
+except through a client's declared activity. Flagging this visibility change
+explicitly since it narrows an existing public method - confirm with the engineer/
+reviewer rather than treating it as a plain internal refactor.
+
+CLEANUP ON CLOSE: `Tree::close_pane`/`close_tab`/`close_session` (`tree.rs` ~193-289)
+must also drop the closed pane(s) from every client's `viewing` and `declared` lists,
+and run `reapply_latest` for any session whose latest client's view just changed as a
+result. Existing tests for those three methods must keep passing unmodified; new
+tests cover a client viewing a pane that gets closed out from under it.
+
+PIXEL SIZE (brief point 4, last clause): not carried by this task. `Size` (`sdk/
+layout.rs:91`) is explicitly cells-only ("never pixels - the kernel does no I/O and
+reads no screen"), and R102/R105 forbid the kernel or sdk holding one. `terminal.rs`'s
+own comment names "TASK-1.42" as plumbing a real size through `Terminal::resize`, but
+`Terminal::resize` takes `(cols, rows)` only - this task supplies exactly that, via
+`SizeChanged.panes`, once some later task actually holds a `Terminal` inside a `Pane`
+(no task does today - TASK-1.40's brief is running the program, not wiring a
+`Terminal` into `Pane`; that wiring is an open gap, not yet named on the board).
+Pixel geometry for `engine.resize`'s width/height (CSI 14/16/18 t, mode 2048) stays a
+named, unfixed gap: left for whichever task wires a pane to a `Terminal` and the
+app's pixel metrics (candidate: TASK-1.47, which already "reports a terminal's size
+in updates" - but it isn't decided there yet either). Recommend: leave `terminal.rs`
+unchanged in this task, and flag on the board (comment, not a contract-change label -
+this doesn't contradict doc-16, it is simply not assigned anywhere yet) that the
+pixel-size carrier needs a home once TASK-1.40 lands.
+
+ORDER OF WORK
+1. sdk: `ClientId` in `ids.rs`, `ClientKind` in new `client_kind.rs`, export both from
+   `lib.rs`. Unit tests mirroring the existing id tests (round-trip, Display width,
+   distinct values).
+2. kernel: `Ids::next_client`; new `client.rs` with `Client` and its getters; export
+   `Client` from `lib.rs`.
+3. kernel: `Tree` gains the `clients: Vec<Client>` field and `activity: u64` counter
+   plus `tick`; `connect_client`, `clients`, `client`, `disconnect_client` (with
+   `reapply_latest` stubbed to "nothing to reapply yet" until step 5).
+4. kernel: `view_pane`, `stop_viewing`, `sessions_viewed`, `clients_viewing`, and the
+   private `session_owning_pane` helper. Tests for AC #1: connect, view, viewing
+   derives the session list, stop_viewing/disconnect remove it, focus never moves.
+5. kernel: `declare_size`, `note_input`, `latest_client`, `reapply_latest` filled in,
+   narrow `set_tab_size` to `pub(crate)`. Tests for AC #2 and #3: latest tracks input
+   and declares; a declaration always wins; departure falls back to the next viewer
+   or to none; a smaller declared size never errors on the floor; `SizeChanged.panes`
+   matches `leaf_sizes`; `viewers` lists every client on that tab.
+6. Wire the close-pane/tab/session cleanup (above) and its tests.
+7. `error.rs`: add `ClientNotFound`, `ClientNotViewingPane`, `ClientNotViewingTab`,
+   with `Display`/`source` arms alongside the existing ones.
+8. `just check` for the kernel and sdk crates; fix anything the workspace-wide lints
+   (`boundaries.toml`, `clippy.toml`) flag.
+
+RISKS
+- The close-cascade touch points (step 6) are the part most likely to have a case
+  this plan missed (e.g. a pane closing because it was the tab's last one, cascading
+  to the session, while a client views exactly that pane) - budget time for it, not
+  just the straight-line API.
+- `pub(crate)` on `set_tab_size` could break a test outside this crate if one exists;
+  confirmed by grep there is none today, but re-check after step 5.
+- The doc-14 unit framing (this plan's main call) is the one point most likely to
+  draw review pushback; said explicitly above so it is discussed before, not during,
+  review.
+
+PROOF (test -> AC clause)
+- AC #1 "connect and leave": `connect_client` then `disconnect_client` round-trip;
+  `clients()`/`client()` reflect it.
+- AC #1 "viewing follows from attachment": `sessions_viewed` is empty before
+  `view_pane`, non-empty after, empty again after `stop_viewing`/`disconnect_client`;
+  no setter for "views" exists to call directly.
+- AC #1 "focus never changes": one test exercises connect/view/declare/note_input/
+  disconnect and asserts the tree's focus path (current_tab, current_pane) is
+  unchanged throughout (R88, decision-5 point 4).
+- AC #2 "latest is last input or declared size": `latest_client` flips to whichever
+  client most recently called `declare_size` or `note_input` on a pane in that
+  session; a client that only `view_pane`s (no declare, no input) never becomes
+  latest; departure falls back to the next most recently active remaining viewer, or
+  `None` with nobody left.
+- AC #3 "terminal takes the latest's declared size": `declare_size`'s `SizeChanged.
+  panes` matches `Layout::leaf_sizes(size)` for the tab's current layout; a
+  non-latest client's `declare_size` still updates its own stored size (visible once
+  it later becomes latest) but does not change `Tab.size` at declare time - wait,
+  this can't happen per "a declaration always wins", so this test instead proves that
+  claim directly: two clients each declare different sizes on the same tab, and the
+  tab's size is always the one most recently declared, regardless of magnitude
+  (smaller or larger).
+- AC #3 "every other viewer is told": `SizeChanged.viewers` lists every client
+  `view_pane`-ed onto that tab's panes, including ones that didn't trigger the
+  change.
+- R100 "a declaration never fails the floor": `declare_size` with a size smaller than
+  R100's floor still succeeds and is applied (mirrors the existing `set_tab_size_
+  smaller_always_succeeds_and_closes_nothing` test at `tree.rs:1589`).
+
+Commands: `just check` (kernel + sdk affected), `just test`.
+<!-- SECTION:PLAN:END -->

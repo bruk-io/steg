@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:42:00Z'
+updated_date: '2026-11-15T20:43:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -684,6 +684,51 @@ Check passed: `just test` exited 0 at 2026-11-15T20:42:47+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (3.7s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T20:43:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes, last 40 of 64 lines:
+
+```text
+         let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+         let second = tree
+[31m-            .split_pane(first, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+(B[m[32m+            .split_pane(
+(B[m[32m+                first,
+(B[m[32m+                steg_sdk::Direction::Right,
+(B[m[32m+                steg_sdk::PaneKind::Terminal,
+(B[m[32m+            )
+(B[m             .unwrap();
+         tree.start_program(first, command("/tmp")).unwrap();
+         fail(&mut tree, second);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/kernel/src/tree.rs:3513:
+         let session_id = tree.new_session(None).unwrap();
+         let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+         let second_tab = tree.new_tab(session_id, None).unwrap();
+[31m-        let second = tree.session(session_id).unwrap().tab(second_tab).unwrap().panes()[0].id();
+(B[m[32m+        let second = tree
+(B[m[32m+            .session(session_id)
+(B[m[32m+            .unwrap()
+(B[m[32m+            .tab(second_tab)
+(B[m[32m+            .unwrap()
+(B[m[32m+            .panes()[0]
+(B[m[32m+            .id();
+(B[m 
+         // `first` finishes at moment(500) (deadline 500 + 600 = 1100);
+         // `second` finishes at moment(0) (deadline 0 + 600 = 600) - the
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41/crates/kernel/src/tree.rs:3523:
+         tree.start_program(second, command("/tmp")).unwrap();
+         tree.record_exit(second, 0, moment(0)).unwrap();
+ 
+[31m-        assert_eq!(
+(B[m[31m-            tree.next_status_deadline(moment(0)),
+(B[m[31m-            Some(moment(600))
+(B[m[31m-        );
+(B[m[32m+        assert_eq!(tree.next_status_deadline(moment(0)), Some(moment(600)));
+(B[m     }
+ }
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

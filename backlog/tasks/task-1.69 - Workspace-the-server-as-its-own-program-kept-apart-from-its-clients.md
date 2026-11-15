@@ -215,3 +215,9 @@ say no to hand-editing the plugin before it happens.
    because AC#4 is about this suite's subject) - unchanged, since `boundaries.py` and
    its tests are not touched by this task.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan held by @bruk.o, not sent for approval: the engineer is settling the repository's architecture (an SDK with no I/O that holds the API description, the CLI merged into the steg binary crate, the kernel allowed to depend on the SDK). This plan was written against the earlier shape (a steg-client crate, a separate steg-cli). It is to be rewritten once the architecture spec is on the board. Also: the plugin under plugins/bruk-io-steg is changed through asdlc-plugin, not in a task's worktree.
+<!-- SECTION:NOTES:END -->

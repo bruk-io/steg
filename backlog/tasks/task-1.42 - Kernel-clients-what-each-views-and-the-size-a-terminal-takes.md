@@ -1,14 +1,14 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:18:00Z'
+updated_date: '2026-11-15T17:35:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '571c32803ab2'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
 ---
 
@@ -762,6 +761,47 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:20:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 36f1c599061b:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2.9s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.9s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 30, 23 without the Asdlc-Worker trailer.
+
+Fixed the second review finding (whole_focus never read session.current_tab(), so the focus test could only catch half the fault space) and looked over every other "nothing changes"/"drops X" test in the diff as asked.
+
+whole_focus (crates/kernel/src/tree.rs) now captures, per row, (session, session's current_tab, this tab, this tab's current pane) - previously it omitted session.current_tab() entirely. Proved both halves bite, each its own recorded failing run, reverted after recording:
+- A scratch `self.focus_tab(owning_tab)` inside view_pane moved only the session's current tab (the fixture starts with a different tab current, so this was a real change, not a same-value no-op) - failed at "after view_pane" with the session's current_tab column differing.
+- A scratch `tab.focus(pane)` (via Tab::focus directly, not Tree::focus_pane, which would also move the session) inside view_pane moved only the owning tab's current pane - failed at "after view_pane" with the pane-current column differing.
+
+Audited every other test in the diff claiming "never"/"nothing changes"/"drops": two over-claimed what they verified, since the ids involved are retired for good and nothing could ever behaviourally observe a stale record for them either way.
+- closing_a_tab_drops_its_declared_size_record_from_every_client previously "proved" its claim by redeclaring on a different, surviving tab - which can't distinguish a purged record from a merely-unreachable one. Now asserts Client::declared_size(first_tab) directly (pub(crate), same crate as the test module).
+- closing_a_session_drops_every_clients_attachment_and_activity_for_it never checked the "activity" half of its own name. Now asserts Client::activity_in(session_id) directly, both Some before closing and None after.
+Everything else checked (viewing_alone_never_makes_a_client_latest, declare_size_never_fails_the_floor, the note_input no-op tests, the other closing_* tests) already asserts on a real, live derived value (latest_client, a declare_size Result, a surviving pane/tab's actual state) that could not pass vacuously - no further changes needed there.
+
+Merged origin/main twice: TASK-1.74's code changes (clean), then TASK-1.70's own ClientId/ClientKind definitions (add/add + content conflict in crates/sdk/src/ids.rs and client_kind.rs) - resolved by keeping mine as the designated canonical copy, folding in one improved doc-comment line from theirs about why ClientId lives in ids.rs rather than wire/.
+
+Check recorded: just check at the merged head (36f1c59), full suite green including steg-sdk's new local-socket feature tests from TASK-1.70's merge. Per @bruk's confirmation, PR #29's CI failure at this head is an account billing block (job never started, no steps run), not a code issue - not chased further; the recorded just check is the evidence.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -833,6 +873,44 @@ All four nits from the prior review are fixed with real outcome assertions, not 
 The prior Important finding (the focus test was structurally unable to fail: one tab, one pane) is genuinely fixed for pane-level focus: the rebuilt connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus uses two sessions, each with two tabs of two panes, deliberately unfocuses the pane the client acts on, and the worker's recorded run (injecting `focus_pane` into view_pane, exit 101, failure at "after view_pane", then reverted) is honest proof that this half of the check bites.
 
 [Bugs, Important] crates/kernel/src/tree.rs:2236 (helper `whole_focus`, :2222) The new helper's own doc comment claims to capture "every one of tree's sessions' current tab and every tab's current pane," but its body only yields `(session.id(), tab.id(), tab.current())` for every tab - it never calls `session.current_tab()`. Session-level current-tab is a distinct, separately-set field (session.rs:27, set via Tree::focus_tab/focus_pane -> Session::set_current_tab), not derivable from tab.current(). The plan's own PROOF section for this test says it "asserts the tree's focus path (current_tab, current_pane) is unchanged throughout" - decision-5 point 1 makes that path session -> current tab -> current pane, so leaving current_tab out of the captured state asserts only half the path, every time. I confirmed this bites: injecting a fault into view_pane that calls session.set_current_tab (moving session_a's current tab from tab_a2 to tab_a1, touching no tab's current pane) left the test passing unchanged (cargo test -p steg-kernel, not a recorded just-test check - a probe only, reverted after). This is the same shape of gap the prior review found (a test for this exact invariant that cannot detect a real class of the violation it claims to rule out), now on the other half of the focus path; the worker's own recorded failing run only exercised the pane-level half.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:27:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:35:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Reviewed at head 36f1c599061b (PR #29). `just check` run independently in a fresh review worktree at this exact head: all green (format, lint, boundaries, licences, every package build+test, tool tests, architecture, recipe names), matching the task's recorded evidence at the same head.
+
+Diff since the second review's head (f9ec80092e2a) is crates/kernel/src/tree.rs only (60 lines): the rebuilt `whole_focus` helper now captures, per row, (session, session's current_tab(), this tab, this tab's current pane) - the previously-missing session-level half is present. Read it, and the whole rest of the diff against main, line by line.
+
+Verified independently (not just reading the worker's claim): injected a scratch fault into `view_pane` (`let _ = self.focus_tab(owning_tab)`, moving only session A's current tab from tab_a2 to tab_a1, touching no tab's current pane) and ran `cargo test -p steg-kernel --lib connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus` directly - it failed exactly as expected ("after view_pane", the session-current-tab column differing), confirming the rebuilt helper catches this half of the fault space. Reverted after (`git checkout -- crates/kernel/src/tree.rs`), confirmed no diff remained.
+
+The worker's own two recorded failing runs (implementation notes, timestamps 17:16:09 and 17:16:34, both "Record a check" commits, exit 101) show two distinct panics with two distinct data shapes: the first has the session's current-tab column differing (TabId(1) vs TabId(4)) with the pane-current column matching across rows - a session-current-tab-only fault, matching the claimed `self.focus_tab(owning_tab)` probe. The second has the current-tab column matching but the pane-current column differing (PaneId(2) vs PaneId(3)) - a tab-current-pane-only fault, matching the claimed `tab.focus(pane)` probe. Both are genuine, distinct fault shapes, each with its own recorded failing run, bracketed by passing runs before and after (17:15:49 pass, then the two failures, then 17:18:54 pass, then the final 17:20:32 pass at the real merged head 36f1c59) - this is real evidence, not narration.
+
+Confirmed there is no kernel-level "current session" concept for `whole_focus` to also need to capture: `Tree` (crates/kernel/src/tree.rs) holds only `ids`, `sessions`, `clients`, `activity` - no current-session field - consistent with the helper's own doc comment that focus bottoms out at session->current_tab->tab->current_pane, with nothing above that in the kernel.
+
+Audited every other test in the diff whose name claims "never"/"nothing changes"/"drops"/"idempotent" (client.rs: forget_tab_drops_the_declared_size_for_that_tab_only, forget_session_drops_the_activity_for_that_session_only, start_viewing_is_idempotent; tree.rs: viewing_alone_never_makes_a_client_latest, declare_size_never_fails_the_floor, view_pane_is_idempotent_and_rejects_an_unknown_pane, and every closing_*/stop_viewing test). Each asserts a real, live derived value (declared_size, activity_in, viewing(), sessions_viewed(), latest_client(), or an actual tab/client size) that could not pass vacuously. The two the worker's own notes say they fixed this round (closing_a_tab_drops_its_declared_size_record_from_every_client, closing_a_session_drops_every_clients_attachment_and_activity_for_it) now assert Client::declared_size/activity_in directly rather than redeclaring/reading only reachable state - confirmed in the diff.
+
+Checked the merge: `git diff origin/main...HEAD` touches crates/sdk/src/ids.rs and crates/sdk/src/client_kind.rs (ClientId, ClientKind) plus crates/sdk/src/lib.rs's doc comment. Confirmed with `grep -rn "struct ClientId\|enum ClientKind" crates/sdk/src/` that each is defined exactly once (ids.rs for ClientId, client_kind.rs for ClientKind), with TASK-1.74 and TASK-1.70's own changes (steg-sdk's local-socket feature, etc.) present and building cleanly (`cargo build -p steg-sdk -p steg-kernel` succeeds, and `just check`'s "test (steg-sdk, local-socket)" line is green) - no duplication from the TASK-1.70 merge.
+
+Evidence note: PR #29's CI failure at this head is the account-billing job-start failure described in the review assignment (a run with no steps), not a code issue; not chased further. The recorded `just check` at 36f1c599061b, reproduced independently above, is the evidence judged.
+
+No findings. The diff matches the plan; no departures beyond the judgement calls already flagged and accepted in the plan and the first two reviews (the doc-14 unit framing, no label validation for clients, the latest-departure fallback, and the set_tab_size/Tab::set_size visibility narrowing).
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:11:00Z'
+updated_date: '2026-11-15T17:35:00Z'
 labels:
   - size-3
   - changes-requested
@@ -436,6 +436,61 @@ Which test proves which clause:
 - AC #3 (the five variables, and PATH): server/src/env.rs's own unit tests (exact built list, no doubles) plus real_pty.rs::a_real_programs_environment_carries_the_five_variables_and_path (a real sh -c env).
 
 just check recorded clean at each step (sdk+kernel first, then deny+boundaries after adding portable-pty/anyhow, then the full suite twice - once before and once after rebasing onto origin/main, which picked up TASK-1.42/1.70/1.74/1.75's board-only commits with no code conflicts). portable-pty's licence cleared just deny on the first try, so the engineer was not asked to widen deny.toml. CI green at PR #32 (both checks passed, ~3m40s).
+
+Check FAILED: `cargo test -p steg-server --lib -- shutdown_mid_run` exited 101 at 2026-11-15T17:30:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at 0f970dc40fa9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-d9f0e6653e721d82)
+
+running 1 test
+test pane::tests::shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output ... FAILED
+
+failures:
+
+---- pane::tests::shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output stdout ----
+
+thread 'pane::tests::shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output' (7358525) panicked at crates/server/src/pane.rs:405:9:
+pid 784 still exists: child.wait() was skipped, leaving a zombie
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::tests::shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 33, 31 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:35:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at 775fcedcceee with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.9s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 58, 51 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

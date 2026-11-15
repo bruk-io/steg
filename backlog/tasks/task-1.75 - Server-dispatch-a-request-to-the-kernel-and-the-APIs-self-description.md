@@ -1,14 +1,14 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:18:00Z'
+updated_date: '2026-11-15T17:29:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -24,8 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "rust"]
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["rust"]
 asdlc_plan_matched: no
 ---
 
@@ -1133,6 +1133,109 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 26, 24 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:20:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at e0abcd99f7ef:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (3.0s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (28.6s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.3s)
+ok      test (steg-server) (0.8s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 42, 35 without the Asdlc-Worker trailer.
+
+Review findings fixed (@bruk.r5, same-machine, 2026-11-15 17:10):
+
+1. (Important, tab.rs:44) tab.new now honours `position`: validated
+   (wire_position_to_index) before anything is created; new_tab then
+   move_tab as one outcome, rolling back (close_tab, restore the
+   session's previous current tab via focus_tab) if the position is
+   past the end, so a refusal never leaves a tab nobody asked to keep.
+   Tests (crates/server/tests/dispatch.rs): tab_new_with_position_one_
+   places_the_new_tab_first, tab_new_with_a_middle_position_places_the_
+   new_tab_there, tab_new_with_no_position_appends_at_the_end_as_before,
+   tab_new_with_position_zero_is_refused_and_creates_nothing,
+   tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_
+   creates_nothing (checked against tab.move's own PositionOutOfRange
+   for the same index, on two separate trees so neither call's state
+   gets in the other's way), tab_new_with_a_position_past_the_end_and_
+   no_focus_creates_nothing_and_restores_focus.
+
+   Re-ran decision-4's own test (does the method's returns/documented
+   effect imply the flag's effect took hold; if yes and unactable,
+   refuse) over every served method's declared parameters against its
+   arm once more: session (8/8), tab (8/8), pane (13/13), api (3/3) -
+   no other parameter found accepted and silently unacted on. Only
+   tab.new's position was missed the first time.
+
+2. (Nit) every_served_nothing_returning_method_answers_exactly_null and
+   every_served_identifier_returning_method_answers_exactly_one_id_field
+   (which covered 3 and 1 of ~18 served methods of those kinds) replaced
+   with every_nothing_or_identifier_returning_method_matches_its_
+   declared_shape: every method of either kind in description() is
+   covered by name, against a dedicated piece of tree state per case
+   (so the order cases run in cannot matter), with a hard failure for
+   any method the test has no case for, plus a closing set-equality
+   assertion against the description as a second, independent check.
+
+3. (Nit) Added the harder --no-focus cases: pane_split_with_no_focus_
+   restores_a_current_pane_that_is_not_the_target (splits a pane that is
+   not the tab's current one) and tab_new_with_no_focus_restores_a_
+   current_tab_that_is_not_the_first (a session whose current tab is
+   neither first nor last) - both confirm the restore reads the tab's/
+   session's actual previous current, not the split's own target or the
+   first tab.
+
+4. (Nit, no code change) mod.rs holding Context, dispatch and the shared
+   helpers, against rust.md's "lib.rs and mod.rs hold mod and pub use
+   lines only" - unchanged, since the plan itself named this file for
+   this content. Worth a later split (session/tab/pane/api's shared
+   resolution and param helpers into their own module) once this task's
+   own scope is settled; not done here since the plan did not ask for
+   it and splitting now would be an unreviewed restructuring on top of
+   an already-reviewed diff.
+
+Brought in origin/main twice more since the first review (PR #30,
+TASK-1.70's sdk protocol logic and local-socket provider; and the board
+-only commits around it) - no conflicts in either merge; no new kernel
+Error variant landed (TASK-1.40/1.42 still unmerged, as expected per the
+review brief - not anticipated here). TASK-1.70 added `server.start`'s
+on_demand switch to the description; server.start is already in this
+task's not-yet list (server.* nouns have no served arm), so it needs no
+change here and the completeness/smoke tests already cover it correctly
+(an optional switch adds no required param).
+
+just check recorded clean at the new head (e0abcd9) after both merges.
+CI green on PR #33 at the same SHA.
+
+Updated clause-by-clause mapping (only what changed from the first
+pass; AC #4, #5 and #7 are as recorded at finish):
+- AC #1: unchanged, plus the tab.new tests above now also prove
+  validation/refusal for its position branch.
+- AC #2: unchanged (position-related refusals are BadRequest/
+  PositionOutOfRange, not NotImplementedYet - tab.new's position
+  branch was never a not-yet case, which is exactly finding #1's point).
+- AC #3: every_nothing_or_identifier_returning_method_matches_its_
+  declared_shape now proves the Nothing/Identifier shape for every
+  served method of those kinds by name, not a sample of 4.
+- AC #6: the two new harder no-focus tests (finding #3) strengthen this
+  clause's proof beyond the trivial single-pane/single-tab case.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1176,6 +1279,42 @@ Findings: 1 Important, 3 nit. Cites: review, rust. The diff does not match the p
 Verified directly: every served method's arm checked individually against doc-2 section 8 and the sdk's own declared params for session (8/8 verbs), tab (8/8, partial), pane (13/13, partial) and api (3/3) - the tab.new finding above is the only parameter accepted by validate and then silently unacted on; every other declared flag on every served or partially-served method is either read and acted on, or is one of the plan's disclosed no-op cases (--force on *.close, session.new --focus/--no-focus). Positions: session.move and tab.move both convert correctly (1 -> kernel 0, tested; 0 -> BadRequest with no kernel call, tested for session.move and at the shared wire_position_to_index level for both). Completeness both ways: verified empirically, not just by reading the test - removed ("session","show") from session::HANDLED in a scratch edit, reran the completeness test, got the expected two-sided mismatch failure; separately added a bogus ("session","bogus") entry, reran, got the expected reverse-direction failure; reverted both (worktree clean). api.call: validated as refusing itself, refusing a missing/non-string target, and recursing through the same dispatch/validate path a direct call would take (byte-for-byte match test for pane.split; same BadRequest for an unknown inner method as a direct call gets), so it cannot reach anything a direct call could not. Kernel error mapping: exhaustive over all 13 variants steg_kernel::Error has on origin/main today, no wildcard arm, confirmed by reading kernel_error.rs directly - not missing any current variant. Of the four parallel tasks named, task-1.40 and task-1.42 each add kernel::Error variants this match does not yet cover (task-1.40: ProgramAlreadyStarted, ProgramNotStarted, ProgramStillRunning, ShellCannotRestart; task-1.42: ClientNotFound, ClientNotViewingPane, ClientNotViewingTab) - expected per the review brief, not a finding, but whichever of those merges first will break steg-server's build here until map_kernel_error is extended. Refusals create nothing: verified for session.new/tab.new/pane.split given cwd or program, and for pane.split given an invalid label (rolls back the split and the tab's current pane) - each checked before any Tree mutation in the source, and asserted by dedicated or table-driven tests comparing the whole tree/session/tab before and after. Typed results: Outcome's 9 variants match exactly what this task's arms produce, no unused variant. Evidence: just check recorded at commit ecad31448c56, which is HEAD; PR #33's CI ("check") is SUCCESS on that same SHA.
 
 plan-matched is "no": the plan's file list does not name crates/server/src/dispatch/api.rs (it put api.list/show/call's handling under mod.rs in the plan text) - a real new file beyond what was named, though it holds exactly what the plan described logically. Also disclosed in the notes: the completeness and kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as the plan's file list named, for a documented reason (HANDLED/NOT_YET_NOUNS are #[cfg(test)]-private). Both are departures the notes explain, not undisclosed ones, so neither is counted as the Important finding above, but the instructions call for "no" on any departure.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:25:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:29:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: rust. The diff does not match the plan.
+
+Reviewed at head e0abcd99f7ef6f8b29813cc657821c91171353e1 (PR #33's head). GitHub Actions "check" is SUCCESS at this exact SHA; the task's own recorded `just check` clean run is also at this exact SHA (both confirmed, not the account-billing CI outage noted in the brief).
+
+The one Important finding from the first review is fixed: crates/server/src/dispatch/tab.rs:60-95 (`new`) now converts and validates `position` via `wire_position_to_index` before anything is created (0/negative -> BadRequest, no kernel call), then composes `new_tab` + `move_tab` as one outcome, rolling back (`close_tab`, `focus_tab(previous_tab)`) if the position lands past the end so a refusal never leaves a tab nobody asked for. Verified by reading the code and by six new tests in dispatch.rs that exercise first/middle/default-end placement, position-zero refusal, past-the-end refusal (checked byte-for-byte against tab.move's own PositionOutOfRange for the same index, on a separate tree), and the no-focus+past-the-end combination - each asserting the tree is unchanged on refusal, not just the error code.
+
+Re-did the "declared param vs. acted-on" sweep myself, independent of the worker's own list: read session.rs, tab.rs, pane.rs and api.rs in full against every method's declared params in crates/sdk/src/description/methods.rs. Every param is either read and acted on, or is one of the plan's disclosed no-ops (`--force` on *.close, `session.new --focus`/`--no-focus`). No other accepted-and-silently-unacted parameter found.
+
+The two test nits are fixed, not just renamed: every_nothing_or_identifier_returning_method_matches_its_declared_shape now iterates api.methods directly, builds a dedicated piece of tree state per case, panics on any Nothing/Identifier-returning method it has no case for, and closes with an independent set-equality check against the description - a new method cannot be missed. The two added no-focus tests (tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first, pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target) target tree state where the restore logic is not trivially correct (current tab/pane is neither first nor the call's own target) - each would fail if the restore read the wrong thing.
+
+Remaining nit, unchanged and already disclosed in both reviews: crates/server/src/dispatch/mod.rs still holds Context, the top-level dispatch function and a dozen-plus helpers directly, against rust.md's "lib.rs and mod.rs hold mod and pub use lines only" - the plan itself named this file for this content, so not a new departure, just worth a later split.
+
+plan-matched is "no", same reason as the first review: crates/server/src/dispatch/api.rs is a real file beyond the plan's own file list (which put api.list/show/call's handling under mod.rs in the plan text), and the completeness/kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as named - both disclosed in the notes with reasons, not undisclosed, but still a departure.
+
+Kernel error mapping re-checked: exhaustive over all 13 current steg_kernel::Error variants (crates/kernel/src/error.rs), no wildcard arm, confirmed by direct count. TASK-1.40/1.42 (which would add new variants) are still unmerged, as expected.
+
+No Important findings. Verdict clean.
 
 ---
 <!-- COMMENTS:END -->

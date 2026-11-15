@@ -808,6 +808,36 @@ impl Tree {
         Ok(())
     }
 
+    /// The tab that holds this pane, if any (TASK-1.75's dispatch: finding
+    /// a pane's tab from a target that only names the pane, such as
+    /// `pane.unset --zoomed`'s call into [`Tree::unfill_pane`], which takes
+    /// a [`TabId`]).
+    #[must_use]
+    pub fn tab_of_pane(&self, pane: PaneId) -> Option<TabId> {
+        self.sessions()
+            .iter()
+            .flat_map(crate::session::Session::tabs)
+            .find(|tab| tab.pane(pane).is_some())
+            .map(crate::tab::Tab::id)
+    }
+
+    /// Makes `pane` this tab's own current pane, with no cascade to the
+    /// session's current tab — unlike [`Tree::focus_pane`] (R85 cascades a
+    /// pane focus to its tab; this does not, by design). Used by
+    /// `pane.split --no-focus` (TASK-1.75's dispatch) to put a tab's
+    /// previous current pane back after a split unconditionally moved it
+    /// (R115: "creating without taking focus is done by putting the
+    /// previous focus back").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
+    /// id, or [`Error::PaneNotFound`] if `pane` is not in that tab.
+    pub fn set_tab_current_pane(&mut self, tab: TabId, pane: PaneId) -> Result<(), Error> {
+        let tab = self.tab_by_id_mut(tab).ok_or(Error::TabNotFound(tab))?;
+        tab.focus(pane)
+    }
+
     /// Stores a tab's current size in whole cells (AC #6: unconditional
     /// — no floor check, ever; a shrink "refuses and closes nothing").
     ///
@@ -2832,6 +2862,86 @@ mod tests {
             tree.sessions_viewed(staying).unwrap(),
             vec![session_id],
             "staying still views the surviving tab, so it still views the session"
+        );
+    }
+
+    #[test]
+    fn tab_of_pane_finds_the_tab_holding_a_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_tab_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        assert_eq!(tree.tab_of_pane(first_pane), Some(first_tab));
+        assert_eq!(tree.tab_of_pane(second_tab_pane), Some(second_tab));
+    }
+
+    #[test]
+    fn tab_of_pane_is_none_for_an_unknown_pane() {
+        let tree = Tree::new();
+        let unknown = steg_sdk::PaneId::from_raw(999);
+
+        assert_eq!(tree.tab_of_pane(unknown), None);
+    }
+
+    #[test]
+    fn set_tab_current_pane_moves_only_the_tabs_own_current_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            first_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        // `split_pane` made the new pane current (R115); a second tab,
+        // current by the same rule, so the session's own `current_tab` is
+        // genuinely somewhere else before the call below.
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), second_tab);
+
+        tree.set_tab_current_pane(first_tab, first_pane).unwrap();
+
+        // The tab's own current pane moved...
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            first_pane
+        );
+        // ...but, unlike `focus_pane`, the session's current tab did not
+        // cascade to `first_tab`.
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), second_tab);
+    }
+
+    #[test]
+    fn set_tab_current_pane_rejects_an_unknown_tab_or_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let unknown_tab = steg_sdk::TabId::from_raw(999);
+        let unknown_pane = steg_sdk::PaneId::from_raw(999);
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+
+        assert_eq!(
+            tree.set_tab_current_pane(unknown_tab, first_pane),
+            Err(crate::error::Error::TabNotFound(unknown_tab))
+        );
+        assert_eq!(
+            tree.set_tab_current_pane(first_tab, unknown_pane),
+            Err(crate::error::Error::PaneNotFound(unknown_pane))
         );
     }
 }

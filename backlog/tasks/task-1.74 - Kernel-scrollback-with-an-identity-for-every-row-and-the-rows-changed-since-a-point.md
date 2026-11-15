@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:07:00Z'
+updated_date: '2026-11-15T16:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -18,6 +18,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.74-kernel-scrollback-with-an-identity-for
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '02577a1ace6f'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -322,3 +325,16 @@ decision.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9 (R15), doc-14 and decision-2 by @bruk.o: ok. Both open questions settled by experiment on the real engine. A row's identity is scoped to an epoch: writing increments a counter as rows are dropped; a resize that changes the column count ends the epoch, because a reflow and a real drop cannot be told apart, and a caller holding ids from an earlier epoch is told those rows are gone. A resize of rows only changes nothing. A terminal keeps exactly one render state: a second one silently misses changes the first consumed, shown by test, so several readers are served by copying one update to each, which is TASK-1.47's.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T16:26:00Z
+
+---
+
+Plan approved by @bruk (02577a1ace6f, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

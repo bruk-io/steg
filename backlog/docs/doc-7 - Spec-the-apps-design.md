@@ -3,7 +3,7 @@ id: doc-7
 title: 'Spec: the app''s design'
 type: specification
 created_date: '2026-11-15T00:22:00Z'
-updated_date: '2026-11-15T00:22:00Z'
+updated_date: '2026-11-15T00:29:00Z'
 ---
 Intent: TASK-1. Delivers the design section that TASK-1.27 asks for (its criterion 3), as a document of its own because it is too long for a section of doc-1.
 
@@ -225,7 +225,10 @@ All of 2.10 is a proposal: none of it was in doc-1.
 - D98. A pane at an idle shell prompt, or whose program has ended, closes at once.
 - D99. Ending a session asks in the same way, with "Keep the session" selected, how many tabs it closes, and how many programs are still running.
 - D100. Whether a program is running is the server's knowledge: a foreground process other than the shell.
-- D101. There is no settings window. Each setting is a palette action named "Settings: ..." that shows its current value and, on Return, opens a follow-up step with the choices. A change applies at once.
+- D101. There is no settings window. Each setting is a palette action named "Settings: ..." that shows its current value and, on Return, opens a follow-up step with the choices.
+- D106. A setting changed in the palette applies at once and lasts for this run of the server. It is an override on top of the Python config (doc-1 section 5.9), which is the only file and which steg never writes to.
+- D107. When a setting's value differs from the config, its row in the palette says so beside the value. An action on that setting opens the config file at the right place and shows the line to add.
+- D108. Before the config file exists, in M1, every setting is an override the server remembers across restarts of the app.
 
 ### 2.11 Accessibility
 
@@ -243,9 +246,9 @@ All of 2.10 is a proposal: none of it was in doc-1.
 
 For Bruk to decide. None is resolved here.
 
-1. **Status is not in the first release.** doc-1 puts program status in M2 (R49, R50, R52) and notifications in M3 (R51). Sections 2.7 and 2.8 are central to this design. Either those requirements move to M1, or the M1 window is built without rings and bars and they arrive in M2.
-2. **Session colour is not in the first release either.** doc-1's R26 is M2, but D9 uses the session colour for the tint, the cursor and the ground. Without it, M1 has one colour: ramp.1.
-3. **Settings.** D101 says settings are palette actions. The design also drew a plain settings file. doc-1 section 5.9 makes configuration Python. This document deliberately says nothing about a file; that belongs to 5.9.
+1. **Status across releases: decided 2026-11-15.** M1 shows only what steg can know without a program's help: running, and finished or failed from the exit code. So in M1, D56, D58, D59 and D64 apply, with their motion; D55, D57, D60 and D76 need the status protocol and arrive in M2. doc-1's R49, R50 and R52 and its release table are still to be reworded.
+2. **Session colour: decided 2026-11-15.** It follows the artifact. In M1 each session has one of the five colours, a new session takes the next one not in use, and "Session: Set colour" in the palette changes it. An arbitrary colour or gradient from the CLI (D10) stays in M2. doc-1's R26 is still to be reworded.
+3. **Settings: decided 2026-11-15.** The Python config is the only file and the palette never writes to it (D106 to D108). One point is left for doc-1 section 5.9: D108 says the server remembers overrides in M1, which is state 5.9 does not yet describe.
 4. **When finished and failed clear.** The design's own rules said they stay until the first key press or click in that pane, never on a timer. Bruk has since decided that each status type has a fixed lifetime (TASK-1.30). D70 and D77 are written to hold under either; TASK-1.30 decides.
 5. **R50 needs rewording.** It says a tab with an unfocused pane shows that pane's status with words. This design shows one ring per tab with no words (D37, D67), no ring on the selected tab (D38), and nothing on a session (D32).
 6. **Whether GPUI can draw all of this cheaply** is not established: the six-section ring, the gradient fixed to the track, and above all the flakes of D75, which are a small physics simulation running for ten seconds. D75 is the first candidate to simplify if it costs frames against R19.

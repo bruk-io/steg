@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
 asdlc_branch: task-1.36-kernel-the-layout-tree-split-close
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'dc26154daf58'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -181,3 +184,16 @@ Plus the sdk-level unit tests from steps 1-2 above.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-15 (R9, R78, R95, R96, R100, R112, R113) and doc-16 (R105) by @bruk.o: ok. Layout shapes and their pure geometry are in the sdk; split, close, resize, swap, move, fill and the 20 by 4 floor are the kernel's. A tab's panes are kept in the order of the tree's leaves (R112). A pane's neighbour and the wrap target are decided by exact rectangles from the tree and its ratios, with a stated tie-break (R113, written from this plan). A split divides in half, as the engineer decided. The resize floor is judged within the split being resized. TASK-1.37 inherits the tab's current pane and Tab::neighbour, and adds the session's current tab and the focus operations.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T04:07:00Z
+
+---
+
+Plan approved by @bruk (dc26154daf58, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

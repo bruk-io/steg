@@ -3,7 +3,7 @@ id: doc-1
 title: 'Spec: steg, the overview'
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T01:28:00Z'
+updated_date: '2026-11-15T01:44:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - This is the overview. It says what steg is, fixes the words, lists the specs, and says which requirement is in which release. The requirements themselves are in the specs listed in section 5.
@@ -76,8 +76,8 @@ Each has the same shape: scope, requirements, open questions, out of scope. Requ
 
 | Spec | Covers | Requirements |
 |---|---|---|
-| doc-15, domain | The things steg is made of and the rules between them: structure, layout, focus, clients, a pane's program | R8-R12, R78, R85-R91, R93-R97 |
-| doc-8, server and sessions | The server as a running thing, and the API | R1-R7, R36-R39 |
+| doc-15, domain | The things steg is made of and the rules between them: structure, layout, focus, clients, a pane's program | R8-R12, R78, R85-R91, R93-R97, R100 |
+| doc-8, server and sessions | The server as a running thing, and the API | R1-R7, R36-R39, R98, R99 |
 | doc-14, wire protocol | What travels between the server and a client | Serves the above |
 | doc-9, terminal | Emulation, scrollback, speed | R13-R19, R92 |
 | doc-10, app | The window, appearance, keyboard; points at the design artifact | R20-R31, R79-R81 |
@@ -92,7 +92,7 @@ The decisions these rest on are decision records, decision-1 to decision-10.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R97, and R50 for running, finished and failed |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R100, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
@@ -111,10 +111,13 @@ questions, and the decisions still to make.
 | Part | Role |
 |---|---|
 | Kernel (Rust library) | Session, tab, and pane state; terminals; the event stream; target resolution |
-| Server | The kernel plus its local socket. Starts on demand and outlives the app |
+| Server | A program of its own: the kernel plus its local socket. Starts on demand and outlives the app. No client contains its code (R98) |
+| Shared library | The API description and the wire protocol's types: all that a server and a client have in common |
 | CLI | A thin client whose commands come from the API description |
 | Steg.app (GPUI) | Renders panes, handles keys, runs the palette |
 | Plugins | Python programs, one process each, beside the server and using the public API |
+
+The repository is a monorepo for now (Bruk, 2026-11-15): the server, the CLI and the app are separate packages in one repository, kept apart so that any of them could move to a repository of its own.
 
 ### The intent's open questions
 

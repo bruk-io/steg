@@ -1,11 +1,11 @@
 ---
 id: TASK-1.72
 title: 'Architecture: the LikeC4 MCP server for sessions'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:49:00Z'
+updated_date: '2026-11-15T03:52:00Z'
 labels:
   - size-2
   - review-passed

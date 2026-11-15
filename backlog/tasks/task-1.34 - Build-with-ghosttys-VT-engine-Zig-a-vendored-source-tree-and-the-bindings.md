@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:24:00Z'
+updated_date: '2026-11-15T04:25:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -474,6 +474,21 @@ ok      test (steg-app) (0.3s)
 ok      tool tests (1.3s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `just check-packages` exited 0 at 2026-11-15T04:25:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 7b30c7cf896d with uncommitted changes:
+
+```text
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (38.4s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

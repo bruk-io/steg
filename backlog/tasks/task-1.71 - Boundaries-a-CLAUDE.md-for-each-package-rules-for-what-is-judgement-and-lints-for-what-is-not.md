@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:23:00Z'
+updated_date: '2026-11-15T03:24:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -18,6 +18,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.71-boundaries-a-claude-md-for-each-package
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd8f3885f55ed'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -451,3 +454,16 @@ orchestrator and @bruk to decide, not something this plan forces.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-16 (R104, R110, R111) by @bruk.o: ok. Per-package clippy configuration refuses I/O in the sdk and the kernel, with the reason in the message; a deny-features table in boundaries.toml refuses the kernel turning on the sdk's socket provider; just lint runs with all features and the provider's module carries the one reasoned exemption; just packages joins just check to catch Cargo's feature unification. Each statement has one home: lint, a path-scoped rule, or a package's CLAUDE.md. After it merges the orchestrator trims the plugin's layer rules to pointers through asdlc-plugin. The cost of just packages in check is to be measured again once the kernel builds ghostty's engine.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T03:24:00Z
+
+---
+
+Plan approved by @bruk (d8f3885f55ed, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

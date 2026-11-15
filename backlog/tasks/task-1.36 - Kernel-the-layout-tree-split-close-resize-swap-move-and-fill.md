@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:45:00Z'
+updated_date: '2026-11-15T04:46:00Z'
 labels:
   - size-3
   - changes-requested
@@ -355,6 +355,31 @@ error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T04:46:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at efb640b67adf:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

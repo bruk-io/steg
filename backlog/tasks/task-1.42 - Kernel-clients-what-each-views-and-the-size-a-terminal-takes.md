@@ -1,16 +1,19 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:46:00Z'
+updated_date: '2026-11-15T16:49:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.39
+references:
+  - task-1.42-kernel-clients-what-each-views-and-the
+  - https://github.com/bruk-io/steg/pull/29
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -466,6 +469,18 @@ ok      tool tests (1.7s)
 ok      architecture (1.5s)
 ok      recipe names (0.1s)
 ```
+
+Built as planned, no departures. ClientKind/ClientId landed first (no conflict with TASK-1.70, which has not yet merged).
+
+Checks recorded on the task: just test (clean build, 0 new changes), just test (after full implementation, 172 kernel + 70 sdk tests passing), just check (full suite, format/lint/boundaries/licences/every package/architecture - all green), just check again after rebasing onto the latest origin/main (no code conflicts from TASK-1.40/1.70/1.74/1.75, which had only pushed board/task-file commits by then). CI on PR #29 passed.
+
+Tests mapped to acceptance criteria:
+- AC #1 (connect/leave; viewing follows from attachment): connect_client_then_disconnect_client_round_trips, disconnect_client_rejects_an_unknown_id, viewing_follows_from_attachment_not_a_separate_setter, view_pane_is_idempotent_and_rejects_an_unknown_pane, stop_viewing_rejects_a_pane_the_client_does_not_view, and connecting_viewing_declaring_and_disconnecting_never_change_focus (decision-5 point 4, R88).
+- AC #2 (latest is last input or declared size): viewing_alone_never_makes_a_client_latest, latest_client_is_none_when_nobody_views_the_session, latest_client_tracks_whoever_last_declared_or_sent_input, latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure (also proves the reapplied size on fallback).
+- AC #3 (terminal takes the latest's declared size; every other viewer is told): a_declaration_always_wins_regardless_of_magnitude, declare_size_reports_every_panes_absolute_size_and_every_viewer (SizeChanged.panes matches leaf_sizes, viewers lists every attached client), declare_size_never_fails_the_floor (R100's last clause), declare_size_requires_viewing_a_pane_in_the_tabs_session, note_input_reapplies_the_now_latest_clients_last_declared_size, note_input_is_a_no_op_when_the_client_has_no_declared_size, note_input_rejects_a_pane_the_client_does_not_view.
+- Cleanup on close (the plan's named risk area): closing_a_pane_a_client_views_drops_the_attachment_and_reapplies_the_session, closing_a_tab_drops_its_declared_size_record_from_every_client, closing_a_session_drops_every_clients_attachment_and_activity_for_it.
+
+Also added (per the plan's revision, approved alongside the build): Tab::size() public getter, paired with narrowing Tree::set_tab_size and Tab::set_size to pub(crate).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

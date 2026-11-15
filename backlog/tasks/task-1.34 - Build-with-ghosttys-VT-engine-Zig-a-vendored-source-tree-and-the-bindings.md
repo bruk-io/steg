@@ -1,13 +1,14 @@
 ---
 id: TASK-1.34
 title: 'Build with ghostty''s VT engine: Zig, a vendored source tree, and the bindings'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:44:00Z'
+updated_date: '2026-11-15T04:53:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.31
@@ -22,8 +23,10 @@ asdlc_branch: task-1.34-build-with-ghostty-s-vt-engine-zig-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e63ab21b4e98'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=5'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -763,6 +766,27 @@ created: 2026-11-15T04:44:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.34: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T04:53:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 5 nit. Cites: review. The diff does not match the plan.
+
+[Compliance/Evidence, Important] third_party/ghostty/zig-pkg/ is committed (687 files, 29 MB, confirmed with `git ls-files`) and is byte-identical to the extracted contents of the 7 tarballs already vendored separately at third_party/ghostty-vt-zig-deps/p/ (verified by extracting each tarball and diffing; e.g. uucode-0.2.0-ZZjB... matches exactly). This directly contradicts the approved plan (file 2: "with its zig-pkg/ subdirectory deleted before committing") and third_party/README.md's own claim ("no zig-pkg/ to remove, because the published tarball doesn't carry one"). The README is right that the tarball carries none - ghostty-vt-sys's build.rs (verified against the real crate at ~/.cargo/registry/src/.../ghostty-vt-sys-0.8.0+.../build.rs) does skip zig-pkg in its copy_tree, so AC #1's cargo-build path is unaffected - but the committed tree does not match what the README describes, and nothing in the notes' 9 "Departures" declares this 29 MB. It's dead weight most likely left over from the worker's own `zig build` run inside third_party/ghostty, never cleaned up or gitignored (.gitignore only has target/). Of the disclosed "~54 MB", roughly 23 MB is the real ghostty source (matching the plan's original ~22 MB estimate), ~7.1 MB is the seven vendored Zig-package tarballs, and ~29 MB is this undeclared duplicate - state the real decomposition plainly rather than "54 MB for seven packages."
+
+[Licence, Nit] The 7 vendored Zig packages (third_party/ghostty-vt-zig-deps/p/) are code from other projects with no licence named on the task, as .claude/rules/licence.md asks. I extracted and checked each: uucode MIT, translate_c MIT, aro MIT+Unicode-License-v3, zlib's own zlib licence, highway Apache-2.0/BSD-3, wuffs Apache-2.0/MIT, pixels CC0-1.0 - all permissive, nothing GPL/AGPL (R59 holds), but this should have been stated in third_party/README.md's table rather than left to a reviewer to check.
+
+[Bugs, Nit] justfile's zig-deps-seeded: `cp -n ... 2>/dev/null || true` swallows a failed seed silently; a missing tarball would only surface as a confusing downstream Zig fetch failure rather than a clear message at the seeding step.
+
+Checked and found no issue: AC #1's provenance (commit 83fb95624b0439ee660c2679b43b38c8b63769cd, sha256 ed57ae9b95581c88f2614e976c1d3f146c02d443a3c26139200eb9de6e645eb4, URL - all verified directly against the real crate's own GHOSTTY.lock on this machine, not just the README's claim of them); the local poisoned-URL proof and the scratch PR #24 / CI run 43677134619 (confirmed via `gh run view`: /etc/hosts blocks on tip.files.ghostty.org, deps.files.ghostty.org, codeberg.org only - not all network - just check passed in 4m22s); that proof's paths (.cargo, third_party, justfile) are unchanged between the recorded commit 47715cff72c0 and HEAD 043be079b8f7, so it still covers the head commit, whose own CI run (43677974737) is green in 3m9s; AC #3's test (feeds b"hello", reads back through render/row/cell API, never internals); AC #4 (spikes/task-1.1-terminal-library deleted, no remaining reference outside backlog/decision-3, which the plan correctly left stale on purpose); justfile's per-recipe Zig export (build, run, lint, test, test-all, check-packages) and check-recipes passing with zig-deps-seeded correctly marked [private] and exempt; boundaries.toml's ghostty-vt allow-list entry and kept deny-features; crates/kernel/clippy.toml untouched and still applicable (ghostty-vt does no I/O); deny.toml untouched, consistent with TASK-1.31; CI pins mise-action and runs just check on PRs, just test-all on push to main. Wall time: a clean/cold `just check` now costs ~3-4.5 minutes (head PR run 3m9s, scratch-proof run 4m22s) against recent main pushes of 9s-59s - but those main runs are mostly board-only commits against a warm cache, not a fair baseline; the real cost is the Zig link paid once per clean target/, as the notes already say, then cached to well under a second.
+
+Size disclosed to the engineer (54 MB, seven packages not three) undersells by omission: about 29 of those MB is the undeclared zig-pkg duplicate above, not part of the seven-packages story.
 
 ---
 <!-- COMMENTS:END -->

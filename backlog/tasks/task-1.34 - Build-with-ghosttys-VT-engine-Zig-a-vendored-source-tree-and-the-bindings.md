@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:12:00Z'
+updated_date: '2026-11-15T03:13:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -320,3 +320,9 @@ wait rather than guess at 1.69's exact final diff.
 6. AC #4: `git rm -r spikes/task-1.1-terminal-library`, then `just check` once more to confirm
    nothing in the workspace still referenced it (it shouldn't - it was never a workspace member).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-9 (R92), doc-16 and decision-3 by @bruk.o: ok. It found by experiment that vendoring ghostty's source alone does not give an offline build, because Zig fetches three packages of its own, and vendors those too. For the engineer to weigh: about 32 MB added to the repository under third_party/, mise as a new required tool to pin Zig, and the engine as the kernel's one external dependency. To watch in the build: whether resolving Zig in the justfile makes mise a requirement of every recipe, including ones that never build the engine.
+<!-- SECTION:NOTES:END -->

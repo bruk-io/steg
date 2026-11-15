@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:06:00Z'
+updated_date: '2026-11-15T04:07:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -175,3 +175,9 @@ Acceptance criterion / requirement → test:
 
 Plus the sdk-level unit tests from steps 1-2 above.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-15 (R9, R78, R95, R96, R100, R112, R113) and doc-16 (R105) by @bruk.o: ok. Layout shapes and their pure geometry are in the sdk; split, close, resize, swap, move, fill and the 20 by 4 floor are the kernel's. A tab's panes are kept in the order of the tree's leaves (R112). A pane's neighbour and the wrap target are decided by exact rectangles from the tree and its ratios, with a stated tie-break (R113, written from this plan). A split divides in half, as the engineer decided. The resize floor is judged within the split being resized. TASK-1.37 inherits the tab's current pane and Tab::neighbour, and adds the session's current tab and the focus operations.
+<!-- SECTION:NOTES:END -->

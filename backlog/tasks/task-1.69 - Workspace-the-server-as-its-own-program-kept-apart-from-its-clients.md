@@ -378,6 +378,21 @@ ok      licences (0.6s)
 ok      tests (every crate) (0.4s)
 ok      tool tests (0.2s)
 ```
+
+Check passed: `just packages` exited 0 at 2026-11-15T02:46:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at dfebbf69b590 with uncommitted changes:
+
+```text
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.3s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

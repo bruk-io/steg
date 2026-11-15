@@ -4,6 +4,11 @@ Two separate things live here, for two separate network surfaces `ghostty-vt-sys
 otherwise reaches at build time (doc-16 open question; R92; decision-3). Both are needed for
 AC #1: the workspace has to build with the network unavailable.
 
+Committed size, measured with `du -sh` on this tree (not the "~54 MB" an earlier draft of this
+file and the task's own notes stated - that number double-counted a stray copy, see `ghostty/`
+below): `ghostty/` is 23 MB, `ghostty-vt-zig-deps/` is 7.1 MB, about 30 MB added to the
+repository in total.
+
 ## `ghostty/`
 
 Ghostty's own source, exactly as `ghostty-vt-sys` 0.8.0 downloads and verifies it, extracted
@@ -32,6 +37,23 @@ the kind of surprise a vendored copy should not introduce.
 first lookup branch (a directory with `build.zig` at `GHOSTTY_SOURCE_DIR`) and never reaches the
 download path.
 
+**A `zig-pkg/` directory can still reappear here, and must never be committed if it does.** It
+is not written by `cargo build` (that copies this tree into `$OUT_DIR/src` first, skipping
+`zig-pkg`, and builds there - see `build.rs`'s `copy_tree`), but by running `zig build` directly
+against this directory, which is sometimes useful to verify the vendored tree offline without
+going through cargo at all (e.g. the "refreshing" procedure below). Zig's own build runner
+(`lib/compiler/Maker.zig`, `override_pkg_dir`) resolves the directory it extracts fetched
+dependencies into, in order: `ZIG_LOCAL_PKG_DIR` if set, else `--system <dir>` if given, else
+**`<build root>/zig-pkg`** - the build root being whatever directory `zig build` is run from.
+Running `zig build` here with neither set (confirmed by experiment: a bare `zig build --help`
+run from this directory populated exactly this) extracts every dependency it resolves into
+`third_party/ghostty/zig-pkg/`, byte-identical to what's already vendored, compressed, at
+`ghostty-vt-zig-deps/p/` - this is almost certainly how a 29 MB, 687-file copy of that content
+ended up committed here once (found in review). `.gitignore` excludes `third_party/ghostty/zig-pkg/`
+as a second guard, but the real fix is at the cause: never run `zig build` against this directory
+without also setting `ZIG_LOCAL_PKG_DIR` to somewhere outside it (the "refreshing" procedure below
+does this).
+
 ## `ghostty-vt-zig-deps/`
 
 Separately: Zig's own package manager, resolving `ghostty/build.zig.zon`, fetches a handful of
@@ -46,15 +68,21 @@ Building exactly what `ghostty-vt-sys`'s `build.rs` builds (`zig build -Demit-li
 targets combined - not the dozen or so `zig build --help` or a full Ghostty app build would also
 fetch, which this target never uses:
 
-| package | size | why |
-|---|---|---|
-| `uucode-0.2.0-ZZjBPoGFVgCiflJNFc6Io8xzC67B6PA5bUkk4LT0kCxg` | 960 KB | direct, non-lazy dependency of ghostty's root `build.zig.zon` |
-| `translate_c-2.0.0-Q_BUWltOBwBYABF84EUL208pIFeUIwbBs29FmVBaafN5` | 92 KB | fetched by `pkg/translate-c`'s own `build.zig.zon` (a local path dependency of the root) |
-| `aro-0.0.0-JSD1QtuBNwCASyBtNF3pqTl_W3oAJQGEVyFAtrBSE_Pa` | 452 KB | transitive dependency of `translate_c` above |
-| `N-V-__8AAB0eQwD-…` (`zlib`) | 1.5 MB | anonymous package (no `build.zig.zon` of its own) |
-| `N-V-__8AADYiAAB_…` (`pixels`) | 4 KB | anonymous package |
-| `N-V-__8AAGmZhABb…` (`highway`) | 3.4 MB | anonymous package, SIMD - likely why `-Dsimd=true` pulls it in |
-| `N-V-__8AAP5JWgCG…` (`wuffs`) | 756 KB | anonymous package |
+| package | size | licence | licence file (inside the tarball) | why |
+|---|---|---|---|---|
+| `uucode-0.2.0-ZZjBPoGFVgCiflJNFc6Io8xzC67B6PA5bUkk4LT0kCxg` | 960 KB | MIT | `LICENSE.md` | direct, non-lazy dependency of ghostty's root `build.zig.zon` |
+| `translate_c-2.0.0-Q_BUWltOBwBYABF84EUL208pIFeUIwbBs29FmVBaafN5` | 92 KB | MIT | `LICENSE` | fetched by `pkg/translate-c`'s own `build.zig.zon` (a local path dependency of the root) |
+| `aro-0.0.0-JSD1QtuBNwCASyBtNF3pqTl_W3oAJQGEVyFAtrBSE_Pa` | 452 KB | MIT + Unicode-License-v3 | `LICENSE`, `LICENSE-UNICODE` | transitive dependency of `translate_c` above |
+| `N-V-__8AAB0eQwD-…` (`zlib`) | 1.5 MB | zlib | `LICENSE` | anonymous package (no `build.zig.zon` of its own) |
+| `N-V-__8AADYiAAB_…` (`pixels`) | 4 KB | CC0-1.0 | `LICENSE` | anonymous package |
+| `N-V-__8AAGmZhABb…` (`highway`) | 3.4 MB | Apache-2.0 OR BSD-3-Clause | `LICENSE`, `LICENSE-BSD3` | anonymous package, SIMD - likely why `-Dsimd=true` pulls it in |
+| `N-V-__8AAP5JWgCG…` (`wuffs`) | 756 KB | MIT OR Apache-2.0 | `LICENSE`, `LICENSE-MIT`, `LICENSE-APACHE` | anonymous package |
+
+All seven are permissive; nothing GPL or AGPL (R59 holds), checked by extracting each tarball
+and reading its licence file(s) directly (`.claude/rules/licence.md`'s "checked by the repository's
+check command, not by eye" is about `just check-licences`'s `cargo deny` pass over the Rust
+dependency graph, which these aren't part of - they're Zig packages fetched by Zig's own package
+manager, outside `cargo deny`'s reach, so this table is the record for them instead).
 
 The last four have no human-readable name in `build.zig.zon` itself (Zig calls them by their
 content hash alone, prefixed `N-V-`); their names above are read from `build.zig.zon.json`, which
@@ -88,5 +116,31 @@ to it: read the new commit/version/sha256/url from that lock file, repeat the fe
 above into `ghostty/`, and rebuild `-Demit-lib-vt` against it with an **empty**
 `ZIG_GLOBAL_CACHE_DIR` and network allowed once - the error messages name exactly which packages
 are missing, the same way building against this pin did. Re-derive `ghostty-vt-zig-deps/` from
-whatever that run actually asks for; a newer Ghostty commit is not guaranteed to need the same
-three.
+whatever that run actually asks for across both Darwin targets; a newer Ghostty commit is not
+guaranteed to need the same seven.
+
+Whenever this rebuild (or any other `zig build` invocation) runs with this directory as its
+build root - rather than through `cargo build`, which always builds from a copy under
+`$OUT_DIR/src` - also set `ZIG_LOCAL_PKG_DIR` to somewhere outside this tree (a `/tmp` directory,
+or the gitignored `target/`), and `--cache-dir` likewise. Leaving either at its default writes
+into `ghostty/zig-pkg/` or `ghostty/.zig-cache/`, inside the vendored, committed tree - the
+mistake the paragraph above this table exists to flag. Don't point `ZIG_GLOBAL_CACHE_DIR`
+straight at the committed `ghostty-vt-zig-deps/` either, for the same reason `justfile`'s
+`zig-deps-seeded` recipe doesn't: Zig writes its own compiled-artifact cache (`b/`, `h/`, `o/`,
+`z/`) there too, alongside the fetched packages under `p/`. Copy the tarballs into a scratch
+global-cache directory first, same as that recipe does. For example:
+
+```sh
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+mkdir -p /tmp/ghostty-refresh-global-cache/p
+cp third_party/ghostty-vt-zig-deps/p/*.tar.gz /tmp/ghostty-refresh-global-cache/p/
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do  # Zig's own target names (build.rs's zig_target); one -Dtarget per invocation - it isn't multi-valued
+  ZIG_GLOBAL_CACHE_DIR=/tmp/ghostty-refresh-global-cache ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" \
+    build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline \
+    -Demit-xcframework=false -Demit-themes=false \
+    --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache
+done
+cd ../..
+git status --porcelain third_party  # must print nothing
+```

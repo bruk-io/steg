@@ -44,7 +44,27 @@ check: check-fmt lint check-boundaries deny test check-packages test-tools check
 # real build (found while building this task). `cp -n` is a no-op once seeded once.
 [private]
 zig-deps-seeded:
-    @mkdir -p target/zig-global-cache/p && cp -n third_party/ghostty-vt-zig-deps/p/*.tar.gz target/zig-global-cache/p/ 2>/dev/null || true
+    #!/usr/bin/env bash
+    # Copies, not `cp -n`: BSD cp (macOS) exits 1 when `-n` skips an already-present
+    # file, which is the common case here (every run after the first) - `cp -n ...
+    # || true` would make a *genuine* failure (missing source, unwritable target/)
+    # silent too. Checking each destination ourselves tells the two apart.
+    set -euo pipefail
+    mkdir -p target/zig-global-cache/p
+    shopt -s nullglob
+    tarballs=(third_party/ghostty-vt-zig-deps/p/*.tar.gz)
+    if [ ${#tarballs[@]} -eq 0 ]; then
+        echo "error   zig-deps-seeded: no tarballs found under third_party/ghostty-vt-zig-deps/p/ (third_party/README.md)" >&2
+        exit 1
+    fi
+    for f in "${tarballs[@]}"; do
+        dest="target/zig-global-cache/p/$(basename "$f")"
+        [ -e "$dest" ] && continue
+        if ! cp "$f" "$dest"; then
+            echo "error   zig-deps-seeded: failed to copy $f to $dest - check third_party/ghostty-vt-zig-deps/p/ is present and target/ is writable (third_party/README.md)" >&2
+            exit 1
+        fi
+    done
 
 # the tests for the crates this change touches and the crates that depend on them (steg-affected chooses)
 test: zig-deps-seeded

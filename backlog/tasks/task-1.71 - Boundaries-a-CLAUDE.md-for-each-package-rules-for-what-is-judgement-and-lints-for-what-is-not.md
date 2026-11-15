@@ -628,6 +628,33 @@ Check passed: `just build` exited 0 at 2026-11-15T03:30:05+00:00 in /Users/brukh
 ```text
 ok      build (0.3s)
 ```
+
+Check passed: `sh -c '! just packages'` exited 0 at 2026-11-15T03:30:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+FAILED  build (steg-kernel) (exit 101, 0.1s)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71/crates/kernel)
+error[E0425]: cannot find function `demo_local_socket_only_fn` in crate `steg_sdk`
+  --> crates/kernel/src/lib.rs:19:15
+   |
+19 |     steg_sdk::demo_local_socket_only_fn()
+   |               ^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `steg_sdk`
+   |
+note: found an item that was configured out
+  --> crates/sdk/src/lib.rs:16:8
+   |
+15 | #[cfg(feature = "local-socket")]
+   |       ------------------------ the item is gated behind the `local-socket` feature
+16 | pub fn demo_local_socket_only_fn() -> i32 {
+   |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `steg-kernel` (lib) due to 1 previous error
+full output: .quiet/build-steg-kernel.log
+error: recipe `packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

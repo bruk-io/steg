@@ -1,13 +1,14 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:07:00Z'
+updated_date: '2026-11-15T17:13:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '571c32803ab2'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -687,6 +687,25 @@ created: 2026-11-15T17:07:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:13:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Reviewed at head f9ec800 (PR #29, CI green at that exact SHA). Diff against b99b850 (prior review head) is crates/kernel/src/tree.rs only; read it in full, line by line.
+
+All four nits from the prior review are fixed with real outcome assertions, not just call checks: note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size; reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size; closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it and closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab; stop_viewing's doc comment now matches its unconditional reapply_latest call.
+
+The prior Important finding (the focus test was structurally unable to fail: one tab, one pane) is genuinely fixed for pane-level focus: the rebuilt connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus uses two sessions, each with two tabs of two panes, deliberately unfocuses the pane the client acts on, and the worker's recorded run (injecting `focus_pane` into view_pane, exit 101, failure at "after view_pane", then reverted) is honest proof that this half of the check bites.
+
+[Bugs, Important] crates/kernel/src/tree.rs:2236 (helper `whole_focus`, :2222) The new helper's own doc comment claims to capture "every one of tree's sessions' current tab and every tab's current pane," but its body only yields `(session.id(), tab.id(), tab.current())` for every tab - it never calls `session.current_tab()`. Session-level current-tab is a distinct, separately-set field (session.rs:27, set via Tree::focus_tab/focus_pane -> Session::set_current_tab), not derivable from tab.current(). The plan's own PROOF section for this test says it "asserts the tree's focus path (current_tab, current_pane) is unchanged throughout" - decision-5 point 1 makes that path session -> current tab -> current pane, so leaving current_tab out of the captured state asserts only half the path, every time. I confirmed this bites: injecting a fault into view_pane that calls session.set_current_tab (moving session_a's current tab from tab_a2 to tab_a1, touching no tab's current pane) left the test passing unchanged (cargo test -p steg-kernel, not a recorded just-test check - a probe only, reverted after). This is the same shape of gap the prior review found (a test for this exact invariant that cannot detect a real class of the violation it claims to rule out), now on the other half of the focus path; the worker's own recorded failing run only exercised the pane-level half.
 
 ---
 <!-- COMMENTS:END -->

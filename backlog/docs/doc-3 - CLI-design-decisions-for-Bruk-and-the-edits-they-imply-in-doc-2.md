@@ -3,7 +3,7 @@ id: doc-3
 title: 'CLI design: decisions for Bruk and the edits they imply in doc-2'
 type: other
 created_date: '2026-11-14T04:02:00Z'
-updated_date: '2026-11-14T04:08:00Z'
+updated_date: '2026-11-15T00:37:00Z'
 ---
 - Task: TASK-1.4, "Spike: propose the CLI design for Bruk to decide".
 - Spec: doc-1 (R32 to R35, R63 to R68). CLI specification: doc-2. Policy: the team's
@@ -17,6 +17,42 @@ doc-2 already carries the grammar, the verbs, the targets, the context variables
 flags, the output rules, the exit statuses, the first release's commands and the Rex
 comparison, so this task is the remainder: the points doc-2 leaves open, the points its
 review turned up, and the Rex comparison checked against Rex's own documentation.
+
+## Answers, 2026-11-15
+
+Bruk set one rule on 2026-11-15: steg keeps its own grammar and its own words (noun then
+verb, tab and pane, one path as the target), and **wherever doc-2 has not decided, steg
+does what Rex does.** A 1:1 copy of Rex's interface was considered and set aside, because
+it would undo the generated grammar (doc-4), put "block" in the CLI while the app says
+"pane", and need Lua for `rex do`. A set of aliases that maps Rex's verbs onto steg's
+commands can be added later if compatibility matters.
+
+@bruk.o applied that rule to the sixteen points below. Thirteen are settled by it, or by
+the app design Bruk accepted the same day (doc-7). Three are left for Bruk because the
+rule and doc-2's own principles pull in different directions.
+
+| Point | Answer | Settled by |
+|---|---|---|
+| A1 | Status 3 when closing something already closed, as doc-2 proposes | doc-2 had proposed it; Rex's behaviour is not documented here |
+| A3 | `-h`, `-q` and `-v` only | steg's design: Rex's other short flags belong to its flag-per-level targets, which steg does not have |
+| A4 | Subcommands, as Rex has them: `steg completion <shell>` and `steg version`, with `--help` as the one bare flag. Section 2 states the exception: these are not API methods and work with no server | Rex |
+| A5 | As recommended: `pane split --file`, `--tab`, `--focus`, `--reuse`, `pane set --file`, `--file -` with `--type`. No `view` noun and no pane flavour | steg's design (doc-1 section 5.14); M2 |
+| A6 | Deferred to M3 | doc-2 |
+| B1 | A new pane, tab or session takes focus; a viewer does not; `--focus` and `--no-focus` on all three | The app design, doc-7 D45 |
+| B3 | Rex's order: full identifier, then label, then position, then an identifier suffix of four or more characters, stopping at the first kind that matches. Labels match without regard to case, as Rex's do. The ban on all-digit labels stays | Rex |
+| B5 | `event watch` is the only stream in M1, with `--for` and a target | doc-3's recommendation; Rex's behaviour is not documented here |
+| B6 | `pane focus --direction <left, right, up or down>`. At the edge focus does not move and the command exits 0. `--wrap` continues from the other side, as Rex's does | steg's grammar for the shape; Rex for `--wrap` |
+| B7 | A pane started with a command stays when the command ends, and `pane show` reports its exit code. A pane started as a plain shell closes when the shell exits. This differs from Rex, which closes unless `--keep-open` is given | The app design, doc-7 D91 to D93 |
+| B8 | `--autostart` and `--no-autostart` on every command, `--autostart` the default; `--no-autostart` exits 4 | Rex |
+| B9 | The server puts the directory of its own binary at the front of PATH in every terminal it opens, and sets `STEG_BIN_DIR` | Rex |
+
+Left for Bruk:
+
+| Point | The question | Rex | doc-2's own principle |
+|---|---|---|---|
+| A2 and B10 | What a list looks like on a terminal | A table meant for reading, with short identifiers | No behaviour that depends on whether a person is watching: tab-separated, full identifiers, no header, the same bytes piped or not |
+| B2 | What `-q` means | Print less: identifiers only, one per line | Print nothing on stdout |
+| B4 | Whether there is an `api call` | Yes: `rex api list`, `rex api describe`, `rex api call` | `api list` and `api show` only; `api call` is a way round the generated grammar |
 
 ## A. Decisions for Bruk
 

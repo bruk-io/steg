@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:12:00Z'
+updated_date: '2026-11-15T22:15:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1094,6 +1094,53 @@ failures:
 test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
 
 error: test failed, to rerun pass `-p steg-server --test handshake`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --test handshake || exit 1; done'` exited 0 at 2026-11-15T22:15:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 199 lines:
+
+```text
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
 ```
 
 Commits since the review: 0.

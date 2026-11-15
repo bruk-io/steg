@@ -1438,6 +1438,21 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 25, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap -- --test-threads=1` exited 0 at 2026-11-15T22:23:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 6065b44e67e6:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 1 test
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 53 filtered out; finished in 0.22s
+```
+
+Commits since the review: 25, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

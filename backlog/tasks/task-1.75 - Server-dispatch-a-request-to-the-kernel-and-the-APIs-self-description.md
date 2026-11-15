@@ -596,6 +596,12 @@ error: test failed, to rerun pass `-p steg-server --test dispatch`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
 ```
+
+Check passed: `just test` exited 0 at 2026-11-15T16:48:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      tests (every crate) (1.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

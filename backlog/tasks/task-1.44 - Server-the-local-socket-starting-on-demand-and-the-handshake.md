@@ -1,14 +1,13 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T22:17:00Z'
+updated_date: '2026-11-15T22:22:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -1265,6 +1264,16 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 39, 36 without the Asdlc-Worker trailer.
+
+Review #3's Important finding fixed at head cd1eced (PR #37, CI green: check passed in 3m55s). The handshake timeout was per-read, not per-handshake: UnixStream::set_read_timeout bounds each individual read() call, and the earlier code set it once up front without ever re-setting it, so a client sending one byte just inside every timeout window kept its connection and thread open indefinitely (the reviewer demonstrated 9 seconds against a 2-second timeout with six bytes).
+
+Fixed: one deadline computed once when the handshake starts, carried through read_one's loop; each read is given only the time remaining until it, via a new pure time_remaining(deadline, now) function (4 unit tests, literal Durations, no sleeping) - a read is never attempted once that's zero. A hello sent in many small pieces still succeeds if it finishes before the deadline; only a connection that never finishes is affected.
+
+Three new tests in handshake.rs (trickling forever still closes at the deadline; one-byte-at-a-time hello finishing inside the deadline is accepted; one finishing well after it - deliberately ~2x away, not a knife's edge - is closed with no reply) and one in shutdown.rs (stop while a trickling handshake is open still returns within its bound - a guard on the already-proven shutdown(Both) mechanism, documented as such rather than implied as a new discovery). Prove-one-bites: reverted to the old per-read-reset behaviour, both new deadline tests failed by their own bound (not a hang), the shutdown/trickle test passed regardless as expected; recorded, then restored.
+
+Audited every other wait in this task's code as asked: the arbitration retry loop (arbiter.rs) was already correct (one deadline checked before each retry sleep); the accept wakeup is syscall-bounded (a local Unix socket connect never blocks indefinitely); the shutdown-then-join loop is bounded because shutdown(Both) forcibly unblocks a blocked read regardless of its timeout (now proven for a mid-handshake trickling connection too, not just an idle one); the handshake reply writes are a few hundred bytes against an 8192-byte SO_SNDBUF measured on this platform (not a realistic blocking vector); the post-handshake hold-open read is deliberately unbounded by AC #4's second clause and correctly untouched. Full detail with the exact numbers is in the task's notes.
+
+Checks recorded, in order: the failing handshake tests with the fix reverted; 10x each of the handshake, shutdown, and race-fixture race test suites; just check at the merged final head (origin/main brought in cleanly, no overlap with this task's files).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

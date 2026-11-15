@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:16:00Z'
+updated_date: '2026-11-15T17:18:00Z'
 labels:
   - size-3
   - changes-requested
@@ -734,6 +734,31 @@ test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-kernel --lib`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:18:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.5s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.0s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
 ```
 
 Commits since the review: 14, 12 without the Asdlc-Worker trailer.

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:53:00Z'
+updated_date: '2026-11-15T16:54:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -24,6 +24,8 @@ asdlc_branch: task-1.74-kernel-scrollback-with-an-identity-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '02577a1ace6f'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -455,6 +457,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (02577a1ace6f, size-3): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T16:54:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.74: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

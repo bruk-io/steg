@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T05:10:00Z'
+updated_date: '2026-11-15T06:03:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -255,4 +255,6 @@ code gets unit tests, no doubles). `just test` after each step in
 
 <!-- SECTION:NOTES:BEGIN -->
 Ordered after TASK-1.36 by @bruk.o on 2026-11-15. The plan written for this task says, rightly, that focusing by direction cannot be built on a tab's flat list of panes without inventing a geometry, and it would otherwise rewrite the same files the layout task rewrites. So the whole task waits for the layout tree and is built once. The plan stays on the task as the starting point; it is to be revised against TASK-1.36's result, which is asked to provide the direction shape in the sdk and a pane's neighbour in a direction. The claim was released to free the slot.
+
+Rewritten plan checked against doc-15 (R85, R88, R113) and decision-5 by @bruk.o: ok. It adds only what TASK-1.36 left: a session's current tab, focus_pane (sets the tab's current pane and the session's current tab in one call), focus_tab, and focus_direction acting on the three outcomes, each returning the whole path for one focus event. No current session in the kernel, and moving a pane is not a focus. For the engineer, two rules the specs do not state: when the current tab closes, the tab now at its place becomes current, or the new last tab; and a new tab always becomes current in its session, with --no-focus left to the API layer to restore the previous focus.
 <!-- SECTION:NOTES:END -->

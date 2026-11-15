@@ -496,6 +496,12 @@ warning: build failed, waiting for other jobs to finish...
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
 ```
+
+Check passed: `just test` exited 0 at 2026-11-15T20:35:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.41 on task-1.41-kernel-status-in-the-first-release-and at ba93708fb5ac with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (3.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

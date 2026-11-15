@@ -3,12 +3,12 @@ id: doc-15
 title: 'Spec: domain'
 type: specification
 created_date: '2026-11-15T01:28:00Z'
-updated_date: '2026-11-15T01:44:00Z'
+updated_date: '2026-11-15T02:34:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
 - Rests on: decision-5 (focus, clients and windows), decision-6 (terminal size), decision-7 (status).
-- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R100 was added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
+- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R109 (the colour a sixth session takes) and R100 were added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
 
 ## Scope
 
@@ -66,6 +66,7 @@ server
   split. What is held is the ratio, never a size, so every client shares the proportions.
 - R96 (M1). At most one pane fills its tab at a time. Filling changes nothing in the
   layout tree, and the other panes keep running.
+- R109 (M1). A new session takes the first of the five colours that no session is using. When all five are in use it takes the first colour again, and so on round.
 - R100 (M1). No split or resize leaves a terminal pane smaller than 20 columns by 4 rows,
   judged by the terminal's size at the time. A split that would is refused, and a resize
   stops at that floor. A window growing smaller refuses and closes nothing: a pane may

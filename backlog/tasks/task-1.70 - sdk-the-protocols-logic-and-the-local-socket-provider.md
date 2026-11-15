@@ -1,10 +1,11 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T03:01:00Z'
+updated_date: '2026-11-15T15:52:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
 ---
 
 ## Description

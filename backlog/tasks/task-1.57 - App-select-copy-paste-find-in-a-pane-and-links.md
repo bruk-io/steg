@@ -4,7 +4,7 @@ title: 'App: select, copy, paste, find in a pane, and links'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T14:41:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -27,4 +27,5 @@ doc-9 R17. The app's look and behaviour is the design artifact (doc-10 says whic
 - [ ] #1 Text can be selected, copied and pasted, with bracketed paste where the program asks for it
 - [ ] #2 Find opens in the pane's own header, marks every match, moves to the next, and closes leaving the view where it was
 - [ ] #3 A link a program marks can be opened
+- [ ] #4 A link is drawn from the cell's link flag, and its address is asked for from the server by cell when the person acts on it (doc-9 R116); the method that asks is added to the API description and to doc-2's list
 <!-- AC:END -->

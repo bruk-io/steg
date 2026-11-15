@@ -12,14 +12,25 @@
 //!
 //! Identifiers, the colour set and pane kinds are shapes that cross the API,
 //! so they are defined once, here (doc-16 R105), and the kernel uses them
-//! rather than defining its own.
+//! rather than defining its own. Each of those shapes also has its wire
+//! form here - how it serialises and deserialises - and `description` holds
+//! the API itself, as one value (decision-1): every method, event and
+//! error, and `validate`, the protocol logic that checks a request against
+//! it with no I/O.
 
 mod colour;
+mod description;
 mod ids;
 mod layout;
 mod pane_kind;
+mod record;
 
 pub use colour::Colour;
+pub use description::{
+    ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param,
+    Request, Response, Returns, Role, ValueKind, Version, description, validate,
+};
 pub use ids::{PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
+pub use record::SessionRecord;

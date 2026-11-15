@@ -1,16 +1,20 @@
 ---
 id: TASK-1.48
 title: 'Server: remember settings changed from the palette'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:27:00Z'
+updated_date: '2026-11-15T19:38:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.75
+references:
+  - task-1.48-server-remember-settings-changed-from
+  - https://github.com/bruk-io/steg/pull/34
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +23,9 @@ asdlc_branch: task-1.48-server-remember-settings-changed-from
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5a1e95a23b12'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=3'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -695,6 +702,45 @@ ok      tool tests (1.2s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T19:27:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at b983fcff3388:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (4.6s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.2s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.5s)
+ok      test (steg-server) (2.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Built per the approved plan, with the engineer's three confirmations: in-memory override for the life of the server (decision-9 #1/#2, doc-8 R2/R3), appearance (R24) as the seeded setting, and doc-2's setting noun/commands already written by the engineer - matched exactly by the sdk's doc-2-mirroring tests (doc_2_section_8, doc_2_section_8_targets).
+
+One departure from the plan, mechanical only: didn't extend fresh()'s 3-tuple return in crates/server/tests/dispatch.rs as the plan said. Instead every existing dispatch(...) call site got a disposable &mut Settings::new() inserted (a scripted, compiler-verified substitution over all ~50 sites) since none of those pre-existing tests touch settings at all; the new setting_* tests each build their own named `let mut settings = Settings::new();` where a shared instance across calls actually matters (set-then-read, unset-then-read, the fresh-Tree-over-the-same-Settings test). Smaller diff than threading a 4-tuple through every destructuring site, same effect.
+
+Coverage, clause by clause:
+- AC #1 (read/change/list through the API): setting.list/show/set/unset server functional tests (crates/server/tests/dispatch.rs: setting_list_returns_every_registered_setting_with_its_current_value, setting_show_returns_one_setting_in_full, setting_set_changes_the_value_the_next_read_sees, setting_unset_reverts_to_the_default), each with its own refusal test (setting_show_an_unknown_name_is_no_such_target, setting_set_rejects_an_unknown_name_with_no_such_target, setting_set_rejects_a_value_outside_the_closed_set_with_bad_request, setting_unset_an_unknown_name_is_no_such_target), each traced down to kernel unit tests (crates/kernel/src/setting.rs: set_rejects_an_unknown_setting_name, set_rejects_a_value_outside_the_closed_set, unset_still_rejects_an_unknown_setting_name, value_of_rejects_an_unknown_setting_name, a_rejected_set_changes_nothing) and kernel_error.rs mapping tests (unknown_setting_maps_to_no_such_target, invalid_setting_value_maps_to_bad_request).
+- AC #2, "applies at once": setting_set_changes_the_value_the_next_read_sees - a set then an independent show call over the same Settings value, no cache, no event to wait on.
+- AC #2, "still there after quit and reopened": proved only as far as this layer reaches (no socket/process lifecycle yet, TASK-1.44/1.45 unbuilt) - an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings builds a fresh Tree/Context (standing in for a new client) over the same Settings (standing in for the server outliving the app). This does not prove a server restart survives; that is the named, now-answered design question on the plan (in-memory only, per decision-9).
+- AC #3 (no config file read or written): true by construction - nothing added touches std::fs anywhere; the kernel half is also checked by clippy::disallowed_types/disallowed_methods (architecture.md's mechanism), which just check's lint step covers.
+- The unreachable!() arm in kernel::setting::accepts (ValueKind::Target/Path/Argv can never be a setting's own declared kind) is not covered by a runtime test that reaches it - it cannot be reached without a registry entry that is itself wrong. What enforces the invariant instead: steg_sdk::setting::tests::no_setting_declares_a_target_path_or_argv_value asserts every registry entry's own declared ValueKind is never Target/Path/Argv, so a future entry that gets this wrong fails in the sdk's own tests before the kernel's unreachable!() would ever be exercised.
+
+Deliberate failing runs recorded on the task, to show the refusal tests bite: with crates/kernel/src/setting.rs's Settings::set temporarily skipping its registry lookup, `cargo test -p steg-kernel setting::tests::set_rejects` failed both set_rejects_an_unknown_setting_name and set_rejects_a_value_outside_the_closed_set (exit 101); restored, and the full suite (cargo test -p steg-kernel, 221 tests) passed again unchanged.
+
+Checks recorded on the task: cargo test -p steg-sdk, cargo test -p steg-kernel (passing and the deliberate failing run above), cargo test -p steg-server, and just check - twice, once before the final rebase onto origin/main and once after, both green (format, lint, boundaries, licences, every package's own tests, tool tests, the architecture model, recipe names). No new dependency and no boundaries.toml/deny.toml change.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -706,6 +752,37 @@ created: 2026-11-15T19:11:00Z
 ---
 
 Plan approved by @bruk (5a1e95a23b12, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T19:32:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.48: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T19:38:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. The diff does not match the plan.
+
+Reviewed at head b983fcf (b983fcff3388bd20bfa94d21faf15facde555cde). Recorded `just check` on the task matches this head, and the pull request's CI "check" run is SUCCESS on the same headRefOid. No findings rise to Important: AC#1-#3 are each proven clause by clause (refusal paths for unknown name on show/set/unset -> NoSuchTarget, and a value outside the closed set -> BadRequest, each traced through its own kernel unit test, kernel_error.rs mapping test, and dispatch.rs functional test); AC#2 "applies at once" and the layer-limited "still there after quit/reopened" proof are both present and the limitation is stated honestly, not dressed up; AC#3 holds by construction (no std::fs anywhere in the diff, grepped across every changed file). The unreachable!() arm in kernel::setting::accepts for ValueKind::Target/Path/Argv is unreachable from any client input today (its `kind` argument only ever comes from the hardcoded sdk registry, never from request data), and is guarded by steg_sdk::setting::tests::no_setting_declares_a_target_path_or_argv_value, which would fail first if a future registry entry got this wrong. Every pre-existing kernel::Error variant and kernel_error.rs mapping arm from TASK-1.40/1.42 is still present alongside the two new ones (no wildcard arm in either match). doc-2's setting noun/verbs (section 3, section 8) match the sdk's doc_2_section_8/doc_2_section_8_targets mirror tests pair for pair, and the method count (42) is right. No new dependency, no boundaries.toml/deny.toml change, no file I/O in sdk or kernel.
+
+Nits (3):
+1. [Bugs] crates/server/src/dispatch/setting.rs:41,77 - the defensive `bad_request("target: must be text")` and `bad_request("needs value")` arms have no test exercising them. The orchestrator's brief named "a missing value" as one of the refusals needing its own test; `validate()` already refuses a missing required param generically before `setting::dispatch` ever runs (crates/sdk/src/description/request.rs's `a_missing_required_parameter_is_a_bad_request` covers the mechanism, and no other noun's dispatch module retests this either), so this is a Nit, not a missed acceptance criterion. This is the same mistake open draft DRAFT-1 ("a named error/edge-case branch needs a test exercising it, not just a happy-path test") already names; I filed nothing new for it (see below).
+2. [Bugs] crates/server/tests/dispatch.rs - no test calls `setting.set`/`setting.show` through `api.call` and checks it against a direct call or a direct read, the way `api_call_of_pane_split_gives_the_same_response_a_direct_call_would` does for `pane.split`. The orchestrator's brief asked for this specifically ("a test proves it"); it doesn't exist. The threading itself (`api::call` -> `super::dispatch(tree, settings, ...)`) is correct by inspection and compiler-enforced (the `&mut Settings` parameter can't be silently dropped), so Nit, but naming it since it's the one checked item that came back empty.
+3. [Bugs] crates/server/src/dispatch/setting.rs:41 - `target_name`'s single error message ("target: must be text") covers both an absent target and one present but not a string; the message only describes the latter case.
+
+Plan-matched: no. The worker departed from the plan's step 7 mechanically: instead of extending `fresh()`'s tuple to also return a `Settings`, every existing `dispatch(...)` call site got a disposable `&mut Settings::new()` inserted, and the new `setting_*` tests build their own named `Settings` where a shared instance matters. The task's own notes name this departure and why (smaller diff, same effect, no existing test's assertions changed) - it is explained, so it is not a finding, but it is a real departure from the step as written, hence `--plan-matched no` rather than yes.
+
+Rule-change draft: none filed. DRAFT-1 already covers nit #1's mistake (a named error/edge-case branch - here, the two defensive bad_request arms - needs a test exercising it, not just a happy-path test); step 5 says file at most one per mistake and to check for an existing draft first.
 
 ---
 <!-- COMMENTS:END -->

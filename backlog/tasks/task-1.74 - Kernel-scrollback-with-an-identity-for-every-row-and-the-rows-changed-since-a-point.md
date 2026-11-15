@@ -385,6 +385,21 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
+
+Check passed: `just check-packages` exited 0 at 2026-11-15T16:48:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.74 on task-1.74-kernel-scrollback-with-an-identity-for at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

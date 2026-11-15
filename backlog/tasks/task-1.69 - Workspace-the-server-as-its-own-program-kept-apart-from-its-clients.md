@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:43:00Z'
+updated_date: '2026-11-15T02:45:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -43,6 +43,24 @@ Rewritten against doc-16 (the architecture spec), which replaced the earlier pla
 shape: no `steg-client`, no separate `steg-cli`. The repository ends this task with
 five packages - sdk, kernel, server, `steg`, app - matching doc-16's level-3 table
 exactly.
+
+## Departure from the plan, found while building
+
+Step 2 deletes `crates/cli`, but the plan's file list missed
+`tools/tests/adapter/test_affected_real_workspace.py`, which asserts
+`crates_from_metadata`'s output against this repository's *real* `cargo metadata` -
+hard-coded to the old five crate names and their old edges (`steg-kernel`,
+`steg-server`, `steg-cli`, `steg`, `steg-app`). `just check` caught it:
+`test-tools` failed on exactly this file once the workspace changed underneath it.
+Fixed in the same step as everything else, not worked around: the test's fixtures
+(crate names, folders, `depends_on` sets, and one `selection()` case) now describe the
+real workspace this task produces - `steg-sdk` replacing `steg-cli`, every package's
+`depends_on` updated for its real sdk edge, and the `crates/cli/src/lib.rs` case
+replaced with `crates/sdk/src/lib.rs`, whose expected selection is every package
+(`-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server`), since every package
+now depends on the sdk directly or transitively. `crates_from_metadata` and
+`selection()` themselves are untouched; only the real-world fixture this adapter test
+reads changed, which is the point of an adapter test when the real thing moves.
 
 ## Decisions the plan makes
 
@@ -235,6 +253,12 @@ task being drafted; it is left exactly as found here.
     below), so `packages` running the same work again inside `check` would be pure
     repetition. It is its own recipe, run directly, the same way `test-all` is.
 
+14. **`tools/tests/adapter/test_affected_real_workspace.py`** - found necessary while
+    building, not in the original list (see "Departure from the plan" above): update
+    its hard-coded real-crate names, folders and `depends_on` sets to the new
+    workspace, and replace its `crates/cli/src/lib.rs` selection case with
+    `crates/sdk/src/lib.rs`, expecting every package.
+
 ## For the orchestrator, through `asdlc-plugin` (not edited in this worktree)
 
 AC#6 keeps `plugins/bruk-io-steg/` out of this task. What it will need, so the
@@ -287,6 +311,9 @@ orchestrator can apply it deliberately rather than guess from the diff:
 1. `asdlc record-check` of `just check` on the tree as found, before any edit.
 2. After steps 1-13: `just check` (fmt, lint, `boundaries`, `deny`, the affected
    tests - every crate's, per the risk above - and the tools' own tests). Record it.
+   This is also where `test-tools` first caught the departure in step 14 - the real
+   workspace changing underneath an adapter test fixture - so this record-check is
+   expected to run twice: once failing on that, once passing after step 14 is in.
 3. Per AC#5: `just packages` (the new recipe), building and testing `steg-sdk`,
    `steg-kernel`, `steg-server`, `steg` and `steg-app` each by themselves through
    `steg-quiet`. Record it.
@@ -301,8 +328,9 @@ orchestrator can apply it deliberately rather than guess from the diff:
    Revert both manifest edits before anything is committed - neither bad dependency
    ever lands.
 5. `uv run --project tools pytest -q tools/tests` (also inside `just check`, called out
-   because it is `boundaries.py`'s own suite) - unchanged, since the tool and its
-   tests are not touched by this task.
+   because it is `boundaries.py`'s own suite) - now touched by step 14, so this run is
+   also proof that the adapter suite's fixture update is correct, not just that the
+   tool itself is unchanged.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

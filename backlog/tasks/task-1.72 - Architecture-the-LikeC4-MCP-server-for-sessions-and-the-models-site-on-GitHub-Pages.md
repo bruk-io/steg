@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:37:00Z'
+updated_date: '2026-11-15T03:38:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -152,6 +152,18 @@ Permission allow rule (../../steg/.claude/settings.local.json): Bash(git -C /Use
 Permission allow rule (../../steg/.claude/settings.local.json): Bash(git -C /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/* remote get-url) has a wildcard before the rest of the command, so it also matches any options inserted at that position and approves them without a prompt. For git, options such as -c and --exec-path can run arbitrary commands. Replace that * with the exact value you mean, or only use * after the subcommand (for example Bash(git status *)).
 attachToAPane focusAPane index stegContainers stegContext stegDeployment stegPackages
 personAtMac programsInPanes macos plugin remoteHost steg steg.app steg.app.appPkg steg.app.sdk steg.cli steg.cli.sdk steg.cli.stegPkg steg.server steg.server.kernel steg.server.sdk steg.server.serverPkg steg.server.stegPkg
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:38:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72 on task-1.72-architecture-the-likec4-mcp-server-for at 5f440ca665b2:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:04:00Z'
+updated_date: '2026-11-15T14:13:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -106,22 +106,81 @@ behaviour, documented as such rather than hidden:
   routed to the API") has exactly one thing left to do: build a `Context` from a
   connection's `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` and pass it through unchanged.
 
-## Shapes, and the wire question this task does not answer
+## Typed results, and the sdk's existing shapes' wire form
 
-Request/response values are `serde_json::Value` (`Request { method: String, params:
-Map<String, Value> }`, `Response::Ok(Value) | Response::Error(ApiError)`), matching the
-spike and decision-1's own format: this *is* the boundary decision-2 calls "control
-payloads are JSON," not an internal shortcut past rust.md's "typed struct at a
-boundary" rule — the typed struct is `Description`/`Method`/`Param`/etc., and `Value`
-is what crosses into it. How `Request`/`Response` get onto an actual socket (framing,
-the hello, streams) is TASK-1.44/1.45/1.70's, untouched here.
+Revised from this plan's first draft, which had dispatch build each response as a
+`serde_json::Value` by hand and deliberately left the sdk's existing shapes with no
+serde at all. That defined the wire form of every result twice — once by hand in the
+server, once implicitly in whatever reads it back — with nothing checking the two
+agree, and left `returns` as documentation no type enforced. R105 says a shape that
+crosses the API is defined once, in the sdk; this revision does that.
+
+**The sdk's existing shapes get real wire forms, in their own files (`ids.rs`,
+`colour.rs`, `pane_kind.rs`, `layout.rs` — editing them, not working around them):**
+- `SessionId`/`TabId`/`PaneId`: `Serialize` writes the same string `Display` already
+  produces; a new `FromStr` (parsing that hex string back, sharing one private helper
+  across the three so the parsing logic exists once) backs `Deserialize`. Round-trip
+  test per id type.
+- `Colour`, `PaneKind`, `Orientation`: `#[derive(Serialize, Deserialize)]` with
+  `#[serde(rename_all = "snake_case")]` — their words (`"violet"`, `"terminal"`,
+  `"horizontal"`...), not a derived discriminant.
+- `Ratio`: a custom `Serialize`/`Deserialize`, not a derive — the wire form is the `f64`
+  in `(0, 1)` doc-15 R95 and doc-14 describe ("a ratio between 0 and 1"); the permille
+  `u16` stays the in-process representation R95 doesn't mandate. Round-trip test at a
+  few values, including one that doesn't divide evenly (333/1000), to catch a rounding
+  bug rather than assume one away.
+- `Layout`: `#[derive(Serialize, Deserialize)]` over the above (serde's default,
+  externally-tagged shape — `{"pane": "<id>"}` / `{"split": {...}}` — not internally
+  tagged, which can't represent a newtype variant holding a string). Round-trip test on
+  a small tree (one split, two leaves).
+- `Direction`/`Size` are left alone: `Direction` already crosses the API as one of
+  `ValueKind::Choice`'s plain strings (a parameter value, not a serialized enum), and
+  nothing wire-facing holds a `Size` yet.
+
+**One new record type**, `crates/sdk/src/record.rs`: `SessionRecord { id: SessionId,
+label: Option<String>, position: usize, colour: Colour, current_tab: TabId }`, serde
+derived, field names exactly doc-14's session row. This is the *only* new record type
+this task adds — `session.list`/`session.show` are the only served methods whose
+`returns` is a record at all; `TabRecord`/`PaneRecord` wait for TASK-1.39/1.41, which is
+exactly what "a not-yet method's `returns` is described but its result type isn't
+required until its task adds the fields" means in practice.
+
+**Dispatch returns typed values, serialised at the edge**, not built as JSON by hand
+per arm. `crates/server/src/dispatch/outcome.rs` (new): an `Outcome` enum — `Nothing`,
+`Session(SessionId)`, `Tab(TabId)`, `Pane(PaneId)`, `SessionRecord(SessionRecord)`,
+`SessionRecords(Vec<SessionRecord>)`, `Method(Box<Method>)`, `Methods(Vec<Method>)`,
+`Description(Box<Description>)` — covers every served method's result with nine cases.
+Each dispatch arm returns `Result<Outcome, ApiError>`; one function,
+`Outcome::into_value`, is the only place that turns one into the `Value` `Response::Ok`
+carries: `Nothing` → `Value::Null`; an id variant → `{"id": "<it>"}` (naming decision-1
+section 8's own flagged rough edge — "the real format should name that field" — rather
+than leaving it unnamed); the two record variants and `Method`/`Methods`/`Description`
+→ `serde_json::to_value` of the already-typed value.
+
+**Tied together with a test** (not just asserted in prose): for every served method
+whose `returns` is `Record`/`Records` (`session.show`/`session.list`), the serialized
+`SessionRecord`'s own JSON keys are compared against that method's declared `fields`
+names — if a field is added to one and not the other, this fails, which is what keeps
+`returns` from drifting out from under the type that actually produces it. `api.list`/
+`api.show`/`api.call` are checked on their own terms (their result *is* `Method`/
+`Description`, so the comparison is "the `Method`/`Description` that comes back
+deserializes to the same value that went in," not a `fields`-name comparison).
+
+`Request`/`Response`/`ApiError` (the request side, and the `Response::Ok(Value)`
+envelope `Outcome::into_value` feeds) are unchanged from the first draft: that boundary
+— a method name and a JSON map of parameters in, one JSON value out — is decision-2's
+own "control payloads are JSON," not a shortcut past rust.md's "typed struct at a
+boundary," and how it reaches an actual socket is still TASK-1.44/1.45/1.70's, untouched
+here.
 
 `events()` seeds doc-8 R38's M1 names now (so `--for <event>` has something to validate
 against before TASK-1.49, per doc-2 section 5): `session.created/closed/focused`,
 `tab.created/closed/focused`, `pane.created/closed/focused`,
 `pane.cwd_changed/title_changed/bell/exited/status_changed` — 14 records, fields drawn
-from doc-14's record tables where it has them. TASK-1.46 fills in behaviour; the names
-and fields are fixed from here so nothing downstream guesses at them twice.
+from doc-14's record tables where it has them, as plain `Field` descriptions (not new
+sdk result types — nothing dispatches an event in this task). TASK-1.46 fills in
+behaviour; the names and fields are fixed from here so nothing downstream guesses at
+them twice.
 
 `api.show` with no `target` returns the whole `Description` (methods, events, errors,
 api_version) in one call — my reading of doc-2 section 8's row for `api show`, which
@@ -139,8 +198,16 @@ this document"). Flagged for the engineer to confirm or overrule, not decided si
   dispatch answers with.
 - `crates/sdk/Cargo.toml`: add `serde = { version = "1", features = ["derive"] }`,
   `serde_json = "1"`.
-- `crates/sdk/src/lib.rs`: `mod description; pub use description::{...};` (mod/pub use
-  only, per rust.md); update the crate doc comment.
+- `crates/sdk/src/lib.rs`: `mod description; mod record; pub use description::{...};
+  pub use record::SessionRecord;` (mod/pub use only, per rust.md); update the crate doc
+  comment.
+- `crates/sdk/src/ids.rs`: `Serialize`/`Deserialize`/`FromStr` for `SessionId`,
+  `TabId`, `PaneId`, as above.
+- `crates/sdk/src/colour.rs`: serde derive on `Colour`.
+- `crates/sdk/src/pane_kind.rs`: serde derive on `PaneKind`.
+- `crates/sdk/src/layout.rs`: serde derive on `Orientation`; custom serde on `Ratio`;
+  serde derive on `Layout`.
+- `crates/sdk/src/record.rs` (new): `SessionRecord`.
 - `crates/sdk/src/description/mod.rs` (new): `mod`/`pub use` only.
 - `crates/sdk/src/description/shapes.rs` (new): `Description`, `Version`, `MethodName`,
   `Method`, `Param`, `Role`, `ValueKind`, `Returns`, `Field`, `Event`, `ErrorRecord`,
@@ -148,10 +215,7 @@ this document"). Flagged for the engineer to confirm or overrule, not decided si
   `ProgramRunning`, `PositionOutOfRange`, `SplitTooSmall`, `NoSplitInDirection`,
   `PanesNotInSameTab`, `AlreadyInTab`, `NotImplementedYet`), each with serde derives;
   `Description::method/nouns/verbs_of`, `Param::flag/negated_flag`,
-  `Method::target/program`. No serde derives added to the existing sdk types
-  (`SessionId`, `Colour`, `PaneKind`, `Layout`...) — they cross the wire as
-  `Value`/strings built by hand in dispatch, not by deriving on the domain types
-  themselves, so nothing already on main is touched.
+  `Method::target/program`.
 - `crates/sdk/src/description/request.rs` (new): `Request`, `Response`, `ApiError`,
   `validate(&Description, &Request) -> Result<(), ApiError>`.
 - `crates/sdk/src/description/methods.rs` (new): `description() -> Description`, built
@@ -168,21 +232,22 @@ this document"). Flagged for the engineer to confirm or overrule, not decided si
   PaneId) -> Option<TabId>` (read-only lookup). Both are the one kernel addition this
   task needs: restoring a tab's focus after `pane.split --no-focus` without touching
   the session's `current_tab`, and finding a pane's tab to call `unfill_pane` for
-  `pane.unset --zoomed`. Pure data, no event, no I/O — in scope for the kernel's own
-  `CLAUDE.md`/`clippy.toml` as written.
+  `pane.unset --zoomed`. Pure data, no event, no I/O.
 - `crates/server/Cargo.toml`: add `serde_json`.
-- `crates/server/src/lib.rs`: `mod dispatch; pub use dispatch::{dispatch, Context};`;
-  update the crate doc comment (it currently says "behaviour lands starting with
-  TASK-1.9" — this is the first behaviour).
+- `crates/server/src/lib.rs`: `mod dispatch; pub use dispatch::{dispatch, Context};
+  pub use dispatch::outcome::Outcome;`; update the crate doc comment (it currently says
+  "behaviour lands starting with TASK-1.9" — this is the first behaviour).
 - `crates/server/src/dispatch/mod.rs` (new): `Context`, `dispatch(tree: &mut Tree,
   request: &Request, context: Context) -> Response`, the top-level match by noun,
   `not_implemented_yet(name) -> ApiError`.
+- `crates/server/src/dispatch/outcome.rs` (new): `Outcome`, `Outcome::into_value`.
 - `crates/server/src/dispatch/session.rs`, `tab.rs`, `pane.rs`, `api.rs` (new): one
-  file per noun's served arms, each a plain function over `&mut Tree`.
+  file per noun's served arms, each a plain function over `&mut Tree` returning
+  `Result<Outcome, ApiError>`.
 - `crates/server/src/dispatch/kernel_error.rs` (new): `map_kernel_error(steg_kernel::Error)
   -> ApiError`, one arm per kernel `Error` variant.
 - `crates/server/tests/dispatch.rs` (new, functional — a real `Tree`, no doubles, per
-  testing-rust.md): the AC #2/#3 cases below.
+  testing-rust.md): the AC #2/#3 cases below, plus the `Outcome`/`fields` cross-check.
 - `spikes/api-description/` (deleted, AC #4): every file under it.
 
 ## Order of work
@@ -190,69 +255,86 @@ this document"). Flagged for the engineer to confirm or overrule, not decided si
 1. `boundaries.toml` + `crates/sdk/Cargo.toml`: add the two dependencies. `just
    check-boundaries` and `just test` (still a no-op crate) confirm the edit alone is
    clean before any behaviour is written.
-2. `crates/sdk/src/description/shapes.rs`: the shape types and their derives. Unit
-   test: one example `Method` round-trips through `serde_json`.
-3. `crates/sdk/src/description/request.rs`: `Request`/`Response`/`ApiError`/`validate`.
+2. `crates/sdk/src/ids.rs`, `colour.rs`, `pane_kind.rs`, `layout.rs`: the wire forms
+   above, each with its own round-trip test, before anything downstream depends on
+   them.
+3. `crates/sdk/src/record.rs`: `SessionRecord`, with a round-trip test and a test that
+   its JSON keys are exactly `{id, label, position, colour, current_tab}`.
+4. `crates/sdk/src/description/shapes.rs`: the description's own shape types and their
+   derives. Unit test: one example `Method` round-trips through `serde_json`.
+5. `crates/sdk/src/description/request.rs`: `Request`/`Response`/`ApiError`/`validate`.
    Port the spike's three validate tests (undeclared parameter, missing required,
    closed-set violation) and add "unknown method → `BadRequest`".
-4. `crates/sdk/src/description/methods.rs`: all 38 methods, 14 events, 10 errors,
+6. `crates/sdk/src/description/methods.rs`: all 38 methods, 14 events, 10 errors,
    assembled by `description()`. Tests: the method set is exactly doc-2 section 8's 38
    `(noun, verb)` pairs, no duplicates; every summary/details/param-summary is
    non-empty; no method declares a parameter named after a CLI-only flag (`json`,
    `quiet`, `verbose`, `no_color`, `no_input`, `help`, `host`, `autostart`); at most one
    `Target` and one `Program` role per method (ported from the spike); every error a
    method names has a record in `errors()`.
-5. `crates/sdk/src/lib.rs`: wire the new module in.
-6. `crates/kernel/src/tree.rs`: `set_tab_current_pane` and `tab_of_pane`, with unit
+7. `crates/sdk/src/lib.rs`: wire the new modules in.
+8. `crates/kernel/src/tree.rs`: `set_tab_current_pane` and `tab_of_pane`, with unit
    tests — restoring a tab's current pane does not move the session's `current_tab`
    even when that tab is not the session's current one; `tab_of_pane` finds the right
    tab and returns `None` for an unknown pane.
-7. `boundaries.toml` + `crates/server/Cargo.toml`: add `serde_json` to the server.
-8. `crates/server/src/dispatch/`: `Context`, the top-level match, and the four
-   per-noun files — 24 real arms, 14 `not_implemented_yet` arms each citing its task in
-   a comment, `kernel_error.rs`'s full mapping. `pane.split`/`tab.new`'s `--no-focus`
-   path uses step 6's additions; `pane.set/unset --zoomed` uses `fill_pane`/
-   `unfill_pane` (`tab_of_pane` for `unfill_pane`'s `TabId`); `*.close`'s `force` and
-   `session.new`'s `focus` are accepted and documented no-ops (see above).
-9. `crates/server/src/lib.rs`: wire `dispatch` and `Context` in.
-10. `crates/server/tests/dispatch.rs`: the AC #2/#3 cases (listed under Proof) plus two
-    small end-to-end scenarios: split → set label → close a session through dispatch
-    alone, and `tab.new` with `focus=false` leaving the original tab current.
-11. Delete `spikes/api-description/`.
-12. `just check` in full; fix what it finds; record the final run.
+9. `boundaries.toml` + `crates/server/Cargo.toml`: add `serde_json` to the server.
+10. `crates/server/src/dispatch/outcome.rs`: `Outcome` and `into_value`.
+11. `crates/server/src/dispatch/`: `Context`, the top-level match, and the four
+    per-noun files — 24 real arms, 14 `not_implemented_yet` arms each citing its task in
+    a comment, `kernel_error.rs`'s full mapping. `pane.split`/`tab.new`'s `--no-focus`
+    path uses step 8's additions; `pane.set/unset --zoomed` uses `fill_pane`/
+    `unfill_pane` (`tab_of_pane` for `unfill_pane`'s `TabId`); `*.close`'s `force` and
+    `session.new`'s `focus` are accepted and documented no-ops (see above).
+12. `crates/server/src/lib.rs`: wire `dispatch`/`Context`/`Outcome` in.
+13. `crates/server/tests/dispatch.rs`: the AC #2/#3 cases (listed under Proof), the
+    `Outcome`-versus-`fields` cross-check, and two small end-to-end scenarios: split →
+    set label → close a session through dispatch alone, and `tab.new` with
+    `focus=false` leaving the original tab current.
+14. Delete `spikes/api-description/`.
+15. `just check` in full; fix what it finds; record the final run.
 
-Steps 1–6 (the sdk's shapes, description and validation, with no server change) are one
-reviewable unit that TASK-1.49 (the CLI) could build against on their own; steps 7–12
-(dispatch, the kernel addition, error mapping, `--no-focus`, deletion) are the second.
-Flagging this for the engineer to decide whether to split the task — not splitting it
-myself.
+Steps 1–7 (the sdk's shapes, description, validation and the one new record type, with
+no server change) are one reviewable unit that TASK-1.49 (the CLI) could build against
+on their own; steps 8–15 (dispatch, the kernel addition, error mapping, `--no-focus`,
+deletion) are the second. This revision touches four more existing sdk files than the
+first draft (`ids.rs`, `colour.rs`, `pane_kind.rs`, `layout.rs`) and adds the `Outcome`
+type and its cross-check test — real growth, not padding, since it is what makes
+`returns` an enforced contract rather than documentation. Flagging the split for the
+engineer to decide; not resizing the task myself.
 
 ## Risks
 
-- **38 methods is a lot of literal data to get right by hand.** Mitigated by step 4's
+- **38 methods is a lot of literal data to get right by hand.** Mitigated by step 6's
   completeness test (exact match against a doc-2-derived list) and by grouping into
   per-noun functions, as the spike's own section 8 recommends staying readable to.
 - **The served/not-implemented split is this plan's own reading of what "every field
   the shape promises" means**, not something doc-2/doc-14 states as a rule. Mitigated
   by the table above being explicit and reviewable against those documents directly,
   and by every `not_implemented_yet` arm citing its task in code, not just in the plan.
+- **`Ratio`'s `f64` round-trip is the one place float imprecision could silently drift**
+  a value by one permille. Mitigated by testing an uneven value (333/1000), not only
+  round numbers, and by `Deserialize` rounding rather than truncating.
 - **`Tree::set_tab_current_pane`/`tab_of_pane` are new kernel surface** outside what
   TASK-1.36–1.38 shipped. Kept deliberately minimal (pure data, no event) so TASK-1.46's
   eventing wraps them rather than replacing them.
 - **`api.show` with no target answering the whole description** is a reading of doc-2,
   not an explicit instruction. Flagged above for the engineer; if overruled, only
   `dispatch/api.rs` and its tests change.
-- **sdk's first-ever external dependency.** `just check` (licence, boundaries, lint) is
-  run after step 1, not only at the end, to catch a licence or clippy surprise early —
-  `Unicode-3.0` (reached through `serde_derive`'s `syn`) is already on `deny.toml`'s
-  allow list, and `serde`/`serde_json` are already in `Cargo.lock` via other
-  dependencies, so no new licence is expected, only confirmed.
+- **sdk's first-ever external dependency, and its first serde derives on types already
+  on `main`.** `just check` (licence, boundaries, lint) is run after step 1, not only at
+  the end, to catch a licence or clippy surprise early — `Unicode-3.0` (reached through
+  `serde_derive`'s `syn`) is already on `deny.toml`'s allow list, and `serde`/
+  `serde_json` are already in `Cargo.lock` via other dependencies, so no new licence is
+  expected, only confirmed; `just check-packages` (kernel built alone) confirms serde
+  reaching it transitively through the sdk's now-non-empty dependency list doesn't
+  break its own no-I/O lints (serialisation code is not I/O, but checked rather than
+  assumed).
 
 ## Proof
 
-- AC #1: step 4's tests (exact 38-method set against doc-2 section 8; no empty
+- AC #1: step 6's tests (exact 38-method set against doc-2 section 8; no empty
   summary/details/param-summary; no CLI-only-flag parameter; at most one target/program
-  each); `just test` for `steg-sdk`.
+  each); step 2/3's round-trip tests; `just test` for `steg-sdk`.
 - AC #2: `dispatch` tests for an unknown method, an undeclared parameter, a missing
   required parameter, and a word outside a closed set, each asserting `ApiError::code
   == BadRequest`; a completeness test that every described method has a dispatch arm
@@ -262,7 +344,8 @@ myself.
 - AC #3: `api.list` returns all 38 methods once; `api.show <name>` returns one method
   in full (every param, its summary); `api.show` with no target returns the whole
   `Description`; `api.call` dispatches to the named method with its params and matches
-  calling it directly; `api.call` of `api.call` is refused.
+  calling it directly; `api.call` of `api.call` is refused; the `Outcome`-versus-
+  `fields` cross-check for `session.show`/`session.list`.
 - AC #4: `spikes/api-description/` absent from `git -C <worktree> status`; `just check`
   passes with no reference to it (nothing outside `spikes/` depended on it per its own
   README).

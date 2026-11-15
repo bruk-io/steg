@@ -90,6 +90,25 @@ fn required_target(summary: &str) -> Param {
     target_of_kind(ValueKind::Target, true, summary)
 }
 
+/// Role: Target parameter named `method`, for `api.call`'s own selector
+/// only (TASK-1.81) — not the generic `target` convention every other
+/// method above uses, because api.call forwards every other parameter it
+/// is given flat into the called method's own `params` (`api::call`), and
+/// that method may itself declare a parameter literally named `target`
+/// (`pane.split`, `setting.show`, ...). Renaming the selector, rather than
+/// nesting the forwarded parameters under a second key, is what keeps the
+/// two apart: `Method::target()` finds this by `role`, not by `name`, so
+/// it is still the CLI's one positional (TASK-1.49) despite the name.
+fn method_target(summary: &str) -> Param {
+    Param {
+        name: "method".into(),
+        role: Role::Target,
+        value: ValueKind::Text,
+        required: true,
+        summary: summary.into(),
+    }
+}
+
 fn flag(name: &str, value: ValueKind, required: bool, summary: &str) -> Param {
     Param {
         name: name.into(),
@@ -1277,15 +1296,14 @@ fn api_methods() -> Vec<Method> {
             summary: "Call any method by name".into(),
             details: "For an agent, and for a method a plugin adds before the CLI knows it. \
                       Never the documented way to do something that has a command of its own. \
-                      `target` names which method to call; every other parameter given is that \
+                      `method` names which method to call; every other parameter given is that \
                       method's own, by its own declared names — nothing is nested under a second \
-                      key, so a method's parameters are never named twice."
+                      key, so a method's parameters are never named twice. The selector is \
+                      `method`, not the usual `target`, precisely so that the called method's \
+                      own `target` (where it has one, such as `pane.split` or `setting.show`) \
+                      is a different key and travels through untouched (TASK-1.81)."
                 .into(),
-            params: vec![target_of_kind(
-                ValueKind::Text,
-                true,
-                "The method to call, by its dotted name",
-            )],
+            params: vec![method_target("The method to call, by its dotted name")],
             returns: Returns::Text,
             errors: vec![ErrorCode::BadRequest],
             since: VERSION,
@@ -1488,6 +1506,30 @@ mod tests {
                     param.name
                 );
             }
+        }
+    }
+
+    /// `api.call`'s own selector is named `method`, not the usual `target`,
+    /// precisely so it never collides with a called method's own
+    /// parameter of the same name (TASK-1.81). That only holds if no other
+    /// method ever declares a parameter named `method` either — this is
+    /// the invariant that keeps the flat merge in `api::call` safe for
+    /// every method added later, the same way
+    /// `no_method_declares_a_cli_only_flag_as_a_parameter` keeps the
+    /// CLI-only flags safe.
+    #[test]
+    fn no_method_other_than_api_call_declares_a_parameter_named_method() {
+        let api = description();
+        for method in &api.methods {
+            if method.name.dotted() == "api.call" {
+                continue;
+            }
+            assert!(
+                method.params.iter().all(|p| p.name != "method"),
+                "{} declares a parameter named `method`, which would collide with api.call's \
+                 own selector",
+                method.name.dotted()
+            );
         }
     }
 

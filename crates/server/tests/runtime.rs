@@ -59,9 +59,11 @@ fn request(method: &str, pairs: Vec<(&str, Value)>) -> Request {
 /// Builds an `api.call` of `target`, carrying `pairs` as the target
 /// method's own parameters alongside the selector (review finding 1:
 /// every one of these must reach `Runtime::start_and_dispatch` exactly
-/// as a direct call would).
+/// as a direct call would). The selector's own key is `method`
+/// (TASK-1.81), not `target` - naming the parameter here `target` keeps
+/// every one of this file's own call sites unchanged.
 fn api_call(target: &str, mut pairs: Vec<(&str, Value)>) -> Request {
-    pairs.insert(0, ("target", json!(target)));
+    pairs.insert(0, ("method", json!(target)));
     request("api.call", pairs)
 }
 

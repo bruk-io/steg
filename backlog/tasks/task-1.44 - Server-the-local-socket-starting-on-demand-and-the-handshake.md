@@ -1,14 +1,13 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:35:00Z'
+updated_date: '2026-11-15T22:22:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -41,9 +40,10 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c074345d1296'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=3'
-asdlc_review_policies: ["review", "rust"]
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -919,6 +919,362 @@ error: test failed, to rerun pass `-p steg-server --test shutdown`
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --features race-fixture --test race || exit 1; done'` exited 0 at 2026-11-15T21:41:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 12d6802de7c0 with uncommitted changes, last 40 of 99 lines:
+
+```text
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --test shutdown || exit 1; done'` exited 0 at 2026-11-15T21:42:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 12d6802de7c0 with uncommitted changes, last 40 of 139 lines:
+
+```text
+     Running tests/shutdown.rs (target/debug/deps/shutdown-be635be15e6581f1)
+
+running 7 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-be635be15e6581f1)
+
+running 7 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-be635be15e6581f1)
+
+running 7 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T21:44:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6:
+
+```text
+ok      format check (0.2s)
+ok      lint (5.3s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (10.0s)
+ok      build (steg-sdk) (0.9s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (1.3s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (31.5s)
+ok      test (steg-server) (5.1s)
+ok      test (steg-server, race-fixture) (6.2s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (0.9s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 39, 36 without the Asdlc-Worker trailer.
+
+Review findings fixed at head 100bc99 (PR #37, CI green: check passed in 4m7s). Each finding, and what was done about it:
+
+[Important #1 - malformed-hello for every non-hello first frame] Fixed: connection.rs now routes every decoded first-frame outcome other than Hello (undecodable bytes at the frame level, or a well-formed control/event/data frame arriving first) through the same malformed-hello refusal check_hello already produces for the two cases it could already reach (wrong magic, missing protocol) - built from the sdk's own public Refusal::Malformed/Frame::hello/encode_frame/PROTOCOL_VERSION, nothing added to crates/sdk. Six new tests in handshake.rs cover all four of decision-2 section 7's cases plus the oversized-length and stalled-half-frame cases the review also named; "prove one bites" reverted the fix and got exactly the three previously-unreached cases failing by their own bound, recorded on the task, then restored.
+
+[Important #2 - Stopper::stop not reliably stopping an idle run] Fixed: Stopper now binds the socket path itself (set by run() before its first accept()), so its one public stop() always both sets the flag and wakes the loop; the separate stop_and_wake function and the bare, easy-to-misuse flag-set are gone (the flag-set is now private, called internally). Three new tests cover a genuinely idle server, concurrent double-stop, and a stop racing a real connect(). Writing the first of these surfaced a test-design bug of my own - the shared start_server helper's own startup probe leaves a connection queued that masks this exact regression - caught by actually running "prove one bites" and seeing a suspiciously fast pass, then fixed with a new start_truly_idle_server helper that drains the probe first. Redid "prove one bites" with the corrected tests: all four tests calling stop() failed by their 5s bound exactly as expected with the wakeup disabled, recorded, then restored.
+
+[Nits] race-attempt is now feature-gated (confirmed an ordinary build produces no extra binary, and just check still runs the race test via a new check-packages line); the arbiter's probe showing up on the ConnectionEvent seam is documented as a TASK-1.77 caveat; the listener now closes immediately after the accept loop stops rather than after the connection-join phase, closing the window a connecting client could be queued-then-reset in (fixed, not only documented); error.rs's stale plan metadata is confirmed byte-identical to origin/main and noted here, plan left untouched.
+
+Checks recorded, in order: the failing handshake test with finding #1 reverted; the failing shutdown test with finding #2 reverted (using the corrected idle-server tests, after catching my own test-design bug); 10 consecutive race-fixture race-test runs; 10 consecutive shutdown-test runs; just check at the merged final head (100bc99, after merging origin/main - brought in TASK-1.41's kernel/sdk changes, no conflicts). Full writeup with code-level detail is in the task's own notes (two comments posted this round).
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test handshake'` exited 101 at 2026-11-15T22:12:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 48 lines:
+
+```text
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... FAILED
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... FAILED
+
+failures:
+
+---- a_hello_completing_well_after_the_deadline_is_closed_with_no_reply stdout ----
+
+thread 'a_hello_completing_well_after_the_deadline_is_closed_with_no_reply' (14451002) panicked at crates/server/tests/handshake.rs:588:18:
+expected no reply and a close, got 16 bytes
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline stdout ----
+
+thread 'a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline' (14450994) panicked at crates/server/tests/handshake.rs:518:5:
+expected the deadline, not the still-running 1.6s trickle, to close this: closed after 2.016281959s against a 300ms handshake timeout
+
+
+failures:
+    a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline
+    a_hello_completing_well_after_the_deadline_is_closed_with_no_reply
+
+test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+
+error: test failed, to rerun pass `-p steg-server --test handshake`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --test handshake || exit 1; done'` exited 0 at 2026-11-15T22:15:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 199 lines:
+
+```text
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/handshake.rs (target/debug/deps/handshake-7fc5f9e5e662a76f)
+
+running 13 tests
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --test shutdown || exit 1; done'` exited 0 at 2026-11-15T22:15:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 151 lines:
+
+```text
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-be635be15e6581f1)
+
+running 8 tests
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-be635be15e6581f1)
+
+running 8 tests
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do cargo test -p steg-server --features race-fixture --test race || exit 1; done'` exited 0 at 2026-11-15T22:15:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 100bc9969ab6 with uncommitted changes, last 40 of 99 lines:
+
+```text
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-e0bba94806d2a1ef)
+
+running 3 tests
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T22:17:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at cd1eced5eb04:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.7s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (13.3s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.3s)
+ok      build (steg-kernel) (0.7s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (29.7s)
+ok      test (steg-server) (6.2s)
+ok      test (steg-server, race-fixture) (7.4s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.6s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 39, 36 without the Asdlc-Worker trailer.
+
+Review #3's Important finding fixed at head cd1eced (PR #37, CI green: check passed in 3m55s). The handshake timeout was per-read, not per-handshake: UnixStream::set_read_timeout bounds each individual read() call, and the earlier code set it once up front without ever re-setting it, so a client sending one byte just inside every timeout window kept its connection and thread open indefinitely (the reviewer demonstrated 9 seconds against a 2-second timeout with six bytes).
+
+Fixed: one deadline computed once when the handshake starts, carried through read_one's loop; each read is given only the time remaining until it, via a new pure time_remaining(deadline, now) function (4 unit tests, literal Durations, no sleeping) - a read is never attempted once that's zero. A hello sent in many small pieces still succeeds if it finishes before the deadline; only a connection that never finishes is affected.
+
+Three new tests in handshake.rs (trickling forever still closes at the deadline; one-byte-at-a-time hello finishing inside the deadline is accepted; one finishing well after it - deliberately ~2x away, not a knife's edge - is closed with no reply) and one in shutdown.rs (stop while a trickling handshake is open still returns within its bound - a guard on the already-proven shutdown(Both) mechanism, documented as such rather than implied as a new discovery). Prove-one-bites: reverted to the old per-read-reset behaviour, both new deadline tests failed by their own bound (not a hang), the shutdown/trickle test passed regardless as expected; recorded, then restored.
+
+Audited every other wait in this task's code as asked: the arbitration retry loop (arbiter.rs) was already correct (one deadline checked before each retry sleep); the accept wakeup is syscall-bounded (a local Unix socket connect never blocks indefinitely); the shutdown-then-join loop is bounded because shutdown(Both) forcibly unblocks a blocked read regardless of its timeout (now proven for a mid-handshake trickling connection too, not just an idle one); the handshake reply writes are a few hundred bytes against an 8192-byte SO_SNDBUF measured on this platform (not a realistic blocking vector); the post-handshake hold-open read is deliberately unbounded by AC #4's second clause and correctly untouched. Full detail with the exact numbers is in the task's notes.
+
+Checks recorded, in order: the failing handshake tests with the fix reverted; 10x each of the handshake, shutdown, and race-fixture race test suites; just check at the merged final head (origin/main brought in cleanly, no overlap with this task's files).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1017,6 +1373,112 @@ Nits (3):
 Verified directly, confirming the brief's other named concerns: reaping only runs on the next accept() (listen.rs:92-102/156), so on a quiet server a finished connection's dup fd + JoinHandle sit until the next accept or a stop - bounded by connections-since-last-accept, not by server history (proved by many_short_connections_do_not_grow_the_tracked_set), and connection.rs:139's unconditional shutdown(Both) means a peer's own view of the connection closing no longer depends on reaping timing at all. Shutdown order (listen.rs:174-192) destructures ServerHandle rather than dropping it whole, so the lock is released strictly last, after the listener is closed and the socket file removed; shutdown.rs's own test asserts a connecting client sees NotFound or ConnectionRefused. A narrower point the ordering doesn't fully address: between "stop accepting" and "close the listener" there's now a join phase (the departure below) during which the listener is still bound - a client connecting in that exact window could have its connect() succeed into the kernel backlog and only be reset once the listener is later dropped, rather than seeing an immediate refusal; not tested or discussed in the notes, worth a mention but not blocking on its own.
 
 Departure from the plan (digest c074345d1296, not edited): the plan's section 4 named only stop-accepting/close-listener/remove-file/release-lock, with no thread-joining. The notes correctly disclose the departure (today's merged team rule on joining spawned threads) and its reason, and the regression it caught (connection.rs needing shutdown(Both) once a duplicate fd is held) is itself a legitimate, well-proven fix. Per policy this still marks plan-matched as "no" even though the notes explain it well.
+
+---
+
+created: 2026-11-15T21:42:00Z
+
+---
+
+Review findings addressed (review #5, @bruk.r2, at 12d6802). Each finding below with what changed and why; nothing here edits the approved plan (c074345d1296) - departures are recorded here instead, per the brief.
+
+[Important #1 - malformed-hello for every non-hello first frame] connection.rs's first-frame handling is restructured: read_one's result is now classified into a FirstFrame enum (NoCompleteFrame, Hello(payload), NotAHello(reason)), with a new describe_non_hello() naming each non-Hello Incoming variant and a new malformed_hello_reply() building the refusal directly from the sdk's own public Refusal::Malformed, Frame::hello and encode_frame (PROTOCOL_VERSION also public) - nothing added to crates/sdk, confirmed by cargo tree and the diff touching no file under crates/sdk. The two cases the review found unreached (undecodable bytes at the frame level, and a well-formed-but-wrong-kind frame such as a control/event frame arriving first) now get the same malformed-hello refusal naming the server's version that check_hello already produces for the other two cases (wrong magic, missing protocol) - decision-2 section 7's contract now holds for all four, uniformly, through one path.
+
+Six new tests in handshake.rs, one per case named in the review plus two more it asked for: a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal, a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal (both previously undertested - the logic was already correct but nothing proved it over a real connection), undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal, a_control_frame_arriving_first_gets_a_malformed_hello_refusal (the two real gaps), an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly (asserts the refusal arrives well under the handshake timeout, not by waiting one out), and a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply (the negative case: a stalled handshake has nothing decoded to refuse, so it correctly gets AC #4's original no-reply timeout behaviour, not a malformed-hello - named explicitly so the distinction is not left for a reader to wonder about). "Prove one bites": reverted the NotAHello branch to close with no reply (the old behaviour), ran cargo test -p steg-server --test handshake, and exactly the three new cases this finding named failed by their own bound (not a hang) while the two already-correct cases (wrong magic, missing protocol) stayed green - recorded on the task, then restored.
+
+[Important #2 - Stopper::stop not reliably stopping an idle run] Stopper now holds the socket path internally (Arc<Mutex<Option<PathBuf>>>), set once by run() itself (bind_socket_path, private) before it ever calls accept() for the first time. stop() is now the one public method, and it always both sets the flag and wakes the accept loop - the separate stop_and_wake free function is removed (not deprecated: every caller already used it, so there was no reason to keep two names for what is now one correct function), and the bare flag-set is private (set_stop_flag), called by stop() and by run() itself (to catch a stop() that raced in before the path was bound, checked once more immediately after binding, before the loop is ever entered).
+
+Three new tests in shutdown.rs: stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound, stop_called_twice_concurrently_on_an_idle_server_is_harmless, and stop_racing_a_client_connecting_still_returns_within_a_bound (20 rounds, both orderings). Writing the first of these surfaced a test-design bug of my own, worth recording for whoever reads this later: using the existing start_server helper (which itself makes a probe connection to confirm the socket is accepting) left a connection queued in the kernel's own backlog by the time the test called stop() - run()'s first accept() call consumes that leftover probe regardless of whether stop()'s wakeup works at all, which masks exactly this regression (a test built this way would have passed even against the old, broken stop()). Caught this by actually running the "prove one bites" step before trusting the test: reverting stop() to the old bare-flag behaviour and rerunning showed the test still passing in 0.01s - too fast to be real, which is what sent me looking for why. Fixed by adding start_truly_idle_server, which drains the probe's own Connected/Disconnected pair over an events channel before returning, so run()'s loop has genuinely cycled back to a fresh, truly-empty, blocking accept() call before the test ever calls stop(). The third test (racing a real connect()) has the same structural limitation for a different reason (documented in its own doc comment): as long as the listener is still open, which it is until run() actually returns, a connecting client's own connect() succeeding also masks the same bug by the same mechanism - so that test is honest in its own doc about proving a different, real property (no deadlock/panic/leak when stop() races a real connection) rather than re-proving this specific regression, which the other two tests are what actually cover. "Prove one bites", corrected: reran with stop()'s wakeup disabled using the fixed start_truly_idle_server-based tests - all four tests that now call stop() (the three new ones plus two from the reap/shutdown work) failed by their 5s bound exactly as expected; recorded, then restored.
+
+[Nit #1 - race-attempt always builds] Added a race-fixture feature (off by default) gating both the [[bin]] and an explicit [[test]] entry for race.rs (required-features on both) - confirmed cargo build -p steg-server with no features produces no race-attempt binary at all, and cargo test -p steg-server --no-run with the feature off skips race.rs while every other test file still auto-discovers (checked the actual target list both ways, not assumed - autotests stays on for the rest even with one explicit [[test]] entry). justfile's check-packages gained a second cargo test -p steg-server --features race-fixture line, the same pattern already used for steg-sdk's local-socket feature, so just check still runs the race test (verified: it shows as its own "test (steg-server, race-fixture)" line).
+
+[Nit #2 - arbiter's probe looks like a client on the ConnectionEvent seam] Documented directly on ConnectionEvent's own doc comment in connection.rs, stated as a caveat for part B (TASK-1.77) rather than fixed here: arbiter::probe's plain UnixStream::connect against a running server is indistinguishable, on this seam, from a real client that connected and left before completing a handshake - the server has no signal to filter on (a probe carries nothing that marks it as one), so this is a real limit TASK-1.77's idle checker will need to account for, not something this task can resolve from its own side.
+
+[Nit #3 - the listener-still-open window during the join phase] Fixed rather than only documented: drop(listener) now happens immediately after the accept loop breaks, before the connections-shutdown-and-join loop runs (previously the other way round). Closing the listener only affects new connection attempts (refused immediately, nothing queues after that point) - it has no effect on already-accepted connections, which live on their own independent file descriptors the listener never touches, so moving it earlier costs nothing and closes the window entirely. Both run()'s own top-level doc comment and the shutdown-order comment at the point of the change now describe this ordering and why. No new timing-based test added for this specifically - the window this closes was already sub-millisecond in practice even before the fix (closing the listener is itself one of the fastest possible operations), so a test asserting its absence would be testing scheduler timing, not this code; the existing stopping_closes_the_listener_removes_the_socket_and_releases_the_lock test already pins the correct end state (NotFound/ConnectionRefused once everything has settled).
+
+[Nit #4 - error.rs listed as modified but unchanged] Confirmed with git diff origin/main -- crates/server/src/error.rs: byte-identical. Stale plan metadata from the plan's own modified-files list (section 6 of the plan already explains why no new Error variant was needed) - noted here per the review's own ask, plan left untouched.
+
+Checks recorded on this task for this round, in order: the failing cargo test -p steg-server --test handshake with the malformed-hello fix reverted (finding #1's prove-one-bites); the failing cargo test -p steg-server --test shutdown with stop()'s wakeup disabled, using the corrected idle-server tests (finding #2's prove-one-bites, redone after catching my own test-design bug); 10 consecutive cargo test -p steg-server --features race-fixture --test race runs; 10 consecutive cargo test -p steg-server --test shutdown runs; just check at the merged final head.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T21:49:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T22:03:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at head 100bc9969ab67750a59c842777a74cea4947cd02 (origin/main...HEAD diff in a detached worktree). PR #37 CI ("check") passed at this same headRefOid in 4m7s (confirmed via `gh pr view 37 --json headRefOid` matching, and `gh pr checks 37`). I also ran `just check` myself at this head: green (format, lint, boundaries, licences, tests every crate, each package build+test including `test (steg-server, race-fixture)`, tool tests, architecture, recipe names). Ran `cargo test -p steg-server --test shutdown` 8x (7/7 green each time), `cargo test -p steg-server --features race-fixture --test race` 5x (3/3 green each time), `cargo test -p steg-server --test handshake` once (10/10 green). `cargo tree -p steg-server -i nix` shows one nix 0.28.0 line. Confirmed with `rm -f target/debug/race-attempt && cargo build -p steg-server` that an ordinary build produces no race-attempt binary (feature-gating works). Confirmed via `git diff --stat origin/main...HEAD` that no file under crates/sdk changed.
+
+Both of review #5's Important findings are genuinely fixed, verified independently rather than taken on trust:
+
+- Finding #1 (malformed-hello only for 2 of 4 decision-2 §7 cases): read connection.rs's new FirstFrame/describe_non_hello/malformed_hello_reply, and handshake.rs's six tests covering wrong-magic, missing-protocol, undecodable-bytes, control-frame-first, oversized-length, and half-a-frame-then-stall. All ten handshake tests pass. Built only from the sdk's own public Refusal/Frame/encode_frame/PROTOCOL_VERSION; no file under crates/sdk changed.
+- Finding #2 (Stopper::stop not reliably stopping an idle run): read the new Stopper::bind_socket_path/stop()/set_stop_flag design. Verified myself, independent of the worker's own "prove one bites": made a scratch edit to listen.rs disabling stop()'s wake_accept call (wrapped in `if false`), ran `cargo test -p steg-server --test shutdown stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound`, and it failed exactly as claimed ("run should have returned within 5s of being stopped"). Reverted the edit (`git checkout -- crates/server/src/listen.rs`, confirmed `git status --short` clean), rebuilt, and all 7 shutdown tests pass. This also independently confirms `start_truly_idle_server` genuinely drains the startup probe as claimed.
+
+New finding this round:
+
+[Bugs, Important] crates/server/src/connection.rs:75-87 (`read_one`) and :145-155 (`first_frame`): `set_read_timeout` arms a *per-read* timeout, and `read_one`'s loop re-arms it on every successful `stream.read()` call that returns any bytes at all - the timeout is "no byte received within handshake_timeout of the last one", not "the handshake must complete within handshake_timeout of connecting". A client that sends one byte every interval just under handshake_timeout, forever, without ever completing a frame, keeps `read_one`'s loop alive indefinitely: no complete frame ever arrives, so `first_frame` never returns, the connection's thread (spawned per-connection by `run`) never exits, and `ConnectionEvent::Disconnected` is never sent.
+
+Reproduced empirically (not just reasoned about): a scratch harness (outside this worktree, linking steg-server as a library) started a server with `handshake_timeout: Duration::from_secs(2)`, connected, and wrote one byte every 1.5s. The connection survived 9.0s - 4.5x the configured timeout - after 6 trickled bytes, with no complete frame ever sent, before I stopped the server myself; nothing in the server ever closed it.
+
+This is exactly the failure decision-2 section 7 (cited in this task's own description as binding, "The server runs... decision-2, section 7") names as the reason a handshake timeout is needed at all: "A client that opens the connection and sends half a hello holds a connection for ever. TASK-1.9 owns it." The implemented per-read timeout closes this for a client that stalls completely after a partial frame (handshake.rs's `a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply` - one read, then silence, then the timeout fires correctly), but does not close it for a client that keeps the connection alive by trickling - a strictly weaker, still-hostile input the suite never tries. AC #4's first clause ("A connection that never completes its handshake is closed after a timeout") does not hold for that input class, and the notes do not disclose this as a known gap or accepted limitation anywhere in the plan or the round-by-round write-ups.
+
+Downstream cost, since it ties to the seam this task built for TASK-1.77: a trickling connection never emits `ConnectionEvent::Disconnected`, so TASK-1.77's idle-with-no-clients counter would be held open indefinitely by a single hostile or malfunctioning client, defeating the idle stop entirely for as long as that one connection trickles.
+
+On allocation (the brief's other named concern): bounded per-connection - the decoder's declared-length check (`crates/sdk/src/wire/frame.rs:197`, unmodified by this task) refuses anything over `MAX_FRAME` (8 MiB) before allocating for the body, confirmed by reading it and by the oversized-length test passing. This is not the headline risk here; the unbounded-held-thread is.
+
+Not a repeat of a cited policy from an earlier review (first occurrence of this shape), so no rule-change draft filed for it per the review policy's step 5.
+
+Plan-matched: no, same as review #5's call - the departures from the approved plan (c074345d1296) disclosed in the notes (thread-joining added mid-build, the listener now closing before the join phase) are real, well-disclosed fixes, but remain departures under the policy's own wording even when well explained.
+
+---
+
+created: 2026-11-15T22:17:00Z
+
+---
+
+Review #3 finding addressed (1 Important, no nits), at the new head after fixing: the handshake timeout was per-read, not per-handshake.
+
+What was wrong: connection.rs's first_frame set stream's read timeout once, up front, and read_one's loop never touched it again. UnixStream::set_read_timeout bounds each individual read() call, not the cumulative time this function spends - so a client sending one byte just inside every timeout window, never completing a frame, kept its connection (and the thread blocked in it) open for as long as it liked, each successful partial read resetting the per-call clock. The reviewer demonstrated this directly: a 2-second-timeout server held open 9 seconds by six bytes.
+
+Fix: one deadline for the whole handshake. first_frame now computes `deadline = Instant::now() + handshake_timeout` once, when the connection's handshake starts, and carries it through read_one's loop. Each iteration computes `time_remaining(deadline, Instant::now())` - a new, small, pure function (both instants are arguments, nothing reads the clock inside it) - and sets the read timeout to exactly that, shrinking every time the loop goes around; a read is never attempted at all once remaining time reaches zero (time_remaining returns None for exactly zero too, not only negative - confirmed by a standalone repro that `UnixStream::set_read_timeout(Some(Duration::ZERO))` itself errors on this platform with "cannot set a 0 duration timeout", so the distinction matters to the caller, not just in theory). `connection.poll()` is still checked before the deadline on every iteration, so a frame that fully arrived (even right at the deadline) is still decoded and handed back - a hello legitimately sent in many small pieces still succeeds as long as the last piece lands before the deadline; only a connection that never finishes is affected.
+
+time_remaining has its own four unit tests in connection.rs (well-before, one-nanosecond-before, exactly-at, and past the deadline) using a captured base Instant plus literal Duration offsets - no sleeping, no real timing, just the arithmetic.
+
+Three new tests in handshake.rs: a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline (one byte every 40ms for up to 1.6s against a 300ms handshake timeout - comfortably longer than the deadline and well inside what the old per-read timeout would have tolerated indefinitely; the trickled bytes themselves declare a large-but-valid frame length so they never trip a frame-level Malformed error early, which an earlier draft of this test did by accident, sending single 0x00 bytes that decoded as a too-small declared length and got refused almost immediately - caught by running it and seeing "got 16 bytes" instead of a close, not assumed correct), a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted (one byte every 5ms against a 5s timeout - comfortably inside it), and a_hello_completing_well_after_the_deadline_is_closed_with_no_reply (deliberately at roughly 2x the handshake timeout away, not a knife's-edge margin, so this isn't racy). One new test in shutdown.rs: stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound, driven off the events channel (stop() is called only once the trickler's own Connected event confirms it is actually mid-handshake, not after a guessed sleep) - this is a guard on the mechanism a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop already proved (shutdown(Both) unblocks a blocked read regardless of what read timeout is set), not a new discovery, and its own doc comment says so rather than implying otherwise.
+
+"Prove one bites": reverted read_one to set the read timeout once, up front, at call time (the exact shape of the earlier bug), and reran. Both new deadline-correctness tests failed by their own bound (the trickle test: "closed after 1.98s against a 300ms handshake timeout", not a hang; the completes-after-deadline test: "expected no reply and a close, got 16 bytes", i.e. it was wrongly accepted) - bounded at ~2s total, not a suite-hanging failure. The shutdown/trickle test, as its own doc already says, passed regardless (confirming it's a guard on an independent mechanism, not a re-test of this specific regression). Recorded, then restored.
+
+The audit of every other wait in this task's own code, as asked:
+
+- The arbitration retry loop (arbiter.rs's attempt): already correct. `deadline = Instant::now() + config.arbitration_timeout` is computed once before the loop, and each retry checks `Instant::now() >= deadline` before sleeping POLL_INTERVAL again - bounded in total already, no change needed. Checked by reading it, not assumed, since this is exactly the same pattern that was wrong elsewhere in this file.
+- The accept wake-up (Stopper::stop's UnixStream::connect to the server's own socket): not timeout-based at all - a local Unix domain socket connect() either succeeds immediately (queued) or fails immediately (ECONNREFUSED/ENOENT); there is no network-latency-style indefinite block possible here. Bounded by construction, nothing to fix.
+- The joins on shutdown (listen.rs's run(), the shutdown-then-join loop): shutdown(Both) is itself a non-blocking syscall, and it unblocks a sibling's blocked read() immediately regardless of what read timeout (if any) was set on it - already proven for both an idle-after-handshake connection and, now, a mid-handshake trickling one (the new shutdown.rs test above). Each join() in the loop therefore waits only on a thread that has already been forced past its own blocking point, not on anything attacker-controlled; bounded in practice, nothing to fix.
+- The handshake reply writes (connection.rs's write_all calls for a ServerHello/Refused): not wrapped in an explicit timeout, and in principle a write() to a full send buffer can block. Checked rather than assumed: this platform's SO_SNDBUF for a Unix domain socket pair measured 8192 bytes (a two-line Python repro, not a guess); every reply this code ever writes is a JSON hello or refusal a few hundred bytes long, far below that - not a realistic vector for a peer to starve by simply refusing to read. Left as-is, with the reasoning stated here rather than assumed silently.
+- The post-handshake hold-open read (connection.rs's final `while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}`): deliberately unbounded by design (AC #4's second clause - a completed handshake is never closed for being idle) and must stay that way; not a bug, not touched.
+
+Checks recorded, in order: the failing handshake tests with the deadline fix reverted (prove-one-bites); 10 consecutive cargo test -p steg-server --test handshake runs; 10 consecutive cargo test -p steg-server --test shutdown runs; 10 consecutive cargo test -p steg-server --features race-fixture --test race runs; just check at the merged final head (origin/main brought in cleanly - TASK-1.76/1.79's changes to dispatch/api.rs, dispatch/mod.rs, methods.rs and tests/dispatch.rs, none overlapping this task's own files).
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T22:22:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

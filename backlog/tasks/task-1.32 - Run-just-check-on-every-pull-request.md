@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:04:00Z'
+updated_date: '2026-11-15T03:11:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c6301b963301'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -299,6 +299,70 @@ created: 2026-11-15T03:04:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:11:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Reviewed PR #12 (task-1.32-fix-ci-concurrency -> main), the fix for the prior round's
+Important finding (cancel-in-progress cancelling every push-to-main run). Diff is
+.github/workflows/ci.yml only: cancel-in-progress is now scoped to
+github.event_name == 'pull_request' (never push), and the push trigger gets
+paths-ignore: [backlog/**, plugins/**]. Matches the plan's "Review fix (2026-11-15)"
+section exactly, in the order it describes.
+
+Checked the paths-ignore couldn't silently skip a real code check: grepped
+justfile, tools/, boundaries.toml and commands.toml for "plugins" - no hits.
+tools/src/steg_tools/affected.py's GLOBAL_FILES/GLOBAL_FOLDERS (Cargo.toml,
+Cargo.lock, rust-toolchain(.toml), deny.toml, boundaries.toml, justfile, .cargo/,
+tools/) don't include plugins/ either. Nothing just check's steps (format, lint,
+boundaries, licences, tool tests) or steg-affected's test selection reads lives
+under plugins/, so a push touching only backlog/** or plugins/** genuinely changes
+nothing just check would catch; paths-ignore only applies to the push trigger, so a
+pull_request touching only those paths still runs.
+
+Verified the GitHub-side proof via gh run view/list rather than trusting the notes:
+- Scratch-branch runs 43670166988 and 43670217375 (task-1.32-scratch-cancel, push,
+  with the branch temporarily added to push.branches to exercise it pre-merge): both
+  completed success, both ran the "just test-all (push to main only)" step to
+  completion (not just "just check"), ~43s apart and overlapping, neither cancelled -
+  confirms the fixed concurrency group lets two close pushes both finish.
+- PR #12's own run 43670483343 (pull_request): green.
+
+PR #12 is already merged (0722737, pushed to main 03:05:47Z) and the live state of
+main itself goes further than the notes' own pre-merge-only proof:
+- The merge-commit's own push-to-main run (43670782446, headSha 0722737) started a
+  job and completed success in 38s - a real push to main, after the merge, was not
+  cancelled. Round 1's failure mode was runs with zero jobs started; this one ran a
+  job to completion.
+- Four board commits landed on main after the merge (5a7d39d, 4881c8f, 4ee9e5b,
+  f8fa822), each touching only backlog/tasks/*.md: none produced any entry in
+  `gh run list --branch main` - paths-ignore is skipping real board-only pushes on
+  main itself, not just on the scratch branch.
+What's still unconfirmed, same as the notes say: no real code push to main has
+happened yet since the merge, so "a code push completes just check + test-all
+without being superseded by the board's own traffic" remains to be seen the next
+time one lands, not something I could force within this review.
+
+[Evidence, Nit] Plan's Proof step 1 (just check and just test-all both pass locally
+first) is recorded for just test-all at 18244a46ca90, not at the branch's final
+commit 00cd2a125d66 (a merge of main's intervening changes, incl. TASK-1.69's sdk
+crate split touching kernel/cli/server/app Cargo.toml and justfile). just check was
+correctly rerun and recorded at the final head, but test-all wasn't. Weak: the
+scratch-branch GitHub runs above did actually execute test-all against the new
+workflow and pass, and the merge only absorbed main's own already-reviewed content,
+so no untested change from this task is hidden by the stale local record - but per
+policy a check recorded before the last commit is a finding.
+
+plan-matched: the diff is exactly the two changes the plan's "Review fix" section
+names, in that order.
 
 ---
 <!-- COMMENTS:END -->

@@ -957,6 +957,31 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T06:41:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 1b1c6f7ba9ae:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 5, 4 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

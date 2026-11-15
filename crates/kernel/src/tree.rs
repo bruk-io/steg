@@ -7,7 +7,7 @@ use crate::error::Error;
 use crate::ids::Ids;
 use crate::label;
 use crate::session::{Session, TabClosed};
-use crate::tab::Tab;
+use crate::tab::{DirectionalFocus, Tab};
 
 /// What happened when a pane was closed, and what else closed because of
 /// it.
@@ -21,6 +21,42 @@ pub struct ClosedPane {
     /// The session that was also closed, if closing the tab left it empty
     /// (R94).
     pub session: Option<SessionId>,
+}
+
+/// The whole path a focus operation left current (R85): a session's
+/// current tab and that tab's current pane. Returned by `Tree::focus_pane`,
+/// `Tree::focus_tab`, and (inside `FocusMove`) `Tree::focus_direction`, so a
+/// caller — the server, raising one event per TASK-1.46 — never has to look
+/// the rest of the path up afterward.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Focused {
+    /// The session whose current tab this is.
+    pub session: SessionId,
+    /// The tab that is now current in that session.
+    pub tab: TabId,
+    /// The pane that is now current in that tab.
+    pub pane: PaneId,
+}
+
+/// What `Tree::focus_direction` found and did (R9, R113, doc-2 section 4):
+/// the same three outcomes `Tab::neighbour`'s [`DirectionalFocus`] finds,
+/// carrying the resulting whole path on the two outcomes that moved
+/// something, rather than a bare pane id, so a caller needs no further
+/// lookup. Kept as its own type, not a generic form of
+/// [`DirectionalFocus`]: the two live at different levels (a tab's own
+/// geometry versus the whole tree), for different callers, and nothing
+/// here needs them unified.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FocusMove {
+    /// Moved to the pane in that direction; this is the path now current.
+    Neighbour(Focused),
+    /// Wrap was asked for, and this is the path landed on at the tab's far
+    /// edge.
+    Wrapped(Focused),
+    /// Nothing that way (and, if wrap was asked for, nothing to wrap to
+    /// either): nothing changed. Not an error — doc-2 section 4 says the
+    /// command exits 0 and stays put.
+    Edge,
 }
 
 /// What happened when a pane moved to another tab (R9).
@@ -399,6 +435,124 @@ impl Tree {
         tab.fill_pane(pane)
     }
 
+    /// Makes `id` this pane's tab's current pane, and that tab this
+    /// session's current tab, both in the same call (R85: "Focusing a pane
+    /// makes its tab the current tab of its session as well").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the tab and session this just found to hold
+    /// `id` cannot have gone anywhere in between, since nothing else runs
+    /// while this method holds `&mut self`.
+    pub fn focus_pane(&mut self, id: PaneId) -> Result<Focused, Error> {
+        let tab_id = self
+            .tab_owning_pane_mut(id)
+            .ok_or(Error::PaneNotFound(id))?
+            .id();
+        let tab = self
+            .tab_owning_pane_mut(id)
+            .expect("just found this pane's tab above");
+        tab.focus(id).expect("just confirmed `id` is in this tab");
+
+        let session = self
+            .session_owning_tab_mut(tab_id)
+            .expect("every tab in the tree belongs to some session");
+        session
+            .set_current_tab(tab_id)
+            .expect("just confirmed this session holds `tab_id`");
+
+        Ok(Focused {
+            session: session.id(),
+            tab: tab_id,
+            pane: id,
+        })
+    }
+
+    /// Makes `id` this tab's session's current tab (doc-2 section 4:
+    /// "Makes it the current tab of its session"). Does not touch any
+    /// tab's current pane — decision-5 point 1 cascades pane focus to tab,
+    /// never tab focus to pane.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if no session in the tree holds a
+    /// tab with that id.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the session this just found to hold `id` cannot
+    /// have gone anywhere in between, since nothing else runs while this
+    /// method holds `&mut self`.
+    pub fn focus_tab(&mut self, id: TabId) -> Result<Focused, Error> {
+        let session = self
+            .session_owning_tab_mut(id)
+            .ok_or(Error::TabNotFound(id))?;
+        session
+            .set_current_tab(id)
+            .expect("just confirmed this session holds `id`");
+        let pane = session
+            .tab(id)
+            .expect("just confirmed this session holds `id`")
+            .current();
+
+        Ok(Focused {
+            session: session.id(),
+            tab: id,
+            pane,
+        })
+    }
+
+    /// Focuses `from`'s neighbour in `direction` (R9, R113), optionally
+    /// wrapping around the tab's far edge if there is nothing that way.
+    /// Acts on all three outcomes `Tab::neighbour` can find: moving focus
+    /// (through [`Tree::focus_pane`]) on [`DirectionalFocus::Neighbour`]
+    /// and [`DirectionalFocus::Wrapped`], and changing nothing on
+    /// [`DirectionalFocus::Edge`] — doc-2 section 4 says the command exits
+    /// 0 and stays put at the edge, so that is not an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with id `from`.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: a neighbour or wrap target `Tab::neighbour` finds
+    /// is always a pane in the same tab as `from`, which this method just
+    /// confirmed exists, and nothing else runs while it holds `&mut self`.
+    pub fn focus_direction(
+        &mut self,
+        from: PaneId,
+        direction: Direction,
+        wrap: bool,
+    ) -> Result<FocusMove, Error> {
+        let tab = self
+            .tab_owning_pane_mut(from)
+            .ok_or(Error::PaneNotFound(from))?;
+        let outcome = tab.neighbour(from, direction, wrap);
+
+        match outcome {
+            DirectionalFocus::Edge => Ok(FocusMove::Edge),
+            DirectionalFocus::Neighbour(id) => {
+                let focused = self.focus_pane(id).expect(
+                    "a neighbour found by `Tab::neighbour` is always a pane in the same tab as `from`",
+                );
+                Ok(FocusMove::Neighbour(focused))
+            }
+            DirectionalFocus::Wrapped(id) => {
+                let focused = self.focus_pane(id).expect(
+                    "a wrap target found by `Tab::neighbour` is always a pane in the same tab as `from`",
+                );
+                Ok(FocusMove::Wrapped(focused))
+            }
+        }
+    }
+
     /// Clears a tab's fill, if it has one.
     ///
     /// # Errors
@@ -432,6 +586,11 @@ impl Tree {
     /// does. Atomic: the floor is checked in `target_tab` *before*
     /// anything is removed from the source tab, so a refusal here leaves
     /// both tabs untouched.
+    ///
+    /// This is not a focus: it is `--direction`'s insertion point (doc-2
+    /// section 3), not `pane focus`. It never changes any session's
+    /// current tab, including `target_tab`'s own, even though it does
+    /// change `target_tab`'s current *pane*.
     ///
     /// # Errors
     ///
@@ -542,7 +701,7 @@ impl Tree {
 
 #[cfg(test)]
 mod tests {
-    use super::Tree;
+    use super::{FocusMove, Focused, Tree};
     use steg_sdk::Colour;
 
     #[test]
@@ -858,6 +1017,286 @@ mod tests {
             tree.move_tab(unknown_tab, 0),
             Err(crate::error::Error::TabNotFound(unknown_tab))
         );
+        assert_eq!(
+            tree.focus_pane(unknown_pane),
+            Err(crate::error::Error::PaneNotFound(unknown_pane))
+        );
+        assert_eq!(
+            tree.focus_tab(unknown_tab),
+            Err(crate::error::Error::TabNotFound(unknown_tab))
+        );
+        assert_eq!(
+            tree.focus_direction(unknown_pane, steg_sdk::Direction::Right, false),
+            Err(crate::error::Error::PaneNotFound(unknown_pane))
+        );
+    }
+
+    #[test]
+    fn focus_pane_moves_the_pane_and_its_tabs_level_together() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        // `new_tab` makes the new tab current (R115), so focus starts
+        // pointed away from `first_tab`.
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), second_tab);
+
+        let focused = tree.focus_pane(first_pane).unwrap();
+
+        assert_eq!(
+            focused,
+            Focused {
+                session: session_id,
+                tab: first_tab,
+                pane: first_pane,
+            }
+        );
+        // AC #2: one call moved both levels together.
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            first_pane
+        );
+    }
+
+    #[test]
+    fn focus_tab_does_not_touch_any_tabs_current_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        // `split_pane` already made `second_pane` current in `first_tab`.
+        let _second_tab = tree.new_tab(session_id, None).unwrap();
+
+        let focused = tree.focus_tab(first_tab).unwrap();
+
+        assert_eq!(
+            focused,
+            Focused {
+                session: session_id,
+                tab: first_tab,
+                pane: second_pane,
+            }
+        );
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+        // decision-5 point 1: `tab focus` cascades pane to tab, never tab
+        // to pane — the tab's own current pane is untouched.
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            second_pane
+        );
+    }
+
+    #[test]
+    fn focus_direction_moves_to_the_neighbour_and_reports_it() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        tree.focus_pane(first_pane).unwrap();
+
+        let outcome = tree
+            .focus_direction(first_pane, steg_sdk::Direction::Right, false)
+            .unwrap();
+
+        assert_eq!(
+            outcome,
+            FocusMove::Neighbour(Focused {
+                session: session_id,
+                tab: first_tab,
+                pane: second_pane,
+            })
+        );
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            second_pane
+        );
+    }
+
+    #[test]
+    fn focus_direction_at_the_edge_changes_nothing_and_reports_edge() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        let outcome = tree
+            .focus_direction(first_pane, steg_sdk::Direction::Right, false)
+            .unwrap();
+
+        assert_eq!(outcome, FocusMove::Edge);
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            first_pane
+        );
+    }
+
+    #[test]
+    fn focus_direction_wraps_when_asked() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        // `split_pane` made `second_pane` current; moving Right from it
+        // has no neighbour, so wrapping lands back on `first_pane`.
+
+        let outcome = tree
+            .focus_direction(second_pane, steg_sdk::Direction::Right, true)
+            .unwrap();
+
+        assert_eq!(
+            outcome,
+            FocusMove::Wrapped(Focused {
+                session: session_id,
+                tab: first_tab,
+                pane: first_pane,
+            })
+        );
+    }
+
+    #[test]
+    fn focus_pane_changes_only_the_current_path_fields() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(Some("work".to_string())).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        // Back to `first_pane`, so the next `focus_pane` actually moves
+        // something.
+        tree.focus_pane(first_pane).unwrap();
+
+        let before = tree.sessions().to_vec();
+
+        tree.focus_pane(second_pane).unwrap();
+
+        let after = tree.sessions().to_vec();
+
+        // Patch `before`'s current-path fields, by hand, through the same
+        // pub(crate) setters `focus_pane` itself uses, to what `after`
+        // moved them to. If the patched clone then equals `after` exactly,
+        // nothing else anywhere in the tree — label, colour, tab order,
+        // pane order, layout, fill — moved along with focus. This is the
+        // strongest statement the kernel alone can make toward R88 (AC
+        // #4): there is no client type yet (TASK-1.42).
+        let mut expected = before;
+        let session = expected
+            .iter_mut()
+            .find(|session| session.id() == session_id)
+            .expect("the session is still in `before`'s clone");
+        session
+            .set_current_tab(first_tab)
+            .expect("`first_tab` is still this session's only tab");
+        session
+            .tab_mut(first_tab)
+            .expect("just confirmed present")
+            .focus(second_pane)
+            .expect("`second_pane` is still in `first_tab`");
+
+        assert_eq!(expected, after);
+    }
+
+    #[test]
+    fn move_pane_to_tabs_target_tabs_current_pane_moves_but_no_sessions_current_tab_does() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        // A second pane in `first_tab`, so moving one of them out does not
+        // also empty (and so close) `first_tab` — this test is about
+        // `current_tab`, not R94's cascade.
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        // `new_tab` just made `second_tab` current (R115); move focus
+        // back to `first_tab` so the move below is *not* also a focus of
+        // its target.
+        tree.focus_tab(first_tab).unwrap();
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+
+        tree.move_pane_to_tab(second_pane, second_tab, steg_sdk::Direction::Right)
+            .unwrap();
+
+        // The target tab's own current pane did move (TASK-1.36).
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(second_tab)
+                .unwrap()
+                .current(),
+            second_pane
+        );
+        // But the session's current *tab* is untouched: moving a pane is
+        // not a focus (decision 5 / this task's plan).
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+    }
+
+    #[test]
+    fn closing_the_current_tabs_last_pane_cascades_and_repairs_the_sessions_current_tab() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        // Focus `first_tab`, then close its only pane, which cascades to
+        // close the tab itself (R94), triggering the session-level repair
+        // (R114).
+        tree.focus_tab(first_tab).unwrap();
+
+        let closed = tree.close_pane(first_pane).unwrap();
+
+        assert_eq!(closed.tab, Some(first_tab));
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), second_tab);
     }
 
     #[test]

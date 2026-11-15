@@ -4,6 +4,7 @@ title: 'Server: an on-demand server stops when idle'
 status: To Do
 assignee: []
 created_date: '2026-11-15T23:40:00Z'
+updated_date: '2026-11-15T23:53:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -28,3 +29,9 @@ Second piece of the split of TASK-1.77 (2026-11-15). doc-8 R99. The worker's pla
 - [ ] #3 The session count comes from the server's Runtime, and stopping uses the listener's one stop function and then stops the Runtime, ending its programs; shown end to end with a real server process, a short injected grace period and bounded waits
 - [ ] #4 A client that connects in the instant the server is stopping sees what it would see with no server there and starts a fresh one; shown with real processes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Carried from TASK-1.77's planning (2026-11-15): when a server is stopping, a connection the accept loop takes in the instant it sees the stop flag is dropped with no reply, so the client sees connect succeed and then end of file, a third outcome beside refused and not found. The idle stop is what makes that instant reachable in ordinary use: this task's fourth criterion (a client connecting as the server stops starts a fresh one) must cover it, either by closing that window in the server or by proving the client's handling.
+<!-- SECTION:NOTES:END -->

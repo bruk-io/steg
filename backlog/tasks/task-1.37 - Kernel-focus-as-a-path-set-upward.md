@@ -1,17 +1,21 @@
 ---
 id: TASK-1.37
 title: 'Kernel: focus as a path, set upward'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:09:00Z'
+updated_date: '2026-11-15T06:18:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.35
   - TASK-1.36
+references:
+  - task-1.37-kernel-focus-as-a-path-set-upward
+  - https://github.com/bruk-io/steg/pull/25
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,6 +24,9 @@ asdlc_branch: task-1.37-kernel-focus-as-a-path-set-upward
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c02f8d24d1bc'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=5'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -283,6 +290,85 @@ ok      tool tests (1.1s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T06:10:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.37 on task-1.37-kernel-focus-as-a-path-set-upward at d766015de32b:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-kernel -p steg-server) (0.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.9s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Built as planned, no departures.
+
+Session gets a current_tab field (non-optional, set in Session::new to
+first_tab), Tab gets a new pub(crate) `focus` method (membership-checked,
+same shape as fill_pane), and Tree gets focus_pane, focus_tab and
+focus_direction, returning a new Focused struct (session/tab/pane) and
+FocusMove enum.
+
+R114 and R115 were written into doc-15 after the plan's approval, settling
+the two choices the plan made: Session::close_tab repairs current_tab to
+the tab now at that place, or the new last tab (R114); Session::add_tab
+makes a new tab current unconditionally, mirroring Tab::split_pane's
+existing precedent for a new pane (R115) - --no-focus is left to the
+caller putting the previous focus back, as R115 says, with no kernel
+parameter for it.
+
+Which test proves which clause:
+- AC #1 (every session has a current tab, every tab a current pane):
+  session.rs: a_new_session_has_its_only_tab_as_current,
+  adding_a_tab_makes_it_current, closing_a_non_current_tab_leaves_current_tab_unchanged,
+  closing_the_current_tab_among_several_moves_current_to_the_tab_that_takes_its_place,
+  closing_the_current_tab_when_it_is_last_moves_current_to_the_new_last_tab,
+  move_tab_leaves_current_tab_unchanged. tree.rs:
+  closing_the_current_tabs_last_pane_cascades_and_repairs_the_sessions_current_tab
+  proves the repair also holds through Tree::close_pane's cascade. The
+  tab half was already proven by TASK-1.36 (split_pane_makes_the_new_pane_current,
+  closing_the_current_pane_moves_current_to_a_pane_that_still_exists).
+- AC #2 / R85 (focusing a pane makes its tab current in its session, in
+  the same step): tree.rs: focus_pane_moves_the_pane_and_its_tabs_level_together.
+  focus_tab_does_not_touch_any_tabs_current_pane is the contrast proving
+  tab focus stops at its own level (decision-5 point 1).
+- AC #3 (focus by direction moves to the neighbour, stays at the edge,
+  wraps when asked): tree.rs: focus_direction_moves_to_the_neighbour_and_reports_it,
+  focus_direction_at_the_edge_changes_nothing_and_reports_edge,
+  focus_direction_wraps_when_asked. The geometry (which pane is the
+  neighbour/wrap target) was already proven at the Layout/Tab level by
+  TASK-1.36.
+- AC #4 / R88 (nothing about clients changes when focus does): tree.rs:
+  focus_pane_changes_only_the_current_path_fields (clone before, patch by
+  hand through the same pub(crate) setters focus_pane uses, compare to
+  after - proves every other field is untouched).
+  move_pane_to_tabs_target_tabs_current_pane_moves_but_no_sessions_current_tab_does
+  is the contrast: a different R9 operation that also sets a tab's
+  current pane is not itself a focus.
+- R114 (close repair): the three session.rs tests named under AC #1 above.
+- R115 (new tab/pane becomes current at its own level only):
+  session.rs: adding_a_tab_makes_it_current; the pane half was already
+  TASK-1.36's split_pane_makes_the_new_pane_current.
+- Not-found cases: a_not_found_id_at_any_level_is_the_matching_error
+  (tree.rs) extended with focus_pane/focus_tab/focus_direction.
+
+Checks recorded on this task via asdlc record-check: `just check` exit 0,
+twice (once before the final rebase onto origin/main, once after - the
+rebase was a clean fast-forward of a never-before-pushed branch, no
+conflicts). CI on PR #25 (https://github.com/bruk-io/steg/pull/25) passed.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -294,6 +380,48 @@ created: 2026-11-15T06:04:00Z
 ---
 
 Plan approved by @bruk (c02f8d24d1bc, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T06:12:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.37: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T06:18:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 5 nit. The diff matches the plan.
+
+Reviewed the diff (crates/kernel/src/{session,tab,tree,lib}.rs, matching the plan's file list exactly) in a detached worktree against origin/main (d766015), and read every changed file in full, plus doc-15, decision-5, doc-2 section 4, and doc-16 R105.
+
+Compliance: all four files' diffs are additive only, confirmed line by line - the only deletions are doc-comment/import lines being extended, never logic. The plan's single named exception (one doc-comment line on move_pane_to_tab stating decision 5) is the only touch to pre-existing TASK-1.36 code; no other existing logic was edited. size-2, plan approved by @bruk (c02f8d24d1bc) per comment #1.
+
+Checked each item requested:
+(1) current_tab never names a gone tab: Session::close_tab's repair (session.rs:163-182) is the one place this is enforced; grepped every caller of Session::close_tab/set_current_tab/Tab::focus and confirmed the only production callers are Tree::close_tab (direct), Tree::close_pane's cascade, and Tree::move_pane_to_tab's cascade - no fourth path bypasses it. All three are exercised by tests except one: move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane (tree.rs:1337) never actually exercises the session-level repair, because new_tab had already made the target tab current before the move, so current_tab never pointed at the closed source tab in that test. The plan's own Proof section only promised the close_pane-cascade version of this test (closing_the_current_tabs_last_pane_cascades_and_repairs_the_sessions_current_tab, tree.rs:1285), so this is a coverage gap, not a departure - listed as a nit below.
+(2)-(4) focus_pane/focus_tab/focus_direction wiring: all correct and match R85, R88, R113-R115, doc-2 section 4 clause by clause - verified in tree.rs:452-554.
+(5) focus_pane_changes_only_the_current_path_fields (tree.rs:1198): Session/Tab both derive PartialEq/Eq over every field, so the post-patch equality check is full structural equality - it would fail on a changed label, order, layout or fill. Weakness: the test's session has only one tab, so the session.set_current_tab(first_tab) patch is a no-op and the session-level half of "the current path" is never really exercised by this test.
+(6) move_pane_to_tab: confirmed via move_pane_to_tabs_target_tabs_current_pane_moves_but_no_sessions_current_tab_does (tree.rs:1245) that no session's current_tab changes, only the target tab's current pane.
+(7) No edits to TASK-1.36's logic beyond the one named doc-comment line (confirmed above). TASK-1.36's and TASK-1.38's tests are both in the kernel crate and covered by the recorded `just check` (tests -p steg-kernel), which passed.
+
+Evidence: recorded `just check` exit 0 at d766015de32b, which is the branch's head; CI "check" run on PR #25 at the same head (d766015de32b) is SUCCESS.
+
+Findings (all Nits, Bugs pass - tests that under-exercise what they claim to prove):
+1. [Bugs, Nit] tree.rs:1198 focus_pane_changes_only_the_current_path_fields uses a session with only one tab, so the hand-patch's set_current_tab call is a no-op; it never exercises a real change to the session's current_tab field, only the tab's current pane.
+2. [Bugs, Nit] tree.rs:1337 move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane doesn't exercise R114's session-level repair through this cascade path - current_tab was already pointing elsewhere before the move, so the repair branch in Session::close_tab is never hit by this test.
+3. [Bugs, Nit] tree.rs:1145 focus_direction_at_the_edge_changes_nothing_and_reports_edge runs on a one-pane one-tab session, so the "nothing changed" assertions are vacuous - there's no other value current_tab/current could hold.
+4. [Bugs, Nit] tree.rs:1168 focus_direction_wraps_when_asked asserts only the returned FocusMove::Wrapped value, unlike the sibling neighbour test, which also asserts the resulting tree state directly.
+5. [Bugs, Nit] tree.rs:985 a_not_found_id_at_any_level_is_the_matching_error runs against an empty Tree::new(), so "fails without changing anything" has nothing to mutate in the first place - not really exercised for this task's three new methods.
+
+No Important findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

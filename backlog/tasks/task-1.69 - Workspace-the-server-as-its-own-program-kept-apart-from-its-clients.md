@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:56:00Z'
+updated_date: '2026-11-15T02:58:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '3b5cfdb0a760'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -608,6 +607,27 @@ created: 2026-11-15T02:56:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.69: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:58:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+No findings. Re-reviewed the whole diff fresh against the plan, doc-16 and the team review policy, focusing on whether the two prior findings were actually fixed.
+
+Previous Important finding (AC#3's two live demonstrations were described but never recorded): now fixed. The task notes contain two genuine `asdlc record-check` entries of `just boundaries` FAILED, taken on a dirty tree at commit df8f9a21d734 (verified present in history): one naming steg-app, steg-server and the [steg-app] reason (the disallowed workspace dependency), one naming steg-kernel, tokio and the [steg-kernel] reason (the disallowed external dependency). Both are followed by a recorded clean `just check` after the manifests were reverted, confirming the demonstrations never landed. AC#3 is now shown by a recorded run, as required.
+
+Previous Nit (packages recipe's comment overclaimed R107): now fixed. The comment reads "build and test each package selected alone (`cargo -p`), so this is something anyone can run again" - no longer claims the per-folder isolation `cargo -p` doesn't prove. Verified in justfile's diff.
+
+Rest of the diff re-checked and still clean: boundaries.toml's five tables match doc-16's dependency table exactly, each with a reason citing doc-16; every manifest edge (sdk/kernel/server/steg/app) matches the plan; crates/cli is deleted and its doc comment folded into crates/steg/src/main.rs per doc-16's component table; steg-sdk has no dependencies and an empty, non-default local-socket feature (R102, R103); steg-kernel's sdk dependency sets default-features = false (R105); .claude/rules/architecture.md's new bullets cite doc-16; plugins/bruk-io-steg/ untouched (AC#6); plan approval by @bruk recorded (size-2, 3b5cfdb0a760); PR #11's CI run (43670083938, "check") is green on the PR's current head commit (0774a6380dd0a35136f6fd66b34525364ca2a4af), which matches this review's worktree HEAD exactly.
+
+plan-matched is "no" for the same reason the prior review recorded it: tools/tests/adapter/test_affected_real_workspace.py is not in the plan's "Files, in order" list. This is explained on the task (deleting crates/cli broke its hard-coded fixtures; fixed in the same pass) so it is not raised as a finding, consistent with the earlier review's treatment.
 
 ---
 <!-- COMMENTS:END -->

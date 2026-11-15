@@ -1,10 +1,10 @@
 ---
 id: TASK-1.66
 title: Onboard steg as a repository plugin
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:24:00Z'
+updated_date: '2026-11-15T02:46:00Z'
 labels:
   - size-2
 milestone: m-0

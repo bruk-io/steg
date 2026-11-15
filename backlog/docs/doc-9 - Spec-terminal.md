@@ -3,7 +3,7 @@ id: doc-9
 title: 'Spec: terminal'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T01:24:00Z'
+updated_date: '2026-11-15T14:15:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -26,6 +26,7 @@ What a pane's terminal does: emulation, scrollback, speed, and the features full
   by default.
 - R16 (M1). The server knows each terminal's working directory, title, and its program's
   exit code, and reports changes as events.
+- R116 (M1). A cell says whether it is part of a link, which is enough to draw one. A link's address is not carried with the screen: it is asked for, by cell, when a person acts on the link. Two different links side by side are not told apart until one is asked about.
 - R17 (M1). The app supports text selection, copy, paste, find in scrollback, and
   clickable links.
 - R18 (M2). The app can jump between shell prompts in scrollback.
@@ -44,7 +45,7 @@ What a pane's terminal does: emulation, scrollback, speed, and the features full
 ## Open questions
 
 - [ ] The server's tick, which sets how soon a change reaches a client's grid. 8 ms leaves too little of R19's budget; 1 ms costs resynchronisations under a flood. It wants a real window in front of it (decision-2).
-- [ ] The cell model a snapshot carries is unfinished: wide characters and their spacers, link identity for OSC 8, underline style and colour, and the cursor's shape are still to add (decision-2).
+- [ ] The cell model a snapshot carries is being built by TASK-1.39: wide characters and their spacers, underline style and colour, and the cursor's shape. Link identity is settled by R116: the engine gives presence on the path used for drawing and the address only by asking about one cell (Bruk, 2026-11-15).
 
 ## Out of scope
 

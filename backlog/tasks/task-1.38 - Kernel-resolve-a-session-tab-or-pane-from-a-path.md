@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:07:00Z'
+updated_date: '2026-11-15T04:11:00Z'
 labels:
   - size-2
   - review-passed
@@ -422,6 +422,14 @@ No Important findings. Verified clause by clause against doc-15 R10/R112, doc-2 
 Nits (2):
 - target.rs: kind 4 (suffix)'s Ambiguous arm (line ~141) has no direct test - every existing ambiguity test resolves at the label kind. The clause is covered by resolve_matches_an_identifier_suffix_of_four_or_more_characters for the Found case, but two ids sharing a 4+ char suffix (e.g. raw 0x10001234 and 0x20001234) exercising suffix-ambiguity isn't exercised.
 - target.rs: split_path's `parts.is_empty()` check (line ~169) is dead code - str::split always yields at least one part, even on "". The empty-segment case is actually caught by the `.any(|part| part.is_empty())` check right after it, which split_path_rejects_an_empty_segment already proves.
+
+---
+
+created: 2026-11-15T04:11:00Z
+
+---
+
+From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head fcb7eff with two nits, and noted the branch predated crates/kernel/clippy.toml (TASK-1.71), so its recorded checks had not run under the kernel's I/O lint or the per-package build. The board takes no recorded check on a task whose review has passed, so the worker merged origin/main and pushed without asdlc record-check; the check at the new head 4f3b9b9 is pull request 22's CI run 43675522628 (success), which is just check on main's current recipes: the kernel's clippy.toml is in the branch and the lint passed, as did check-packages. In this task's own files the difference from the reviewed head is crates/kernel/src/target.rs only: a test for an identifier suffix matching more than one thing, and the dead empty-parts branch of split_path removed. The earlier review does not cover those two changes.
 
 ---
 <!-- COMMENTS:END -->

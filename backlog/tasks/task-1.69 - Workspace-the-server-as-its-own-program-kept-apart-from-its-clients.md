@@ -1,14 +1,13 @@
 ---
 id: TASK-1.69
 title: 'Workspace: the five packages of doc-16, and the check that holds them apart'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
 updated_date: '2026-11-15T02:56:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-0
 dependencies: []
 references:
@@ -512,6 +511,31 @@ ok      tool tests (0.2s)
 ```
 
 Commits since the review: 22, 21 without the Asdlc-Worker trailer.
+
+Both review findings addressed.
+
+[Important] AC#3's two live demonstrations are now each a recorded
+`asdlc record-check` run of `just boundaries` taken while the tree was in the
+disallowed-dependency state, not just described in the notes:
+- `steg-app` with a manifest-only `steg-server = { path = "../server" }` added:
+  recorded FAILED run naming `steg-app`, `steg-server` and the `[steg-app]`
+  reason.
+- `steg-kernel` with a manifest-only `tokio = "1"` added: recorded FAILED run
+  naming `steg-kernel`, `tokio` and the `[steg-kernel]` reason.
+Both manifests were reverted immediately after each recorded run (confirmed
+with `git status`/`git diff` showing a clean tree before the next step), and
+a final clean `just check` is recorded after the revert, and again after
+merging origin/main.
+
+[Nit] `justfile`'s `packages` recipe comment reworded from "build and test
+every package by itself (R107)" to "build and test each package selected
+alone (`cargo -p`)" - what it actually proves, since `cargo -p` still
+resolves against the workspace root's `Cargo.lock` and workspace-inherited
+package fields, so it doesn't prove R107's "nothing outside its own folder"
+half. The recipe itself is unchanged.
+
+Pushed as two new commits on the same branch, merged with origin/main (no
+conflicts; only board files changed there).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

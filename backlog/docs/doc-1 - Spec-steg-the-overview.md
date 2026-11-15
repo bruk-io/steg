@@ -3,7 +3,7 @@ id: doc-1
 title: 'Spec: steg, the overview'
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T06:05:00Z'
+updated_date: '2026-11-15T14:15:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - This is the overview. It says what steg is, fixes the words, lists the specs, and says which requirement is in which release. The requirements themselves are in the specs listed in section 5.
@@ -80,7 +80,7 @@ Each has the same shape: scope, requirements, open questions, out of scope. Requ
 | doc-8, server and sessions | The server as a running thing, and the API | R1-R7, R36-R39, R99 |
 | doc-16, repository architecture | The things that run, the packages they are built from and which may depend on which, at the levels of the C4 model | R98, R101-R108, R110, R111 |
 | doc-14, wire protocol | What travels between the server and a client | Serves the above |
-| doc-9, terminal | Emulation, scrollback, speed | R13-R19, R92 |
+| doc-9, terminal | Emulation, scrollback, speed | R13-R19, R92, R116 |
 | doc-10, app | The window, appearance, keyboard; points at the design artifact | R20-R31, R79-R81 |
 | doc-2, CLI | The `steg` command | R32-R35 |
 | doc-11, program status | What steg knows about the program in a pane | R49-R52, R82-R84 |
@@ -93,7 +93,7 @@ The decisions these rest on are decision records, decision-1 to decision-10.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R115, and R50 for running, finished and failed |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R116, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 

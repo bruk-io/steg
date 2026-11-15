@@ -1,14 +1,13 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
 updated_date: '2026-11-15T03:12:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-0
 dependencies: []
 references:
@@ -305,6 +304,22 @@ ok      architecture (1.0s)
 ```
 
 Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Fixed each review finding:
+
+[Evidence, Important] AC #5 proof: redid the demonstration as a recorded run, not prose. Broke architecture/models/steg/steg.c4 again, ran `asdlc record-check ... -- just check`, which recorded the failing run (exit 1, the architecture recipe's likec4 validate error) on the task; restored the file and recorded a second, passing run.
+
+[Evidence, Important] AC #6 proof: added the missing listing to the task's notes - every distinct element title against its source (doc-16's Level 1/2/3 tables, doc-15's "The things" table, doc-1 section 4's vocabulary table), plus the relationship/technology vocabulary and an explicit note that #shared/#planned are modeling tags, not domain words.
+
+[Compliance, Important] commands.toml: the orchestrator recorded the instruction on the task (comment #4) - a repository plugin is changed only through asdlc-plugin, never in a task's worktree, so that line of the approved plan can't be carried out from here regardless. Left as is.
+
+Separately, the engineer corrected the CI-workflow decision after this review ran: GitHub's hosted macos-26 image ships Node already, so no setup step is needed, and the plan isn't edited for it. Fully reverted the Node step (two commits: add, then revert; `.github/workflows/ci.yml` is now byte-for-byte identical to origin/main). Confirmed empirically which Node version CI actually uses via a one-off diagnostic (committed, read from the run, reverted - net zero on the tree): v24.22.2, from this PR's own CI run. Recorded that version and listed "pin Node in ci.yml" as a follow-up in the task's notes, as instructed.
+
+[Compliance, Nit] Moot: the ci.yml change it was about no longer exists.
+
+Also merged origin/main in (branch already pushed, so merge not rebase) to pick up PR #12's unrelated ci.yml changes (the paths-ignore/conditional cancel-in-progress fix) cleanly, no conflicts.
+
+Final `just check`: exit 0, recorded on the task.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:07:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -401,6 +401,8 @@ merged. No behavioural change, comment-only.
 
 <!-- SECTION:NOTES:BEGIN -->
 Split on 2026-11-15 under the engineer's standing decision to split by default. The worker found, by reading ghostty-vt 0.8 and ghostty-vt-sys, that the engine's safe API does not surface a prompt-marked command's exit code (the data is behind OPT_SEMANTIC_PROMPT in the sys bindings, which the safe crate never wires, and the kernel forbids unsafe). Criterion 1 is narrowed to command panes; finished and failed for a command typed at a shell prompt is a draft under TASK-1 that depends on this task.
+
+Revised plan checked against doc-11 (R50, R82, R83), decision-7, doc-15 and doc-16 by @bruk.o: ok. Status is one shape in the sdk (running, finished, failed with its exit code) beside ProgramStatus, which keeps its meaning; time enters the kernel as a kernel-owned Moment that is plain data, so the kernel reads no clock and its tests need no lint exception; the 10-minute rule is a computed fact of the stored record and the moment asked about, with next_status_deadline for the server to sleep on; input ends finished and failed through TASK-1.42's note_input; acknowledge_pane ends either (the worker's reading of decision-7 point 5, which names a click for both, stated in the plan); a tab's shown status is the most pressing by decision-7's order then newest; a session has none. Typed-at-a-prompt commands are TASK-1.79's. Boundary tests at 599, 600 and 601 seconds, each ending rule both ways, the ordering exhaustively. Risk noted: record_exit gains a parameter that TASK-1.76 will call; whichever merges second adapts.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

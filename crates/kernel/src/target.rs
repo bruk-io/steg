@@ -160,13 +160,15 @@ fn to_result<Id>(part: &str, resolution: Resolution<Id>) -> Result<Id, Error> {
 }
 
 /// Splits a target path on `/`, rejecting anything that cannot be a valid
-/// path of up to `max` parts: no parts at all, more than `max`, or an
-/// empty part (`"a//b"`, `"/a"`, `"a/"`) — bad usage (doc-2 section 6's
-/// status 2), never "matched nothing" (status 3), because an empty part
-/// can never come from a real id, label, position or suffix.
+/// path of up to `max` parts: more than `max`, or an empty part (`"a//b"`,
+/// `"/a"`, `"a/"`, `""`) — bad usage (doc-2 section 6's status 2), never
+/// "matched nothing" (status 3), because an empty part can never come
+/// from a real id, label, position or suffix. `str::split` always yields
+/// at least one part, even on `""` (which splits to `[""]`), so there is
+/// no "no parts at all" case to check separately from the empty-part one.
 fn split_path(path: &str, max: usize) -> Result<Vec<&str>, Error> {
     let parts: Vec<&str> = path.split('/').collect();
-    if parts.is_empty() || parts.len() > max || parts.iter().any(|part| part.is_empty()) {
+    if parts.len() > max || parts.iter().any(|part| part.is_empty()) {
         return Err(Error::InvalidTargetPath(path.to_string()));
     }
     Ok(parts)
@@ -401,6 +403,39 @@ mod tests {
         let id = found(resolve("abcd", &items, id_of, label_of));
 
         assert_eq!(id.0, "0000abcd");
+    }
+
+    #[test]
+    fn resolve_reports_ambiguous_when_the_suffix_kind_matches_more_than_one() {
+        let items = [
+            Item {
+                id: "10001234",
+                label: None,
+            },
+            Item {
+                id: "20001234",
+                label: None,
+            },
+            Item {
+                id: "00005678",
+                label: None,
+            },
+        ];
+
+        // Both of the first two ids end in "1234"; the third does not, so
+        // it must not be in the result (nothing "later" is tried past an
+        // ambiguous match, but the third item is a distractor at the same
+        // kind, and must still be left out).
+        match resolve("1234", &items, id_of, label_of) {
+            Resolution::Ambiguous(candidates) => {
+                assert_eq!(candidates.len(), 2);
+                assert!(candidates.iter().any(|c| c.id == "10001234"));
+                assert!(candidates.iter().any(|c| c.id == "20001234"));
+            }
+            other @ (Resolution::Found(_) | Resolution::NotFound(_)) => {
+                panic!("expected Ambiguous, got a different resolution: {other:?}")
+            }
+        }
     }
 
     #[test]

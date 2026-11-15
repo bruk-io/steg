@@ -5,12 +5,18 @@
 //! sdk (`steg_sdk::screen`); this module is the behaviour that produces it,
 //! which stays in the kernel.
 
-use ghostty_vt::render::{CellIterator, CursorVisualStyle, RenderState, RowIterator};
-use ghostty_vt::screen::{Cell as EngineCell, CellWide, Screen as EngineScreen};
-use ghostty_vt::style::{StyleColor, Underline as EngineUnderline};
+use ghostty_vt::render::{
+    CellIterator, CursorVisualStyle, Dirty, RenderState, RowIteration, RowIterator, Snapshot,
+};
+use ghostty_vt::screen::{CellWide, Screen as EngineScreen};
+use ghostty_vt::style::{
+    RgbColor as EngineRgb, Style as EngineStyle, StyleColor, Underline as EngineUnderline,
+};
 use ghostty_vt::terminal::{Options, Point, PointCoordinate};
 use ghostty_vt::{Event, Terminal as Engine};
-use steg_sdk::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Screen, Underline, Wide};
+use steg_sdk::{
+    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+};
 
 use crate::error::Error;
 
@@ -26,9 +32,36 @@ use crate::error::Error;
 #[derive(Debug)]
 pub struct Terminal {
     engine: Engine,
+    /// The one render state this terminal ever creates (doc-9's scrollback
+    /// task: proved by test that a second, independent render state
+    /// against the same engine does not work - its own first update sees
+    /// whatever the first render state's `update()` already consumed, not
+    /// what changed since *this* reader last looked. `screen()` and
+    /// [`Terminal::changes_since`] are the only two callers that may read
+    /// it, and must not be mixed by two different external callers acting
+    /// as if each had its own independent view).
     render: RenderState,
     cwd: Option<String>,
     title: String,
+    /// How many rows have been permanently retired within the current
+    /// [`epoch`](Terminal::epoch) - the oldest row still retained has this
+    /// as its [`RowId::offset`]. Incremented only across a [`write`](Terminal::write)
+    /// call, by however many rows a prune dropped; a column-count-changing
+    /// [`resize`](Terminal::resize) instead ends the epoch (see `epoch`),
+    /// since there is no way to tell a resize's own pruning from reflow
+    /// alone growing or shrinking the row count.
+    rows_scrolled_off: u64,
+    /// Bumped by a column-count-changing resize, which reflows the
+    /// primary screen and leaves no row at the position any previously
+    /// issued [`RowId`] named - an id from an earlier epoch is always
+    /// answered as gone, never remapped.
+    epoch: u64,
+    /// The point [`Terminal::changes_since`] hands out and checks a
+    /// caller's own point against. Starts at `0`, a value never handed
+    /// out to a caller (the first call that returns anything bumps it to
+    /// at least `1`), so a caller claiming `0` is always treated the same
+    /// as a caller with no point at all.
+    seq: u64,
 }
 
 impl Terminal {
@@ -49,22 +82,51 @@ impl Terminal {
         engine
             .set_scrollback_max_lines(Some(scrollback_lines))
             .map_err(Error::Engine)?;
+        // `Options::default()`'s byte limit (10 MB) is otherwise still in
+        // force alongside the line limit, and "the first limit reached
+        // wins" (the engine's own doc comment): with long enough lines
+        // the byte limit could silently bind before `scrollback_lines`
+        // does, which would make R15's configured number not mean what
+        // it says. Disabling it makes the line limit the only one in
+        // force.
+        engine
+            .set_scrollback_max_bytes(None)
+            .map_err(Error::Engine)?;
         let render = RenderState::new().map_err(Error::Engine)?;
         Ok(Self {
             engine,
             render,
             cwd: None,
             title: String::new(),
+            rows_scrolled_off: 0,
+            epoch: 0,
+            seq: 0,
         })
     }
 
     /// Feeds bytes through the engine's VT parser (doc-9 R14, R92).
     ///
     /// Drains every event the write produced into this terminal's own
-    /// state (`cwd`, `title`): see [`Terminal::drain_events`].
+    /// state (`cwd`, `title`): see [`Terminal::drain_events`]. Also
+    /// updates [`Terminal::rows_scrolled_off`] when this write pruned
+    /// scrollback (a drop in `total_rows`, confirmed by test to happen
+    /// only on a real prune for a plain write - never merely because the
+    /// active area grew into unused scrollback space, which is a resize's
+    /// doing, not a write's).
+    ///
+    /// Stays infallible, as before: reading `total_rows` around the write
+    /// is best-effort bookkeeping, not part of this method's contract, so
+    /// an engine error from that secondary read is swallowed rather than
+    /// surfaced here.
     pub fn write(&mut self, bytes: &[u8]) {
+        let before = self.engine.total_rows().ok();
         self.engine.vt_write(bytes);
         self.drain_events();
+        if let (Some(before), Ok(after)) = (before, self.engine.total_rows())
+            && after < before
+        {
+            self.rows_scrolled_off += (before - after) as u64;
+        }
     }
 
     /// Drains whatever `ghostty_vt::Terminal::events` is holding into this
@@ -104,18 +166,196 @@ impl Terminal {
     pub fn screen(&mut self) -> Result<Screen, Error> {
         let snapshot = self.render.update(&self.engine).map_err(Error::Engine)?;
         let palette = snapshot.colors().map_err(Error::Engine)?.palette;
-
-        let mut row_iterator = RowIterator::new().map_err(Error::Engine)?;
-        let mut row_iteration = row_iterator.update(&snapshot).map_err(Error::Engine)?;
-        let mut cell_iterator = CellIterator::new().map_err(Error::Engine)?;
-
-        let mut rows = Vec::new();
-        while let Some(row) = row_iteration.next() {
-            rows.push(build_row(row, &mut cell_iterator, &palette)?);
-        }
-
+        let rows = all_rows(&snapshot, &palette)?;
         let cursor = read_cursor(&snapshot)?;
         Ok(Screen { rows, cursor })
+    }
+
+    /// The rows that changed since `seen`, or a whole screen when `seen`
+    /// cannot be resumed from (AC #4, #5).
+    ///
+    /// `seen` is the `seq` a previous [`Update::Delta`] or
+    /// [`Update::Full`] carried; `None` for a caller that has never
+    /// called this before. There is exactly one current point per
+    /// terminal (this method owns the one [`RenderState`] this terminal
+    /// has - proved by test that a second, independent render state does
+    /// not see what changed for *it*, only what the first one has not
+    /// already consumed), so every caller but the single most recently
+    /// served one has a `seen` that is not exactly that point, and is
+    /// answered with the whole screen rather than a guess at what it is
+    /// missing. That is decision-2 section 6's back-pressure rule ("a
+    /// client that falls behind gets one fresh screen-sized snapshot"),
+    /// extended here to "or was never caught up to begin with."
+    ///
+    /// Calling this twice with nothing written in between returns
+    /// [`Update::Unchanged`] the second time: the first call already
+    /// consumed whatever the engine had marked dirty. Several callers
+    /// sharing one terminal must not each call this expecting their own
+    /// independent view - TASK-1.47 is where several attachments to one
+    /// pane are built, and its job is to call this once per tick and fan
+    /// the one result out, each attachment tracking its own delivery
+    /// progress on top; nothing here assumes there is only ever one
+    /// caller, only that calling this is itself the single point of
+    /// truth for "what has this terminal not yet reported."
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Engine`] if the engine could not report its state.
+    pub fn changes_since(&mut self, seen: Option<u64>) -> Result<Update, Error> {
+        // `seq` starts at 0, which this method never hands out (the first
+        // response bumps it to at least 1), so a caller claiming 0 is
+        // never "current" - same as a caller with no point at all.
+        let is_current = self.seq != 0 && seen == Some(self.seq);
+
+        let snapshot = self.render.update(&self.engine).map_err(Error::Engine)?;
+        let dirty = snapshot.dirty().map_err(Error::Engine)?;
+        let palette = snapshot.colors().map_err(Error::Engine)?.palette;
+        let cursor = read_cursor(&snapshot)?;
+
+        let outcome = if is_current {
+            match dirty {
+                Dirty::Clean => None,
+                Dirty::Partial => Some(Outcome::Delta(dirty_rows(&snapshot, &palette)?)),
+                Dirty::Full => Some(Outcome::Full(all_rows(&snapshot, &palette)?)),
+            }
+        } else {
+            Some(Outcome::Full(all_rows(&snapshot, &palette)?))
+        };
+
+        snapshot.clean().map_err(Error::Engine)?;
+
+        Ok(match outcome {
+            None => Update::Unchanged,
+            Some(Outcome::Delta(rows)) => {
+                self.seq += 1;
+                Update::Delta {
+                    rows,
+                    cursor,
+                    seq: self.seq,
+                }
+            }
+            Some(Outcome::Full(rows)) => {
+                self.seq += 1;
+                Update::Full {
+                    screen: Screen { rows, cursor },
+                    seq: self.seq,
+                }
+            }
+        })
+    }
+
+    /// The real number of scrollback rows this terminal is holding (AC
+    /// #1): never the configured limit, which page-granularity pruning
+    /// in the engine only approximates (within a few percent at R15's
+    /// real 10,000-line default; measured far looser at a much smaller
+    /// configured limit, where a single page can hold many times the
+    /// limit's own row count).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Engine`] if the engine could not report it.
+    pub fn scrollback_rows_kept(&self) -> Result<usize, Error> {
+        self.engine.scrollback_rows().map_err(Error::Engine)
+    }
+
+    /// The absolute identity of the oldest row this terminal still
+    /// retains in the current epoch - the smallest id
+    /// [`Terminal::page`] will answer for, and so the way a caller
+    /// bootstraps into absolute addressing without already knowing a
+    /// valid id (not named explicitly in this task's plan, found to be
+    /// missing once `page` had to be called from anywhere other than an
+    /// id `page` itself had already handed back).
+    #[must_use]
+    pub fn oldest_row(&self) -> RowId {
+        RowId {
+            epoch: self.epoch,
+            offset: self.rows_scrolled_off,
+        }
+    }
+
+    /// A page of up to `max_rows` rows starting at `first`, addressed by
+    /// absolute identity rather than position (AC #2, #3; decision-2
+    /// section 3). Covers scrollback and the active area alike - both are
+    /// addressed the same way.
+    ///
+    /// An empty page means every row asked for is gone: `first` names a
+    /// row already pruned from the current epoch, or an epoch that has
+    /// since ended - never an error, and never a short page padded with
+    /// substitutes.
+    ///
+    /// A one-off query, like [`Terminal::link_at`]: each cell is read
+    /// through the engine's point-lookup API, which the engine's own
+    /// authors say "may require traversing the full scrollback page list"
+    /// and "isn't meant to be used as the core of render loop" - measured
+    /// at a few hundred microseconds for a 100-row, 80-column page against
+    /// ~10,000 scrollback rows (R15's real default), not promised beyond
+    /// that depth, which is untested.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Engine`] if the engine could not read a cell.
+    pub fn page(&self, first: RowId, max_rows: u16) -> Result<Page, Error> {
+        if first.epoch != self.epoch || first.offset < self.rows_scrolled_off {
+            return Ok(Page { rows: Vec::new() });
+        }
+
+        let total = self.engine.total_rows().map_err(Error::Engine)?;
+        let start = usize::try_from(first.offset - self.rows_scrolled_off).unwrap_or(usize::MAX);
+        if start >= total {
+            return Ok(Page { rows: Vec::new() });
+        }
+        let end = start.saturating_add(usize::from(max_rows)).min(total);
+
+        let cols = self.cols()?;
+        let palette = self.engine.color_palette().map_err(Error::Engine)?.0;
+
+        let mut rows = Vec::with_capacity(end - start);
+        for position in start..end {
+            let id = RowId {
+                epoch: self.epoch,
+                offset: self.rows_scrolled_off + position as u64,
+            };
+            let row = self.build_page_row(position as u32, cols, &palette)?;
+            rows.push((id, row));
+        }
+        Ok(Page { rows })
+    }
+
+    /// Builds one row's attribute runs for [`Terminal::page`], cell by
+    /// cell through the engine's point-lookup API rather than the
+    /// render-state path [`Terminal::screen`] uses (that path only ever
+    /// visits the viewport, plus whatever overscan is requested - never
+    /// an arbitrary absolute row).
+    fn build_page_row(&self, y: u32, cols: u16, palette: &[EngineRgb; 256]) -> Result<Row, Error> {
+        let mut runs: Row = Vec::new();
+        for x in 0..cols {
+            let grid_ref = self
+                .engine
+                .grid_ref(Point::Screen(PointCoordinate { x, y }))
+                .map_err(Error::Engine)?;
+            let raw = grid_ref.cell().map_err(Error::Engine)?;
+            let wide = wide_from(raw.wide().map_err(Error::Engine)?);
+
+            // Same reasoning as `build_row`: never rendered, the
+            // preceding `Wide` cell already carries this column.
+            if wide == Wide::SpacerTail {
+                continue;
+            }
+
+            let style = grid_ref.style().map_err(Error::Engine)?;
+            let has_hyperlink = raw.has_hyperlink().map_err(Error::Engine)?;
+            let resolved = resolved_cell_style(style, wide, has_hyperlink, palette);
+            let text = graphemes_at(&grid_ref)?;
+
+            match runs.last_mut() {
+                Some(last) if last.style == resolved => last.text.push_str(&text),
+                _ => runs.push(Run {
+                    text,
+                    style: resolved,
+                }),
+            }
+        }
+        Ok(runs)
     }
 
     /// The address of the hyperlink at the given viewport cell, or `None`
@@ -162,12 +402,32 @@ impl Terminal {
     /// reports) on queues one, and it must not wait for a later `write` to
     /// be drained.
     ///
+    /// Ends the current identity epoch when this resize changed the
+    /// column count (confirmed by test: a column-count change reflows the
+    /// primary screen, which can both inflate the row count with nothing
+    /// lost and itself prune rows outright, with no way to tell those two
+    /// apart from the outside - so every [`RowId`] issued before this
+    /// point is retired rather than guessed at). A row-count-only resize
+    /// never does this: confirmed by test, it only moves rows between
+    /// scrollback and the active area, never reflowing or pruning.
+    ///
     /// # Errors
     ///
-    /// Returns [`Error::Engine`] if the engine could not resize.
+    /// Returns [`Error::Engine`] if the engine could not resize, or if its
+    /// column count or row total could not be read back afterwards.
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<(), Error> {
+        let cols_before = self.engine.cols().map_err(Error::Engine)?;
         let result = self.engine.resize(cols, rows, 0, 0).map_err(Error::Engine);
         self.drain_events();
+
+        if result.is_ok() {
+            let cols_after = self.engine.cols().map_err(Error::Engine)?;
+            if cols_after != cols_before {
+                self.epoch += 1;
+                self.rows_scrolled_off = self.engine.total_rows().map_err(Error::Engine)? as u64;
+            }
+        }
+
         result
     }
 
@@ -216,13 +476,62 @@ impl Terminal {
     }
 }
 
+/// What a call to [`Terminal::changes_since`] found, before it is turned
+/// into the [`Update`] variant that also carries the cursor and the new
+/// `seq` (kept out of the sdk shape so this module can build the rows
+/// first and only touch `self.seq` once, after the borrow on
+/// `self.render` the snapshot holds has ended).
+enum Outcome {
+    Delta(Vec<(u16, Row)>),
+    Full(Vec<Row>),
+}
+
+/// Walks every row the given snapshot holds (the viewport, plus whatever
+/// overscan is requested - none, here), building each with [`build_row`].
+/// Shared by [`Terminal::screen`] and [`Terminal::changes_since`]'s
+/// [`Update::Full`] arm, so a whole-screen read means the same thing from
+/// either caller.
+fn all_rows(snapshot: &Snapshot<'_>, palette: &[EngineRgb; 256]) -> Result<Vec<Row>, Error> {
+    let mut row_iterator = RowIterator::new().map_err(Error::Engine)?;
+    let mut row_iteration = row_iterator.update(snapshot).map_err(Error::Engine)?;
+    let mut cell_iterator = CellIterator::new().map_err(Error::Engine)?;
+
+    let mut rows = Vec::new();
+    while let Some(row) = row_iteration.next() {
+        rows.push(build_row(row, &mut cell_iterator, palette)?);
+    }
+    Ok(rows)
+}
+
+/// Walks only the rows the given snapshot's render state has marked
+/// dirty, each paired with its position from the top of the screen
+/// (`RowIteration::next_dirty`'s own `u16`). Used by
+/// [`Terminal::changes_since`]'s [`Update::Delta`] arm; never called when
+/// the snapshot's own [`Dirty`] is `Full` or `Clean` (`next_dirty` would
+/// return every row, or none, respectively - the caller already branches
+/// on `Dirty` to pick the cheaper read).
+fn dirty_rows(
+    snapshot: &Snapshot<'_>,
+    palette: &[EngineRgb; 256],
+) -> Result<Vec<(u16, Row)>, Error> {
+    let mut row_iterator = RowIterator::new().map_err(Error::Engine)?;
+    let mut row_iteration = row_iterator.update(snapshot).map_err(Error::Engine)?;
+    let mut cell_iterator = CellIterator::new().map_err(Error::Engine)?;
+
+    let mut rows = Vec::new();
+    while let Some((y, row)) = row_iteration.next_dirty() {
+        rows.push((y, build_row(row, &mut cell_iterator, palette)?));
+    }
+    Ok(rows)
+}
+
 /// Builds one row's attribute runs by walking its cells left to right,
 /// starting a new [`Run`] whenever the resolved [`CellStyle`] changes
 /// (decision-2 section 3).
 fn build_row(
-    row: &ghostty_vt::render::RowIteration<'_>,
+    row: &RowIteration<'_>,
     cells: &mut CellIterator,
-    palette: &[ghostty_vt::style::RgbColor; 256],
+    palette: &[EngineRgb; 256],
 ) -> Result<Row, Error> {
     let mut iteration = cells.update(row).map_err(Error::Engine)?;
     let mut runs: Row = Vec::new();
@@ -236,35 +545,43 @@ fn build_row(
             continue;
         }
 
-        let style = cell_style(cell, raw, wide, palette)?;
+        let style = cell.style().map_err(Error::Engine)?;
+        let has_hyperlink = raw.has_hyperlink().map_err(Error::Engine)?;
+        let resolved = resolved_cell_style(style, wide, has_hyperlink, palette);
         let mut text = String::new();
         cell.graphemes_utf8(&mut text).map_err(Error::Engine)?;
 
         match runs.last_mut() {
-            Some(last) if last.style == style => last.text.push_str(&text),
-            _ => runs.push(Run { text, style }),
+            Some(last) if last.style == resolved => last.text.push_str(&text),
+            _ => runs.push(Run {
+                text,
+                style: resolved,
+            }),
         }
     }
     Ok(runs)
 }
 
-/// Reads one cell's resolved style, including the fields the render-state
-/// convenience getters do not resolve on their own (the underline colour,
-/// which `style()` returns unresolved against the palette).
-fn cell_style(
-    cell: &ghostty_vt::render::CellIteration<'_>,
-    raw: EngineCell,
+/// Resolves one cell's drawable style from its raw style and flags.
+///
+/// Shared by [`build_row`] (the render-state path) and
+/// [`Terminal::build_page_row`] (the scrollback/screen paging path, which
+/// reads a row's cells through the engine's point-lookup API instead), so
+/// the two cannot silently resolve the same cell to a different
+/// [`CellStyle`] - a risk this task's own review named: the render-state
+/// path's `CellIteration::fg_color`/`bg_color` resolve a palette index
+/// for free, but the point-lookup path's `GridRef::style` does not, so
+/// both paths resolve `fg`/`bg`/`underline_colour` here, uniformly,
+/// through [`resolve_style_color`].
+fn resolved_cell_style(
+    style: EngineStyle,
     wide: Wide,
-    palette: &[ghostty_vt::style::RgbColor; 256],
-) -> Result<CellStyle, Error> {
-    let style = cell.style().map_err(Error::Engine)?;
-    let fg = cell.fg_color().map_err(Error::Engine)?.map(rgb_from);
-    let bg = cell.bg_color().map_err(Error::Engine)?.map(rgb_from);
-    let link = raw.has_hyperlink().map_err(Error::Engine)?;
-
-    Ok(CellStyle {
-        fg,
-        bg,
+    has_hyperlink: bool,
+    palette: &[EngineRgb; 256],
+) -> CellStyle {
+    CellStyle {
+        fg: resolve_style_color(style.fg_color, palette),
+        bg: resolve_style_color(style.bg_color, palette),
         bold: style.bold,
         italic: style.italic,
         faint: style.faint,
@@ -276,21 +593,35 @@ fn cell_style(
         underline: underline_from(style.underline),
         underline_colour: resolve_style_color(style.underline_color, palette),
         wide,
-        link,
-    })
+        link: has_hyperlink,
+    }
 }
 
 /// Resolves a style colour (possibly a palette index) to the RGB value a
 /// client draws, the same resolution the engine already does for a cell's
 /// foreground and background (decision-2 section 3).
-fn resolve_style_color(
-    color: StyleColor,
-    palette: &[ghostty_vt::style::RgbColor; 256],
-) -> Option<Rgb> {
+fn resolve_style_color(color: StyleColor, palette: &[EngineRgb; 256]) -> Option<Rgb> {
     match color {
         StyleColor::None => None,
         StyleColor::Rgb(rgb) => Some(rgb_from(rgb)),
         StyleColor::Palette(index) => palette.get(usize::from(index.0)).copied().map(rgb_from),
+    }
+}
+
+/// Reads one cell's grapheme cluster through the point-lookup API
+/// ([`Terminal::build_page_row`]), growing the buffer once if the first,
+/// fixed-size try is too small - the same grow-and-retry shape
+/// [`Terminal::link_at`] already uses for a hyperlink's address.
+fn graphemes_at(grid_ref: &ghostty_vt::screen::GridRef<'_>) -> Result<String, Error> {
+    let mut buf = [' '; 8];
+    match grid_ref.graphemes(&mut buf) {
+        Ok(n) => Ok(buf[..n].iter().collect()),
+        Err(ghostty_vt::Error::OutOfSpace { required }) => {
+            let mut grown = vec![' '; required];
+            let n = grid_ref.graphemes(&mut grown).map_err(Error::Engine)?;
+            Ok(grown[..n].iter().collect())
+        }
+        Err(other) => Err(Error::Engine(other)),
     }
 }
 
@@ -348,7 +679,7 @@ fn cursor_shape_from(value: CursorVisualStyle) -> CursorShape {
 /// `x`/`y` are only meaningful while the cursor is within the viewport
 /// (not scrolled out of view); this task's cell model carries no separate
 /// flag for that, so an out-of-viewport cursor reports position `(0, 0)`.
-fn read_cursor(snapshot: &ghostty_vt::render::Snapshot<'_>) -> Result<Cursor, Error> {
+fn read_cursor(snapshot: &Snapshot<'_>) -> Result<Cursor, Error> {
     let cursor = snapshot.cursor().map_err(Error::Engine)?;
     let (x, y) = cursor.viewport.map_or((0, 0), |v| (v.x, v.y));
     Ok(Cursor {
@@ -440,7 +771,7 @@ fn uri_from_bytes(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use steg_sdk::{Rgb, Underline, Wide};
+    use steg_sdk::{Rgb, RowId, Underline, Update, Wide};
 
     use super::{CursorShape, Terminal};
 
@@ -792,5 +1123,402 @@ mod tests {
         let screen = term.screen().unwrap();
         assert_eq!(screen.rows[0][0].text, "01234");
         assert_eq!(screen.rows[1][0].text, "56789");
+    }
+
+    // --- AC #1: a configurable scrollback limit, with the real count kept reported ---
+
+    #[test]
+    fn scrollback_rows_kept_grows_as_lines_are_fed_in() {
+        let mut term = Terminal::new(10, 2, 500).unwrap();
+        assert_eq!(term.scrollback_rows_kept().unwrap(), 0);
+
+        for i in 0..40 {
+            term.write(format!("line{i:03}\r\n").as_bytes());
+        }
+
+        // 40 lines into a 2-row viewport: most of them are in scrollback.
+        assert!(
+            (30..=40).contains(&term.scrollback_rows_kept().unwrap()),
+            "expected scrollback to have grown with the lines written: {}",
+            term.scrollback_rows_kept().unwrap()
+        );
+    }
+
+    #[test]
+    fn the_configured_limit_keeps_the_real_count_near_itself_once_warmed_up() {
+        let mut term = Terminal::new(10, 2, 500).unwrap();
+        let line = "x".repeat(60);
+
+        // Many more lines than the 500-line limit, so pruning has
+        // happened more than once by the end.
+        for _ in 0..4000 {
+            term.write(format!("{line}\r\n").as_bytes());
+        }
+
+        let kept = term.scrollback_rows_kept().unwrap();
+        // Page-granularity pruning only approximates the configured
+        // limit, and how loosely depends on how many rows fit in one
+        // ~400 KiB page: this task's plan measured a tight 9,434-10,024
+        // sawtooth (about +/-6%) around a real 10,000-line limit with
+        // realistic line lengths, but a much larger overshoot - several
+        // times the limit - at a small configured limit with short
+        // lines, because one page then holds far more rows than the
+        // limit itself. This test's own 500-line limit with 60-byte
+        // lines sits in between: the bound below is generous enough not
+        // to be fragile against the engine's exact pruning schedule,
+        // while still proving pruning bounds growth at all (4,000 lines
+        // were written; nowhere near that many are kept).
+        assert!(
+            (400..=3500).contains(&kept),
+            "expected the retained count to be bounded well under the 4,000 lines written, not {kept}"
+        );
+    }
+
+    #[test]
+    fn the_line_limit_governs_even_past_the_engines_disabled_byte_limit() {
+        // `ghostty_vt::terminal::Options::default()`'s byte limit (10 MB)
+        // is otherwise still in force alongside the line limit, and "the
+        // first limit reached wins" (the engine's own doc comment) -
+        // `Terminal::new` disables it so the configured line count is the
+        // only limit left. This writes well past 10 MB of content while
+        // staying far under a generous line limit: if the byte limit were
+        // still active, content would have started pruning around line
+        // ~200 (10 MB / ~50,000 bytes per line), long before this test's
+        // 300 lines or its 1,000-line configured limit.
+        let mut term = Terminal::new(10, 2, 1000).unwrap();
+        let line = "x".repeat(50_000);
+        for _ in 0..300 {
+            term.write(format!("{line}\r\n").as_bytes());
+        }
+
+        let kept = term.scrollback_rows_kept().unwrap();
+        assert!(
+            kept > 250,
+            "the byte limit appears to still be in force: only {kept} rows kept"
+        );
+    }
+
+    // --- AC #2: every row has an absolute identity that only grows and is never reused ---
+
+    #[test]
+    fn every_row_id_grows_and_is_never_reused_for_different_content() {
+        let mut term = Terminal::new(10, 2, 50).unwrap();
+
+        // Feed enough numbered lines to prune scrollback at least once,
+        // all within one epoch (no resize anywhere near this test).
+        for i in 0..3000 {
+            term.write(format!("line{i:05}\r\n").as_bytes());
+        }
+
+        let floor = term.oldest_row();
+        let page = term.page(floor, 1).unwrap();
+        assert!(
+            !page.rows.is_empty(),
+            "the oldest retained row should still answer for its own id"
+        );
+        let (oldest_id, oldest_row) = page.rows[0].clone();
+        assert_eq!(oldest_id, floor);
+        let oldest_text: String = oldest_row.iter().map(|run| run.text.as_str()).collect();
+
+        // An id older than the floor (already pruned) is gone, not
+        // substituted with whatever now happens to be nearby.
+        if oldest_id.offset > 0 {
+            let pruned_id = RowId {
+                epoch: oldest_id.epoch,
+                offset: oldest_id.offset - 1,
+            };
+            assert!(
+                term.page(pruned_id, 1).unwrap().rows.is_empty(),
+                "a row older than the floor should be reported gone"
+            );
+        }
+
+        // Write enough more lines to prune further, past the row that
+        // was oldest a moment ago.
+        for i in 3000..6000 {
+            term.write(format!("line{i:05}\r\n").as_bytes());
+        }
+
+        // The previously-oldest row's id must still be gone - never
+        // remapped to whatever content now sits at a higher offset.
+        assert!(
+            term.page(oldest_id, 1).unwrap().rows.is_empty(),
+            "a pruned id must never answer with different content later"
+        );
+
+        // The id handed to the oldest row now is strictly greater, and
+        // its content is different (the id was not reused).
+        let new_floor = term.oldest_row();
+        assert!(new_floor.offset > oldest_id.offset);
+        let new_page = term.page(new_floor, 1).unwrap();
+        let new_text: String = new_page.rows[0].1[0].text.clone();
+        assert_ne!(new_text, oldest_text);
+    }
+
+    #[test]
+    fn a_page_spanning_the_seam_between_scrollback_and_the_active_screen_reads_consecutive_rows_in_order()
+     {
+        // decision-2 section 3 names exactly this seam - a page that
+        // starts in scrollback and crosses into the live screen - as the
+        // historical bug absolute identity was built to fix (two
+        // different moments stitched together at the seam).
+        let mut term = Terminal::new(10, 3, 1000).unwrap();
+        for i in 0..20 {
+            term.write(format!("L{i:02}\r\n").as_bytes());
+        }
+
+        let scrollback = term.scrollback_rows_kept().unwrap();
+        let viewport_rows = usize::from(term.rows().unwrap());
+        let floor = term.oldest_row();
+        assert!(
+            scrollback >= 2,
+            "need at least two scrollback rows before the seam for this test"
+        );
+
+        // Two rows before the seam, reading straight through it.
+        let start = RowId {
+            epoch: floor.epoch,
+            offset: floor.offset + scrollback as u64 - 2,
+        };
+        let max_rows = 2 + viewport_rows as u16;
+
+        let page = term.page(start, max_rows).unwrap();
+
+        assert_eq!(page.rows.len(), usize::from(max_rows));
+        for pair in page.rows.windows(2) {
+            assert_eq!(pair[0].0.epoch, pair[1].0.epoch);
+            assert_eq!(
+                pair[1].0.offset,
+                pair[0].0.offset + 1,
+                "ids across the seam must stay consecutive"
+            );
+        }
+
+        // The last `viewport_rows` entries are exactly today's active
+        // screen, read independently through `screen()`: the two reads
+        // must agree row for row across the seam.
+        let screen = term.screen().unwrap();
+        for i in 0..viewport_rows {
+            let (_, page_row) = &page.rows[2 + i];
+            assert_eq!(
+                *page_row, screen.rows[i],
+                "row {i} of the active area should match between page() and screen()"
+            );
+        }
+    }
+
+    #[test]
+    fn the_newest_rows_id_resolves_and_one_past_it_is_gone() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+
+        let floor = term.oldest_row();
+        let total = term.scrollback_rows_kept().unwrap() + usize::from(term.rows().unwrap());
+        let newest_offset = floor.offset + total as u64 - 1;
+
+        let newest = RowId {
+            epoch: floor.epoch,
+            offset: newest_offset,
+        };
+        assert!(
+            !term.page(newest, 1).unwrap().rows.is_empty(),
+            "the newest row's own id should resolve"
+        );
+
+        let one_past = RowId {
+            epoch: floor.epoch,
+            offset: newest_offset + 1,
+        };
+        assert!(
+            term.page(one_past, 1).unwrap().rows.is_empty(),
+            "one past the newest row should be reported gone, not substituted"
+        );
+    }
+
+    #[test]
+    fn a_page_request_larger_than_what_is_kept_returns_only_what_exists() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+
+        let floor = term.oldest_row();
+        let total = term.scrollback_rows_kept().unwrap() + usize::from(term.rows().unwrap());
+
+        let page = term.page(floor, u16::MAX).unwrap();
+
+        assert_eq!(
+            page.rows.len(),
+            total,
+            "a page request larger than what is kept must return only what exists, not pad or error"
+        );
+    }
+
+    // --- AC #3: what a resize does to row identity ---
+
+    #[test]
+    fn a_column_changing_resize_retires_every_id_from_before_it() {
+        let mut term = Terminal::new(40, 3, 1000).unwrap();
+        for i in 0..3000 {
+            term.write(format!("line{i:05}\r\n").as_bytes());
+        }
+        let id_before = term.oldest_row();
+        assert!(!term.page(id_before, 1).unwrap().rows.is_empty());
+
+        term.resize(10, 3).unwrap(); // column count changes: reflows
+
+        assert!(
+            term.page(id_before, 1).unwrap().rows.is_empty(),
+            "an id from before a column-changing resize must be reported gone, not remapped"
+        );
+    }
+
+    #[test]
+    fn a_row_only_resize_never_retires_an_id() {
+        let mut term = Terminal::new(10, 10, 100).unwrap();
+        for i in 0..30 {
+            term.write(format!("line{i:03}\r\n").as_bytes());
+        }
+        let id = term.oldest_row();
+        let before = term.page(id, 1).unwrap();
+        assert!(!before.rows.is_empty());
+        let before_text = before.rows[0].1[0].text.clone();
+
+        term.resize(10, 3).unwrap(); // rows only, cols unchanged
+        term.resize(10, 20).unwrap(); // rows only, the other direction
+
+        let after = term.page(id, 1).unwrap();
+        assert!(
+            !after.rows.is_empty(),
+            "a row-only resize must not retire this id"
+        );
+        assert_eq!(before_text, after.rows[0].1[0].text);
+    }
+
+    #[test]
+    fn a_resize_to_the_same_size_does_not_end_the_epoch() {
+        let mut term = Terminal::new(10, 3, 100).unwrap();
+        for i in 0..10 {
+            term.write(format!("line{i:02}\r\n").as_bytes());
+        }
+        let id = term.oldest_row();
+        let before = term.page(id, 1).unwrap();
+        assert!(!before.rows.is_empty());
+
+        term.resize(10, 3).unwrap(); // same cols, same rows: a true no-op
+
+        assert_eq!(
+            term.oldest_row(),
+            id,
+            "a no-op resize must not move the floor or bump the epoch"
+        );
+        let after = term.page(id, 1).unwrap();
+        assert!(
+            !after.rows.is_empty(),
+            "a no-op resize must not retire this id"
+        );
+        assert_eq!(before.rows[0].1, after.rows[0].1);
+    }
+
+    // --- AC #4: the rows changed since a given point ---
+
+    /// Unwraps an [`Update::Full`] for a test assertion, or fails with a
+    /// message naming which variant actually came back. A plain
+    /// wildcard arm is refused here (`clippy::wildcard_enum_match_arm`,
+    /// since `Update` is this crate's own enum, not a foreign one), so
+    /// every arm is named.
+    fn expect_full(update: Update) -> (steg_sdk::Screen, u64) {
+        match update {
+            Update::Full { screen, seq } => (screen, seq),
+            Update::Unchanged => panic!("expected Full, got Unchanged"),
+            Update::Delta { .. } => panic!("expected Full, got Delta"),
+        }
+    }
+
+    /// Same as [`expect_full`], for [`Update::Delta`].
+    fn expect_delta(update: Update) -> Vec<(u16, steg_sdk::Row)> {
+        match update {
+            Update::Delta { rows, .. } => rows,
+            Update::Unchanged => panic!("expected Delta, got Unchanged"),
+            Update::Full { .. } => panic!("expected Delta, got Full"),
+        }
+    }
+
+    #[test]
+    fn changes_since_gives_a_full_screen_to_a_caller_with_no_point() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+
+        let (screen, seq) = expect_full(term.changes_since(None).unwrap());
+        assert_eq!(screen.rows[0][0].text, "hi");
+        assert!(seq > 0);
+    }
+
+    #[test]
+    fn changes_since_reports_unchanged_when_nothing_happened_since_the_last_call() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let (_, seq) = expect_full(term.changes_since(None).unwrap());
+
+        assert_eq!(term.changes_since(Some(seq)).unwrap(), Update::Unchanged);
+    }
+
+    #[test]
+    fn changes_since_reports_a_delta_of_only_the_changed_rows() {
+        let mut term = Terminal::new(10, 3, 100).unwrap();
+        term.write(b"first\r\nsecond");
+        let (_, seq) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b"\r\nthird");
+
+        let rows = expect_delta(term.changes_since(Some(seq)).unwrap());
+        assert!(!rows.is_empty());
+        let changed: Vec<u16> = rows.iter().map(|(y, _)| *y).collect();
+        assert!(
+            changed.contains(&2),
+            "row 2 (\"third\") should be in the delta: {changed:?}"
+        );
+    }
+
+    #[test]
+    fn changes_since_gives_a_stale_or_foreign_point_a_full_screen_not_a_partial_one() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"hi");
+        let _ = term.changes_since(None).unwrap();
+        term.write(b" there");
+
+        let (screen, _) = expect_full(term.changes_since(Some(999)).unwrap());
+        assert_eq!(screen.rows[0][0].text, "hi there");
+    }
+
+    // --- AC #5: several readers at different points ---
+
+    #[test]
+    fn two_callers_sharing_one_terminal_must_each_track_their_own_point() {
+        let mut term = Terminal::new(20, 2, 100).unwrap();
+        term.write(b"first");
+
+        // Caller A reads first and gets everything (`Full`, as any first
+        // read must).
+        let (_, seq_a) = expect_full(term.changes_since(None).unwrap());
+
+        term.write(b" second");
+
+        // Caller B, with no point of its own, also gets a whole screen -
+        // not whatever A has already consumed from the shared render
+        // state (proving a `RenderState` per reader would not be needed
+        // even if it worked, since this one shared state already answers
+        // a late caller correctly - and proving it does *not* work is
+        // what the next assertion is for).
+        let (screen, _) = expect_full(term.changes_since(None).unwrap());
+        assert_eq!(screen.rows[0][0].text, "first second");
+
+        // Caller A, calling again with its *own* previous point, now also
+        // gets a whole screen rather than a delta of what changed since
+        // its own last read: B's call displaced A as "the" caller this
+        // terminal considers current. A single shared `RenderState`
+        // cannot serve two readers their own deltas at once - exactly why
+        // TASK-1.47's fan-out (one call per tick, copied to every
+        // attachment) is the only correct way to serve several readers,
+        // not an independent call per attachment.
+        let _ = expect_full(term.changes_since(Some(seq_a)).unwrap());
     }
 }

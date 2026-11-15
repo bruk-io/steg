@@ -1,14 +1,14 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T17:03:00Z'
+updated_date: '2026-11-15T17:12:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2aa568c163d'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: yes
 ---
 
@@ -551,6 +550,48 @@ error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:06:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.70 on task-1.70-sdk-the-protocol-s-logic-and-the-local at a4a7c3556368 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 24, 24 without the Asdlc-Worker trailer.
+
+Review findings addressed (PR 30, commit 6e18352):
+
+1. Important - Decoder::next_frame's declared-length-under-the-header bound had no test. Added wire/frame.rs tests at the bound: 0 and 4 (refused as Malformed) and 5 (the smallest accepted, a zero-payload frame), each fed whole and a byte at a time - six new tests. Bit the proof: temporarily changed `declared_len < HEADER_LEN` to `declared_len < HEADER_LEN - 1`, ran `cargo test -p steg-sdk --lib wire::frame` through asdlc record-check (recorded exit 101, three of the new tests failed exactly as expected), then restored the original bound and confirmed green again.
+
+2. Important - connect()'s ConnectError::Spawn was never reached through connect() itself. Added two tests in tests/local_socket.rs: a binary path that does not exist, and a real file that exists but is not executable (written via std::fs::write with no execute bit) - both with autostart on and nothing listening, both now asserting connect() returns Err(ConnectError::Spawn(_)). The does-not-exist test also times the call and asserts it returns in well under a second against a 5-second connect_timeout: spawn() fails synchronously when exec itself fails, so connect() returns ConnectError::Spawn immediately, before ever reaching the retry loop's deadline - stated now on connect()'s own doc comment, and in an inline comment at the spawn() call site.
+
+3. Nit - stated the convention that a Decoder::next_frame error (TooLarge/Malformed) is fatal: it does not drain the buffer, so calling it again repeats the identical error for ever rather than ever resynchronising; documented on Decoder's own struct doc, next_frame's doc, Incoming::Malformed's doc, and Connection::poll's doc (the caller is expected to drop the connection, not keep polling it). Pinned with a new wire/frame.rs test asserting three successive next_frame() calls after one Malformed input all return the same error.
+
+4. Nit - documented on connect()'s doc comment that it never wait()s on the spawned child, and what that means for a long-lived consumer (the app) calling it with autostart repeatedly: a process-table entry accumulates per call until the consumer itself exits, for as long as the real server takes to detach and exit the process this spawned - attributed to TASK-1.44's own detaching code to keep short, which this function cannot avoid by waiting (R99 forbids that). Also left as a line here for TASK-1.44 to read when it builds the real detaching.
+
+No plan change - all four are within the approved design (tests and doc comments), not new behaviour.
+
+Checks: `just check` recorded via asdlc record-check at the new head (full green), after merging origin/main (board-notes-only commits from TASK-1.40/1.42/1.74/1.75's workers landed in the meantime, no code collisions - confirmed by diffing crates/ and justfile against origin/main before merging). CI on PR 30's new head (6e18352) passed.
+
+AC -> test list from the original build is unchanged in substance; the two Important findings' fixes slot into the existing AC #1 (frame/decoder, no I/O) and AC #3 (local-socket provider) rows - AC #1's proof now also covers the declared-length-under-header bound explicitly, and AC #3's proof now also covers the Spawn error path explicitly, both previously implied but untested.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -594,6 +635,40 @@ Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
 Everything else checked out: the two-commit boundary is clean (half A is I/O-free and feature-gate-free; half B is entirely behind local-socket, carrying the crate's one #[expect] plus its test-module twin, both scoped correctly per .claude/rules/sdk.md); the ClientId/ClientKind definitions match TASK-1.42's own plan verbatim (confirmed by reading TASK-1.42's plan directly); server.start's on_demand switch matches doc-2's already-approved row; no new dependency in Cargo.toml or boundaries.toml, and boundaries.toml's existing deny-features still blocks steg-kernel from local-socket; the justfile gap is fixed and CI on the PR's head commit (0b6aacde) shows "test (steg-sdk, local-socket)" actually running and passing under just check; the recorded just check is at the branch head. All the hostile-input cases I could find tests for (oversized length incl. the exact 0xFFFF_FFFF case, truncated/byte-at-a-time frames, two frames in one push, unknown kind tag, bad magic, non-JSON hello, missing field, unknown field ignored, client-newer and server-newer version mismatches both naming both versions, data on an unregistered stream, event name not in the Description) are present and look correct by inspection.
 
 A matching open draft already exists (DRAFT-1, "a named error/edge-case branch needs a test exercising it, not just a happy-path test", filed against TASK-1.39/TASK-1.35) that covers exactly this mistake pattern, so no new rule-change draft was filed for it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T17:09:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T17:12:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff matches the plan.
+
+Second review, head 6e18352 (PR #30). Both Important findings from the prior review (bruk.r2, 0b6aacde) are genuinely fixed:
+
+1. [Bugs/Evidence] crates/sdk/src/wire/frame.rs - Decoder::next_frame's declared-length-under-header bound (HEADER_LEN=5) is now covered by six new tests (declared length 0 and 4 refused as Malformed, 5 accepted as the smallest zero-payload frame, each fed whole and a byte at a time). The worker recorded a deliberate-fault run (temporarily changed the bound to `< HEADER_LEN - 1`) that failed exactly these new tests (exit 101, recorded on the task at 17:03:35), then restored it - real proof the tests can fail.
+
+2. [Bugs/Evidence] crates/sdk/src/local_socket.rs - connect()'s ConnectError::Spawn path is now reached through connect() itself by two new tests in tests/local_socket.rs (autostart:true, nothing listening, binary path nonexistent or non-executable-but-present). Read connect()'s production code (crates/sdk/src/local_socket.rs:131-170): both paths genuinely call Command::spawn() and surface its io::Error via ConnectError::Spawn - not a fabricated-error Display test. The "elapsed < 1s against a 5s connect_timeout" assertion is not flake-prone: spawn() failure (ENOENT/EACCES) is a synchronous syscall failure, not a scheduling-dependent wait.
+
+Both nits from the prior review are addressed with doc comments (Decoder's struct doc, next_frame's doc, Incoming::Malformed's doc, Connection::poll's doc stating the fatal/non-draining convention; connect()'s doc stating the never-wait()s-on-the-child consequence for a long-lived caller), each pinned by a test where one was feasible (next_frame's "repeats forever" test).
+
+CI on PR #30's head (6e18352) is green ("check" workflow, SUCCESS), and the recorded `just check` at this head shows "test (steg-sdk, local-socket)" passing, so the local-socket feature's tests are proven to run under just check (the justfile gap fix, verified at justfile:98-117, and boundaries.toml's steg-sdk allow-list/deny-features, verified unchanged). No new dependency. ClientId/ClientKind, the doc-2 on_demand switch, and the two-commit half A/half B boundary all match the plan, consistent with the prior review's own findings on those points, which I re-checked by reading the diff directly rather than relying on the earlier review's word.
+
+[Nit] crates/sdk/tests/local_socket.rs, binary_that_exists_but_is_not_executable() - writes a uniquely-named temp file via std::fs::write and never removes it; harmless (OS temp dir, unique per process+counter) but a small accumulating leak across test runs.
+
+No findings repeat a mistake from an earlier review of a different task (the one earlier citation, DRAFT-1, already covers this pattern and was already filed), so no new rule-change draft.
 
 ---
 <!-- COMMENTS:END -->

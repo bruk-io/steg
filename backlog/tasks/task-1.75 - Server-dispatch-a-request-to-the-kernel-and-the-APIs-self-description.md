@@ -1,13 +1,14 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:58:00Z'
+updated_date: '2026-11-15T17:10:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -22,8 +23,10 @@ asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r5
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -946,6 +949,29 @@ created: 2026-11-15T16:58:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T17:10:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, rust. The diff does not match the plan.
+
+[Compliance, Important] crates/server/src/dispatch/tab.rs:44 (`new`): tab.new's own description declares a `position` flag ("Where among its siblings the new tab goes. Defaults to the end" - crates/sdk/src/description/methods.rs:410-415), and doc-2 section 8 lists --position on `tab new`. The arm never reads it: it resolves cwd/program, label and focus, then calls tree.new_tab(session_id, label), which always appends at the end. tab.new --position 1 answers success with the new tab's id, but the tab lands at the end regardless of what was asked. This is not a not-yet case: Tree::move_tab already exists and tab.move's own arm already composes it with the same wire_position_to_index conversion, so new_tab-then-move_tab is available today. The plan's own re-applied test ("does the method's own returns/documented effect imply the flag's effect took hold? If yes and the kernel cannot honour it, refuse") was applied to --cwd/program, --force and session.new --focus, but position on tab.new is not on that list and is not among the three disclosed findings in the notes - it is exactly the "success handed back for something that quietly didn't happen" bug the plan's decision 4 was written to prevent for --cwd/program. No test in dispatch.rs calls tab.new with position.
+
+[Rust, Nit] crates/server/src/dispatch/mod.rs: the Context struct, the top-level dispatch function, and a dozen-plus helpers (target_session, resolve_pane_str, pane_mut, wire_position_to_index, etc.) live directly in mod.rs, against .claude/rules/rust.md's "lib.rs and mod.rs hold mod and pub use lines only. Behaviour lives in named modules." The plan itself named this file for this content, so it is not an unplanned departure, but it is worth a line for a later split.
+
+[Bugs, Nit] crates/server/tests/dispatch.rs: every_served_nothing_returning_method_answers_exactly_null and every_served_identifier_returning_method_answers_exactly_one_id_field cover only 3 and 1 of the roughly 14 served Nothing/Identifier-returning arms respectively, despite their "every" names. Not a functional hole - Outcome::into_value's own unit tests already guarantee the shape for every variant - but the test names overclaim what they check.
+
+[Evidence, Nit] crates/server/tests/dispatch.rs: the R115 --no-focus restore tests (pane_split_with_no_focus_restores_the_previous_current_pane, tab_new_with_no_focus_restores_the_previous_current_tab/tab_new_with_no_focus_leaves_the_original_tab_current) only run against a fresh tree with one pane/tab, so the split's target is trivially also the tab's current pane, and the session's current tab is trivially its only one. The harder cases (splitting a pane that is not current; a session whose current tab is not its first) are correct by inspection - pane::split reads find_tab(tree, tab_id).current() and tab::new reads session.current_tab(), never the target - but neither is exercised by a test.
+
+Verified directly: every served method's arm checked individually against doc-2 section 8 and the sdk's own declared params for session (8/8 verbs), tab (8/8, partial), pane (13/13, partial) and api (3/3) - the tab.new finding above is the only parameter accepted by validate and then silently unacted on; every other declared flag on every served or partially-served method is either read and acted on, or is one of the plan's disclosed no-op cases (--force on *.close, session.new --focus/--no-focus). Positions: session.move and tab.move both convert correctly (1 -> kernel 0, tested; 0 -> BadRequest with no kernel call, tested for session.move and at the shared wire_position_to_index level for both). Completeness both ways: verified empirically, not just by reading the test - removed ("session","show") from session::HANDLED in a scratch edit, reran the completeness test, got the expected two-sided mismatch failure; separately added a bogus ("session","bogus") entry, reran, got the expected reverse-direction failure; reverted both (worktree clean). api.call: validated as refusing itself, refusing a missing/non-string target, and recursing through the same dispatch/validate path a direct call would take (byte-for-byte match test for pane.split; same BadRequest for an unknown inner method as a direct call gets), so it cannot reach anything a direct call could not. Kernel error mapping: exhaustive over all 13 variants steg_kernel::Error has on origin/main today, no wildcard arm, confirmed by reading kernel_error.rs directly - not missing any current variant. Of the four parallel tasks named, task-1.40 and task-1.42 each add kernel::Error variants this match does not yet cover (task-1.40: ProgramAlreadyStarted, ProgramNotStarted, ProgramStillRunning, ShellCannotRestart; task-1.42: ClientNotFound, ClientNotViewingPane, ClientNotViewingTab) - expected per the review brief, not a finding, but whichever of those merges first will break steg-server's build here until map_kernel_error is extended. Refusals create nothing: verified for session.new/tab.new/pane.split given cwd or program, and for pane.split given an invalid label (rolls back the split and the tab's current pane) - each checked before any Tree mutation in the source, and asserted by dedicated or table-driven tests comparing the whole tree/session/tab before and after. Typed results: Outcome's 9 variants match exactly what this task's arms produce, no unused variant. Evidence: just check recorded at commit ecad31448c56, which is HEAD; PR #33's CI ("check") is SUCCESS on that same SHA.
+
+plan-matched is "no": the plan's file list does not name crates/server/src/dispatch/api.rs (it put api.list/show/call's handling under mod.rs in the plan text) - a real new file beyond what was named, though it holds exactly what the plan described logically. Also disclosed in the notes: the completeness and kernel-error tests live beside their own code in src/dispatch/ rather than in tests/dispatch.rs as the plan's file list named, for a documented reason (HANDLED/NOT_YET_NOUNS are #[cfg(test)]-private). Both are departures the notes explain, not undisclosed ones, so neither is counted as the Important finding above, but the instructions call for "no" on any departure.
 
 ---
 <!-- COMMENTS:END -->

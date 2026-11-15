@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:04:00Z'
+updated_date: '2026-11-15T17:13:00Z'
 labels:
   - size-3
   - changes-requested
@@ -24,7 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '571c32803ab2'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
 ---
@@ -591,6 +591,50 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 29, 29 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T17:05:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at f9ec80092e2a:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 35, 34 without the Asdlc-Worker trailer.
+
+Fixed all five findings from @bruk.r1's review.
+
+1 (Important). connecting_viewing_declaring_and_disconnecting_never_change_focus was rebuilt as connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus: two sessions, each with two tabs of two panes (splitting makes the new pane current and a new tab becomes its session's current tab, so the deliberately-unfocused target - tab_a1's first pane - needed no extra focus call of its own). The client views and acts on a1_first, which is neither session A's current tab (tab_a2 is) nor tab_a1's own current pane (its second pane is, from the split). A whole_focus() helper captures every session's current tab and every tab's current pane across both sessions, compared after each of connect_client, view_pane, declare_size, note_input, stop_viewing and disconnect_client. Proved it bites: added `let _ = self.focus_pane(pane);` inside view_pane, ran `asdlc record-check -- just test` (recorded, exit 101, failed exactly at "after view_pane"), then reverted it and confirmed `just test` passes clean again.
+
+2 (nit). Added note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size.
+
+3 (nit). Added reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size: b becomes latest via note_input (never declares), a then disconnects, and reapply_latest's "no declared size" branch is hit directly - asserts an empty Vec<SizeChanged> and the tab's size unchanged.
+
+4 (nit). Added closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it and closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab: two clients, each viewing a different tab of one session; one test closes the whole session, the other closes just one tab (session survives). Both assert nothing is left naming a gone pane or tab, and that the staying client (in the tab-close case) still correctly views the session.
+
+5 (nit). stop_viewing's doc comment now says what the code does - it unconditionally recomputes and reapplies the session's latest, not only when the client's last attachment in that session is gone - and says why that's correct (reapply_latest's own equal-size guard makes the extra calls a no-op, and losing even one attachment can change which tabs the latest client views).
+
+No plan changes. Checks recorded: the failing `just test` proving finding 1 bites; `just check` (full suite) after all fixes, both before and after merging the latest origin/main (board-only changes, no code conflicts from TASK-1.40/1.70/1.74). CI on PR #29 passed at the new head.
+
+Updated clause list (adds to the previous notes' mapping):
+- AC #1 "focus never changes": connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus (rebuilt, proven to bite).
+- AC #3 "terminal takes the latest's declared size" (no-op cases): note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size, reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size.
+- Cleanup on close (two distinct tabs/clients): closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it, closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -634,6 +678,34 @@ Findings: 1 Important, 4 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/kernel/src/tree.rs:1029-1055 stop_viewing's doc comment says it recomputes the session's latest client only "if that leaves the client viewing nothing else in pane's session," but the code (line 1054) calls reapply_latest unconditionally. Harmless (the equal-size guard in reapply_latest makes the extra calls a no-op), but the comment doesn't describe what the code does.
 
 Everything else checked clean: ClientId/ClientKind mirror SessionId/PaneKind with full wire forms and round-trip tests, malformed ids are rejected via Result not panic; the activity tick is a private kernel counter advanced only by declare_size/note_input (view_pane never ticks, so viewing alone never makes a client latest) and ties cannot occur since each tick is minted once from one incrementing u64; declare_size bypasses the floor unconditionally while split_pane's own floor check is untouched by this diff; SizeChanged.panes matches Layout::leaf_sizes and SizeChanged.viewers lists every attached client, both asserted directly; set_tab_size and Tab::set_size narrowed to pub(crate) with no caller outside the kernel crate; Tab::size() added as a public read-only getter. just check passes at the branch head (b99b850), matching the recorded evidence and PR #29's green CI run on the same SHA.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:07:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:13:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Reviewed at head f9ec800 (PR #29, CI green at that exact SHA). Diff against b99b850 (prior review head) is crates/kernel/src/tree.rs only; read it in full, line by line.
+
+All four nits from the prior review are fixed with real outcome assertions, not just call checks: note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size; reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size; closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it and closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab; stop_viewing's doc comment now matches its unconditional reapply_latest call.
+
+The prior Important finding (the focus test was structurally unable to fail: one tab, one pane) is genuinely fixed for pane-level focus: the rebuilt connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus uses two sessions, each with two tabs of two panes, deliberately unfocuses the pane the client acts on, and the worker's recorded run (injecting `focus_pane` into view_pane, exit 101, failure at "after view_pane", then reverted) is honest proof that this half of the check bites.
+
+[Bugs, Important] crates/kernel/src/tree.rs:2236 (helper `whole_focus`, :2222) The new helper's own doc comment claims to capture "every one of tree's sessions' current tab and every tab's current pane," but its body only yields `(session.id(), tab.id(), tab.current())` for every tab - it never calls `session.current_tab()`. Session-level current-tab is a distinct, separately-set field (session.rs:27, set via Tree::focus_tab/focus_pane -> Session::set_current_tab), not derivable from tab.current(). The plan's own PROOF section for this test says it "asserts the tree's focus path (current_tab, current_pane) is unchanged throughout" - decision-5 point 1 makes that path session -> current tab -> current pane, so leaving current_tab out of the captured state asserts only half the path, every time. I confirmed this bites: injecting a fault into view_pane that calls session.set_current_tab (moving session_a's current tab from tab_a2 to tab_a1, touching no tab's current pane) left the test passing unchanged (cargo test -p steg-kernel, not a recorded just-test check - a probe only, reverted after). This is the same shape of gap the prior review found (a test for this exact invariant that cannot detect a real class of the violation it claims to rule out), now on the other half of the focus path; the worker's own recorded failing run only exercised the pane-level half.
 
 ---
 <!-- COMMENTS:END -->

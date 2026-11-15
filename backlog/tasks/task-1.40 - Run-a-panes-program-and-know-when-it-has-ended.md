@@ -1,13 +1,14 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:58:00Z'
+updated_date: '2026-11-15T17:11:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -22,8 +23,10 @@ asdlc_branch: task-1.40-run-a-pane-s-program-and-know-when-it
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r4
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=4'
+asdlc_review_policies: ["review", "rust", "licence"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -453,6 +456,31 @@ created: 2026-11-15T16:58:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T17:11:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 4 nit. Cites: review, rust, licence. The diff does not match the plan.
+
+[Bugs, Important] crates/server/src/pane.rs:270-304 (spawn_relay): when the pane's worker thread is gone while the relay thread is reading - e.g. a pane shut down via PaneHandle::shutdown() (reached by `pane close --force`, doc-2 section 9) while its program is still producing output - `commands.send(PtyBytes(...))` fails and the thread returns immediately without ever calling `child.wait()`. Confirmed empirically: starting a real `sh -c 'sleep 2; echo done'` and calling `handle.shutdown()` while it runs leaves the child as `<defunct>` (a zombie) in `ps`. When the program instead prints nothing before shutdown (e.g. `sleep 1000`), the same thread stays blocked in `reader.read()` forever - a leaked thread, not just a leaked zombie. The plan deliberately excludes *killing* a running program on close ("--force killing a running program" is named as out of scope), but reaping its exit status and ending the relay thread is a different, in-scope property - the relay thread's own stated job is exactly "waits for the exit code... then ends" - and this path silently drops both.
+
+[Compliance, Important] crates/server/Cargo.toml, boundaries.toml: `anyhow` is added as a new direct dependency of steg-server and to boundaries.toml's allow-list, but the plan's "Dependency" section names only `portable-pty = "0.9"`, and the task's own review brief says "the new dependency: portable-pty only." The implementation notes' "Refinements from the plan's exact wording" section lists two refinements and does not mention adding anyhow as one of them; it appears only inside the file-manifest sentence, never framed as a departure. Per policy, "a departure from the plan is a finding unless the task's notes say what changed and why" - this one isn't said.
+
+[Evidence, Nit] No test exercises the plan's central ENOENT claim ("a bad command... is a plain Result here, never something that has to escape a spawned thread"): FakeLauncher always succeeds, and real_pty.rs never spawns a nonexistent binary. I verified by hand that `steg_server::start` with a nonexistent argv does return `Err(Error::Pty(_))` synchronously, so the claim holds, but nothing in the PR proves it.
+
+[Rust, Nit] crates/server/src/error.rs: `Error::Pty(anyhow::Error)`'s `source()` returns `None`. `.claude/rules/rust.md` wants a library error's cause kept as its `source()`; the comment's reason (anyhow::Error isn't std::error::Error) is accurate but the cause still isn't reachable except via Display.
+
+[Licence, Nit] The task's notes never name the licences of the seven new crates portable-pty (0.9.0, MIT), anyhow (1.0.104, MIT/Apache-2.0), nix (0.28.0, MIT), serial2 (0.2.39, BSD-2-Clause/Apache-2.0), shell-words (1.1.1, MIT/Apache-2.0), shared_library (0.1.9, Apache-2.0/MIT) and cfg_aliases (0.1.1, MIT) - all permissive, none GPL/AGPL, `just deny` passes - which the Licence pass calls a Nit when unnamed on the task.
+
+[Tests, Nit] No bound on how long a real-pty test, or the CI job itself, can run: real_pty.rs's waits are all unbounded `events_rx.recv()`, and .github/workflows/ci.yml's `check` job sets no `timeout-minutes`, so a misbehaving child would hang the job up to GitHub's 360-minute default on a macOS runner this file itself calls "billed at a premium."
+
+Evidence checked: just check (format, lint, boundaries, licences, affected+per-package tests, architecture, recipe names) run clean on this worktree at the branch head (78c897c80feb), matching the recorded check and PR #32's green CI run on the same commit. just deny passes; boundaries.toml's new allow entries have true reasons. crates/kernel/clippy.toml and crates/sdk/clippy.toml are unchanged - no new I/O exemption in the kernel, and no process/file/socket/clock type appears in any kernel or sdk signature. Kernel tests cover starting twice (errors), recording an exit before starting (errors), restart only once Ended and never for a Shell pane, and a shell pane's exit cascading through the exact tree used by a manual close, on a one-pane-tab/one-tab-session fixture (a_shell_panes_exit_closes_it_through_the_same_cascade_as_a_manual_close). Program/ProgramStatus have wire-form round-trip tests, including a negative exit code. Ran crates/server/tests/real_pty.rs five times in a row with no failures and no sleep-based waits (all blocking recv on the event the real program or a real EOF triggers). No unwrap outside tests; errors from send-to-a-dropped-receiver are handled with map_err, not a panic.
 
 ---
 <!-- COMMENTS:END -->

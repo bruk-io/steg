@@ -525,6 +525,51 @@ Check passed: `just test` exited 0 at 2026-11-15T23:52:17+00:00 in /Users/brukha
 ```text
 ok      tests (-p steg -p steg-kernel -p steg-server) (6.9s)
 ```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T23:52:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test tree::tests::view_pane_is_idempotent_and_rejects_an_unknown_pane ... ok
+test tree::tests::viewing_alone_never_makes_a_client_latest ... ok
+test tree::tests::viewing_follows_from_attachment_not_a_separate_setter ... ok
+test terminal::tests::the_line_limit_governs_even_past_the_engines_disabled_byte_limit ... ok
+
+failures:
+
+---- pane::tests::note_command_ended_with_no_preceding_start_is_ignored stdout ----
+
+thread 'pane::tests::note_command_ended_with_no_preceding_start_is_ignored' (15553594) panicked at crates/kernel/src/pane.rs:924:9:
+assertion `left == right` failed
+  left: Ended(Failed { exit_code: 5 })
+ right: Ignored
+
+---- pane::tests::note_command_ended_twice_in_a_row_the_second_is_ignored stdout ----
+
+thread 'pane::tests::note_command_ended_twice_in_a_row_the_second_is_ignored' (15553590) panicked at crates/kernel/src/pane.rs:936:9:
+assertion `left == right` failed
+  left: Ended(Failed { exit_code: 7 })
+ right: Ignored
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- tree::tests::note_command_ended_through_the_tree_with_no_preceding_start_is_ignored stdout ----
+
+thread 'tree::tests::note_command_ended_through_the_tree_with_no_preceding_start_is_ignored' (15553821) panicked at crates/kernel/src/tree.rs:1920:9:
+assertion `left == right` failed
+  left: Ended(Failed { exit_code: 5 })
+ right: Ignored
+
+
+failures:
+    pane::tests::note_command_ended_twice_in_a_row_the_second_is_ignored
+    pane::tests::note_command_ended_with_no_preceding_start_is_ignored
+    tree::tests::note_command_ended_through_the_tree_with_no_preceding_start_is_ignored
+
+test result: FAILED. 320 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/tests-p-steg-p-steg-kernel-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

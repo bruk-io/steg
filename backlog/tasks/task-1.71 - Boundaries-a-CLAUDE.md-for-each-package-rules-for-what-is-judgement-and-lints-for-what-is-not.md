@@ -3,9 +3,11 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
+updated_date: '2026-11-15T03:00:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -15,6 +17,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.71-boundaries-a-claude-md-for-each-package
 ---
 
 ## Description

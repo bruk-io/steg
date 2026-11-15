@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:40:00Z'
+updated_date: '2026-11-15T02:48:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -82,6 +82,17 @@ ok      boundaries (0.2s)
 ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T02:48:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-run-just-check-on-every-pull-request at 923b7794ce30:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (1.1s)
+skip    tests: this change touches no crate
+ok      tool tests (0.3s)
 ```
 <!-- SECTION:NOTES:END -->
 

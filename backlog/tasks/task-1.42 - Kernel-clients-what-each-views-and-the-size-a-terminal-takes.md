@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:05:00Z'
+updated_date: '2026-11-15T17:07:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=4'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -677,6 +678,15 @@ Findings: 1 Important, 4 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/kernel/src/tree.rs:1029-1055 stop_viewing's doc comment says it recomputes the session's latest client only "if that leaves the client viewing nothing else in pane's session," but the code (line 1054) calls reapply_latest unconditionally. Harmless (the equal-size guard in reapply_latest makes the extra calls a no-op), but the comment doesn't describe what the code does.
 
 Everything else checked clean: ClientId/ClientKind mirror SessionId/PaneKind with full wire forms and round-trip tests, malformed ids are rejected via Result not panic; the activity tick is a private kernel counter advanced only by declare_size/note_input (view_pane never ticks, so viewing alone never makes a client latest) and ties cannot occur since each tick is minted once from one incrementing u64; declare_size bypasses the floor unconditionally while split_pane's own floor check is untouched by this diff; SizeChanged.panes matches Layout::leaf_sizes and SizeChanged.viewers lists every attached client, both asserted directly; set_tab_size and Tab::set_size narrowed to pub(crate) with no caller outside the kernel crate; Tab::size() added as a public read-only getter. just check passes at the branch head (b99b850), matching the recorded evidence and PR #29's green CI run on the same SHA.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T17:07:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.42: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

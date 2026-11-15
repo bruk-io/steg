@@ -1,11 +1,11 @@
 ---
 id: TASK-1.48
 title: 'Server: remember settings changed from the palette'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-15T20:25:00Z'
 labels:
   - size-2
   - review-passed

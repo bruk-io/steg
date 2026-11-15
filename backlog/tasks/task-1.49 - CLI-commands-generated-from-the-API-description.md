@@ -4,12 +4,13 @@ title: 'CLI: commands generated from the API description, in the steg package'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:34:00Z'
+updated_date: '2026-11-15T20:03:00Z'
 labels:
   - size-4
 milestone: m-0
 dependencies:
   - TASK-1.45
+  - TASK-1.77
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -31,3 +32,9 @@ doc-2, sections 2 to 6 and 8: R32, R34. decision-4. Nothing in the CLI names a m
 - [ ] #5 A list is tab-separated with full identifiers, no header and no alignment, the same piped or not
 - [ ] #6 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Dependency added by @bruk.o 2026-11-15: TASK-1.77 adds the steg entry point for server start and starting a server on demand, which the generated CLI needs to reach a server at all and must keep as its one hand-written case.
+<!-- SECTION:NOTES:END -->

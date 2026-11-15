@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:39:00Z'
+updated_date: '2026-11-15T20:41:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -621,6 +621,30 @@ ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.3s)
 ok      tool tests (1.3s)
 ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:41:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at d7a4dea56426:
+
+```text
+ok      format check (0.1s)
+ok      lint (3.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (8.9s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (1.2s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (1.0s)
+ok      test (steg-server) (5.0s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.5s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.4s)
+ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

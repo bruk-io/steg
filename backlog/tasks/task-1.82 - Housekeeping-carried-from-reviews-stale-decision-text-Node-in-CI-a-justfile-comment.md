@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-15T20:27:00Z'
+updated_date: '2026-11-15T22:41:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -29,3 +29,9 @@ Small things reviews and workers noted that belong to no open task. Decision rec
 - [ ] #2 CI pins the Node version the LikeC4 check runs on
 - [ ] #3 The justfile comment above zig-deps-seeded says what the recipe does now
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Added by @bruk.o 2026-11-15: the LikeC4 MCP smoke test in tools/ has timed out in CI on two unrelated pull requests (TASK-1.40's and TASK-1.76's), green on re-run each time. Find why it is slow or flaky on the runner and bound or fix it; a check that fails at random teaches people to re-run failures.
+<!-- SECTION:NOTES:END -->

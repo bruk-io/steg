@@ -3,16 +3,19 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:33:00Z'
+updated_date: '2026-11-15T03:34:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.69
+references:
+  - task-1.71-boundaries-a-claude-md-for-each-package
+  - https://github.com/bruk-io/steg/pull/17
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -721,6 +724,85 @@ ok      test (steg-app) (0.3s)
 ok      tool tests (0.2s)
 ok      architecture (0.8s)
 ```
+
+Built per the approved plan, with two things not in the plan's own file-change
+list but confirmed by the plan's own prose (both engineer-approved): the
+justfile `lint` recipe gained `--all-features`, and `packages` joined `check`.
+Both were measured and demonstrated before relying on them, as recorded below.
+
+AC#1 (sdk/kernel I/O fails just lint, mechanism named, reason in the message):
+proved by two recorded demonstrations, each added-then-reverted - a deliberate
+`std::fs::File` use in crates/kernel/src/lib.rs, and the same in
+crates/sdk/src/lib.rs. Each failed `! just lint` with clippy's
+`disallowed_types` message naming "doc-16 R110: no file I/O in the
+<crate>", then passed `just lint` again after revert. The mechanism
+(`clippy::disallowed_types`/`disallowed_methods`, configured in
+`crates/{kernel,sdk}/clippy.toml`) also covers socket, process and clock
+paths, visible directly in those two files - not separately demonstrated
+live, since it's the same clippy mechanism on a different path each time.
+"An async runtime" is covered by the pre-existing `boundaries.toml`
+dependency-name check (neither crate may depend on `tokio` at all), unchanged
+by this task, so not re-demonstrated here.
+
+AC#2 (kernel turning on the sdk's optional part fails just boundaries, with a
+tools/tests test): the declaration half - recorded `! just boundaries` failing
+when `crates/kernel/Cargo.toml` adds `features = ["local-socket"]` to its
+`steg-sdk` dependency, naming doc-16 R105 in the message, then passing again
+after revert. Unit tests: `test_a_denied_feature_declared_on_the_edge_is_a_violation`,
+`test_default_features_on_a_denied_dependency_is_a_violation`, and others in
+`tools/tests/unit/test_boundaries.py`, run via recorded `just test-tools`.
+The complementary use half (kernel's own source compiling against the sdk's
+optional parts only because some other workspace member turned the feature
+on, which the declared-edge check can't see) - recorded `just build` passing
+and `! just packages` failing on exactly that, reverted after. `just packages`
+now joins `just check`.
+
+AC#3 (every refusal names the requirement and why): visible in every
+recorded failure above - clippy prints the configured `reason` string
+("doc-16 R110: ..."), and `just boundaries`'s `FeatureViolation`/`Violation`
+messages print the crate's `reason` from `boundaries.toml` ("doc-16 R105
+..."). `format_feature_violation`/`format_violation` have their own unit
+tests asserting the crate, dependency, feature and reason are all present.
+
+AC#4 (CLAUDE.md per package, none restates a lint): `crates/{sdk,kernel,
+server,steg,app}/CLAUDE.md` added - what/depends/tests/doc-16 pointer each.
+Tests are stated as `just test`/`just packages`, not `cargo test -p`, per
+root CLAUDE.md's "commands go through just, never cargo directly" - a
+departure from the plan's literal wording, not its intent. Checked with
+`grep -rn -i "clippy\|disallowed" crates/*/CLAUDE.md`: no match, so none
+restates a lint.
+
+AC#5 (.claude/rules/ carries judgement, scoped by paths; lint-covered lines
+replaced in architecture.md): new `.claude/rules/{sdk,kernel,server}.md`,
+each `paths`-scoped to its one package. `architecture.md`'s old "no sockets,
+no files, no clock, no process spawning" enumeration is replaced by a bullet
+naming `clippy::disallowed_types`/`disallowed_methods` and the two
+`clippy.toml` paths; the dependency-table bullet names `just packages` as
+the use-side half of the same boundary. Recorded `just check` passing after
+this edit.
+
+AC#6 (plan lists what the plugin's layer rules should become): on the task's
+plan already (re-verified against origin/main's current, already-republished
+plugin content, not the stale snapshot the plan's first draft was written
+against). Nothing in `plugins/bruk-io-steg` touched in this worktree -
+confirmed with `git diff --stat HEAD -- plugins/` showing no changes.
+
+Known consequence worth flagging, not fixed here: moving "the server... never
+keeps a copy it treats as the truth" out of `architecture.md` (into the new
+`server.md`) changes which file holds it. An active decision record
+(decision-2) and an archived spike (task-1.2) cite
+"`.claude/rules/architecture.md:11`" by file and line for that exact
+sentence. The sentence still exists verbatim, now in `.claude/rules/
+server.md` (also, coincidentally, line 11), but the citations' file path is
+now wrong. Decision records are only hand-edited through their own PR per
+team convention, so not changed from this worktree - flagging for whoever
+next touches decision-2.
+
+Every check above was recorded through `asdlc record-check`, including the
+demonstrations that were reverted. `just check` recorded clean before any
+change, after the clippy.toml/justfile changes, after the Python/boundaries.toml
+changes, after the CLAUDE.md and rules changes, and once more after rebasing
+onto origin/main just before pushing.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

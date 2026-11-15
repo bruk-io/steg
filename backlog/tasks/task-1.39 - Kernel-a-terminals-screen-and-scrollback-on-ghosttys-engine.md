@@ -383,6 +383,36 @@ ok      test (steg) (0.3s)
 ok      build (steg-app) (0.5s)
 ok      test (steg-app) (0.7s)
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T14:50:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39 on task-1.39-kernel-a-terminal-s-screen-and at edbe7af2c6e6 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.1s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39/crates/kernel/src/terminal.rs:127:
+             Ok(len) => Ok(Some(uri_from_bytes(&buf[..len]))),
+             Err(ghostty_vt::Error::OutOfSpace { required }) => {
+                 let mut grown = vec![0u8; required];
+[31m-                let len = grid_ref
+(B[m[31m-                    .hyperlink_uri(&mut grown)
+(B[m[31m-                    .map_err(Error::Engine)?;
+(B[m[32m+                let len = grid_ref.hyperlink_uri(&mut grown).map_err(Error::Engine)?;
+(B[m                 Ok(Some(uri_from_bytes(&grown[..len])))
+             }
+             Err(other) => Err(Error::Engine(other)),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39/crates/kernel/src/terminal.rs:352:
+     };
+     // `after_scheme` is `<host>/<path>`; `split_once` consumes the
+     // separating `/`, so it is put back in front of the decoded path.
+[31m-    let path = after_scheme.split_once('/').map_or("", |(_host, path)| path);
+(B[m[32m+    let path = after_scheme
+(B[m[32m+        .split_once('/')
+(B[m[32m+        .map_or("", |(_host, path)| path);
+(B[m     format!("/{}", percent_decode(path))
+ }
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

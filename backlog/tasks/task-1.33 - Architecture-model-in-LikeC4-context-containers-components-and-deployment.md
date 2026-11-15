@@ -1,13 +1,14 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:04:00Z'
+updated_date: '2026-11-15T03:09:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-0
 dependencies: []
 references:
@@ -21,8 +22,10 @@ asdlc_branch: task-1.33-architecture-model-in-likec4-context
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7ade241dd954'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -239,6 +242,27 @@ created: 2026-11-15T03:04:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.33: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:09:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Evidence, Important] Task notes: "Also proved by hand, not recorded as a check: deliberately broke architecture/models/steg/steg.c4, confirmed `just check` fails (AC #5), restored it, confirmed `just check` passes again." The approved plan's own proof for AC #5 requires the failing run to be "recorded on the task," matching review.md's Evidence rule verbatim ("a proof step the plan or an acceptance criterion calls for that the notes describe but no recorded run shows, even when it was a demonstration meant to be reverted"). Only a prose description exists; no recorded check run shows the failure.
+
+[Evidence, Important] The plan's proof for AC #6 requires every element's title to be "listed against its source in the build notes." No such listing appears anywhere in the task's implementation notes - AC #6 is asserted done but its required evidence is entirely absent.
+
+[Compliance, Important] The approved plan's "Consequences" section commits to updating plugins/bruk-io-steg/commands.toml's [check].needs (to add Node.js/npx) and re-stamping its verified date "as part of this task's build." The diff does not touch commands.toml; it is deliberately left stale (needs still omits Node, verified still reads the pre-change 2026-11-14). The notes attribute this skip to "the engineer's instruction," but no such instruction is recorded anywhere on the task (its only comments are the plan approval and this review's claim) - an unrecorded, unverifiable departure from an explicit, already-approved plan commitment. commands.toml now misdescribes what `just check` requires on a clean checkout.
+
+[Compliance, Nit] .github/workflows/ci.yml's new setup-node step comment claims node-version "24.22.0" is "matching the local pin," but the repository has no .nvmrc/.node-version/mise.toml - there is no local pin to match.
+
+Checked and clean: the model's elements and edges exactly match doc-16's Level 1-3 tables (7 dependency edges = doc-16's 6 "may depend on" rows with stegPkg -> sdk correctly duplicated across server and cli; no extra elements or edges); AC #2's shared-component duplication is correct; the deployment and dynamic views match doc-16's deployment section and decision-5's R88 concern; the actions/setup-node SHA (949feb2413d6458794dcd2491c4babbbce0c15c1) verified against GitHub's v7.1.0 tag; the ci.yml addition does not textually or semantically conflict with PR #12 (disjoint regions of the file, ~40 lines apart); size-2 plan approval is recorded (@bruk, 7ade241dd954); the three recorded `just check` runs are on this branch, the final one at the branch's current HEAD (af41e24) with no uncommitted changes.
 
 ---
 <!-- COMMENTS:END -->

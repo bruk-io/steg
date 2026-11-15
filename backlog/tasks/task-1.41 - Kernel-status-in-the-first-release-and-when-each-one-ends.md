@@ -386,3 +386,15 @@ merged. No behavioural change, comment-only.
   it, `just check`'s `cargo clippy -D warnings` fails on the first test that needs a real
   `Instant`, since std gives no other way to construct one.
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-15T19:34:00Z
+
+---
+
+Plan written. One open question blocks half of AC #1, needs the engineer's decision before build: ghostty-vt 0.8 (the exact vendored dependency) does not surface a prompt-marked command's exit code anywhere in its safe Rust API (verified by reading ghostty-vt-sys's bindings.rs, which has the data behind an OPT_SEMANTIC_PROMPT callback the safe ghostty-vt crate never wires, and ghostty-vt's own terminal.rs Event enum, which has no such variant). That blocks Finished/Failed for a command typed at a shell prompt (the Program::Shell half of AC #1) - a vendored-dependency gap, not a kernel design choice, and not something to work around with a hand-rolled OSC 133 parser. Program::Command panes, and AC #2 and #3 in full, are unaffected and planned in full below. Two options for the engineer, both outside this task's own scope to decide: descope the Shell-prompt clause to a follow-up task against the ghostty-vt dependency, or make wiring that callback a prerequisite of this one. See the plan for the full writeup and reasoning.
+
+---
+<!-- COMMENTS:END -->

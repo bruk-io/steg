@@ -1,13 +1,14 @@
 ---
 id: TASK-1.36
 title: 'Kernel: the layout tree: split, close, resize, swap, move and fill'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:30:00Z'
+updated_date: '2026-11-15T04:38:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.35
@@ -22,8 +23,10 @@ asdlc_branch: task-1.36-kernel-the-layout-tree-split-close
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc26154daf58'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -278,6 +281,27 @@ created: 2026-11-15T04:30:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.36: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:38:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Bugs/Evidence, Important] crates/sdk/src/layout.rs (bordering_split_ref/bordering_split_path/inherited_size_at) and the resize_pane path in crates/kernel/src/tab.rs: the plan's own notes say the worker fixed a mid-build bug in bordering_split finding the nearest (innermost) ancestor split of the right orientation rather than the outermost one. I traced the recursive logic by hand and confirmed it is correct even three levels deep with the same orientation repeated (outer{mid{inner{A,B},C},D}, A's Right border correctly resolves to the inner A|B split, not mid or outer), but no test in layout.rs, tab.rs or tree.rs builds a tree with more than two levels of the same orientation nested. The one scenario that is explicitly known to have been buggy is exactly the one with no regression test guarding it.
+
+[Compliance/Evidence, Important] crates/kernel/src/tree.rs move_pane_to_tab: the plan states this is "atomic — either both halves happen or neither does," checking the target's floor before anything is removed from the source tab. The code does check the floor first (lines ~466-474, before remove_pane_for_move), which I confirmed by inspection is ordered correctly, but there is no test that triggers a SplitTooSmall refusal on a move and then asserts both the source and target tabs are unchanged. AC #3 ("swap and move to another tab keep the tree valid") and the review brief both call this out by name; the failure path for a move is wholly untested.
+
+[Bugs, Nit] crates/kernel/src/tab.rs clamp_ratio_to_floor / resize_pane: resize_pane_stops_exactly_at_the_floor_instead_of_going_below_it only exercises the downward clamp (a too-high ratio clamped down). I added a temporary probe test confirming the upward clamp (a too-low ratio, e.g. 50 permille on a 100-column split, clamps up to 200) and the "requested ratio already satisfies the floor, with a known size, is returned unchanged" branch both work correctly, but neither is in the shipped test suite, so a regression in either branch would go uncaught.
+
+[Bugs, Nit] crates/kernel/src/tab.rs close_pane / remove_pane_for_move: the current-pane repair ("set current to the first entry of layout.leaves() for whatever now occupies its place") is only tested when the promoted sibling is a single leaf. No test closes the current pane when its sibling is itself a multi-leaf split, which is the case the "first entry of... whatever now occupies its place" wording specifically exists for.
+
+Everything else checked out. AC #1-#6 each have a specific test behind every clause, including both floor dimensions (split_pane_is_refused_when_the_undivided_dimension_is_already_under_the_floor) and the subtree-scoped resize floor (an_unrelated_already_under_floor_pane_does_not_block_a_resize_elsewhere). R112's panes()/layout.leaves() sync is enforced by one helper (reorder_panes_to_match_layout) and guarded by a debug_assert on every path that leaves a tab non-empty. R113's neighbour/far_edge_pane geometry uses exact Fraction cross-multiplication with no floating point anywhere, and I verified the tie-break and the diagonal/tall-pane cases named in the plan by reading the code and the existing tests. Tree::new_pane/Tab::add_pane are fully removed with no remaining callers (confirmed by git grep); target.rs's resolve functions were updated for the new split_pane-based API and still pass. just check (fmt, lint, boundaries, licences, affected tests, per-package build/test, tool tests, architecture) passes cleanly when run directly against the PR's head commit a41ec39, matching the PR's own CI run (43677018327, SUCCESS) on that same commit; the task's two recorded `just check` runs were made against local worktree commits that, by timestamp, bracket the final "Format target.rs" commit correctly (the second recorded check's timestamp postdates that commit by about 13 seconds), so the recorded evidence is not stale despite the differing commit hashes (expected from the worktree-to-pushed-branch rebase).
 
 ---
 <!-- COMMENTS:END -->

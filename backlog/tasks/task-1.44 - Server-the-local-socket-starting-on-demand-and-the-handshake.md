@@ -732,6 +732,51 @@ test eight_simultaneous_starts_leave_exactly_one_server ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
 ```
+
+Check passed: `sh -c 'for i in 1 2 3 4 5; do cargo test -p steg-server --test shutdown || exit 1; done'` exited 0 at 2026-11-15T21:02:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 55592e06308a with uncommitted changes, last 40 of 55 lines:
+
+```text
+running 4 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.07s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-4f329e528730f187)
+
+running 4 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-4f329e528730f187)
+
+running 4 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-4f329e528730f187)
+
+running 4 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

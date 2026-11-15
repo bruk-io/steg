@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:18:00Z'
+updated_date: '2026-11-15T19:19:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -535,6 +535,51 @@ test result: ok. 221 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fi
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server dispatch::kernel_error` exited 0 at 2026-11-15T19:19:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 41 lines:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-76f729f7c755576f)
+
+running 16 tests
+test dispatch::kernel_error::tests::already_in_tab_maps_to_already_in_tab ... ok
+test dispatch::kernel_error::tests::the_message_is_the_kernel_errors_own_display_text ... ok
+test dispatch::kernel_error::tests::no_split_in_direction_maps_to_no_split_in_direction ... ok
+test dispatch::kernel_error::tests::split_too_small_maps_to_split_too_small ... ok
+test dispatch::kernel_error::tests::panes_not_in_same_tab_maps_to_panes_not_in_same_tab ... ok
+test dispatch::kernel_error::tests::not_found_ids_map_to_no_such_target_with_no_candidates ... ok
+test dispatch::kernel_error::tests::recording_an_exit_with_none_started_or_restarting_a_shell_maps_to_bad_request ... ok
+test dispatch::kernel_error::tests::invalid_label_and_invalid_target_path_map_to_bad_request ... ok
+test dispatch::kernel_error::tests::unknown_setting_maps_to_no_such_target ... ok
+test dispatch::kernel_error::tests::invalid_setting_value_maps_to_bad_request ... ok
+test dispatch::kernel_error::tests::client_not_viewing_pane_or_tab_maps_to_bad_request ... ok
+test dispatch::kernel_error::tests::starting_a_second_program_or_restarting_one_still_running_maps_to_program_running ... ok
+test dispatch::kernel_error::tests::position_out_of_range_maps_to_position_out_of_range ... ok
+test dispatch::kernel_error::tests::client_not_found_maps_to_no_such_target ... ok
+test dispatch::kernel_error::tests::target_ambiguous_maps_to_ambiguous_target_with_the_candidates_ids ... ok
+test dispatch::kernel_error::tests::target_not_found_maps_to_no_such_target_with_the_candidates_ids ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/dispatch.rs (target/debug/deps/dispatch-0966d0aaecb212ef)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+
+     Running tests/program.rs (target/debug/deps/program-89613f7a57fade38)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

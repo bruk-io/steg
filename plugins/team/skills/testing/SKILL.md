@@ -81,3 +81,5 @@ It runs the command, exits with its code, and appends to the task the command, i
 Every proof step the plan or an acceptance criterion calls for is recorded this way, including a demonstration you will revert and never commit, such as showing that a check refuses a disallowed change. Record it while the tree is in that state, then revert. `record-check` records a run on a tree with uncommitted changes, so "nothing was committed" is no reason to describe a run in the notes instead: a reviewer cannot judge a run that was only described.
 
 Done is measured against the task's acceptance criteria, written as things a check can show ("every test in `test_status.py` passes", "the lint command exits 0"). Whether the task closes is decided by its reviewer, not here.
+
+Check a criterion clause by clause before the notes say it is covered. A criterion with two verbs ("a session takes the next colour, and its colour can be changed") needs a test for each, reached the way a caller would reach it. Say in the notes which test proves which clause, and name any clause that has none; "covers every acceptance criterion" as a summary line is a claim nobody can check.

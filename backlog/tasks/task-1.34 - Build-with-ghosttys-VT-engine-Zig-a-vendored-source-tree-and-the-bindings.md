@@ -328,6 +328,17 @@ wait rather than guess at 1.69's exact final diff.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9 (R92), doc-16 and decision-3 by @bruk.o: ok. It found by experiment that vendoring ghostty's source alone does not give an offline build, because Zig fetches three packages of its own, and vendors those too. For the engineer to weigh: about 32 MB added to the repository under third_party/, mise as a new required tool to pin Zig, and the engine as the kernel's one external dependency. To watch in the build: whether resolving Zig in the justfile makes mise a requirement of every recipe, including ones that never build the engine.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:14:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 2cf8439931e7:
+
+```text
+ok      format check (0.1s)
+ok      lint (15.6s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

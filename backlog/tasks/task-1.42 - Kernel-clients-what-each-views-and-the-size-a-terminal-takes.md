@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:13:00Z'
+updated_date: '2026-11-15T17:15:00Z'
 labels:
   - size-3
   - changes-requested
@@ -635,6 +635,14 @@ Updated clause list (adds to the previous notes' mapping):
 - AC #1 "focus never changes": connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus (rebuilt, proven to bite).
 - AC #3 "terminal takes the latest's declared size" (no-op cases): note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size, reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size.
 - Cleanup on close (two distinct tabs/clients): closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it, closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab.
+
+Check passed: `just test` exited 0 at 2026-11-15T17:15:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at 9834110702a1 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (1.4s)
+```
+
+Commits since the review: 14, 12 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

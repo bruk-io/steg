@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:39:00Z'
+updated_date: '2026-11-15T23:50:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -467,6 +467,12 @@ Check passed: `just test` exited 0 at 2026-11-15T23:39:33+00:00 in /Users/brukha
 
 ```text
 skip    tests: this change touches no crate
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T23:50:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-kernel -p steg-server) (4.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

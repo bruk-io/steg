@@ -1,10 +1,11 @@
 ---
 id: TASK-1.41
 title: 'Kernel: status in the first release, and when each one ends'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T19:13:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-11
+asdlc_branch: task-1.41-kernel-status-in-the-first-release-and
 ---
 
 ## Description

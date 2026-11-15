@@ -2218,19 +2218,39 @@ mod tests {
         );
     }
 
-    /// Captures every one of `tree`'s sessions' current tab and every
+    /// Captures every one of `tree`'s sessions' current tab *and* every
     /// tab's current pane - the whole focus state R88/decision-5 point 4
     /// says a client operation must never touch - as one comparable
-    /// value.
-    fn whole_focus(tree: &Tree) -> Vec<(steg_sdk::SessionId, steg_sdk::TabId, steg_sdk::PaneId)> {
+    /// value. R85 is where focus bottoms out: a session's current tab,
+    /// and a tab's current pane. There is no "current session" above
+    /// that for this to also capture - nothing in the kernel designates
+    /// one session as current (that is the app's, per decision-5, not
+    /// the tree's).
+    ///
+    /// Each row is `(session, session's current tab, this tab, this
+    /// tab's current pane)`, one row per tab - not `(session, this tab,
+    /// this tab's current pane)` as an earlier version of this helper
+    /// had it, which never read `session.current_tab()` at all and so
+    /// could not have caught a fault that moved only *that* (the
+    /// session's choice of current tab), only one that moved a tab's own
+    /// current pane.
+    fn whole_focus(
+        tree: &Tree,
+    ) -> Vec<(
+        steg_sdk::SessionId,
+        steg_sdk::TabId,
+        steg_sdk::TabId,
+        steg_sdk::PaneId,
+    )> {
         tree.sessions()
             .iter()
             .flat_map(|session| {
                 let session_id = session.id();
+                let current_tab = session.current_tab();
                 session
                     .tabs()
                     .iter()
-                    .map(move |tab| (session_id, tab.id(), tab.current()))
+                    .map(move |tab| (session_id, current_tab, tab.id(), tab.current()))
             })
             .collect()
     }
@@ -2711,19 +2731,13 @@ mod tests {
         tree.close_pane(first_pane).unwrap();
 
         assert_eq!(tree.client(client).unwrap().viewing(), &[second_pane]);
-        // The closed tab's declared size is gone; redeclaring on the
-        // surviving tab proves there is nothing stale left to reapply
-        // from the closed one.
-        tree.declare_size(client, second_tab, steg_sdk::Size::new(50, 15))
-            .unwrap();
-        assert_eq!(
-            tree.session(session_id)
-                .unwrap()
-                .tab(second_tab)
-                .unwrap()
-                .size(),
-            Some(steg_sdk::Size::new(50, 15))
-        );
+        // `first_tab`'s id is retired for good (ids are never reused), so
+        // nothing in this tree's remaining lifetime could ever ask
+        // `declared_size(first_tab)` again - behaviour alone cannot tell
+        // a purged record apart from a merely-unreachable one. Check the
+        // record directly instead (`Client::declared_size` is
+        // `pub(crate)`, same crate as this test module).
+        assert_eq!(tree.client(client).unwrap().declared_size(first_tab), None);
     }
 
     #[test]
@@ -2737,10 +2751,22 @@ mod tests {
         tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24))
             .unwrap();
 
+        assert_eq!(
+            tree.client(client).unwrap().activity_in(session_id),
+            Some(1),
+            "declare_size above ticked activity for this session once"
+        );
+
         tree.close_session(session_id).unwrap();
 
         assert_eq!(tree.client(client).unwrap().viewing(), &[]);
         assert_eq!(tree.sessions_viewed(client).unwrap(), Vec::new());
+        // The name's other half: `session_id`'s own id is retired for
+        // good, so nothing could ever behaviourally observe a stray
+        // activity record for it either - check it directly, the same
+        // reasoning as `closing_a_tab_drops_its_declared_size_record_
+        // from_every_client`.
+        assert_eq!(tree.client(client).unwrap().activity_in(session_id), None);
     }
 
     #[test]

@@ -1,14 +1,34 @@
 ---
 id: doc-2
-title: CLI specification
+title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T00:48:00Z'
+updated_date: '2026-11-15T01:15:00Z'
 ---
-- Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python"
-- Spec: doc-1. This document is design decision 1 in its section 7, and gives R32 to R35 and R63 their concrete form.
-- Status: draft. Sections 1 to 6 follow Bruk's direction of 2026-11-13. On 2026-11-15 he answered every open point (section 9), under one rule: steg keeps its own grammar and words, and wherever this document had not decided, steg does what Rex does. doc-3 is the record of what was asked.
-- Policy: the team's CLI design skill (`plugins/team/skills/cli-design/`). Where this document is more specific, this document governs.
+- Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
+- One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
+- Rests on: decision-4 (steg's grammar; Rex where undecided), decision-1 (commands are generated from the API description), decision-5 (the client noun and the three focus commands). The decision records are in pull request 5 until it merges.
+- Status: draft. Reorganised from the single spec on 2026-11-15; every requirement here was moved without rewording, except that references to documents since retired now point at the decision records and at doc-10.
+
+## Scope
+
+The `steg` command: its grammar, nouns and verbs, targets, flags, output and exit statuses, and the first release's commands. Sections 1 to 10 below are the specification a builder reads.
+
+## Requirements
+
+These say what the CLI can do. Command names, flags, variable names and exit codes are
+left to CLI design (section 7).
+
+- R32 (M1). The `steg` CLI exposes everything the API exposes. Its commands are generated
+  from the API description, so the two cannot drift.
+- R33 (M1). Inside a steg terminal the CLI acts on that session and pane by default,
+  from context the terminal's environment provides. Anything else can be targeted
+  explicitly.
+- R34 (M1). Output is readable by a person by default and available as JSON. The exit
+  status tells a script apart: success, failure, bad arguments, a missing or ambiguous
+  target, an unreachable server, and an interruption.
+- R35 (M1). The CLI can send text and keys to a pane, capture a pane's screen and
+  scrollback as text, and wait for an event such as a program exiting.
 
 The steg CLI is written in Rust and ships in the same binary as the server (R61). Its commands are generated from the API description (R32), never written by hand.
 
@@ -206,7 +226,7 @@ Outside a steg terminal there is no context, so a command that needs a target an
 
 `steg pane wait --for exit` exits 0 when the program ended, and prints the program's own exit code in its result. It does not adopt that code as its own status, so a script can tell "the wait failed" from "the program failed".
 
-A pane started with a program stays when the program ends: its screen can still be captured, and `pane show` reports the exit code. A pane started as a plain shell closes when the shell exits. Rex closes both unless `--keep-open` is given; steg differs because the app's design keeps the output in front of the person (doc-7, D91 to D93) and because a pane that disappears makes `pane wait` a race.
+A pane started with a program stays when the program ends: its screen can still be captured, and `pane show` reports the exit code. A pane started as a plain shell closes when the shell exits. Rex closes both unless `--keep-open` is given; steg differs because the app's design keeps the output in front of the person (the design artifact, doc-10) and because a pane that disappears makes `pane wait` a race.
 
 Closing something that is already closed is status 3, like any target that matches nothing. This departs on purpose from the team cli-design skill's default of status 0: the server cannot tell a pane that is gone from a name that was never right, and returning 0 would hide a typo in a script.
 
@@ -275,7 +295,7 @@ Decided by Bruk on 2026-11-13:
 - **`close` and `server stop` refuse while programs are still running,** with status 1 and a message naming `--force`. With `--force` they go ahead.
 - **A target's parts are separated by `/`,** as in `work/2/logs`.
 
-Decided by Bruk on 2026-11-15. The rule: steg keeps its own grammar and words, and wherever this document had not decided, steg does what Rex does. doc-3 has each question in full.
+Decided by Bruk on 2026-11-15. The rule: steg keeps its own grammar and words, and wherever this document had not decided, steg does what Rex does. decision-4 has each question in full.
 
 - **Closing something already closed** is status 3 (section 6).
 - **Lists** are tab-separated, with full identifiers, no header and no alignment, the same piped or not (section 6). Not as Rex.
@@ -298,7 +318,7 @@ Two details were filled in by the orchestrator to make the answers complete, and
 
 ## 10. Where this differs from Rex
 
-Checked on 2026-11-14 against Rex's own documentation (the pages are listed in doc-3, part C), which describes a CLI in beta. Rows marked "the same" are where steg follows Rex.
+Checked on 2026-11-14 against Rex's own documentation (the pages are listed in decision-4, part C), which describes a CLI in beta. Rows marked "the same" are where steg follows Rex.
 
 | | Rex | steg | Why |
 |---|---|---|---|
@@ -325,3 +345,14 @@ Checked on 2026-11-14 against Rex's own documentation (the pages are listed in d
 | Events | `rex events` streams and the caller filters | `event watch --for <event>` filters on the server | Less traffic, and one fewer tool in an agent's loop |
 | Pane kinds | `rex block new FLAVOR`, `rex block types` | Every pane is a terminal; a viewer is a program in one (doc-1 section 5.14) | One rendering path, and R12 keeps the door open |
 | Port forwarding | `rex forward new, open, share, ls, close` | Out of scope (doc-1 section 10) | SSH is the only remote transport |
+
+## Open questions
+
+- [ ] `-q` together with `--json` printing the identifiers as a JSON array, and `api call` taking its parameters as JSON on standard input, were filled in by the orchestrator and are Bruk's to change.
+- [ ] The speed numbers in section 7 are proposals until measured.
+- [ ] Saved hosts (doc-13).
+
+## Out of scope
+
+- Scripting inside the CLI. Python plugins use the API (doc-12).
+- Aliases for Rex's verbs. They can be added later as a layer if compatibility matters (decision-4).

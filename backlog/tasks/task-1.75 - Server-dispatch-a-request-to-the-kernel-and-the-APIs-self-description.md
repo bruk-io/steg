@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:10:00Z'
+updated_date: '2026-11-15T17:15:00Z'
 labels:
   - size-3
   - changes-requested
@@ -929,6 +929,42 @@ Everything else the plan named for tests/dispatch.rs - the per-method
 tests, the Outcome-versus-declared-fields cross-check, the position
 boundary, the api.call tests, the --no-focus tests, the two end-to-end
 scenarios - landed there as planned.
+
+Check FAILED: `just check` exited 1 at 2026-11-15T17:15:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at f6eb7a45144c with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.1s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/src/dispatch/tab.rs:88:
+         if let Err(error) = tree.move_tab(tab_id, index) {
+             tree.close_tab(tab_id)
+                 .expect("the tab this call just created is still in the tree");
+[31m-            tree.focus_tab(previous_tab).expect(
+(B[m[31m-                "the session this call just created a tab in still holds its previous tab",
+(B[m[31m-            );
+(B[m[32m+            tree.focus_tab(previous_tab)
+(B[m[32m+                .expect("the session this call just created a tab in still holds its previous tab");
+(B[m             return Err(map_kernel_error(error));
+         }
+     }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75/crates/server/tests/dispatch.rs:1050:
+         covered.push(dotted.clone());
+ 
+         if not_yet.contains(&dotted.as_str()) {
+[31m-            let error = err(dispatch(&mut tree, &api, &context, &request(&dotted, vec![])));
+(B[m[32m+            let error = err(dispatch(
+(B[m[32m+                &mut tree,
+(B[m[32m+                &api,
+(B[m[32m+                &context,
+(B[m[32m+                &request(&dotted, vec![]),
+(B[m[32m+            ));
+(B[m             assert_eq!(error.code, ErrorCode::NotImplementedYet, "{dotted}");
+             continue;
+         }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
+
+Commits since the review: 26, 24 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T02:48:00Z'
+updated_date: '2026-11-15T02:53:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -32,3 +33,9 @@ A follow-up to the LikeC4 model (TASK-1.33, doc-16 R108), asked for by Bruk on 2
 - [ ] #4 A model that does not validate fails the workflow and leaves the published site as it was
 - [ ] #5 The plan states who can see the published site given the repository's visibility, and the engineer has confirmed that before anything is deployed
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Decided by Bruk on 2026-11-15: it is fine for the architecture site to be public. The repository is private, so the GitHub Pages site will be readable by anyone with its address. The plan still states this, but it does not need confirming again.
+<!-- SECTION:NOTES:END -->

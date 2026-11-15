@@ -1,0 +1,22 @@
+// Intra-system relationships for Steg (container<->container,
+// component<->component). Explicit endpoints only — no it/this, no sourceless
+// `-> x`. Inter-process edges carry a nested `technology`.
+model {
+  // Container-level "talks to" edges (doc-16, Level 2). A plugin's edge to
+  // steg stays in models/landscape.c4, at the system level: the black-box
+  // rule's one carve-out for reaching past a boundary is "a person may use a
+  // container", not another external system, so plugin -> steg.server would
+  // be a bug. server, cli and app, by contrast, are containers of steg
+  // itself, so their edges belong here.
+  extend steg {
+    server -> programsInPanes 'starts, feeds input to and reads output from' {
+      technology 'pseudo-terminal'
+    }
+    cli -> server 'calls, over its socket, through the public API' {
+      technology 'socket'
+    }
+    app -> server 'calls, over its socket, through the public API' {
+      technology 'socket'
+    }
+  }
+}

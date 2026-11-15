@@ -1,0 +1,29 @@
+// Deployment nodes for steg (doc-16's Deployment section). In M1, one Mac:
+// one server process, any number of CLI processes, and one Steg.app whose
+// window holds a client to that server. In M3 (#planned) the same window
+// holds a second client to a server on another machine; the packages do not
+// change.
+deployment {
+  environment env 'Where steg runs' {
+    node host 'A host' {
+      description "Its app, CLI and server instances are the same `steg` binary for the server and the CLI half (R61, R98)."
+      app = instanceOf steg.app
+      cli = instanceOf steg.cli
+      server = instanceOf steg.server
+    }
+
+    node remoteMac 'A remote host' {
+      #planned
+      description 'Another machine running a steg server (M3).'
+      server = instanceOf steg.server
+    }
+  }
+
+  host.app -> host.server "a window's client attaches to" {
+    technology 'socket'
+  }
+  host.app -> remoteMac.server "the same window's second client attaches to" {
+    #planned
+    technology 'SSH'
+  }
+}

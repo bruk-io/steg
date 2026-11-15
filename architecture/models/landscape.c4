@@ -1,0 +1,42 @@
+// LANDSCAPE LAYER — the only place cross-system wiring lives.
+// Holds: people (actors), external systems, and CROSS-SYSTEM relationships.
+// Software systems themselves are declared under models/<system>/ and bubble
+// up to top level automatically — do NOT redeclare them here.
+//
+// FEDERATION RULE (enforced by c4lint's black-box check): cross-system edges
+// connect systems as BLACK BOXES (system -> system). Never target another
+// system's container/component — it breaks orthodox C4 and a future split into
+// per-system projects.
+model {
+  personAtMac = person 'The person at the Mac' {
+    description 'Uses steg through its window and its CLI (doc-16, Level 1).'
+  }
+
+  programsInPanes = externalSystem 'Programs in panes' {
+    description 'A shell, an editor, an agent. steg starts them, feeds them input and reads their output. Some drive steg back through the CLI (doc-16, Level 1).'
+  }
+
+  macos = externalSystem 'macOS' {
+    description "Windows, pseudo-terminals, the clipboard, the system's light or dark setting (doc-16, Level 1)."
+  }
+
+  plugin = externalSystem 'A plugin' {
+    #planned
+    description 'A Python program beside the server, using the public API (doc-16, Level 1; M2). Not a container of steg: anyone can write one.'
+  }
+
+  remoteHost = externalSystem 'A remote host' {
+    #planned
+    description 'Another machine running a steg server (doc-16, Level 1; M3).'
+  }
+
+  // Level 1 relationships (doc-16's own "Relationship" column), each a
+  // system-to-system or person-to-system edge, never reaching into a
+  // container from outside (that carve-out is for a person only).
+  personAtMac -> steg 'uses, through its window and its CLI'
+  steg -> programsInPanes 'starts, feeds input to and reads output from'
+  programsInPanes -> steg 'drives back, through the CLI'
+  steg -> macos "opens windows on, allocates pseudo-terminals from, and reads the system's light or dark setting from"
+  plugin -> steg 'calls the public API of, as a Python program beside the server' { #planned }
+  steg -> remoteHost 'connects to, as a client, over SSH' { #planned }
+}

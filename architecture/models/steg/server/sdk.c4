@@ -1,0 +1,15 @@
+// Component: sdk, built into the server, the CLI and the app alike
+// (doc-16, Level 3). AC #2 requires a package built into several containers
+// to appear as a component of EACH of them, never nested under one with the
+// others reaching in — so this is one of three identical declarations (the
+// others are models/steg/cli/sdk.c4 and models/steg/app/sdk.c4). Keep the
+// title and description word for word the same in all three.
+model {
+  extend steg.server {
+    sdk = component 'sdk' {
+      #shared
+      technology 'Rust library'
+      description 'The public interface: the API description, the shapes that cross the API, and the protocol logic (R101). No I/O of its own (R102); a consumer supplies the transport. Built into the server, the CLI and the app alike — it belongs to none of them more than another (doc-16).'
+    }
+  }
+}

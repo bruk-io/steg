@@ -1,0 +1,11 @@
+// Component: app, built into Steg.app only (doc-16, Level 3). Titled 'app'
+// like the package; the element id is appPkg only to avoid clashing with
+// the app container's own id.
+model {
+  extend steg.app {
+    appPkg = component 'app' {
+      technology 'Rust, GPUI'
+      description 'The GPUI window. Does I/O.'
+    }
+  }
+}

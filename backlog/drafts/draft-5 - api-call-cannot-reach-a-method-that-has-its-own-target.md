@@ -4,7 +4,7 @@ title: api call cannot reach a method that has its own target
 status: Draft
 assignee: []
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T20:15:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -32,4 +32,6 @@ Found twice: TASK-1.75's worker noted that api.call can never carry the called m
 
 <!-- SECTION:NOTES:BEGIN -->
 TASK-1.48 added two tests in crates/server/tests/dispatch.rs that record today's behaviour (api_call_cannot_reach_setting_show_because_its_own_target_is_also_named_target, api_call_cannot_reach_setting_set_for_the_same_reason). The fix inverts them: say so in the notes rather than deleting them quietly.
+
+Correction: the two tests mentioned above were removed from TASK-1.48 before it merged (ae89d2b), so there is nothing to invert; this task writes the tests that show api.call reaching the settings methods.
 <!-- SECTION:NOTES:END -->

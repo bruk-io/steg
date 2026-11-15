@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:25:00Z'
+updated_date: '2026-11-15T03:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -470,6 +470,28 @@ Check passed: `just lint` exited 0 at 2026-11-15T03:25:36+00:00 in /Users/brukha
 
 ```text
 ok      lint (0.4s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:26:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

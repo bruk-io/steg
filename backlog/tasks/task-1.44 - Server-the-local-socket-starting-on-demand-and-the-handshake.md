@@ -1,13 +1,14 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:08:00Z'
+updated_date: '2026-11-15T21:21:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -39,8 +40,10 @@ asdlc_branch: task-1.44-server-the-local-socket-starting-on
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c074345d1296'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=3'
+asdlc_review_policies: ["review", "rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -894,6 +897,32 @@ created: 2026-11-15T21:08:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T21:21:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 3 nit. Cites: review, rust. The diff does not match the plan.
+
+Reviewed at head 12d6802de7c0 (origin/main...HEAD diff in a detached worktree); PR #37 CI ("check") passed on this same head in 3m15s. Re-ran the race test 15x and the shutdown test 3x myself at this head (all green), consistent with the task's own recorded 10x/5x runs (recorded at 55592e06308a, carried forward to the green final check at 12d6802). cargo tree -p steg-server -i nix shows one nix 0.28.0 line; features (fs, user) match the Cargo.toml/boundaries.toml comments; MIT is in deny.toml's allow list; just check-boundaries is green; no unsafe anywhere in the diff; no file under crates/sdk changed.
+
+[Compliance, Important] crates/server/src/connection.rs:81-96 only routes a decoded Incoming::Hello(payload) to the sdk's check_hello/accept_or_refuse; every other Incoming variant - including Malformed (an undecodable first frame) and a well-formed Control-kind frame arriving first - is mapped to None and closed with no reply at all (connection.rs:139's shutdown, no write_all). decision-2 section 7, cited in this task's own description as binding, records the spike's proven contract: "a first frame that is not JSON, that has the wrong magic, that is a control frame instead of a hello, or that is missing protocol, gets malformed-hello naming the server's version and saying the client's is unknown." The sdk's check_hello already computes exactly that (Refusal::Malformed, handshake.rs:111-113) for two of those four cases (wrong magic, missing protocol - both still arrive as Incoming::Hello with a bad payload), but the other two (undecodable bytes, a control frame first) never reach check_hello in this server and get silent closure instead. This is a real departure from the cited contract, not just a missing test, and it is undisclosed in the plan or notes. handshake.rs also has no test sending any hostile/non-hello first frame at all (only the version-mismatch case, which is a well-formed Hello) - the review brief named "hostile bytes in place of a hello" explicitly as a branch worth proving, and nothing reaches it.
+
+[Bugs, Important] listen.rs:32-36 and :50-54: Stopper's own doc and Stopper::stop's doc both describe calling bare .stop() as the way "Part B's idle checker... will hold one of these and call Stopper::stop" to end run. In fact run's accept loop only re-checks the stop flag once accept() returns (listen.rs:152-160), so a bare .stop() with no accompanying wakeup connection leaves run blocked forever in accept() on a genuinely idle server - exactly the case TASK-1.77's 30-second idle-with-no-clients stop exists for. Only stop_and_wake (which also connects a throwaway client to unblock accept()) reliably stops run; every caller and test in this task already uses stop_and_wake, but the doc comment that is this seam's whole contract for TASK-1.77 names the wrong function. Followed as written, TASK-1.77's idle checker would reproduce, in production, the exact "testable alone"/hang regression this task's own notes say today's thread-joining fix was needed to prevent.
+
+Nits (3):
+1. crates/server/Cargo.toml:41-43: the race-attempt fixture binary always builds (steg-server has no feature to gate it behind, unlike the sdk's own feature-gated fake-server-for-tests) - acknowledged in the manifest's own comment, but still ships as an extra binary in every build of this crate; worth gating behind something before this becomes the convention other tasks copy.
+2. arbiter::probe (arbiter.rs:177-182) connects to a live server purely to test liveness during arbitration; run's accept loop treats that exactly like a real client, emitting ConnectionEvent::Connected then Disconnected for it. Every arbitration probe against an already-running server will look like a client arriving and leaving on the ConnectionEvent seam - not a bug in this task, but a caveat for TASK-1.77's idle counter that the notes do not mention.
+3. error.rs is listed in the task's modified_files but is byte-for-byte identical to origin/main - harmless stale plan metadata (the plan's own section 6 already explains no new Error variant was needed), but worth cleaning up.
+
+Verified directly, confirming the brief's other named concerns: reaping only runs on the next accept() (listen.rs:92-102/156), so on a quiet server a finished connection's dup fd + JoinHandle sit until the next accept or a stop - bounded by connections-since-last-accept, not by server history (proved by many_short_connections_do_not_grow_the_tracked_set), and connection.rs:139's unconditional shutdown(Both) means a peer's own view of the connection closing no longer depends on reaping timing at all. Shutdown order (listen.rs:174-192) destructures ServerHandle rather than dropping it whole, so the lock is released strictly last, after the listener is closed and the socket file removed; shutdown.rs's own test asserts a connecting client sees NotFound or ConnectionRefused. A narrower point the ordering doesn't fully address: between "stop accepting" and "close the listener" there's now a join phase (the departure below) during which the listener is still bound - a client connecting in that exact window could have its connect() succeed into the kernel backlog and only be reset once the listener is later dropped, rather than seeing an immediate refusal; not tested or discussed in the notes, worth a mention but not blocking on its own.
+
+Departure from the plan (digest c074345d1296, not edited): the plan's section 4 named only stop-accepting/close-listener/remove-file/release-lock, with no thread-joining. The notes correctly disclose the departure (today's merged team rule on joining spawned threads) and its reason, and the regression it caught (connection.rs needing shutdown(Both) once a duplicate fd is held) is itself a legitimate, well-proven fix. Per policy this still marks plan-matched as "no" even though the notes explain it well.
 
 ---
 <!-- COMMENTS:END -->

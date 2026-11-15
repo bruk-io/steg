@@ -1,13 +1,14 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:41:00Z'
+updated_date: '2026-11-15T22:59:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -24,10 +25,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '308d35ef87d0'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=1'
-asdlc_review_policies: ["review", "testing-rust"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r4
+asdlc_review_findings: 'important=2,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -2050,6 +2050,35 @@ created: 2026-11-15T22:41:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T22:59:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Second review, head b4dd502 (same head the task's own notes record as final; PR #40's CI `check` is green on this exact SHA, confirmed via `gh pr checks 40`).
+
+The three fixes from the first review (api.call routing, the sizes test's negative controls, Runtime::stop/Drop) and the engineer's cwd ask are real and hold up under direct probing, not just re-reading:
+
+- api.call: `dispatch::resolve_api_call` is the one implementation `Runtime::handle` and `dispatch::api::call` both use; `session.new`/`tab.new`/`pane.split` minted through `api.call` now reach `start_and_dispatch`'s real spawn, confirmed by code reading and the worker's own new tests passing.
+- Sizes: I disabled the general reapply call in `Runtime::handle`'s `_` arm myself (`if false && matches!(...)`), rebuilt, and `the_general_sizing_step_reaches_every_pane_through_split_close_and_swap` failed exactly as it should (`left: 10, right: 20` at the close-case assertion) - reverted after. The test now genuinely exercises split (both directions, via a column marker plus `stty size`), close and swap, checked against the kernel's own live `tab_sizes_now`, not a hard-coded expectation. The three close-refusal negative controls the worker recorded (disable each of pane/tab/session's own check, confirm the matching test fails, restore) stand unmodified by the later cwd-fix round, so they're still live evidence against this head.
+- `Runtime::stop`/`Drop`: I wrote and ran three scratch tests (not committed, reverted after): `stop()` called twice does not hang or panic; `drop` with no explicit `stop()` call ends a real `sleep 1000` and reaps it; a program that traps SIGHUP (`trap '' HUP; exec sleep 1000`) leaves `stop()` returning after ~10.0s (STOP_TIMEOUT x2, exactly as documented) with the process still alive afterward - the code's own doc names this gap plainly and hands it to TASK-1.78, the same shape as the --force orphan AC #5 already accepts, so I did not raise this as a finding.
+- cwd: `resolve_default_cwd` (rule B) filters the inherited directory with `Path::is_dir()` before using it, falling back to `login.home`; `start_and_dispatch` refuses a caller-given `cwd` that fails that same check with `ProgramFailed`, before anything is minted. Matches AC #1 and the engineer's ask.
+- TASK-1.41's merge (Moment on `record_exit`, `Pane::status` -> `program_status`) is adapted correctly: `apply_event_locked` sources `Moment::new(Instant::now().duration_since(state.clock_origin))`, a named real clock, and the three dispatch close arms use `program_status()` (program state), not the richer display `status()` - confirmed by reading `dispatch::{pane,tab,session}.rs` directly.
+- No unsafe added (`git diff` grep, confirmed myself). No Cargo.toml change, no new dependency.
+
+Two Important findings, both about test/check reliability on this head, found by probing rather than re-reading the worker's own account:
+
+1. [Bugs, Important] crates/server/tests/runtime.rs (new, 18 tests, most real-pty) - the worker's own claim ("a real pty-allocation ceiling in this sandbox, not a code defect... clean through 12 threads, fails from 16 up") is half right and half wrong, and the orchestrator's own skepticism (kern.tty.ptmx_max=511, ~20 ptys idle) is also not the right counter-argument - neither looked at what actually fails. I reproduced the exact failure (`failed to openpty: Os { code: -6 }`) myself: `cargo test -p steg-server` at default parallelism failed 3 of 4 runs just now; a sweep (1/4/8/12/16/20/24/28 threads, 2 runs each) was clean through 12 and flaky from 16 up, matching the worker's own numbers. Then I isolated the cause with three further probes: (a) python's `pty.fork()`, 40-way concurrent, real fork+exec+pty, never failed - rules out a hard process/fd ceiling; (b) the same workload with Claude Code's own bash sandbox disabled (`dangerouslyDisableSandbox`) was equally flaky (7/15 failures) - rules out the sandbox as the cause, contrary to what "this sandbox" in the notes implies; (c) decisive: a bare Python `ctypes` call straight to `libc.openpty()`, 28 concurrent threads, no Rust, no portable-pty, no steg code loaded at all, reproduced the identical `errno=-6` failure intermittently (0-8 failures of 28 per trial across 15 trials). This is a real concurrency race in this machine's own `openpty()` under contention, not a count ceiling (only ~22 ptys alive system-wide the whole time, against a 511 max, confirmed unchanged before/after/during every run - no leak). It is also not pre-existing at a level this crate's checks previously exercised: in a second, clean worktree of `origin/main`, `cargo test -p steg-server` (whose real-pty suites max out at 5-6 tests in one binary) passed 6/6 runs. This task's own new `tests/runtime.rs` is the first thing in this crate to pool enough concurrent real-pty-starting tests (18 in one binary) to cross the threshold where this platform's `openpty()` races. Net: `just check` does not pass reliably on this machine as this branch stands (direct evidence above), which the review brief treats as dispositive regardless of cause. The right fix is a concurrency bound inside the test code itself (e.g. a semaphore/permit shared by `tests/runtime.rs`'s real-pty-starting tests, capping how many run their spawn at once) - not `--test-threads` in the justfile, and not a retry inside `RealLauncher`/production code, which is a question for the engineer, not something to decide here. Say this plainly so the next worker does not go hunting for a pty leak: there isn't one.
+2. [Evidence, Important] Implementation Notes, the final head b4dd502 - every `just check` recorded at this head (eight, 22:16-22:39 UTC) is FAILED; the only recorded pass at this head is the narrower `cargo test -p steg-server --lib --tests -- --test-threads=1` (22:40:19), which sidesteps exactly the default-parallelism concurrency finding 1 is about. The last actually-clean, full `just check` is recorded at the superseded head fdef2fe (21:17:42), not at the head this PR and this review are against. Per review.md's Evidence pass, a check recorded before the last commit, or not at all, is a finding - there is no clean `just check` recorded at this head, only a hand-picked narrower command that avoids the failure mode.
+
+No other findings. Plan match: the one named departure (ProgramFailed mapped inline in start_and_dispatch rather than a separate dispatch/server_error.rs) is explained in the notes and is small; everything else (owning structure, cwd rule B, pane.show, the pure close-refusal, error codes, lookup.rs, the §4 general sizing step, TASK-1.48's Settings threading) matches section by section.
 
 ---
 <!-- COMMENTS:END -->

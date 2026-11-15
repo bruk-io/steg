@@ -78,7 +78,10 @@ fn a_real_program_runs_in_the_given_working_directory() {
     )
     .unwrap();
 
-    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 0 });
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 0 }
+    );
 
     let screen = handle.snapshot().unwrap();
     let reported = std::fs::canonicalize(screen_text(&screen).trim()).unwrap();
@@ -162,7 +165,10 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     )
     .unwrap();
 
-    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 3 });
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 3 }
+    );
     let screen = handle.snapshot().unwrap();
     assert!(
         screen_text(&screen).contains("hi"),
@@ -195,7 +201,10 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
 
     // Restarting the server's own pane runs the same command again.
     handle.restart(command_spec).unwrap();
-    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 3 });
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 3 }
+    );
     handle.shutdown();
 }
 
@@ -215,7 +224,10 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
 
     handle.send_input(b"exit 7\n".to_vec()).unwrap();
 
-    assert_eq!(recv_event(&events_rx), PaneEvent::Exited { pane, exit_code: 7 });
+    assert_eq!(
+        recv_event(&events_rx),
+        PaneEvent::Exited { pane, exit_code: 7 }
+    );
 
     // The kernel's own cascade (no doubles): a shell pane's real exit
     // code closes it, the same cascade a manual close runs.

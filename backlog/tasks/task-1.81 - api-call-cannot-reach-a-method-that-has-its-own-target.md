@@ -554,6 +554,48 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; fi
 ```
 
 Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T21:31:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+FAILED  lint (exit 101, 0.6s)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/steg)
+error: doc list item without indentation
+    --> crates/server/tests/dispatch.rs:1164:5
+     |
+1164 | /// selector is missing" apart, which is exactly what let this test keep
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+     = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+     |
+1164 | ///   selector is missing" apart, which is exactly what let this test keep
+     |     ++
+
+error: doc list item without indentation
+    --> crates/server/tests/dispatch.rs:1165:5
+     |
+1165 | /// passing against the bug this task fixes.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+     |
+1165 | ///   passing against the bug this task fixes.
+     |     ++
+
+error: could not compile `steg-server` (test "dispatch") due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

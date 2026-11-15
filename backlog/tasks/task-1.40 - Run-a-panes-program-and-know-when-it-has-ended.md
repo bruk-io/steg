@@ -1,14 +1,13 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:30:00Z'
+updated_date: '2026-11-15T18:37:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -535,6 +534,18 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Second review, finding by finding:
+
+[Compliance, Important] (a) ErrorCode::ProgramRunning wrong for two of four. Fixed: ProgramAlreadyStarted and ProgramStillRunning keep ErrorCode::ProgramRunning (both are genuinely "a program is running, or restarting one that is"). ProgramNotStarted and ShellCannotRestart now map to ErrorCode::BadRequest instead - the opposite state, or unrelated to any --force flag - following the exact precedent TASK-1.42 set in this same file for ClientNotViewingPane/ClientNotViewingTab (its own comment reasons through the identical "no dedicated code, BadRequest is the existing bucket for doesn't-fit-the-shape" logic; I read its diff on PR #29 since it hadn't merged yet). Split the grouped test into two, one per mapping, each asserting its own code. (b) the departure itself: the notes now say outright that merging TASK-1.75 forced this mapping choice mid-round, name all four mappings and why, and the stale "picked up TASK-1.75's board-only commits" sentence is corrected - that was only ever true of an earlier rebase, before TASK-1.75 actually shipped dispatch.
+
+[Evidence, Nit] record-check predated the merge. Recorded `just check` at this round's head.
+
+[Bugs/Rust, Nit] the silent-program deferral had no tracked home, and the wait()-error silence had no comment. Both land together because fixing one properly required re-examining the other. I wrote the test finding #5 asked for - PaneHandle::start then shutdown() while a real program is running, through the public path, not spawn_relay directly - and it does not pass: even a program that would finish on its own within a second (sh -c 'sleep 1; echo done') is left permanently stuck in child.wait() once shutdown() has dropped the worker's writer and resize handle, not reaped within 60 seconds. I confirmed this isn't a test-harness artefact with two controlled runs on the identical test: removing only the shutdown() call, the same program is reaped within 5 seconds every time; restoring it, never within 60 seconds. So the gap the first review found is broader than my own notes said: it is not only a silent program (sleep 1000) that shutdown() fails to end - it's any program still running when shutdown() is called, output or not. I did not ship a test asserting the originally-expected behaviour, since it is not true, and did not ship one asserting the gap itself, since DRAFT-4 (which exists now - "Server: start a pane's program from the API, and end it on a forced close") already names this exactly in its AC #4 ("with --force the program is ended, its exit is observed, and its relay thread ends, for a program that is producing output and for one that prints nothing") - cited by number in pane.rs's module doc, PaneHandle::shutdown's own doc, and spawn_relay's comment, all three reworded to stop overclaiming and say precisely what's proven: a forward failing because the worker is gone no longer skips child.wait(), for a program that ends on its own regardless of whether shutdown ever ran - narrower than "shutdown ends a program producing output", which is not true through the public path. Renamed the existing unit test to say plainly that it only ever simulated the worker's receiver being gone, never PaneHandle::shutdown's own fd-dropping.
+
+clone_killer, confirmed from portable-pty 0.9.0's own source in the cargo registry cache (not assumed): `Child: ChildKiller` (supertrait, so every Child is already one), and on Unix `Child::clone_killer` returns a `ProcessSignaller` holding just the pid, Send+Sync, independent of every pty descriptor. Its own `kill` sends SIGHUP by pid via libc::kill - inside portable-pty, no unsafe of this crate's own - and does NOT escalate to a stronger signal (the SIGKILL-after-grace-period fallback lives only in std::process::Child's own ChildKiller::kill impl, not in the clone). Documented precisely at the point in spawn_relay where it matters, and in the module doc pointing at DRAFT-4.
+
+Rebased origin/main in once more (board-only: DRAFT-3, DRAFT-4, review comments - no code). just check recorded clean at this head. CI green on PR #32 after a rerun - the first run at this head failed on an unrelated flake (tools/tests/adapter/test_likec4_mcp_smoke.py timing out waiting on the LikeC4 MCP server, nothing to do with this task's files), confirmed unrelated and passed clean on rerun with no code change.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

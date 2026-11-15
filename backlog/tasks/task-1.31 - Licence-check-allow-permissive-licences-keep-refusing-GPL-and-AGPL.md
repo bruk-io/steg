@@ -80,6 +80,31 @@ ok      licences (0.6s)
 skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ```
+
+Check FAILED: `just deny` exited 4 at 2026-11-15T02:37:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.31 on task-1.31-licence-check-allow-permissive-licences at e8a16c09bd4c with uncommitted changes:
+
+```text
+FAILED  licences (exit 4, 0.6s)
+error[rejected]: failed to satisfy license requirements
+  ┌─ /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.31/spikes/licence-probe-gpl/Cargo.toml:5:12
+  │
+5 │ license = "GPL-3.0-only"
+  │            ━━━━━━━━━━━━
+  │            │
+  │            rejected: license is not explicitly allowed
+  │
+  ├ GPL-3.0-only - GNU General Public License v3.0 only:
+  ├   - OSI approved
+  ├   - FSF Free/Libre
+  ├   - Copyleft
+  ├ licence-probe-gpl v0.1.0
+    └── steg-server v0.1.0
+        └── steg v0.1.0
+
+licenses FAILED
+full output: .quiet/licences.log
+error: recipe `deny` failed on line 59 with exit code 4
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

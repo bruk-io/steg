@@ -3,12 +3,12 @@ id: doc-8
 title: 'Spec: server and sessions'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T02:21:00Z'
+updated_date: '2026-11-15T02:34:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
 - Rests on: decision-1 (the API description).
-- Status: draft. R98, R99 and R101 were added on 2026-11-15, when Bruk decided the server's lifecycle and that its code is kept apart from its clients. Reorganised from the single spec on 2026-11-15; every requirement here was moved without rewording, except that references to documents since retired now point at the decision records and at doc-10.
+- Status: draft. R99 was added on 2026-11-15, when Bruk decided the server's lifecycle. How the server's code is kept apart from its clients, and the sdk, are doc-16 (R98, R101). Reorganised from the single spec on 2026-11-15; every requirement here was moved without rewording, except that references to documents since retired now point at the decision records and at doc-10.
 
 ## Scope
 
@@ -28,16 +28,6 @@ The server as a running thing: that it owns everything, how it starts and who ca
 - R5 (M1). Local clients connect over a socket only the owning user can open. The server
   opens no network port.
 - R6 (M1). Sessions can be created, labelled, reordered, listed, and destroyed.
-- R98 (M1). The server's code is a package of its own, and no client's package depends
-  on it. The server and the CLI still ship as one binary (R61), put together by a
-  package that holds nothing else; the app contains no server code at all. A client
-  starts a server by running that binary, and reaches it only through its socket and
-  the public API.
-- R101 (M1). There is a steg library, and it is how a Rust program is a client: it holds
-  the API description, the types of the wire protocol, and the code to find or start a
-  server, connect, call a method, subscribe to events and attach to a pane. The CLI and
-  the app are built on it and hold no protocol code of their own. It holds no server
-  logic.
 - R99 (M1). A server started on demand detaches from the client that started it, takes
   its environment from a login shell and not from that client, and stops by itself
   after 30 seconds with no sessions and no clients. A server started explicitly stops
@@ -60,7 +50,7 @@ The server as a running thing: that it owns everything, how it starts and who ca
 
 ## Open questions
 
-None. The server's lifecycle is R99: started by the first client, not by launchd. The API description lives in the steg library (R101).
+None. The server's lifecycle is R99: started by the first client, not by launchd. The API description lives in the sdk (doc-16, R101).
 
 ## Out of scope
 

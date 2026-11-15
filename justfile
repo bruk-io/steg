@@ -42,6 +42,16 @@ test-all:
 test-tools:
     @{{quiet}} "tool tests" -- uv run --quiet --project tools pytest -q tools/tests
 
+# build and test each package selected alone (`cargo -p`), so this is something anyone can run again
+packages:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{rust}}" = no ]; then echo "skip    packages: no Rust workspace yet"; exit 0; fi
+    for pkg in steg-sdk steg-kernel steg-server steg steg-app; do
+        {{quiet}} "build ($pkg)" -- cargo build -p "$pkg"
+        {{quiet}} "test ($pkg)" -- cargo test -p "$pkg"
+    done
+
 # format the code
 fmt:
     @if [ "{{rust}}" = no ]; then echo "skip    format: no Rust workspace yet"; else {{quiet}} "format" -- cargo fmt --all; fi

@@ -1,8 +1,0 @@
-[package]
-name = "steg-cli"
-edition.workspace = true
-license.workspace = true
-version.workspace = true
-
-[lints]
-workspace = true

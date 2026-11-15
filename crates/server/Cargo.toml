@@ -9,3 +9,4 @@ workspace = true
 
 [dependencies]
 steg-kernel = { path = "../kernel" }
+steg-sdk = { path = "../sdk" }

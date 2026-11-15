@@ -1,0 +1,11 @@
+//! Steg's public interface (R101): the API description, the shapes that cross
+//! the API, and the protocol's logic - encoding, decoding, the handshake and
+//! the state of each stream.
+//!
+//! The sdk does no I/O of its own (R102): a consumer supplies the transport
+//! through an interface this crate defines, so it works on any runtime and
+//! over any channel a consumer can provide. The `local-socket` feature
+//! (declared in `Cargo.toml`) is this crate's own provider for the local
+//! socket - finding a server, starting one if there is none, and connecting
+//! (R103) - but it is declared and empty today: TASK-1.44 and draft-1 fill it
+//! in. This crate is the frame.

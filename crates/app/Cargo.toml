@@ -9,3 +9,4 @@ workspace = true
 
 [dependencies]
 gpui.workspace = true
+steg-sdk = { path = "../sdk" }

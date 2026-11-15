@@ -4996,7 +4996,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 name = "steg"
 version = "0.1.0"
 dependencies = [
- "steg-cli",
+ "steg-sdk",
  "steg-server",
 ]
 
@@ -5005,14 +5005,18 @@ name = "steg-app"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "steg-sdk",
 ]
 
 [[package]]
-name = "steg-cli"
+name = "steg-kernel"
 version = "0.1.0"
+dependencies = [
+ "steg-sdk",
+]
 
 [[package]]
-name = "steg-kernel"
+name = "steg-sdk"
 version = "0.1.0"
 
 [[package]]
@@ -5020,6 +5024,7 @@ name = "steg-server"
 version = "0.1.0"
 dependencies = [
  "steg-kernel",
+ "steg-sdk",
 ]
 
 [[package]]

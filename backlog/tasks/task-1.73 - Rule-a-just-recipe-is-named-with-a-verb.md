@@ -180,6 +180,19 @@ FAILED  recipe names (exit 1, 0.0s)
 full output: .quiet/recipe-names.log
 error: recipe `check-recipes` failed on line 103 with exit code 1
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:34:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (19.3s)
+ok      tool tests (0.6s)
+ok      architecture (2.0s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

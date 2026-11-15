@@ -1,11 +1,11 @@
 ---
 id: TASK-1.31
 title: 'Licence check: allow permissive licences, keep refusing GPL and AGPL'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:41:00Z'
+updated_date: '2026-11-15T02:46:00Z'
 labels:
   - size-2
   - review-passed

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-14T23:24:00Z'
-updated_date: '2026-11-15T00:23:00Z'
+updated_date: '2026-11-15T00:30:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -68,4 +68,6 @@ Open question added 2026-11-14 (Bruk): when the CLI posts a status, does it repl
 Decided 2026-11-14 (Bruk), replacing the open question above: status is a set, not a queue and not a single slot. (1) Within one pane a new report replaces that pane's last status; a pane has one status at a time. (2) A tab holds the current status of each of its panes and shows the most pressing. (3) When the status shown reaches the end of its lifetime, the next most pressing shows. (4) Order is how pressing (waiting, failed, bell, finished, running), then newest; never first-in-first-out. (5) The CLI adds to this set; it does not overwrite another pane's status. Lining up several messages to be shown one after another is notifications, not status, and is out of scope here.
 
 Decided 2026-11-15 (Bruk): program status is split across releases. M1 shows only what steg can know without a program's help: running, and finished or failed from the exit code, using the ring and bar of doc-7. The Program Status Protocol, with progress, waiting for a person, the bell as a status, and promotion, stays in M2. doc-1's R49, R50, R52 and the release table are to be reworded for this.
+
+Decided 2026-11-15 (Bruk), settling the first open question: each status ends by its own rule. Running: when the program reports an end, or exits. Waiting: when the person answers, or the program withdraws it; never on a timer. Failed: on a key press or click in that pane; never on a timer. Finished: on a key press or click in that pane, or after 10 minutes. Bell: on a key press or click in that pane, or after 30 seconds. Opening a tab clears nothing. Recorded in doc-7 as D109 and D110. Still open here: whether running needs a lifetime for a program that stops reporting, and the promotion command.
 <!-- SECTION:NOTES:END -->

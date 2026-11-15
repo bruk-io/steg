@@ -131,6 +131,12 @@ licenses FAILED
 full output: .quiet/licences.log
 error: recipe `deny` failed on line 59 with exit code 4
 ```
+
+Check passed: `just deny` exited 0 at 2026-11-15T02:38:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.31 on task-1.31-licence-check-allow-permissive-licences at e8a16c09bd4c with uncommitted changes:
+
+```text
+ok      licences (0.6s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

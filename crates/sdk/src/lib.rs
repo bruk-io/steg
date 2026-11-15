@@ -16,8 +16,10 @@
 
 mod colour;
 mod ids;
+mod layout;
 mod pane_kind;
 
 pub use colour::Colour;
 pub use ids::{PaneId, SessionId, TabId};
+pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;

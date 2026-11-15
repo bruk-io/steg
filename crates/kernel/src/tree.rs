@@ -1,6 +1,6 @@
 //! The tree: every session, tab and pane a server owns (doc-15, R85).
 
-use steg_sdk::{PaneId, PaneKind, SessionId, TabId};
+use steg_sdk::{Direction, PaneId, PaneKind, Ratio, SessionId, Size, TabId};
 
 use crate::colour::next_colour;
 use crate::error::Error;
@@ -21,6 +21,21 @@ pub struct ClosedPane {
     /// The session that was also closed, if closing the tab left it empty
     /// (R94).
     pub session: Option<SessionId>,
+}
+
+/// What happened when a pane moved to another tab (R9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MovedPane {
+    /// The pane that moved.
+    pub pane: PaneId,
+    /// The tab it moved to.
+    pub to: TabId,
+    /// The source tab that was also closed, if the move left it empty
+    /// (R94) — the same cascade `close_pane` runs.
+    pub source_tab_closed: Option<TabId>,
+    /// The source session that was also closed, if closing the source
+    /// tab left it empty (R94).
+    pub source_session_closed: Option<SessionId>,
 }
 
 /// The tree: every session, tab and pane a server owns.
@@ -161,6 +176,13 @@ impl Tree {
             .find(|tab| tab.pane(id).is_some())
     }
 
+    fn tab_by_id_mut(&mut self, id: TabId) -> Option<&mut Tab> {
+        self.sessions
+            .iter_mut()
+            .flat_map(Session::tabs_mut)
+            .find(|tab| tab.id() == id)
+    }
+
     /// Closes the pane with this id, cascading up through its tab and its
     /// session if either was left with nothing in it (R94). This is a
     /// decision function: it returns what closed, and does none of the
@@ -271,25 +293,222 @@ impl Tree {
         session.move_tab(id, to_position)
     }
 
-    /// Adds a new pane to the tab with this id.
+    /// Splits `target`'s leaf, in `direction`, with a newly-minted pane
+    /// of this `kind` on `direction`'s side, and makes the new pane the
+    /// tab's current pane (AC #1).
     ///
     /// # Errors
     ///
-    /// Returns [`Error::TabNotFound`] if no session in the tree holds a
-    /// tab with that id.
-    pub fn new_pane(&mut self, tab_id: TabId, kind: PaneKind) -> Result<PaneId, Error> {
-        // Check the target exists before minting (see `new_tab`'s comment).
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id, or [`Error::SplitTooSmall`] if either resulting
+    /// pane would be under R100's floor (only possible once the tab's
+    /// size is known — [`Tree::set_tab_size`]).
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the tab this just found to hold `target`
+    /// cannot have gone anywhere in between, since nothing else runs
+    /// while this method holds `&mut self`.
+    pub fn split_pane(
+        &mut self,
+        target: PaneId,
+        direction: Direction,
+        kind: PaneKind,
+    ) -> Result<PaneId, Error> {
+        // Check the target exists, and that the split clears the floor,
+        // before minting anything (see `new_tab`'s comment): a refused
+        // split must consume no id.
+        if self.tab_owning_pane_mut(target).is_none() {
+            return Err(Error::PaneNotFound(target));
+        }
+
         let Self { ids, sessions } = self;
         let tab = sessions
             .iter_mut()
             .flat_map(Session::tabs_mut)
-            .find(|tab| tab.id() == tab_id)
-            .ok_or(Error::TabNotFound(tab_id))?;
+            .find(|tab| tab.pane(target).is_some())
+            .expect("just found this pane's tab above");
 
-        let pane_id = ids.next_pane();
-        tab.add_pane(pane_id, kind);
+        let new_id = ids.next_pane();
+        tab.split_pane(target, direction, new_id, kind)?;
 
-        Ok(pane_id)
+        Ok(new_id)
+    }
+
+    /// Changes the ratio of the split bordering `pane` on `direction`'s
+    /// side (AC #3), clamping at R100's floor rather than refusing.
+    /// Returns the ratio actually applied.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id, or [`Error::NoSplitInDirection`] if it has no split
+    /// bordering it on that side.
+    pub fn resize_pane(
+        &mut self,
+        pane: PaneId,
+        direction: Direction,
+        ratio: Ratio,
+    ) -> Result<Ratio, Error> {
+        let tab = self
+            .tab_owning_pane_mut(pane)
+            .ok_or(Error::PaneNotFound(pane))?;
+        tab.resize_pane(pane, direction, ratio)
+    }
+
+    /// Exchanges the positions of two panes in the same tab's layout
+    /// (AC #3).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if either pane is in no tab, or
+    /// [`Error::PanesNotInSameTab`] if they are in different tabs.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the tab this just found to hold `a` cannot
+    /// have gone anywhere in between, since nothing else runs while this
+    /// method holds `&mut self`.
+    pub fn swap_panes(&mut self, a: PaneId, b: PaneId) -> Result<(), Error> {
+        let tab_a = self.tab_owning_pane_mut(a).ok_or(Error::PaneNotFound(a))?;
+        if tab_a.pane(b).is_none() {
+            // `b` might still be a real pane, just in a different tab;
+            // that's `PanesNotInSameTab`, not `PaneNotFound`.
+            if self.tab_owning_pane_mut(b).is_none() {
+                return Err(Error::PaneNotFound(b));
+            }
+            return Err(Error::PanesNotInSameTab { a, b });
+        }
+
+        let tab = self
+            .tab_owning_pane_mut(a)
+            .expect("just confirmed both panes are in this tab");
+        tab.swap_panes(a, b)
+    }
+
+    /// Sets which pane fills its tab (R96), replacing any previous fill.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id.
+    pub fn fill_pane(&mut self, pane: PaneId) -> Result<(), Error> {
+        let tab = self
+            .tab_owning_pane_mut(pane)
+            .ok_or(Error::PaneNotFound(pane))?;
+        tab.fill_pane(pane)
+    }
+
+    /// Clears a tab's fill, if it has one.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
+    /// id.
+    pub fn unfill_pane(&mut self, tab: TabId) -> Result<(), Error> {
+        let tab = self.tab_by_id_mut(tab).ok_or(Error::TabNotFound(tab))?;
+        tab.unfill();
+        Ok(())
+    }
+
+    /// Stores a tab's current size in whole cells (AC #6: unconditional
+    /// — no floor check, ever; a shrink "refuses and closes nothing").
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
+    /// id.
+    pub fn set_tab_size(&mut self, tab: TabId, size: Size) -> Result<(), Error> {
+        let tab = self.tab_by_id_mut(tab).ok_or(Error::TabNotFound(tab))?;
+        tab.set_size(size);
+        Ok(())
+    }
+
+    /// Moves `pane` out of its own tab and into `target_tab`, splitting
+    /// `target_tab`'s current pane in `direction` to make room for it
+    /// (R9: "moved to another tab"), becoming `target_tab`'s new current
+    /// pane. The source tab (and, cascading, its session) closes if
+    /// `pane` was its last, exactly as [`Tree::close_pane`]'s cascade
+    /// does. Atomic: the floor is checked in `target_tab` *before*
+    /// anything is removed from the source tab, so a refusal here leaves
+    /// both tabs untouched.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if `pane` is in no tab,
+    /// [`Error::TabNotFound`] if `target_tab` doesn't exist,
+    /// [`Error::AlreadyInTab`] if `target_tab` is already `pane`'s own
+    /// tab, or [`Error::SplitTooSmall`] if the floor would be violated.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: the tabs this just found to hold `pane` and
+    /// `target_tab` cannot have gone anywhere in between, since nothing
+    /// else runs while this method holds `&mut self`.
+    pub fn move_pane_to_tab(
+        &mut self,
+        pane: PaneId,
+        target_tab: TabId,
+        direction: Direction,
+    ) -> Result<MovedPane, Error> {
+        let source_tab_id = self
+            .tab_owning_pane_mut(pane)
+            .ok_or(Error::PaneNotFound(pane))?
+            .id();
+
+        if source_tab_id == target_tab {
+            return Err(Error::AlreadyInTab {
+                pane,
+                tab: target_tab,
+            });
+        }
+
+        let target = self
+            .tab_by_id_mut(target_tab)
+            .ok_or(Error::TabNotFound(target_tab))?;
+        let target_current = target.current();
+        if target.would_violate_floor_inserting(target_current, direction, pane) {
+            return Err(Error::SplitTooSmall {
+                pane: target_current,
+            });
+        }
+
+        // Captured before any cascade can remove the session that holds
+        // the source tab (mirrors `close_pane`'s own comment).
+        let source_session_id = self.session_id_owning_tab(source_tab_id);
+
+        let source_tab = self
+            .tab_owning_pane_mut(pane)
+            .expect("just found this pane's tab above, and nothing else ran meanwhile");
+        let (removed_pane, pane_closed) = source_tab.remove_pane_for_move(pane);
+
+        let (source_tab_closed, source_session_closed) = if pane_closed.tab_now_empty {
+            let tab_closed = self
+                .close_tab(source_tab_id)
+                .expect("the tab that just reported itself empty is still in the tree");
+            (
+                Some(tab_closed.tab),
+                if tab_closed.session_now_empty {
+                    source_session_id
+                } else {
+                    None
+                },
+            )
+        } else {
+            (None, None)
+        };
+
+        let target = self
+            .tab_by_id_mut(target_tab)
+            .expect("confirmed present above, and nothing else ran meanwhile");
+        target.insert_pane_for_move(direction, removed_pane);
+
+        Ok(MovedPane {
+            pane,
+            to: target_tab,
+            source_tab_closed,
+            source_session_closed,
+        })
     }
 
     /// Moves the session with this id to a new position among its
@@ -408,8 +627,14 @@ mod tests {
     fn closing_one_of_several_panes_cascades_no_further_than_it_should() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();
-        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
-        let second_pane = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
 
         let closed = tree.close_pane(second_pane).unwrap();
 
@@ -460,31 +685,48 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_new_pane_does_not_consume_an_id() {
+    fn a_failed_split_pane_does_not_consume_an_id() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap(); // mints raw ids 0, 1, 2
-        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
-        let unknown_tab = steg_sdk::TabId::from_raw(999);
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let unknown_pane = steg_sdk::PaneId::from_raw(999);
 
         assert!(
-            tree.new_pane(unknown_tab, steg_sdk::PaneKind::Terminal)
-                .is_err()
+            tree.split_pane(
+                unknown_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal
+            )
+            .is_err()
         );
 
         // Had the failed call minted a pane id before checking, this
         // would mint raw 4, not 3.
-        let pane_id = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
+        let pane_id = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
         assert_eq!(pane_id.into_raw(), 3);
     }
 
     #[test]
-    fn new_pane_adds_a_pane_to_an_existing_tab() {
+    fn split_pane_adds_a_pane_to_an_existing_tab() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        let pane_id = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
-
-        let pane_id = tree.new_pane(tab_id, steg_sdk::PaneKind::Terminal).unwrap();
-
         let tab = tree.session(session_id).unwrap().tab(tab_id).unwrap();
         assert_eq!(tab.panes().len(), 2);
         assert!(tab.pane(pane_id).is_some());
@@ -605,12 +847,205 @@ mod tests {
             Err(crate::error::Error::SessionNotFound(unknown_session))
         );
         assert_eq!(
-            tree.new_pane(unknown_tab, steg_sdk::PaneKind::Terminal),
-            Err(crate::error::Error::TabNotFound(unknown_tab))
+            tree.split_pane(
+                unknown_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal
+            ),
+            Err(crate::error::Error::PaneNotFound(unknown_pane))
         );
         assert_eq!(
             tree.move_tab(unknown_tab, 0),
             Err(crate::error::Error::TabNotFound(unknown_tab))
         );
+    }
+
+    #[test]
+    fn move_pane_to_tab_leaves_both_tabs_with_a_valid_tree() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+
+        let moved = tree
+            .move_pane_to_tab(second_pane, second_tab, steg_sdk::Direction::Right)
+            .unwrap();
+
+        assert_eq!(moved.pane, second_pane);
+        assert_eq!(moved.to, second_tab);
+        assert_eq!(moved.source_tab_closed, None);
+        assert_eq!(moved.source_session_closed, None);
+
+        let source = tree.session(session_id).unwrap().tab(first_tab).unwrap();
+        assert_eq!(source.panes().len(), 1);
+        assert!(source.pane(first_pane).is_some());
+
+        let target = tree.session(session_id).unwrap().tab(second_tab).unwrap();
+        assert_eq!(target.panes().len(), 2);
+        assert!(target.pane(second_pane).is_some());
+        assert_eq!(target.current(), second_pane);
+    }
+
+    #[test]
+    fn move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+
+        let moved = tree
+            .move_pane_to_tab(first_pane, second_tab, steg_sdk::Direction::Right)
+            .unwrap();
+
+        assert_eq!(moved.source_tab_closed, Some(first_tab));
+        assert_eq!(moved.source_session_closed, None);
+        let session = tree.session(session_id).unwrap();
+        assert_eq!(session.tabs().len(), 1);
+        assert_eq!(session.tabs()[0].id(), second_tab);
+    }
+
+    #[test]
+    fn move_pane_to_tab_refuses_a_panes_own_tab() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        assert_eq!(
+            tree.move_pane_to_tab(first_pane, first_tab, steg_sdk::Direction::Right),
+            Err(crate::error::Error::AlreadyInTab {
+                pane: first_pane,
+                tab: first_tab,
+            })
+        );
+    }
+
+    #[test]
+    fn move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes()
+     {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_tab_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+        // 39 columns halves to 19 and 19 — under the 20-column floor.
+        tree.set_tab_size(second_tab, steg_sdk::Size::new(39, 10))
+            .unwrap();
+
+        // The whole of both tabs, before the refused move — `Tab`
+        // derives `PartialEq`, so this one comparison covers layout,
+        // pane order, current pane and fill together, not just whatever
+        // a hand-picked set of assertions happened to check.
+        let source_before = tree
+            .session(session_id)
+            .unwrap()
+            .tab(first_tab)
+            .unwrap()
+            .clone();
+        let target_before = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .clone();
+
+        let result = tree.move_pane_to_tab(first_pane, second_tab, steg_sdk::Direction::Right);
+
+        assert_eq!(
+            result,
+            Err(crate::error::Error::SplitTooSmall {
+                pane: second_tab_pane
+            })
+        );
+        assert_eq!(
+            tree.session(session_id).unwrap().tab(first_tab).unwrap(),
+            &source_before
+        );
+        assert_eq!(
+            tree.session(session_id).unwrap().tab(second_tab).unwrap(),
+            &target_before
+        );
+    }
+
+    #[test]
+    fn panes_are_in_layout_order_after_a_move() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_tab_first_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        tree.move_pane_to_tab(first_pane, second_tab, steg_sdk::Direction::Left)
+            .unwrap();
+
+        let target = tree.session(session_id).unwrap().tab(second_tab).unwrap();
+        // Direction::Left puts the moved pane first.
+        assert_eq!(
+            target
+                .panes()
+                .iter()
+                .map(crate::pane::Pane::id)
+                .collect::<Vec<_>>(),
+            vec![first_pane, second_tab_first_pane]
+        );
+    }
+
+    #[test]
+    fn swap_panes_is_refused_when_the_two_panes_are_in_different_tabs() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_tab_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        assert_eq!(
+            tree.swap_panes(first_pane, second_tab_pane),
+            Err(crate::error::Error::PanesNotInSameTab {
+                a: first_pane,
+                b: second_tab_pane,
+            })
+        );
+    }
+
+    #[test]
+    fn set_tab_size_smaller_always_succeeds_and_closes_nothing() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+
+        tree.set_tab_size(tab_id, steg_sdk::Size::new(5, 1))
+            .unwrap();
+
+        assert!(tree.session(session_id).is_some());
+        let tab = tree.session(session_id).unwrap().tab(tab_id).unwrap();
+        assert_eq!(tab.panes().len(), 1);
     }
 }

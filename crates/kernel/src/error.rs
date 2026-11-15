@@ -2,16 +2,13 @@
 
 use std::fmt;
 
-use steg_sdk::{PaneId, SessionId, TabId};
+use steg_sdk::{Direction, PaneId, SessionId, TabId};
 
 use crate::target::Candidate;
 
 /// An error from an operation on the tree.
 ///
-/// One variant per thing a caller can tell apart (rust.md). Later kernel
-/// tasks (the layout tree's split, resize and swap) are expected to add
-/// their own variants here rather than defining a second error type, since
-/// every one of them touches this same crate.
+/// One variant per thing a caller can tell apart (rust.md).
 ///
 /// Not `Copy` (the former derive, kept while every variant was a plain id
 /// or two `usize`s): `InvalidLabel`, `InvalidTargetPath`, `TargetNotFound`
@@ -60,6 +57,36 @@ pub enum Error {
         /// The candidates that matched.
         candidates: Vec<Candidate>,
     },
+    /// A split (or a move to another tab, which splits the target tab's
+    /// current pane the same way) would leave a pane under doc-15 R100's
+    /// floor of 20 columns by 4 rows.
+    SplitTooSmall {
+        /// The pane that was asked to be divided.
+        pane: PaneId,
+    },
+    /// A resize named a pane with no split bordering it on that side
+    /// (R113's ancestor walk found nothing).
+    NoSplitInDirection {
+        /// The pane a resize was asked to act from.
+        pane: PaneId,
+        /// The side with no bordering split.
+        direction: Direction,
+    },
+    /// A swap was asked of two panes that are not both in the same tab
+    /// (R9: that is "moved to another tab", a different capability).
+    PanesNotInSameTab {
+        /// The first pane named.
+        a: PaneId,
+        /// The second pane named.
+        b: PaneId,
+    },
+    /// A move named a target tab that is already this pane's own tab.
+    AlreadyInTab {
+        /// The pane that was asked to move.
+        pane: PaneId,
+        /// The tab it is already in.
+        tab: TabId,
+    },
 }
 
 impl fmt::Display for Error {
@@ -93,6 +120,21 @@ impl fmt::Display for Error {
                     "{part:?} matches {} candidates, not one",
                     candidates.len()
                 )
+            }
+            Error::SplitTooSmall { pane } => {
+                write!(
+                    f,
+                    "splitting pane {pane} would leave a pane under the floor"
+                )
+            }
+            Error::NoSplitInDirection { pane, direction } => {
+                write!(f, "pane {pane} has no split bordering it {direction:?}")
+            }
+            Error::PanesNotInSameTab { a, b } => {
+                write!(f, "panes {a} and {b} are not in the same tab")
+            }
+            Error::AlreadyInTab { pane, tab } => {
+                write!(f, "pane {pane} is already in tab {tab}")
             }
         }
     }

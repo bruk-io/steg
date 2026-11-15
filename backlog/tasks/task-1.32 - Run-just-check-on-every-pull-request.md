@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:54:00Z'
+updated_date: '2026-11-15T02:55:00Z'
 labels:
   - size-2
   - changes-requested
@@ -150,6 +150,14 @@ ok      boundaries (0.1s)
 ok      licences (0.8s)
 skip    tests: this change touches no crate
 ok      tool tests (0.3s)
+```
+
+Commits since the review: 34, 33 without the Asdlc-Worker trailer.
+
+Check passed: `just test-all` exited 0 at 2026-11-15T02:55:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.32 on task-1.32-fix-ci-concurrency at 18244a46ca90 with uncommitted changes:
+
+```text
+ok      tests (every crate) (19.8s)
 ```
 
 Commits since the review: 34, 33 without the Asdlc-Worker trailer.

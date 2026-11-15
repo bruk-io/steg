@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:26:00Z'
+updated_date: '2026-11-15T03:27:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -588,6 +588,12 @@ warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-sdk` (lib test) due to 3 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed on line 70 with exit code 101
+```
+
+Check passed: `just lint` exited 0 at 2026-11-15T03:27:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      lint (0.5s)
 ```
 <!-- SECTION:NOTES:END -->
 

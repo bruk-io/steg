@@ -1,13 +1,16 @@
 # Vendored source
 
-Two separate things live here, for two separate network surfaces `ghostty-vt-sys`'s build
-otherwise reaches at build time (doc-16 open question; R92; decision-3). Both are needed for
-AC #1: the workspace has to build with the network unavailable.
+Three separate things live here. The first two are for two separate network surfaces
+`ghostty-vt-sys`'s build otherwise reaches at build time (doc-16 open question; R92;
+decision-3) - both needed for AC #1: the workspace has to build with the network
+unavailable. The third, `ghostty-vt-patched/` (TASK-1.79), is a different kind of
+entry: not a network surface closed, but a small patch to the safe `ghostty-vt` crate
+itself, carried here until upstream wires the same thing.
 
 Committed size, measured with `du -sh` on this tree (not the "~54 MB" an earlier draft of this
 file and the task's own notes stated - that number double-counted a stray copy, see `ghostty/`
-below): `ghostty/` is 23 MB, `ghostty-vt-zig-deps/` is 7.1 MB, about 30 MB added to the
-repository in total.
+below): `ghostty/` is 23 MB, `ghostty-vt-zig-deps/` is 7.1 MB, `ghostty-vt-patched/` is 500 KB,
+about 30.5 MB added to the repository in total.
 
 ## `ghostty/`
 
@@ -117,7 +120,115 @@ system integrations (freetype, harfbuzz, fontconfig, …) that `-Demit-lib-vt` n
 and every worker thread panicked with `reached unreachable code` (exit 134). Pre-populating
 `ZIG_GLOBAL_CACHE_DIR` has no such side effect.
 
-## Refreshing either one
+## `ghostty-vt-patched/`
+
+The safe `ghostty-vt` crate (not `ghostty-vt-sys`; a different crate, the Rust wrapper
+built on top of it) does not surface OSC 133's `D` step (a command's exit code) at all
+in its public API, even though `ghostty-vt-sys` carries it
+(`GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT`) - checked by reading `ghostty-vt`'s own
+`terminal.rs` in full, not by its absence from a search. TASK-1.79 needs it (doc-9 R14),
+so this is a small, one-file patch to that crate, carried here as a vendored `path`
+dependency (workspace root `Cargo.toml`'s `[patch.crates-io]`) rather than consumed
+straight from crates.io.
+
+**Provenance**, read from the primary sources, not assumed:
+- Crate: `ghostty-vt`, version `0.8.0+ghostty.1.4.0-main.83fb956`, licence Apache-2.0
+  (`LICENSE`; `LICENSE-GHOSTTY`, MIT, covers only the bundled terminfo/shell-integration
+  resources under `resources/`, not the crate's own Rust source).
+- Repository and maintainer: `https://github.com/prabirshrestha/gpui-cn` - read directly
+  from this crate's own `Cargo.toml` (`repository = "..."`) and independently confirmed
+  against crates.io's owners API (`GET /api/v1/crates/ghostty-vt/owners`), which names
+  the sole owner as GitHub user `prabirshrestha` (Prabir Shrestha). `ghostty-vt` is a
+  sub-crate of that person's own GPUI UI-kit application, not a standalone
+  terminal-engine project; worth knowing when judging how quickly an upstream
+  contribution might be reviewed.
+- Vendored from `~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/`,
+  with the registry-only files a vendored copy never needs removed (`Cargo.toml.orig`,
+  `Cargo.lock`, `.cargo-ok`, `.cargo_vcs_info.json`); everything else copied unchanged.
+  `crates/kernel/Cargo.toml` pins `ghostty-vt = "=0.8.0"` - not the full build-metadata
+  string: semver build metadata is never part of a version *requirement* and cargo
+  ignores it when matching (confirmed: writing it produces cargo's own warning,
+  "includes semver metadata which will be ignored"), so `=0.8.0` is the real, and the
+  most precise, constraint - it refuses any version but `0.8.0` itself, patched or not,
+  which an unpatched future `0.8.1` would not satisfy. What actually selects the
+  *patched* copy over crates.io's real `0.8.0` is the workspace root `Cargo.toml`'s
+  `[patch.crates-io]` entry, not this requirement string on its own - that entry
+  replaces every resolution of `ghostty-vt` from crates.io with the vendored copy
+  outright, and the requirement only has to accept whatever version the vendored copy's
+  own `Cargo.toml` declares. **What makes the patch stop applying, confirmed by
+  experiment**: bumping the vendored copy's own declared version to something `=0.8.0`
+  no longer accepts (tried a fake `0.8.1+test`) makes cargo print a warning naming the
+  patch and saying it "was not used in the crate graph", then silently fall back to
+  crates.io's real, unpatched `0.8.0` - the same would happen if the
+  `[patch.crates-io]` entry were removed or misconfigured. That warning is easy to miss
+  in a long build log, but the fallback is not survivable here regardless: unpatched
+  `ghostty-vt` has no `Event::SemanticPrompt` variant, so `crates/kernel/src/
+  terminal.rs`'s own code referencing it fails to compile outright - verified by running
+  the bumped-version experiment through to a real compile error, not stopping at the
+  warning.
+- Checked whether the newer `ghostty-vt` 0.9.0 (`+ghostty-vt.1.0.1`, released
+  2026-11-14) already wires this: it doesn't (same gap, read directly from its own
+  `terminal.rs`), and it also switches `ghostty-vt-sys`'s whole vendoring model from
+  "build Ghostty's own C/Zig source" (what `ghostty/` and `ghostty-vt-zig-deps/` above
+  are for) to "link a prebuilt release artifact, falling back to a different, narrower
+  source build" - adopting it would mean redoing this file's own `ghostty/`/
+  `ghostty-vt-zig-deps/` sections for no benefit to the one gap this patch closes, so
+  this stays on 0.8.0. A later upgrade is a separate, unrelated piece of work.
+
+**The patch**, `semantic-prompt.patch` (unified diff, `src/terminal.rs` only - the
+crate's one other file-level difference, `Cargo.toml`, is confirmed byte-identical to
+the registry's own normalized copy): wires
+`GHOSTTY_TERMINAL_OPT_SEMANTIC_PROMPT` as a new `Event::SemanticPrompt` variant,
+following the crate's own existing per-callback pattern (`cb_pwd_changed`) to the
+letter - one more `install!(...)` line, one more `unsafe extern "C" fn`, reading three
+plain `Copy` scalars (`kind`, `has_exit_code`, `exit_code`) out of the C struct and
+pushing an owned event. `command`/`error` (the C struct's other two, string-typed
+fields) are left out entirely: nothing in steg reads them, and leaving them out means
+this patch never has to reason about their FFI string ownership at all.
+
+Adds no unsafe code to any of steg's own crates: `ghostty-vt` is a dependency, not a
+workspace member (`Cargo.toml`'s `[workspace] members` list does not name it), so none
+of this repository's own lints - `undocumented_unsafe_blocks`,
+`crates/kernel/clippy.toml`'s I/O bans, `crates/kernel/src/lib.rs`'s
+`#![forbid(unsafe_code)]` - apply to it, the same as they don't today for the unpatched
+crate, which already does plenty of unsafe FFI work throughout this exact file. The
+patch's own four lines of `unsafe` (`shared_from_userdata(ud)`, already used by every
+other callback in the file; `&*event`, the same shape `cb_clipboard_write`'s `&*write`
+already uses) carry a `// SAFETY:` comment following that crate's own convention.
+
+**The changed-file notice** (Apache License 2.0, section 4: "You must cause any
+modified files to carry prominent notices stating that You changed the files") is at
+the top of `ghostty-vt-patched/src/terminal.rs` itself, naming what changed and
+pointing back here.
+
+**Re-verifying the patch is exactly what it claims, mechanically, not by reading it**:
+```sh
+# 1. A fresh pristine copy differs from the vendored one only by the
+#    registry-only files (expected, never vendored) and src/terminal.rs:
+diff -rq ~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956 \
+         third_party/ghostty-vt-patched
+
+# 2. Applying the committed patch to a fresh pristine copy reproduces the
+#    vendored file byte for byte:
+cp ~/.cargo/registry/src/*/ghostty-vt-0.8.0+ghostty.1.4.0-main.83fb956/src/terminal.rs /tmp/reverify.rs
+patch -p0 /tmp/reverify.rs < third_party/ghostty-vt-patched/semantic-prompt.patch
+diff -u /tmp/reverify.rs third_party/ghostty-vt-patched/src/terminal.rs  # empty output
+```
+Both ran clean while building this task.
+
+**Dropping this patch, once upstream wires the same callback**: bump `crates/kernel/
+Cargo.toml`'s `ghostty-vt` pin past whatever version does; delete this directory and
+the workspace root `Cargo.toml`'s `[patch.crates-io]` entry; update
+`crates/kernel/src/terminal.rs`'s `command_mark_from` to read the real
+`ghostty_vt::terminal::Event`'s new variant (its exact shape is not guaranteed to match
+this patch's `SemanticPromptEvent`/`SemanticPromptKind` - that function is the one
+place that would need to change, not anything that calls `Terminal::take_command_marks`
+downstream, since `CommandMark` is steg's own type either way).
+
+**Proposing this upstream**: raised on TASK-1.79 as something the engineer may want to
+open against `prabirshrestha/gpui-cn` - not opened by this task.
+
+## Refreshing `ghostty/` or `ghostty-vt-zig-deps/`
 
 A newer `ghostty-vt-sys` release pins a newer Ghostty commit in its own `GHOSTTY.lock`. To move
 to it: read the new commit/version/sha256/url from that lock file, repeat the fetch-and-verify

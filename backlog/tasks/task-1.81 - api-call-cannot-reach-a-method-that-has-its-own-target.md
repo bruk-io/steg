@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:05:00Z'
+updated_date: '2026-11-15T21:10:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -293,6 +293,51 @@ ok      test (steg-app) (0.8s)
 ok      tool tests (1.3s)
 ok      architecture (0.8s)
 ok      recipe names (0.1s)
+```
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch'` exited 101 at 2026-11-15T21:10:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes, last 40 of 72 lines:
+
+```text
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test api_call_refuses_to_call_itself ... ok
+test api_call_with_no_target_is_a_bad_request ... ok
+test api_show_an_unknown_method_is_no_such_target ... ok
+test tab_new_with_position_zero_is_refused_and_creates_nothing ... ok
+test tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test setting_unset_an_unknown_name_is_no_such_target ... ok
+test tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus ... ok
+test tab_new_with_position_one_places_the_new_tab_first ... ok
+test pane_close_removes_the_pane ... ok
+test tab_move_with_position_reorders ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test pane_focus_moves_to_the_neighbour ... ok
+test pane_split_with_a_program_refuses_and_creates_nothing ... ok
+test pane_set_zoomed_fills_and_unset_zoomed_unfills ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test pane_move_moves_it_to_another_tab ... ok
+test tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test tab_focus_makes_it_current ... ok
+test api_list_returns_every_method ... ok
+test every_nothing_or_identifier_returning_method_matches_its_declared_shape ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+failures:
+
+---- api_call_of_pane_split_gives_the_same_response_a_direct_call_would stdout ----
+
+thread 'api_call_of_pane_split_gives_the_same_response_a_direct_call_would' (13322216) panicked at crates/server/tests/dispatch.rs:1182:18:
+expected both calls to succeed: (Ok(Object {"id": String("00000003")}), Error(ApiError { code: BadRequest, message: "method: must be text", candidates: [] }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_of_pane_split_gives_the_same_response_a_direct_call_would
+
+test result: FAILED. 51 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test dispatch`
 ```
 <!-- SECTION:NOTES:END -->
 

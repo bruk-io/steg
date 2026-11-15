@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:16:00Z'
+updated_date: '2026-11-15T22:17:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1169,6 +1169,53 @@ test result: FAILED. 53 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/test-steg-server.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 24, 22 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T22:17:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 521b3d7161cd with uncommitted changes, last 40 of 68 lines:
+
+```text
+test runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+kill: 32309: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::stop_tests::stop_ends_a_silent_program ... FAILED
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 32305: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test runtime::stop_tests::stop_ends_a_program_producing_output ... FAILED
+
+failures:
+
+---- runtime::stop_tests::stop_ends_a_silent_program stdout ----
+
+thread 'runtime::stop_tests::stop_ends_a_silent_program' (14561511) panicked at crates/server/src/runtime.rs:1605:9:
+stop must end the program too
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- runtime::stop_tests::stop_ends_a_program_producing_output stdout ----
+
+thread 'runtime::stop_tests::stop_ends_a_program_producing_output' (14561510) panicked at crates/server/src/runtime.rs:1565:13:
+never saw a pid written to /var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/steg-stop-test-00000002.pid
+
+
+failures:
+    runtime::stop_tests::stop_ends_a_program_producing_output
+    runtime::stop_tests::stop_ends_a_silent_program
+
+test result: FAILED. 52 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.08s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 
 Commits since the review: 24, 22 without the Asdlc-Worker trailer.

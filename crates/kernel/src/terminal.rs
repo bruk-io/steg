@@ -189,10 +189,11 @@ impl Terminal {
         self.engine.rows().map_err(Error::Engine)
     }
 
-    /// The terminal's working directory, as last reported by a
-    /// well-formed `file://` URI (AC #2, doc-9 R16). `None` until a
+    /// The terminal's working directory, as last reported by OSC 7, OSC
+    /// 9;9 or OSC 1337 `CurrentDir=` (AC #2, doc-9 R16). `None` until a
     /// program reports one; a value this crate cannot parse confidently
-    /// (see [`parse_pwd`]) leaves it at whatever it was before.
+    /// as a directory (see [`parse_pwd`]) leaves it at whatever it was
+    /// before.
     #[must_use]
     pub fn cwd(&self) -> Option<&str> {
         self.cwd.as_deref()
@@ -361,22 +362,39 @@ fn read_cursor(snapshot: &ghostty_vt::render::Snapshot<'_>) -> Result<Cursor, Er
 
 /// Parses the value an `Event::PwdChanged` carries into a plain path.
 ///
-/// `None` for anything that is not a well-formed `file://<host>/<path>`
-/// URI with a non-empty path - no scheme, a host with no path, or a path
-/// whose percent-encoding does not decode. A caller keeps whatever `cwd`
-/// it already had rather than replace it with a guess: a value this
-/// permissive can be wrong in a way nothing downstream would notice, so a
-/// value this task cannot parse confidently is treated as no change
-/// rather than as a plain path.
+/// `PwdChanged` carries the raw, unvalidated value of whichever of three
+/// OSC sequences set it (checked against ghostty's own parsers,
+/// `third_party/ghostty/src/terminal/osc/parsers/{report_pwd,osc9,
+/// iterm2}.zig`):
+///
+/// - OSC 7 (`report_pwd.zig`): whatever bytes follow `7;`, unparsed - a
+///   `file://<host>/<path>` URI in practice, but the engine does not check
+///   that it is one.
+/// - OSC 9;9 (`osc9.zig`, a ConEmu extension): whatever bytes follow
+///   `9;9;`, equally unvalidated - ghostty's own test feeds it `"ab"`.
+/// - OSC 1337 `CurrentDir=` (`iterm2.zig`): whatever follows `=`, same
+///   story - ghostty's own test feeds it `"abc123"`.
+///
+/// So this crate is the only place that decides what counts as a
+/// directory: a `file://` URI with a non-empty path (`/` for an empty one,
+/// since `file:///` and `file://host/` both mean the root), or a value
+/// with no scheme that is itself an absolute path. Anything else - another
+/// scheme, a relative path, an empty value, or a `file://` path whose
+/// percent-encoding does not decode - is `None`, and the caller keeps
+/// whatever `cwd` it already had rather than replace it with a guess.
 fn parse_pwd(raw: &str) -> Option<String> {
-    let after_scheme = raw.strip_prefix("file://")?;
-    // `after_scheme` is `<host>/<path>`; `split_once` consumes the
-    // separating `/`, so it is put back in front of the decoded path.
-    let (_host, path) = after_scheme.split_once('/')?;
-    if path.is_empty() {
-        return None;
+    if let Some(after_scheme) = raw.strip_prefix("file://") {
+        // `after_scheme` is `<host>/<path>`; `split_once` consumes the
+        // separating `/`, so it is put back in front of the decoded path.
+        // A host with no `/` at all - not even a trailing one - has no
+        // path to take, well-formed or not.
+        let (_host, path) = after_scheme.split_once('/')?;
+        return Some(format!("/{}", percent_decode(path)?));
     }
-    Some(format!("/{}", percent_decode(path)?))
+    if raw.starts_with('/') {
+        return Some(raw.to_string());
+    }
+    None
 }
 
 /// Decodes `%XX` escapes in a URI path. `None` on any malformed escape,
@@ -485,25 +503,91 @@ mod tests {
     }
 
     #[test]
-    fn a_malformed_osc_7_value_is_ignored_and_the_previous_cwd_is_kept() {
+    fn a_file_uri_with_no_host_and_no_path_reports_the_root() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]7;file:///\x07");
+
+        assert_eq!(term.cwd(), Some("/"));
+    }
+
+    #[test]
+    fn a_file_uri_with_a_host_and_an_empty_path_reports_the_root() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]7;file://host/\x07");
+
+        assert_eq!(term.cwd(), Some("/"));
+    }
+
+    #[test]
+    fn a_file_uri_with_a_host_and_no_slash_at_all_is_ignored() {
         let mut term = Terminal::new(10, 2, 100).unwrap();
         term.write(b"\x1b]7;file:///tmp/first\x07");
         assert_eq!(term.cwd(), Some("/tmp/first"));
 
-        // A host with no path at all - nothing after it to take as one.
+        // A host with nothing after it at all - not even a trailing `/` -
+        // has no path to take, well-formed or not.
         term.write(b"\x1b]7;file://host\x07");
+
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+    }
+
+    #[test]
+    fn a_plain_absolute_path_is_accepted_through_osc_1337_current_dir() {
+        // OSC 1337 `CurrentDir=` (`iterm2.zig`) carries whatever follows
+        // `=` with no validation of its own - ghostty's own test feeds it
+        // a bare `"abc123"` - so a plain absolute path through it is a
+        // real path the engine supports, not an invented one.
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+
+        term.write(b"\x1b]1337;CurrentDir=/tmp/plain\x07");
+
+        assert_eq!(term.cwd(), Some("/tmp/plain"));
+    }
+
+    #[test]
+    fn a_value_with_another_scheme_is_ignored() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]7;file:///tmp/first\x07");
         assert_eq!(term.cwd(), Some("/tmp/first"));
 
-        // Not a file scheme.
-        term.write(b"\x1b]7;/not/a/uri\x07");
+        term.write(b"\x1b]7;http://x/y\x07");
+
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+    }
+
+    #[test]
+    fn a_relative_path_is_ignored() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]7;file:///tmp/first\x07");
         assert_eq!(term.cwd(), Some("/tmp/first"));
 
-        // Empty.
+        term.write(b"\x1b]7;relative/path\x07");
+
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+    }
+
+    #[test]
+    fn an_empty_value_is_ignored() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]7;file:///tmp/first\x07");
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+
         term.write(b"\x1b]7;\x07");
+
+        assert_eq!(term.cwd(), Some("/tmp/first"));
+    }
+
+    #[test]
+    fn bad_percent_encoding_is_ignored() {
+        let mut term = Terminal::new(10, 2, 100).unwrap();
+        term.write(b"\x1b]7;file:///tmp/first\x07");
         assert_eq!(term.cwd(), Some("/tmp/first"));
 
-        // Bad percent-encoding: `%zz` is not a hex escape.
+        // `%zz` is not a hex escape.
         term.write(b"\x1b]7;file:///tmp/%zzbad\x07");
+
         assert_eq!(term.cwd(), Some("/tmp/first"));
     }
 

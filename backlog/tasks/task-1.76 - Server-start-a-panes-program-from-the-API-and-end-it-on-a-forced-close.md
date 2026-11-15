@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:09:00Z'
+updated_date: '2026-11-15T23:10:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -2333,6 +2334,15 @@ Second round's findings fixed.
 **Finding 2 (no clean just check recorded at the head handed in).** Fixed by the above: `just check` now passes reliably at this head, recorded 5 times, unmodified.
 
 Head: merged origin/main first (board-only changes since the last merge; no new code). Running `just fmt`/`just lint` clean. Pushing now; `gh pr checks 40 --watch` next.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T23:10:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

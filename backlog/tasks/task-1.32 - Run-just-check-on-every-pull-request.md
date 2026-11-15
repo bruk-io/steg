@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:35:00Z'
+updated_date: '2026-11-15T02:36:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -15,6 +15,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.32-run-just-check-on-every-pull-request
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '80329a1be2b3'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -70,3 +73,16 @@ Plan checked against doc-1 section 7 by @bruk.o: ok against the acceptance crite
 
 Revised plan checked by @bruk.o: ok. It adds just test-all on push to main, as the engineer decided on 2026-11-15, and proves the push path before merge.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T02:36:00Z
+
+---
+
+Plan approved by @bruk (80329a1be2b3, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

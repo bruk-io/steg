@@ -1,13 +1,14 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:17:00Z'
+updated_date: '2026-11-15T21:27:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.48
@@ -21,8 +22,10 @@ asdlc_branch: task-1.81-api-call-cannot-reach-a-method-that-has
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd5c2871b65a2'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -471,6 +474,34 @@ created: 2026-11-15T21:17:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:27:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at PR #39 head 2d637366b3c8628fd5cd3bdbf18157c03ebc76a3 (matches the task's last recorded `just check` exit 0 and PR #39's green CI on the same head).
+
+[Compliance, Important] crates/server/tests/dispatch.rs:1137 api_call_refuses_to_call_itself only asserts error.code == BadRequest. I reverted api.rs's call() to the pre-fix behaviour (read/strip "target" instead of "method", everything else unchanged) and reran `cargo test --test dispatch`: 10 of the 12 api_call_* tests failed as expected, confirming they exercise real behaviour - but this one still passed. Under the reverted code the request carries no "target" key (only "method"), so param_str(request, "target") returns None and the function returns BadRequest("target: must be text") before ever reaching `if method_name == "api.call"`. The test cannot distinguish "api.call correctly refuses to call itself" from "the selector key is simply missing/wrong," so the refusal AC #1/plan names as its own proof step (and the review brief's item 4) is unproven. The sibling test for an unknown inner method was strengthened in this same diff to compare the whole ApiError for exactly this reason; this one wasn't. Fix: compare the error's message (or the whole ApiError) against "api.call cannot call api.call", not just the code.
+
+This also answers the plan's missing tests-first run (item 1 of the brief): made good by what I observed, for all but the above test. My revert reproduced the plan's intended "before" state faithfully (same read, same remove, nothing else touched), and 10/12 tests genuinely fail against it, so the missing proof step is not a separate Important finding - except that it would have caught the one test above, and didn't, because the proof step itself was never run.
+
+No findings on items 2, 3, 5, 6, 7 of the brief: the 41-method parity loop in extra_params_for covers every non-api.call method exhaustively (verified against description(), 42 methods total, panic! fallback for any missed), gives each a freshly-created non-default target where it has one, and compares whole Response/ApiError; the pane.set/tab.set/session.set tests assert both halves (named changed, default untouched) and would fail if api.call dropped the inner target (I traced the logic: a dropped target falls back to the context default, flipping both assertions); settings show/set/unset, unknown-inner-method (now whole-ApiError), inner-validation-failure and api.call-calling-itself(see above) are all present; the sdk invariant test (no method other than api.call declares a parameter named `method`) is real and description-driven, and call() only ever removes "method" and adds nothing else, so there is no other collision surface; validate() runs on the inner request through the same super::dispatch path a direct call takes, so an inner parameter the called method doesn't declare is refused identically ("<method> has no parameter <name>") - no unvalidated path. doc_2_section_8_targets()/every_method_has_a_target_... read described.target() by role, not by name, so they're correctly unaffected by the rename and still match doc-2 as it stands; module/function doc comments and the description's own api.call prose match what the code now does.
+
+Item 8: the notes' claim that "TASK-1.44 had merged meanwhile" is false - PR #37 (TASK-1.44) is still open; only its board-record commits (Finish, Review) reached main, not its code. This didn't drive any silent decision in this diff (nothing here touches sockets/handshake) and the notes' other claims about main checked out: TASK-1.76 (PR #40) is also still open, and origin/main's dispatch() signature is byte-for-byte what this branch builds against. Nit, not a departure that matters.
+
+--plan-matched no: the plan's proof section specifies tests-first, then the rename; the worker built the rename first and tests after, disclosed in the notes as a deliberate departure. Disclosure means it isn't an separate Important finding, but the order plan-matched judges by was not followed. Also, crates/server/src/dispatch/mod.rs is touched (one doc-comment word) and isn't in the plan's "Files that change" list; also disclosed in the build notes.
+
+Nits (3):
+- crates/server/tests/dispatch.rs:1122 api_call_with_no_method_is_a_bad_request only asserts error.code, so it would equally pass against the old "target"-reading code given an empty params vec - weaker than it needs to be, pre-existing pattern (same as the old api_call_with_no_target_is_a_bad_request).
+- No test exercises a present-but-non-text `method` value (e.g. an integer) for api.call's selector, only its absence. param_str's behaviour covers both paths identically, but only absence is exercised - a pre-existing gap (the old `target` selector had the same hole), not called for by this task's plan or ACs.
+- The "TASK-1.44 had merged" inaccuracy in the Implementation Notes (see item 8 above).
 
 ---
 <!-- COMMENTS:END -->

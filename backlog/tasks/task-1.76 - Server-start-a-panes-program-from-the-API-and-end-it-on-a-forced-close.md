@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T22:39:00Z'
+updated_date: '2026-11-15T22:40:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1899,6 +1899,53 @@ test result: FAILED. 16 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test runtime`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cargo test -p steg-server --lib --tests -- --test-threads=1'` exited 0 at 2026-11-15T22:40:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at b4dd50235cab, last 40 of 182 lines:
+
+```text
+test resize_reaches_the_terminal_even_with_no_program_running ... ok
+test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 6 tests
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home ... ok
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests/runtime.rs (target/debug/deps/runtime-e56fe6b4ab4a7d11)
+
+running 18 tests
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
 ```
 
 Commits since the review: 0.

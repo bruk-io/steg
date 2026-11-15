@@ -9,4 +9,4 @@ workspace = true
 
 [dependencies]
 steg-server = { path = "../server" }
-steg-cli = { path = "../cli" }
+steg-sdk = { path = "../sdk" }

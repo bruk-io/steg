@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:52:00Z'
+updated_date: '2026-11-15T03:00:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -158,6 +158,17 @@ added to `check`'s recipe line (`check: fmt-check lint boundaries deny test test
 
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-16 by @bruk.o: ok. Three containers, a plugin and a remote host external, the five packages as components with a shared package drawn in each container that builds it, doc-16's dependency table as the only edges, and the model validated in just check. For the engineer: validating in just check makes Node a requirement of every check run, CI included; and the c4 skill's usual advice is to draw a shared library once, which the plan sets aside because doc-16 says a shared package belongs to each container.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:00:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 3b4ca0496eed with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (14.2s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

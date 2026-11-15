@@ -4,13 +4,12 @@ title: 'sdk: the protocol''s logic, and the local-socket provider'
 status: To Do
 assignee: []
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T02:53:00Z'
+updated_date: '2026-11-15T03:01:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.43
-  - TASK-1.44
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -32,3 +31,9 @@ doc-16: R101, R102, R103, R106; doc-8 R3, R39, R99. The protocol written once, w
 - [ ] #5 A method is called by name with its parameters and returns its result or its error, and events arrive as typed values; the methods come from the API description, with none written by hand
 - [ ] #6 No GPUI type and no particular async runtime appears in the sdk's public interface (R106)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Order changed by @bruk.o on 2026-11-15: the handshake and framing are this task's and the server's socket task (TASK-1.44) uses them, so this comes first. The local-socket provider is tested here against a listener in a temporary directory; starting a real server end to end is proved in TASK-1.44.
+<!-- SECTION:NOTES:END -->

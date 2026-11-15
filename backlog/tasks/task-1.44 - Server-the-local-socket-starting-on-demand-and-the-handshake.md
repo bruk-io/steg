@@ -4,16 +4,18 @@ title: 'Server: the local socket, starting on demand, and the handshake'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T03:01:00Z'
 labels:
   - size-3
 milestone: m-0
 dependencies:
   - TASK-1.69
+  - TASK-1.70
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-14
+asdlc_branch: task-1.44-server-the-local-socket-starting-on
 ---
 
 ## Description
@@ -32,4 +34,5 @@ doc-8: R1, R3, R4, R5, R39, R99; doc-13 R60, R61. decision-2, section 7. Bruk de
 - [ ] #6 A server started on demand stops after 30 seconds with no sessions and no clients; one with a session, or one started explicitly, does not (R99)
 - [ ] #7 Two clients starting a server at the same moment end up connected to the same one (R99)
 - [ ] #8 A client's part in starting a server is to run the server's program and wait for the socket; it holds none of the logic above (R98)
+- [ ] #9 The handshake and the version check come from the sdk (TASK-1.70, doc-16 R101); this task adds the socket, the lifecycle and a real client starting a real server through the sdk's local-socket provider
 <!-- AC:END -->

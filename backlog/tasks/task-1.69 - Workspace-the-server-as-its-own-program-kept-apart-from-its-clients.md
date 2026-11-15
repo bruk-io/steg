@@ -1,14 +1,14 @@
 ---
 id: TASK-1.69
 title: 'Workspace: the five packages of doc-16, and the check that holds them apart'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:44:00Z'
-updated_date: '2026-11-15T02:54:00Z'
+updated_date: '2026-11-15T03:00:00Z'
 labels:
   - size-2
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies: []
 references:
@@ -23,8 +23,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '3b5cfdb0a760'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
 ---
 
@@ -464,6 +463,79 @@ Checks recorded on the task:
 The boundaries.py feature-level gap (it cannot see whether a crate's sdk
 dependency enables local-socket) is left exactly as found, per the plan - a
 separate task is already being drafted for it.
+
+Check FAILED: `just boundaries` exited 1 at 2026-11-15T02:55:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734 with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg-app depends on steg-server, which is not on its allow list in boundaries.toml (the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)).
+full output: .quiet/boundaries.log
+error: recipe `boundaries` failed on line 73 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just boundaries` exited 1 at 2026-11-15T02:55:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734 with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg-kernel depends on tokio, which is not on its allow list in boundaries.toml (the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)).
+full output: .quiet/boundaries.log
+error: recipe `boundaries` failed on line 73 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:56:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.6s)
+ok      tool tests (0.2s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-15T02:56:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at 0774a6380dd0:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+```
+
+Commits since the review: 22, 21 without the Asdlc-Worker trailer.
+
+Both review findings addressed.
+
+[Important] AC#3's two live demonstrations are now each a recorded
+`asdlc record-check` run of `just boundaries` taken while the tree was in the
+disallowed-dependency state, not just described in the notes:
+- `steg-app` with a manifest-only `steg-server = { path = "../server" }` added:
+  recorded FAILED run naming `steg-app`, `steg-server` and the `[steg-app]`
+  reason.
+- `steg-kernel` with a manifest-only `tokio = "1"` added: recorded FAILED run
+  naming `steg-kernel`, `tokio` and the `[steg-kernel]` reason.
+Both manifests were reverted immediately after each recorded run (confirmed
+with `git status`/`git diff` showing a clean tree before the next step), and
+a final clean `just check` is recorded after the revert, and again after
+merging origin/main.
+
+[Nit] `justfile`'s `packages` recipe comment reworded from "build and test
+every package by itself (R107)" to "build and test each package selected
+alone (`cargo -p`)" - what it actually proves, since `cargo -p` still
+resolves against the workspace root's `Cargo.lock` and workspace-inherited
+package fields, so it doesn't prove R107's "nothing outside its own folder"
+half. The recipe itself is unchanged.
+
+Pushed as two new commits on the same branch, merged with origin/main (no
+conflicts; only board files changed there).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -526,6 +598,36 @@ Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
 Plan-matched is reported as "no" because `tools/tests/adapter/test_affected_real_workspace.py` is not in the plan's "Files, in order" list; this is explained on the task (comment #2: deleting `crates/cli` broke the adapter test's hard-coded fixtures, fixed in the same pass) so it is not raised as its own finding.
 
 Everything else checked clean: boundaries.toml's five tables are a literal match for doc-16's "who may depend on whom" table and each carries a reason citing doc-16; every manifest edge (sdk/kernel/server/steg/app) matches the plan exactly; crates/cli's deletion and its doc comment's fold into crates/steg/src/main.rs match doc-16's component table (R98); the sdk crate is I/O-free with `local-socket` declared and empty, off by default (R102, R103); the kernel's sdk dependency is `default-features = false` (R105); .claude/rules/architecture.md's new bullets cite doc-16 correctly; plugins/bruk-io-steg/ is correctly left untouched per AC#6, with the "For the orchestrator" section listing what's needed; plan approval by @bruk is recorded (size-2); and the PR's CI run (43669467226) is green on the exact PR head commit (df8f9a21d734), covering format, lint, boundaries, licences, every crate's tests and tool tests.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:56:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.69: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T02:58:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+No findings. Re-reviewed the whole diff fresh against the plan, doc-16 and the team review policy, focusing on whether the two prior findings were actually fixed.
+
+Previous Important finding (AC#3's two live demonstrations were described but never recorded): now fixed. The task notes contain two genuine `asdlc record-check` entries of `just boundaries` FAILED, taken on a dirty tree at commit df8f9a21d734 (verified present in history): one naming steg-app, steg-server and the [steg-app] reason (the disallowed workspace dependency), one naming steg-kernel, tokio and the [steg-kernel] reason (the disallowed external dependency). Both are followed by a recorded clean `just check` after the manifests were reverted, confirming the demonstrations never landed. AC#3 is now shown by a recorded run, as required.
+
+Previous Nit (packages recipe's comment overclaimed R107): now fixed. The comment reads "build and test each package selected alone (`cargo -p`), so this is something anyone can run again" - no longer claims the per-folder isolation `cargo -p` doesn't prove. Verified in justfile's diff.
+
+Rest of the diff re-checked and still clean: boundaries.toml's five tables match doc-16's dependency table exactly, each with a reason citing doc-16; every manifest edge (sdk/kernel/server/steg/app) matches the plan; crates/cli is deleted and its doc comment folded into crates/steg/src/main.rs per doc-16's component table; steg-sdk has no dependencies and an empty, non-default local-socket feature (R102, R103); steg-kernel's sdk dependency sets default-features = false (R105); .claude/rules/architecture.md's new bullets cite doc-16; plugins/bruk-io-steg/ untouched (AC#6); plan approval by @bruk recorded (size-2, 3b5cfdb0a760); PR #11's CI run (43670083938, "check") is green on the PR's current head commit (0774a6380dd0a35136f6fd66b34525364ca2a4af), which matches this review's worktree HEAD exactly.
+
+plan-matched is "no" for the same reason the prior review recorded it: tools/tests/adapter/test_affected_real_workspace.py is not in the plan's "Files, in order" list. This is explained on the task (deleting crates/cli broke its hard-coded fixtures; fixed in the same pass) so it is not raised as a finding, consistent with the earlier review's treatment.
 
 ---
 <!-- COMMENTS:END -->

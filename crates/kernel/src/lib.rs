@@ -3,6 +3,10 @@
 //! The kernel is logic only. It takes data and returns data, and does no I/O
 //! of its own (`.claude/rules/architecture.md`). Behaviour lands here
 //! starting with TASK-1.6; this crate is the frame.
+//!
+//! It depends on the sdk, without the sdk's optional parts (R105), for the
+//! shapes that will cross the API - unused today, because the sdk has none
+//! yet.
 #![forbid(unsafe_code)]
 
 #[cfg(test)]

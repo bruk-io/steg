@@ -42,7 +42,7 @@ test-all:
 test-tools:
     @{{quiet}} "tool tests" -- uv run --quiet --project tools pytest -q tools/tests
 
-# build and test every package by itself (R107), so this is something anyone can run again
+# build and test each package selected alone (`cargo -p`), so this is something anyone can run again
 packages:
     #!/usr/bin/env bash
     set -euo pipefail

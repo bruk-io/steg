@@ -1,14 +1,14 @@
 ---
 id: TASK-1.43
 title: 'sdk: the API description, validation against it, and typed results'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:30:00Z'
+updated_date: '2026-11-15T15:40:00Z'
 labels:
   - size-4
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.36
@@ -27,8 +27,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6427b7d1fb39'
 asdlc_plan_approved_size: size-4
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
 ---
 
@@ -455,6 +454,16 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 10, 9 without the Asdlc-Worker trailer.
+
+Fixed all three review findings:
+
+1. (Important) api.show and api.call's method-selector param was role: Flag. Changed both to role: Target, value: ValueKind::Text, named target (matching doc-2 section 2's positional convention and the naming convention every other method's target already uses) via a new target_of_kind() helper. Closed the hole: added description::methods::tests::every_method_has_a_target_exactly_as_doc_2_section_8_gives_it, which checks every one of the 38 methods against doc-2 section 8's Target column independently (role presence, required-ness, and value kind - ValueKind::Target for a domain path, ValueKind::Text for api.show/api.call's bare method name), not just the (noun, verb) pairs the old completeness test checked.
+
+2. (Nit) validate() now checks every present parameter's JSON value against its declared ValueKind (text/integer/boolean/choice/target/path/argv), not only Choice's closed set - a null or wrong-type value is BadRequest for any parameter, required or not, since required-ness only ever governed absence. The message names the parameter and the kind expected (description::request::tests::the_message_names_the_parameter_and_the_kind_expected). New tests: a_null_value_is_a_bad_request_whether_or_not_the_parameter_is_required, a_wrong_type_is_a_bad_request_for_every_kind, a_valid_request_using_every_kind_is_accepted.
+
+3. (Nit) pane.wait's --for is narrowed to doc-2 section 8's literal value, "exit" (ValueKind::Choice(["exit"])), not the 14-name event list it wrongly shared with event.watch. Its returns (the program's exit code) now matches the one value it declares. Its details text spells out the tension between section 5's "names come from the API description's event records" and section 8's literal "--for exit" row, and says this description takes section 8's literal wording rather than inventing a shared vocabulary - flagging it as something doc-2 itself should settle, not guessing. Test: pane_wait_for_is_exactly_the_one_value_doc_2_section_8_gives_it.
+
+68 steg-sdk tests (was 62; +1 from a removed-and-replaced test, +7 net new). just check recorded clean at the fix commit (78d10b8), and again after merging origin/main twice (TASK-1.39's screen module still hasn't landed on main; the only incoming changes were board-only). Pushed and CI green at 1c9abd3.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -562,6 +571,38 @@ Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/sdk/src/description/methods.rs `pane.wait`'s declared `returns` is a fixed `Record{fields: [exit_code]}`, but its `for` parameter's closed set is all 14 event names (shared with `event.watch`, confirmed by a test tying them together) and doc-2 section 3's verb table describes `wait` generically as printing "the event that ended the wait", not specifically an exit code. For 13 of the 14 possible `--for` values the declared shape wouldn't hold anything meaningful. Likely fine for M1 if `pane.exited` is the only value anyone uses in practice, but the declared shape doesn't reflect the parameter's own closed set.
 
 Everything else checked clean: all 38 of doc-2 section 8's (noun, verb) pairs are present with no extras (verified by reading the full method table against section 8, not just the completeness test, which only checks the (noun, verb) set); every other method's target/params/required-ness/closed-set-of-values matches doc-2 sections 3, 4, 5 and 8 (direction choices, colour/pane-kind/client-kind words, `--position`/`--to` required-ness per noun, `client.show`'s target correctly required since doc-2 states there is no STEG_CLIENT context default); the 14 events match doc-8 R38 exactly and the 10 errors' exit statuses match doc-2 section 6 exactly; SessionRecord's fields match doc-14's session row exactly and are cross-checked against the description by a test; identifiers' Serialize/Deserialize round-trip through exactly their Display string and FromStr/Deserialize reject malformed strings without panicking (verified); Colour/PaneKind/Orientation serialise as their own words; Ratio round-trips an uneven value (333/1000) and rejects 0, 1, negative and out-of-range values (NaN/infinity are rejected too, since serde_json's text format has no literal for them and f64 comparisons against them are false either way); Layout's externally-tagged shape round-trips a split with two leaves. The diff touches only the files the plan names (boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs, crates/sdk/src/description/*), nothing under crates/kernel/, crates/server/ or spikes/ (spikes/api-description/ is untouched, as the split required), serde/serde_json are the only new dependencies and are named in boundaries.toml with a reason that matches what they're used for, clippy.toml carries no new exemptions, and `cargo test -p steg-sdk` passes all 62 tests. The recorded `just check` (85df8bd5ad54) is at the branch's current head, and PR #28's CI run on that same head (headRefOid 85df8bd5ad54) is green. The known textual conflict with PR #27 (TASK-1.39) in crates/sdk/src/lib.rs was not treated as a finding, per instruction.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:32:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.43: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:40:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Fresh re-review of 1c9abd3 (PR #28 headRefOid, CI green). All three earlier findings verified closed, not just claimed:
+
+(1) api.show and api.call now declare target with role: Target, value: ValueKind::Text, name "target" (crates/sdk/src/description/methods.rs, target_of_kind helper). The new test every_method_has_a_target_exactly_as_doc_2_section_8_gives_it was checked row by row against doc-2 section 8's Target column by hand (all 38 methods) and matches. Independence confirmed empirically: flipped api.show's role back to Flag in a scratch edit (discarded after) and the test failed with "api.show should have a Target-role param" - it is not vacuously passing. api.show's required:false rests on the board's recorded decision (comment #1, confirmed by Bruk: "api.show with no target returns the whole description"), not on section 8's text itself, which is the correct provenance per decision-1's "served to anyone who asks". client.show's required:true is correctly the one exception, matching doc-2's lack of a STEG_CLIENT context default.
+
+(2) validate() (crates/sdk/src/description/request.rs) now type-checks every present parameter (any kind, required or not) via matches_kind, and refuses null (every arm is a positive shape test, so null falls through all of them with no separate check needed). Verified every declared kind with a wrong type and with null (both required and optional parameters) via the existing test suite, confirmed a valid request using every kind passes, and added a throwaway test (discarded after) sending a nested object, an array-of-objects, and a float where an integer is declared: all three are refused as BadRequest with no panic. A JSON literal beyond f64 range is rejected by serde_json's own parser before validate ever sees it, so that edge is not reachable code the sdk itself needs to guard. Error message names the parameter and the kind expected, confirmed by the_message_names_the_parameter_and_the_kind_expected.
+
+(3) pane.wait's --for is narrowed to the literal "exit" (ValueKind::Choice(["exit"])), matching doc-2 section 8's own row text exactly, with returns Record{exit_code} matching section 6's "prints the program's own exit code". This narrowing is correct, not a removal of spec-given functionality: section 8 is the one row that actually governs pane.wait, and gives it exactly one condition. There is a genuine tension elsewhere in doc-2 worth raising as a question for the engineer, not a finding against the worker: section 5's --for row says both wait and event.watch draw their names "from the API description's event records (R38)", but R38's event records are dotted names (pane.exited, not exit); section 8's literal "exit" is not one of them. The worker already surfaced this in the method's own `details` text and did not guess at a shared vocabulary doc-2 itself hasn't fixed - that is the right call given the instruction to flag an unsettled contradiction rather than resolve it silently.
+
+Nothing regressed elsewhere: ran cargo test -p steg-sdk (68 passed) and the full `just check` at the worktree's head (1c9abd3) - all green, matching the last recorded run. The only diff between the last recorded `just check` commit (78d10b8) and the branch's current head is the board task file itself (confirmed by diff --stat), so the recorded check is current. Diff touches only boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs and crates/sdk/src/description/*, plus Cargo.lock - nothing under crates/server/, crates/kernel/ or spikes/ (spikes/api-description/ untouched). PR #28's CI run on headRefOid 1c9abd3 is green (gh pr checks).
+
+No findings.
 
 ---
 <!-- COMMENTS:END -->

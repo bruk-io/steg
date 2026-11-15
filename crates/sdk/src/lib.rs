@@ -24,6 +24,7 @@ mod ids;
 mod layout;
 mod pane_kind;
 mod record;
+mod screen;
 
 pub use colour::Colour;
 pub use description::{
@@ -34,3 +35,4 @@ pub use ids::{PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use record::SessionRecord;
+pub use screen::{CellStyle, Cursor, CursorShape, Rgb, Row, Run, Screen, Underline, Wide};

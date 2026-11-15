@@ -24,6 +24,7 @@ mod pane;
 mod session;
 mod tab;
 mod target;
+mod terminal;
 mod tree;
 
 pub use error::Error;
@@ -31,6 +32,7 @@ pub use pane::Pane;
 pub use session::{Session, TabClosed};
 pub use tab::{DirectionalFocus, PaneClosed, Tab};
 pub use target::Candidate;
+pub use terminal::Terminal;
 pub use tree::{ClosedPane, FocusMove, Focused, MovedPane, Tree};
 
 #[cfg(test)]

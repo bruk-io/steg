@@ -12,7 +12,7 @@ The server owns every terminal and the app, the CLI and plugins are clients of i
 
 Length-prefixed frames on one multiplexed connection. A client gets a snapshot when it attaches and then screen updates the server computes; scrollback is fetched on request. The first frame is a hello whose shape is frozen for every future version.
 
-Status: proposed. Section 10 of the record asks Bruk to confirm that the answer is a snapshot followed by screen updates, and that has not been recorded.
+Confirmed by Bruk on 2026-11-15, which answers section 10 of the record: the answer is a snapshot followed by screen updates.
 
 ## Consequences
 

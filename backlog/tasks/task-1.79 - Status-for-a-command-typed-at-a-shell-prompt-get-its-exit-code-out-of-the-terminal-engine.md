@@ -3,16 +3,19 @@ id: TASK-1.79
 title: >-
   Terminal: surface a prompt-marked command's start and end, with its exit code,
   from the engine
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T22:11:00Z'
+updated_date: '2026-11-15T22:16:00Z'
 labels:
   - size-5
 milestone: m-4
 dependencies:
   - TASK-1.41
+references:
+  - task-1.79-status-for-a-command-typed-at-a-shell
+  - https://github.com/bruk-io/steg/pull/41
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
@@ -567,6 +570,29 @@ ok      tool tests (1.2s)
 ok      architecture (1.1s)
 ok      recipe names (0.0s)
 ```
+
+Built per the approved plan, in its order: brought in origin/main (TASK-1.41, TASK-1.81, both confirmed not touching crates/kernel/src/terminal.rs - checked by git log on that path, not assumed); derived third_party/ghostty-vt-patched/ from the exact registry copy of ghostty-vt 0.8.0; applied the one-file patch; committed semantic-prompt.patch beside it; pinned crates/kernel/Cargo.toml's dependency to the exact patched version; added the workspace root [patch.crates-io] entry; wrote third_party/README.md's new section (provenance, maintainer/repository confirmed via the crate's own Cargo.toml and crates.io's owners API - prabirshrestha/gpui-cn - the re-verification commands, the Apache-2.0 changed-file notice, and the drop procedure); built the kernel's CommandMark type, drain_events's new arm, command_mark_from, and Terminal::take_command_marks, test-first (the nine tests landed before the implementation and failed to compile, recorded).
+
+Checks recorded on this task (asdlc record-check), in order:
+1. just test - FAILED (E0599/E0432, CommandMark/take_command_marks don't exist yet) - the nine tests landing before the implementation.
+2. just test - passing, once the kernel implementation was added.
+3. Negative control on the real committed patch: the one new install!(SEMANTIC_PROMPT, ...) line commented out (nothing else changed) - just test FAILED, all eight marks-expecting tests with an empty queue (the ninth, no-prompt-marks-at-all, correctly still passed). Restored; just test passing again.
+4. cargo clean -p ghostty-vt-sys, then env GHOSTTY_SOURCE_URL=unreachable just build - passing (39.2s), re-confirming TASK-1.34's offline-build proof holds with the patch present.
+5. just check - passing in full (format, lint, boundaries, licences, every package built/tested alone, architecture, recipe names) at an intermediate head.
+6. just check - passing again after rebasing onto origin/main a second time (a few more board-only commits landed) and once more at the final pushed head.
+7. GitHub: PR #41's own CI run (43767882924, at 32ab0d9) green, 3m53s (the one-time Zig-link cost on a clean runner, consistent with TASK-1.34's own notes on this).
+
+Mechanical re-verification run on the real committed files, not described secondhand: diff -rq between a pristine ~/.cargo/registry copy of ghostty-vt 0.8.0 and third_party/ghostty-vt-patched/ shows only src/terminal.rs differs (plus the registry-only files never vendored, and the added semantic-prompt.patch itself); applying that committed patch file to a fresh pristine copy with patch -p0 reproduces the vendored src/terminal.rs byte for byte (diff -u, empty output) - run twice, once right after writing the patch and once again after the negative-control round-trip, both clean.
+
+## Coverage, clause by clause
+
+AC #1 ("The kernel's Terminal reports, as data, when a prompt-marked command starts producing output and when it ends with its exit code... a sequence with no exit code, a malformed one, and marks arriving out of order are each handled and tested"): crates/kernel/src/terminal.rs's new CommandMark enum (OutputStarted / Ended { exit_code: Option<i32> }) and Terminal::take_command_marks(), fed real OSC 133 bytes through Terminal::write in nine tests: output_started_mark_on_osc_133_c (C alone); command_ended_with_its_exit_code_on_osc_133_d (C then D;0); command_ended_with_no_exit_code_reports_none (a bare D); command_ended_with_a_malformed_exit_code_reports_none (D;abc - verified the engine's own OSC parser degrades this the same way it handles no code at all, has_exit_code: false either way, so no extra validation was needed); command_ended_fires_with_no_preceding_output_started (D;5 alone - marks arriving out of order, the engine enforces no ordering); two_output_started_marks_in_a_row_are_both_kept (two Cs, each kept, not deduped); a_mark_split_across_two_writes_still_resolves (D; / 9\x07 across two separate write calls - the real engine's own parser buffers the split); take_command_marks_drains_what_it_returns; a_shell_with_no_prompt_marks_produces_no_command_marks (plain text, no OSC 133 at all, produces an empty queue - nothing guessed). Two more tests than the plan's own six cases named (the drain-itself and no-marks-at-all cases), additive, not a reduction.
+
+AC #2 ("The route is the one the plan weighed and chose... with the alternatives and why they fail recorded; a second parser over the pty bytes is not built"): the plan on this task records the chosen route (patching the safe ghostty-vt crate) and why the two other named alternatives fail - a foreign-interface module outside the kernel over ghostty-vt-sys collapses into the same route as patching ghostty-vt itself, since the safe Terminal's raw handle is pub(crate) with no cross-crate accessor in either 0.8.0 or the newer 0.9.0 (checked both); reading engine state after each write (row semantic-prompt marks) cannot answer this at all, since RowSemanticPrompt carries no exit code and no Command/Output state anywhere in that path (checked by reading screen.rs). No second parser over the pty bytes was built - the one parser touched is the real engine's own, inside the patch.
+
+AC #3 ("The kernel still has no unsafe code and no I/O; the patch is as small as it can be, its licence and origin are recorded where TASK-1.34 recorded the build... the build from a clean checkout with no network still works, and how to drop the patch... is written down"): no unsafe code or I/O was added to any of steg's own crates - crates/kernel/src/lib.rs's #![forbid(unsafe_code)] is unaffected (confirmed by it building at all, since that attribute makes a violation a compile error), and crates/kernel/clippy.toml's I/O bans see nothing new to flag, since take_command_marks/command_mark_from do no I/O of their own; ghostty-vt is a dependency, not a workspace member, so none of those lints ever reach the four lines of already-established-pattern unsafe the patch itself adds (shared_from_userdata, already used by every other callback in that file; &*event, the same shape cb_clipboard_write's &*write already uses, with a // SAFETY: comment following that crate's own convention). The patch is one file, +49 lines, 0 deletions (measured with diff -u against the pristine registry copy) - the smallest shape that wires one callback following the crate's own existing per-callback pattern. Licence and origin: third_party/README.md's new ghostty-vt-patched/ section records the crate's name/version/licence (Apache-2.0, unchanged), its maintainer and repository (prabirshrestha/gpui-cn, read from the crate's own Cargo.toml and confirmed against crates.io's owners API, not assumed), the Apache-2.0 Section 4(b) changed-file notice (both in that README section and at the top of the patched file itself), and why 0.8.0 rather than the newer 0.9.0 (checked directly: same gap exists there too, and 0.9.0 switches the whole vendoring model, which would mean redoing TASK-1.34's apparatus for no benefit to this task). The clean-checkout, no-network build (cargo clean -p ghostty-vt-sys; GHOSTTY_SOURCE_URL=unreachable; just build) passes, recorded above. The drop procedure is written down in third_party/README.md's new section: bump the pin past whatever version wires the callback itself, delete the vendored directory and the [patch.crates-io] entry, and update command_mark_from to match the real upstream Event's shape (CommandMark, steg's own type, insulates everything downstream of take_command_marks from needing to change). Proposing this upstream was raised on the task as the engineer's to do or ask for; nothing was opened.
+
+Departure from the plan, worth naming: nine tests were built, not the plan's own six named cases - two more (the drain-itself test, and the no-prompt-marks-at-all test) were added because they were cheap and directly provable once the other seven existed, not because anything in the plan was wrong.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,14 +1,13 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T17:06:00Z'
+updated_date: '2026-11-15T17:09:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -577,6 +576,22 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 24, 24 without the Asdlc-Worker trailer.
+
+Review findings addressed (PR 30, commit 6e18352):
+
+1. Important - Decoder::next_frame's declared-length-under-the-header bound had no test. Added wire/frame.rs tests at the bound: 0 and 4 (refused as Malformed) and 5 (the smallest accepted, a zero-payload frame), each fed whole and a byte at a time - six new tests. Bit the proof: temporarily changed `declared_len < HEADER_LEN` to `declared_len < HEADER_LEN - 1`, ran `cargo test -p steg-sdk --lib wire::frame` through asdlc record-check (recorded exit 101, three of the new tests failed exactly as expected), then restored the original bound and confirmed green again.
+
+2. Important - connect()'s ConnectError::Spawn was never reached through connect() itself. Added two tests in tests/local_socket.rs: a binary path that does not exist, and a real file that exists but is not executable (written via std::fs::write with no execute bit) - both with autostart on and nothing listening, both now asserting connect() returns Err(ConnectError::Spawn(_)). The does-not-exist test also times the call and asserts it returns in well under a second against a 5-second connect_timeout: spawn() fails synchronously when exec itself fails, so connect() returns ConnectError::Spawn immediately, before ever reaching the retry loop's deadline - stated now on connect()'s own doc comment, and in an inline comment at the spawn() call site.
+
+3. Nit - stated the convention that a Decoder::next_frame error (TooLarge/Malformed) is fatal: it does not drain the buffer, so calling it again repeats the identical error for ever rather than ever resynchronising; documented on Decoder's own struct doc, next_frame's doc, Incoming::Malformed's doc, and Connection::poll's doc (the caller is expected to drop the connection, not keep polling it). Pinned with a new wire/frame.rs test asserting three successive next_frame() calls after one Malformed input all return the same error.
+
+4. Nit - documented on connect()'s doc comment that it never wait()s on the spawned child, and what that means for a long-lived consumer (the app) calling it with autostart repeatedly: a process-table entry accumulates per call until the consumer itself exits, for as long as the real server takes to detach and exit the process this spawned - attributed to TASK-1.44's own detaching code to keep short, which this function cannot avoid by waiting (R99 forbids that). Also left as a line here for TASK-1.44 to read when it builds the real detaching.
+
+No plan change - all four are within the approved design (tests and doc comments), not new behaviour.
+
+Checks: `just check` recorded via asdlc record-check at the new head (full green), after merging origin/main (board-notes-only commits from TASK-1.40/1.42/1.74/1.75's workers landed in the meantime, no code collisions - confirmed by diffing crates/ and justfile against origin/main before merging). CI on PR 30's new head (6e18352) passed.
+
+AC -> test list from the original build is unchanged in substance; the two Important findings' fixes slot into the existing AC #1 (frame/decoder, no I/O) and AC #3 (local-socket provider) rows - AC #1's proof now also covers the declared-length-under-header bound explicitly, and AC #3's proof now also covers the Spawn error path explicitly, both previously implied but untested.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

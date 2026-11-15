@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T20:35:00Z'
+updated_date: '2026-11-15T21:01:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
 asdlc_branch: task-1.81-api-call-cannot-reach-a-method-that-has
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd5c2871b65a2'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -268,3 +271,16 @@ Correction: the two tests mentioned above were removed from TASK-1.48 before it 
 
 Plan checked against doc-2 (sections 2, 5, 8), decision-1 and doc-14 by @bruk.o: ok. api.call's own selector is renamed from target to method on the wire and keeps the Target role, so it is still the CLI's one positional and doc-2's row (target: method) is already true; the called method's parameters stay flat beside it, so its own target survives. No spec or decision document changes; the description of api.call changes (one parameter's name), which the engineer approves with the plan. Nesting the parameters was weighed and set aside as a larger change to the description format. A test fixes that no method declares a parameter named method. Proof is driven from the description, with named targets shown to be acted on rather than the default.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T21:01:00Z
+
+---
+
+Plan approved by @bruk (d5c2871b65a2, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

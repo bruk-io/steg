@@ -39,6 +39,8 @@ asdlc_branch: task-1.44-server-the-local-socket-starting-on
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c074345d1296'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -883,6 +885,15 @@ Coverage against the five acceptance criteria, clause by clause, including today
 Additional proof beyond the five criteria, for the thread-joining rule itself: listen::tests::a_finished_connection_is_removed_and_a_still_open_one_is_kept and ::an_empty_set_is_left_empty (reap_finished's own predicate, in-process, real UnixStream::pair and real threads); shutdown.rs::many_short_connections_do_not_grow_the_tracked_set (end-to-end: 200 connect/handshake/close cycles plus one trigger connection, fd count before vs. after). "Prove one bites": removed the shutdown-and-join step in run() (replaced with a bare double-drop), ran `cargo test -p steg-server --test shutdown`, and a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop failed by its 5s bound exactly as expected (not a hang) - recorded on this task, then the step was restored and the full suite re-confirmed green.
 
 Checks recorded on this task today, in order: the failing `cargo test -p steg-server --test shutdown` with the join step removed (proving the test bites); 10 consecutive `cargo test -p steg-server --test race` runs (proving AC #2's race and timeout tests are not flaky); 5 consecutive `cargo test -p steg-server --test shutdown` runs (proving the new tests are not flaky); and `just check` at the final head, all green - that last one is the final state this task is handed off on.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T21:08:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

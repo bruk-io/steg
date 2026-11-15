@@ -291,6 +291,20 @@ Update on comment #4's last sentence: the Node setup step has since been fully r
 Per the engineer's correction (relayed by the orchestrator): GitHub's hosted macos-26 image ships Node already, so `npx` resolves there with no setup step. Confirmed empirically, not just by the engineer's claim: a one-off diagnostic (`node --version` prepended to the `architecture` recipe, committed, pushed, read from the run, then reverted - net effect on the committed tree is zero) showed this PR's own CI run used **Node v24.22.2** natively (run https://github.com/bruk-io/steg/actions/runs/43670816613, job step "just check", timestamp 2026-11-15T03:08:46Z, log line "v24.22.2"). That commit and its revert are both on this branch's history for anyone who wants to see the raw log line in context; the final diff against origin/main for ci.yml and the justfile's `architecture` recipe is clean (no diagnostic left in).
 
 Follow-up for the orchestrator, not done in this PR: pin Node in `.github/workflows/ci.yml` (version now known: 24.22.2 as of 2026-11-15, the hosted image's own version, not independently chosen) - separate from, and in addition to, the commands.toml follow-up already recorded in comment #4.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:12:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 6ee794d1b96e:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

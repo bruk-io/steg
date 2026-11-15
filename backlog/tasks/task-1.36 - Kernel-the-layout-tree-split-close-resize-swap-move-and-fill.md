@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:07:00Z'
+updated_date: '2026-11-15T04:24:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -183,6 +183,29 @@ Plus the sdk-level unit tests from steps 1-2 above.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-15 (R9, R78, R95, R96, R100, R112, R113) and doc-16 (R105) by @bruk.o: ok. Layout shapes and their pure geometry are in the sdk; split, close, resize, swap, move, fill and the 20 by 4 floor are the kernel's. A tab's panes are kept in the order of the tree's leaves (R112). A pane's neighbour and the wrap target are decided by exact rectangles from the tree and its ratios, with a stated tie-break (R113, written from this plan). A split divides in half, as the engineer decided. The resize floor is judged within the split being resized. TASK-1.37 inherits the tab's current pane and Tab::neighbour, and adds the session's current tab and the focus operations.
+
+Check passed: `just check` exited 0 at 2026-11-15T04:24:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.36 on task-1.36-kernel-the-layout-tree-split-close at 74dc064e3e5b with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.2s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

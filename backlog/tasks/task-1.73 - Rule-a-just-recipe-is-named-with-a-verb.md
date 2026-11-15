@@ -1,11 +1,11 @@
 ---
 id: TASK-1.73
 title: 'Rule: a just recipe is named with a verb'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:41:00Z'
+updated_date: '2026-11-15T03:43:00Z'
 labels:
   - size-2
   - review-passed

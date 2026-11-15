@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:47:00Z'
+updated_date: '2026-11-15T02:48:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -150,3 +150,9 @@ added to `check`'s recipe line (`check: fmt-check lint boundaries deny test test
 - AC #5: `just check` is run once with the model intact (passes) and once with a deliberately broken `.c4` file (fails), both outcomes recorded on the task.
 - AC #6: every element's title traces to a word in doc-16's tables, doc-15's "The things" table, or doc-1 §4's vocabulary table — checked by hand, listed against its source in the build notes.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Revised plan checked against doc-16 by @bruk.o: ok. Three containers, a plugin and a remote host external, the five packages as components with a shared package drawn in each container that builds it, doc-16's dependency table as the only edges, and the model validated in just check. For the engineer: validating in just check makes Node a requirement of every check run, CI included; and the c4 skill's usual advice is to draw a shared library once, which the plan sets aside because doc-16 says a shared package belongs to each container.
+<!-- SECTION:NOTES:END -->

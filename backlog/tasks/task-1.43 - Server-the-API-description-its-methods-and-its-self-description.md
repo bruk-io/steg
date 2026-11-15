@@ -4,7 +4,7 @@ title: 'Server: the API description, its methods and its self-description'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-15T02:34:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -22,7 +22,7 @@ asdlc_accepted_from: DRAFT-13
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-doc-8: R36, R37. decision-1. The API is one value; the server dispatches from it and serves it unchanged.
+doc-8: R36, R37; doc-16 R101. decision-1. The API is one value, and it lives in the sdk; the server dispatches from it and serves it unchanged.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:22:00Z'
+updated_date: '2026-11-15T19:23:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -604,6 +604,51 @@ running 5 tests
 test a_programs_exit_code_reaches_the_event_channel ... ok
 test resize_reaches_the_terminal_even_with_no_program_running ... ok
 test a_pane_with_no_program_running_accepts_input_as_a_no_op ... ok
+test output_printed_before_exit_is_in_the_snapshot ... ok
+test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 5 tests
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-15T19:23:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes, last 40 of 122 lines:
+
+```text
+test tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test session_close_removes_it ... ok
+test pane_swap_exchanges_two_panes ... ok
+test session_list_matches_exactly_the_fields_the_description_declares_per_record ... ok
+test pane_set_zoomed_fills_and_unset_zoomed_unfills ... ok
+test api_list_returns_every_method ... ok
+test tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/program.rs (target/debug/deps/program-89613f7a57fade38)
+
+running 5 tests
+test a_programs_exit_code_reaches_the_event_channel ... ok
+test a_pane_with_no_program_running_accepts_input_as_a_no_op ... ok
+test resize_reaches_the_terminal_even_with_no_program_running ... ok
 test output_printed_before_exit_is_in_the_snapshot ... ok
 test restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run ... ok
 

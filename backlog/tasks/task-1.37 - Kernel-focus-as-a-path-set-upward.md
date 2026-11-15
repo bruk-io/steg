@@ -1,10 +1,11 @@
 ---
 id: TASK-1.37
 title: 'Kernel: focus as a path, set upward'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:46:00Z'
+updated_date: '2026-11-15T05:00:00Z'
 labels:
   - size-2
 milestone: m-0

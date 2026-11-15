@@ -29,6 +29,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -571,6 +572,15 @@ Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/sdk/src/description/methods.rs `pane.wait`'s declared `returns` is a fixed `Record{fields: [exit_code]}`, but its `for` parameter's closed set is all 14 event names (shared with `event.watch`, confirmed by a test tying them together) and doc-2 section 3's verb table describes `wait` generically as printing "the event that ended the wait", not specifically an exit code. For 13 of the 14 possible `--for` values the declared shape wouldn't hold anything meaningful. Likely fine for M1 if `pane.exited` is the only value anyone uses in practice, but the declared shape doesn't reflect the parameter's own closed set.
 
 Everything else checked clean: all 38 of doc-2 section 8's (noun, verb) pairs are present with no extras (verified by reading the full method table against section 8, not just the completeness test, which only checks the (noun, verb) set); every other method's target/params/required-ness/closed-set-of-values matches doc-2 sections 3, 4, 5 and 8 (direction choices, colour/pane-kind/client-kind words, `--position`/`--to` required-ness per noun, `client.show`'s target correctly required since doc-2 states there is no STEG_CLIENT context default); the 14 events match doc-8 R38 exactly and the 10 errors' exit statuses match doc-2 section 6 exactly; SessionRecord's fields match doc-14's session row exactly and are cross-checked against the description by a test; identifiers' Serialize/Deserialize round-trip through exactly their Display string and FromStr/Deserialize reject malformed strings without panicking (verified); Colour/PaneKind/Orientation serialise as their own words; Ratio round-trips an uneven value (333/1000) and rejects 0, 1, negative and out-of-range values (NaN/infinity are rejected too, since serde_json's text format has no literal for them and f64 comparisons against them are false either way); Layout's externally-tagged shape round-trips a split with two leaves. The diff touches only the files the plan names (boundaries.toml, crates/sdk/Cargo.toml, crates/sdk/src/{lib,ids,colour,pane_kind,layout,record}.rs, crates/sdk/src/description/*), nothing under crates/kernel/, crates/server/ or spikes/ (spikes/api-description/ is untouched, as the split required), serde/serde_json are the only new dependencies and are named in boundaries.toml with a reason that matches what they're used for, clippy.toml carries no new exemptions, and `cargo test -p steg-sdk` passes all 62 tests. The recorded `just check` (85df8bd5ad54) is at the branch's current head, and PR #28's CI run on that same head (headRefOid 85df8bd5ad54) is green. The known textual conflict with PR #27 (TASK-1.39) in crates/sdk/src/lib.rs was not treated as a finding, per instruction.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T15:32:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.43: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,12 +5,13 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:50:00Z'
+updated_date: '2026-11-15T01:09:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
 - Revised 2026-11-15 for the app's design (doc-7) and the four decisions Bruk made that day: program status is split across M1 and M2; session colour follows the design; settings are overrides and the Python config is never written to; each status ends by its own rule. The changes are R21, R26, R50 and R51 reworded, R78 to R84 added, and the release table.
 - Revised again 2026-11-15 for where focus lives (TASK-1.29): the vocabulary gains window and focus, the client is defined more exactly, and R85 to R91 are added. R91 settles the size a terminal takes when more than one client views it.
+- Revised 2026-11-15 for the terminal library: Bruk chose ghostty's VT engine (doc-6) and accepted what follows from it. R19 is replaced with the measured numbers, R59 says what the licence check allows, and R92 is added for the build.
 - Reference product: [Rex](https://www.superlogical.com/rex/docs) by Superlogical.
 
 ## 1. What steg is
@@ -151,9 +152,17 @@ Each requirement is tagged with the release it belongs to (section 6).
 - R17 (M1). The app supports text selection, copy, paste, find in scrollback, and
   clickable links.
 - R18 (M2). The app can jump between shell prompts in scrollback.
-- R19 (M1). Typing in a local pane paints within 16 ms at the 95th percentile. Printing a
-  100 MB file does not freeze the app or delay input to other panes. These numbers are
-  proposals to confirm once a spike has measured a baseline.
+- R19 (M1). Typing in a local pane is drawn into the next frame the app builds within
+  12 ms at the 95th percentile, measured from the key event to the end of the paint.
+  Including the wait for the display's refresh, the time from key to frame is within 20 ms
+  at the 95th percentile on a 120 Hz display. Both are measured with the app's own
+  instrumentation. Printing a 100 MB file does not freeze the app or delay input to other
+  panes; to hold that, the app caps what it feeds the emulator in one frame and carries the
+  rest over. These replace the first proposal of 16 ms, which did not say where the clock
+  stops; doc-6 section 5 has the measurements.
+- R92 (M1). Terminal emulation is ghostty's VT engine, through the `ghostty-vt` bindings
+  (doc-6). The build needs a Zig toolchain and uses a vendored copy of ghostty's source, so
+  that no build reaches the network.
 
 ### 5.4 Desktop app
 
@@ -323,7 +332,8 @@ These cost little now and a great deal to retrofit.
 - R58 (M1). No telemetry, no account, no licence check, and no network call the user did
   not ask for.
 - R59 (M1). MIT licensed, with no code taken from GPL sources. Zed's terminal crates are
-  GPL, so the GPUI terminal view is written fresh.
+  GPL, so the GPUI terminal view is written fresh. The licence check allows permissive
+  licences, CDLA-Permissive-2.0 among them, and refuses GPL and AGPL.
 - R60 (M1). Config, state, and sockets follow XDG paths. Nothing is
   tied to one person's machine.
 - R61 (M1). The server and CLI ship as one binary with no runtime dependency beyond the
@@ -362,7 +372,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R91, and R50 for running, finished and failed |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R92, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
@@ -396,8 +406,8 @@ questions, and the decisions still to make.
   another plugin, any library works, and each plugin has its own dependencies. The cost
   is one hop between the server and Python for each custom action, and the memory of
   one Python process per plugin (section 8).
-- **Carries forward intent question 3** (terminal emulation library): `libghostty-vt` or
-  `alacritty_terminal`, decided by the first spike in section 6.
+- **Intent question 3** (terminal emulation library): decided 2026-11-15, ghostty's VT
+  engine (R92, doc-6).
 - **Answers intent question 4** (remote sessions): a later release, M3 (R55-R57). This is
   an assumption to confirm at acceptance.
 - **Answers intent question 5** (matching Rex's names): no. Similar shape, steg's own

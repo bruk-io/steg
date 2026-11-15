@@ -1990,6 +1990,21 @@ error: test failed, to rerun pass `-p steg-server --test real_pty`
 ```
 
 Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test real_pty many_threads_opening_a_real_pty_at_once_never_fails` exited 0 at 2026-11-15T23:03:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at 9e508ed2704d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-a87d5c4aaa32cd2f)
+
+running 1 test
+test many_threads_opening_a_real_pty_at_once_never_fails ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.49s
+```
+
+Commits since the review: 16, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

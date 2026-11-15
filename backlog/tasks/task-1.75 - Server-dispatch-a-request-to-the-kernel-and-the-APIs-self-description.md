@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T16:10:00Z'
+updated_date: '2026-11-15T16:15:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -496,3 +496,9 @@ declares") applies only where both sides exist and are comparable:
   above that this dangles two citations in decision-1, which is not this task's to fix.
 - `just check` recorded in full at the end, and after every rebase onto `origin/main`.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Revised plan checked against doc-8 (R36, R37), doc-2, doc-15 (R115), doc-16 and decision-1 by @bruk.o: ok. Dispatch is a function from a request and a context to a response over the tree; every one of the 38 methods has an arm, real or answering not built with what it waits on, checked both ways; a working directory or a program given to session new, tab new or pane split is refused until TASK-1.40 lands, and nothing a caller would notice missing is accepted silently; kernel errors are matched exhaustively. For the engineer: a new error code, EngineFailed, with exit status 1, and pane resize and tab move --to answer not built for now. Kept as one change.
+<!-- SECTION:NOTES:END -->

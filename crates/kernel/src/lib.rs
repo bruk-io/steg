@@ -5,6 +5,8 @@
 //! starting with TASK-1.6; this crate is the frame.
 #![forbid(unsafe_code)]
 
+fn   deliberately_unformatted(  )  {}
+
 #[cfg(test)]
 mod tests {
     // Exercises `clippy.toml`'s `allow-unwrap-in-tests = true`: `unwrap_used`

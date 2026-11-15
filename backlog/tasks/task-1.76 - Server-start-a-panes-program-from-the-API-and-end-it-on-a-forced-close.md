@@ -1,11 +1,11 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:31:00Z'
+updated_date: '2026-11-15T23:32:00Z'
 labels:
   - size-5
   - review-passed

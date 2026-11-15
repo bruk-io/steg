@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:27:00Z'
+updated_date: '2026-11-15T21:35:00Z'
 labels:
   - size-3
   - changes-requested
@@ -869,6 +869,53 @@ failures:
 test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
 
 error: test failed, to rerun pass `-p steg-server --test handshake`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test shutdown'` exited 101 at 2026-11-15T21:35:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 12d6802de7c0 with uncommitted changes, last 40 of 45 lines:
+
+```text
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... FAILED
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... FAILED
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... FAILED
+test many_short_connections_do_not_grow_the_tracked_set ... FAILED
+
+failures:
+
+---- stop_called_twice_concurrently_on_an_idle_server_is_harmless stdout ----
+
+thread 'stop_called_twice_concurrently_on_an_idle_server_is_harmless' (13926365) panicked at crates/server/tests/shutdown.rs:129:29:
+run should have returned within 5s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound stdout ----
+
+thread 'stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound' (13926366) panicked at crates/server/tests/shutdown.rs:129:29:
+run should have returned within 5s of being stopped
+
+---- a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop stdout ----
+
+thread 'a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop' (13926362) panicked at crates/server/tests/shutdown.rs:129:29:
+run should have returned within 5s of being stopped
+
+---- many_short_connections_do_not_grow_the_tracked_set stdout ----
+
+thread 'many_short_connections_do_not_grow_the_tracked_set' (13926364) panicked at crates/server/tests/shutdown.rs:129:29:
+run should have returned within 5s of being stopped
+
+
+failures:
+    a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop
+    many_short_connections_do_not_grow_the_tracked_set
+    stop_called_twice_concurrently_on_an_idle_server_is_harmless
+    stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound
+
+test result: FAILED. 3 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.04s
+
+error: test failed, to rerun pass `-p steg-server --test shutdown`
 ```
 
 Commits since the review: 0.

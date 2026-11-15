@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:44:00Z'
+updated_date: '2026-11-15T15:10:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -299,6 +299,90 @@ ok      test (steg-app) (0.7s)
 ok      tool tests (1.6s)
 ok      architecture (0.7s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `sh -c 'just check-boundaries && just test'` exited 0 at 2026-11-15T14:56:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 2776d3cd43c5 with uncommitted changes:
+
+```text
+ok      boundaries (0.1s)
+ok      tests (every crate) (0.4s)
+```
+
+Check passed: `sh -c 'just check-fmt && just lint && just test'` exited 0 at 2026-11-15T15:00:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 128efc9b70ea with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.7s)
+ok      tests (every crate) (0.8s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T15:08:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 464391efa8f9 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T15:09:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 9a5699ce3194:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (0.9s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T15:10:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.43 on task-1.43-server-the-api-description-its-methods at 85df8bd5ad54:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

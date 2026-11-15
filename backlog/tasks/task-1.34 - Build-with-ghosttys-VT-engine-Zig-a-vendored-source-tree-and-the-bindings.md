@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:51:00Z'
+updated_date: '2026-11-15T07:02:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.31
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e63ab21b4e98'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=5'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1112,6 +1111,41 @@ created: 2026-11-15T06:51:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.34: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T07:02:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Fresh re-review at head 1b1c6f7 (worktree build, not inherited from notes).
+
+The prior Important finding is fixed, verified independently: third_party/ghostty/zig-pkg/ is gone (git ls-files: 0 files; filesystem: absent), and the real committed size is now stated correctly - ghostty/ 23 MB + ghostty-vt-zig-deps/ 7.1 MB = ~30 MB (confirmed with du), matching third_party/README.md.
+
+Cause, verified against the real crate, not just the notes: ghostty-vt-sys's build.rs copy_tree copies GHOSTTY_SOURCE_DIR into $OUT_DIR/src (skip-list includes "zig-pkg", confirmed by grep against ~/.cargo/registry/src/.../ghostty-vt-sys-0.8.0+.../build.rs lines 169-195) and builds there - cargo build never writes into third_party/ghostty. The writer was a direct `zig build` invocation with third_party/ghostty as cwd, run for one of this task's own offline-rebuild proofs, with neither ZIG_LOCAL_PKG_DIR nor --cache-dir set, so Zig's default (<build root>/zig-pkg) wrote there. Fixed at the cause: every such direct-zig-build proof now redirects ZIG_LOCAL_PKG_DIR and --cache-dir to a scratch dir, copying the vendored tarballs into a scratch global-cache first (never pointing ZIG_GLOBAL_CACHE_DIR at the committed directory). The .gitignore entries (zig-pkg/, .zig-cache/) are a second guard only, and the notes and third_party/README.md say so explicitly - they would hide a reappearance from `git status` (confirmed: git status --porcelain --ignored third_party is silent even looking for ignored files), not prevent one; the real build does `just check`'s own build (ZIG_GLOBAL_CACHE_DIR -> target/zig-global-cache via .cargo/config.toml, seeded by justfile's zig-deps-seeded from the read-only vendored tarballs) plus build.rs's $OUT_DIR copy. I ran `just check` myself in a fresh detached worktree at this head: all steps passed (lint 79.6s, tests/build steg-kernel ~40-45s - the Zig link cost, cached after); `git status --porcelain` was empty afterward and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk.
+
+[Bugs, Compliance/Evidence] AC #1 offline proof at this head, independently checked: GHOSTTY_SOURCE_URL=unreachable local proof is recorded post-merge; the GitHub network-blocked half reran as a second throwaway PR (#26, branch task-1.34-scratch-network-proof-2) rather than reused from the earlier head - verified via `gh pr view 26` (closed, not merged) and `git ls-remote origin` (branch gone from origin; only a stale local tracking ref remained in my fetch) and `git merge-base --is-ancestor b6cee50 HEAD` (exit 1 - the scratch commit is not in this branch). Run 43686868598 completed success in ~5m50s. PR 20's own head run (43686625467, at 1b1c6f7) is green, 2m50s - longer than recent board-only main pushes (mostly under 2 minutes, warm cache, no Zig link paid), consistent with the notes' own account of the one-time Zig-link cost per clean runner, not a new concern.
+
+Licences (item 4): third_party/README.md now tables all seven vendored Zig packages with licence and licence-file location, independently re-checked against what I already verified by hand in the prior review - uucode MIT, translate_c MIT, aro MIT+Unicode-License-v3, zlib's own licence, highway Apache-2.0/BSD-3, wuffs MIT/Apache-2.0, pixels CC0-1.0. Nothing GPL/AGPL; R59 holds.
+
+Seed failure (item 5): copied justfile alone into a scratch dir with no third_party/ and ran `just zig-deps-seeded` - fails loudly with "no tarballs found under third_party/ghostty-vt-zig-deps/p/ (third_party/README.md)", exit 1, not swallowed.
+
+check-recipes / no-mise message (item 6): `just check`'s `recipe names` step passed; grepped the real build.rs directly - the no/wrong-Zig panic reads "Install it with `mise install`, activate mise, or set ZIG to the Zig 0.17 binary." - a machine without mise gets a clear message.
+
+boundaries/clippy/deny (item 7): boundaries.toml's [steg-kernel] keeps deny-features and gains ghostty-vt on allow, reason extended; crates/kernel/clippy.toml unchanged and still names the no-I/O disallowed-types/methods list; deny.toml has no diff against main (TASK-1.31 already covers this graph).
+
+AC #3 (bytes-in/screen-out test): present at crates/kernel/src/lib.rs, passing in my own just check run. AC #4: spikes/task-1.1-terminal-library/ is gone; no remaining reference outside backlog/.
+
+[Bugs, Nit] justfile:44's doc comment above zig-deps-seeded ("`cp -n` is a no-op once seeded once") contradicts the recipe body's own comment two lines below ("Copies, not `cp -n`: ... conflated 'nothing to do' with 'really failed'") - a leftover from before this round's fix to that recipe, never updated to match.
+
+Plan-matched is recorded as "no": the notes disclose real departures from the approved plan (seven Zig packages, not three; ZIG_GLOBAL_CACHE_DIR pointing at target/, not the vendored directory; a per-recipe conditional ZIG export, not a top-level one) - each with a stated reason, so none is an Important Compliance finding, but they are departures.
+
+No Important findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

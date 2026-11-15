@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:07:00Z'
+updated_date: '2026-11-15T16:26:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-10
 asdlc_branch: task-1.40-run-a-pane-s-program-and-know-when-it
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '5e9ba0795787'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -326,3 +329,16 @@ test-to-clause mapping in section 6.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9 (R13, R16), doc-15 (R97), doc-2 section 4, doc-8 (R1, R99) and doc-16 by @bruk.o: ok. The kernel holds what a pane's program is and its status, as shapes defined in the sdk, and the rule for what happens when it ends, reusing the tree's close cascade; the server launches through an interface of its own that the kernel never sees. One thread per pane owns its terminal for the pane's life, with a short relay thread per run; opening the pseudo-terminal and spawning happen on the control thread so a bad command is an ordinary error. portable-pty is added to the server only, its licence to be confirmed by just deny. Tests use a real pseudo-terminal and wait on events, never a sleep. Left to TASK-1.44: where the server's own environment comes from.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T16:26:00Z
+
+---
+
+Plan approved by @bruk (5e9ba0795787, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

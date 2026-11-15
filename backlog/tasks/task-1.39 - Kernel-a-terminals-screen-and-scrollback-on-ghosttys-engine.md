@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:41:00Z'
+updated_date: '2026-11-15T14:43:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -308,6 +308,21 @@ builds multi-attachment should settle it, informed by whichever this
 scrollback task's single-reader method ends up implying.
 
 Plan for the narrowed task checked against doc-9 (R14, R16, R92, R116), doc-16 (R105) and decision-2 by @bruk.o: ok. A free-standing kernel Terminal over the engine, not stored on a pane; the screen read out as rows of styled runs with the cursor; the cell model with wide characters, underline style and colour, cursor shape and link presence; link_at for a cell's address; working directory and title copied out of the engine's events, which are drained after every write; resize. Drawing shapes are in the sdk with no new dependency. Named for later tasks: the engine's handles cannot move between threads, and pixel sizes are passed as zero until the clients-and-size task.
+
+Check passed: `just check-packages` exited 0 at 2026-11-15T14:43:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39 on task-1.39-kernel-a-terminal-s-screen-and at edbe7af2c6e6:
+
+```text
+ok      build (steg-sdk) (0.3s)
+ok      test (steg-sdk) (0.5s)
+ok      build (steg-kernel) (83.0s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (18.6s)
+ok      test (steg-app) (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -8,14 +8,13 @@
 //!
 //! This direction only. The reverse — every [`ErrorCode`] the description
 //! lists has a kernel source that can produce it today — is not asserted:
-//! `ErrorCode::ProgramRunning` now has four kernel sources below
-//! (TASK-1.40's `Error::ProgramAlreadyStarted`/`ProgramNotStarted`/
-//! `ProgramStillRunning`/`ShellCannotRestart`), but none is reachable
-//! through a served method yet — dispatch calls none of
-//! `Tree::start_program`/`record_exit`/`restart_program` (that is a later
-//! task's job, not this one's) — and `ErrorCode::NotImplementedYet` never
-//! comes from this function at all; it is dispatch's own synthetic error
-//! for an arm or branch that is not built (`not_implemented_yet`, in
+//! `ErrorCode::ProgramRunning` now has two kernel sources below
+//! (TASK-1.40's `Error::ProgramAlreadyStarted`/`ProgramStillRunning`),
+//! but neither is reachable through a served method yet — dispatch calls
+//! none of `Tree::start_program`/`record_exit`/`restart_program` (that is
+//! a later task's job, not this one's) — and `ErrorCode::NotImplementedYet`
+//! never comes from this function at all; it is dispatch's own synthetic
+//! error for an arm or branch that is not built (`not_implemented_yet`, in
 //! `mod.rs`).
 
 use steg_kernel::Error;
@@ -56,18 +55,35 @@ pub fn map_kernel_error(error: Error) -> ApiError {
         }
         Error::AlreadyInTab { .. } => ApiError::new(ErrorCode::AlreadyInTab, error.to_string()),
         Error::Engine(_) => ApiError::new(ErrorCode::EngineFailed, error.to_string()),
-        // All four are a request valid in form but wrong for the pane's
-        // current program state - the same shape `ErrorCode::ProgramRunning`
-        // already names for `--force` (doc-2 section 9): starting a second
-        // program, reporting an exit with none started, and restarting
-        // either a program that has not ended or a plain shell (which
-        // closes instead, R97) are each "not now, given what this pane's
-        // program is doing" rather than a bad request or a missing target.
-        Error::ProgramAlreadyStarted(_)
-        | Error::ProgramNotStarted(_)
-        | Error::ProgramStillRunning(_)
-        | Error::ShellCannotRestart(_) => {
+        // `ErrorCode::ProgramRunning` is documented as "a program is still
+        // running and `--force` was not given" (shapes.rs): true of both
+        // of these - starting a second program on a pane that already has
+        // one, and restarting one whose program has not ended yet (or has
+        // no program at all - `Pane::restart`'s own guard folds "no
+        // program" and "still running" into this one variant, since a
+        // caller can't restart either). `ProgramNotStarted` and
+        // `ShellCannotRestart`, below, are the opposite state or an
+        // unrelated one, so they don't belong here.
+        Error::ProgramAlreadyStarted(_) | Error::ProgramStillRunning(_) => {
             ApiError::new(ErrorCode::ProgramRunning, error.to_string())
+        }
+        // No dedicated code exists for either: `ProgramNotStarted` is the
+        // literal opposite of `ProgramRunning` (nothing is running at
+        // all), and `ShellCannotRestart` has no `--force`-shaped flag
+        // anywhere in doc-2 to attach it to. `BadRequest` is this file's
+        // own existing bucket for "doesn't fit the described shape given
+        // what's known" (the same reasoning `InvalidLabel`/
+        // `InvalidTargetPath` above already rest on, and TASK-1.42's
+        // `ClientNotViewingPane`/`ClientNotViewingTab` - not yet merged as
+        // this is written, but reviewed with exactly this same reasoning
+        // in its own comment there) - not a guess at a code that doesn't
+        // exist. Neither is reachable through a served method today
+        // (dispatch calls none of `Tree::start_program`/`restart_program`/
+        // `record_exit`); the task that adds program methods to dispatch
+        // is the one that decides whether either deserves a code of its
+        // own.
+        Error::ProgramNotStarted(_) | Error::ShellCannotRestart(_) => {
+            ApiError::new(ErrorCode::BadRequest, error.to_string())
         }
     }
 }
@@ -193,7 +209,7 @@ mod tests {
     }
 
     #[test]
-    fn a_panes_program_state_errors_map_to_program_running() {
+    fn starting_a_second_program_or_restarting_one_still_running_maps_to_program_running() {
         let id = PaneId::from_raw(1);
 
         assert_eq!(
@@ -201,16 +217,22 @@ mod tests {
             ErrorCode::ProgramRunning
         );
         assert_eq!(
-            map_kernel_error(Error::ProgramNotStarted(id)).code,
-            ErrorCode::ProgramRunning
-        );
-        assert_eq!(
             map_kernel_error(Error::ProgramStillRunning(id)).code,
             ErrorCode::ProgramRunning
         );
+    }
+
+    #[test]
+    fn recording_an_exit_with_none_started_or_restarting_a_shell_maps_to_bad_request() {
+        let id = PaneId::from_raw(1);
+
+        assert_eq!(
+            map_kernel_error(Error::ProgramNotStarted(id)).code,
+            ErrorCode::BadRequest
+        );
         assert_eq!(
             map_kernel_error(Error::ShellCannotRestart(id)).code,
-            ErrorCode::ProgramRunning
+            ErrorCode::BadRequest
         );
     }
 

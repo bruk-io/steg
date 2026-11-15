@@ -23,13 +23,24 @@
 //! [`PaneHandle`]'s commands and the [`PaneEvent`]s this module sends out,
 //! both `Send`, so the `!Send` engine never has to cross a boundary.
 //!
-//! **A known gap**, found and left for the task that builds forced close
-//! (`--force`), not this one: [`PaneHandle::shutdown`] ends a program
-//! that has produced *some* output, but a program that never writes
-//! anything at all, such as a plain `sleep`, leaves its relay thread
-//! blocked in `read` for as long as it lives - see `spawn_relay`'s own
-//! comment and this module's tests for why the pseudo-terminal's natural
-//! hang-up does not reach it on this platform.
+//! **A known gap**, unreachable by any client today (dispatch calls none
+//! of [`start`]/[`PaneHandle::shutdown`]/`restart` yet) and tracked for
+//! the task that will make it reachable, DRAFT-4 ("Server: start a
+//! pane's program from the API, and end it on a forced close"), whose
+//! own AC #4 already names it: "with `--force` the program is ended, its
+//! exit is observed, and its relay thread ends, for a program that is
+//! producing output and for one that prints nothing". [`PaneHandle::shutdown`]
+//! does **not** reliably do either today, confirmed by probing both: a
+//! program that would finish on its own within a second, and one that
+//! never writes anything at all, both end up with `child.wait()` blocked
+//! forever in the relay thread once `shutdown` has dropped the worker's
+//! `Running` - not just the silent case. What *is* fixed, and what the
+//! name "shutdown" in this module's own tests should not be read as more
+//! than: a failed forward (the worker is gone, independent of whether
+//! its fds were ever dropped) no longer skips `child.wait()` for a
+//! program that ends on its own regardless. See `spawn_relay`'s own
+//! comment for why dropping those handles does not deliver a reliable
+//! end, and for a way to actually end a program without `unsafe`.
 
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -174,8 +185,13 @@ impl PaneHandle {
     }
 
     /// Ends the pane's worker thread. Whatever is currently running loses
-    /// its standard input and resize handle when this is dropped; killing
-    /// the process outright (`--force`) is not this task's job.
+    /// its standard input and resize handle when this is dropped, but
+    /// that alone does not reliably end a still-running program on this
+    /// platform (see the module doc's known gap and `spawn_relay`'s own
+    /// comment) - a program that has already ended on its own is reaped
+    /// cleanly; one that has not keeps running, with its relay thread
+    /// blocked for as long as it does. Killing the process outright
+    /// (`--force`) is not this task's job.
     pub fn shutdown(self) {
         let _ = self.commands.send(PaneCommand::Shutdown);
     }
@@ -308,27 +324,54 @@ fn spawn_relay(
         // Reached by a normal end-of-file, or by the send failure above -
         // a dropped receiver (the pane's worker thread is gone) must stop
         // forwarding, never skip reaping the child it's still attached
-        // to. This is only reached at all for a program that produces
-        // *something* to read, eventually: a program that never writes
-        // anything, such as a plain `sleep`, leaves this thread blocked
-        // in the `read` above for as long as it lives, even after
-        // `PaneHandle::shutdown` drops the worker thread's `Running`
-        // (its writer and the resize closure's `MasterPty`) - probed
-        // directly (see this module's test module) rather than assumed:
-        // on this platform, that drop alone does not deliver the pty's
-        // hang-up, because the relay's own cloned reader (a genuinely
-        // separate descriptor from `MasterPty::try_clone_reader`) keeps
-        // the pty's master side from ever being fully closed, which is
-        // what the hang-up condition actually requires. Ending that case
-        // needs either a kill - `--force`, left to the task that builds
-        // it - or giving this thread a descriptor it can close itself,
-        // neither of which this task's plan covers.
+        // to. That much is fixed and holds regardless of why the receiver
+        // is gone. But reaching this line at all still depends on the
+        // program ending on its own: probed directly (not assumed, and
+        // not only for a silent program - see this module's test module),
+        // dropping the worker thread's `Running` (its writer and the
+        // resize closure's `MasterPty`, which is what `PaneHandle::shutdown`
+        // does) does not reliably end a program that is still running,
+        // whether it writes nothing at all or was about to finish within
+        // a second anyway - both leave this thread blocked in the `read`
+        // above, or (having reached here) blocked in `child.wait()`
+        // itself, for as long as the program lives. The pty's hang-up
+        // does not reach it on this platform: the relay's own cloned
+        // reader (a genuinely separate descriptor from
+        // `MasterPty::try_clone_reader`) keeps the pty's master side from
+        // ever being fully closed, which is what the hang-up condition
+        // actually requires - and even where that drop does produce a
+        // visible effect (a terminal's own line discipline echoing the
+        // `\n` plus EOF character `UnixMasterWriter::drop` writes), it is
+        // not the hang-up and does not end the program. This task's plan
+        // covers neither a kill nor giving this thread a descriptor it
+        // can close itself; DRAFT-4 ("Server: start a pane's program from
+        // the API, and end it on a forced close") AC #4 already names
+        // ending a program "producing output" and one that "prints
+        // nothing" as one requirement, which is exactly this. Confirmed
+        // by reading `portable-pty` 0.9.0's own source (not just its
+        // docs): `Child: ChildKiller`, and on Unix `Child::clone_killer`
+        // hands back a `ProcessSignaller` whose own `kill` sends `SIGHUP`
+        // by pid (`libc::kill`, inside `portable-pty`, not this crate) -
+        // independent of every pty descriptor, so it would end a program
+        // that does not trap `SIGHUP` without the fd-ownership rework
+        // above, and with no `unsafe` of this crate's own (unlike
+        // `std::process::Child`'s own `ChildKiller::kill`, this clone
+        // does not escalate to a stronger signal if `SIGHUP` alone is
+        // not enough). Taking that clone before handing `child` to this
+        // function is DRAFT-4's to add, not this task's: killing a
+        // running program is this plan's own named exclusion.
         let exit_code = match child.wait() {
             Ok(status) => i32::try_from(status.exit_code()).unwrap_or(i32::MAX),
-            // The child could not be waited on at all - no exit code to
-            // report; the pane stays in whatever state it was, which is
-            // observable (no `Exited` event ever arrives) rather than a
-            // guessed code.
+            // Deliberately silent, not a bug: `wait()` on a `Child` this
+            // thread itself holds the only handle to can fail only if the
+            // OS has nothing left to report (the process was already
+            // reaped by something outside this program's own model, or a
+            // transient OS error) - there is no real exit code to report
+            // either way, and `PaneEvent` has no variant for "unknown"
+            // that isn't itself a guessed code, so the pane is left in
+            // whatever state it was. Observable as an absence (no
+            // `Exited` event ever arrives for this run) rather than a
+            // fabricated one.
             Err(_) => return,
         };
         let _ = commands.send(PaneCommand::Exited(exit_code));
@@ -383,12 +426,17 @@ mod tests {
     }
 
     #[test]
-    fn shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output() {
+    fn a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own() {
         // Reproduces the review's first scenario directly: the pane's
-        // worker is "gone" (its receiver dropped) while
-        // `sh -c 'sleep 1; echo done'` is still running - the exact
-        // condition under which `spawn_relay`'s send used to fail and
-        // return early, skipping `child.wait()` and leaving a zombie.
+        // worker is "gone" (its receiver dropped, which is all this
+        // simulates - not `PaneHandle::shutdown`'s own fd-dropping,
+        // which this module's doc comment covers separately and which
+        // this test does not exercise) while `sh -c 'sleep 1; echo
+        // done'` is still running - the exact condition under which
+        // `spawn_relay`'s send used to fail and return early, skipping
+        // `child.wait()` and leaving a zombie. This program ends on its
+        // own a second later either way, which is what lets this assert
+        // cleanly.
         let spawned = RealLauncher
             .spawn(&real_spec(vec!["sh", "-c", "sleep 1; echo done"]))
             .unwrap();

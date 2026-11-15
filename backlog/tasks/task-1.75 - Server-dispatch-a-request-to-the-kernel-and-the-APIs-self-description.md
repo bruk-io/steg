@@ -22,6 +22,8 @@ asdlc_branch: task-1.75-server-dispatch-a-request-to-the-kernel
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f570689623ad'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r5
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -935,6 +937,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (f570689623ad, size-3): its worker may build it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-15T16:58:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.75: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

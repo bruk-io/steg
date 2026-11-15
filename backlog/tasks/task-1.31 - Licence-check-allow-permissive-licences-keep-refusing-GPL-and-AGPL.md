@@ -1,15 +1,18 @@
 ---
 id: TASK-1.31
 title: 'Licence check: allow permissive licences, keep refusing GPL and AGPL'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:39:00Z'
+updated_date: '2026-11-15T02:40:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.31-licence-check-allow-permissive-licences
+  - https://github.com/bruk-io/steg/pull/7
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -165,6 +168,24 @@ ok      licences (0.6s)
 ok      tests (every crate) (0.3s)
 ok      tool tests (0.2s)
 ```
+
+Built per the approved plan, no departures.
+
+Change: deny.toml gets one new entry in [licenses] allow, "CDLA-Permissive-2.0", with a comment giving the reason and authority (R59/doc-13, decision-3, decided by Bruk 2026-11-15). No [licenses.exceptions], no [[licenses.clarify]], no --exclude, no skipped crate - the allow list is the only mechanism touched (AC#3). MPL-2.0 untouched.
+
+Evidence, all recorded via asdlc record-check:
+- Baseline `just check`: ok (before any change).
+- AC#2, GPL still refused: a temporary local crate (spikes/licence-probe-gpl, license = "GPL-3.0-only") added as a path dependency on steg-server (unrestricted in boundaries.toml - steg-kernel is the only restricted crate and was never touched), then `just deny` -> `licenses FAILED`, rejecting it as not explicitly allowed. Reverted (crate deleted, Cargo.toml/Cargo.lock restored) before continuing.
+- AC#1, ghostty-vt, before: `ghostty-vt = "0.8"` temporarily added to steg-server's dependencies (real workspace has no ghostty-vt yet; TASK-1.34 adds it), `cargo fetch` resolved it to the exact 0.8.0+ghostty.1.4.0-main.83fb956 decision-3 measured. `just deny` -> `licenses FAILED`, naming webpki-root-certs under CDLA-Permissive-2.0 via ureq via ghostty-vt-sys's build - the same chain decision-3 section 6 recorded.
+- deny.toml edited (the one real change).
+- AC#1, after: same probe still in place, `just deny` -> `licenses ok`.
+- AC#1, corroboration: `cargo deny --config deny.toml --manifest-path spikes/task-1.1-terminal-library/probe-ghostty/Cargo.toml check licenses` -> `licenses ok` (its Cargo.lock is already committed, so this fetched nothing new).
+- Probe reverted; `git diff` against origin/main showed only the deny.toml line.
+- Final `just check`: ok, both before and after rebasing onto origin/main (no remote branch existed yet, so rebase rather than merge).
+
+Open question carried forward, not settled here: whether R59's "permissive" wording was meant to cover MPL-2.0's file-scoped copyleft (flagged on TASK-1.5's review; this task does not touch MPL-2.0).
+
+Not touched: backlog/decisions/decision-3 (its "deny.toml still has to be changed" line is now stale; decision records change only via a dedicated pull request per the team's convention, not from a worker's task branch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

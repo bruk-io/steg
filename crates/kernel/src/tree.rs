@@ -1,7 +1,10 @@
 //! The tree: every session, tab and pane a server owns (doc-15, R85).
 
-use steg_sdk::{Direction, PaneId, PaneKind, Program, Ratio, SessionId, Size, TabId};
+use steg_sdk::{
+    ClientId, ClientKind, Direction, PaneId, PaneKind, Program, Ratio, SessionId, Size, TabId,
+};
 
+use crate::client::Client;
 use crate::colour::next_colour;
 use crate::error::Error;
 use crate::ids::Ids;
@@ -86,7 +89,29 @@ pub struct MovedPane {
     pub source_session_closed: Option<SessionId>,
 }
 
-/// The tree: every session, tab and pane a server owns.
+/// What happened when a tab's size changed (TASK-1.42, doc-15 R91): a
+/// client declared a new size and is latest, a client's input or
+/// departure made a different client's already-declared size apply, or
+/// the previously-latest client left and the fallback did either of
+/// those. Carries everything a caller (the server, TASK-1.46/1.47) needs
+/// to resize each terminal and tell every other viewer, with no further
+/// lookup — the same reason `Focused`/`ClosedPane`/`MovedPane` exist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SizeChanged {
+    /// The tab whose size changed.
+    pub tab: TabId,
+    /// Its new size, in whole cells.
+    pub size: Size,
+    /// Every pane's absolute size at the new total
+    /// (`Layout::leaf_sizes(size)`) — what the server resizes each pane's
+    /// `Terminal` to (TASK-1.40's `PaneHandle::resize`).
+    pub panes: Vec<(PaneId, Size)>,
+    /// Every client currently viewing this tab (R91: "every other client
+    /// draws the terminal at that size") — who to tell.
+    pub viewers: Vec<ClientId>,
+}
+
+/// The tree: every session, tab, pane and client a server owns.
 ///
 /// This is the whole structure doc-15 calls "a server's tree" (R85) and
 /// later tasks call simply "the tree" (TASK-1.46's title).
@@ -94,6 +119,13 @@ pub struct MovedPane {
 pub struct Tree {
     ids: Ids,
     sessions: Vec<Session>,
+    clients: Vec<Client>,
+    /// Advances every time a client sends input or declares a size
+    /// (TASK-1.42, decision-6): not a clock, nothing reads real time here —
+    /// the kernel advancing its own counter, the same shape `Ids`' own
+    /// `next_raw` already is, just for "more recent than", never for an
+    /// identifier.
+    activity: u64,
 }
 
 impl Default for Tree {
@@ -103,13 +135,22 @@ impl Default for Tree {
 }
 
 impl Tree {
-    /// An empty tree, with no sessions.
+    /// An empty tree, with no sessions and no clients.
     #[must_use]
     pub fn new() -> Self {
         Self {
             ids: Ids::new(),
             sessions: Vec::new(),
+            clients: Vec::new(),
+            activity: 0,
         }
+    }
+
+    /// Advances the tree's own activity counter and returns the new tick -
+    /// the kernel's own state, not a clock (`.claude/rules/kernel.md`).
+    fn tick(&mut self) -> u64 {
+        self.activity += 1;
+        self.activity
     }
 
     /// Every session in the tree, in order.
@@ -160,6 +201,16 @@ impl Tree {
 
     /// Ends a session outright. There is no cascade above a session.
     ///
+    /// Also drops every one of this session's tabs and panes from every
+    /// client's attachment data (TASK-1.42: whether this is a direct call
+    /// or a cascade from [`Tree::close_tab`], nothing should stay
+    /// attached to a session that no longer exists). Captured before the
+    /// session is removed, since nothing can be read off it afterwards;
+    /// when this is the cascade from `close_tab`, that tab (and its own
+    /// panes) are already gone from this session by the time this runs -
+    /// `close_tab` already dropped them itself, so there is nothing left
+    /// here to double up on.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::SessionNotFound`] if the tree holds no session
@@ -171,7 +222,23 @@ impl Tree {
             .position(|session| session.id() == id)
             .ok_or(Error::SessionNotFound(id))?;
 
+        let tabs: Vec<TabId> = self.sessions[position].tabs().iter().map(Tab::id).collect();
+        let panes: Vec<PaneId> = self.sessions[position]
+            .tabs()
+            .iter()
+            .flat_map(Tab::panes)
+            .map(|pane| pane.id())
+            .collect();
+
         self.sessions.remove(position);
+
+        for tab in tabs {
+            self.forget_tab_everywhere(tab);
+        }
+        for pane in panes {
+            self.forget_pane_everywhere(pane);
+        }
+        self.forget_session_everywhere(id);
 
         Ok(())
     }
@@ -192,6 +259,16 @@ impl Tree {
     /// Closes the tab with this id, ending its session too if that tab
     /// was its last (R94).
     ///
+    /// Also drops this tab and every one of its panes from every client's
+    /// attachment data (TASK-1.42), and, if the session survives, recomputes
+    /// its latest client and reapplies its declared size to whatever it
+    /// still views (`Tree::reapply_latest`) - closing a tab can change who
+    /// is latest for the tabs that remain. Captured before anything is
+    /// removed; when this is the cascade from [`Tree::close_pane`], that
+    /// pane is already gone from this tab by the time this runs - `close_pane`
+    /// already dropped it itself, so there is nothing left here to double
+    /// up on.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::TabNotFound`] if no session in the tree holds a
@@ -207,11 +284,22 @@ impl Tree {
             .session_owning_tab_mut(id)
             .ok_or(Error::TabNotFound(id))?;
         let session_id = session.id();
+        let panes: Vec<PaneId> = session
+            .tab(id)
+            .map(|tab| tab.panes().iter().map(|pane| pane.id()).collect())
+            .unwrap_or_default();
         let closed = session.close_tab(id)?;
+
+        self.forget_tab_everywhere(id);
+        for pane in panes {
+            self.forget_pane_everywhere(pane);
+        }
 
         if closed.session_now_empty {
             self.close_session(session_id)
                 .expect("the session that just reported itself empty is still in the tree");
+        } else {
+            self.reapply_latest(session_id);
         }
 
         Ok(closed)
@@ -231,10 +319,162 @@ impl Tree {
             .find(|tab| tab.id() == id)
     }
 
+    /// The immutable counterpart of [`Tree::tab_by_id_mut`] - TASK-1.42's
+    /// client/size API only ever reads a tab, never mutates it directly
+    /// (every write goes through `set_tab_size`), so it needs this rather
+    /// than the `_mut` version every earlier task added.
+    fn tab_by_id(&self, id: TabId) -> Option<&Tab> {
+        self.sessions
+            .iter()
+            .flat_map(Session::tabs)
+            .find(|tab| tab.id() == id)
+    }
+
+    /// The tab that holds this pane, if the tree holds it (TASK-1.42: the
+    /// immutable counterpart of [`Tree::tab_owning_pane_mut`], for
+    /// `declare_size`/`note_input`, which never mutate the pane's own
+    /// tab directly).
+    fn tab_id_owning_pane(&self, id: PaneId) -> Option<TabId> {
+        self.sessions
+            .iter()
+            .flat_map(Session::tabs)
+            .find(|tab| tab.pane(id).is_some())
+            .map(Tab::id)
+    }
+
+    /// The session that holds this pane, if the tree holds it (TASK-1.42:
+    /// every client-view operation is keyed off a pane, but "latest"
+    /// (decision-6) is tracked per session, so this is the one lookup
+    /// `view_pane`/`stop_viewing`/`note_input`/`sessions_viewed`/
+    /// `clients_viewing` all share).
+    fn session_id_owning_pane(&self, id: PaneId) -> Option<SessionId> {
+        self.tab_id_owning_pane(id)
+            .and_then(|tab| self.session_id_owning_tab(tab))
+    }
+
+    fn client_mut(&mut self, id: ClientId) -> Option<&mut Client> {
+        self.clients.iter_mut().find(|client| client.id() == id)
+    }
+
+    /// Every client currently viewing any pane in `tab` (R91's "every
+    /// other client" — who gets told when this tab's size changes).
+    fn viewers_of_tab(&self, tab: &Tab) -> Vec<ClientId> {
+        self.clients
+            .iter()
+            .filter(|client| {
+                client
+                    .viewing()
+                    .iter()
+                    .any(|pane| tab.pane(*pane).is_some())
+            })
+            .map(Client::id)
+            .collect()
+    }
+
+    /// Builds the "what happened" struct for a tab whose size just changed
+    /// to `size` — assumes the caller already applied it via
+    /// `set_tab_size` and that `tab` is known to exist.
+    fn size_changed(&self, tab: TabId, size: Size) -> SizeChanged {
+        let tab_ref = self
+            .tab_by_id(tab)
+            .expect("caller just set this tab's size, so it exists");
+        SizeChanged {
+            tab,
+            size,
+            panes: tab_ref.layout().leaf_sizes(size),
+            viewers: self.viewers_of_tab(tab_ref),
+        }
+    }
+
+    /// Recomputes the latest client in `session` (decision-6: derived, not
+    /// stored - see `Tree::latest_client`) and, for every tab it views
+    /// there, reapplies its own last-declared size if that differs from
+    /// the tab's current one. This is the fallback this plan uses for
+    /// "what happens when the latest leaves" (decision-6 does not say;
+    /// `disconnect_client` and `stop_viewing` both call this after removing
+    /// a viewer, and `close_pane`/`close_tab` call it after a pane or tab
+    /// closes out from under a viewer).
+    fn reapply_latest(&mut self, session: SessionId) -> Vec<SizeChanged> {
+        let Ok(Some(latest)) = self.latest_client(session) else {
+            return Vec::new();
+        };
+
+        let viewed_tabs: Vec<TabId> = {
+            let Some(latest_client) = self.client(latest) else {
+                return Vec::new();
+            };
+            let mut tabs = Vec::new();
+            for &pane in latest_client.viewing() {
+                if self.session_id_owning_pane(pane) != Some(session) {
+                    continue;
+                }
+                if let Some(tab) = self.tab_id_owning_pane(pane)
+                    && !tabs.contains(&tab)
+                {
+                    tabs.push(tab);
+                }
+            }
+            tabs
+        };
+
+        let mut changes = Vec::new();
+        for tab in viewed_tabs {
+            let Some(size) = self
+                .client(latest)
+                .and_then(|client| client.declared_size(tab))
+            else {
+                continue;
+            };
+            let current = self.tab_by_id(tab).and_then(Tab::size);
+            if current == Some(size) {
+                continue;
+            }
+            self.set_tab_size(tab, size)
+                .expect("tab just found via this client's own viewing list exists");
+            changes.push(self.size_changed(tab, size));
+        }
+        changes
+    }
+
+    /// Drops `pane` from every client's viewing list (TASK-1.42: a closed
+    /// pane cannot stay attached to anything - `close_pane` calls this
+    /// before returning, regardless of whether it cascades).
+    fn forget_pane_everywhere(&mut self, pane: PaneId) {
+        for client in &mut self.clients {
+            client.stop_viewing(pane);
+        }
+    }
+
+    /// Drops `tab` from every client's declared-size records (TASK-1.42:
+    /// a closed tab's declared size is meaningless - `close_tab` calls
+    /// this before returning, regardless of whether it cascades).
+    fn forget_tab_everywhere(&mut self, tab: TabId) {
+        for client in &mut self.clients {
+            client.forget_tab(tab);
+        }
+    }
+
+    /// Drops `session` from every client's activity records (TASK-1.42:
+    /// a closed session's activity is meaningless - `close_session` calls
+    /// this before returning).
+    fn forget_session_everywhere(&mut self, session: SessionId) {
+        for client in &mut self.clients {
+            client.forget_session(session);
+        }
+    }
+
     /// Closes the pane with this id, cascading up through its tab and its
     /// session if either was left with nothing in it (R94). This is a
     /// decision function: it returns what closed, and does none of the
     /// I/O that turns that into an event (R38) — that is the server's job.
+    ///
+    /// Also drops this pane from every client's attachment data
+    /// (TASK-1.42), and, if the tab survives, recomputes its session's
+    /// latest client and reapplies its declared size to whatever it still
+    /// views (`Tree::reapply_latest`) - closing a pane can change who is
+    /// latest for the tab it was in. When the tab does not survive, that
+    /// cascade is `Tree::close_tab`'s job, called below, which does its
+    /// own reapply for whatever remains of the session.
     ///
     /// # Errors
     ///
@@ -260,7 +500,12 @@ impl Tree {
             .expect("just found this pane's tab above");
         let pane_closed = tab.close_pane(id)?;
 
+        self.forget_pane_everywhere(id);
+
         if !pane_closed.tab_now_empty {
+            if let Some(session_id) = session_id {
+                self.reapply_latest(session_id);
+            }
             return Ok(ClosedPane {
                 pane: pane_closed.pane,
                 tab: None,
@@ -378,7 +623,7 @@ impl Tree {
         // fields, rather than calling `self.session_mut(...)`, is what
         // lets `ids` be minted from while `session` (borrowed from
         // `sessions`) is still held below.
-        let Self { ids, sessions } = self;
+        let Self { ids, sessions, .. } = self;
         let session = sessions
             .iter_mut()
             .find(|session| session.id() == session_id)
@@ -437,7 +682,7 @@ impl Tree {
             return Err(Error::PaneNotFound(target));
         }
 
-        let Self { ids, sessions } = self;
+        let Self { ids, sessions, .. } = self;
         let tab = sessions
             .iter_mut()
             .flat_map(Session::tabs_mut)
@@ -677,11 +922,16 @@ impl Tree {
     /// Stores a tab's current size in whole cells (AC #6: unconditional
     /// — no floor check, ever; a shrink "refuses and closes nothing").
     ///
+    /// `pub(crate)`, not `pub`: its only caller is now the client-driven
+    /// path (`declare_size`/`note_input`/`reapply_latest`, TASK-1.42) —
+    /// nothing outside the kernel sets a tab's size except through a
+    /// client's declared activity.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
     /// id.
-    pub fn set_tab_size(&mut self, tab: TabId, size: Size) -> Result<(), Error> {
+    pub(crate) fn set_tab_size(&mut self, tab: TabId, size: Size) -> Result<(), Error> {
         let tab = self.tab_by_id_mut(tab).ok_or(Error::TabNotFound(tab))?;
         tab.set_size(size);
         Ok(())
@@ -805,6 +1055,298 @@ impl Tree {
         self.sessions.insert(to_position, session);
 
         Ok(())
+    }
+
+    /// Connects a new client (doc-15 R86): one connection to this server,
+    /// viewing nothing yet. Never touches focus or any session, tab or
+    /// pane (decision-5 point 4, R88) - connecting is wholly separate
+    /// state from the tree above it.
+    pub fn connect_client(&mut self, kind: ClientKind, label: Option<String>) -> ClientId {
+        let id = self.ids.next_client();
+        self.clients.push(Client::new(id, kind, label));
+        id
+    }
+
+    /// Every client connected to this server, in connection order.
+    #[must_use]
+    pub fn clients(&self) -> &[Client] {
+        &self.clients
+    }
+
+    /// The client with this id, if the tree holds it.
+    #[must_use]
+    pub fn client(&self, id: ClientId) -> Option<&Client> {
+        self.clients.iter().find(|client| client.id() == id)
+    }
+
+    /// Disconnects a client (doc-15 R86). For every session it was
+    /// viewing, the latest client there is recomputed and, if it changed,
+    /// its own declared size is reapplied to whatever it views (decision-6
+    /// does not say what happens when the latest leaves; this plan decides
+    /// it, reversibly: fall back to the next most recently active
+    /// remaining viewer, or to no latest at all).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if the tree holds no client with
+    /// that id.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: `id` was just confirmed to exist, so the
+    /// `expect` below cannot fail.
+    pub fn disconnect_client(&mut self, id: ClientId) -> Result<Vec<SizeChanged>, Error> {
+        let position = self
+            .clients
+            .iter()
+            .position(|client| client.id() == id)
+            .ok_or(Error::ClientNotFound(id))?;
+
+        let sessions = self
+            .sessions_viewed(id)
+            .expect("just found this client above");
+        self.clients.remove(position);
+
+        let mut changes = Vec::new();
+        for session in sessions {
+            changes.extend(self.reapply_latest(session));
+        }
+        Ok(changes)
+    }
+
+    /// Attaches `client` to `pane` (doc-14: the smallest thing an
+    /// attachment is, at the kernel's level - TASK-1.47 builds the real
+    /// attach, with streaming and restoring after a client goes away, on
+    /// top of this). Idempotent: viewing a pane a client already views
+    /// again changes nothing. Not itself activity (R91's "input or
+    /// resize" - viewing alone is neither), so this never changes who is
+    /// latest.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if `client` is unknown, or
+    /// [`Error::PaneNotFound`] if `pane` is unknown.
+    pub fn view_pane(&mut self, client: ClientId, pane: PaneId) -> Result<(), Error> {
+        if self.session_id_owning_pane(pane).is_none() {
+            return Err(Error::PaneNotFound(pane));
+        }
+        let client_mut = self
+            .client_mut(client)
+            .ok_or(Error::ClientNotFound(client))?;
+        client_mut.start_viewing(pane);
+        Ok(())
+    }
+
+    /// Detaches `client` from `pane`. Unconditionally recomputes and
+    /// reapplies `pane`'s session's latest client afterwards, the same
+    /// [`Tree::reapply_latest`] call [`Tree::disconnect_client`] makes for
+    /// every session a departing client viewed - not only when this was
+    /// `client`'s last pane in that session. Running it even when `client`
+    /// still views other panes there is harmless and simpler than
+    /// tracking whether it was needed: `reapply_latest`'s own equal-size
+    /// guard makes the extra calls a no-op, and a client losing just one
+    /// of several attachments can still change which tabs the session's
+    /// latest client views, so the recompute is correct to run either way.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if `client` is unknown, or
+    /// [`Error::ClientNotViewingPane`] if `client` is not attached to
+    /// `pane` (which includes `pane` not existing - nothing can be
+    /// viewing a pane that was never there).
+    pub fn stop_viewing(
+        &mut self,
+        client: ClientId,
+        pane: PaneId,
+    ) -> Result<Vec<SizeChanged>, Error> {
+        let session = self
+            .session_id_owning_pane(pane)
+            .ok_or(Error::ClientNotViewingPane { client, pane })?;
+        let client_mut = self
+            .client_mut(client)
+            .ok_or(Error::ClientNotFound(client))?;
+        if !client_mut.stop_viewing(pane) {
+            return Err(Error::ClientNotViewingPane { client, pane });
+        }
+        Ok(self.reapply_latest(session))
+    }
+
+    /// A client declares a whole tab's size, in cells - the tab it is
+    /// viewing (this task's plan settles doc-14's per-attachment wording
+    /// as the report direction, not the accept direction: what a client
+    /// declares in is the tab total, what it is told is each pane's size
+    /// through [`SizeChanged::panes`]). Requires `client` to already view
+    /// some pane in `tab`'s session, since a client attaches before it
+    /// declares (doc-14: "at attach and whenever..."). Declaring is
+    /// itself activity (R91, decision-6), so `client` becomes the new
+    /// latest in that session unconditionally, because its tick is now
+    /// the freshest of anyone's, and its size is therefore unconditionally
+    /// applied, with no floor check, ever (R100's last clause).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if `client` is unknown,
+    /// [`Error::TabNotFound`] if `tab` is unknown, or
+    /// [`Error::ClientNotViewingTab`] if `client` views nothing in `tab`'s
+    /// session.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: `session` was just confirmed to own `tab`, and
+    /// `client` was just confirmed to exist, so neither `expect` below can
+    /// fail.
+    pub fn declare_size(
+        &mut self,
+        client: ClientId,
+        tab: TabId,
+        size: Size,
+    ) -> Result<SizeChanged, Error> {
+        if self.client(client).is_none() {
+            return Err(Error::ClientNotFound(client));
+        }
+        let session = self
+            .session_id_owning_tab(tab)
+            .ok_or(Error::TabNotFound(tab))?;
+        let viewed = self.sessions_viewed(client).expect("checked above");
+        if !viewed.contains(&session) {
+            return Err(Error::ClientNotViewingTab { client, tab });
+        }
+
+        let tick = self.tick();
+        let client_mut = self.client_mut(client).expect("checked above");
+        client_mut.declare_size(tab, size);
+        client_mut.record_activity(session, tick);
+
+        self.set_tab_size(tab, size)
+            .expect("tab existence already checked above");
+        Ok(self.size_changed(tab, size))
+    }
+
+    /// A client sends input to `pane` (R91's other half of "latest": "the
+    /// last one to send input to it or be resized"). Makes `client` the
+    /// new latest in `pane`'s session unconditionally, the same as
+    /// [`Tree::declare_size`]; unlike it, there is no fresh size to apply,
+    /// so instead, whatever size `client` last declared for `pane`'s tab
+    /// (if any) is reapplied if it differs from the tab's current size.
+    /// This is the path that makes an *old* declaration win again once
+    /// its client becomes latest by a later input, not a fresh declare.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if `client` is unknown, or
+    /// [`Error::ClientNotViewingPane`] if `client` is not attached to
+    /// `pane`.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: `pane` was just confirmed to belong to a tab, and
+    /// every tab belongs to a session (R93), so the `expect` below cannot
+    /// fail.
+    pub fn note_input(
+        &mut self,
+        client: ClientId,
+        pane: PaneId,
+    ) -> Result<Option<SizeChanged>, Error> {
+        let tab = self
+            .tab_id_owning_pane(pane)
+            .ok_or(Error::ClientNotViewingPane { client, pane })?;
+        let session = self
+            .session_id_owning_tab(tab)
+            .expect("a tab found above always has an owning session");
+
+        let client_ref = self.client(client).ok_or(Error::ClientNotFound(client))?;
+        if !client_ref.is_viewing(pane) {
+            return Err(Error::ClientNotViewingPane { client, pane });
+        }
+
+        let tick = self.tick();
+        let declared = {
+            let client_mut = self.client_mut(client).expect("checked above");
+            client_mut.record_activity(session, tick);
+            client_mut.declared_size(tab)
+        };
+        let Some(size) = declared else {
+            return Ok(None);
+        };
+        let current = self.tab_by_id(tab).and_then(Tab::size);
+        if current == Some(size) {
+            return Ok(None);
+        }
+
+        self.set_tab_size(tab, size)
+            .expect("tab existence already checked above");
+        Ok(Some(self.size_changed(tab, size)))
+    }
+
+    /// Every session `client` views (doc-15 R86, doc-14: derived from its
+    /// attachments, never sent by the client itself - see [`Client::viewing`]'s
+    /// own doc comment). Deduplicated; order is not meaningful.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::ClientNotFound`] if `client` is unknown.
+    pub fn sessions_viewed(&self, client: ClientId) -> Result<Vec<SessionId>, Error> {
+        let client = self.client(client).ok_or(Error::ClientNotFound(client))?;
+        let mut sessions = Vec::new();
+        for &pane in client.viewing() {
+            if let Some(session) = self.session_id_owning_pane(pane)
+                && !sessions.contains(&session)
+            {
+                sessions.push(session);
+            }
+        }
+        Ok(sessions)
+    }
+
+    /// Every client currently viewing `session` (doc-15 R86).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionNotFound`] if the tree holds no session
+    /// with that id.
+    pub fn clients_viewing(&self, session: SessionId) -> Result<Vec<ClientId>, Error> {
+        if self.session(session).is_none() {
+            return Err(Error::SessionNotFound(session));
+        }
+        Ok(self
+            .clients
+            .iter()
+            .filter(|client| {
+                client
+                    .viewing()
+                    .iter()
+                    .any(|&pane| self.session_id_owning_pane(pane) == Some(session))
+            })
+            .map(Client::id)
+            .collect())
+    }
+
+    /// The latest client in `session` (decision-6): among those currently
+    /// viewing it, the one whose activity there is most recent. `None` if
+    /// nobody views it - derived fresh from [`Tree::clients_viewing`] and
+    /// each client's own activity record, never cached, so a departure
+    /// needs no special case (`Tree::reapply_latest`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::SessionNotFound`] if the tree holds no session
+    /// with that id.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: every id this walks was just listed by
+    /// [`Tree::clients_viewing`] as a real client, so the `expect` below
+    /// cannot fail.
+    pub fn latest_client(&self, session: SessionId) -> Result<Option<ClientId>, Error> {
+        let viewers = self.clients_viewing(session)?;
+        Ok(viewers
+            .into_iter()
+            .filter_map(|id| {
+                let client = self.client(id).expect("just listed as a viewer");
+                client.activity_in(session).map(|tick| (tick, id))
+            })
+            .max_by_key(|&(tick, _)| tick)
+            .map(|(_, id)| id))
     }
 }
 
@@ -1868,6 +2410,702 @@ mod tests {
         assert!(tree.session(session_id).is_some());
         let tab = tree.session(session_id).unwrap().tab(tab_id).unwrap();
         assert_eq!(tab.panes().len(), 1);
+    }
+
+    // TASK-1.42: clients, what each views, and the size a terminal takes.
+
+    #[test]
+    fn connect_client_then_disconnect_client_round_trips() {
+        let mut tree = Tree::new();
+
+        let client = tree.connect_client(steg_sdk::ClientKind::Cli, Some("work".to_string()));
+
+        assert_eq!(tree.clients().len(), 1);
+        assert_eq!(
+            tree.client(client).unwrap().kind(),
+            steg_sdk::ClientKind::Cli
+        );
+        assert_eq!(tree.client(client).unwrap().label(), Some("work"));
+
+        tree.disconnect_client(client).unwrap();
+
+        assert!(tree.client(client).is_none());
+        assert!(tree.clients().is_empty());
+    }
+
+    #[test]
+    fn disconnect_client_rejects_an_unknown_id() {
+        let mut tree = Tree::new();
+        let unknown = steg_sdk::ClientId::from_raw(999);
+
+        assert_eq!(
+            tree.disconnect_client(unknown),
+            Err(crate::error::Error::ClientNotFound(unknown))
+        );
+    }
+
+    #[test]
+    fn viewing_follows_from_attachment_not_a_separate_setter() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+
+        assert_eq!(tree.sessions_viewed(client).unwrap(), Vec::new());
+
+        tree.view_pane(client, pane).unwrap();
+        assert_eq!(tree.sessions_viewed(client).unwrap(), vec![session_id]);
+
+        tree.stop_viewing(client, pane).unwrap();
+        assert_eq!(tree.sessions_viewed(client).unwrap(), Vec::new());
+    }
+
+    #[test]
+    fn view_pane_is_idempotent_and_rejects_an_unknown_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+
+        tree.view_pane(client, pane).unwrap();
+        tree.view_pane(client, pane).unwrap();
+        assert_eq!(tree.client(client).unwrap().viewing(), &[pane]);
+
+        let unknown_pane = steg_sdk::PaneId::from_raw(999);
+        assert_eq!(
+            tree.view_pane(client, unknown_pane),
+            Err(crate::error::Error::PaneNotFound(unknown_pane))
+        );
+    }
+
+    #[test]
+    fn stop_viewing_rejects_a_pane_the_client_does_not_view() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+
+        assert_eq!(
+            tree.stop_viewing(client, pane),
+            Err(crate::error::Error::ClientNotViewingPane { client, pane })
+        );
+    }
+
+    /// Captures every one of `tree`'s sessions' current tab *and* every
+    /// tab's current pane - the whole focus state R88/decision-5 point 4
+    /// says a client operation must never touch - as one comparable
+    /// value. R85 is where focus bottoms out: a session's current tab,
+    /// and a tab's current pane. There is no "current session" above
+    /// that for this to also capture - nothing in the kernel designates
+    /// one session as current (that is the app's, per decision-5, not
+    /// the tree's).
+    ///
+    /// Each row is `(session, session's current tab, this tab, this
+    /// tab's current pane)`, one row per tab - not `(session, this tab,
+    /// this tab's current pane)` as an earlier version of this helper
+    /// had it, which never read `session.current_tab()` at all and so
+    /// could not have caught a fault that moved only *that* (the
+    /// session's choice of current tab), only one that moved a tab's own
+    /// current pane.
+    fn whole_focus(
+        tree: &Tree,
+    ) -> Vec<(
+        steg_sdk::SessionId,
+        steg_sdk::TabId,
+        steg_sdk::TabId,
+        steg_sdk::PaneId,
+    )> {
+        tree.sessions()
+            .iter()
+            .flat_map(|session| {
+                let session_id = session.id();
+                let current_tab = session.current_tab();
+                session
+                    .tabs()
+                    .iter()
+                    .map(move |tab| (session_id, current_tab, tab.id(), tab.current()))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn connecting_viewing_declaring_note_input_stop_viewing_and_disconnecting_never_change_focus() {
+        let mut tree = Tree::new();
+
+        // Session A: two tabs, each with two panes. Splitting makes the
+        // new pane current, and a new tab becomes its session's current
+        // tab (R115) - so the deliberately-unfocused target, tab_a1's
+        // *first* pane, falls out of this setup with no extra focus call
+        // of our own that could itself get the baseline wrong.
+        let session_a = tree.new_session(None).unwrap();
+        let tab_a1 = tree.session(session_a).unwrap().tabs()[0].id();
+        let a1_first = tree.session(session_a).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            a1_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        let tab_a2 = tree.new_tab(session_a, None).unwrap();
+        let a2_first = tree
+            .session(session_a)
+            .unwrap()
+            .tab(tab_a2)
+            .unwrap()
+            .panes()[0]
+            .id();
+        tree.split_pane(
+            a2_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        // Session B: a second session, a bystander the client never
+        // touches - its focus is a control that must also hold still.
+        let session_b = tree.new_session(None).unwrap();
+        let b1_first = tree.session(session_b).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            b1_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        let tab_b2 = tree.new_tab(session_b, None).unwrap();
+        let b2_first = tree
+            .session(session_b)
+            .unwrap()
+            .tab(tab_b2)
+            .unwrap()
+            .panes()[0]
+            .id();
+        tree.split_pane(
+            b2_first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+        // Confirm the deliberate mismatch before touching any client:
+        // session A's current tab is tab_a2, not tab_a1 - the tab the
+        // client is about to view and act on - and tab_a1's current pane
+        // is its *second* pane, not `a1_first`.
+        assert_eq!(tree.session(session_a).unwrap().current_tab(), tab_a2);
+        assert_ne!(
+            tree.session(session_a)
+                .unwrap()
+                .tab(tab_a1)
+                .unwrap()
+                .current(),
+            a1_first
+        );
+
+        let before = whole_focus(&tree);
+
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        assert_eq!(whole_focus(&tree), before, "after connect_client");
+
+        tree.view_pane(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after view_pane");
+
+        tree.declare_size(client, tab_a1, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        assert_eq!(whole_focus(&tree), before, "after declare_size");
+
+        tree.note_input(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after note_input");
+
+        tree.stop_viewing(client, a1_first).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after stop_viewing");
+
+        tree.disconnect_client(client).unwrap();
+        assert_eq!(whole_focus(&tree), before, "after disconnect_client");
+    }
+
+    #[test]
+    fn viewing_alone_never_makes_a_client_latest() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let viewer = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(viewer, pane).unwrap();
+        let declarer = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(declarer, pane).unwrap();
+        tree.declare_size(declarer, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(declarer));
+    }
+
+    #[test]
+    fn latest_client_is_none_when_nobody_views_the_session() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+
+        assert_eq!(tree.latest_client(session_id).unwrap(), None);
+    }
+
+    #[test]
+    fn latest_client_tracks_whoever_last_declared_or_sent_input() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let a = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let b = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(a, pane).unwrap();
+        tree.view_pane(b, pane).unwrap();
+
+        tree.declare_size(a, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(a));
+
+        tree.declare_size(b, tab_id, steg_sdk::Size::new(100, 30))
+            .unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
+
+        tree.note_input(a, pane).unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(a));
+    }
+
+    #[test]
+    fn latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let a = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let b = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(a, pane).unwrap();
+        tree.view_pane(b, pane).unwrap();
+        tree.declare_size(a, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        tree.declare_size(b, tab_id, steg_sdk::Size::new(100, 30))
+            .unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
+
+        tree.disconnect_client(b).unwrap();
+
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(a));
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24)),
+            "falling back to a reapplies its own last-declared size"
+        );
+    }
+
+    #[test]
+    fn reapply_latest_leaves_the_tabs_size_as_it_was_when_the_new_latest_has_no_declared_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let a = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let b = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(a, pane).unwrap();
+        tree.view_pane(b, pane).unwrap();
+        tree.declare_size(a, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        // `b` becomes latest by sending input, never by declaring a size.
+        tree.note_input(b, pane).unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
+
+        // `a` leaves; `reapply_latest` recomputes latest as `b` again (no
+        // change there) and tries to reapply `b`'s declared size - `b`
+        // has none, so the tab's size holds as it was, and no change is
+        // reported.
+        let changes = tree.disconnect_client(a).unwrap();
+
+        assert_eq!(
+            changes,
+            Vec::new(),
+            "b, the remaining latest, has no declared size to reapply"
+        );
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24)),
+            "the tab's size holds as it was"
+        );
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(b));
+    }
+
+    #[test]
+    fn a_declaration_always_wins_regardless_of_magnitude() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let big = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let small = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(big, pane).unwrap();
+        tree.view_pane(small, pane).unwrap();
+
+        tree.declare_size(big, tab_id, steg_sdk::Size::new(200, 60))
+            .unwrap();
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(200, 60))
+        );
+
+        // A later, smaller declaration still wins - magnitude plays no
+        // part, only recency (decision-6).
+        tree.declare_size(small, tab_id, steg_sdk::Size::new(40, 10))
+            .unwrap();
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(40, 10))
+        );
+    }
+
+    #[test]
+    fn declare_size_reports_every_panes_absolute_size_and_every_viewer() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+
+        let declarer = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let other_viewer = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(declarer, first_pane).unwrap();
+        tree.view_pane(other_viewer, second_pane).unwrap();
+
+        let changed = tree
+            .declare_size(declarer, tab_id, steg_sdk::Size::new(40, 10))
+            .unwrap();
+
+        assert_eq!(changed.tab, tab_id);
+        assert_eq!(changed.size, steg_sdk::Size::new(40, 10));
+        let expected_panes = tree
+            .session(session_id)
+            .unwrap()
+            .tab(tab_id)
+            .unwrap()
+            .layout()
+            .leaf_sizes(steg_sdk::Size::new(40, 10));
+        assert_eq!(changed.panes, expected_panes);
+        assert_eq!(changed.panes.len(), 2);
+        let mut viewers = changed.viewers;
+        viewers.sort_by_key(|client| client.into_raw());
+        let mut expected_viewers = vec![declarer, other_viewer];
+        expected_viewers.sort_by_key(|client| client.into_raw());
+        assert_eq!(viewers, expected_viewers);
+    }
+
+    #[test]
+    fn declare_size_never_fails_the_floor() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        // Well under R100's 20x4 floor - still applied, nothing refused.
+        let changed = tree
+            .declare_size(client, tab_id, steg_sdk::Size::new(5, 1))
+            .unwrap();
+
+        assert_eq!(changed.size, steg_sdk::Size::new(5, 1));
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(5, 1))
+        );
+    }
+
+    #[test]
+    fn declare_size_requires_viewing_a_pane_in_the_tabs_session() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+
+        assert_eq!(
+            tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24)),
+            Err(crate::error::Error::ClientNotViewingTab {
+                client,
+                tab: tab_id
+            })
+        );
+    }
+
+    #[test]
+    fn note_input_reapplies_the_now_latest_clients_last_declared_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let a = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let b = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(a, pane).unwrap();
+        tree.view_pane(b, pane).unwrap();
+        tree.declare_size(a, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        tree.declare_size(b, tab_id, steg_sdk::Size::new(100, 30))
+            .unwrap();
+
+        let changed = tree.note_input(a, pane).unwrap().unwrap();
+
+        assert_eq!(changed.tab, tab_id);
+        assert_eq!(changed.size, steg_sdk::Size::new(80, 24));
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24))
+        );
+    }
+
+    #[test]
+    fn note_input_is_a_no_op_when_the_client_has_no_declared_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+
+        assert_eq!(tree.note_input(client, pane).unwrap(), None);
+    }
+
+    #[test]
+    fn note_input_is_a_no_op_when_the_declared_size_already_matches_the_tabs_size() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+        tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        // The tab's size is already exactly what this client declared -
+        // nothing to reapply, so no change is reported.
+        assert_eq!(tree.note_input(client, pane).unwrap(), None);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(80, 24))
+        );
+    }
+
+    #[test]
+    fn note_input_rejects_a_pane_the_client_does_not_view() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+
+        assert_eq!(
+            tree.note_input(client, pane),
+            Err(crate::error::Error::ClientNotViewingPane { client, pane })
+        );
+    }
+
+    #[test]
+    fn closing_a_pane_a_client_views_drops_the_attachment_and_reapplies_the_session() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+
+        let leaving = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let staying = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(leaving, first_pane).unwrap();
+        tree.view_pane(staying, second_pane).unwrap();
+        tree.declare_size(leaving, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+        tree.declare_size(staying, tab_id, steg_sdk::Size::new(100, 30))
+            .unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(staying));
+
+        // Give `leaving` the freshest activity, then close the pane it is
+        // attached to: it should drop out of the session's viewers
+        // entirely, falling back to `staying`.
+        tree.note_input(leaving, first_pane).unwrap();
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(leaving));
+
+        tree.close_pane(first_pane).unwrap();
+
+        assert_eq!(tree.client(leaving).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(leaving).unwrap(), Vec::new());
+        assert_eq!(tree.latest_client(session_id).unwrap(), Some(staying));
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(tab_id)
+                .unwrap()
+                .size(),
+            Some(steg_sdk::Size::new(100, 30)),
+            "the surviving tab falls back to the remaining viewer's declared size"
+        );
+    }
+
+    #[test]
+    fn closing_a_tab_drops_its_declared_size_record_from_every_client() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, first_pane).unwrap();
+        tree.view_pane(client, second_pane).unwrap();
+        tree.declare_size(client, first_tab, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        tree.close_pane(first_pane).unwrap();
+
+        assert_eq!(tree.client(client).unwrap().viewing(), &[second_pane]);
+        // `first_tab`'s id is retired for good (ids are never reused), so
+        // nothing in this tree's remaining lifetime could ever ask
+        // `declared_size(first_tab)` again - behaviour alone cannot tell
+        // a purged record apart from a merely-unreachable one. Check the
+        // record directly instead (`Client::declared_size` is
+        // `pub(crate)`, same crate as this test module).
+        assert_eq!(tree.client(client).unwrap().declared_size(first_tab), None);
+    }
+
+    #[test]
+    fn closing_a_session_drops_every_clients_attachment_and_activity_for_it() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, pane).unwrap();
+        tree.declare_size(client, tab_id, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        assert_eq!(
+            tree.client(client).unwrap().activity_in(session_id),
+            Some(1),
+            "declare_size above ticked activity for this session once"
+        );
+
+        tree.close_session(session_id).unwrap();
+
+        assert_eq!(tree.client(client).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(client).unwrap(), Vec::new());
+        // The name's other half: `session_id`'s own id is retired for
+        // good, so nothing could ever behaviourally observe a stray
+        // activity record for it either - check it directly, the same
+        // reasoning as `closing_a_tab_drops_its_declared_size_record_
+        // from_every_client`.
+        assert_eq!(tree.client(client).unwrap().activity_in(session_id), None);
+    }
+
+    #[test]
+    fn closing_a_session_drops_both_clients_when_each_views_a_different_tab_of_it() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        let first_client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let second_client = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(first_client, first_pane).unwrap();
+        tree.view_pane(second_client, second_pane).unwrap();
+
+        tree.close_session(session_id).unwrap();
+
+        // Nothing is left naming either gone pane or the gone tab, for
+        // either client.
+        assert_eq!(tree.client(first_client).unwrap().viewing(), &[]);
+        assert_eq!(tree.client(second_client).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(first_client).unwrap(), Vec::new());
+        assert_eq!(tree.sessions_viewed(second_client).unwrap(), Vec::new());
+    }
+
+    #[test]
+    fn closing_one_of_two_tabs_only_drops_the_client_viewing_that_tab() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        let second_pane = tree
+            .session(session_id)
+            .unwrap()
+            .tab(second_tab)
+            .unwrap()
+            .panes()[0]
+            .id();
+
+        let leaving = tree.connect_client(steg_sdk::ClientKind::App, None);
+        let staying = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+        tree.view_pane(leaving, first_pane).unwrap();
+        tree.view_pane(staying, second_pane).unwrap();
+        tree.declare_size(staying, second_tab, steg_sdk::Size::new(80, 24))
+            .unwrap();
+
+        tree.close_tab(first_tab).unwrap();
+
+        // The session survives (it had a second tab), so this is the
+        // non-cascading path - only `leaving`'s attachment to the now-gone
+        // tab is dropped.
+        assert_eq!(tree.client(leaving).unwrap().viewing(), &[]);
+        assert_eq!(tree.sessions_viewed(leaving).unwrap(), Vec::new());
+        assert_eq!(tree.client(staying).unwrap().viewing(), &[second_pane]);
+        assert_eq!(
+            tree.sessions_viewed(staying).unwrap(),
+            vec![session_id],
+            "staying still views the surviving tab, so it still views the session"
+        );
     }
 
     #[test]

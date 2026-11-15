@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use steg_sdk::{Direction, PaneId, SessionId, TabId};
+use steg_sdk::{ClientId, Direction, PaneId, SessionId, TabId};
 
 use crate::target::Candidate;
 
@@ -103,6 +103,25 @@ pub enum Error {
     /// shell: a shell pane closes when it exits (R97), rather than
     /// offering anything to restart.
     ShellCannotRestart(PaneId),
+    /// No client in the tree has this id.
+    ClientNotFound(ClientId),
+    /// A client was asked to stop viewing, or send input on, a pane it is
+    /// not attached to (TASK-1.42).
+    ClientNotViewingPane {
+        /// The client that was asked.
+        client: ClientId,
+        /// The pane it is not attached to.
+        pane: PaneId,
+    },
+    /// A client declared a size for a tab without being attached to any
+    /// pane in that tab's session (TASK-1.42: a client must view before it
+    /// declares, matching doc-14's "at attach and whenever...").
+    ClientNotViewingTab {
+        /// The client that was asked.
+        client: ClientId,
+        /// The tab it has no attachment in.
+        tab: TabId,
+    },
 }
 
 impl fmt::Display for Error {
@@ -171,6 +190,16 @@ impl fmt::Display for Error {
                     "pane {pane} is a plain shell, which closes rather than restarting"
                 )
             }
+            Error::ClientNotFound(id) => write!(f, "no client with id {id}"),
+            Error::ClientNotViewingPane { client, pane } => {
+                write!(f, "client {client} is not attached to pane {pane}")
+            }
+            Error::ClientNotViewingTab { client, tab } => {
+                write!(
+                    f,
+                    "client {client} is not attached to any pane in tab {tab}"
+                )
+            }
         }
     }
 }
@@ -194,7 +223,10 @@ impl std::error::Error for Error {
             | Error::ProgramAlreadyStarted(_)
             | Error::ProgramNotStarted(_)
             | Error::ProgramStillRunning(_)
-            | Error::ShellCannotRestart(_) => None,
+            | Error::ShellCannotRestart(_)
+            | Error::ClientNotFound(_)
+            | Error::ClientNotViewingPane { .. }
+            | Error::ClientNotViewingTab { .. } => None,
         }
     }
 }

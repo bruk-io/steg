@@ -1,10 +1,11 @@
 ---
 id: TASK-1.48
 title: 'Server: remember settings changed from the palette'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T14:41:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -14,6 +15,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-18
+asdlc_branch: task-1.48-server-remember-settings-changed-from
 ---
 
 ## Description

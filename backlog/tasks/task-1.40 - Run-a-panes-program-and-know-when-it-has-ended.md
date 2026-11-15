@@ -1,14 +1,14 @@
 ---
 id: TASK-1.40
 title: Run a pane's program, and know when it has ended
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T18:04:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.39
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5e9ba0795787'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
 ---
 
@@ -509,6 +508,44 @@ The second half - a program that produces nothing at all before shutdown, such a
 [Tests, Nit] unbounded waits. Every events_rx.recv() in real_pty.rs is now recv_event(&events_rx) - recv_timeout(20s), fails with a message instead of hanging. ci.yml's check job gets timeout-minutes: 30, with a comment saying why.
 
 Rebased origin/main in twice more since the review: once for PR #31 (TASK-1.74, kernel scrollback - no code conflict, only backlog), once for PR #30 (TASK-1.70, sdk wire protocol and local-socket provider - auto-merged cleanly in crates/sdk/src/lib.rs, both sides' additions kept). just check recorded clean at the new head (format, lint, boundaries, licences, every package including the new steg-sdk "local-socket" feature test TASK-1.70 added, architecture, recipe names). CI green on pull request 32 at the pushed head (~3m54s).
+
+Check passed: `just check` exited 0 at 2026-11-15T18:30:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.40 on task-1.40-run-a-pane-s-program-and-know-when-it at e36657bf3d07 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (1.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.1s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 5, 5 without the Asdlc-Worker trailer.
+
+Second review, finding by finding:
+
+[Compliance, Important] (a) ErrorCode::ProgramRunning wrong for two of four. Fixed: ProgramAlreadyStarted and ProgramStillRunning keep ErrorCode::ProgramRunning (both are genuinely "a program is running, or restarting one that is"). ProgramNotStarted and ShellCannotRestart now map to ErrorCode::BadRequest instead - the opposite state, or unrelated to any --force flag - following the exact precedent TASK-1.42 set in this same file for ClientNotViewingPane/ClientNotViewingTab (its own comment reasons through the identical "no dedicated code, BadRequest is the existing bucket for doesn't-fit-the-shape" logic; I read its diff on PR #29 since it hadn't merged yet). Split the grouped test into two, one per mapping, each asserting its own code. (b) the departure itself: the notes now say outright that merging TASK-1.75 forced this mapping choice mid-round, name all four mappings and why, and the stale "picked up TASK-1.75's board-only commits" sentence is corrected - that was only ever true of an earlier rebase, before TASK-1.75 actually shipped dispatch.
+
+[Evidence, Nit] record-check predated the merge. Recorded `just check` at this round's head.
+
+[Bugs/Rust, Nit] the silent-program deferral had no tracked home, and the wait()-error silence had no comment. Both land together because fixing one properly required re-examining the other. I wrote the test finding #5 asked for - PaneHandle::start then shutdown() while a real program is running, through the public path, not spawn_relay directly - and it does not pass: even a program that would finish on its own within a second (sh -c 'sleep 1; echo done') is left permanently stuck in child.wait() once shutdown() has dropped the worker's writer and resize handle, not reaped within 60 seconds. I confirmed this isn't a test-harness artefact with two controlled runs on the identical test: removing only the shutdown() call, the same program is reaped within 5 seconds every time; restoring it, never within 60 seconds. So the gap the first review found is broader than my own notes said: it is not only a silent program (sleep 1000) that shutdown() fails to end - it's any program still running when shutdown() is called, output or not. I did not ship a test asserting the originally-expected behaviour, since it is not true, and did not ship one asserting the gap itself, since DRAFT-4 (which exists now - "Server: start a pane's program from the API, and end it on a forced close") already names this exactly in its AC #4 ("with --force the program is ended, its exit is observed, and its relay thread ends, for a program that is producing output and for one that prints nothing") - cited by number in pane.rs's module doc, PaneHandle::shutdown's own doc, and spawn_relay's comment, all three reworded to stop overclaiming and say precisely what's proven: a forward failing because the worker is gone no longer skips child.wait(), for a program that ends on its own regardless of whether shutdown ever ran - narrower than "shutdown ends a program producing output", which is not true through the public path. Renamed the existing unit test to say plainly that it only ever simulated the worker's receiver being gone, never PaneHandle::shutdown's own fd-dropping.
+
+clone_killer, confirmed from portable-pty 0.9.0's own source in the cargo registry cache (not assumed): `Child: ChildKiller` (supertrait, so every Child is already one), and on Unix `Child::clone_killer` returns a `ProcessSignaller` holding just the pid, Send+Sync, independent of every pty descriptor. Its own `kill` sends SIGHUP by pid via libc::kill - inside portable-pty, no unsafe of this crate's own - and does NOT escalate to a stronger signal (the SIGKILL-after-grace-period fallback lives only in std::process::Child's own ChildKiller::kill impl, not in the clone). Documented precisely at the point in spawn_relay where it matters, and in the module doc pointing at DRAFT-4.
+
+Rebased origin/main in once more (board-only: DRAFT-3, DRAFT-4, review comments - no code). just check recorded clean at this head. CI green on PR #32 after a rerun - the first run at this head failed on an unrelated flake (tools/tests/adapter/test_likec4_mcp_smoke.py timing out waiting on the LikeC4 MCP server, nothing to do with this task's files), confirmed unrelated and passed clean on rerun with no code change.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -588,6 +625,40 @@ Reviewed at head eb867f0dd397664d78bb3a6023520d13b228b2d8 (PR #32). just check p
 [Tests, Nit] shutdown_mid_run_still_reaps_a_program_that_was_still_producing_output drives spawn_relay directly with a fresh channel and drop(rx), not through PaneHandle::start/shutdown(). Traced the public path by hand and it holds (above), but a test through the real public API would prove it more directly.
 
 Merge-kept-both-sides spot check: crates/kernel/src/error.rs, tree.rs, pane.rs and crates/sdk/src/lib.rs all still carry both TASK-1.40's additions and the other merged tasks' (TASK-1.70/1.74/1.75) side by side.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T18:37:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.40: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T18:45:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Reviewed at head b71ba40fbe3877fc93ec238172359e49f68bf79f (PR #32). CI green on this exact head (gh pr checks 32, 2m7s; gh pr view 32 --json headRefOid confirms b71ba40). Ran `just check` myself on a fresh worktree at this head: clean (format, lint, boundaries, licences, every crate's tests, architecture, recipe names). Also ran `cargo test -p steg-server -p steg-kernel` directly: all passing, including the real-pty tests and the renamed spawn_relay unit test.
+
+Read every non-test hunk changed since the second review's head (eb867f0) line by line: crates/server/src/dispatch/kernel_error.rs and crates/server/src/pane.rs (diff eb867f0..HEAD touches only these two code files plus four backlog/notes files - confirmed via `git diff --stat`).
+
+kernel_error.rs: ProgramAlreadyStarted and ProgramStillRunning now map to ErrorCode::ProgramRunning; ProgramNotStarted and ShellCannotRestart now map to the existing ErrorCode::BadRequest (no new ErrorCode added), each with a comment explaining why, following TASK-1.42's own BadRequest precedent in this file. Verified the grouping's premise against crates/kernel/src/pane.rs::Pane::restart directly: with status == None it does return Error::ProgramStillRunning (the "no program yet" case falls under the same "not Ended" guard as "still running"), so the new comment's claim is accurate. Verified ErrorCode::ProgramRunning's doc line in crates/sdk/src/description/shapes.rs matches what the comment quotes. The grouped test was split into two, one per mapping. The notes now name this as a departure forced by merging TASK-1.75's dispatch module, with all four mappings and the reasoning spelled out, and DRAFT-4 ("Server: start a pane's program from the API, and end it on a forced close") exists as the home for wiring these into dispatch later.
+
+pane.rs: the wait()'s Err(_) => return arm now has a comment explaining the silence is deliberate (no real exit code to report, no "unknown" PaneEvent variant). The module doc and spawn_relay's comment were reworded to state precisely what's proven: a failed forward because the worker is gone no longer skips child.wait() for a program that ends on its own - narrower than "shutdown ends a program producing output," which the worker discovered (by writing the public-path test round 2 asked for) is not true. Re-verified "unreachable by any client today" still holds at this head: grepped crates/server/src/dispatch/ for PaneHandle/start/restart_program/record_exit - none are called, only named in comments and one not-yet-implemented match arm. DRAFT-4's AC #4 names the broader shutdown gap exactly. The round-2 ask for a mid-run-shutdown test through the public PaneHandle path was attempted and not shipped, because it asserts something false (shutdown reliably ending a running program) - the worker's own notes say this plainly, including the two controlled runs that confirmed it isn't a test-harness artefact. This is a corrected premise from the first/second reviews, not an ignored finding, and it touches no acceptance criterion (none of AC #1-3 is about shutdown) and nothing reachable by a client today, so it doesn't rise to Important.
+
+Evidence: the worker's last recorded `just check` (2026-11-15T18:30:28Z, "with uncommitted changes") ran at commit e36657b, 17 seconds before b71ba40 was committed. Checked whether anything beyond notes/merge differs between the two: `git diff eb867f0..e36657b` on both code files is empty (e36657b is the board-only merge the notes describe), so the "uncommitted changes" the check ran against are exactly b71ba40's content - the recorded check did cover this round's real fix, just before it was committed. Combined with CI green and my own clean `just check`/crate-test runs at b71ba40 itself, the evidence is sound at the reviewed head.
+
+No Important findings. plan-matched is "no": the ErrorCode mapping fix (dispatch/kernel_error.rs) is still not a file any plan section names, the same departure the prior two reviews also marked "no" for (anyhow, and now this). Naming the departure in the notes resolves the Compliance finding, not the plan match.
+
+Checked asdlc board draft list: DRAFT-2 (wait()-every-path) and DRAFT-3 (departures belong in notes) already cover the lessons this round's fixes were about. No new rule-change draft filed - nothing here is a mistake not already drafted.
 
 ---
 <!-- COMMENTS:END -->

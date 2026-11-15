@@ -9,13 +9,13 @@
 //! starting one if there is none, and connecting (R103) - off by default,
 //! and the one place in this crate allowed real I/O.
 //!
-//! Identifiers, the colour set, pane kinds and a pane's program are shapes
-//! that cross the API, so they are defined once, here (doc-16 R105), and
-//! the kernel uses them rather than defining its own. Each of those shapes
-//! also has its wire form here - how it serialises and deserialises - and
-//! `description` holds the API itself, as one value (decision-1): every
-//! method, event and error, and `validate`, the protocol logic that checks
-//! a request against it with no I/O.
+//! Identifiers, the colour set, pane kinds, client kinds and a pane's
+//! program are shapes that cross the API, so they are defined once, here
+//! (doc-16 R105), and the kernel uses them rather than defining its own.
+//! Each of those shapes also has its wire form here - how it serialises
+//! and deserialises - and `description` holds the API itself, as one
+//! value (decision-1): every method, event and error, and `validate`, the
+//! protocol logic that checks a request against it with no I/O.
 
 mod client_kind;
 mod colour;

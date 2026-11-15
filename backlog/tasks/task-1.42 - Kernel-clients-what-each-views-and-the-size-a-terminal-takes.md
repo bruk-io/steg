@@ -1,11 +1,11 @@
 ---
 id: TASK-1.42
 title: 'Kernel: clients, what each views, and the size a terminal takes'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T17:44:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
   - review-passed

@@ -148,6 +148,16 @@ impl Tab {
         self.fill
     }
 
+    /// This tab's layout tree (R95). `pub(crate)`: the only caller outside
+    /// this module is `Tree::declare_size`/`reapply_latest` (TASK-1.42),
+    /// which needs it to compute `Layout::leaf_sizes` once this tab's size
+    /// is known - everything else that needs a leaf's position already
+    /// goes through `Tab`'s own direction/order methods instead.
+    #[must_use]
+    pub(crate) fn layout(&self) -> &Layout {
+        &self.layout
+    }
+
     /// What's in `direction` from `from`, optionally wrapping around the
     /// tab's far edge if there's nothing that way (R113, TASK-1.37's
     /// requested shape). `from` not being a pane in this tab is itself
@@ -165,13 +175,21 @@ impl Tab {
         DirectionalFocus::Edge
     }
 
+    /// This tab's current size in whole cells, if a client has ever
+    /// declared one for it (`Tree::declare_size`, TASK-1.42). `None` before
+    /// any client has.
+    #[must_use]
+    pub const fn size(&self) -> Option<Size> {
+        self.size
+    }
+
     /// Stores this tab's current size in whole cells. Unconditional — no
     /// floor check, ever (R100's last clause, AC #6: a tab whose size
     /// shrinks "refuses and closes nothing"). Nothing in the kernel
-    /// measures anything; a future caller (the server, from the window's
-    /// pixels and the font's cell metrics) calls this whenever it learns
-    /// a new size.
-    pub fn set_size(&mut self, size: Size) {
+    /// measures anything; its one caller is the client-driven path
+    /// (`Tree::declare_size`/`Tree::note_input`, TASK-1.42), from whichever
+    /// client is latest in the tab's session.
+    pub(crate) fn set_size(&mut self, size: Size) {
         self.size = Some(size);
     }
 

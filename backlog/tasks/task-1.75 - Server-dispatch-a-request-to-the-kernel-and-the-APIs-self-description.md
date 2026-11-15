@@ -1,11 +1,11 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:29:00Z'
+updated_date: '2026-11-15T18:45:00Z'
 labels:
   - size-3
   - review-passed

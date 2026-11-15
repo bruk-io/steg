@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:38:00Z'
+updated_date: '2026-11-15T20:15:00Z'
 labels:
   - size-2
   - review-passed
@@ -783,6 +783,14 @@ Nits (3):
 Plan-matched: no. The worker departed from the plan's step 7 mechanically: instead of extending `fresh()`'s tuple to also return a `Settings`, every existing `dispatch(...)` call site got a disposable `&mut Settings::new()` inserted, and the new `setting_*` tests build their own named `Settings` where a shared instance matters. The task's own notes name this departure and why (smaller diff, same effect, no existing test's assertions changed) - it is explained, so it is not a finding, but it is a real departure from the step as written, hence `--plan-matched no` rather than yes.
 
 Rule-change draft: none filed. DRAFT-1 already covers nit #1's mistake (a named error/edge-case branch - here, the two defensive bad_request arms - needs a test exercising it, not just a happy-path test); step 5 says file at most one per mistake and to check for an existing draft first.
+
+---
+
+created: 2026-11-15T20:15:00Z
+
+---
+
+After the clean review at b983fcf, the worker fixed the three nits (e601778) and merged main (head ec10b92): tests for the two defensive refusals in dispatch/setting.rs, a true message for an absent target and for a non-text one (the only non-test change, read line by line by @bruk.o), and two tests recording that api.call cannot reach setting.show, set or unset today, because api.call's selector and the method's own target are both the parameter named target. That limit predates this task and is a draft task of its own; whoever fixes it inverts those two tests. The reviewer did not see this commit. The board locks a task after a clean review, so the check is the pull request's CI: green at ec10b92.
 
 ---
 <!-- COMMENTS:END -->

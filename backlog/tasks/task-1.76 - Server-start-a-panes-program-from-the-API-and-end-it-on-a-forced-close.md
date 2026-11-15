@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:12:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -106,6 +106,11 @@ needs only `Pane::status()`, which already lives on the kernel's own `Pane`
 `session.rs` arms, not in `Runtime`, the same reasoning that already keeps
 `pane.show` pure. `dispatch` stays I/O-free exactly as its own module doc
 claims today; `Runtime` is additive, nothing in `mod.rs`'s signature moves.
+This three-method list is only about which requests need a new `PaneHandle`
+created — `handle` has one further, separate, unconditional step after
+*any* successful `dispatch()` call, not limited to these three: reapplying
+every currently-sized tab's sizes to its panes (§4). The two are independent
+reasons to do something after `dispatch` returns, not one mechanism.
 
 **What runs under the one lock, and why that is acceptable rather than done
 outside it** (asked for directly): for the three starting methods, the lock
@@ -242,8 +247,12 @@ lock (§1):
    or session, leaving no pane, tab *or* session behind, as AC #1 now says
    explicitly for all three methods) and return the new `ErrorCode::
    ProgramFailed` (§6).
-4. On success, insert the `PaneHandle` into `panes`, return the original
-   `Outcome`.
+4. On success, insert the `PaneHandle` into `panes`. §4's general
+   post-dispatch step (not special-cased here) then reapplies every
+   currently-sized tab's sizes, which covers both this new pane and any
+   sibling whose share of the tab changed because of the split — nothing
+   in this wrapper resizes a second pane itself.
+5. Return the original `Outcome`.
 
 **Experiment, first step of phase 2:** does a bad `cwd` fail
 `spawn_command` synchronously (same path as `ENOENT`), or does the child
@@ -273,22 +282,79 @@ itself asks for. `pane.list` stays `not_implemented_yet` — AC #2 only names
 
 ## 4. Sizes (AC #3)
 
-New, pure kernel method, `crates/kernel/src/tree.rs`:
+**This is a general step, not a special case of starting a program.** My
+first draft only reapplied sizes right after a pane was started; that
+misses every other method that can change a tab's layout or its panes'
+share of it — `pane.resize`, `pane.swap`, `pane.move`, `pane.close`,
+`pane.set`/`unset --zoomed`, and the three starting methods themselves (a
+split can shift a *sibling*'s share, not just mint the new pane). No tab
+has a declared size yet (no `client`/`declare_size` dispatch exists), so
+none of this is observable today — but the moment TASK-1.45/1.47 wire a
+client method that calls `declare_size`, every one of those verbs would
+leave stale terminals/ptys behind if this task does not already apply
+sizes generically.
+
+Two new, pure kernel methods, `crates/kernel/src/tree.rs`:
 ```rust
-pub fn tab_sizes_now(&self, tab: TabId) -> Option<SizeChanged>
+pub fn tab_sizes_now(&self, tab: TabId) -> Option<SizeChanged>   // wraps the existing private size_changed (tree.rs:377)
+pub fn sized_tabs(&self) -> Vec<TabId>                           // every tab with tab.size() == Some(_)
 ```
-a public wrapper around the existing private `size_changed` (tree.rs:377),
-returning `None` when `tab.size()` is `None` (true of every tab today — no
-`client`/`declare_size` dispatch exists yet). `Runtime`'s start-wrapper (§2)
-calls this once the new pane has a real `PaneHandle` in `panes` (after
-`pane::start` returns — there is nothing to resize before then) and, if
-`Some`, applies `SizeChanged.panes` via `PaneHandle::resize(cols, rows)` for
-every pane in the tab, not only the new one (a split can shift existing
-panes' ratios too). When `None` (today,
-always), the new pane's `LaunchSpec.size` falls back to a stated literal
-default, `DEFAULT_PANE_SIZE: (u16, u16) = (80, 24)` (`crates/server/src/
-pane.rs`, beside `DEFAULT_SCROLLBACK_LINES`) — named, not guessed: no client
-has ever reported a size, so there is nothing real to use.
+Both return nothing when no tab anywhere has a declared size (true of
+every tab today).
+
+One **public** method on `Runtime`, named for the client-method tasks that
+will call it directly once they exist (declaring a size, or the latest
+client changing — decision-6):
+```rust
+pub fn apply_size_changed(&self, change: &SizeChanged)
+```
+locks `state` itself and, for each `(pane, size)` in `change.panes`, calls
+`PaneHandle::resize(size.cols, size.rows)` on whichever of those panes is
+in `panes` (`resize` is a fire-and-forget channel send, not a round-trip,
+so this is cheap even under a lock). A second, private function,
+`apply_size_changed_locked(state: &mut State, change: &SizeChanged)`, is
+the same logic taking an *already-locked* `State` — what `Runtime::handle`
+itself calls, to avoid the public method re-locking a `Mutex` the request
+is already holding (which would deadlock on a non-reentrant lock).
+
+`Runtime::handle`'s own general step, after *every* successful `dispatch()`
+call (not only the three starting methods — "simply every tab touched",
+cheap because `sized_tabs()` is empty on every server until a client
+declares a size, and harmless where it is not empty: reapplying the same
+size twice is a no-op send, not a state change):
+
+```rust
+for tab in state.tree.sized_tabs() {
+    if let Some(change) = state.tree.tab_sizes_now(tab) {
+        apply_size_changed_locked(&mut state, &change);
+    }
+}
+```
+
+This single step is what the three starting methods now rely on too —
+§2's start-wrapper decides the *new* pane's own initial `LaunchSpec.size`
+(from `tab_sizes_now` if the tab already has one, else the stated literal
+default `DEFAULT_PANE_SIZE: (u16, u16) = (80, 24)`, `crates/server/src/
+pane.rs`, beside `DEFAULT_SCROLLBACK_LINES` — named, not guessed, since no
+client has ever reported a size) but does not itself resize any sibling
+pane; this general step does that, uniformly, for every method that could
+have changed anything, with no per-verb list to keep in sync by hand. This
+is also why `pane.move` needs nothing special despite touching two tabs at
+once: `sized_tabs()` iterates every sized tab in the tree, not a set this
+step has to be told about, so both the source tab (which lost a pane) and
+the destination tab (which gained one) are recomputed if either is sized —
+one blanket pass, not two call sites to remember.
+
+**`pane.set`/`unset --zoomed` (fill/unfill), named explicitly in the
+brief**: the general step runs for these too, with no special case, and —
+per R96 ("filling changes nothing in the layout tree... the other panes
+keep running") — it is a deliberate no-op: `tab_sizes_now` returns the
+*same* `SizeChanged` before and after a fill, since the layout tree itself
+did not change, so nothing is actually resized. Whether a *filled* pane's
+own terminal/pty should instead be resized to the whole tab while it fills
+it (what tmux's zoom does) is a different, real question that neither R96
+nor any criterion here decides — left to whichever task builds zoom's
+rendering, not missed.
 
 **How AC #3's two halves are actually observed**: "applied to its terminal"
 is `PaneHandle::snapshot()` — its `Screen` carries its own dimensions.
@@ -298,6 +364,37 @@ call `MasterPty::get_size()` afterward) — the proof is the pty's own real
 effect: a real `sh -c 'stty size'` pane, resized before the shell reads its
 controlling terminal's size, with `snapshot()` afterward showing the line
 it printed matching what was applied.
+
+**Proving it without client dispatch existing**: `declare_size` is already
+public on `Tree` (`crates/kernel/src/tree.rs:1198`, built and tested by
+TASK-1.42, just not yet reachable from any method) — a test inside
+`runtime.rs`'s own `#[cfg(test)]` module (which has the same access to
+`Runtime`'s private `state` field any other code in that file does) calls
+`state.tree.connect_client`/`view_pane`/`declare_size` directly against the
+real `Tree` a real `Runtime` owns, to give a tab a real size with no
+test-only hook added to shipped code — these are exactly the methods the
+tasks that build `client.*` dispatch will call from inside `dispatch`
+itself, not a shortcut invented for this test. From there the test drives
+`pane.split`, `pane.resize`, `pane.close` and a swap through `Runtime::
+handle`, and after each asserts every *remaining* pane's terminal
+(`snapshot`) and pty (a real `stty size` pane, checked at least once per
+distinct code path rather than after every single step, to keep the test
+tractable) match the kernel's own `tab_sizes_now` for it exactly.
+
+**The under-floor case, and how it is produced**: R100's own last clause —
+"a window growing smaller refuses and closes nothing: a pane may go under
+the floor that way, and its terminal is cropped" — means `declare_size`
+*can* produce a `SizeChanged` with a pane under 20×4, and the kernel
+already does this correctly (`tree.rs`'s own `set_tab_size_smaller_
+always_succeeds_and_closes_nothing` test). The test exercises this through
+the exact seam future tasks will use: declare a smaller size directly on
+`state.tree` (getting the under-floor `SizeChanged` back), then call
+`runtime.apply_size_changed(&change)` — the **public** method — directly,
+and assert the affected pane's terminal and pty really did shrink under
+the floor (cropped, not refused, not clamped back up): this proves `Runtime`
+applies whatever the kernel computes faithfully, with no floor logic of
+its own to get wrong, and proves the public entry point itself, not only
+the private one `handle` uses internally.
 
 **Pixel cell size, its source and what replaces it**: `Terminal::resize`
 (terminal.rs:418) already hardcodes `0, 0` into the engine call, and
@@ -426,7 +523,9 @@ At 358 lines today, before this task's own additions. This task:
 ## Files that change
 
 - `crates/server/src/runtime.rs` — new: `Runtime`/`State`/`LoginShell`, the
-  drain thread, `apply_event`, `handle`, the three-method start-wrapper.
+  drain thread, `apply_event`, `handle` (the three-method start-wrapper and
+  the general post-dispatch sizing step, §4), `apply_size_changed`
+  (public) and `apply_size_changed_locked` (private).
 - `crates/server/src/program_param.rs` — new: `program_from_request`, its
   own unit tests (pure, no environment reads).
 - `crates/server/src/pane.rs` — new `PaneCommand::Cwd`, `PaneHandle::cwd`
@@ -438,7 +537,8 @@ At 358 lines today, before this task's own additions. This task:
 - `crates/server/src/dispatch/mod.rs` — shrinks (§7).
 - `crates/server/src/dispatch/lookup.rs` — new (§7).
 - `crates/server/src/dispatch/server_error.rs` — new (§6).
-- `crates/kernel/src/tree.rs` — `Tree::tab_sizes_now` (§4), pure, new tests.
+- `crates/kernel/src/tree.rs` — `Tree::tab_sizes_now`, `Tree::sized_tabs`
+  (§4), pure, new tests.
 - `crates/kernel/src/terminal.rs:395` — comment corrected (§4).
 - `crates/sdk/src/program.rs` (or a new `record.rs`) — `PaneRecord` (§3).
 - `crates/sdk/src/description/shapes.rs`, `methods.rs` — `ErrorCode::
@@ -456,15 +556,19 @@ At 358 lines today, before this task's own additions. This task:
    to whichever did (see Risks).
 2. The `cwd`-failure experiment (§2) — a scratch program first, then a
    committed test either way.
-3. `Tree::tab_sizes_now` (§4), pure, kernel-only, lands first and alone.
+3. `Tree::tab_sizes_now` and `Tree::sized_tabs` (§4), pure, kernel-only,
+   land first and alone.
 4. `program_param.rs` and `LoginShell` (§2), pure/data-only, testable
    alone.
 5. `PaneRecord`/`pane.show` (§3).
 6. The pure close-refusal (§5) — small, and independent of `Runtime`.
 7. `Runtime`'s structure, drain thread and `apply_event` (§1), with the
    shell-closes-itself and last-tab-of-session proofs.
-8. `Runtime`'s start-wrapper (§2/§4), with the ENOENT-rollback,
-   cwd-resolution, and size proofs.
+8. `Runtime`'s start-wrapper (§2) and the general post-dispatch sizing
+   step (§4) together — the second is not an afterthought on the first,
+   since the start-wrapper's own new pane relies on the general step to
+   resize its siblings — with the ENOENT-rollback, cwd-resolution, and
+   the full §4 sizing proofs (including the under-floor case).
 9. `dispatch/lookup.rs` split (§7).
 10. `just check` at each numbered step's own boundary, not only at the end.
 
@@ -510,12 +614,16 @@ Clause by clause:
   case for "the last pane of the last tab of a session" — a one-pane,
   one-tab session's shell exiting, asserting the session itself is gone
   from `tree.sessions()` afterward, not only the pane.
-- **AC #3**: `Tree::tab_sizes_now` unit tests (pure); a real-pty test that
-  declares a tab size directly at the kernel level (bypassing the unbuilt
-  `client` dispatch, the only way to get a tab size to exist at all today),
-  splits a pane, and asserts the kernel `Terminal`'s own reported size via
-  `PaneHandle::snapshot()` and the pty's own real size via a real `sh -c
-  'stty size'` pane, for every pane in the tab.
+- **AC #3**: `Tree::tab_sizes_now`/`sized_tabs` unit tests (pure); the §4
+  integration test — a tab sized directly at the kernel level (bypassing
+  the unbuilt `client` dispatch, the only way to get a tab size to exist
+  at all today), then `pane.split`, `pane.resize`, `pane.close` and a swap
+  each run through `Runtime::handle`, asserting after each that every
+  *remaining* pane's terminal (`PaneHandle::snapshot()`) and pty (a real
+  `sh -c 'stty size'` pane) match the kernel's own size for it exactly —
+  proving the general step, not only the start path; the under-floor case
+  via `apply_size_changed` called directly (the public entry point), with
+  the affected pane's terminal and pty asserted cropped, not refused.
 - **AC #4**: the refusal with `ProgramRunning` and a byte-for-byte unchanged
   tree, for a pane/tab/session each, including the shell-whose-own-exit-
   would-close-it case; a `--force` close on a pane running a real `sh -c

@@ -4,6 +4,7 @@ title: api call cannot reach a method that has its own target
 status: Draft
 assignee: []
 created_date: '2026-11-15T20:14:00Z'
+updated_date: '2026-11-15T20:15:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -26,3 +27,9 @@ Found twice: TASK-1.75's worker noted that api.call can never carry the called m
 - [ ] #3 How the method's name and the inner method's parameters are kept apart is decided in the plan against doc-2 (api call takes the method as its target and the parameters as JSON on standard input) and decision-1, and any change to the description or to doc-2 is named as its own item for the engineer
 - [ ] #4 A call through api.call that names a pane, tab or session acts on that one, not on the context's default
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+TASK-1.48 added two tests in crates/server/tests/dispatch.rs that record today's behaviour (api_call_cannot_reach_setting_show_because_its_own_target_is_also_named_target, api_call_cannot_reach_setting_set_for_the_same_reason). The fix inverts them: say so in the notes rather than deleting them quietly.
+<!-- SECTION:NOTES:END -->

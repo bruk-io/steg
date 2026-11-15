@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -38,3 +38,9 @@ doc-8 R2, doc-9 R15, doc-15 R91. decision-2, sections 3, 5 and 6, including its 
 - [ ] #6 `spikes/task-1.2-wire-protocol/` is deleted
 - [ ] #7 Attaching, input, scrollback pages and declaring a size are offered by the steg library, and this task's tests go through it (R101)
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Carried from finished tasks (2026-11-15), for this task's plan: (1) TASK-1.74 gave RowId, Update and Page no wire form, like the rest of the screen shapes in the sdk; this task is where they first travel, so it decides the wire form for the whole family. (2) TASK-1.74: changes_since can be called correctly once per tick per terminal; this task fans one tick's Update out to each attachment's own queue. (3) TASK-1.42: client labels are not validated, and ClientNotViewingPane/ClientNotViewingTab map to BadRequest only because no client method existed; decide their codes when a method can return them. (4) TASK-1.76 gives Runtime::apply_size_changed for when a client declares a size or the latest client changes.
+<!-- SECTION:NOTES:END -->

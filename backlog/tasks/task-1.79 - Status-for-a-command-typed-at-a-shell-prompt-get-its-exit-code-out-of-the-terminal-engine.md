@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T19:43:00Z'
-updated_date: '2026-11-15T21:55:00Z'
+updated_date: '2026-11-15T21:56:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-6
 asdlc_branch: task-1.79-status-for-a-command-typed-at-a-shell
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '8ee9fd39c481'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -394,6 +397,15 @@ created: 2026-11-15T21:55:00Z
 ---
 
 Plan rewritten for piece one (ghostty-vt patch + kernel Terminal event surfacing only). Scratch verification run during planning, outside the normal record-check flow since it was against a scratch copy of the crate, not this worktree's own committed code: applied the patch to a scratch copy of the real vendored ghostty-vt 0.8.0, pointed this worktree's Cargo.toml at it via [patch.crates-io], and ran (1) just build - full Zig/C + kernel pipeline passing; (2) a temporary test feeding the six real byte sequences AC #1 names (C then D;0; bare D; malformed D;abc; D with no preceding C; two Cs then D; a mark split across two vt_write calls) - all six behaved as the rewritten plan now states, including that a malformed exit code degrades the same way a missing one does (has_exit_code: false); (3) a negative control - commented out the one new install! line, the same test failed with zero events, restored it, passing again; (4) cargo clean -p ghostty-vt-sys && GHOSTTY_SOURCE_URL=unreachable just build - passing in 39.6s, re-confirming TASK-1.34's offline-build proof still holds with the patch present; (5) just check in full - 19/19 ok, confirming boundaries.toml and deny.toml need no edit. All experimental edits (Cargo.toml, Cargo.lock, crates/kernel/src/terminal.rs) were reverted with git checkout -- after each round; the worktree was clean (git status --porcelain empty) before and after.
+
+---
+
+author: @bruk
+created: 2026-11-15T21:56:00Z
+
+---
+
+Plan approved by @bruk (8ee9fd39c481, size-5): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

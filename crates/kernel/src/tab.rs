@@ -46,7 +46,7 @@ pub enum DirectionalFocus {
 
 /// A tab: an ordered page within a session. Its panes sit at the leaves
 /// of `layout`, a tree of splits (R95); `panes` holds each pane's own
-/// data (its label, kind, and later its program and status), kept in
+/// data (its label, kind, program and status; TASK-1.40), kept in
 /// R112's order — `layout`'s leaves, first child before second — by
 /// `reorder_panes_to_match_layout`, so `panes()` can hand that order out
 /// directly.

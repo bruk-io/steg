@@ -1,6 +1,8 @@
 //! The tree: every session, tab and pane a server owns (doc-15, R85).
 
-use steg_sdk::{ClientId, ClientKind, Direction, PaneId, PaneKind, Ratio, SessionId, Size, TabId};
+use steg_sdk::{
+    ClientId, ClientKind, Direction, PaneId, PaneKind, Program, Ratio, SessionId, Size, TabId,
+};
 
 use crate::client::Client;
 use crate::colour::next_colour;
@@ -58,6 +60,18 @@ pub enum FocusMove {
     /// either): nothing changed. Not an error — doc-2 section 4 says the
     /// command exits 0 and stays put.
     Edge,
+}
+
+/// What happened when a pane's program ended (doc-15 R97; TASK-1.40):
+/// `Tree::record_exit`'s result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExitOutcome {
+    /// The pane stays (it was started with a given command): its program
+    /// can be run again with `Tree::restart_program`.
+    Stayed,
+    /// The pane was a plain shell, so it closed - the exact cascade a
+    /// manual `Tree::close_pane` runs, not a second copy of it.
+    Closed(ClosedPane),
 }
 
 /// What happened when a pane moved to another tab (R9).
@@ -512,6 +526,73 @@ impl Tree {
                 None
             },
         })
+    }
+
+    /// Records what a pane runs, for the first time (doc-9 R13; TASK-1.40).
+    /// Called once, right after the pane that minted `id` was created
+    /// ([`Tree::new_session`]/[`Tree::new_tab`]/[`Tree::split_pane`]), so
+    /// `STEG_PANE` (which needs the id) is already known.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id, or [`Error::ProgramAlreadyStarted`] if it already has
+    /// a program.
+    pub fn start_program(&mut self, id: PaneId, program: Program) -> Result<(), Error> {
+        self.tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?
+            .start_program(program)
+    }
+
+    /// Records that a pane's program ended with `exit_code`, and runs
+    /// R97's cascade: a pane started as a plain shell closes, exactly as a
+    /// manual [`Tree::close_pane`] would; a pane started with a given
+    /// command stays, and can be run again with [`Tree::restart_program`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id, or [`Error::ProgramNotStarted`] if it has no program
+    /// yet.
+    ///
+    /// # Panics
+    ///
+    /// Never in practice: a pane this just found and recorded an exit on
+    /// cannot have gone anywhere in between, since nothing else runs while
+    /// this method holds `&mut self`.
+    pub fn record_exit(&mut self, id: PaneId, exit_code: i32) -> Result<ExitOutcome, Error> {
+        let pane = self
+            .tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?;
+        pane.record_exit(exit_code)?;
+
+        if pane.closes_on_exit() {
+            let closed = self
+                .close_pane(id)
+                .expect("the pane that just recorded its own exit is still in the tree");
+            Ok(ExitOutcome::Closed(closed))
+        } else {
+            Ok(ExitOutcome::Stayed)
+        }
+    }
+
+    /// Runs a pane's program again, in the same directory, with the same
+    /// arguments (R97). Only the kernel's own state moves back to
+    /// `Running`; actually spawning the new process is the server's job
+    /// (TASK-1.40's brief).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneNotFound`] if no tab in the tree holds a pane
+    /// with that id, or whatever `Pane::restart` returns -
+    /// [`Error::ProgramStillRunning`] or [`Error::ShellCannotRestart`].
+    pub fn restart_program(&mut self, id: PaneId) -> Result<(), Error> {
+        self.tab_owning_pane_mut(id)
+            .and_then(|tab| tab.pane_mut(id))
+            .ok_or(Error::PaneNotFound(id))?
+            .restart()
     }
 
     /// Creates a new tab in the session with this id, with one pane
@@ -1383,6 +1464,168 @@ mod tests {
 
         assert!(!closed.session_now_empty);
         assert!(tree.session(session_id).is_some());
+    }
+
+    fn command(cwd: &str) -> steg_sdk::Program {
+        steg_sdk::Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: cwd.to_string(),
+        }
+    }
+
+    fn shell(cwd: &str) -> steg_sdk::Program {
+        steg_sdk::Program::Shell {
+            cwd: cwd.to_string(),
+        }
+    }
+
+    #[test]
+    fn start_program_records_it_on_the_newly_minted_pane() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+
+        tree.start_program(pane_id, command("/tmp")).unwrap();
+
+        let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane.program(), Some(&command("/tmp")));
+        assert_eq!(pane.status(), Some(steg_sdk::ProgramStatus::Running));
+    }
+
+    #[test]
+    fn start_program_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.start_program(steg_sdk::PaneId::from_raw(999), command("/tmp")),
+            Err(crate::error::Error::PaneNotFound(
+                steg_sdk::PaneId::from_raw(999)
+            ))
+        );
+    }
+
+    #[test]
+    fn a_command_panes_exit_stays_and_can_be_restarted() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane_id, command("/tmp")).unwrap();
+
+        let outcome = tree.record_exit(pane_id, 3).unwrap();
+
+        assert_eq!(outcome, super::ExitOutcome::Stayed);
+        assert!(tree.session(session_id).is_some());
+        let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(
+            pane.status(),
+            Some(steg_sdk::ProgramStatus::Ended { exit_code: 3 })
+        );
+
+        tree.restart_program(pane_id).unwrap();
+
+        let pane = &tree.session(session_id).unwrap().tabs()[0].panes()[0];
+        assert_eq!(pane.status(), Some(steg_sdk::ProgramStatus::Running));
+        assert_eq!(pane.program(), Some(&command("/tmp")));
+    }
+
+    #[test]
+    fn a_shell_panes_exit_closes_it_through_the_same_cascade_as_a_manual_close() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let pane_id = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(pane_id, shell("/tmp")).unwrap();
+
+        let outcome = tree.record_exit(pane_id, 0).unwrap();
+
+        let super::ExitOutcome::Closed(closed) = outcome else {
+            panic!("expected the shell pane's exit to close it, got {outcome:?}");
+        };
+        assert_eq!(closed.pane, pane_id);
+        // It was the session's only pane, so the cascade (R94) takes the
+        // tab and the session with it - the exact same shape
+        // `closing_a_sessions_only_tabs_only_pane_ends_the_session` already
+        // asserts for a manual `close_pane`.
+        assert!(closed.tab.is_some());
+        assert_eq!(closed.session, Some(session_id));
+        assert!(tree.session(session_id).is_none());
+    }
+
+    #[test]
+    fn a_shell_panes_exit_cascades_no_further_than_it_should_among_several_panes() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        tree.start_program(second_pane, shell("/tmp")).unwrap();
+
+        let outcome = tree.record_exit(second_pane, 0).unwrap();
+
+        let super::ExitOutcome::Closed(closed) = outcome else {
+            panic!("expected the shell pane's exit to close it, got {outcome:?}");
+        };
+        assert_eq!(closed.pane, second_pane);
+        assert!(closed.tab.is_none());
+        assert!(closed.session.is_none());
+        assert!(tree.session(session_id).is_some());
+    }
+
+    #[test]
+    fn record_exit_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.record_exit(steg_sdk::PaneId::from_raw(999), 0),
+            Err(crate::error::Error::PaneNotFound(
+                steg_sdk::PaneId::from_raw(999)
+            ))
+        );
+    }
+
+    #[test]
+    fn restart_program_on_an_unknown_pane_errors() {
+        let mut tree = Tree::new();
+
+        assert_eq!(
+            tree.restart_program(steg_sdk::PaneId::from_raw(999)),
+            Err(crate::error::Error::PaneNotFound(
+                steg_sdk::PaneId::from_raw(999)
+            ))
+        );
+    }
+
+    #[test]
+    fn a_shell_pane_is_gone_after_its_exit_so_restarting_it_finds_no_pane_at_all() {
+        // `Tree::record_exit` already cascaded this pane away (R97: a
+        // plain shell closes), so there is no lingering "ended shell" for
+        // `restart_program` to refuse by name - it is simply not in the
+        // tree any more. `Pane::restart`'s own `ShellCannotRestart` guard
+        // is a `Pane`-level invariant (see pane.rs's
+        // `restarting_a_shell_pane_errors`), not one this path can reach,
+        // since the tree never keeps a shell pane around long enough to
+        // ask it to restart.
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_pane = tree
+            .split_pane(
+                first_pane,
+                steg_sdk::Direction::Right,
+                steg_sdk::PaneKind::Terminal,
+            )
+            .unwrap();
+        tree.start_program(second_pane, shell("/tmp")).unwrap();
+        tree.record_exit(second_pane, 0).unwrap();
+
+        assert_eq!(
+            tree.restart_program(second_pane),
+            Err(crate::error::Error::PaneNotFound(second_pane))
+        );
     }
 
     #[test]

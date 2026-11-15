@@ -10,4 +10,11 @@ workspace = true
 [dependencies]
 steg-kernel = { path = "../kernel" }
 steg-sdk = { path = "../sdk" }
+# The pseudo-terminal and the process running in it (doc-16 R1: "the server
+# is where I/O meets the kernel"; TASK-1.40). Covers both in one crate - no
+# separate process-spawning dependency needed - and is already exercised
+# against this exact shape in-repo by
+# `spikes/task-1.2-wire-protocol/probe-server/src/pty.rs` (decision-3
+# section 9).
+portable-pty = "0.9"
 serde_json = "1"

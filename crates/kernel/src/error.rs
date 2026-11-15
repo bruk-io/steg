@@ -89,6 +89,20 @@ pub enum Error {
     },
     /// The terminal engine (`ghostty-vt`) failed (TASK-1.39).
     Engine(ghostty_vt::Error),
+    /// `Tree::start_program` was called on a pane that already has one
+    /// (doc-15 R97; TASK-1.40). A pane's program is started exactly once;
+    /// running the same command again is `Tree::restart_program`.
+    ProgramAlreadyStarted(PaneId),
+    /// `Tree::record_exit` was called on a pane with no program yet.
+    ProgramNotStarted(PaneId),
+    /// `Tree::restart_program` was called on a pane whose program has not
+    /// ended (including a pane with no program yet at all - there is
+    /// nothing to restart either way).
+    ProgramStillRunning(PaneId),
+    /// `Tree::restart_program` was called on a pane started as a plain
+    /// shell: a shell pane closes when it exits (R97), rather than
+    /// offering anything to restart.
+    ShellCannotRestart(PaneId),
     /// No client in the tree has this id.
     ClientNotFound(ClientId),
     /// A client was asked to stop viewing, or send input on, a pane it is
@@ -158,6 +172,24 @@ impl fmt::Display for Error {
                 write!(f, "pane {pane} is already in tab {tab}")
             }
             Error::Engine(cause) => write!(f, "the terminal engine failed: {cause}"),
+            Error::ProgramAlreadyStarted(pane) => {
+                write!(f, "pane {pane} already has a program")
+            }
+            Error::ProgramNotStarted(pane) => {
+                write!(f, "pane {pane} has no program yet")
+            }
+            Error::ProgramStillRunning(pane) => {
+                write!(
+                    f,
+                    "pane {pane}'s program has not ended, so it cannot be restarted"
+                )
+            }
+            Error::ShellCannotRestart(pane) => {
+                write!(
+                    f,
+                    "pane {pane} is a plain shell, which closes rather than restarting"
+                )
+            }
             Error::ClientNotFound(id) => write!(f, "no client with id {id}"),
             Error::ClientNotViewingPane { client, pane } => {
                 write!(f, "client {client} is not attached to pane {pane}")
@@ -188,6 +220,10 @@ impl std::error::Error for Error {
             | Error::NoSplitInDirection { .. }
             | Error::PanesNotInSameTab { .. }
             | Error::AlreadyInTab { .. }
+            | Error::ProgramAlreadyStarted(_)
+            | Error::ProgramNotStarted(_)
+            | Error::ProgramStillRunning(_)
+            | Error::ShellCannotRestart(_)
             | Error::ClientNotFound(_)
             | Error::ClientNotViewingPane { .. }
             | Error::ClientNotViewingTab { .. } => None,

@@ -18,7 +18,7 @@ use std::time::Duration;
 use steg_kernel::{ExitOutcome, Moment, Tree};
 use steg_sdk::{PaneId, Program, Screen};
 
-use steg_server::{Error, LaunchSpec, PaneEvent, RealLauncher};
+use steg_server::{Error, LaunchSpec, PaneEvent, ProgramLauncher, RealLauncher};
 
 /// How long any one real-pty test waits for an event before failing with
 /// a message, rather than hanging indefinitely on a misbehaving child
@@ -336,4 +336,69 @@ fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
             Err(e) => e.to_string(),
         }
     );
+}
+
+/// How many threads call `RealLauncher::spawn` at once, each round -
+/// "at least 28" per the review: this machine's own default `cargo test`
+/// parallelism, the exact concurrency that first exposed the race.
+const CONCURRENT_OPENS: usize = 32;
+
+/// How many times [`many_threads_opening_a_real_pty_at_once_never_fails`]
+/// repeats the all-at-once open, inside one test run - enough that the
+/// negative control (the lock removed) fails on a near-certain fraction
+/// of local runs, recorded on the task alongside how many rounds that
+/// took.
+const ROUNDS: usize = 10;
+
+/// TASK-1.76 review (second round): `openpty()` itself is not safe to
+/// call from several threads of one process at once on this platform -
+/// measured directly, isolated from this crate's own code (a bare libc
+/// call from many threads, no Rust, no `portable-pty`, still raced) and
+/// recorded on the task. `RealLauncher::spawn` now serialises its own
+/// `openpty` call behind `pty::OPENPTY_LOCK` for exactly this reason;
+/// this test drives that real contention directly - many real threads,
+/// each opening a real pty through the real launcher, at once, repeated
+/// enough rounds that the race is no longer a matter of luck.
+///
+/// Every spawned program exits at once and is waited on before the next
+/// round, rather than left running: proving the open itself is safe
+/// under contention does not need every pty kept alive at once, and
+/// reaping each keeps 32 * 10 rounds of this test from leaking real
+/// processes.
+#[test]
+fn many_threads_opening_a_real_pty_at_once_never_fails() {
+    let cwd = std::env::temp_dir();
+
+    for round in 0..ROUNDS {
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(CONCURRENT_OPENS));
+        let handles: Vec<_> = (0..CONCURRENT_OPENS)
+            .map(|thread| {
+                let barrier = std::sync::Arc::clone(&barrier);
+                let cwd = cwd.clone();
+                std::thread::spawn(move || {
+                    let launcher = RealLauncher;
+                    let spec = spec(vec!["sh", "-c", "true"], cwd.to_str().unwrap(), Vec::new());
+                    // Every thread opens at the same instant, not
+                    // whenever it happens to get scheduled: the race
+                    // this is proving against is concurrent calls, not
+                    // merely overlapping ones.
+                    barrier.wait();
+                    (thread, launcher.spawn(&spec))
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let (thread, result) = handle.join().expect("the spawning thread itself panicked");
+            match result {
+                Ok(mut spawned) => {
+                    let _ = spawned.child.wait();
+                }
+                Err(error) => panic!(
+                    "round {round}/{ROUNDS}, thread {thread}/{CONCURRENT_OPENS}: \
+                     RealLauncher::spawn failed under concurrent opens: {error}"
+                ),
+            }
+        }
+    }
 }

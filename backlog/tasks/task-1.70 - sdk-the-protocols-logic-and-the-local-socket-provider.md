@@ -1,13 +1,14 @@
 ---
 id: TASK-1.70
 title: 'sdk: the protocol''s logic, and the local-socket provider'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:53:00Z'
+updated_date: '2026-11-15T16:59:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -22,8 +23,10 @@ asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2aa568c163d'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -521,6 +524,29 @@ created: 2026-11-15T16:53:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:59:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Bugs/Evidence, Important] crates/sdk/src/wire/frame.rs:190-194 - Decoder::next_frame's check for a declared length smaller than the 5-byte header (returning FrameError::Malformed) has zero test coverage anywhere in the crate. This is exactly the hostile-input case the review brief named ("a length under the header size"); nothing in frame.rs's own tests, connection.rs's unit tests, or tests/connection.rs exercises it, so a regression here (e.g. an off-by-one on the bound, or a panic from indexing before the length check) would go undetected.
+
+[Bugs/Evidence, Important] crates/sdk/src/local_socket.rs:144 and crates/sdk/tests/local_socket.rs - connect()'s ConnectError::Spawn path (binary cannot be executed, with autostart:true and nothing listening) is never exercised through connect() in any test, even though the review brief explicitly named "what happens if the binary does not exist" as a case to prove. The two tests that build binary_that_cannot_execute() both short-circuit before Command::spawn() is ever called (one via an already-bound listener so connect succeeds first, one via autostart:false so the NoServerRunning branch returns first); the only test touching ConnectError::Spawn checks Display formatting of a fabricated error, not that connect() itself returns that variant on a real spawn failure.
+
+[Nit] crates/sdk/src/wire/frame.rs: next_frame does not drain the buffer on a Malformed error (unknown kind tag, undersized length), so a caller that calls poll() again after seeing one Malformed sees the identical error forever rather than the connection ever being able to recover. Likely fine if every caller treats Malformed as fatal and drops the connection, but that convention isn't stated.
+
+[Nit] crates/sdk/src/local_socket.rs: connect() never wait()s on the spawned Child (by design, per the plan). If a long-lived consumer (the app) calls connect with autostart repeatedly over its lifetime and the real server's own detach leaves a short-lived intermediate process, this accumulates zombie process-table entries until the consumer exits. Attributed to TASK-1.44's detaching code, but worth a line noting the consumer-side consequence explicitly.
+
+Everything else checked out: the two-commit boundary is clean (half A is I/O-free and feature-gate-free; half B is entirely behind local-socket, carrying the crate's one #[expect] plus its test-module twin, both scoped correctly per .claude/rules/sdk.md); the ClientId/ClientKind definitions match TASK-1.42's own plan verbatim (confirmed by reading TASK-1.42's plan directly); server.start's on_demand switch matches doc-2's already-approved row; no new dependency in Cargo.toml or boundaries.toml, and boundaries.toml's existing deny-features still blocks steg-kernel from local-socket; the justfile gap is fixed and CI on the PR's head commit (0b6aacde) shows "test (steg-sdk, local-socket)" actually running and passing under just check; the recorded just check is at the branch head. All the hostile-input cases I could find tests for (oversized length incl. the exact 0xFFFF_FFFF case, truncated/byte-at-a-time frames, two frames in one push, unknown kind tag, bad magic, non-JSON hello, missing field, unknown field ignored, client-newer and server-newer version mismatches both naming both versions, data on an unregistered stream, event name not in the Description) are present and look correct by inspection.
+
+A matching open draft already exists (DRAFT-1, "a named error/edge-case branch needs a test exercising it, not just a happy-path test", filed against TASK-1.39/TASK-1.35) that covers exactly this mistake pattern, so no new rule-change draft was filed for it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,12 +5,12 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:48:00Z'
+updated_date: '2026-11-15T00:50:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
 - Revised 2026-11-15 for the app's design (doc-7) and the four decisions Bruk made that day: program status is split across M1 and M2; session colour follows the design; settings are overrides and the Python config is never written to; each status ends by its own rule. The changes are R21, R26, R50 and R51 reworded, R78 to R84 added, and the release table.
-- Revised again 2026-11-15 for where focus lives (TASK-1.29): the vocabulary gains window and focus, the client is defined more exactly, and R85 to R90 are added.
+- Revised again 2026-11-15 for where focus lives (TASK-1.29): the vocabulary gains window and focus, the client is defined more exactly, and R85 to R91 are added. R91 settles the size a terminal takes when more than one client views it.
 - Reference product: [Rex](https://www.superlogical.com/rex/docs) by Superlogical.
 
 ## 1. What steg is
@@ -111,6 +111,14 @@ Each requirement is tagged with the release it belongs to (section 6).
   showing. That is the app's judgement from R85 and R87; a server does not track what is
   visible. R50's ring and bar, and R51's notifications, are decided by the app on this
   basis.
+- R91 (M1). A terminal has one size. When more than one client views a session, each
+  terminal in it takes the size it would have in the client most recently active in that
+  session, meaning the last one to send input to it or be resized. Every other client
+  draws the terminal at that size, anchored at its top left: with empty ground beyond it
+  where that client's pane is larger, and cropped where it is smaller. Text is never
+  rescaled. The pane layout's proportions are shared by all clients (R89); only the count
+  of rows and columns follows the latest. This holds for two windows on one machine in M1
+  and for clients on different machines in M3 alike.
 
 ### 5.2 Layout
 
@@ -354,7 +362,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R90, and R50 for running, finished and failed |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R91, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
@@ -412,11 +420,8 @@ The requirements hold whichever way these go.
 5. **Python on the inside.** Whether steg offers a client library, the fields of the
    config dataclass, and how the config file is evaluated: most simply a short-lived
    process at load and reload that hands its data to the server.
-6. **Two clients, one pane.** What size a terminal takes when two attached clients have
-   different window sizes (R7). R89 brings this forward: two windows of the app on one
-   session are two clients viewing it, in M1, and they can be different sizes. Either M1
-   answers this, or the app does not let two windows show the same session until it is
-   answered.
+6. **Two clients, one pane.** Decided 2026-11-15: the latest client wins (R91). The same
+   rule serves two windows on one machine in M1 and two machines in M3.
 
 ## 8. Areas of concern
 

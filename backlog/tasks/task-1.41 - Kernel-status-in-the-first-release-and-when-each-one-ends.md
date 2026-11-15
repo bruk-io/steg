@@ -525,4 +525,12 @@ created: 2026-11-15T20:25:00Z
 Plan approved by @bruk (ed724e8c9084, size-3): its worker may build it.
 
 ---
+
+created: 2026-11-15T20:35:00Z
+
+---
+
+Departure from the plan: crates/server/tests/real_pty.rs (TASK-1.40's own functional test, already on origin/main) calls Tree::record_exit twice and wasn't caught by the plan's call-site grep (which searched for '.status()', not 'record_exit' - record_exit's own signature change was already known/planned, just not that this file called it). Fixed both call sites with Moment::new(Duration::ZERO), since neither test asserts anything about Status/timing - they're proving a real exit code reaches the kernel's cascade, nothing about when.
+
+---
 <!-- COMMENTS:END -->

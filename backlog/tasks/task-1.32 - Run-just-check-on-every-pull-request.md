@@ -1,7 +1,7 @@
 ---
 id: TASK-1.32
 title: Run just check on every pull request
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.32-run-just-check-on-every-pull-request
+  - https://github.com/bruk-io/steg/pull/8
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -94,6 +97,44 @@ ok      licences (1.1s)
 skip    tests: this change touches no crate
 ok      tool tests (0.3s)
 ```
+
+Built exactly per the approved plan: one new file, .github/workflows/ci.yml. Runs
+`just check` on pull_request and push to main, and `just test-all` in addition on push
+to main only (engineer's 2026-11-15 decision, recorded on the plan).
+
+Note on sequence: the PR (#8) was opened, its pull_request-triggered run went green,
+and it was merged to main by @brukhabtu before this task's full proof pass (the forced
+red/test/push-path runs below) was complete. The merged content is exactly what's
+described here; nothing further changed after the merge.
+
+Checks recorded locally with `asdlc record-check` (full output on the task):
+- `just check` — ok format check, ok lint, ok boundaries, ok licences, skip tests (no
+  crate touched by this diff, as the plan's Risks section anticipated), ok tool tests.
+
+Checks observed on GitHub Actions (can't run inside the worktree, reported here):
+- PR #8, run 43668957068 (pull_request): green in 1m29s. Log confirms every pinned
+  version actually resolved: macOS image 26.7.2, rustc/rustfmt/clippy 1.98.1/1.9.0/0.1.98
+  via rust-toolchain.toml's override (not the image's own 1.99.1 default), uv 0.13.8,
+  Python 3.15.2, just 1.59.0, cargo-deny 0.20.2. `just lint`'s workspace-wide clippy
+  (56.7s) compiled and linked the gpui-linked app crate on the runner. `test-all` step
+  correctly skipped (pull_request, not push).
+- Scratch PR (closed, branch deleted after observing): a deliberately broken
+  `cargo fmt --check` on a throwaway branch/PR made the run fail with exit 1 and a
+  readable diff + full-log pointer in the job log — proves AC #1's "a failing step
+  fails the run."
+- Scratch PR (closed, branch deleted after observing): touching `justfile` (a
+  steg-affected global file) on a throwaway branch/PR forced `test: all`; `cargo test
+  --workspace` (52.3s) actually ran and passed against the gpui-linked workspace, not
+  just clippy-compiled it.
+- Scratch push (branch deleted after observing): temporarily added a throwaway branch
+  to the workflow's `push.branches` to exercise the push-triggered path pre-merge
+  (branch protection scopes `push` to `main`, so this was the only way to test it
+  before merging); both `just check` and `just test-all` ran and passed on a direct
+  push event, in that order, confirming the engineer's addition works as decided.
+
+All three scratch branches and their PRs were closed/deleted; the merged content on
+main is only the real diff from PR #8, with no scratch commits ever landing on the
+task's own branch.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

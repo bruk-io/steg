@@ -28,6 +28,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -926,6 +927,15 @@ created: 2026-11-15T03:47:00Z
 ---
 
 From @bruk.o: commits after the hand-back. The worker handed this back to review at an earlier head, then, on the orchestrator's instruction and before any reviewer claimed it, merged origin/main (pull requests 15 and 18) and switched every old just recipe name to the new one. The board takes no recorded check on a task that is In Review, so the check at the new head 5ba2098 is pull request 17's CI run 43673858878 (success), plus a just check the worker ran unrecorded. Conflicts resolved in .claude/rules/architecture.md, crates/kernel/Cargo.toml and the justfile. The reviewer is asked to review at 5ba2098 and to confirm no old recipe name remains in this change's files.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:47:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.71: a same-machine review: it waited 6m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

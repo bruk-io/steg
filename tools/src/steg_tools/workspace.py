@@ -1,8 +1,9 @@
-"""Shared access to this repository's root and its workspace's `cargo metadata`.
+"""Shared access to this repository's root, its workspace's `cargo metadata`, and its justfile's `just --dump`.
 
 Every tool that reads the workspace's crates (steg-affected, steg-boundaries) does it
 through here, so there is one place that knows how to find the repository and run
-`cargo metadata`, not one copy per tool.
+`cargo metadata`, not one copy per tool. steg-recipes reads the justfile the same way,
+through `just_dump`.
 """
 
 import json
@@ -26,6 +27,17 @@ def cargo_metadata(root: Path) -> dict[str, object] | None:
     """Run `cargo metadata` for the workspace at `root`, or None if it fails."""
     done = subprocess.run(
         ["cargo", "metadata", "--format-version", "1", "--no-deps"],
+        capture_output=True,
+        text=True,
+        cwd=root,
+    )
+    return json.loads(done.stdout) if done.returncode == 0 else None
+
+
+def just_dump(root: Path) -> dict[str, object] | None:
+    """Run `just --dump --dump-format json` for the justfile at `root`, or None if it fails."""
+    done = subprocess.run(
+        ["just", "--justfile", str(root / "justfile"), "--dump", "--dump-format", "json"],
         capture_output=True,
         text=True,
         cwd=root,

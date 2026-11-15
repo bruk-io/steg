@@ -8,7 +8,7 @@ version.workspace = true
 workspace = true
 
 [dependencies]
-# R105: the sdk, never its optional parts. `just boundaries` checks that this
+# R105: the sdk, never its optional parts. `just check-boundaries` checks that this
 # dependency exists and that nothing else does (boundaries.toml); it cannot
 # check that `local-socket` stays off (see .claude/rules/architecture.md).
 steg-sdk = { path = "../sdk", default-features = false }

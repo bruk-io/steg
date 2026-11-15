@@ -8,6 +8,6 @@ Releases are Backlog.md milestones, defined in the spec (`doc-1`, section 6): `m
 
 Run project commands through `just`, never cargo directly; `just` lists them.
 
-- `just check` - what a change must pass before it is called done: format, lint, licences, the affected tests, and the tools' tests.
+- `just check` - what a change must pass before it is called done: format, lint, crate boundaries, licences, the affected tests, the tools' own tests, the architecture model, and the justfile's own recipe names.
 - `just test` - only the tests for the crates the change touches and the crates that depend on them. `tools/` chooses them from the diff against `origin/main`; do not choose tests by hand. `just test-all` runs everything and is for CI and for doubting the selection.
 - Output is quiet: a passing step prints one line, a failing step prints the end of its output and the path of the full log under `.quiet/`. Read the log only when the tail is not enough. `STEG_VERBOSE=1` shows everything.

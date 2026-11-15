@@ -1,7 +1,7 @@
 # A crate's permitted dependencies, workspace and external alike. A crate with no
 # table here is unrestricted. Checked by `tools/src/steg_tools/boundaries.py`, run
-# as `just boundaries`; adding a dependency to a restricted crate that isn't on its
-# list is a deliberate edit to this file, not something to remember separately.
+# as `just check-boundaries`; adding a dependency to a restricted crate that isn't on
+# its list is a deliberate edit to this file, not something to remember separately.
 #
 # This table is doc-16's level-3 dependency table (section "Who may depend on
 # whom"), one entry per package.

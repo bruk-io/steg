@@ -1,9 +1,9 @@
 ---
-id: DRAFT-4
+id: TASK-1.30
 title: >-
   Tab status: one ring per tab, pane promotion from the CLI, fixed status
   lifetimes
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-14T23:24:00Z'
 updated_date: '2026-11-14T23:26:00Z'

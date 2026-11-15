@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:51:00Z'
+updated_date: '2026-11-15T23:52:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -518,6 +518,12 @@ error[E0599]: no method named `note_command_output_started` found for mutable re
 error: could not compile `steg-kernel` (lib test) due to 22 previous errors
 full output: .quiet/tests-p-steg-p-steg-kernel-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-15T23:52:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-kernel -p steg-server) (6.9s)
 ```
 <!-- SECTION:NOTES:END -->
 

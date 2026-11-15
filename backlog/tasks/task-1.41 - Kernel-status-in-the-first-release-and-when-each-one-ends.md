@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:57:00Z'
+updated_date: '2026-11-15T21:04:00Z'
 labels:
   - size-3
   - review-passed
@@ -988,6 +988,14 @@ Nits (3):
 1. [Bugs] crates/kernel/src/tree.rs next_status_deadline tests - no tree-level case combines several panes with one whose deadline has already passed; only tested in isolation at the pane level.
 2. [Bugs] crates/kernel/src/pane.rs / tree.rs - no test runs the full restart/re-exit cycle (start, exit, restart, exit again, with input in between) checking status and tick at each step; only a single restart after one exit is covered.
 3. [Evidence] crates/kernel/src/tree.rs:opening_a_tab_or_focusing_a_pane_ends_nothing - the plan's Proof section said this test would capture next_status_deadline before and after every focus operation too; it only asserts status(moment(0)) after. Cosmetic: the recorded fault injection (making focus_pane call clear_status) still fails this test as expected.
+
+---
+
+created: 2026-11-15T21:04:00Z
+
+---
+
+After the clean review at 4169a94, the worker added the three tests the review's nits asked for (89893f4: next_status_deadline across sessions with one pane past its deadline; a full start, exit, restart cycle with the tie-break checked at each step; the focus test also asserting next_status_deadline) and merged main. 115 lines added, all inside crates/kernel/src/tree.rs's test module; checked by @bruk.o that no hunk falls outside it. The reviewer did not see this commit. The board locks a task after a clean review, so the check is the pull request's CI: green at 89893f4.
 
 ---
 <!-- COMMENTS:END -->

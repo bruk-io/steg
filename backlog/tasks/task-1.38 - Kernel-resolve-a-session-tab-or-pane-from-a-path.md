@@ -1,11 +1,11 @@
 ---
 id: TASK-1.38
 title: 'Kernel: resolve a session, tab or pane from a path'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:11:00Z'
+updated_date: '2026-11-15T04:22:00Z'
 labels:
   - size-2
   - review-passed

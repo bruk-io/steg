@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:16:00Z'
+updated_date: '2026-11-15T20:25:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.76-server-start-a-pane-s-program-from-the
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '308d35ef87d0'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -673,3 +676,16 @@ Clause by clause:
 <!-- SECTION:NOTES:BEGIN -->
 Split on 2026-11-15 under the engineer's standing decision to split by default, along the seam this task's description named and the worker's plan recommended. This task is now part one: programs started from the API, exits, sizes, and the refusal to close a running program without --force. Part two, a draft under TASK-1 depending on this task, takes --force actually ending a program (the worker's plan section 5 from 'With --force' onward, and the experiment it names). The plan on this task was written for both parts and is to be rewritten for part one only.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T20:25:00Z
+
+---
+
+Plan approved by @bruk (308d35ef87d0, size-5): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

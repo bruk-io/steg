@@ -122,6 +122,22 @@ pub fn handle(
         }
     }
 
+    // `run` (`listen.rs`) holds a `try_clone`d duplicate of this same
+    // local socket endpoint for as long as this connection is tracked,
+    // so this thread's own fd closing on return (a plain `close()`,
+    // what simply dropping `stream` would do) is not enough on its own
+    // to end the connection - a `close()` only drops this fd's own
+    // reference and does not notify the peer while the duplicate stays
+    // open. `shutdown` acts on the socket itself regardless of how many
+    // local duplicates exist, so it is what actually makes a timed-out
+    // or refused peer see its connection end promptly, on every exit
+    // path out of this function, whether or not `run`'s own clone has
+    // been reaped yet (found necessary while building this: without
+    // it, a stalled handshake that times out with no later connection
+    // arriving to trigger a reap pass left the peer's read blocked
+    // indefinitely instead of closed).
+    let _ = stream.shutdown(std::net::Shutdown::Both);
+
     if let Some(events) = events {
         let _ = events.send(ConnectionEvent::Disconnected);
     }

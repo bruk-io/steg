@@ -5,11 +5,12 @@
 //! detach wraps around exactly these two calls, with nothing of its own
 //! added to either (`attempt` pre-detach, `run` post-detach).
 
+use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use crate::arbiter::{self, Arbitration};
 use crate::config::ServerConfig;
@@ -73,15 +74,63 @@ fn wake_accept(socket_path: &std::path::Path) {
     let _ = UnixStream::connect(socket_path);
 }
 
+/// Removes every connection whose thread has already finished on its
+/// own (a client that closed, was refused, or timed out) from
+/// `connections`, joining each - `is_finished` already guarantees the
+/// join returns at once, never blocking this loop on a connection that
+/// is still open. Called once per loop iteration, right after a new
+/// connection is accepted and before it is pushed: found necessary
+/// while building this, not assumed - without it `connections` only
+/// ever grows, holding a real file descriptor (the `try_clone`d
+/// shutdown handle) and a `JoinHandle` for every connection the server
+/// has ever accepted, for as long as it runs. With this, the tracked
+/// set holds exactly the connections still open plus whatever finished
+/// since the last accept - bounded by how many connections are
+/// concurrently live, never by how many have come and gone over the
+/// server's lifetime (proved by
+/// `many_short_connections_do_not_grow_the_tracked_set`, `shutdown.rs`).
+fn reap_finished(connections: &mut Vec<(UnixStream, JoinHandle<()>)>) {
+    let mut i = 0;
+    while i < connections.len() {
+        if connections[i].1.is_finished() {
+            let (_, join) = connections.swap_remove(i);
+            let _ = join.join();
+        } else {
+            i += 1;
+        }
+    }
+}
+
 /// The accept loop: spawns a thread per accepted connection
-/// (`connection::handle`) until [`stop`] says to stop, then closes the
-/// listener, removes the socket file, and releases the lock - in that
-/// order, so the lock (the arbiter) is never given up before the path is
-/// fully vacated. A client whose `connect()` lands in that instant sees
-/// exactly what it would see against a server that was never there
-/// (refused, or - once the file is gone - not found), which is the safe,
-/// correct reading for any client (the sdk's own `local_socket::connect`
-/// treats either the same way: try to start one).
+/// (`connection::handle`) until [`stop`] says to stop, then shuts down
+/// and joins every connection still open, closes the listener, removes
+/// the socket file, and releases the lock - in that order, so the lock
+/// (the arbiter) is never given up before the path is fully vacated. A
+/// client whose `connect()` lands in that instant sees exactly what it
+/// would see against a server that was never there (refused, or - once
+/// the file is gone - not found), which is the safe, correct reading for
+/// any client (the sdk's own `local_socket::connect` treats either the
+/// same way: try to start one).
+///
+/// **Every spawned thread is joined on every path out of this
+/// function**, found necessary rather than assumed while building this:
+/// a connection accepted under AC #4's own promise - "one that has
+/// completed [the handshake] is not closed for being idle" - blocks in
+/// `connection::handle`'s hold-open read with no timeout at all, so
+/// nothing makes that thread return on its own when `stop` is called; a
+/// still-open client might never send another byte. `connections`
+/// tracks a `try_clone` of each accepted stream beside its thread's
+/// `JoinHandle` so this function can call `shutdown` on that clone -
+/// confirmed by
+/// `a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop`
+/// (`shutdown.rs`) to unblock a sibling descriptor's own blocked `read`
+/// with `Ok(0)`, not assumed - and then `join`, bounding every thread
+/// this loop ever spawned to this one shutdown step rather than to
+/// however long an idle client happens to stay connected. Already
+/// -finished connections are reaped as the loop runs
+/// ([`reap_finished`]), so this final pass only ever waits on
+/// connections genuinely still open when `stop` was called, never on
+/// the server's whole history of past connections.
 ///
 /// # Errors
 /// An [`Error::Io`] from the accept loop's own listener.
@@ -92,29 +141,55 @@ pub fn run(
     stop: &Stopper,
     events: Option<Sender<ConnectionEvent>>,
 ) -> Result<(), Error> {
-    loop {
-        let (stream, _addr) = handle.listener.accept()?;
+    // No early return (`?`) inside this loop, on purpose: an I/O error
+    // from `accept` or `try_clone` is an error branch like any other,
+    // and the cleanup below - shutting down and joining every
+    // connection already spawned - has to run on that path too, not
+    // only when the loop ends by `stop` being called. The error, if
+    // any, is carried past the loop and returned after cleanup runs.
+    let mut connections: Vec<(UnixStream, JoinHandle<()>)> = Vec::new();
+    let loop_result: Result<(), Error> = loop {
+        let (stream, _addr) = match handle.listener.accept() {
+            Ok(accepted) => accepted,
+            Err(err) => break Err(err.into()),
+        };
+        reap_finished(&mut connections);
         if stop.should_stop() {
             drop(stream);
-            break;
+            break Ok(());
         }
+        let shutdown_handle = match stream.try_clone() {
+            Ok(cloned) => cloned,
+            Err(err) => {
+                drop(stream);
+                break Err(err.into());
+            }
+        };
         let handshake_timeout = config.handshake_timeout;
         let events = events.clone();
-        thread::spawn(move || connection::handle(stream, handshake_timeout, events));
+        let join = thread::spawn(move || connection::handle(stream, handshake_timeout, events));
+        connections.push((shutdown_handle, join));
+    };
+
+    for (shutdown_handle, join) in connections {
+        let _ = shutdown_handle.shutdown(Shutdown::Both);
+        let _ = join.join();
     }
 
     // Shutdown order, each step only after the last: stop accepting
-    // (the loop above already has), close the listener, remove the
-    // socket file, release the lock last - never before the path is
-    // fully vacated. Destructured rather than one `drop(handle)`: a
-    // struct's fields drop in declaration order, which would release
-    // the lock in the same step as closing the listener, before the
-    // file is removed - the exact gap this ordering exists to avoid.
+    // (the loop above already has, on every path out of it), shut down
+    // and join every connection (just above), close the listener,
+    // remove the socket file, release the lock last - never before the
+    // path is fully vacated. Destructured rather than one
+    // `drop(handle)`: a struct's fields drop in declaration order,
+    // which would release the lock in the same step as closing the
+    // listener, before the file is removed - the exact gap this
+    // ordering exists to avoid.
     let arbiter::ServerHandle { listener, lock } = handle;
     drop(listener);
     let _ = std::fs::remove_file(socket_path);
     drop(lock);
-    Ok(())
+    loop_result
 }
 
 /// Resolves `config.socket_path` against the real environment when it is
@@ -172,4 +247,67 @@ pub fn serve(
 pub fn stop_and_wake(stop: &Stopper, socket_path: &std::path::Path) {
     stop.stop();
     wake_accept(socket_path);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::os::unix::net::UnixStream;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    use super::reap_finished;
+
+    /// A thread that finishes the instant it is spawned leaves
+    /// `is_finished()` `true` almost immediately - this test waits on
+    /// that (a real event), not a sleep, before calling `reap_finished`.
+    fn wait_until_finished(join: &std::thread::JoinHandle<()>) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !join.is_finished() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "thread never reported finished"
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    #[test]
+    fn a_finished_connection_is_removed_and_a_still_open_one_is_kept() {
+        let (_finished_keepalive, finished_stream) = UnixStream::pair().unwrap();
+        let (_open_keepalive, open_stream) = UnixStream::pair().unwrap();
+
+        let (done_tx, done_rx) = mpsc::channel::<()>();
+        let finished_join = std::thread::spawn(|| {
+            // Returns immediately - this connection has already ended.
+        });
+        wait_until_finished(&finished_join);
+
+        // Still genuinely blocked (never told to proceed), standing in
+        // for a connection still open and holding its thread.
+        let open_join = std::thread::spawn(move || {
+            let _ = done_rx.recv();
+        });
+
+        let mut connections = vec![(finished_stream, finished_join), (open_stream, open_join)];
+
+        reap_finished(&mut connections);
+
+        assert_eq!(
+            connections.len(),
+            1,
+            "the finished connection should have been removed, the open one kept"
+        );
+        assert!(!connections[0].1.is_finished());
+
+        // Let the still-open thread end so the test does not leak it.
+        drop(done_tx);
+        connections.pop().unwrap().1.join().unwrap();
+    }
+
+    #[test]
+    fn an_empty_set_is_left_empty() {
+        let mut connections: Vec<(UnixStream, std::thread::JoinHandle<()>)> = Vec::new();
+        reap_finished(&mut connections);
+        assert!(connections.is_empty());
+    }
 }

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T05:00:00Z'
+updated_date: '2026-11-15T05:10:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -36,60 +36,219 @@ doc-15: R85, R88, and focusing by direction from R9. decision-5. doc-2 section 4
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
+## What changed since the old plan
+
+TASK-1.36 (merged) already built far more than the old plan assumed, so most of
+it is now either done or wrong, not a starting point to edit in place:
+
+- `Direction` already lives in the sdk (`crates/sdk/src/layout.rs`), re-exported
+  from `steg_sdk`. No `crates/sdk/src/direction.rs` is needed — drop that file
+  from the plan entirely.
+- `Tab` already has a non-optional `current: PaneId` field, a `current()`
+  getter, and a close-repair rule (`close_pane`, `remove_pane_for_move`), all
+  with tests (`split_pane_makes_the_new_pane_current`,
+  `closing_the_current_pane_moves_current_to_a_pane_that_still_exists`, the
+  multi-leaf-promotion test). AC #1's tab half is done; cite these, don't
+  rebuild them.
+- `Tab::neighbour(from, direction, wrap) -> DirectionalFocus` and
+  `DirectionalFocus { Neighbour(PaneId), Edge, Wrapped(PaneId) }` are already
+  built and tested at the tab/layout level, and `DirectionalFocus` is already
+  `pub` from `crates/kernel/src/lib.rs`. AC #3's geometry is done. The old
+  plan's step 9 ("not built in this task") is wrong — it is buildable now, and
+  this plan builds it.
+- `Session` has **no** `current_tab` at all yet. That, plus three `Tree`
+  methods, is the real gap this task fills.
+
+## Decisions this plan has to make, that doc-15 and decision-5 leave open
+
+1. **What a session's current tab becomes when that tab closes.** Neither
+   doc-15 nor decision-5 says. Chosen here, mirroring `Tab::close_pane`'s own
+   rule (R94's spirit: something that still exists, nearest in order): the tab
+   now at the closed one's old index, or the new last tab if the closed one
+   was last. Put the repair in `Session::close_tab` itself (not in `Tree`), so
+   `Tree::close_tab`, `Tree::close_pane`'s cascade, and
+   `Tree::move_pane_to_tab`'s cascade all get it for free from the one place.
+   If the session is left with no tabs, `current_tab` is not repaired —
+   `Tree::close_session` removes the session in the same call, so nothing ever
+   reads the stale value.
+2. **Whether a new tab becomes current.** Doc-2 section 5/9: a new tab takes
+   focus by default (`--focus`/`--no-focus`). `Tab::split_pane` already sets
+   the rule at its own level unconditionally — a newly split pane becomes
+   current *in its tab*, with no parameter to turn that off, and no cascade
+   beyond that one level (it does not also become current in its session).
+   `Session::add_tab` is made consistent with that exact precedent: a newly
+   added tab becomes current *in its session*, unconditionally, with no
+   cascade down to any pane. The rule this settles on, stated once: **creating
+   something focuses it at its own immediate parent level only; the full
+   multi-level R85 cascade is what the explicit `focus` operations below do,
+   and only them.** Flagged plainly, not solved here: neither level has a
+   kernel parameter for `--no-focus` today. TASK-1.43 (the API layer) has to
+   get that behaviour by capturing the previous current tab/pane before
+   creating, and calling `Tree::focus_tab`/`Tree::focus_pane` to restore it
+   when `--no-focus` is asked for.
+3. **Reordering.** `current_tab` is a `TabId`, not a position, so
+   `Session::move_tab`/`Tree::move_tab` can't invalidate it — stated and
+   tested, not changed.
+4. **No current session in the kernel.** R85 gives a current tab and a current
+   pane; decision-5 point 3 puts which session a window shows in the app, not
+   any server. The kernel adds nothing resembling a "current session" — said
+   here so no later task invents one at this layer.
+5. **Moving a pane to another tab is not a focus.** `Tree::move_pane_to_tab`
+   already makes the moved pane the target tab's current pane (TASK-1.36) —
+   that is `--direction`'s insertion point, not `pane focus`. It must not
+   change any session's `current_tab`, including the target's. One doc-comment
+   line and one test say so.
+
 ## Files that change
 
-- `crates/sdk/src/direction.rs` (new): `Direction` enum (`Left`, `Right`, `Up`, `Down`), `Debug, Clone, Copy, PartialEq, Eq, Hash`. It crosses the API (`--direction` on `pane split`, `pane resize`, `pane focus`, doc-2 section 4), so it is defined once in the sdk (doc-16 R105), not in the kernel.
-- `crates/sdk/src/lib.rs`: `mod direction; pub use direction::Direction;`.
-- `crates/kernel/src/session.rs`: a non-optional `current_tab: TabId` field on `Session`, set to `first_tab` in `Session::new` (R94 guarantees a session is never built empty, so no `Option`). `current_tab()` getter, `pub(crate) fn set_current_tab(&mut self, id: TabId)`. `close_tab` repairs it (see Order of work, step 3).
-- `crates/kernel/src/tab.rs`: the same pattern — non-optional `current_pane: PaneId`, set to `first_pane` in `Tab::new`, `current_pane()` getter, `pub(crate) fn set_current_pane`, repaired in `close_pane`.
-- `crates/kernel/src/tree.rs`: `Tree::focus_pane(PaneId) -> Result<(), Error>` and `Tree::focus_tab(TabId) -> Result<(), Error>` (AC #1, #2). No new `Error` variants: `PaneNotFound`/`TabNotFound` already exist and cover both.
-
-No change to `crates/kernel/src/error.rs` or `crates/kernel/src/pane.rs`.
+- `crates/kernel/src/session.rs`:
+  - New field `current_tab: TabId` on `Session`, non-optional (R94: a session
+    is never empty).
+  - `Session::new` sets it to `first_tab`.
+  - `pub const fn current_tab(&self) -> TabId` getter.
+  - `pub(crate) fn set_current_tab(&mut self, id: TabId) -> Result<(), Error>`,
+    membership-checked, the same shape as `Tab::focus` below (`Error::TabNotFound`
+    if this session holds no tab with that id).
+  - `add_tab`: after pushing the new tab, sets `self.current_tab` to its id
+    unconditionally (decision 2 above). One doc-comment line explaining the
+    "own immediate level only" rule.
+  - `close_tab`: the repair rule from decision 1.
+- `crates/kernel/src/tab.rs`:
+  - One new method, `pub(crate) fn focus(&mut self, pane: PaneId) -> Result<(), Error>`,
+    membership-checked, the same shape as the existing `fill_pane`:
+    `Error::PaneNotFound` if `pane` is not in this tab, else `self.current = pane; Ok(())`.
+    Nothing else here changes — `current`, `DirectionalFocus` and `neighbour`
+    are already TASK-1.36's.
+- `crates/kernel/src/tree.rs`:
+  - `pub struct Focused { pub session: SessionId, pub tab: TabId, pub pane: PaneId }`
+    (`Debug, Clone, Copy, PartialEq, Eq`, the same derive set as `ClosedPane`/
+    `MovedPane`) — the resulting whole path after a focus operation, so
+    TASK-1.46 can raise one event from it without a further lookup.
+  - `pub enum FocusMove { Neighbour(Focused), Wrapped(Focused), Edge }` — the
+    same three outcomes `Tab::neighbour`'s `DirectionalFocus` already finds,
+    carrying the resulting path instead of a bare `PaneId` so a caller needs no
+    further lookup on the two outcomes that moved something. Named
+    differently from `tab::DirectionalFocus` (not generic over it) to avoid a
+    same-name, different-module type and keep the diff easy to review; both
+    are kept, at different levels, for different callers.
+  - `pub fn focus_pane(&mut self, id: PaneId) -> Result<Focused, Error>`:
+    finds the owning tab (`tab_owning_pane_mut`, existing), calls `tab.focus(id)`,
+    finds that tab's owning session (`session_owning_tab_mut`, existing),
+    calls `session.set_current_tab(tab_id)` — both inside the one method call,
+    so AC #2's "in the same step" is one mutation the caller never sequences
+    itself. Returns the resulting `Focused`. `Error::PaneNotFound` if no tab
+    holds `id`.
+  - `pub fn focus_tab(&mut self, id: TabId) -> Result<Focused, Error>`: finds
+    the owning session (`session_owning_tab_mut`), calls `session.set_current_tab(id)`.
+    Does not touch any tab's `current` pane — `tab focus` only sets the tab
+    current in its session (doc-2 section 4; decision-5 point 1 cascades pane
+    to tab, never tab to pane). `Error::TabNotFound` if missing.
+  - `pub fn focus_direction(&mut self, from: PaneId, direction: Direction, wrap: bool) -> Result<FocusMove, Error>`:
+    finds `from`'s tab, calls `tab.neighbour(from, direction, wrap)`; on
+    `Neighbour`/`Wrapped`, calls `self.focus_pane(id)` (reusing it exactly —
+    the neighbour or wrap target is always a pane in the same tab as `from`)
+    and wraps its `Focused` in the matching `FocusMove` variant; on `Edge`,
+    changes nothing and returns `FocusMove::Edge` — not an error, since doc-2
+    section 4 says the command exits 0 and stays put. `Error::PaneNotFound` if
+    no tab holds `from`.
+  - One doc-comment line on `move_pane_to_tab` stating decision 5: it is not a
+    focus, and touches no session's `current_tab`.
+- `crates/kernel/src/lib.rs`: add `Focused, FocusMove` to the `pub use tree::{...}` line.
+- No change to `crates/sdk` (`Direction` is already there), `crates/kernel/src/error.rs`
+  (no new variant — `PaneNotFound`/`TabNotFound` cover every case), or
+  `crates/kernel/src/layout.rs`-equivalent geometry (already TASK-1.36's).
 
 ## Order of work
 
-1. Add `Direction` to the sdk (file and re-export above), with a unit test that the four variants are distinct. TASK-1.36 (`pane split`/`resize`'s own `--direction`) needs this exact shape too; if its worker lands it first, this step becomes a no-op taken from their branch, not a second definition.
-2. `Session`: add `current_tab`, set at construction, getter, `pub(crate)` setter. In `close_tab`, when the tab removed was the current one, repair it: the session's current tab becomes the tab that takes its place in order — the one now at that same index, or, if the closed tab was last, the new last tab. Closing a tab that is not current leaves `current_tab` unchanged. (If the session is left with no tabs, `current_tab` is not repaired — `Tree::close_session` removes the session on the same call, so nothing reads it after.) Unit tests for both branches (closing the current tab among several; closing a non-current one) beside the existing `close_tab` tests.
-3. `Tab`: the same field, construction, getter, setter and repair rule for `current_pane`, on `close_pane`. Same two unit tests.
-4. `Tree::focus_pane(id)`: find the session whose some tab holds this pane (a new private helper, `session_owning_pane_mut`, alongside the existing `session_owning_tab_mut`/`tab_owning_pane_mut`), set that tab's `current_pane` to `id`, then that session's `current_tab` to the tab's id — both inside the one method call, so AC #2 ("in the same step") is a single mutation, not two the caller must sequence. `PaneNotFound` if no tab holds it.
-5. `Tree::focus_tab(id)`: find the owning session (`session_owning_tab_mut`, already there), set its `current_tab`. Does not touch any tab's `current_pane` — `tab focus` only sets the tab current in its session (doc-2 section 4; decision-5 point 1 cascades pane to tab, never tab to pane). `TabNotFound` if missing.
-6. Tree-level tests: every session/tab built through `new_session`/`new_tab`/`new_pane` always has a valid current (AC #1); `focus_pane` moves both levels in one call (AC #2); `focus_tab` leaves the pane level alone; both report the matching not-found error on an unknown id; closing the pane or tab that was current, including through the existing close cascade, leaves `current_tab`/`current_pane` pointing at something that still exists (composes steps 2 and 3's repairs across the cascade `close_pane`/`close_tab` already do).
-7. AC #4 test, `tree.rs`: build a tree with labelled, coloured sessions, tabs and panes; call `focus_pane`; assert every id, label, colour, pane kind and ordering is exactly what it was, and the only change anywhere in the tree is the focused-on tab's `current_pane` and its session's `current_tab`. This is the strongest statement the kernel alone can make toward R88/R90 (nothing about clients changes): there is no client type yet (TASK-1.42), so the proof is that focusing touches only the current-path fields and nothing else a client could later read differently.
-8. `new_session`/`new_tab`/`new_pane` do not change any current path themselves. Whether a newly created tab or pane becomes current is the `--focus`/`--no-focus` decision at the CLI/API layer (doc-2 section 9), made by calling `focus_tab`/`focus_pane` afterward — out of this task's scope, left to TASK-1.43.
-9. **Not built in this task, and said here plainly**: AC #3, focusing by direction. `doc-2` section 4's `--direction`/`--wrap` on `pane focus` needs the neighbour of a pane in a direction, which needs the layout tree's geometry (nested horizontal/vertical splits, R95) to answer honestly. `Tab::panes` is today a flat `Vec<Pane>` (its own doc comment calls it "a placeholder for TASK-1.36's layout tree") with no up/down adjacency and no principled left/right adjacency either — building this now would mean inventing a geometry for a list, which the orchestrator's brief says not to do.
-
-   The interface the two tasks need to agree on, so TASK-1.36 knows what its tree must support and this task knows what to call once it exists:
-
-   ```rust
-   // On Tab, once TASK-1.36 has replaced `panes: Vec<Pane>` with the split tree.
-   pub(crate) enum DirectionalFocus {
-       Neighbour(PaneId),   // the pane in that direction
-       Edge,                // already at the edge, wrap is off or there is nowhere to wrap to
-       Wrapped(PaneId),     // wrap is on; this is the pane at the far side
-   }
-   pub(crate) fn neighbour(&self, from: PaneId, direction: Direction, wrap: bool) -> DirectionalFocus;
-   ```
-
-   `Tree::focus_direction(from: PaneId, direction: Direction, wrap: bool) -> Result<DirectionalFocus, Error>` would call this and, on `Neighbour`/`Wrapped`, do exactly what `focus_pane` does (set the tab's `current_pane` and the session's `current_tab` in one step); on `Edge`, change nothing and return `Edge` — not an error, since doc-2 section 4 says the command exits 0 and stays put. `DirectionalFocus` is kernel-internal, not an sdk shape: the wire-facing result of `pane focus --direction` is success or a target error either way: whether it moved or stayed at the edge is not a field the API reports.
-
-   This task recommends adding TASK-1.36 as a dependency of TASK-1.37, so step 9 is built once `Tab`'s split tree (and the `neighbour` query above) exists, rather than guessed at now. The alternative — moving AC #3 out to a new task once TASK-1.36 lands — needs the `finish-moved` label, which is not a worker's to set; that choice is the engineer's.
+1. `session.rs`: the field, constructor, getter, `set_current_tab`, and the
+   `close_tab` repair rule, each with its own unit test (decision 1: closing
+   the current tab among several lands on the one now at that index; closing
+   the current *last* tab lands on the new last; closing a non-current tab
+   leaves `current_tab` unchanged).
+2. `session.rs`: `add_tab`'s unconditional focus (decision 2), with a test
+   that a newly added tab is current.
+3. `tab.rs`: `focus`, with its own-pane and not-found tests, mirroring
+   `fill_pane`'s existing tests exactly.
+4. `tree.rs`: `Focused`, `FocusMove`, `focus_pane`, `focus_tab`,
+   `focus_direction`, each with the tests in the Proof section below.
+5. `tree.rs`: the one-line doc comment on `move_pane_to_tab` plus its test
+   (decision 5).
+6. `lib.rs`: the export line.
+7. Extend the existing `a_not_found_id_at_any_level_is_the_matching_error`
+   test (tree.rs) with `focus_pane`, `focus_tab`, `focus_direction` on unknown
+   ids.
 
 ## Risks
 
-- The close-repair rule (steps 2, 3) is the one place a reviewer will press hardest, since it is the orchestrator's explicit ask: both directions (closing the current vs. a non-current sibling, closing the last vs. a middle one) need their own test, at both the session and the tab level.
-- `Direction` (step 1) is wanted by both this task and TASK-1.36; if both land it, one worktree's rebase hits a trivial conflict in `crates/sdk/src/direction.rs` and `lib.rs`. Low risk, resolved by keeping either copy since this plan fixes the shape both agree on.
-- `crates/kernel/src/tab.rs` and `crates/kernel/src/tree.rs` are also where TASK-1.36 is working (replacing `panes: Vec<Pane>` with the split tree, and changing `close_pane`'s cascade to give a closed pane's space to the other child of its split). This task's changes to those files (the `current_pane` field and its repair rule, `focus_pane`/`focus_tab`) are additive and about a different concern (focus, not layout), but whichever of the two tasks merges second will need to rebase through the other's changes to the same functions.
-- AC #3 is left undelivered by design (step 9). If the engineer does not sequence TASK-1.36 ahead of it, this task cannot honestly close against its own acceptance criteria — said here rather than worked around with an invented geometry.
-- Making both currents non-optional (never `Option<TabId>`/`Option<PaneId>`) means every construction path must set them correctly; a missed path leaves a dangling id that only an integration-style test across `new_session`/`new_tab`/`new_pane` would catch (covered by step 6's AC #1 test, run against every creation path, not just one).
+- **`--no-focus` has no kernel affordance, at either level, after this task.**
+  `Tab::split_pane` and (now) `Session::add_tab` both focus unconditionally on
+  creation. Flagged here, deliberately not solved here (decision 2): TASK-1.43
+  must capture-and-restore via `focus_pane`/`focus_tab` rather than finding a
+  kernel parameter to flip.
+- The close-repair rule (decision 1) is undecided by any doc or decision
+  record, so it is this plan's own choice, not a citation — a reviewer may
+  press on whether "nearest in order" is the right default; the alternative
+  (always the new first tab, say) is equally defensible and would need a
+  one-line change plus its three tests updated.
+- `session.rs`, `tab.rs` and `tree.rs` are the same files TASK-1.36 just
+  landed changes in. This task's additions are new fields/methods, not edits
+  to TASK-1.36's own logic (the one exception is the doc-comment line on
+  `move_pane_to_tab`), so a rebase conflict here should be mechanical, not a
+  logic merge.
+- `FocusMove` duplicates `tab::DirectionalFocus`'s three-way shape at a
+  different level with a richer payload. This is deliberate (keeps
+  `tab::DirectionalFocus` untouched and its existing tests unmodified) but a
+  reviewer may ask whether the two should be unified; doing so would mean
+  making `tab::DirectionalFocus` generic over its payload, which this plan
+  avoids as unnecessary complexity for one caller.
 
 ## Proof
 
-Recipe names as they are on `origin/main` today (`just check`'s line there is `check-fmt lint check-boundaries deny test test-tools check-architecture check-recipes`; this worktree's own `justfile` predates that rename from TASK-1.73 and should not be relied on for names).
+All of this is kernel-only: pure data in, data out, no I/O, so every test
+below is a plain unit test beside the code it proves (team:testing: kernel
+code gets unit tests, no doubles). `just test` after each step in
+`crates/kernel` (steg-affected selects it and nothing that depends on it yet);
+`just check` before the task is called done.
 
-- `just test` after each step in `crates/sdk` and `crates/kernel` (steg-affected selects both, since `kernel` depends on `sdk`): the new `direction.rs` unit test (step 1); `session.rs`'s and `tab.rs`'s close-repair tests (steps 2, 3) prove the repair rule directly; `tree.rs`'s tests from step 6 prove AC #1 (every creation path has a valid current) and AC #2 (`focus_pane` moves both levels in one call, and `focus_tab` does not move the pane level); the not-found tests extend the existing `a_not_found_id_at_any_level_is_the_matching_error` table.
-- `tree.rs`'s AC #4 test (step 7) is the proof for AC #4, in the same `just test` run.
-- `just check` before the task is called done: `check-fmt`, `lint`, `check-boundaries` (the new `direction.rs` module is plain data with no I/O and no new external dependency, so it should pass with no change to `boundaries.toml`), `deny`, `test`, `test-tools`, `check-architecture`, `check-recipes`.
-- AC #3 has no proof here: it is out of scope for this task's commits (step 9), pending TASK-1.36 or a resequencing the engineer decides on.
+- **AC #1** (each session has a current tab, each tab a current pane):
+  - Tab half: already proven by TASK-1.36's tests, cited above — not rebuilt.
+  - Session half: `Session::new` sets `current_tab` to its only tab (new test,
+    `session.rs`); `add_tab` makes the new tab current (new test, `session.rs`,
+    decision 2); the three close-repair tests (`session.rs`, decision 1) prove
+    it stays valid across every close; a reorder leaves it unchanged (new
+    test, `session.rs`, decision 3); a `tree.rs` test
+    (`closing_the_current_tabs_last_pane_cascades_and_repairs_the_sessions_current_tab`)
+    proves the repair also holds when triggered by `Tree::close_pane`'s
+    cascade, not just a direct `Session::close_tab` call.
+- **AC #2** (focusing a pane makes its tab current in its session, in the same
+  step): `focus_pane_moves_the_pane_and_its_tabs_level_together` (`tree.rs`) —
+  one call moves both levels and returns the matching `Focused`.
+  `focus_tab_does_not_touch_any_tabs_current_pane` (`tree.rs`) is the contrast
+  case proving `tab focus` stops at its own level (decision-5 point 1).
+- **AC #3** (focus by direction moves to the neighbour, stays at the edge,
+  wraps when asked): the geometry (which pane is the neighbour, which is the
+  wrap target) is already proven at the `Layout`/`Tab` level by TASK-1.36 —
+  cited, not rebuilt. `focus_direction_moves_to_the_neighbour_and_reports_it`,
+  `focus_direction_at_the_edge_changes_nothing_and_reports_edge`,
+  `focus_direction_wraps_when_asked` (`tree.rs`) prove the wiring: each
+  outcome changes (or doesn't change) the tree correctly and comes back as
+  the matching `FocusMove` value, so the server can tell a client which of
+  the three happened.
+- **AC #4** (nothing about clients changes when focus does):
+  `focus_pane_changes_only_the_current_path_fields` (`tree.rs`) clones
+  `tree.sessions().to_vec()` before calling `focus_pane`, clones it again
+  after, and asserts that patching the *before* clone's current-path fields
+  by hand (through the same `pub(crate)` setters `focus_pane` itself uses)
+  makes it equal the *after* clone exactly — proving every other field
+  (label, colour, tab order, pane order, layout, fill) moved nowhere. This is
+  the strongest statement the kernel alone can make: there is no client type
+  yet (TASK-1.42), so the proof is that focus touches only the two
+  current-path fields and nothing else a client could later read
+  differently. `move_pane_to_tabs_target_tabs_current_pane_moves_but_no_sessions_current_tab_does`
+  (`tree.rs`, decision 5) is the contrast case: a different R9 operation that
+  also sets a tab's `current` pane is not itself a focus and must not cascade.
+- Not-found cases: `focus_pane`, `focus_tab`, `focus_direction` each added to
+  `a_not_found_id_at_any_level_is_the_matching_error` (`tree.rs`).
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

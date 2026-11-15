@@ -330,6 +330,51 @@ Check passed: `just test` exited 0 at 2026-11-15T16:44:20+00:00 in /Users/brukha
 ```text
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (0.4s)
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T16:44:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at c8dc7cdd8d3d with uncommitted changes, last 40 of 64 lines:
+
+```text
+         assert_eq!(changed.tab, tab_id);
+         assert_eq!(changed.size, steg_sdk::Size::new(80, 24));
+         assert_eq!(
+[31m-            tree.session(session_id).unwrap().tab(tab_id).unwrap().size(),
+(B[m[32m+            tree.session(session_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .tab(tab_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .size(),
+(B[m             Some(steg_sdk::Size::new(80, 24))
+         );
+     }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2443:
+         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+         let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+         let second_pane = tree
+[31m-            .split_pane(first_pane, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+(B[m[32m+            .split_pane(
+(B[m[32m+                first_pane,
+(B[m[32m+                steg_sdk::Direction::Right,
+(B[m[32m+                steg_sdk::PaneKind::Terminal,
+(B[m[32m+            )
+(B[m             .unwrap();
+ 
+         let leaving = tree.connect_client(steg_sdk::ClientKind::App, None);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42/crates/kernel/src/tree.rs:2468:
+         assert_eq!(tree.sessions_viewed(leaving).unwrap(), Vec::new());
+         assert_eq!(tree.latest_client(session_id).unwrap(), Some(staying));
+         assert_eq!(
+[31m-            tree.session(session_id).unwrap().tab(tab_id).unwrap().size(),
+(B[m[32m+            tree.session(session_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .tab(tab_id)
+(B[m[32m+                .unwrap()
+(B[m[32m+                .size(),
+(B[m             Some(steg_sdk::Size::new(100, 30)),
+             "the surviving tab falls back to the remaining viewer's declared size"
+         );
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 117 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:18:00Z'
+updated_date: '2026-11-15T14:26:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -303,4 +303,6 @@ one retained "last published screen" per `Terminal` that each attachment
 diffs a fresh `update()` against in software. Not decided; whichever task
 builds multi-attachment should settle it, informed by whichever this
 scrollback task's single-reader method ends up implying.
+
+Plan for the narrowed task checked against doc-9 (R14, R16, R92, R116), doc-16 (R105) and decision-2 by @bruk.o: ok. A free-standing kernel Terminal over the engine, not stored on a pane; the screen read out as rows of styled runs with the cursor; the cell model with wide characters, underline style and colour, cursor shape and link presence; link_at for a cell's address; working directory and title copied out of the engine's events, which are drained after every write; resize. Drawing shapes are in the sdk with no new dependency. Named for later tasks: the engine's handles cannot move between threads, and pixel sizes are passed as zero until the clients-and-size task.
 <!-- SECTION:NOTES:END -->

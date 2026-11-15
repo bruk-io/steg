@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:21:00Z'
+updated_date: '2026-11-15T21:27:00Z'
 labels:
   - size-3
   - changes-requested
@@ -825,6 +825,53 @@ Also joined shutdown.rs's own pre-existing test's previously-detached server thr
 Checks recorded, in order: the failing shutdown test with the join step removed; 10 consecutive `cargo test -p steg-server --test race` runs (no flake); 5 consecutive `cargo test -p steg-server --test shutdown` runs (no flake); `just check` at the final head (12d6802, after merging origin/main) - green, the state this is handed off on. PR #37's CI (`check`) passed on the same head in 3m15s.
 
 Departure from the plan (plan digest c074345d1296, not edited): the plan's own shutdown section named only the accept/close/remove-file/release-lock ordering, with no thread-joining, because the team rule merged after the plan was approved. The ordering itself is unchanged; what's added is making sure every thread this task's loop spawns is actually brought down first. Full writeup, including what this means for part B (TASK-1.77, whose idle stop calls the same Stopper), and coverage against all five acceptance criteria clause by clause, is in the task's own notes (two comments posted today).
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test handshake'` exited 101 at 2026-11-15T21:27:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 12d6802de7c0 with uncommitted changes, last 40 of 51 lines:
+
+```text
+
+running 10 tests
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... FAILED
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... FAILED
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... FAILED
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+
+failures:
+
+---- undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal stdout ----
+
+thread 'undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal' (13804324) panicked at crates/server/tests/handshake.rs:41:9:
+the server closed before a complete frame arrived
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_control_frame_arriving_first_gets_a_malformed_hello_refusal stdout ----
+
+thread 'a_control_frame_arriving_first_gets_a_malformed_hello_refusal' (13804311) panicked at crates/server/tests/handshake.rs:41:9:
+the server closed before a complete frame arrived
+
+---- an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly stdout ----
+
+thread 'an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly' (13804320) panicked at crates/server/tests/handshake.rs:41:9:
+the server closed before a complete frame arrived
+
+
+failures:
+    a_control_frame_arriving_first_gets_a_malformed_hello_refusal
+    an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly
+    undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal
+
+test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+
+error: test failed, to rerun pass `-p steg-server --test handshake`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -328,10 +328,14 @@ fn session_methods() -> Vec<Method> {
 
 // --- tab --------------------------------------------------------------
 
-/// doc-14's tab row. `layout` and `shown_status` are structured values
-/// (a tree, and a pane id or none) carried as `ValueKind::Text`
-/// placeholders until `TabRecord` (TASK-1.39/1.41) gives them their own
-/// shape — not shown in a flat text table either way.
+/// doc-14's tab row. `layout` and `shown_status` are already structured
+/// values with real Rust types ([`crate::Layout`]; `shown_status` is a
+/// pane id or none, computed by `steg_kernel::Tree::tab_shown_status`,
+/// TASK-1.41), but `ValueKind` (this module's own vocabulary for a
+/// field's kind) has no variant for a nested or structured value at all —
+/// so both stay `ValueKind::Text` placeholders until a `TabRecord` gives
+/// this description module itself a way to say so; not shown in a flat
+/// text table either way.
 fn tab_fields() -> Vec<Field> {
     vec![
         field("id", ValueKind::Text, "The tab's full identifier"),
@@ -524,9 +528,14 @@ fn tab_methods() -> Vec<Method> {
 
 // --- pane ---------------------------------------------------------------
 
-/// doc-14's pane row. `status` is a structured value (a record or none)
-/// carried as a `ValueKind::Text` placeholder until `PaneRecord`
-/// (TASK-1.39-1.41) gives it its own shape.
+/// doc-14's pane row. `status` already has a real Rust type,
+/// [`crate::Status`] (`Running`, `Finished` or `Failed{exit_code}`,
+/// doc-11; TASK-1.41) or none - but `ValueKind` (this module's own
+/// vocabulary for a field's kind) has no variant for a nested or
+/// structured value at all, the same reason `exit_code`'s sibling field
+/// `program` ([`crate::Program`]) is `ValueKind::Text` too, so `status`
+/// stays one until a `PaneRecord` gives this description module itself a
+/// way to say so.
 fn pane_fields() -> Vec<Field> {
     vec![
         field("id", ValueKind::Text, "The pane's full identifier"),

@@ -1,16 +1,19 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:01:00Z'
+updated_date: '2026-11-15T21:36:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.48
+references:
+  - task-1.81-api-call-cannot-reach-a-method-that-has
+  - https://github.com/bruk-io/steg/pull/39
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
@@ -18,6 +21,11 @@ asdlc_branch: task-1.81-api-call-cannot-reach-a-method-that-has
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd5c2871b65a2'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -270,6 +278,362 @@ TASK-1.48 added two tests in crates/server/tests/dispatch.rs that record today's
 Correction: the two tests mentioned above were removed from TASK-1.48 before it merged (ae89d2b), so there is nothing to invert; this task writes the tests that show api.call reaching the settings methods.
 
 Plan checked against doc-2 (sections 2, 5, 8), decision-1 and doc-14 by @bruk.o: ok. api.call's own selector is renamed from target to method on the wire and keeps the Target role, so it is still the CLI's one positional and doc-2's row (target: method) is already true; the called method's parameters stay flat beside it, so its own target survives. No spec or decision document changes; the description of api.call changes (one parameter's name), which the engineer approves with the plan. Nesting the parameters was weighed and set aside as a larger change to the description format. A test fixes that no method declares a parameter named method. Proof is driven from the description, with named targets shown to be acted on rather than the default.
+
+Check passed: `just check` exited 0 at 2026-11-15T21:05:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8:
+
+```text
+ok      format check (0.1s)
+ok      lint (82.0s)
+ok      boundaries (0.2s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (43.8s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (43.8s)
+ok      test (steg-server) (2.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (18.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch'` exited 101 at 2026-11-15T21:10:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes, last 40 of 72 lines:
+
+```text
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test api_call_refuses_to_call_itself ... ok
+test api_call_with_no_target_is_a_bad_request ... ok
+test api_show_an_unknown_method_is_no_such_target ... ok
+test tab_new_with_position_zero_is_refused_and_creates_nothing ... ok
+test tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test setting_unset_an_unknown_name_is_no_such_target ... ok
+test tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus ... ok
+test tab_new_with_position_one_places_the_new_tab_first ... ok
+test pane_close_removes_the_pane ... ok
+test tab_move_with_position_reorders ... ok
+test pane_split_makes_the_new_pane_current_by_default ... ok
+test pane_focus_moves_to_the_neighbour ... ok
+test pane_split_with_a_program_refuses_and_creates_nothing ... ok
+test pane_set_zoomed_fills_and_unset_zoomed_unfills ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test pane_move_moves_it_to_another_tab ... ok
+test tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test tab_focus_makes_it_current ... ok
+test api_list_returns_every_method ... ok
+test every_nothing_or_identifier_returning_method_matches_its_declared_shape ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+
+failures:
+
+---- api_call_of_pane_split_gives_the_same_response_a_direct_call_would stdout ----
+
+thread 'api_call_of_pane_split_gives_the_same_response_a_direct_call_would' (13322216) panicked at crates/server/tests/dispatch.rs:1182:18:
+expected both calls to succeed: (Ok(Object {"id": String("00000003")}), Error(ApiError { code: BadRequest, message: "method: must be text", candidates: [] }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_of_pane_split_gives_the_same_response_a_direct_call_would
+
+test result: FAILED. 51 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T21:11:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+                ("label", json!("")),
+(B[m[32m+            ]
+(B[m         }
+ 
+         "pane.list" => {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server/tests/dispatch.rs:1596:
+         "client.show" => vec![("target", json!("x"))],
+ 
+         "setting.show" | "setting.unset" => vec![("target", json!("appearance"))],
+[31m-        "setting.set" => vec![
+(B[m[31m-            ("target", json!("appearance")),
+(B[m[31m-            ("value", json!("light")),
+(B[m[31m-        ],
+(B[m[32m+        "setting.set" => vec![("target", json!("appearance")), ("value", json!("light"))],
+(B[m 
+         "api.show" => vec![("target", json!("pane.split"))],
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server/tests/dispatch.rs:1667:
+             &request("api.call", via_params),
+         );
+ 
+[31m-        assert_eq!(canonical(direct_response), canonical(via_response), "{dotted}");
+(B[m[32m+        assert_eq!(
+(B[m[32m+            canonical(direct_response),
+(B[m[32m+            canonical(via_response),
+(B[m[32m+            "{dotted}"
+(B[m[32m+        );
+(B[m     }
+ 
+[31m-    assert_eq!(checked, api.methods.len() - 1, "api.call is the one exclusion");
+(B[m[32m+    assert_eq!(
+(B[m[32m+        checked,
+(B[m[32m+        api.methods.len() - 1,
+(B[m[32m+        "api.call is the one exclusion"
+(B[m[32m+    );
+(B[m }
+ 
+ // --- shapes: Nothing/Identifier (AC #3) ------------------------------------
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T21:13:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (48.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (1.5s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (30.4s)
+ok      test (steg-server) (2.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T21:14:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 2d637366b3c8:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.2s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.1s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (0.7s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.4s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.0s)
+ok      architecture (0.9s)
+ok      recipe names (0.0s)
+```
+
+Built per the approved plan (digest d5c2871b65a2): renamed api.call's own selector from `target` to `method` in crates/sdk/src/description/methods.rs (new `method_target` helper, role stays Target so it's still the CLI's one positional; details prose updated), and crates/server/src/dispatch/api.rs now reads/strips "method" instead of "target" (stale doc comments naming "target" updated too, including one in dispatch/mod.rs's bad_request doc comment). api.show's own `target` is left unchanged (no collision, smaller diff).
+
+Departure from the plan's stated order, noted here rather than left unsaid: I built the production rename first, then updated/added tests, rather than writing the tests first against unmodified code. The deliberate failing run is still on record, just inverted - the pre-existing api.call tests (still sending the old "target" key) failed against the renamed production code with BadRequest "method: must be text" (asdlc record-check, exit 101, recorded on the task) - the same signal the plan predicted, from the other direction. No content of the plan changed.
+
+Coverage against the four acceptance criteria:
+- AC #1 (every method, with its own target, matches a direct call): `api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given` in crates/server/tests/dispatch.rs - a description-driven loop over all 41 non-api.call methods (api.call is excluded by name, with its own reason - it refuses to call itself), each given a freshly-created non-default target where it has one, comparing the full Response (success or error) against a direct call. An exhaustive match with a `panic!` fallback means a method added later and missed would fail loudly, not be silently skipped.
+- AC #2 (setting.show/set/unset, required target, no default): three dedicated tests (`api_call_reaches_setting_show/set/unset_with_its_required_target`), mirroring the two tests TASK-1.48's worker wrote and TASK-1.81's own notes record as removed before TASK-1.48 merged. Also covered incidentally by the AC #1 loop.
+- AC #3 (the format decision, named for the engineer): written into the plan before any code changed - renamed the selector rather than nesting the forwarded parameters (would need a new ValueKind) or adding a new top-level Request field (a wire change). No doc-2 or decision-1 edit needed: doc-2 section 8's own Target column for `api call` already reads "method", and decision-1's format already lets a parameter's wire name differ from its role. Only change: the Param literal + its prose in methods.rs.
+- AC #4 (names the pane/tab/session, not the default): three dedicated tests (`api_call_of_pane_set/tab_set/session_set_names_the_target_..._not_the_context_default`) asserting both halves - the named one changed, and the context's default did not - since response equality alone (which the AC #1 loop checks) can't rule out a silent fallback to the default.
+
+Also added: a strengthened unknown-inner-method test (now compares the whole ApiError, not just the code), a new test for an inner request that fails validation (`pane.split` with no `direction`) giving the identical ApiError a direct call would, and an sdk test that no method other than api.call declares a parameter named `method` (the invariant that keeps the flat merge safe for every method added later).
+
+Checks recorded on the task via asdlc record-check: baseline `just check` (clean, before any change), the deliberate failing run (`cargo test --test dispatch` in crates/server, exit 101, for the reason above), `just check` clean after the full change, and `just check` clean again after rebasing onto origin/main a second time (TASK-1.44 had merged meanwhile; TASK-1.76's Runtime wrapper had not landed by the time this was pushed, and dispatch's signature is unchanged). PR #39's CI check passed (watched in the foreground).
+
+Check passed: `just check` exited 0 at 2026-11-15T21:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9:
+
+```text
+ok      format check (0.1s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.2s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.3s)
+ok      test (steg-server) (2.9s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch api_call'` exited 101 at 2026-11-15T21:30:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes, last 40 of 118 lines:
+
+```text
+thread 'api_call_refuses_to_call_itself' (13889317) panicked at crates/server/tests/dispatch.rs:1179:5:
+assertion `left == right` failed
+  left: "target: must be text"
+ right: "api.call cannot call api.call"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- api_call_reaches_setting_set_with_its_required_target stdout ----
+
+thread 'api_call_reaches_setting_set_with_its_required_target' (13889314) panicked at crates/server/tests/dispatch.rs:49:35:
+expected Response::Ok, got ApiError { code: BadRequest, message: "no such method: appearance", candidates: [] }
+
+---- api_call_reaches_setting_show_with_its_required_target stdout ----
+
+thread 'api_call_reaches_setting_show_with_its_required_target' (13889315) panicked at crates/server/tests/dispatch.rs:49:35:
+expected Response::Ok, got ApiError { code: BadRequest, message: "no such method: appearance", candidates: [] }
+
+---- api_call_of_pane_split_gives_the_same_response_a_direct_call_would stdout ----
+
+thread 'api_call_of_pane_split_gives_the_same_response_a_direct_call_would' (13889311) panicked at crates/server/tests/dispatch.rs:1213:18:
+expected both calls to succeed: (Ok(Object {"id": String("00000003")}), Error(ApiError { code: BadRequest, message: "target: must be text", candidates: [] }))
+
+
+failures:
+    api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given
+    api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_call_would
+    api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be
+    api_call_of_pane_set_names_the_target_pane_not_the_context_default
+    api_call_of_pane_split_gives_the_same_response_a_direct_call_would
+    api_call_of_session_set_names_the_target_session_not_the_context_default
+    api_call_of_tab_set_names_the_target_tab_not_the_context_default
+    api_call_reaches_setting_set_with_its_required_target
+    api_call_reaches_setting_show_with_its_required_target
+    api_call_reaches_setting_unset_with_its_required_target
+    api_call_refuses_to_call_itself
+    api_call_with_a_non_text_method_is_a_bad_request
+    api_call_with_no_method_is_a_bad_request
+
+test result: FAILED. 0 passed; 13 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch api_call'` exited 0 at 2026-11-15T21:31:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+     Running tests/dispatch.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/target/debug/deps/dispatch-0966d0aaecb212ef)
+
+running 13 tests
+test api_call_refuses_to_call_itself ... ok
+test api_call_of_session_set_names_the_target_session_not_the_context_default ... ok
+test api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_call_would ... ok
+test api_call_reaches_setting_set_with_its_required_target ... ok
+test api_call_with_no_method_is_a_bad_request ... ok
+test api_call_of_pane_split_gives_the_same_response_a_direct_call_would ... ok
+test api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be ... ok
+test api_call_of_tab_set_names_the_target_tab_not_the_context_default ... ok
+test api_call_reaches_setting_show_with_its_required_target ... ok
+test api_call_of_pane_set_names_the_target_pane_not_the_context_default ... ok
+test api_call_reaches_setting_unset_with_its_required_target ... ok
+test api_call_with_a_non_text_method_is_a_bad_request ... ok
+test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.01s
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T21:31:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+FAILED  lint (exit 101, 0.6s)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/steg)
+error: doc list item without indentation
+    --> crates/server/tests/dispatch.rs:1164:5
+     |
+1164 | /// selector is missing" apart, which is exactly what let this test keep
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+     = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+     |
+1164 | ///   selector is missing" apart, which is exactly what let this test keep
+     |     ++
+
+error: doc list item without indentation
+    --> crates/server/tests/dispatch.rs:1165:5
+     |
+1165 | /// passing against the bug this task fixes.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+     |
+1165 | ///   passing against the bug this task fixes.
+     |     ++
+
+error: could not compile `steg-server` (test "dispatch") due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-15T21:32:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at ea5b8100a7c9 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (3.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (2.6s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Review findings from @bruk.r3 (2d63736), addressed:
+
+1. Important: api_call_refuses_to_call_itself (dispatch.rs) asserted only error.code, which the pre-fix code (reading "target") also produced - BadRequest, but for "the selector is missing" ("target: must be text"), not "refuses to call itself" ("api.call cannot call api.call"). Now compares the whole message too. Did the proof step properly this time, recorded with asdlc record-check: restored the old read-and-strip of "target" in api.rs as a scratch edit, ran `cargo test --test dispatch api_call` (13 tests, including the two added for this round) - all 13 failed, this one included (exit 101, recorded); restored the fix; ran the same filter again - all 13 passed (exit 0, recorded); then `just check` clean at the restored head (recorded).
+
+2. Nit: api_call_with_no_method_is_a_bad_request now also asserts the message ("method: must be text"), so it fails against the old code too (confirmed in the restore-and-run above).
+
+3. Nit: added api_call_with_a_non_text_method_is_a_bad_request, covering a number and an object, asserting both code and message. It takes the same early refusal as an absent method (param_str returns None for either), which the test's own doc comment says explicitly rather than leaving it to be inferred.
+
+4. Nit: the previous notes' claim that TASK-1.44 had merged was wrong - checked now with `gh pr view 37 --json state` before writing this sentence: PR #37 (TASK-1.44) is still OPEN, not merged. Only its board commits (claims, checks, the review-sent-back commit) are on main; its code is not. Correcting the record here since implementation notes are appended, not edited in place: TASK-1.41 is the one that actually merged since this task's first round (PR #38, confirmed MERGED) - its kernel changes (`Tree::record_exit`, `Pane::status` renamed) do not touch any file this task edits, confirmed by `just check` passing clean after merging origin/main into this branch.
+
+Brought origin/main in with a merge (branch already pushed) rather than a rebase, per the finish steps for an already-pushed branch; auto-merged cleanly, including methods.rs (TASK-1.41 added unrelated status fields near where TASK-1.81's `method_target` helper lives). `just check` recorded clean at the merged head, then again at this round's final head after the test fixes. PR #39 updated with the same branch; its CI check passed, watched in the foreground both times.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -281,6 +645,52 @@ created: 2026-11-15T21:01:00Z
 ---
 
 Plan approved by @bruk (d5c2871b65a2, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:17:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:27:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at PR #39 head 2d637366b3c8628fd5cd3bdbf18157c03ebc76a3 (matches the task's last recorded `just check` exit 0 and PR #39's green CI on the same head).
+
+[Compliance, Important] crates/server/tests/dispatch.rs:1137 api_call_refuses_to_call_itself only asserts error.code == BadRequest. I reverted api.rs's call() to the pre-fix behaviour (read/strip "target" instead of "method", everything else unchanged) and reran `cargo test --test dispatch`: 10 of the 12 api_call_* tests failed as expected, confirming they exercise real behaviour - but this one still passed. Under the reverted code the request carries no "target" key (only "method"), so param_str(request, "target") returns None and the function returns BadRequest("target: must be text") before ever reaching `if method_name == "api.call"`. The test cannot distinguish "api.call correctly refuses to call itself" from "the selector key is simply missing/wrong," so the refusal AC #1/plan names as its own proof step (and the review brief's item 4) is unproven. The sibling test for an unknown inner method was strengthened in this same diff to compare the whole ApiError for exactly this reason; this one wasn't. Fix: compare the error's message (or the whole ApiError) against "api.call cannot call api.call", not just the code.
+
+This also answers the plan's missing tests-first run (item 1 of the brief): made good by what I observed, for all but the above test. My revert reproduced the plan's intended "before" state faithfully (same read, same remove, nothing else touched), and 10/12 tests genuinely fail against it, so the missing proof step is not a separate Important finding - except that it would have caught the one test above, and didn't, because the proof step itself was never run.
+
+No findings on items 2, 3, 5, 6, 7 of the brief: the 41-method parity loop in extra_params_for covers every non-api.call method exhaustively (verified against description(), 42 methods total, panic! fallback for any missed), gives each a freshly-created non-default target where it has one, and compares whole Response/ApiError; the pane.set/tab.set/session.set tests assert both halves (named changed, default untouched) and would fail if api.call dropped the inner target (I traced the logic: a dropped target falls back to the context default, flipping both assertions); settings show/set/unset, unknown-inner-method (now whole-ApiError), inner-validation-failure and api.call-calling-itself(see above) are all present; the sdk invariant test (no method other than api.call declares a parameter named `method`) is real and description-driven, and call() only ever removes "method" and adds nothing else, so there is no other collision surface; validate() runs on the inner request through the same super::dispatch path a direct call takes, so an inner parameter the called method doesn't declare is refused identically ("<method> has no parameter <name>") - no unvalidated path. doc_2_section_8_targets()/every_method_has_a_target_... read described.target() by role, not by name, so they're correctly unaffected by the rename and still match doc-2 as it stands; module/function doc comments and the description's own api.call prose match what the code now does.
+
+Item 8: the notes' claim that "TASK-1.44 had merged meanwhile" is false - PR #37 (TASK-1.44) is still open; only its board-record commits (Finish, Review) reached main, not its code. This didn't drive any silent decision in this diff (nothing here touches sockets/handshake) and the notes' other claims about main checked out: TASK-1.76 (PR #40) is also still open, and origin/main's dispatch() signature is byte-for-byte what this branch builds against. Nit, not a departure that matters.
+
+--plan-matched no: the plan's proof section specifies tests-first, then the rename; the worker built the rename first and tests after, disclosed in the notes as a deliberate departure. Disclosure means it isn't an separate Important finding, but the order plan-matched judges by was not followed. Also, crates/server/src/dispatch/mod.rs is touched (one doc-comment word) and isn't in the plan's "Files that change" list; also disclosed in the build notes.
+
+Nits (3):
+- crates/server/tests/dispatch.rs:1122 api_call_with_no_method_is_a_bad_request only asserts error.code, so it would equally pass against the old "target"-reading code given an empty params vec - weaker than it needs to be, pre-existing pattern (same as the old api_call_with_no_target_is_a_bad_request).
+- No test exercises a present-but-non-text `method` value (e.g. an integer) for api.call's selector, only its absence. param_str's behaviour covers both paths identically, but only absence is exercised - a pre-existing gap (the old `target` selector had the same hole), not called for by this task's plan or ACs.
+- The "TASK-1.44 had merged" inaccuracy in the Implementation Notes (see item 8 above).
+
+---
+
+author: @bruk.r3
+created: 2026-11-15T21:36:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.81: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

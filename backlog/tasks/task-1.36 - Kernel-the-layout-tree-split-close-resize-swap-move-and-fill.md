@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T04:47:00Z'
+updated_date: '2026-11-15T04:54:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.35
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc26154daf58'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -444,6 +443,35 @@ created: 2026-11-15T04:47:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.36: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T04:54:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review from a fresh read of the diff at origin/task-1.36-kernel-the-layout-tree-split-close head (efb640b) against the plan, AC #1-#6, and doc-15 R100/R112/R113, in a fresh worktree.
+
+All four prior findings are closed, each independently verified, not just read:
+
+1. [bordering_split outermost-vs-innermost regression test] Reproduced the mistake myself in a scratch copy of crates/sdk/src/layout.rs (swapped each of bordering_split_ref/bordering_split_path/inherited_size_at to check the current split's own match before recursing into the child holding the pane, instead of after). Running cargo test -p steg-sdk and cargo test -p steg-sdk -p steg-kernel against that mutation reproduces exactly the two failing runs the task already has recorded (same test names, same assertion values: Ratio(700) vs Ratio(500) in tab::tests::resize_pane_in_a_deeply_nested_tab_changes_only_the_innermost_matching_split; Some(Size{800,10}) vs Some(Size{200,10}) in layout::tests::inherited_size_matches_the_innermost_bordering_split_at_each_depth; the two bordering_split_finds_the_innermost.../bordering_split_mut_also_finds... panics at nearby but not identical line numbers, as expected since the mutation deletes a few lines). Reverted the mutation; working tree is clean. The four new tests (sdk-level outer{mid{inner{A,B},C},D} fixtures at three depths, plus the kernel-level resize test reading the private layout field) do catch the regression.
+
+2. [move_pane_to_tab floor refusal, both tabs unchanged] tree.rs:933 (move_pane_to_tab_is_refused_when_the_target_tabs_floor_would_be_violated_and_nothing_changes) compares both the source and target Tab by Tab's own derived PartialEq (tab.rs:53, deriving over all seven fields: id, label, panes, layout, current, fill, size — not a manual impl that could skip one), and Pane (pane.rs:13) derives PartialEq over all three of its fields too. The equality used genuinely covers everything the plan's "atomic" claim depends on.
+
+3. [resize clamp upward / already-legal ratio] tab.rs:1002 and tab.rs:1021 both present and correct: 50 permille on a 100-column split clamps up to 200 (20/80), and 500 on the same split (already legal) returns unchanged.
+
+4. [closing the current pane when the promoted sibling is a multi-leaf split] tab.rs:875. Traced it against remove_leaf (tab.rs:578): the test's premise holds (current is genuinely c after the two splits, confirmed by the test's own assert before the swap), swap_panes never touches self.current (confirmed by reading swap_panes and swap_leaves, neither mentions current), and remove_leaf's promoted_leaf is literally promoted.leaves().first().copied() — the promoted subtree's first leaf in R112 order, exactly as close_pane's doc comment and the plan describe. The test and the code agree.
+
+Read crates/kernel/src/tab.rs and crates/kernel/src/tree.rs in full (not just the four areas above): would_violate_floor_inserting checks both dimensions via satisfies_floor_sizes regardless of which axis the split divides (AC #5's "in either dimension"); move_pane_to_tab checks the target's floor (tree.rs:470) before any source-tab mutation (remove_pane_for_move is called after, at tree.rs:483); PanesNotInSameTab (the one new Error variant I hadn't seen constructed from a grep-only pass) is built and tested at tree.rs:380 and tree.rs:1016-1036; close_pane's debug_assert!(panes_match_layout()) correctly sits after the tab-now-empty early return in every one of the three mutating paths that can empty a tab (close_pane, remove_pane_for_move). Also read error.rs, lib.rs x2 and target.rs's diff in full: small, consistent with the plan, nothing missed.
+
+No regressions since the first review: diffed 531a3df (the fix commit) against the two merge commits that followed and confirmed the fix itself touched only test code plus one import line, and `just check` passes clean at HEAD (efb640b) when run directly in a fresh worktree, matching the task's own recorded run. PR #23's CI (run 43678259820) is SUCCESS on headRefOid efb640b, the same commit. No code conflicts from main (board-only commits, confirmed by the diffs between the three merge commits).
+
+No new findings.
 
 ---
 <!-- COMMENTS:END -->

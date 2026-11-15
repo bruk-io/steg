@@ -15,16 +15,30 @@ on:
     branches: [main]
   push:
     branches: [main]
+    # asdlc's board commits and pushes to main on every board action (claims, check
+    # records, status updates, reviews...), with no code in the commit. Skip the run
+    # entirely for a push where every changed file matches one of these - not just
+    # `continue-on-error` or an early exit, since macOS runner minutes are billed at a
+    # premium and these pushes are frequent. A push that touches both the board and
+    # code still runs: `paths-ignore` only skips when *every* changed file matches.
+    paths-ignore:
+      - "backlog/**"
+      - "plugins/**"
 
 permissions:
   contents: read
 
 concurrency:
-  # macOS runner minutes are billed at a premium and a cold build of the gpui-linked
-  # workspace is the dominant cost here, so a superseded run should stop paying for
-  # itself rather than race the new one to completion.
+  # Cancel a superseded run only on a pull request: its runs are the author iterating
+  # on one branch, so the latest push is what matters. Never on a push to main - the
+  # group key (github.ref) is the same, `refs/heads/main`, for every push-to-main run,
+  # and the board above pushes there constantly; cancelling on github.ref would mean
+  # each board commit cancels the run the previous one started before a single job
+  # runs (confirmed on TASK-1.32's review: ~19 runs in a row, all cancelled with zero
+  # jobs started). A macOS cold build is still the expensive case this guards, but only
+  # pull_request churn, where cancelling is actually safe to do.
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:

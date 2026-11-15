@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:00:00Z'
+updated_date: '2026-11-15T03:02:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -152,6 +152,12 @@ added to `check`'s recipe line (`check: fmt-check lint boundaries deny test test
 - AC #4: `dynamic_views/steg/attach-to-a-pane.c4` and `focus-a-pane.c4` exist, both container-level, both validate, and `focus-a-pane.c4`'s description states R88 explicitly.
 - AC #5: `just check` is run once with the model intact (passes) and once with a deliberately broken `.c4` file (fails), both outcomes recorded on the task.
 - AC #6: every element's title traces to a word in doc-16's tables, doc-15's "The things" table, or doc-1 §4's vocabulary table — checked by hand, listed against its source in the build notes.
+
+## Addendum, during build (2026-11-15)
+
+- TASK-1.69 merged to `main` while this task's plan was being approved (pull request 11). Its `crates/` reorg already matches doc-16's five packages exactly — `crates/kernel`, `crates/sdk`, `crates/server`, `crates/steg`, `crates/app`, no separate CLI crate — so the "today's crates/ doesn't yet match doc-16" caveat in the structural decisions above no longer applies; the two are already in step, and this task's component names (sdk, kernel, server, `steg`, app) line up with the real crate names one for one.
+- Rebased onto `origin/main` before building (the branch had never been pushed), which brought in `.github/workflows/ci.yml` — a file that didn't exist when this plan was first written. Per the engineer's instruction at plan approval, this task adds a pinned `actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0` step (`node-version: "24.22.0"`, matching the pin used locally) to that workflow, right after the `just`/`cargo-deny` install step and before the cargo cache step, so `just check`'s new `architecture` recipe can find `npx` in CI.
+- Per the engineer's instruction, `plugins/bruk-io-steg/commands.toml` is deliberately left untouched in this worktree; the Node need and the `[check]` re-verification are recorded as a follow-up in this task's notes instead, for the orchestrator to do after this merges.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

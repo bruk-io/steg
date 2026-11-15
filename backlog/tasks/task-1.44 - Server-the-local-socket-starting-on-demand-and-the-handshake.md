@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:41:00Z'
+updated_date: '2026-11-15T20:59:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -646,6 +646,46 @@ ok      test (steg-app) (0.8s)
 ok      tool tests (1.4s)
 ok      architecture (0.8s)
 ok      recipe names (0.1s)
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test shutdown'` exited 101 at 2026-11-15T20:59:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 55592e06308a with uncommitted changes:
+
+```text
+warning: unused import: `std::net::Shutdown`
+ --> crates/server/src/listen.rs:8:5
+  |
+8 | use std::net::Shutdown;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/shutdown.rs (target/debug/deps/shutdown-4f329e528730f187)
+
+running 4 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... FAILED
+
+failures:
+
+---- a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop stdout ----
+
+thread 'a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop' (12828267) panicked at crates/server/tests/shutdown.rs:220:21:
+assertion `left != right` failed: the client should see its connection closed well within the 5s bound
+  left: WouldBlock
+ right: WouldBlock
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --test shutdown`
 ```
 <!-- SECTION:NOTES:END -->
 

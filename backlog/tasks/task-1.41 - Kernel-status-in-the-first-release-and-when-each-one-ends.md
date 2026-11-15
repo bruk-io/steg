@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:07:00Z'
+updated_date: '2026-11-15T20:25:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -16,6 +16,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-11
 asdlc_branch: task-1.41-kernel-status-in-the-first-release-and
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'ed724e8c9084'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -421,6 +424,15 @@ created: 2026-11-15T19:46:00Z
 ---
 
 Plan revised per team-lead's feedback: dropped the ghostty-vt blocking question (AC #1 now scopes it out, confirmed from the task's own updated wording); replaced std::time::Instant with a new kernel-owned Moment type (crates/kernel/src/moment.rs) - a newtype over Duration, constructible in tests with no clock and no clippy exception, with the 'earlier moment than one passed before' rule stated explicitly (no subtraction is ever defined, so there's no path that could panic; a stale or backward-looking now just reads a Finished status as not-yet-expired); kept the tree's existing tick() counter for decision-7's ordering tie-break, reasoned explicitly against folding that into Moment too; kept acknowledge_pane clearing both Finished and Failed, with the AC-vs-decision-7 reconciliation now flagged to also go in the build-time notes; and added the rename-fallout and record_exit-signature risks naming TASK-1.76 and TASK-1.48 by name, with phase 2's first step re-running the call-site grep against origin/main.
+
+---
+
+author: @bruk
+created: 2026-11-15T20:25:00Z
+
+---
+
+Plan approved by @bruk (ed724e8c9084, size-3): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

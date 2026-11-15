@@ -5,11 +5,12 @@ title: >-
   Python
 type: specification
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:33:00Z'
+updated_date: '2026-11-15T00:48:00Z'
 ---
 - Intent: "A terminal like Rex, built in Rust and GPUI and extendable through Python" (DRAFT-1 until accepted)
 - Status: draft. Nothing here is approved yet.
 - Revised 2026-11-15 for the app's design (doc-7) and the four decisions Bruk made that day: program status is split across M1 and M2; session colour follows the design; settings are overrides and the Python config is never written to; each status ends by its own rule. The changes are R21, R26, R50 and R51 reworded, R78 to R84 added, and the release table.
+- Revised again 2026-11-15 for where focus lives (TASK-1.29): the vocabulary gains window and focus, the client is defined more exactly, and R85 to R90 are added.
 - Reference product: [Rex](https://www.superlogical.com/rex/docs) by Superlogical.
 
 ## 1. What steg is
@@ -66,7 +67,9 @@ its API and "tab" and "pane" in its app; steg uses the UI words everywhere.
 | Session | A named, long-lived workspace on one host |
 | Tab | An ordered page within a session |
 | Pane | A region of a tab running one thing. In v1 that thing is always a terminal |
-| Client | Anything connected to a server: the app, a CLI call, a Python extension |
+| Client | One connection to one server. A CLI call and a Python extension are clients; so is each connection a window of the app holds |
+| Window | What the app draws. It holds one client for each server it uses, and shows one session at a time, from any of them |
+| Focus | A path down one server's tree: each session's current tab, and each tab's current pane |
 | Action | A named operation that can be bound to a key, shown in the palette, or invoked |
 | Event | A notification from the server that something changed |
 
@@ -88,6 +91,26 @@ Each requirement is tagged with the release it belongs to (section 6).
 - R6 (M1). Sessions can be created, labelled, reordered, listed, and destroyed.
 - R7 (M3). Two clients can attach to the same session at once, and each sees the other's
   changes as they happen.
+- R85 (M1). Focus is a path down a server's tree, held by that server: each session has a
+  current tab, and each tab has a current pane. Focusing a pane makes its tab the current
+  tab of its session as well. There is no focus across servers.
+- R86 (M1). A client is one connection to one server. Every client can learn of every
+  session on that server and of changes to them. A client views zero or more sessions,
+  which is what brings it their terminals' contents; the protocol sets no limit on how
+  many.
+- R87 (M1). A window belongs to the app, not to any server. It holds one client for each
+  server it uses and shows one session at a time. Which session a window shows is held by
+  the app. In M1 there is one server, and the app views exactly the session each window
+  shows.
+- R88 (M1). Focusing a pane or a tab never changes which sessions a client views or which
+  session a window shows. Only the person at that window, or a command addressed to that
+  client, does.
+- R89 (M1). Two windows showing the same session show the same current tab, the same
+  current pane and the same pane layout. Per-window focus is not provided.
+- R90 (M1). A pane is in view when it is in the current tab of a session that a window is
+  showing. That is the app's judgement from R85 and R87; a server does not track what is
+  visible. R50's ring and bar, and R51's notifications, are decided by the app on this
+  basis.
 
 ### 5.2 Layout
 
@@ -331,7 +354,7 @@ terminal. Bruk decided this on 2026-11-13, over panes the app draws itself.
 
 | Release | What it proves | Requirements |
 |---|---|---|
-| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, and R50 for running, finished and failed |
+| M1: local daily driver | Steg can replace the terminal on one Mac. Sessions survive the app | R1-R6, R8-R10, R12-R17, R19-R26, R28, R29, R32-R39, R58-R61, R78-R80, R82, R83, R85-R90, and R50 for running, finished and failed |
 | M2: extendable | Python, the status protocol, and agents make it more than a terminal | R18, R27, R30, R31, R40-R49, R52-R54, R62-R64, R67-R77, R81, R84, and the rest of R50 |
 | M3: remote and shared | The same workspace on other hosts, and from two clients at once | R7, R11, R51, R55-R57 |
 
@@ -390,7 +413,10 @@ The requirements hold whichever way these go.
    config dataclass, and how the config file is evaluated: most simply a short-lived
    process at load and reload that hands its data to the server.
 6. **Two clients, one pane.** What size a terminal takes when two attached clients have
-   different window sizes (R7).
+   different window sizes (R7). R89 brings this forward: two windows of the app on one
+   session are two clients viewing it, in M1, and they can be different sizes. Either M1
+   answers this, or the app does not let two windows show the same session until it is
+   answered.
 
 ## 8. Areas of concern
 

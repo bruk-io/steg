@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:44:00Z'
+updated_date: '2026-11-15T03:49:00Z'
 labels:
   - size-2
   - review-passed
@@ -234,6 +234,14 @@ Nits (5):
 [Compliance, Nit] .claude/rules/architecture.md: PR19's new bullet is appended directly after the "dependency from one crate on another" bullet, the exact line PR17/TASK-1.71 rewrites. Purely textual: the content composes cleanly (no semantic contradiction), but whoever merges second will hit a merge conflict there to resolve by hand.
 
 plan-matched=no: the extra production module and unit-test file are a real departure from the plan's named files, even though it's disclosed in full in "What was built" and backed by the testing-python layout rule.
+
+---
+
+created: 2026-11-15T03:49:00Z
+
+---
+
+From @bruk.o: commits after the clean review. The review by @bruk.r1 passed head 5f440ca with five nits. Pull request 18 then merged and conflicted with this change in .claude/rules/architecture.md. The board takes no recorded check on a task whose review has passed, so the worker pushed without asdlc record-check; the check at the new head 24fd7a5 is pull request 19's CI run 43673997466 (success). The earlier review does not cover these commits. What changed: origin/main merged, the conflict resolved by keeping main's renamed line with this task's bullet after it, and the bullet now names just check-architecture; replies are taken from the message stream by skipping anything without an id, with a unit test for a stray notification between two replies; the subprocess's stderr is drained and attached to whatever error crosses; an unneeded import removed. Correction to the notes' 'Departure from the plan: none': tools/src/steg_tools/likec4_mcp.py and tools/tests/unit/test_likec4_mcp.py were not in the approved plan, which named only the adapter test. They were added because the adapter test needs a client to drive the real server, and the team's Python testing layout puts the parsing logic under unit tests and the one function that touches the subprocess under the adapter test.
 
 ---
 <!-- COMMENTS:END -->

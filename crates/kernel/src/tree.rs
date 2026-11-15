@@ -3433,6 +3433,74 @@ mod tests {
     }
 
     #[test]
+    fn a_command_panes_full_cycle_and_each_steps_tie_goes_to_the_newer_pane() {
+        // `a` runs through start, exit non-zero, input, restart, exit
+        // zero, restart, exit zero again - doc-15 R97's full cycle for a
+        // command pane. At every step, `b` is driven through the exact
+        // same step first, so the two panes always tie on rank; `a`'s
+        // tick is always the newer of the two, and decision-7 point 3
+        // ("how pressing, then newest") says it should win the tie every
+        // time - proving the tie-break holds across the whole lifecycle,
+        // not just once.
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let a = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let b = tree
+            .split_pane(a, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+            .unwrap();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+        let client = tree.connect_client(steg_sdk::ClientKind::App, None);
+        tree.view_pane(client, a).unwrap();
+
+        macro_rules! assert_status_and_tie {
+            ($status:expr) => {
+                let tab = &tree.session(session_id).unwrap().tabs()[0];
+                assert_eq!(tab.pane(a).unwrap().status(moment(0)), $status);
+                assert_eq!(tree.tab_shown_status(tab_id, moment(0)), Ok(Some(a)));
+            };
+        }
+
+        // Step 1: start. Both running (tied rank) - `b` first, `a`
+        // second, so `a` is the newer and wins.
+        tree.start_program(b, command("/tmp")).unwrap();
+        tree.start_program(a, command("/tmp")).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 2: exit non-zero - both Failed (tied rank).
+        tree.record_exit(b, 3, moment(0)).unwrap();
+        tree.record_exit(a, 3, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Failed { exit_code: 3 }));
+
+        // Step 3: input ends `a`'s status (never `b`'s, which was never
+        // sent any) - no tie to break any more: `a` has no status at
+        // all, so `b`'s Failed is what the tab shows instead.
+        tree.note_input(client, a).unwrap();
+        let tab = &tree.session(session_id).unwrap().tabs()[0];
+        assert_eq!(tab.pane(a).unwrap().status(moment(0)), None);
+        assert_eq!(tree.tab_shown_status(tab_id, moment(0)), Ok(Some(b)));
+
+        // Step 4: restart - both running again (tied rank).
+        tree.restart_program(b).unwrap();
+        tree.restart_program(a).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 5: exit zero - both Finished (tied rank).
+        tree.record_exit(b, 0, moment(0)).unwrap();
+        tree.record_exit(a, 0, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Finished));
+
+        // Step 6: restart again.
+        tree.restart_program(b).unwrap();
+        tree.restart_program(a).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Running));
+
+        // Step 7: exit zero again - Finished once more.
+        tree.record_exit(b, 0, moment(0)).unwrap();
+        tree.record_exit(a, 0, moment(0)).unwrap();
+        assert_status_and_tie!(Some(steg_sdk::Status::Finished));
+    }
+
+    #[test]
     fn tab_shown_status_delegates_to_the_tabs_own_ranking() {
         let mut tree = Tree::new();
         let session_id = tree.new_session(None).unwrap();
@@ -3480,6 +3548,7 @@ mod tests {
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
         finish(&mut tree, first);
         fail(&mut tree, second);
+        let deadline_before = tree.next_status_deadline(moment(0));
 
         tree.focus_pane(first).unwrap();
         tree.focus_pane(second).unwrap();
@@ -3496,6 +3565,11 @@ mod tests {
             tab.pane(second).unwrap().status(moment(0)),
             Some(steg_sdk::Status::Failed { exit_code: 3 })
         );
+        // `first`'s `Finished` deadline (R83's ten-minute timer) is
+        // untouched too - not just its status - so there is no later
+        // "focusing secretly reset the clock" bug this would miss.
+        assert_eq!(deadline_before, Some(moment(600)));
+        assert_eq!(tree.next_status_deadline(moment(0)), deadline_before);
     }
 
     #[test]
@@ -3546,5 +3620,46 @@ mod tests {
         tree.record_exit(second, 0, moment(0)).unwrap();
 
         assert_eq!(tree.next_status_deadline(moment(0)), Some(moment(600)));
+    }
+
+    #[test]
+    fn next_status_deadline_skips_a_pane_already_past_its_deadline_and_is_none_once_every_pane_is()
+    {
+        let mut tree = Tree::new();
+        let session_one = tree.new_session(None).unwrap();
+        let tab_one = tree.session(session_one).unwrap().tabs()[0].panes()[0].id();
+        let tab_two_id = tree.new_tab(session_one, None).unwrap();
+        let tab_two = tree
+            .session(session_one)
+            .unwrap()
+            .tab(tab_two_id)
+            .unwrap()
+            .panes()[0]
+            .id();
+        let session_two = tree.new_session(None).unwrap();
+        let other_session = tree.session(session_two).unwrap().tabs()[0].panes()[0].id();
+
+        // Three panes, each in a different tab, two of them in different
+        // sessions entirely, each finishing at a different moment:
+        // - `tab_one` at 0 (deadline 600) - already past by the time
+        //   anything here is asked at `moment(700)`.
+        // - `tab_two` at 500 (deadline 1100) - still ahead, and the
+        //   earliest of the two still ahead.
+        // - `other_session` at 1000 (deadline 1600) - also still ahead,
+        //   but later than `tab_two`'s.
+        tree.start_program(tab_one, command("/tmp")).unwrap();
+        tree.record_exit(tab_one, 0, moment(0)).unwrap();
+        tree.start_program(tab_two, command("/tmp")).unwrap();
+        tree.record_exit(tab_two, 0, moment(500)).unwrap();
+        tree.start_program(other_session, command("/tmp")).unwrap();
+        tree.record_exit(other_session, 0, moment(1_000)).unwrap();
+
+        // `tab_one`'s deadline (600) has already passed by 700, so the
+        // answer is the earliest of the two still ahead (1100), not 600.
+        assert_eq!(tree.next_status_deadline(moment(700)), Some(moment(1_100)));
+
+        // Asked again once every pane's deadline has passed, there is
+        // nothing left to schedule for.
+        assert_eq!(tree.next_status_deadline(moment(1_600)), None);
     }
 }

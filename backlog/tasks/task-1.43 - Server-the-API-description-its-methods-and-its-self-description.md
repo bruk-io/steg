@@ -1,11 +1,11 @@
 ---
 id: TASK-1.43
-title: 'Server: the API description, its methods and its self-description'
+title: 'sdk: the API description, validation against it, and typed results'
 status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:13:00Z'
+updated_date: '2026-11-15T14:15:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -24,15 +24,16 @@ asdlc_branch: task-1.43-server-the-api-description-its-methods
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-doc-8: R36, R37; doc-16 R101. decision-1. The API is one value, and it lives in the sdk; the server dispatches from it and serves it unchanged.
+doc-8: R36, R37; doc-16: R101, R105, R106. decision-1. The API is one value in the sdk. Split on 2026-11-15 by Bruk from the task that also covered the server's dispatch, which is now a task of its own: the CLI and the sdk's protocol logic need only this half. Decided the same day: `api show` with no target returns the whole description, so a client that cannot import the Rust value gets the entire API in one call.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every method the first release needs (doc-2, section 8) is defined once, in the description, with its parameters and documentation
-- [ ] #2 The server validates and dispatches a request against the description, and rejects an unknown method or parameter
-- [ ] #3 A client can ask for every method and for one method in full, and can call any method by name
-- [ ] #4 `spikes/api-description/` is deleted
+- [ ] #1 Every method the first release needs (doc-2, section 8) is defined once, in the description, with its parameters and documentation, checked against the list by a test
+- [ ] #2 A request is validated against the description with no I/O: an unknown method, an undeclared parameter, a missing required parameter and a value outside a closed set are each refused
+- [ ] #3 Each served method's result is a typed shape in the sdk that serialises and deserialises, and the sdk's existing shapes have their wire form there too, with round-trip tests (doc-16 R105)
+- [ ] #4 The description's events and errors are defined once, each error with the exit status doc-2 section 6 gives it
+- [ ] #5 The sdk's new dependencies are for data and serialisation only, named in boundaries.toml with the reason (doc-16 R106)
 <!-- AC:END -->
 
 ## Implementation Plan

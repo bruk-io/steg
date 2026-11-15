@@ -1,0 +1,7 @@
+// System Context — steg (scoped to this one system). doc-16, Level 1.
+views {
+  view stegContext of steg {
+    title 'System Context — steg'
+    include steg, personAtMac, programsInPanes, macos, plugin, remoteHost
+  }
+}

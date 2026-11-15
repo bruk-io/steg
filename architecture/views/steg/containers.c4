@@ -1,0 +1,7 @@
+// Containers — steg. doc-16, Level 2: the server, the CLI, Steg.app.
+views {
+  view stegContainers of steg {
+    title 'Containers — steg'
+    include *
+  }
+}

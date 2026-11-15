@@ -1,0 +1,8 @@
+// Component-level "may depend on" edge for the packages built into the app
+// (doc-16, Level 3). No `technology`: a Cargo compile-time dependency, not
+// a runtime call.
+model {
+  extend steg.app {
+    appPkg -> sdk 'depends on'
+  }
+}

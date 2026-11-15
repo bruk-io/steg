@@ -19,8 +19,8 @@ affected := "uv run --quiet --project tools steg-affected"
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, and the tools' own tests
-check: fmt-check lint boundaries deny test test-tools
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, the tools' own tests, and the architecture model
+check: fmt-check lint boundaries deny test test-tools architecture
 
 # the tests for the crates this change touches and the crates that depend on them (steg-affected chooses)
 test:
@@ -93,3 +93,7 @@ run:
 # which crates this change affects: all, none, or the -p flags `just test` passes to cargo
 affected:
     @{{affected}}
+
+# the architecture model (architecture/) validates against the LikeC4 grammar (doc-16, R108)
+architecture:
+    @{{quiet}} "architecture" -- npx --yes likec4@1.61.0 validate architecture

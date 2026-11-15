@@ -1,0 +1,10 @@
+// Software system: steg. Declared top-level (no extend). Named lowercase,
+// matching doc-16's own table (doc-16, Level 1).
+// Containers live in sibling files via `extend steg { <name> = container ... }`;
+// components one level deeper under models/steg/<container>/ via
+// `extend steg.<container> { <name> = component ... }`.
+model {
+  steg = softwareSystem 'steg' {
+    description 'Runs programs in terminals, keeps them running without a window, and can be driven from scripts (doc-16, Level 1).'
+  }
+}

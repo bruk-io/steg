@@ -1,0 +1,10 @@
+// Component-level "may depend on" edge for the packages built into the CLI
+// (doc-16, Level 3). Both components are shared with the server's own
+// component view; this is the CLI's own copy of the one dependency between
+// them. No `technology`: a Cargo compile-time dependency, not a runtime
+// call.
+model {
+  extend steg.cli {
+    stegPkg -> sdk 'depends on'
+  }
+}

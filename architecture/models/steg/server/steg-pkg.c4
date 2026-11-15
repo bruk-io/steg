@@ -1,0 +1,14 @@
+// Component: `steg`, built into the server and the CLI alike (doc-16,
+// Level 3). One of two identical declarations (the other is
+// models/steg/cli/steg-pkg.c4), per AC #2. Keep the title and description
+// word for word the same in both. Element id stegPkg, title 'steg', to avoid
+// clashing with the system's own id.
+model {
+  extend steg.server {
+    stegPkg = component 'steg' {
+      #shared
+      technology 'Rust'
+      description 'The CLI, and the entry point that starts the server (R98). Built into the server and the CLI, which ship as one binary.'
+    }
+  }
+}

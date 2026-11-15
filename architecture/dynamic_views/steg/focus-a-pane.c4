@@ -1,0 +1,21 @@
+// Dynamic — focusing a pane, with the path updating upward. Container level
+// (the CLI, the server, Steg.app). AC #4.
+//
+// This never changes which session any window shows (R88) — the exact
+// mistake decision-5 records being made three times. `session focus` is the
+// separate request that does that, addressed to a client; it is not drawn
+// here.
+views {
+  dynamic view focusAPane {
+    title 'Dynamic — focusing a pane (never changes which session a window shows, R88)'
+
+    personAtMac -> steg.cli 'runs `pane focus` against'
+    steg.cli -> steg.server 'asks to focus a pane' {
+      technology 'socket'
+      description "The server itself sets the path upward from here: the pane's tab becomes current in its session, and that tab becomes current in turn (R85). That is server-internal state, not a separate step, since a dynamic view stays at one level."
+    }
+    steg.server -> steg.app 'reports the pane focused and its tab now current'
+
+    include steg.cli, steg.server, steg.app
+  }
+}

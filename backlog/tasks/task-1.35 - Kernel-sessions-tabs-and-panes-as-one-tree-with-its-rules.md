@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T02:41:00Z'
+updated_date: '2026-11-15T03:01:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -136,6 +136,17 @@ Proof:
 Plan held by @bruk.o, not sent for approval: it hand-rolls ids, colours and errors in the kernel on the assumption that the kernel depends on nothing. The engineer is settling whether the kernel may depend on an SDK with no I/O, in which case ids, the colour set and pane kinds are defined once there. To be revised once the architecture spec is on the board. Open for the engineer: which colour a sixth session takes when all five are in use (the plan proposes wrapping to violet).
 
 Revised plan checked against doc-15 and doc-16 by @bruk.o: ok. Id types, the colour set and pane kinds are in the sdk; minting, colour choice (R109) and the tree are in the kernel. It names the types the layout, focus and target tasks build on. It cannot be built until TASK-1.69 merges.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:01:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.35 on task-1.35-kernel-sessions-tabs-and-panes-as-one at 1d256ad14af0:
+
+```text
+ok      format check (0.1s)
+ok      lint (13.9s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      tool tests (0.5s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

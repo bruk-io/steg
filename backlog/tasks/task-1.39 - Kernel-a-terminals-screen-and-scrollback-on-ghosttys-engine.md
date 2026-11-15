@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:43:00Z'
+updated_date: '2026-11-15T14:49:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -322,6 +322,51 @@ ok      build (steg) (0.2s)
 ok      test (steg) (0.3s)
 ok      build (steg-app) (18.6s)
 ok      test (steg-app) (0.8s)
+```
+
+Check FAILED: `just check-packages` exited 101 at 2026-11-15T14:49:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.39 on task-1.39-kernel-a-terminal-s-screen-and at edbe7af2c6e6 with uncommitted changes, last 40 of 67 lines:
+
+```text
+test terminal::tests::osc_7_sets_the_reported_cwd ... FAILED
+test tree::tests::new_session_gives_the_first_five_sessions_distinct_colours_in_order ... ok
+test tree::tests::new_session_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::new_session_sets_the_label_given_to_it ... ok
+test tree::tests::new_tab_adds_a_labelled_tab_with_one_pane_already_in_it ... ok
+test tree::tests::new_tab_rejects_an_invalid_label_and_mints_no_id ... ok
+test tree::tests::panes_are_in_layout_order_after_a_move ... ok
+test tree::tests::session_mut_lets_a_caller_change_a_sessions_label_and_colour ... ok
+test tree::tests::set_tab_size_smaller_always_succeeds_and_closes_nothing ... ok
+test tree::tests::split_pane_adds_a_pane_to_an_existing_tab ... ok
+test tree::tests::swap_panes_is_refused_when_the_two_panes_are_in_different_tabs ... ok
+test tree::tests::the_sixth_concurrent_session_repeats_the_first_colour ... ok
+
+failures:
+
+---- terminal::tests::an_sgr_colour_change_splits_the_row_into_two_runs_with_the_right_fg stdout ----
+
+thread 'terminal::tests::an_sgr_colour_change_splits_the_row_into_two_runs_with_the_right_fg' (5867844) panicked at crates/kernel/src/terminal.rs:423:9:
+assertion `left == right` failed
+  left: 3
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- terminal::tests::osc_7_sets_the_reported_cwd stdout ----
+
+thread 'terminal::tests::osc_7_sets_the_reported_cwd' (5867851) panicked at crates/kernel/src/terminal.rs:456:9:
+assertion `left == right` failed
+  left: Some("tmp/project")
+ right: Some("/tmp/project")
+
+
+failures:
+    terminal::tests::an_sgr_colour_change_splits_the_row_into_two_runs_with_the_right_fg
+    terminal::tests::osc_7_sets_the_reported_cwd
+
+test result: FAILED. 129 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-kernel --lib`
+full output: .quiet/test-steg-kernel.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

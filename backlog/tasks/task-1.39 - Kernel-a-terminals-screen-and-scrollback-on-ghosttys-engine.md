@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T14:56:00Z'
+updated_date: '2026-11-15T15:08:00Z'
 labels:
   - size-4
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.34
@@ -25,8 +26,10 @@ asdlc_branch: task-1.39-kernel-a-terminal-s-screen-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b1c858e146a2'
 asdlc_plan_approved_size: size-4
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=4'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -578,6 +581,27 @@ created: 2026-11-15T14:56:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.39: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T15:08:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 4 nit. Cites: review. The diff matches the plan.
+
+No Important findings. Checked clause by clause against doc-9 (R14, R16, R92, R116), doc-16 (R105, R106, R110) and decision-2/decision-3, with ghostty-vt 0.8.0's real source read from the cargo registry cache (terminal.rs, render.rs, screen.rs) to verify every engine-API claim in the plan: Event::PwdChanged/TitleChanged semantics, GridRef::hyperlink_uri's Ok(0)/OutOfSpace contract, RenderState/RowIterator/CellIterator's advance-then-read shape, CursorViewport fields, and Terminal::grid_ref's own "isn't meant to be used as the core of render loop" doc comment all match the plan's claims exactly. Diff is scoped exactly to the narrowed plan (crates/kernel/src/{terminal,error,lib}.rs, crates/sdk/src/{screen,lib}.rs) with no scrollback-identity or changes-since-a-point code from TASK-1.74 present. No new dependency in either Cargo.toml (confirmed via diff), boundaries.toml unchanged, sdk allow-list still empty, #![forbid(unsafe_code)] holds, no unwrap/panic outside #[cfg(test)], Error::Engine keeps the engine error as source() per rust.md. CI is green at the PR's head commit 4e93bde (gh pr checks 27), which is what the Evidence pass rests on; the task's own recorded `just check` runs are stamped against the tasks-board commit hash (not the code commit) by asdlc's recording mechanism, so the comparison that actually matters is CI-at-head, which passes.
+
+Nits (4, at the cap):
+- [Bugs, Nit] crates/kernel/src/terminal.rs:148 `resize()` forwards to `ghostty_vt::Terminal::resize`, which (per its doc comment and `cb_write_pty` in the engine's own source) can push an `Event::PtyWrite` onto the same queue `events()` drains, when the running program has enabled mode 2048. `resize()` does not drain afterward, unlike `write()`. Not a live bug today: `events()` is `Vec::drain(..)`, so the next `write()` clears the whole queue regardless of when the entries were pushed, and `write()`'s own match arm discards `PtyWrite` unconditionally (`Event::PtyWrite(_) => {}`) since there is no pty to hand it to yet (TASK-1.40). But the plan's own stated reason for draining ("nothing drains them otherwise... named here so it is not discovered in review") was written only against `write()`'s `vt_write` path and doesn't name this one, so a future resize-heavy caller with no intervening write (e.g., repeated attach-time resizes before any input) would hold queued events longer than intended.
+- [Bugs, Nit] crates/kernel/src/terminal.rs:349-352 `parse_pwd`: a malformed OSC 7 value with a host but no following `/path` (`split_once('/')` returns `None`) silently returns `"/"`, reporting the root directory as the cwd rather than signalling the value was malformed. No panic, so it meets the brief's bar, but it is a silent wrong answer rather than `None`/an error.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:119-135 `link_at`'s grow-and-retry branch (`Err(Error::OutOfSpace { required })`, lines 128-131) has no test exercising it; every `link_at` test uses a URI well under the 256-byte stack buffer. The brief asked by name for a test using an address longer than the first buffer.
+- [Evidence, Nit] crates/kernel/src/terminal.rs:560-573 `resizing_changes_the_reported_size_and_reflows_text` is the only resize test, and it changes both axes at once (10x2 -> 5x4: narrower and taller). Growing a dimension and shrinking one in isolation are both untested.
+
+Checked and clean: the cell-model clauses (underline style/colour, cursor shape, link presence true-inside/false-outside R116), events drained after every write for the `vt_write` path with cwd/title copied out as owned values (not borrowed past the next write), the run builder's style-change/wide-character/spacer-skip logic (traced against inputs beyond the tests: wide character at end of row via `SpacerHead`, an all-default-style unwritten row, a style change with no following text - no bug found in any), the sdk/kernel split (no engine type in `crates/sdk/src/screen.rs`, no new dependency, structural per AC #6), and that `Pane`/`Tree` are untouched (diff touches no file under pane/tree/session/tab).
 
 ---
 <!-- COMMENTS:END -->

@@ -55,6 +55,19 @@ jobs:
           # leave that ref unreachable.
           fetch-depth: 0
 
+      - name: SCRATCH - block ghostty's own domains to prove the vendored build never needs them
+        # TASK-1.34: a scratch step, reverted before this branch merges (reverted here with a
+        # follow-up commit, not erased - the branch is already pushed and the worker's
+        # standing rules never force-push). Blocks the two hosts ghostty-vt-sys's build.rs can
+        # reach (tip.files.ghostty.org for the source tarball, deps.files.ghostty.org for
+        # Zig's own package fetches) plus codeberg.org (aro's host), on this ephemeral runner
+        # only - nothing outside it is affected.
+        run: |
+          echo "127.0.0.1 tip.files.ghostty.org" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 deps.files.ghostty.org" | sudo tee -a /etc/hosts
+          echo "127.0.0.1 codeberg.org" | sudo tee -a /etc/hosts
+          cat /etc/hosts
+
       - name: Confirm the pinned Rust toolchain
         # rust-toolchain.toml pins channel 1.98.1 plus rustfmt and clippy. rustup
         # installs an override toolchain's declared components automatically the first

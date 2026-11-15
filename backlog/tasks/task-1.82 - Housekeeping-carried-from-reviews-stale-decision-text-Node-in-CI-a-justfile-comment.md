@@ -3,9 +3,8 @@ id: TASK-1.82
 title: >-
   Housekeeping carried from reviews: stale decision text, Node in CI, a justfile
   comment
-status: In Progress
-assignee:
-  - '@bruk.w2'
+status: To Do
+assignee: []
 created_date: '2026-11-15T20:23:00Z'
 updated_date: '2026-11-15T20:27:00Z'
 labels:

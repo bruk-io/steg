@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:11:00Z'
+updated_date: '2026-11-15T03:12:00Z'
 labels:
   - size-2
   - changes-requested
@@ -285,6 +285,12 @@ AC #6 evidence: every element's title traced to its source, checked by hand agai
 Relationship/technology vocabulary, not element names but checked the same way: "window" and "client" (doc-15's "The things" table has Client; doc-1 section 4 has Window; doc-16's own Deployment section uses both: "one Steg.app whose windows each hold a client to that server"), "socket" (doc-16, Level 2's "over its socket"; R5), "pseudo-terminal" (doc-16, Level 1's "pseudo-terminals"), "SSH" (R55).
 
 Not domain vocabulary, and not claimed as such: the `#shared` and `#planned` tags are LikeC4 modeling annotations (like the `container`/`component` kind keywords themselves), not words drawn from the specs - `#planned` marks M2/M3 scope and `#shared` marks a package duplicated across containers per AC #2. Both are documented as additions in the plan's structural decisions.
+
+Update on comment #4's last sentence: the Node setup step has since been fully reverted, not kept. `.github/workflows/ci.yml` on this branch is now byte-for-byte identical to origin/main (`git diff origin/main -- .github/workflows/ci.yml` is empty) - confirmed after merging origin/main (which had since picked up PR #12's unrelated ci.yml changes) in cleanly.
+
+Per the engineer's correction (relayed by the orchestrator): GitHub's hosted macos-26 image ships Node already, so `npx` resolves there with no setup step. Confirmed empirically, not just by the engineer's claim: a one-off diagnostic (`node --version` prepended to the `architecture` recipe, committed, pushed, read from the run, then reverted - net effect on the committed tree is zero) showed this PR's own CI run used **Node v24.22.2** natively (run https://github.com/bruk-io/steg/actions/runs/43670816613, job step "just check", timestamp 2026-11-15T03:08:46Z, log line "v24.22.2"). That commit and its revert are both on this branch's history for anyone who wants to see the raw log line in context; the final diff against origin/main for ci.yml and the justfile's `architecture` recipe is clean (no diagnostic left in).
+
+Follow-up for the orchestrator, not done in this PR: pin Node in `.github/workflows/ci.yml` (version now known: 24.22.2 as of 2026-11-15, the hosted image's own version, not independently chosen) - separate from, and in addition to, the commands.toml follow-up already recorded in comment #4.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

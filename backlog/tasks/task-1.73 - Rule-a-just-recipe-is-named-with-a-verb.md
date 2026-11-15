@@ -193,6 +193,12 @@ ok      tool tests (0.6s)
 ok      architecture (2.0s)
 ok      recipe names (0.1s)
 ```
+
+Check passed: `sh -c 'git grep -n -E "just (boundaries|packages|affected|architecture|fmt-check)\b" -- . ":!backlog" ":!plugins/bruk-io-steg"; test $? -eq 1'` exited 0 at 2026-11-15T03:34:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

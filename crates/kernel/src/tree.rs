@@ -1017,18 +1017,42 @@ mod tests {
             tree.move_tab(unknown_tab, 0),
             Err(crate::error::Error::TabNotFound(unknown_tab))
         );
+    }
+
+    #[test]
+    fn focus_methods_reject_unknown_ids_without_changing_a_populated_tree() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(Some("work".to_string())).unwrap();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        tree.split_pane(
+            first_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        tree.new_tab(session_id, None).unwrap();
+
+        let unknown_tab = steg_sdk::TabId::from_raw(999);
+        let unknown_pane = steg_sdk::PaneId::from_raw(999);
+        let before = tree.sessions().to_vec();
+
         assert_eq!(
             tree.focus_pane(unknown_pane),
             Err(crate::error::Error::PaneNotFound(unknown_pane))
         );
+        assert_eq!(tree.sessions().to_vec(), before);
+
         assert_eq!(
             tree.focus_tab(unknown_tab),
             Err(crate::error::Error::TabNotFound(unknown_tab))
         );
+        assert_eq!(tree.sessions().to_vec(), before);
+
         assert_eq!(
             tree.focus_direction(unknown_pane, steg_sdk::Direction::Right, false),
             Err(crate::error::Error::PaneNotFound(unknown_pane))
         );
+        assert_eq!(tree.sessions().to_vec(), before);
     }
 
     #[test]
@@ -1147,21 +1171,37 @@ mod tests {
         let session_id = tree.new_session(None).unwrap();
         let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
         let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        // A second pane in `first_tab` — `first_pane` is the *left* pane
+        // of a Right split, so there genuinely is a pane elsewhere in the
+        // tab (to its right), but none to its left: a real edge, not the
+        // vacuous case of a single-pane tab where every direction
+        // trivially has nothing.
+        tree.split_pane(
+            first_pane,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+        // A second tab too, so this is a tree with more in it than just
+        // the one pane being focused from.
+        tree.new_tab(session_id, None).unwrap();
+        // Focus back onto `first_tab`/`first_pane`, so the edge check
+        // below is against a chosen position, not whatever creation left
+        // current.
+        tree.focus_pane(first_pane).unwrap();
+
+        let before = tree.sessions().to_vec();
 
         let outcome = tree
-            .focus_direction(first_pane, steg_sdk::Direction::Right, false)
+            .focus_direction(first_pane, steg_sdk::Direction::Left, false)
             .unwrap();
 
         assert_eq!(outcome, FocusMove::Edge);
+        // The whole tree — both tabs, both panes, every field — is
+        // unchanged, not just the two fields a hand-picked assertion
+        // might check.
+        assert_eq!(tree.sessions().to_vec(), before);
         assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
-        assert_eq!(
-            tree.session(session_id)
-                .unwrap()
-                .tab(first_tab)
-                .unwrap()
-                .current(),
-            first_pane
-        );
     }
 
     #[test]
@@ -1192,6 +1232,17 @@ mod tests {
                 pane: first_pane,
             })
         );
+        // As the sibling `Neighbour` test does, confirm the tree itself
+        // moved, not just the returned value.
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+        assert_eq!(
+            tree.session(session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            first_pane
+        );
     }
 
     #[test]
@@ -1200,26 +1251,61 @@ mod tests {
         let session_id = tree.new_session(Some("work".to_string())).unwrap();
         let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
         let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
-        let second_pane = tree
+        let _second_pane = tree
             .split_pane(
                 first_pane,
                 steg_sdk::Direction::Right,
                 steg_sdk::PaneKind::Terminal,
             )
             .unwrap();
-        // Back to `first_pane`, so the next `focus_pane` actually moves
-        // something.
-        tree.focus_pane(first_pane).unwrap();
+        // A second tab, current by R115 — so, before the `focus_pane`
+        // below, the session's current tab genuinely is somewhere else
+        // (`second_tab`, not `first_tab`), and `first_tab`'s own current
+        // pane is `_second_pane` (R115's own split-pane precedent), not
+        // `first_pane`. Both fields this test cares about start away from
+        // where the focus below sends them.
+        let second_tab = tree.new_tab(session_id, None).unwrap();
 
         let before = tree.sessions().to_vec();
+        assert_eq!(
+            before
+                .iter()
+                .find(|session| session.id() == session_id)
+                .unwrap()
+                .current_tab(),
+            second_tab
+        );
 
-        tree.focus_pane(second_pane).unwrap();
+        tree.focus_pane(first_pane).unwrap();
 
         let after = tree.sessions().to_vec();
 
+        // Both current-path fields really did move.
+        assert_eq!(
+            after
+                .iter()
+                .find(|session| session.id() == session_id)
+                .unwrap()
+                .current_tab(),
+            first_tab
+        );
+        assert_eq!(
+            after
+                .iter()
+                .find(|session| session.id() == session_id)
+                .unwrap()
+                .tab(first_tab)
+                .unwrap()
+                .current(),
+            first_pane
+        );
+
         // Patch `before`'s current-path fields, by hand, through the same
         // pub(crate) setters `focus_pane` itself uses, to what `after`
-        // moved them to. If the patched clone then equals `after` exactly,
+        // moved them to — a *real* change on each field, not a no-op (the
+        // session had two tabs, and `first_tab` had two panes, with
+        // `current_tab`/`current` both starting away from `first_tab`/
+        // `first_pane`). If the patched clone then equals `after` exactly,
         // nothing else anywhere in the tree — label, colour, tab order,
         // pane order, layout, fill — moved along with focus. This is the
         // strongest statement the kernel alone can make toward R88 (AC
@@ -1231,12 +1317,12 @@ mod tests {
             .expect("the session is still in `before`'s clone");
         session
             .set_current_tab(first_tab)
-            .expect("`first_tab` is still this session's only tab");
+            .expect("`first_tab` is still in this session");
         session
             .tab_mut(first_tab)
             .expect("just confirmed present")
-            .focus(second_pane)
-            .expect("`second_pane` is still in `first_tab`");
+            .focus(first_pane)
+            .expect("`first_pane` is still in `first_tab`");
 
         assert_eq!(expected, after);
     }
@@ -1350,6 +1436,31 @@ mod tests {
         let session = tree.session(session_id).unwrap();
         assert_eq!(session.tabs().len(), 1);
         assert_eq!(session.tabs()[0].id(), second_tab);
+    }
+
+    #[test]
+    fn move_pane_to_tab_cascading_close_of_the_current_source_tab_repairs_the_sessions_current_tab()
+    {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first_tab = tree.session(session_id).unwrap().tabs()[0].id();
+        let first_pane = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let second_tab = tree.new_tab(session_id, None).unwrap();
+        // `new_tab` just made `second_tab` current (R115); focus back
+        // onto the *source* tab, so its cascading close below exercises
+        // R114's session-level repair, not just R94's pane/tab cascade.
+        tree.focus_tab(first_tab).unwrap();
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), first_tab);
+
+        let moved = tree
+            .move_pane_to_tab(first_pane, second_tab, steg_sdk::Direction::Right)
+            .unwrap();
+
+        assert_eq!(moved.source_tab_closed, Some(first_tab));
+        // R114: `first_tab` (the current tab) closed, and `second_tab` —
+        // the only tab left, so also the new last one — takes its place.
+        assert_eq!(tree.session(session_id).unwrap().current_tab(), second_tab);
+        assert!(tree.session(session_id).unwrap().tab(second_tab).is_some());
     }
 
     #[test]

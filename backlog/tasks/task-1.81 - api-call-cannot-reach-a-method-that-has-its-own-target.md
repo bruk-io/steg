@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:10:00Z'
+updated_date: '2026-11-15T21:11:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -338,6 +338,51 @@ failures:
 test result: FAILED. 51 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 
 error: test failed, to rerun pass `--test dispatch`
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T21:11:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+                ("label", json!("")),
+(B[m[32m+            ]
+(B[m         }
+ 
+         "pane.list" => {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server/tests/dispatch.rs:1596:
+         "client.show" => vec![("target", json!("x"))],
+ 
+         "setting.show" | "setting.unset" => vec![("target", json!("appearance"))],
+[31m-        "setting.set" => vec![
+(B[m[31m-            ("target", json!("appearance")),
+(B[m[31m-            ("value", json!("light")),
+(B[m[31m-        ],
+(B[m[32m+        "setting.set" => vec![("target", json!("appearance")), ("value", json!("light"))],
+(B[m 
+         "api.show" => vec![("target", json!("pane.split"))],
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81/crates/server/tests/dispatch.rs:1667:
+             &request("api.call", via_params),
+         );
+ 
+[31m-        assert_eq!(canonical(direct_response), canonical(via_response), "{dotted}");
+(B[m[32m+        assert_eq!(
+(B[m[32m+            canonical(direct_response),
+(B[m[32m+            canonical(via_response),
+(B[m[32m+            "{dotted}"
+(B[m[32m+        );
+(B[m     }
+ 
+[31m-    assert_eq!(checked, api.methods.len() - 1, "api.call is the one exclusion");
+(B[m[32m+    assert_eq!(
+(B[m[32m+        checked,
+(B[m[32m+        api.methods.len() - 1,
+(B[m[32m+        "api.call is the one exclusion"
+(B[m[32m+    );
+(B[m }
+ 
+ // --- shapes: Nothing/Identifier (AC #3) ------------------------------------
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

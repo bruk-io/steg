@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T16:26:00Z'
+updated_date: '2026-11-15T16:30:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -295,6 +295,29 @@ Commands: `just check` (kernel + sdk affected), `just test`.
 
 <!-- SECTION:NOTES:BEGIN -->
 Revised plan checked against doc-15 (R86, R89, R91), doc-14, decision-5 and decision-6 by @bruk.o: ok. A client is kernel data with an id and a kind defined once in the sdk; what it views is derived from the panes it is attached to; the latest client in a session is derived from a counter the kernel advances, never a clock; a client declares a whole tab's size in cells, which becomes the tab's size when that client is the latest, and every viewer is told each pane's size. When the latest client leaves, the next most recently active viewer's declared size applies. Tab::size is added as a getter and set_tab_size narrows to the crate. For the engineer: a client declares a tab's size, not a size per pane, and what happens when the latest leaves is this plan's choice. Pixel size stays a named gap for the server task that joins a pane to its terminal.
+
+Check passed: `just check` exited 0 at 2026-11-15T16:30:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.42 on task-1.42-kernel-clients-what-each-views-and-the at c8dc7cdd8d3d:
+
+```text
+ok      format check (0.1s)
+ok      lint (103.7s)
+ok      boundaries (0.2s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.0s)
+ok      test (steg-sdk) (1.3s)
+ok      build (steg-kernel) (46.4s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (0.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (22.9s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (1.9s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

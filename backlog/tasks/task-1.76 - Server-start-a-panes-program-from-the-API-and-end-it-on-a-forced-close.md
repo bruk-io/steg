@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:55:00Z'
+updated_date: '2026-11-15T20:59:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -833,6 +833,30 @@ warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-server` (lib test) due to 6 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:59:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (49.8s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (32.1s)
+ok      test (steg-server) (2.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.4s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

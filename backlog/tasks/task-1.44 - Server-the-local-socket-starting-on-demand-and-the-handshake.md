@@ -1,11 +1,11 @@
 ---
 id: TASK-1.44
-title: 'Server: the local socket, starting on demand, and the handshake'
+title: 'Server: the local socket, one server per socket, and the handshake'
 status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T19:12:00Z'
+updated_date: '2026-11-15T19:23:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -49,15 +49,11 @@ doc-8: R1, R3, R4, R5, R39, R99; doc-13 R60, R61. decision-2, section 7. Bruk de
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The server listens on a socket at an XDG path that only its owner can open, with the mode set rather than assumed
-- [ ] #2 The first client that needs a server starts one; a server started explicitly stays up with no clients
+- [ ] #1 The server listens on a socket at an XDG path that only its owner can open, with the mode set rather than assumed, and refuses a directory or an existing file it cannot trust
+- [ ] #2 Several servers started at the same moment for one socket leave exactly one listening; the others find it and exit without error. A socket file left by a dead server is replaced
 - [ ] #3 A client and server whose protocol versions differ get a message naming both versions
-- [ ] #4 A connection that never completes its handshake is closed after a timeout
-- [ ] #5 A server started on demand keeps running after the client that started it exits or is killed, and its panes' environment comes from a login shell, not from that client (R99)
-- [ ] #6 A server started on demand stops after 30 seconds with no sessions and no clients; one with a session, or one started explicitly, does not (R99)
-- [ ] #7 Two clients starting a server at the same moment end up connected to the same one (R99)
-- [ ] #8 A client's part in starting a server is to run the server's program and wait for the socket; it holds none of the logic above (R98)
-- [ ] #9 The handshake and the version check come from the sdk (TASK-1.70, doc-16 R101); this task adds the socket, the lifecycle and a real client starting a real server through the sdk's local-socket provider
+- [ ] #4 A connection that never completes its handshake is closed after a timeout; one that has completed it is not closed for being idle
+- [ ] #5 The handshake and the version check come from the sdk (TASK-1.70, doc-16 R101); the server runs in the foreground of the process that called it, with no detaching, so this part is testable alone
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -551,4 +547,6 @@ by this choice.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-8 (R1, R3-R5, R39, R98, R99), doc-13 (R60, R61), doc-14, doc-16 and decision-2 section 7 by @bruk.o: sound, not yet put up for approval. Four things for the engineer or the worker first. (1) Size: the plan itself says this is two reviewable changes (A: socket, arbiter, handshake; B: detach, login environment, idle rule, entry point); the engineer decides whether to split the task. (2) Unsafe: the plan adds libc with a hand-written sys.rs (flock, setsid, getpwuid_r, fcntl), an unsafe pre_exec closure and FromRawFd. nix 0.28/0.29 (MIT) is already in Cargo.lock through portable-pty and offers safe wrappers for all four calls, and stage 2 calling setsid itself at start-up (it is not a process-group leader) would remove the pre_exec closure; ask the worker to reduce unsafe to the one FromRawFd block or say why not. (3) STEG_TEST_REPORT_OUTCOME_TO is a test-only hook in the shipped binary; prefer stage 1 printing its outcome (started / already running) on standard output, which a person also benefits from. (4) State what a client sees when it connects in the instant an idle server is stopping (accept closed, socket file removed, lock released, in which order), and that the session count wired to zero must be replaced by TASK-1.45. Layering matches doc-16 and R98: nothing is added to the sdk, and crates/steg gains only the entry point.
+
+Split on the engineer's decision of 2026-11-15 ("default to splitting going forward"), along the seam the worker's own plan proposed. This task is now part A: the socket, the arbiter that leaves one server per socket, and the handshake. Part B, a draft under TASK-1 that depends on this task, takes the lifecycle: starting on demand through the sdk's provider, detaching, the login-shell environment, the 30-second idle stop and the steg entry point (the former criteria 2, 5, 6 and 8, and the end-to-end halves of 7 and 9). The plan on this task was written for both parts and is to be rewritten for part A only.
 <!-- SECTION:NOTES:END -->

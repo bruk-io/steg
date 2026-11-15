@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:19:00Z'
+updated_date: '2026-11-15T23:31:00Z'
 labels:
   - size-5
   - review-passed
@@ -2374,6 +2374,14 @@ No Important findings.
 [Nit] crates/server/tests/real_pty.rs: `let _ = spawned.child.wait();` in the new concurrency test is an unbounded wait whose result is discarded, against this same file's own stated convention elsewhere (a named EVENT_TIMEOUT, "rather than hanging indefinitely on a misbehaving child"). In practice safe (`sh -c "true"` always exits immediately), so a Nit, not Important.
 
 --plan-matched no: this round's diff (crates/server/src/pty.rs) and several files from earlier rounds (dispatch/api.rs, dispatch/outcome.rs, sdk/record.rs, tests/runtime.rs in place of the plan's tests/start.rs) are not in the plan's own "Files that change" list. All are named and justified in the task's notes/comments as forced by review findings or the engineer's own follow-on asks, so none of them is itself a finding under review.md's "a departure... is a finding unless the task's notes say what changed and why" - but the flag itself is descriptive of the diff against the plan's file list, not a verdict, so it is reported as `no` rather than `yes`.
+
+---
+
+created: 2026-11-15T23:31:00Z
+
+---
+
+After the clean third review at 471542c, the worker bounded the wait in the new pty test (500726f: test code only, a helper that kills a child that never exits) and merged main after TASK-1.44 and TASK-1.79 landed (merge 7e1b9b2; one conflict, crates/server/src/lib.rs, both sides kept: the listener's modules and exports beside the runtime's). The reviewer did not see either; read line by line by @bruk.o. The board locks a task after a clean review, so the check is the pull request's CI: green at 500726f.
 
 ---
 <!-- COMMENTS:END -->

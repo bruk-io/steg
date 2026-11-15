@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:15:00Z'
+updated_date: '2026-11-15T20:23:00Z'
 labels:
   - size-2
   - review-passed
@@ -791,6 +791,14 @@ created: 2026-11-15T20:15:00Z
 ---
 
 After the clean review at b983fcf, the worker fixed the three nits (e601778) and merged main (head ec10b92): tests for the two defensive refusals in dispatch/setting.rs, a true message for an absent target and for a non-text one (the only non-test change, read line by line by @bruk.o), and two tests recording that api.call cannot reach setting.show, set or unset today, because api.call's selector and the method's own target are both the parameter named target. That limit predates this task and is a draft task of its own; whoever fixes it inverts those two tests. The reviewer did not see this commit. The board locks a task after a clean review, so the check is the pull request's CI: green at ec10b92.
+
+---
+
+created: 2026-11-15T20:23:00Z
+
+---
+
+Correction to the comment above by @bruk.o: the two tests recording that api.call cannot reach the settings methods were removed again in ae89d2b, on the orchestrator's instruction (the commit message says 'per the engineer'; it was the orchestrator, whose message crossed with the push). Head is now 061425c, which also merges main. Since the review at b983fcf the diff in crates is: the true messages for an absent and a non-text target, and four tests of the defensive refusals in dispatch/setting.rs; nothing else. The api.call limit is in the pull request's description and is a draft task. CI green at 061425c.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-15T20:25:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -434,6 +434,51 @@ Plan checked against doc-8 (R1, R3-R5, R39, R98, R99), doc-13 (R60, R61), doc-14
 Split on the engineer's decision of 2026-11-15 ("default to splitting going forward"), along the seam the worker's own plan proposed. This task is now part A: the socket, the arbiter that leaves one server per socket, and the handshake. Part B, a draft under TASK-1 that depends on this task, takes the lifecycle: starting on demand through the sdk's provider, detaching, the login-shell environment, the 30-second idle stop and the steg entry point (the former criteria 2, 5, 6 and 8, and the end-to-end halves of 7 and 9). The plan on this task was written for both parts and is to be rewritten for part A only.
 
 Rewritten plan for part A checked against doc-8 (R1, R3-R5, R39, R98), doc-13 (R60, R61), doc-14, doc-16 and decision-2 section 7 by @bruk.o: ok. The four points of the first check are met: part A only, with part B named for each thing left out; nix 0.28 (MIT, already in Cargo.lock) for the lock and the owner check, and no unsafe code at all; no test hook in shipped code (serve returns its outcome; the race is proved by a test fixture binary); shutdown order stated (stop accepting, close the listener, remove the socket file, release the lock last) with what a connecting client sees. Proof covers the five criteria clause by clause with real sockets and processes, including a server killed outright to prove the lock is released on death. Known and stated gap: the other-user cases are tested over fabricated metadata, there being no second user here.
+
+Check FAILED: `just check` exited 101 at 2026-11-15T20:25:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.44 on task-1.44-server-the-local-socket-starting-on at 30f6ac77b152 with uncommitted changes, last 40 of 68 lines:
+
+```text
+test dispatch::tests::every_described_method_has_exactly_one_handler ... ok
+test env::tests::exactly_six_variables_are_returned ... ok
+test env::tests::path_prepends_bin_dir_to_the_existing_path ... ok
+test env::tests::path_is_just_bin_dir_when_there_is_nothing_to_prepend_to ... ok
+test env::tests::carries_the_five_variables ... ok
+test paths::tests::lock_path_is_a_sibling_with_a_lock_suffix ... ok
+test paths::tests::nothing_at_the_path_is_absent ... ok
+test paths::tests::owned_by_us_is_false_for_a_fabricated_different_uid ... ok
+test paths::tests::owned_by_us_is_true_for_this_processs_own_euid ... ok
+test paths::tests::a_real_socket_we_own_is_ours_and_a_socket ... ok
+test paths::tests::a_real_private_directory_is_safe ... ok
+test arbiter::tests::attempt_finds_a_real_live_listener_already_running ... ok
+test arbiter::tests::attempt_becomes_the_server_when_nothing_is_there ... ok
+test arbiter::tests::attempt_refuses_a_world_writable_directory ... ok
+test bind::tests::nothing_is_left_at_the_temporary_name_after_a_successful_bind ... ok
+test paths::tests::a_real_plain_file_at_the_path_is_not_a_socket ... ok
+test bind::tests::a_real_bind_sets_0600_under_the_ambient_umask ... ok
+test paths::tests::a_real_world_writable_directory_is_refused ... ok
+test arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server ... FAILED
+test bind::tests::a_second_bind_replaces_the_first_at_the_same_path ... ok
+kill: 63178: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server stdout ----
+
+thread 'arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server' (10143278) panicked at crates/server/src/arbiter.rs:416:17:
+expected Became, got something else: AlreadyRunning
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server
+
+test result: FAILED. 48 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

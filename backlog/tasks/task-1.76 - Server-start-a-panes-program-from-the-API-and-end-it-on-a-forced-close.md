@@ -1,14 +1,13 @@
 ---
 id: TASK-1.76
 title: 'Server: start a pane''s program from the API, and size it'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:06:00Z'
+updated_date: '2026-11-15T23:09:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -2182,6 +2181,16 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 16, 16 without the Asdlc-Worker trailer.
+
+Second round's findings fixed. Corrected the earlier notes: there is no sandbox pty-allocation ceiling and no leak - withdrawn, per the reviewer's own isolated reproduction.
+
+1. RealLauncher::spawn (crates/server/src/pty.rs) now serialises its own openpty() call behind a process-wide OPENPTY_LOCK, held only across that one call, never across spawn_command or anything that waits. No retry added - the lock removes the race rather than hiding it.
+
+2. New test many_threads_opening_a_real_pty_at_once_never_fails (tests/real_pty.rs): 32 real threads, a Barrier so every thread calls openpty at the same instant, 10 rounds. Negative control recorded via asdlc record-check: lock removed, fails on round 1/10 with the identical Os { code: -6 }; lock restored, passes.
+
+3. cargo test -p steg-server (default parallelism, the command just test/just check itself runs) recorded 20 times in a row via asdlc record-check: 0 failures across all 20. just check recorded 5 times in a row via asdlc record-check: 0 failures across all 5, unmodified command.
+
+Merged origin/main first (board-only changes since the last merge; no new code to adapt to). Pushed to the same branch; PR #40's CI green (gh pr checks 40 --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

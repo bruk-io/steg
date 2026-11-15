@@ -655,6 +655,28 @@ error: could not compile `steg-kernel` (lib) due to 1 previous error
 full output: .quiet/build-steg-kernel.log
 error: recipe `packages` failed with exit code 101
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:30:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 1c5c1365a62c with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

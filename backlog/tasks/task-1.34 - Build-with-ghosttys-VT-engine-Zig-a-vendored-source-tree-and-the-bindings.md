@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=5'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1102,6 +1103,15 @@ Findings: 1 Important, 5 nit. Cites: review. The diff does not match the plan.
 Checked and found no issue: AC #1's provenance (commit 83fb95624b0439ee660c2679b43b38c8b63769cd, sha256 ed57ae9b95581c88f2614e976c1d3f146c02d443a3c26139200eb9de6e645eb4, URL - all verified directly against the real crate's own GHOSTTY.lock on this machine, not just the README's claim of them); the local poisoned-URL proof and the scratch PR #24 / CI run 43677134619 (confirmed via `gh run view`: /etc/hosts blocks on tip.files.ghostty.org, deps.files.ghostty.org, codeberg.org only - not all network - just check passed in 4m22s); that proof's paths (.cargo, third_party, justfile) are unchanged between the recorded commit 47715cff72c0 and HEAD 043be079b8f7, so it still covers the head commit, whose own CI run (43677974737) is green in 3m9s; AC #3's test (feeds b"hello", reads back through render/row/cell API, never internals); AC #4 (spikes/task-1.1-terminal-library deleted, no remaining reference outside backlog/decision-3, which the plan correctly left stale on purpose); justfile's per-recipe Zig export (build, run, lint, test, test-all, check-packages) and check-recipes passing with zig-deps-seeded correctly marked [private] and exempt; boundaries.toml's ghostty-vt allow-list entry and kept deny-features; crates/kernel/clippy.toml untouched and still applicable (ghostty-vt does no I/O); deny.toml untouched, consistent with TASK-1.31; CI pins mise-action and runs just check on PRs, just test-all on push to main. Wall time: a clean/cold `just check` now costs ~3-4.5 minutes (head PR run 3m9s, scratch-proof run 4m22s) against recent main pushes of 9s-59s - but those main runs are mostly board-only commits against a warm cache, not a fair baseline; the real cost is the Zig link paid once per clean target/, as the notes already say, then cached to well under a second.
 
 Size disclosed to the engineer (54 MB, seven packages not three) undersells by omission: about 29 of those MB is the undeclared zig-pkg duplicate above, not part of the seven-packages story.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T06:51:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.34: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.44
 title: 'Server: the local socket, one server per socket, and the handshake'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T21:49:00Z'
+updated_date: '2026-11-15T22:03:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.69
@@ -40,10 +41,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c074345d1296'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=3'
-asdlc_review_policies: ["review", "rust"]
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1183,6 +1183,40 @@ created: 2026-11-15T21:49:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.44: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T22:03:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at head 100bc9969ab67750a59c842777a74cea4947cd02 (origin/main...HEAD diff in a detached worktree). PR #37 CI ("check") passed at this same headRefOid in 4m7s (confirmed via `gh pr view 37 --json headRefOid` matching, and `gh pr checks 37`). I also ran `just check` myself at this head: green (format, lint, boundaries, licences, tests every crate, each package build+test including `test (steg-server, race-fixture)`, tool tests, architecture, recipe names). Ran `cargo test -p steg-server --test shutdown` 8x (7/7 green each time), `cargo test -p steg-server --features race-fixture --test race` 5x (3/3 green each time), `cargo test -p steg-server --test handshake` once (10/10 green). `cargo tree -p steg-server -i nix` shows one nix 0.28.0 line. Confirmed with `rm -f target/debug/race-attempt && cargo build -p steg-server` that an ordinary build produces no race-attempt binary (feature-gating works). Confirmed via `git diff --stat origin/main...HEAD` that no file under crates/sdk changed.
+
+Both of review #5's Important findings are genuinely fixed, verified independently rather than taken on trust:
+
+- Finding #1 (malformed-hello only for 2 of 4 decision-2 §7 cases): read connection.rs's new FirstFrame/describe_non_hello/malformed_hello_reply, and handshake.rs's six tests covering wrong-magic, missing-protocol, undecodable-bytes, control-frame-first, oversized-length, and half-a-frame-then-stall. All ten handshake tests pass. Built only from the sdk's own public Refusal/Frame/encode_frame/PROTOCOL_VERSION; no file under crates/sdk changed.
+- Finding #2 (Stopper::stop not reliably stopping an idle run): read the new Stopper::bind_socket_path/stop()/set_stop_flag design. Verified myself, independent of the worker's own "prove one bites": made a scratch edit to listen.rs disabling stop()'s wake_accept call (wrapped in `if false`), ran `cargo test -p steg-server --test shutdown stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound`, and it failed exactly as claimed ("run should have returned within 5s of being stopped"). Reverted the edit (`git checkout -- crates/server/src/listen.rs`, confirmed `git status --short` clean), rebuilt, and all 7 shutdown tests pass. This also independently confirms `start_truly_idle_server` genuinely drains the startup probe as claimed.
+
+New finding this round:
+
+[Bugs, Important] crates/server/src/connection.rs:75-87 (`read_one`) and :145-155 (`first_frame`): `set_read_timeout` arms a *per-read* timeout, and `read_one`'s loop re-arms it on every successful `stream.read()` call that returns any bytes at all - the timeout is "no byte received within handshake_timeout of the last one", not "the handshake must complete within handshake_timeout of connecting". A client that sends one byte every interval just under handshake_timeout, forever, without ever completing a frame, keeps `read_one`'s loop alive indefinitely: no complete frame ever arrives, so `first_frame` never returns, the connection's thread (spawned per-connection by `run`) never exits, and `ConnectionEvent::Disconnected` is never sent.
+
+Reproduced empirically (not just reasoned about): a scratch harness (outside this worktree, linking steg-server as a library) started a server with `handshake_timeout: Duration::from_secs(2)`, connected, and wrote one byte every 1.5s. The connection survived 9.0s - 4.5x the configured timeout - after 6 trickled bytes, with no complete frame ever sent, before I stopped the server myself; nothing in the server ever closed it.
+
+This is exactly the failure decision-2 section 7 (cited in this task's own description as binding, "The server runs... decision-2, section 7") names as the reason a handshake timeout is needed at all: "A client that opens the connection and sends half a hello holds a connection for ever. TASK-1.9 owns it." The implemented per-read timeout closes this for a client that stalls completely after a partial frame (handshake.rs's `a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply` - one read, then silence, then the timeout fires correctly), but does not close it for a client that keeps the connection alive by trickling - a strictly weaker, still-hostile input the suite never tries. AC #4's first clause ("A connection that never completes its handshake is closed after a timeout") does not hold for that input class, and the notes do not disclose this as a known gap or accepted limitation anywhere in the plan or the round-by-round write-ups.
+
+Downstream cost, since it ties to the seam this task built for TASK-1.77: a trickling connection never emits `ConnectionEvent::Disconnected`, so TASK-1.77's idle-with-no-clients counter would be held open indefinitely by a single hostile or malfunctioning client, defeating the idle stop entirely for as long as that one connection trickles.
+
+On allocation (the brief's other named concern): bounded per-connection - the decoder's declared-length check (`crates/sdk/src/wire/frame.rs:197`, unmodified by this task) refuses anything over `MAX_FRAME` (8 MiB) before allocating for the body, confirmed by reading it and by the oversized-length test passing. This is not the headline risk here; the unbounded-held-thread is.
+
+Not a repeat of a cited policy from an earlier review (first occurrence of this shape), so no rule-change draft filed for it per the review policy's step 5.
+
+Plan-matched: no, same as review #5's call - the departures from the approved plan (c074345d1296) disclosed in the notes (thread-joining added mid-build, the listener now closing before the join phase) are real, well-disclosed fixes, but remain departures under the policy's own wording even when well explained.
 
 ---
 <!-- COMMENTS:END -->

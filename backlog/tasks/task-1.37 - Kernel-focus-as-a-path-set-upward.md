@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:03:00Z'
+updated_date: '2026-11-15T06:04:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -17,6 +17,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-7
 asdlc_branch: task-1.37-kernel-focus-as-a-path-set-upward
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'c02f8d24d1bc'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -258,3 +261,16 @@ Ordered after TASK-1.36 by @bruk.o on 2026-11-15. The plan written for this task
 
 Rewritten plan checked against doc-15 (R85, R88, R113) and decision-5 by @bruk.o: ok. It adds only what TASK-1.36 left: a session's current tab, focus_pane (sets the tab's current pane and the session's current tab in one call), focus_tab, and focus_direction acting on the three outcomes, each returning the whole path for one focus event. No current session in the kernel, and moving a pane is not a focus. For the engineer, two rules the specs do not state: when the current tab closes, the tab now at its place becomes current, or the new last tab; and a new tab always becomes current in its session, with --no-focus left to the API layer to restore the previous focus.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-15T06:04:00Z
+
+---
+
+Plan approved by @bruk (c02f8d24d1bc, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

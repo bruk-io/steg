@@ -17,7 +17,7 @@ Tag every finding with its pass.
 - **Bugs.** Logic errors, unhandled edge cases, regressions, code that won't build or run, and tests that don't test what they claim.
 - **Security.** Secrets or tokens in code or logs, input reaching a shell, a query or a file path unchecked, permissions widened, and errors swallowed instead of reported.
 - **Compliance.** Does the change do what the task's plan says, and meet each acceptance criterion? Compare the files it touches with the plan's files and its order of work. A change that builds against something other than the contract is a finding. A departure from the plan is a finding unless the task's notes say what changed and why.
-- **Evidence.** Were the checks the worker recorded run on this branch, after its last change, and did they pass? A check recorded before the last commit, or not at all, is a finding.
+- **Evidence.** Were the checks the worker recorded run on this branch, after its last change, and did they pass? A check recorded before the last commit, or not at all, is a finding. So is a proof step the plan or an acceptance criterion calls for that the notes describe but no recorded run shows, even when it was a demonstration meant to be reverted.
 - **Size and approval.** A task larger than `size-1` needs "Plan approved by @<engineer>" in its comments. A `size-1` task skipped plan approval, and its notes say "size-1: plan approval skipped; small because ...": its plan must be numbered steps, and the change must really be small and mechanical, a few lines in a few files with no design choice the steps left open. Either missing or untrue is an Important Compliance finding.
 
 ## Severity

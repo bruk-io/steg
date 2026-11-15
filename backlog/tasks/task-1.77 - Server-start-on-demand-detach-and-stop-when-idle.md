@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-15T23:38:00Z'
+updated_date: '2026-11-15T23:39:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -65,7 +65,10 @@ own split:
 
 Everything below is the full design for all three, so the engineer has the whole shape
 before deciding; if the split is approved this plan is rewritten per child the way
-TASK-1.44's was.
+TASK-1.44's was. **This plan's own digest, once approved, covers all three pieces
+together - if the split is approved instead, that approval does not carry over to a
+child's own, narrower diff; each child needs its own plan written and approved before
+its worker builds, the same two-step TASK-1.44 went through.**
 
 ## 1. Detaching (B1): no fork, no fd-passing, one `setsid` call
 
@@ -115,7 +118,11 @@ line runs) where the detaching this line asks for is already true.
 does not exist on this platform at all. Naming this so nobody reaches for it from
 memory later.
 
-**The one new function, `steg_server::ondemand::serve_on_demand`**, is where `setsid`
+**The one new function, `ondemand::serve_on_demand`, re-exported at the crate root as
+`steg_server::serve_on_demand` (`lib.rs` gains `mod ondemand; pub use ondemand::
+serve_on_demand;`, the same `mod`/`pub use`-only shape every other module in this crate
+already follows, per `.claude/rules/rust.md`'s "`lib.rs`... hold[s] `mod` and `pub use`
+lines only")**, is where `setsid`
 lives, and where B2 and B3 each add one line later without changing its signature:
 
 ```rust
@@ -150,7 +157,7 @@ server's life - so `crates/steg`'s entry point calls `steg_server::attempt` itse
 nothing new; already `pub` from `lib.rs`), prints, and only then calls either
 `steg_server::run` directly (explicit start - no detaching at all, matching R99's own
 wording that only assigns detaching to "started on demand") or the new
-`steg_server::ondemand::serve_on_demand` (section 4 has the whole function). `steg_server`
+`steg_server::serve_on_demand` (section 4 has the whole function). `steg_server`
 exposes outcomes as plain data (`Arbitration`, already public) and prints nothing itself,
 consistent with everything else in this crate today.
 
@@ -441,7 +448,7 @@ fn run_server_start(on_demand: bool) -> i32 {
         Ok(steg_server::Arbitration::Became(handle)) => {
             println!("started a new server");
             let result = if on_demand {
-                steg_server::ondemand::serve_on_demand(handle, &socket_path, &config)
+                steg_server::serve_on_demand(handle, &socket_path, &config)
             } else {
                 steg_server::run(handle, &socket_path, &config, &steg_server::Stopper::new(), None)
             };
@@ -463,7 +470,7 @@ handled specially by this task - it falls through to today's placeholder, since 
 every malformed invocation is TASK-1.49's job once the real CLI exists; named as a
 narrow, deliberate gap rather than a silent one.
 
-**Why `steg_server::ondemand::serve_on_demand` (section 1) rather than reusing `listen::
+**Why `steg_server::serve_on_demand` (section 1) rather than reusing `listen::
 serve`.** `serve()` (listen.rs, unmodified, still used by TASK-1.44's own tests) returns
 `ServeOutcome::Became` only *after* `run()` has already finished - it cannot be used by
 `crates/steg` to print "started" before the server's whole life is over. This task does
@@ -504,8 +511,18 @@ fn two_simultaneous_starts_converge_on_one_server() {
                                                             // bounded, never a bare wait()
     // AC #7, "what the client is left holding": the loser, left unwaited the way the
     // sdk's own connect() leaves every losing spawn, is observably a zombie right now
-    assert_zombie(loser.id()); // `ps -o stat= -p <pid>` contains 'Z' - shelled out,
-                                // test-only, not a new production dependency
+    assert_zombie(loser.id()); // runs `ps -o stat= -p <pid>`, test-only, not a new
+                                // production dependency. Asserts the command produced
+                                // exactly one line of output (a bare, empty result -
+                                // no row at all, which `ps` gives for a pid it cannot
+                                // find - fails the test loudly rather than being read
+                                // as "not a zombie"; the plan's own worker confirms
+                                // this empty-output case cannot be reached here before
+                                // the explicit `loser.wait()` below runs, since the
+                                // test's own process is the loser's parent and nothing
+                                // else can have reaped it yet) and that line contains
+                                // 'Z'. Whichever of the two conditions fails, the
+                                // failure message names which one.
     loser.wait().unwrap(); // reap it, test hygiene, not something production code does
     winner.kill().unwrap();
     winner.wait().unwrap(); // bounded: SIGKILL is not caught, this returns promptly
@@ -604,9 +621,15 @@ considered for section 2 and rejected (section 2's own reasoning); no `fork`, no
   spawned process actually become a server, proved by `server_start.rs`'s
   `on_demand_start_through_the_real_sdk_connects_and_handshakes` (one real client via
   the sdk, autostart, a real handshake over the result) and
-  `explicit_start_prints_started_and_blocks_with_no_idle_checker` (B1: asserts no
-  idle-checker thread exists for the explicit path by construction - there is none to
-  find; B2 adds its own explicit-vs-on-demand idle test once the checker exists).
+  `explicit_start_stays_up_with_no_client_ever_connecting` (B1: spawns `steg server
+  start` with no flag, waits for the socket to accept, then waits a short bound with
+  **no client ever connecting** and asserts the process is still alive and the socket
+  still accepts - a real, biting assertion, not an appeal to construction, since B1's
+  own `run()` call for the explicit path passes `events: None` and a fresh `Stopper`
+  nobody holds, so nothing in this path *could* stop it; the test proves that remains
+  true rather than asserting it by reading the code. Kills and reaps the process as
+  teardown. B2 adds its own explicit-vs-on-demand idle test once the checker exists,
+  proving the same thing again under B2's own `ServerConfig` fields).
 - **AC #2** (survives the client; login-shell environment; bounded capture): the
   SIGKILL and SIGHUP tests (section 5) for the first clause; `login.rs`'s own tests
   (section 2) for the second and third - a real call against this test process's own,

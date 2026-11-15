@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:01:00Z'
+updated_date: '2026-11-15T21:05:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -270,6 +270,30 @@ TASK-1.48 added two tests in crates/server/tests/dispatch.rs that record today's
 Correction: the two tests mentioned above were removed from TASK-1.48 before it merged (ae89d2b), so there is nothing to invert; this task writes the tests that show api.call reaching the settings methods.
 
 Plan checked against doc-2 (sections 2, 5, 8), decision-1 and doc-14 by @bruk.o: ok. api.call's own selector is renamed from target to method on the wire and keeps the Target role, so it is still the CLI's one positional and doc-2's row (target: method) is already true; the called method's parameters stay flat beside it, so its own target survives. No spec or decision document changes; the description of api.call changes (one parameter's name), which the engineer approves with the plan. Nesting the parameters was weighed and set aside as a larger change to the description format. A test fixes that no method declares a parameter named method. Proof is driven from the description, with named targets shown to be acted on rather than the default.
+
+Check passed: `just check` exited 0 at 2026-11-15T21:05:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.81 on task-1.81-api-call-cannot-reach-a-method-that-has at 4567a1a52ab8:
+
+```text
+ok      format check (0.1s)
+ok      lint (82.0s)
+ok      boundaries (0.2s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (43.8s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (43.8s)
+ok      test (steg-server) (2.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (18.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

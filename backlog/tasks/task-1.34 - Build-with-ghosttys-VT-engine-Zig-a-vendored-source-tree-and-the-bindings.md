@@ -446,6 +446,12 @@ ok      test (steg) (0.4s)
 ok      build (steg-app) (14.4s)
 ok      test (steg-app) (0.7s)
 ```
+
+Check passed: `just test-all` exited 0 at 2026-11-15T03:41:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 7b30c7cf896d:
+
+```text
+ok      tests (every crate) (0.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

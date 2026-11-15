@@ -1,14 +1,13 @@
 ---
 id: TASK-1.75
 title: 'Server: dispatch a request to the kernel, and the API''s self-description'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T14:15:00Z'
-updated_date: '2026-11-15T17:20:00Z'
+updated_date: '2026-11-15T17:24:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.43
@@ -1159,6 +1158,83 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 42, 35 without the Asdlc-Worker trailer.
+
+Review findings fixed (@bruk.r5, same-machine, 2026-11-15 17:10):
+
+1. (Important, tab.rs:44) tab.new now honours `position`: validated
+   (wire_position_to_index) before anything is created; new_tab then
+   move_tab as one outcome, rolling back (close_tab, restore the
+   session's previous current tab via focus_tab) if the position is
+   past the end, so a refusal never leaves a tab nobody asked to keep.
+   Tests (crates/server/tests/dispatch.rs): tab_new_with_position_one_
+   places_the_new_tab_first, tab_new_with_a_middle_position_places_the_
+   new_tab_there, tab_new_with_no_position_appends_at_the_end_as_before,
+   tab_new_with_position_zero_is_refused_and_creates_nothing,
+   tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_
+   creates_nothing (checked against tab.move's own PositionOutOfRange
+   for the same index, on two separate trees so neither call's state
+   gets in the other's way), tab_new_with_a_position_past_the_end_and_
+   no_focus_creates_nothing_and_restores_focus.
+
+   Re-ran decision-4's own test (does the method's returns/documented
+   effect imply the flag's effect took hold; if yes and unactable,
+   refuse) over every served method's declared parameters against its
+   arm once more: session (8/8), tab (8/8), pane (13/13), api (3/3) -
+   no other parameter found accepted and silently unacted on. Only
+   tab.new's position was missed the first time.
+
+2. (Nit) every_served_nothing_returning_method_answers_exactly_null and
+   every_served_identifier_returning_method_answers_exactly_one_id_field
+   (which covered 3 and 1 of ~18 served methods of those kinds) replaced
+   with every_nothing_or_identifier_returning_method_matches_its_
+   declared_shape: every method of either kind in description() is
+   covered by name, against a dedicated piece of tree state per case
+   (so the order cases run in cannot matter), with a hard failure for
+   any method the test has no case for, plus a closing set-equality
+   assertion against the description as a second, independent check.
+
+3. (Nit) Added the harder --no-focus cases: pane_split_with_no_focus_
+   restores_a_current_pane_that_is_not_the_target (splits a pane that is
+   not the tab's current one) and tab_new_with_no_focus_restores_a_
+   current_tab_that_is_not_the_first (a session whose current tab is
+   neither first nor last) - both confirm the restore reads the tab's/
+   session's actual previous current, not the split's own target or the
+   first tab.
+
+4. (Nit, no code change) mod.rs holding Context, dispatch and the shared
+   helpers, against rust.md's "lib.rs and mod.rs hold mod and pub use
+   lines only" - unchanged, since the plan itself named this file for
+   this content. Worth a later split (session/tab/pane/api's shared
+   resolution and param helpers into their own module) once this task's
+   own scope is settled; not done here since the plan did not ask for
+   it and splitting now would be an unreviewed restructuring on top of
+   an already-reviewed diff.
+
+Brought in origin/main twice more since the first review (PR #30,
+TASK-1.70's sdk protocol logic and local-socket provider; and the board
+-only commits around it) - no conflicts in either merge; no new kernel
+Error variant landed (TASK-1.40/1.42 still unmerged, as expected per the
+review brief - not anticipated here). TASK-1.70 added `server.start`'s
+on_demand switch to the description; server.start is already in this
+task's not-yet list (server.* nouns have no served arm), so it needs no
+change here and the completeness/smoke tests already cover it correctly
+(an optional switch adds no required param).
+
+just check recorded clean at the new head (e0abcd9) after both merges.
+CI green on PR #33 at the same SHA.
+
+Updated clause-by-clause mapping (only what changed from the first
+pass; AC #4, #5 and #7 are as recorded at finish):
+- AC #1: unchanged, plus the tab.new tests above now also prove
+  validation/refusal for its position branch.
+- AC #2: unchanged (position-related refusals are BadRequest/
+  PositionOutOfRange, not NotImplementedYet - tab.new's position
+  branch was never a not-yet case, which is exactly finding #1's point).
+- AC #3: every_nothing_or_identifier_returning_method_matches_its_
+  declared_shape now proves the Nothing/Identifier shape for every
+  served method of those kinds by name, not a sample of 4.
+- AC #6: the two new harder no-focus tests (finding #3) strengthen this
+  clause's proof beyond the trivial single-pane/single-tab case.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

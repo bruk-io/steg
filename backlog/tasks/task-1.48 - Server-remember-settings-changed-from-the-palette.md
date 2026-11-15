@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:17:00Z'
+updated_date: '2026-11-15T19:18:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -435,6 +435,16 @@ test result: ok. 221 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fi
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-kernel setting::tests::set_rejects_an_unknown_setting_name setting::tests::set_rejects_a_value_outside_the_closed_set` exited 1 at 2026-11-15T19:18:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.48 on task-1.48-server-remember-settings-changed-from at 670785accd8b with uncommitted changes:
+
+```text
+error: unexpected argument 'setting::tests::set_rejects_a_value_outside_the_closed_set' found
+
+Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
+
+For more information, try '--help'.
 ```
 <!-- SECTION:NOTES:END -->
 

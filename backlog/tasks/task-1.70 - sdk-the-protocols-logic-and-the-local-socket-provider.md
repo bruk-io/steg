@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:21:00Z'
-updated_date: '2026-11-15T16:05:00Z'
+updated_date: '2026-11-15T16:13:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -44,8 +44,8 @@ code, does no I/O anywhere, and every test runs in memory; half B is entirely be
 `local-socket`, is the only place with the crate's one `#[expect]`, and is the only part
 whose test needs a filesystem and a real listener. They prove disjoint acceptance criteria
 (A: #1, #2, #4, #6; B: #3) and fail for different reasons, so a reviewer can take them one at
-a time. Whether that becomes two PRs or stays one PR with two commits is the engineer's call
-at plan approval - I can't split this task myself - but the branch must not interleave them.
+a time. The engineer (per the team lead) will get one pull request with these two commits;
+whether to split further is still their call, not squeezed here.
 
 ## Where decision-2 and doc-14 diverge from what's being built
 
@@ -65,6 +65,18 @@ at plan approval - I can't split this task myself - but the branch must not inte
   the client's hello, and `client` (the server-assigned id) to the server's reply - allowed
   because unknown keys are ignored, and TASK-1.46 needs `kind` for `client.list`. This task
   adds those fields now rather than leaving a later task to widen a frozen type.
+  - **Correction after review:** `ClientKind` and `ClientId` are not defined here. TASK-1.42
+    (planned in parallel) already defines both once - `ClientId` in `crates/sdk/src/ids.rs`,
+    mirroring `SessionId`/`TabId`/`PaneId` (`from_raw`/`into_raw`/`Display`/`FromStr`/serde,
+    hex string on the wire); `ClientKind` in a new `crates/sdk/src/client_kind.rs`
+    mirroring `pane_kind.rs` (`App`/`Cli`/`Plugin`, `#[serde(rename_all = "snake_case")]`,
+    matching the words `client.list`'s `kind` field already declares in `methods.rs`). This
+    task's hello types use `crate::ids::ClientId` and `crate::client_kind::ClientKind`
+    as-is, adding neither. **Landing order:** if this task lands first, it creates exactly
+    those two additions (the file and the `ids.rs` type) precisely as TASK-1.42's own plan
+    describes them, says so in its PR/notes, and TASK-1.42 then finds them already there
+    instead of redefining them; if TASK-1.42 lands first, this task simply imports what
+    already exists and adds nothing to `ids.rs`/`client_kind.rs`.
 
 ## Half A: the protocol's logic (no I/O, no feature)
 
@@ -91,10 +103,11 @@ length framing only, `tokio`/`bytes` stripped:
 round-trip dropped (half A has no transport to round-trip over; driving the handshake is
 `wire/connection.rs`'s job, below):
 - `PROTOCOL_VERSION: u32 = 1`, `STEG_MAGIC: &str = "steg"`.
-- `ClientHello {steg, protocol, client, kind: ClientKind, label: Option<String>}`,
-  `ClientKind {App, Cli, Plugin}` (doc-14), `ServerHello {steg, protocol, server, api,
-  client: String}` (doc-14's server-assigned id), `Refused`, `Refusal {Mismatch, Malformed}`,
-  `Handshake {Accept, Refuse}` - same shape as the spike otherwise.
+- `ClientHello {steg, protocol, client: String, kind: crate::client_kind::ClientKind, label:
+  Option<String>}`, `ServerHello {steg, protocol, server, api, client: crate::ids::ClientId}`
+  (doc-14's server-assigned id, typed as an id per doc-16 R105, not a bare string), `Refused`,
+  `Refusal {Mismatch, Malformed}`, `Handshake {Accept, Refuse}` - same shape as the spike
+  otherwise.
 - `check_hello(payload: &[u8], server_protocol: u32) -> Handshake` - ported as-is, already
   sans-I/O in the spike.
 - Tests: client newer, server newer (both directions named, R39), bad magic, missing field,
@@ -126,12 +139,13 @@ beside them:
   body}, UnknownEvent{name, body}, Data{stream, bytes}, UnknownStream{stream, kind},
   Malformed(FrameError)}`.
   - Events are resolved against the stored `Description` at decode time (not left as a bare
-    `String` nobody checked): a name the description lists comes back as `Incoming::Event`,
-    anything else as `Incoming::UnknownEvent` - both carry `body: Value`. The body itself
-    stays untyped-by-field on purpose: `methods.rs` already carries `layout`, `status`, and
-    `shown_status` as `ValueKind::Text` placeholders pending TASK-1.39/1.41, so there are no
-    settled per-event field shapes yet to decode into; typing the body is that task's to do,
-    not this one's to fake.
+    `String` nobody checked): a name the description lists (via the new
+    `Description::event` lookup below) comes back as `Incoming::Event`, anything else as
+    `Incoming::UnknownEvent` - both carry `body: Value`. The body itself stays untyped-by-
+    field on purpose: `methods.rs` already carries `layout`, `status`, and `shown_status` as
+    `ValueKind::Text` placeholders pending TASK-1.39/1.41, so there are no settled per-event
+    field shapes yet to decode into; typing the body is that task's to do, not this one's to
+    fake.
   - `Data` on a registered stream, `UnknownStream` on one that is not - test named for
     decision-2 section 3's own invariant (`unknown_stream_frames=0`), proving the inverse: a
     frame on an unregistered stream is surfaced, not silently dropped or silently accepted.
@@ -143,9 +157,11 @@ beside them:
     is the one path every method call takes, generated CLI commands and the app alike (AC #5
     "with none written by hand").
   - Server: `accept_or_refuse(&mut self, payload: &[u8], server_name: &str, api: &str,
-    client_id: &str) -> (Handshake, Vec<u8>)`; `reply(&mut self, id: u64, response:
-    description::Response) -> Vec<u8>`; `emit_event(&mut self, name: &str, body: Value) ->
-    Vec<u8>`.
+    client_id: ClientId) -> (Handshake, Vec<u8>)` - the `ClientId` is minted by the caller
+    (the server crate, through the kernel's `Ids::next_client`, TASK-1.42), never by the sdk:
+    minting an id is the kernel's behaviour, not a shape (`ids.rs`'s own module doc).
+    `reply(&mut self, id: u64, response: description::Response) -> Vec<u8>`;
+    `emit_event(&mut self, name: &str, body: Value) -> Vec<u8>`.
   - Both: `send_data(&mut self, stream: u32, bytes: &[u8]) -> Result<Vec<u8>, FrameError>` -
     refuses an unregistered stream or an over-cap payload before encoding.
 - No trait is defined for "the transport." The brief itself names why: a blocking CLI,
@@ -185,26 +201,71 @@ add), and `send_data`; it adds no framing.
   list (`serde`, `serde_json` only) plus `just check-boundaries` is the existing mechanical
   proof that no `gpui`/`tokio` dependency can be added; this task adds none.
 
+## A small, explicit doc-2 change this plan proposes, for the engineer to approve separately
+
+**Correction after review:** the provider does not invent a private `serve` entry point.
+doc-2 section 3 already has the words for this: `server start`, `server stop`, `server show`
+are documented methods/commands, and "a method the CLI does not expose is a failing test"
+means a hidden, undocumented verb is exactly what this document forbids adding silently. But
+`server.start` as it stands today (`methods.rs`: "Stays up with no clients... unlike a server
+started on demand") only ever means the *explicit* half of R99's lifecycle - it has no way to
+say "this start is the on-demand kind, which stops itself after 30 seconds with no sessions
+and no clients." Read plainly, `server.start`/`.stop`/`.show` are RPCs a connected client
+sends to a server that already exists - they cannot be how a client that has found **no**
+server brings one into existence at all, since there is nothing to connect to yet and so
+nothing to send an RPC to. The gap doc-2 has no words for yet is that second thing: "become a
+server, as the on-demand kind, if none exists."
+
+Proposed, smallest change (one new switch on one existing method, not a new verb):
+- `crates/sdk/src/description/methods.rs`, `server_methods()`, the `server.start` entry
+  gains one parameter: `switch("on_demand", "Start as an on-demand server, which stops \
+  itself after 30 seconds with no sessions and no clients (doc-8 R99), rather than staying \
+  up until told to stop")`. The CLI gets `--on-demand`/`--no-on-demand` for free, mechanically
+  (doc-2 section 5), with no renaming by hand.
+- `backlog/docs/doc-2 - Spec-CLI.md`, the `server start` row (currently `| server start |
+  none | Stays up with no clients |`) becomes `| server start | --on-demand | Stays up with
+  no clients, unless --on-demand is given, in which case it stops itself after 30 seconds
+  with no sessions and no clients (doc-8 R99) |`.
+
+**The contract this gives TASK-1.44 (and TASK-1.49, which builds the generated `server start`
+command):** the provider's spawn step always runs exactly `<binary> server start
+--on-demand`. What that command does, which is not this task's to build, is: try to connect
+to `paths::socket_path` first; finding one already listening, connect as an ordinary client
+and send the `server.start` RPC (so a person typing plain `steg server start` by hand, with
+no flag, still gets today's documented sticky behaviour unchanged against either a fresh or
+an already-running server); finding none, become the server directly - bind, detach, serve,
+with R99's on-demand lifecycle when `--on-demand` was given - **without** going through the
+sdk's own `local_socket::connect`'s autostart path, which would spawn another copy of itself
+and recurse. That one sentence is the whole of what this task hands TASK-1.44; everything
+about detaching, the 30-second idle stop, and resolving two simultaneous starts to one
+survivor (R99) stays its own code, same as before this correction.
+
+This is a change to doc-2 and to the API description, not just to this crate, so it is called
+out here as its own item for the engineer to approve, separately from the rest of the plan.
+
 ## Half B: the local-socket provider (behind the `local-socket` feature)
 
 **`crates/sdk/src/paths.rs` - no feature gate, no I/O, pure:**
-- `pub fn socket_path(xdg_runtime_dir: Option<&Path>, tmp_dir: Option<&Path>, user:
-  Option<&str>) -> PathBuf`. Preference order: `$XDG_RUNTIME_DIR/steg.sock` (doc-13 R60's own
-  name), else `$TMPDIR/steg.sock` (macOS's de facto per-user, mode-700, runtime-only
-  equivalent - XDG_RUNTIME_DIR is rarely set on macOS), else `/tmp/steg-<user>.sock` as a last
-  resort shared-tmp fallback. Flat, no subdirectory: `sockaddr_un.sun_path` is 104 bytes on
-  macOS, and a realistic `$TMPDIR` such as
+- `pub fn socket_path(explicit: Option<&Path>, xdg_runtime_dir: Option<&Path>, tmp_dir:
+  Option<&Path>, user: Option<&str>) -> PathBuf`. `explicit` wins outright when given (an
+  override hook, read from `STEG_SOCKET_PATH` by whichever caller wants one - tests, and
+  later a person's own debugging, same category as the other `STEG_*` variables doc-2
+  section 4 already lists). Otherwise, preference order: `$XDG_RUNTIME_DIR/steg.sock`
+  (doc-13 R60's own name), else `$TMPDIR/steg.sock` (macOS's de facto per-user, mode-700,
+  runtime-only equivalent - XDG_RUNTIME_DIR is rarely set on macOS), else
+  `/tmp/steg-<user>.sock` as a last resort shared-tmp fallback. Flat, no subdirectory:
+  `sockaddr_un.sun_path` is 104 bytes on macOS, and a realistic `$TMPDIR` such as
   `/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/T/` plus `steg.sock` is already close to
   half that budget, so no extra directory component is spent on it. Test asserts the encoded
   path (`to_str().unwrap().len()`, with the function tested against that exact realistic
   example) stays under the limit, with a margin, rather than asserting it by inspection only -
   flagged as a real constraint, not a formality, and as a limitation if some future `$TMPDIR`
   ever runs longer.
-- This function takes resolved inputs, not environment access, so it is unit-tested directly
-  with fabricated values and needs nothing from `local-socket`. Reading the real environment
-  is each caller's own job: the provider below, and later TASK-1.44's listener, which must
-  call this same function with the environment it reads so client and server converge on one
-  path with no message ever naming it.
+- Pure and tested directly with fabricated inputs. Reading the real environment
+  (`XDG_RUNTIME_DIR`/`TMPDIR`/`USER`/`STEG_SOCKET_PATH`) is each caller's own job: the
+  provider below, and later TASK-1.44's listener, which must call this same function with the
+  environment it reads so client and server converge on one path with no message ever naming
+  it.
 - **The lock half of "the socket's path and lock" is explicitly not this task's.** The
   provider never creates, checks, or holds a lock; it only spawns and waits for the socket to
   accept a connection. Mutual exclusion when two clients start a server at the same moment
@@ -221,24 +282,27 @@ add), and `send_data`; it adds no framing.
   `steg`, which is an open question left to that task's plan, not answered here.
   `socket_path: None` means "compute it from the real environment via `paths::socket_path`";
   `Some(path)` is the override a test (and later `--host`/debugging) uses so no test has to
-  mutate process-wide env vars.
+  mutate process-wide env vars - when spawning, this exact value is also set as
+  `STEG_SOCKET_PATH` on the **child's** environment only, so a test's fake server (or later a
+  real one) that calls the same `paths::socket_path` with its own inherited environment
+  converges on the identical path with no process-wide env mutation anywhere.
 - `ConnectError {NoServerRunning, Spawn(io::Error), Timeout, Connect(io::Error)}`.
   `NoServerRunning` is exactly what doc-2 line 180's `--no-autostart` exits 4 on - TASK-1.49
   maps it there, nothing in the sdk knows about exit statuses.
 - `pub fn connect(options: &ConnectOptions) -> Result<UnixStream, ConnectError>`:
-  1. Resolve the path (`options.socket_path` or `paths::socket_path` fed from
-     `env::var("XDG_RUNTIME_DIR")`/`"TMPDIR"`/`"USER"`).
+  1. Resolve the path: `options.socket_path` directly if given, else `paths::socket_path`
+     fed from `env::var("STEG_SOCKET_PATH")`/`"XDG_RUNTIME_DIR"`/`"TMPDIR"`/`"USER"`.
   2. Try `UnixStream::connect(&path)`. On success, return it - a server was already running,
      nothing is spawned.
   3. On failure: if `!options.autostart`, `Err(NoServerRunning)`.
-  4. Otherwise spawn `Command::new(&options.binary).arg("serve").stdin/out/err(Stdio::null())`
-     and **do not wait() on the child** - R99's detaching, re-parenting or double-fork, and
-     stopping are the server's own code; the provider drops the `Child` handle once spawn
-     succeeds and trusts the server to have finished detaching by the time its socket
-     answers. `serve` is a private entry point, not part of doc-2's documented grammar;
-     TASK-1.44 implements a `steg` binary that, run this way, computes its own socket path
-     with `paths::socket_path` over its own inherited environment and binds there - that's
-     the whole of the contract this task hands it.
+  4. Otherwise spawn `Command::new(&options.binary).args(["server", "start",
+     "--on-demand"]).stdin/out/err(Stdio::null())`, setting `STEG_SOCKET_PATH` on the child's
+     environment when `options.socket_path` was `Some`, and **do not wait() on the child** -
+     R99's detaching, re-parenting or double-fork, and stopping are the server's own code;
+     the provider drops the `Child` handle once spawn succeeds and trusts the server to have
+     finished detaching by the time its socket answers. See "A small, explicit doc-2 change"
+     above for exactly what this command line means and why it is this and not a private
+     subcommand.
   5. Retry `UnixStream::connect` on a short interval until it succeeds or
      `connect_timeout` elapses (`Timeout`).
 - This is the module `.claude/rules/sdk.md` describes: one `#[expect(clippy::disallowed_types,
@@ -254,8 +318,12 @@ add), and `send_data`; it adds no framing.
 `crates/sdk/Cargo.toml` - it only builds under that feature, and its compiled path reaches
 `crates/sdk/tests/local_socket.rs` (`#![cfg(feature = "local-socket")]`) via
 `env!("CARGO_BIN_EXE_fake-server-for-tests")`, a standard Cargo integration-test mechanism, no
-new dependency. The fixture binds a `UnixListener` at the path given on its own argv and
-sleeps, standing in for "a server now accepts there."
+new dependency. The fixture does exactly what a real server is contracted to do for this
+purpose: it calls the crate's own `paths::socket_path` fed from its own inherited environment
+(so it honours `STEG_SOCKET_PATH` the same way `connect()`'s spawn step sets it, with no path
+ever passed on its argv - its argv is ignored, standing in for the fact that a real `steg
+server start --on-demand` is not told a path either), binds a `UnixListener` there, and
+sleeps.
 
 **AC -> test, half B (all in `crates/sdk/tests/local_socket.rs`, each against a temp dir, no
 network, no real `steg` binary):**
@@ -263,13 +331,15 @@ network, no real `steg` binary):**
   spawned, proved by pointing `binary` at a path that cannot execute and asserting no `Spawn`
   error occurs.
 - Nothing is listening, `autostart: false` -> `Err(NoServerRunning)`, nothing spawned.
-- Nothing is listening, `autostart: true`, `binary` is the fixture -> `connect()` waits and
-  succeeds once the fixture binds.
+- Nothing is listening, `autostart: true`, `binary` is the fixture, `socket_path: Some(temp
+  path)` -> `connect()` sets `STEG_SOCKET_PATH` on the spawned fixture, waits, and succeeds
+  once the fixture binds at that same path.
 - `connect_timeout` elapses with nothing ever binding -> `Err(Timeout)`.
 
 **Not this task's, confirmed against TASK-1.44's own acceptance criteria:** the socket's 0600
-mode, the handshake timeout, the real `steg serve` entry point, and the lock/race resolution
-for R99 are all named on TASK-1.44 already and stay there.
+mode, the handshake timeout, the real `server start --on-demand` entry point (including its
+"connect first, become the server only if that fails, never recurse into autostart" branch),
+and the lock/race resolution for R99 are all named on TASK-1.44 already and stay there.
 
 ## A gap this task has to close in `justfile`, or half B's tests never run in `just check`
 
@@ -287,11 +357,14 @@ isn't accidentally on everywhere else.
 ## What each dependent needs from this task, as public types and functions
 
 - **TASK-1.44** (server, socket, lifecycle): `wire::{PROTOCOL_VERSION, STEG_MAGIC,
-  ClientHello, ServerHello, Refused, Refusal, Handshake, ClientKind}`,
-  `Connection::{new, accept_or_refuse, reply, emit_event, open_stream, close_stream,
-  send_data, receive, poll}` driven over its own socket read/write loop; `paths::socket_path`
-  fed from its own environment reads, so it binds at the identical path the provider computes
-  with no path ever sent over the wire. Everything about detaching, the 30-second idle
+  ClientHello, ServerHello, Refused, Refusal, Handshake}`, `Connection::{new,
+  accept_or_refuse, reply, emit_event, open_stream, close_stream, send_data, receive, poll}`
+  driven over its own socket read/write loop; `paths::socket_path` fed from its own
+  environment reads (including `STEG_SOCKET_PATH` if set, so tests of its own can override
+  it the same way this task's tests do); `ClientId` minted via the kernel's
+  `Ids::next_client` before calling `accept_or_refuse`. Implements the `server start
+  --on-demand` contract above: try to connect first, become the server only on failure,
+  never recurse into the sdk's own autostart. Everything about detaching, the 30-second idle
   stop, the handshake timeout, and resolving two simultaneous starts to one survivor (R99) is
   its own code, built on top of these, not supplied here.
 - **TASK-1.45** (frames, streams, requests routed to the API): `Connection::poll`'s
@@ -305,7 +378,12 @@ isn't accidentally on everywhere else.
   (unchanged, from TASK-1.43), `Connection::{new(Role::Client, ...), send_hello, call, poll}`,
   and `local_socket::{ConnectOptions, ConnectError, connect}` wired to `--autostart`/
   `--no-autostart` (`ConnectError::NoServerRunning` -> exit status 4, doc-2 line 180);
-  `binary: std::env::current_exe()`.
+  `binary: std::env::current_exe()`. Also builds the generated `server start` command,
+  including its new `--on-demand` flag (mechanical, like any other switch) and the one
+  hand-written exception doc-2 now needs: `server start`'s own handler does not use the
+  ordinary connect-or-autostart flow every other generated command uses, since that would
+  recurse into spawning itself; it tries a plain connect first and only becomes the server on
+  failure, as the contract above states.
 - **TASK-1.52** (app): the same `Connection` surface as the CLI, driven from GPUI's own
   executor rather than a blocking read loop (its own concern, not this task's - R106 bars no
   particular async runtime from the sdk, and nothing here assumes one either way);

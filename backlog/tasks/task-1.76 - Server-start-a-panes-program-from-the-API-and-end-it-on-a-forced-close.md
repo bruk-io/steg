@@ -789,6 +789,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 126 with exit code 1
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T20:55:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes, last 40 of 65 lines:
+
+```text
+
+error: doc list item without indentation
+   --> crates/server/src/dispatch/pane.rs:183:5
+    |
+183 | /// that forces the program itself to end).
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+183 | ///   that forces the program itself to end).
+    |     ++
+
+error: docs for function which may panic missing `# Panics` section
+   --> crates/server/src/runtime.rs:91:5
+    |
+ 91 |     pub fn new(launcher: Arc<dyn ProgramLauncher>, login: LoginShell) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: first possible panic found here
+   --> crates/server/src/runtime.rs:100:21
+    |
+100 |           let drain = thread::Builder::new()
+    |  _____________________^
+101 | |             .name("steg-runtime-drain".to_string())
+102 | |             .spawn(move || {
+103 | |                 for event in events_rx {
+...   |
+118 | |             })
+119 | |             .expect("spawning the one drain thread at construction");
+    | |____________________________________________________________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+    = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: could not compile `steg-server` (lib) due to 7 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (lib test) due to 6 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

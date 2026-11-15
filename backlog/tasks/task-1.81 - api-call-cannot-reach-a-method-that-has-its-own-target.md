@@ -1,14 +1,13 @@
 ---
 id: TASK-1.81
 title: api call cannot reach a method that has its own target
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T20:14:00Z'
-updated_date: '2026-11-15T21:32:00Z'
+updated_date: '2026-11-15T21:36:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.48
@@ -622,6 +621,18 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 15, 13 without the Asdlc-Worker trailer.
+
+Review findings from @bruk.r3 (2d63736), addressed:
+
+1. Important: api_call_refuses_to_call_itself (dispatch.rs) asserted only error.code, which the pre-fix code (reading "target") also produced - BadRequest, but for "the selector is missing" ("target: must be text"), not "refuses to call itself" ("api.call cannot call api.call"). Now compares the whole message too. Did the proof step properly this time, recorded with asdlc record-check: restored the old read-and-strip of "target" in api.rs as a scratch edit, ran `cargo test --test dispatch api_call` (13 tests, including the two added for this round) - all 13 failed, this one included (exit 101, recorded); restored the fix; ran the same filter again - all 13 passed (exit 0, recorded); then `just check` clean at the restored head (recorded).
+
+2. Nit: api_call_with_no_method_is_a_bad_request now also asserts the message ("method: must be text"), so it fails against the old code too (confirmed in the restore-and-run above).
+
+3. Nit: added api_call_with_a_non_text_method_is_a_bad_request, covering a number and an object, asserting both code and message. It takes the same early refusal as an absent method (param_str returns None for either), which the test's own doc comment says explicitly rather than leaving it to be inferred.
+
+4. Nit: the previous notes' claim that TASK-1.44 had merged was wrong - checked now with `gh pr view 37 --json state` before writing this sentence: PR #37 (TASK-1.44) is still OPEN, not merged. Only its board commits (claims, checks, the review-sent-back commit) are on main; its code is not. Correcting the record here since implementation notes are appended, not edited in place: TASK-1.41 is the one that actually merged since this task's first round (PR #38, confirmed MERGED) - its kernel changes (`Tree::record_exit`, `Pane::status` renamed) do not touch any file this task edits, confirmed by `just check` passing clean after merging origin/main into this branch.
+
+Brought origin/main in with a merge (branch already pushed) rather than a rebase, per the finish steps for an already-pushed branch; auto-merged cleanly, including methods.rs (TASK-1.41 added unrelated status fields near where TASK-1.81's `method_target` helper lives). `just check` recorded clean at the merged head, then again at this round's final head after the test fixes. PR #39 updated with the same branch; its CI check passed, watched in the foreground both times.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

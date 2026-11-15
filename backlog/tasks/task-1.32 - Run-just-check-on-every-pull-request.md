@@ -21,6 +21,8 @@ asdlc_branch: task-1.32-run-just-check-on-every-pull-request
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '80329a1be2b3'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -146,6 +148,15 @@ created: 2026-11-15T02:36:00Z
 ---
 
 Plan approved by @bruk (80329a1be2b3, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T02:48:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.32: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,7 +1,7 @@
 ---
 id: TASK-1.33
 title: 'Architecture model in LikeC4: context, containers, components and deployment'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-0
 dependencies: []
+references:
+  - task-1.33-architecture-model-in-likec4-context
+  - https://github.com/bruk-io/steg/pull/14
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -199,6 +202,21 @@ ok      tests (every crate) (0.3s)
 ok      tool tests (0.2s)
 ok      architecture (1.0s)
 ```
+
+Built the LikeC4 architecture model under architecture/ exactly as planned and approved, with the departures recorded above (TASK-1.69 already merged so crates/ already matches doc-16's five packages; .github/workflows/ci.yml appeared on main after this branch was cut, so a pinned actions/setup-node step was added to it per the engineer's instruction; plugins/bruk-io-steg/commands.toml deliberately left untouched per the engineer's instruction).
+
+Checks recorded on this task:
+- just check: exit 0 (baseline, before this task's changes)
+- just check: exit 0 (after the full build, pre-rebase)
+- just check: exit 0 (final, after rebasing onto origin/main twice to pick up TASK-1.69's crate reorg and the new CI workflow)
+
+Also proved by hand, not recorded as a check: deliberately broke architecture/models/steg/steg.c4, confirmed `just check` fails (AC #5), restored it, confirmed `just check` passes again.
+
+c4lint.py (the skill's own authoring linter, not wired into just check) reports 0 errors and 6 warnings, all "vague title 'depends on'" on the six component-level dependency edges that mirror doc-16's own "May depend on" table wording verbatim - these are expected and not fixed with an invented, more specific verb, since doc-16 itself only says "may depend on," not what for.
+
+Follow-up for the orchestrator, not done here per the engineer's instruction: add "Node.js (npx, for `just architecture`)" to plugins/bruk-io-steg/commands.toml's [check].needs and re-verify [check] through asdlc-plugin once this PR merges.
+
+PR: https://github.com/bruk-io/steg/pull/14
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -4,10 +4,10 @@ title: 'Server: frames, streams, and requests routed to the API'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:02:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.44
   - TASK-1.43

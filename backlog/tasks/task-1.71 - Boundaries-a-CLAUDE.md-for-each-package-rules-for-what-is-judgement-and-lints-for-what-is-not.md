@@ -7,12 +7,16 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:31:00Z'
+updated_date: '2026-11-15T03:37:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-0
 dependencies:
   - TASK-1.69
+references:
+  - task-1.71-boundaries-a-claude-md-for-each-package
+  - https://github.com/bruk-io/steg/pull/17
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -21,6 +25,10 @@ asdlc_branch: task-1.71-boundaries-a-claude-md-for-each-package
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd8f3885f55ed'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -699,6 +707,107 @@ ok      test (steg-app) (0.5s)
 ok      tool tests (0.5s)
 ok      architecture (2.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:33:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.71 on task-1.71-boundaries-a-claude-md-for-each-package at 9f9585ebdc03:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.1s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (0.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
+
+Built per the approved plan, with two things not in the plan's own file-change
+list but confirmed by the plan's own prose (both engineer-approved): the
+justfile `lint` recipe gained `--all-features`, and `packages` joined `check`.
+Both were measured and demonstrated before relying on them, as recorded below.
+
+AC#1 (sdk/kernel I/O fails just lint, mechanism named, reason in the message):
+proved by two recorded demonstrations, each added-then-reverted - a deliberate
+`std::fs::File` use in crates/kernel/src/lib.rs, and the same in
+crates/sdk/src/lib.rs. Each failed `! just lint` with clippy's
+`disallowed_types` message naming "doc-16 R110: no file I/O in the
+<crate>", then passed `just lint` again after revert. The mechanism
+(`clippy::disallowed_types`/`disallowed_methods`, configured in
+`crates/{kernel,sdk}/clippy.toml`) also covers socket, process and clock
+paths, visible directly in those two files - not separately demonstrated
+live, since it's the same clippy mechanism on a different path each time.
+"An async runtime" is covered by the pre-existing `boundaries.toml`
+dependency-name check (neither crate may depend on `tokio` at all), unchanged
+by this task, so not re-demonstrated here.
+
+AC#2 (kernel turning on the sdk's optional part fails just boundaries, with a
+tools/tests test): the declaration half - recorded `! just boundaries` failing
+when `crates/kernel/Cargo.toml` adds `features = ["local-socket"]` to its
+`steg-sdk` dependency, naming doc-16 R105 in the message, then passing again
+after revert. Unit tests: `test_a_denied_feature_declared_on_the_edge_is_a_violation`,
+`test_default_features_on_a_denied_dependency_is_a_violation`, and others in
+`tools/tests/unit/test_boundaries.py`, run via recorded `just test-tools`.
+The complementary use half (kernel's own source compiling against the sdk's
+optional parts only because some other workspace member turned the feature
+on, which the declared-edge check can't see) - recorded `just build` passing
+and `! just packages` failing on exactly that, reverted after. `just packages`
+now joins `just check`.
+
+AC#3 (every refusal names the requirement and why): visible in every
+recorded failure above - clippy prints the configured `reason` string
+("doc-16 R110: ..."), and `just boundaries`'s `FeatureViolation`/`Violation`
+messages print the crate's `reason` from `boundaries.toml` ("doc-16 R105
+..."). `format_feature_violation`/`format_violation` have their own unit
+tests asserting the crate, dependency, feature and reason are all present.
+
+AC#4 (CLAUDE.md per package, none restates a lint): `crates/{sdk,kernel,
+server,steg,app}/CLAUDE.md` added - what/depends/tests/doc-16 pointer each.
+Tests are stated as `just test`/`just packages`, not `cargo test -p`, per
+root CLAUDE.md's "commands go through just, never cargo directly" - a
+departure from the plan's literal wording, not its intent. Checked with
+`grep -rn -i "clippy\|disallowed" crates/*/CLAUDE.md`: no match, so none
+restates a lint.
+
+AC#5 (.claude/rules/ carries judgement, scoped by paths; lint-covered lines
+replaced in architecture.md): new `.claude/rules/{sdk,kernel,server}.md`,
+each `paths`-scoped to its one package. `architecture.md`'s old "no sockets,
+no files, no clock, no process spawning" enumeration is replaced by a bullet
+naming `clippy::disallowed_types`/`disallowed_methods` and the two
+`clippy.toml` paths; the dependency-table bullet names `just packages` as
+the use-side half of the same boundary. Recorded `just check` passing after
+this edit.
+
+AC#6 (plan lists what the plugin's layer rules should become): on the task's
+plan already (re-verified against origin/main's current, already-republished
+plugin content, not the stale snapshot the plan's first draft was written
+against). Nothing in `plugins/bruk-io-steg` touched in this worktree -
+confirmed with `git diff --stat HEAD -- plugins/` showing no changes.
+
+Known consequence worth flagging, not fixed here: moving "the server... never
+keeps a copy it treats as the truth" out of `architecture.md` (into the new
+`server.md`) changes which file holds it. An active decision record
+(decision-2) and an archived spike (task-1.2) cite
+"`.claude/rules/architecture.md:11`" by file and line for that exact
+sentence. The sentence still exists verbatim, now in `.claude/rules/
+server.md` (also, coincidentally, line 11), but the citations' file path is
+now wrong. Decision records are only hand-edited through their own PR per
+team convention, so not changed from this worktree - flagging for whoever
+next touches decision-2.
+
+Every check above was recorded through `asdlc record-check`, including the
+demonstrations that were reverted. `just check` recorded clean before any
+change, after the clippy.toml/justfile changes, after the Python/boundaries.toml
+changes, after the CLAUDE.md and rules changes, and once more after rebasing
+onto origin/main just before pushing.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -710,6 +819,38 @@ created: 2026-11-15T03:24:00Z
 ---
 
 Plan approved by @bruk (d8f3885f55ed, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:34:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.71: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T03:37:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] crates/sdk/CLAUDE.md:6-8 and .claude/rules/sdk.md:11-13 state the same fact twice: "a required dependency is for data and serialisation only" and the GPUI/async-runtime ban appear verbatim in both the package's CLAUDE.md and the new path-scoped rule. R111 says each package's CLAUDE.md holds "what it may and may not depend on" at the boundaries.toml/dependency-table level, and the rule holds "what is left to judgement about a boundary" - R106's "no GPUI type, no particular async runtime, data/serialisation-only dependency" is explicitly judgement (sdk.md's own text calls it out: "this is about what the sdk's own public types expose, which a dependency boundary can't see"), so it belongs in sdk.md only. Folding it into CLAUDE.md's "may not depend on" line duplicates it, which is exactly what R111 refuses ("nothing is stated in... two rules") when the two carriers are read together as this review required.
+
+Everything else checked out:
+- Both per-package clippy.toml files correctly repeat allow-unwrap-in-tests (clippy does not merge clippy.toml files; verified directly, and confirmed by the plan's own recorded demonstration) - nothing from the root file is silently lost, and every disallowed-types/methods entry's reason names doc-16 R110 and the crate.
+- just lint runs --all-features (confirmed in the justfile diff), so the sdk's local-socket module is linted too, and that module's own #[expect(...)] is the one named exemption (.claude/rules/sdk.md).
+- just packages genuinely builds/tests each package alone with cargo -p and no --all-features, is joined into just check's recipe line, and is exactly what closes the feature-unification gap AC#2 describes; boundaries.toml's new deny-features table and its conservative default-features rule are implemented and covered by tools/tests/unit/test_boundaries.py (declared-feature violation, no-violation, default-features violation, format, and read_allow_table parsing cases).
+- Every refusal's message names its requirement and why: clippy's disallowed_types/methods print "doc-16 R110: ... in the <crate>"; format_feature_violation and the existing format_violation print boundaries.toml's reason string, which names R105/R104.
+- architecture.md's two lint-covered bullets (kernel/sdk I/O, the dependency table) are replaced by bullets naming the lint and pointing at the new per-package rules; the kernel-is-logic-only and server-owns-every-session bullets were moved whole into the new kernel.md/server.md, not left duplicated in architecture.md.
+- CI (the "check" workflow) is green on the pull request's head commit (9f9585e).
+- AC#6 is answered in the plan/notes for the orchestrator, and plugins/ is untouched in this branch, confirmed with git diff --stat.
+- The just-recipes-not-cargo-test-p departure in the CLAUDE.md files matches root CLAUDE.md's own instruction and is explained in the notes.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,16 +1,19 @@
 ---
 id: TASK-1.73
 title: 'Rule: a just recipe is named with a verb'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T03:12:00Z'
-updated_date: '2026-11-15T03:32:00Z'
+updated_date: '2026-11-15T03:36:00Z'
 labels:
   - size-2
 milestone: m-0
 dependencies:
   - TASK-1.33
+references:
+  - task-1.73-rule-a-just-recipe-is-named-with-a-verb
+  - https://github.com/bruk-io/steg/pull/18
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -19,6 +22,8 @@ asdlc_branch: task-1.73-rule-a-just-recipe-is-named-with-a-verb
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd0193248f056'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -171,6 +176,69 @@ skip    tests: this change touches no crate
 ok      tool tests (0.5s)
 ok      architecture (0.8s)
 ```
+
+Check FAILED: `just check-recipes` exited 1 at 2026-11-15T03:34:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+FAILED  recipe names (exit 1, 0.0s)
+`just nope` isn't named with a verb: 'nope' isn't on the allowed list in tools/src/steg_tools/recipes.py. A recipe is something you tell the repository to do, so its name starts with the action, such as `test-all` or `check-boundaries`. Extend the list there if this is genuinely a new verb; never skip this check.
+full output: .quiet/recipe-names.log
+error: recipe `check-recipes` failed on line 103 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:34:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (19.3s)
+ok      tool tests (0.6s)
+ok      architecture (2.0s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `sh -c 'git grep -n -E "just (boundaries|packages|affected|architecture|fmt-check)\b" -- . ":!backlog" ":!plugins/bruk-io-steg"; test $? -eq 1'` exited 0 at 2026-11-15T03:34:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 18cead8d39a5 with uncommitted changes:
+
+```text
+
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:35:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.73 on task-1.73-rule-a-just-recipe-is-named-with-a-verb at 56eada5b62ba:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.4s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Built as planned, no departures.
+
+AC#1 (a rule scoped to the justfile, with the reason, pattern and variant): .claude/rules/just-recipes.md, paths: ["justfile"]. States the reason (a recipe is a command), the test-all/check-boundaries variant pattern, the default exemption, and points to check-recipes for the mechanical half.
+
+AC#2 (every renamed recipe, plan lists old/new names for approval first): engineer approved the plan's rename table (boundaries->check-boundaries, packages->check-packages, affected->show-affected, architecture->check-architecture, fmt-check->check-fmt; default and deny left as-is) before any edit, recorded on the task.
+
+AC#3 (everything that names a renamed recipe updated in the same change): CLAUDE.md:11, .claude/rules/architecture.md:19, boundaries.toml:3, crates/kernel/Cargo.toml:11, tools/src/steg_tools/boundaries.py:6 all updated in commit 56eada5. Confirmed by the final grep proof step (below) that no old name survives outside backlog/ and the plugin.
+
+Repository plugin lines left for you to change through asdlc-plugin (confirmed still current on origin/main as of this rebase):
+- plugins/bruk-io-steg/commands.toml, [lint]: `run = "just fmt-check && just lint && just boundaries && just deny"` -> needs fmt-check->check-fmt, boundaries->check-boundaries
+- plugins/bruk-io-steg/rules/kernel.md:10 - "`just boundaries` fails on anything added"
+- plugins/bruk-io-steg/rules/sdk.md:10 - "`just boundaries` fails on anything added"
+- plugins/bruk-io-steg/rules/testing-rust.md:9-11 - "`just affected` prints what it chose" (affected->show-affected); test/test-all/check unaffected
+
+AC#4 (a check in tools/, run by just check, fails on a bad first word, with a message naming the rule; list extended by editing, never skipping): tools/src/steg_tools/recipes.py, ALLOWED_VERBS frozenset with a comment saying so; wired into `check:`'s dependency list in the justfile as `check-recipes`. Proved by the deliberate, reverted demonstration: added a noun-named `nope:` recipe, `asdlc record-check -- just check-recipes` recorded exit 1 with the message naming the file to extend, then reverted and recorded `just check` passing again.
+
+AC#5 (just check passes, old names gone, no alias left): `asdlc record-check -- just check` recorded exit 0 both right after the rename and again after rebasing onto origin/main (which had picked up TASK-1.71's review and TASK-1.34's/TASK-1.72's unrelated checks meanwhile - no new recipe appeared on main to hold to the rule). tools/tests/adapter/test_recipes_real_workspace.py asserts the real justfile has zero offenders and `aliases == {}` (mechanical proof nothing was left as an alias), and passed in the recorded `just check`/`just test-tools` runs. Final grep across the repository, excluding backlog/ and plugins/bruk-io-steg/, for `just (boundaries|packages|affected|architecture|fmt-check)` found nothing - recorded (sh -c, exit 0 meaning zero matches).
+
+Coexistence: rebased cleanly onto origin/main just before pushing; the only non-backlog difference was plugins/bruk-io-steg/commands.toml and plugins/team/* (orchestrator and review-policy updates), no justfile changes landed from TASK-1.34/TASK-1.71/TASK-1.72 yet. If either lands a recipe after this merges, check-recipes will hold it to the rule automatically.
+
+All proof steps recorded with asdlc record-check: baseline just check (exit 0), the reverted nope: demonstration (just check-recipes, exit 1), just check after reverting (exit 0), just check again after the rebase (exit 0), and the final grep (exit 0).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -182,6 +250,15 @@ created: 2026-11-15T03:31:00Z
 ---
 
 Plan approved by @bruk (d0193248f056, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T03:36:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.73: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

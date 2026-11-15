@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:31:00Z'
+updated_date: '2026-11-15T03:40:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -395,6 +395,41 @@ ok      boundaries (0.1s)
 ok      licences (0.6s)
 ok      tests (every crate) (42.4s)
 ok      tool tests (0.2s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:36:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 2cf8439931e7 with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (81.3s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (54.3s)
+ok      tool tests (0.2s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:38:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 3a340cf55808:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.9s)
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:40:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 7b30c7cf896d:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (1.3s)
+ok      tool tests (0.2s)
+ok      architecture (0.8s)
 ```
 <!-- SECTION:NOTES:END -->
 

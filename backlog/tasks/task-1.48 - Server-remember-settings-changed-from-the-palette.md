@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T19:32:00Z'
+updated_date: '2026-11-15T19:38:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-0
 dependencies:
   - TASK-1.75
@@ -22,8 +23,9 @@ asdlc_branch: task-1.48-server-remember-settings-changed-from
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5a1e95a23b12'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=3'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -759,6 +761,28 @@ created: 2026-11-15T19:32:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.48: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-15T19:38:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. The diff does not match the plan.
+
+Reviewed at head b983fcf (b983fcff3388bd20bfa94d21faf15facde555cde). Recorded `just check` on the task matches this head, and the pull request's CI "check" run is SUCCESS on the same headRefOid. No findings rise to Important: AC#1-#3 are each proven clause by clause (refusal paths for unknown name on show/set/unset -> NoSuchTarget, and a value outside the closed set -> BadRequest, each traced through its own kernel unit test, kernel_error.rs mapping test, and dispatch.rs functional test); AC#2 "applies at once" and the layer-limited "still there after quit/reopened" proof are both present and the limitation is stated honestly, not dressed up; AC#3 holds by construction (no std::fs anywhere in the diff, grepped across every changed file). The unreachable!() arm in kernel::setting::accepts for ValueKind::Target/Path/Argv is unreachable from any client input today (its `kind` argument only ever comes from the hardcoded sdk registry, never from request data), and is guarded by steg_sdk::setting::tests::no_setting_declares_a_target_path_or_argv_value, which would fail first if a future registry entry got this wrong. Every pre-existing kernel::Error variant and kernel_error.rs mapping arm from TASK-1.40/1.42 is still present alongside the two new ones (no wildcard arm in either match). doc-2's setting noun/verbs (section 3, section 8) match the sdk's doc_2_section_8/doc_2_section_8_targets mirror tests pair for pair, and the method count (42) is right. No new dependency, no boundaries.toml/deny.toml change, no file I/O in sdk or kernel.
+
+Nits (3):
+1. [Bugs] crates/server/src/dispatch/setting.rs:41,77 - the defensive `bad_request("target: must be text")` and `bad_request("needs value")` arms have no test exercising them. The orchestrator's brief named "a missing value" as one of the refusals needing its own test; `validate()` already refuses a missing required param generically before `setting::dispatch` ever runs (crates/sdk/src/description/request.rs's `a_missing_required_parameter_is_a_bad_request` covers the mechanism, and no other noun's dispatch module retests this either), so this is a Nit, not a missed acceptance criterion. This is the same mistake open draft DRAFT-1 ("a named error/edge-case branch needs a test exercising it, not just a happy-path test") already names; I filed nothing new for it (see below).
+2. [Bugs] crates/server/tests/dispatch.rs - no test calls `setting.set`/`setting.show` through `api.call` and checks it against a direct call or a direct read, the way `api_call_of_pane_split_gives_the_same_response_a_direct_call_would` does for `pane.split`. The orchestrator's brief asked for this specifically ("a test proves it"); it doesn't exist. The threading itself (`api::call` -> `super::dispatch(tree, settings, ...)`) is correct by inspection and compiler-enforced (the `&mut Settings` parameter can't be silently dropped), so Nit, but naming it since it's the one checked item that came back empty.
+3. [Bugs] crates/server/src/dispatch/setting.rs:41 - `target_name`'s single error message ("target: must be text") covers both an absent target and one present but not a string; the message only describes the latter case.
+
+Plan-matched: no. The worker departed from the plan's step 7 mechanically: instead of extending `fresh()`'s tuple to also return a `Settings`, every existing `dispatch(...)` call site got a disposable `&mut Settings::new()` inserted, and the new `setting_*` tests build their own named `Settings` where a shared instance matters. The task's own notes name this departure and why (smaller diff, same effect, no existing test's assertions changed) - it is explained, so it is not a finding, but it is a real departure from the step as written, hence `--plan-matched no` rather than yes.
+
+Rule-change draft: none filed. DRAFT-1 already covers nit #1's mistake (a named error/edge-case branch - here, the two defensive bad_request arms - needs a test exercising it, not just a happy-path test); step 5 says file at most one per mistake and to check for an existing draft first.
 
 ---
 <!-- COMMENTS:END -->

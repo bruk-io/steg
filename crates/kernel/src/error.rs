@@ -89,6 +89,20 @@ pub enum Error {
     },
     /// The terminal engine (`ghostty-vt`) failed (TASK-1.39).
     Engine(ghostty_vt::Error),
+    /// `Tree::start_program` was called on a pane that already has one
+    /// (doc-15 R97; TASK-1.40). A pane's program is started exactly once;
+    /// running the same command again is `Tree::restart_program`.
+    ProgramAlreadyStarted(PaneId),
+    /// `Tree::record_exit` was called on a pane with no program yet.
+    ProgramNotStarted(PaneId),
+    /// `Tree::restart_program` was called on a pane whose program has not
+    /// ended (including a pane with no program yet at all - there is
+    /// nothing to restart either way).
+    ProgramStillRunning(PaneId),
+    /// `Tree::restart_program` was called on a pane started as a plain
+    /// shell: a shell pane closes when it exits (R97), rather than
+    /// offering anything to restart.
+    ShellCannotRestart(PaneId),
 }
 
 impl fmt::Display for Error {
@@ -139,6 +153,24 @@ impl fmt::Display for Error {
                 write!(f, "pane {pane} is already in tab {tab}")
             }
             Error::Engine(cause) => write!(f, "the terminal engine failed: {cause}"),
+            Error::ProgramAlreadyStarted(pane) => {
+                write!(f, "pane {pane} already has a program")
+            }
+            Error::ProgramNotStarted(pane) => {
+                write!(f, "pane {pane} has no program yet")
+            }
+            Error::ProgramStillRunning(pane) => {
+                write!(
+                    f,
+                    "pane {pane}'s program has not ended, so it cannot be restarted"
+                )
+            }
+            Error::ShellCannotRestart(pane) => {
+                write!(
+                    f,
+                    "pane {pane} is a plain shell, which closes rather than restarting"
+                )
+            }
         }
     }
 }
@@ -158,7 +190,11 @@ impl std::error::Error for Error {
             | Error::SplitTooSmall { .. }
             | Error::NoSplitInDirection { .. }
             | Error::PanesNotInSameTab { .. }
-            | Error::AlreadyInTab { .. } => None,
+            | Error::AlreadyInTab { .. }
+            | Error::ProgramAlreadyStarted(_)
+            | Error::ProgramNotStarted(_)
+            | Error::ProgramStillRunning(_)
+            | Error::ShellCannotRestart(_) => None,
         }
     }
 }

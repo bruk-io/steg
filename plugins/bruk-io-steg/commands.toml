@@ -22,7 +22,8 @@ needs = ["just", "uv", "a Rust toolchain with rustfmt and clippy", "cargo-deny (
 verified = 2026-11-14
 
 # `just check` runs only the tests a change affects, so on the default branch it runs no crate tests.
+# It also validates the architecture model with LikeC4, run through npx.
 [check]
 run = "just check"
-needs = ["just", "uv", "a Rust toolchain", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)"]
+needs = ["just", "uv", "a Rust toolchain", "cargo-deny (`just setup` installs it)", "Xcode command line tools (gpui links against macOS frameworks)", "Node.js with npx (the architecture model is validated with LikeC4)"]
 verified = 2026-11-14

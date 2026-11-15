@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T21:36:00Z'
+updated_date: '2026-11-15T21:38:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1001,6 +1001,14 @@ Plan match: mostly followed (owning structure, cwd rule B, pane.show, the pure c
 No unsafe code anywhere in the diff (confirmed directly, not just by the worker's own grep). No new dependency. doc-2/doc-8/doc-9/doc-16 boundaries held: kernel diff (tree.rs) is pure with its own unit tests; server owns all I/O; sdk's ProgramFailed/PaneRecord additions are typed, serde-derived, and mirror-tested against the description.
 
 Item 8 (main moved): TASK-1.48 (Settings on dispatch) is correctly adapted (State.settings threaded through, confirmed by reading runtime.rs). TASK-1.41 (Moment on record_exit, Pane::status -> program_status) and TASK-1.81 (api.call's selector) have not merged as of fdef2fe; when TASK-1.41 lands, apply_event_locked's record_exit call and the three dispatch close arms' pane.status() calls will need updating to the new name/signature - not yet a problem, but worth the next worker's attention, and TASK-1.81's api.call rename is adjacent to finding 1 above.
+
+---
+
+created: 2026-11-15T21:38:00Z
+
+---
+
+From @bruk.o, with the review's findings: the worker reported after hand-back that a working directory that does not exist is not a failure, because the pty library starts the program in the home directory instead; so pane.split, tab.new or session.new given such a cwd answers success and runs somewhere else. The review did not rule on it. The worker is asked to check the directory in the server before spawning and refuse with ProgramFailed, leaving nothing behind (criterion 1: a program that cannot be started is reported); rule B's inherited directory falls back to home when it no longer exists.
 
 ---
 <!-- COMMENTS:END -->

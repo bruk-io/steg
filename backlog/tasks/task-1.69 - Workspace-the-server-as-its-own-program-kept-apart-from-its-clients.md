@@ -412,6 +412,17 @@ ok      licences (0.6s)
 ok      tests (every crate) (0.3s)
 ok      tool tests (0.2s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-15T02:47:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.69 on task-1.69-workspace-the-server-s-code-kept-apart at df8f9a21d734:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (1.6s)
+ok      tool tests (0.3s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

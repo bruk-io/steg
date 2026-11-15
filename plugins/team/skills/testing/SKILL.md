@@ -68,6 +68,10 @@ Build it, take a screenshot, compare it with the design, and adjust. Two or thre
 
 A check or test that looks wrong is a finding on the task, not something to change now. Never weaken a check, skip a test or loosen an assertion to make a change pass.
 
+### Processes and threads
+
+Code that starts a child process or a thread owns its end. Before saying the task is done, list every path that can end it or drop its last handle (the ordinary end, an early return, an error branch, a shutdown) and check that each one still waits on the child or joins the thread, with a test for each path that uses a real process and a bounded wait. Where a path leaves one running on purpose, such as a server that outlives the client that started it, say so in the notes, with what is left behind and who takes it over.
+
 ## Recording the evidence
 
 Before saying a task is done, run the change's tier through `asdlc record-check`, from the task's worktree, so the reviewer judges the tool's output rather than an account of it:
@@ -80,8 +84,12 @@ It runs the command, exits with its code, and appends to the task the command, i
 
 Every proof step the plan or an acceptance criterion calls for is recorded this way, including a demonstration you will revert and never commit, such as showing that a check refuses a disallowed change. Record it while the tree is in that state, then revert. `record-check` records a run on a tree with uncommitted changes, so "nothing was committed" is no reason to describe a run in the notes instead: a reviewer cannot judge a run that was only described.
 
+Write a departure from the plan in the task's notes when you make it, not at the end: what changed and why. A merge or a rebase that forces a decision the plan did not make, such as which existing code or name to reuse for something new, is a departure like any other; so is a file the plan did not list. Read your notes once more before handing back and correct any sentence that was true earlier and is not now. A reviewer who has to reconstruct a decision from the history will report it, even when the decision was right.
+
 Done is measured against the task's acceptance criteria, written as things a check can show ("every test in `test_status.py` passes", "the lint command exits 0"). Whether the task closes is decided by its reviewer, not here.
 
 A change to what a person sees needs to be seen. When the change alters anything an app draws, its pull request's description carries an image of the result, taken from the built app and not from a design or a mock-up, placed so a reviewer sees it without checking the branch out. When the change is motion or a sequence, such as an animation, a drag or a flow through several states, it carries a recording as well. Show the state the change is about, and the state before it when the difference is the point. A diff cannot show that a pane is drawn in the right place; a picture can, and the person merging may be reading on a phone.
 
 Check a criterion clause by clause before the notes say it is covered. A criterion with two verbs ("a session takes the next colour, and its colour can be changed") needs a test for each, reached the way a caller would reach it. Say in the notes which test proves which clause, and name any clause that has none; "covers every acceptance criterion" as a summary line is a claim nobody can check.
+
+Do the same for branches. When the plan, a criterion or your brief names a case as worth proving, such as an error path, a refusal, a retry, the edge of a range or one direction of a pair, write a test that reaches that branch and name it in the notes beside the case. Working code with no test reaching it is unproven, however obviously right it reads, and a test of the ordinary path does not reach it. A test whose name says something never changes has to capture enough state to fail if it did: prove it once by breaking the code on purpose, recording that failing run, and restoring it.

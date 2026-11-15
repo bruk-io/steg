@@ -32,12 +32,21 @@ class Crate:
     `depends_on` is workspace-internal only (path dependencies) and drives `with_dependents`/`selection`.
     `dependencies` is every direct dependency, workspace and external alike, and is what the boundary
     check in steg_tools.boundaries reads; it plays no part in picking which tests to run.
+
+    `dependency_features` and `default_features_on` are declared, not resolved: each comes straight
+    from one dependency edge's own `features`/`uses_default_features` entry in `cargo metadata
+    --no-deps`, unaffected by Cargo's workspace-wide feature unification (one crate's edge can say
+    `features: []` while the same dependency is built with a feature on elsewhere in the same
+    `--workspace` build). `steg_tools.boundaries`'s `deny-features` check reads these two; nothing
+    else does, so both default to empty for every other caller and fixture.
     """
 
     name: str
     folder: str
     depends_on: frozenset[str]
     dependencies: frozenset[str]
+    dependency_features: frozenset[tuple[str, str]] = frozenset()
+    default_features_on: frozenset[str] = frozenset()
 
 
 def is_global(path: str) -> bool:
@@ -88,7 +97,13 @@ def crates_from_metadata(metadata: dict[str, object], root: Path) -> tuple[Crate
         folder = Path(package["manifest_path"]).parent.resolve().relative_to(root.resolve()).as_posix()
         dependencies = frozenset(d["name"] for d in package["dependencies"])
         depends_on = frozenset(d["name"] for d in package["dependencies"] if d.get("path") and d["name"] in names)
-        found.append(Crate(package["name"], folder, depends_on, dependencies))
+        dependency_features = frozenset(
+            (d["name"], feature) for d in package["dependencies"] for feature in d.get("features", [])
+        )
+        default_features_on = frozenset(
+            d["name"] for d in package["dependencies"] if d.get("uses_default_features", True)
+        )
+        found.append(Crate(package["name"], folder, depends_on, dependencies, dependency_features, default_features_on))
     return tuple(found)
 
 

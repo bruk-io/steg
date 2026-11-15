@@ -3,6 +3,16 @@
 # as `just check-boundaries`; adding a dependency to a restricted crate that isn't on
 # its list is a deliberate edit to this file, not something to remember separately.
 #
+# `deny-features` (optional per crate) refuses an allowed dependency's named feature
+# - and, for that dependency, its default features outright, so a `default` feature
+# added later can't turn one on silently - read from `Cargo.toml`'s own declared
+# `features`/`default-features` per edge (doc-16 R110). This is a declared, not a
+# resolved, check: it is what catches a crate's own manifest asking for the feature,
+# even though Cargo's workspace-wide feature unification can turn the same feature on
+# for that crate's compiled dependency anyway, from some other crate's edge, in any
+# `--workspace` build - `just check-packages`, part of `just check`, is what catches
+# that half, by building and testing every crate alone.
+#
 # This table is doc-16's level-3 dependency table (section "Who may depend on
 # whom"), one entry per package.
 
@@ -13,6 +23,7 @@ allow = []
 [steg-kernel]
 reason = "the kernel does no I/O and depends on the sdk only for the shapes that cross the API, never for its optional parts (doc-16 R105)"
 allow = ["steg-sdk"]
+deny-features = { "steg-sdk" = ["local-socket"] }
 
 [steg-server]
 reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98)"

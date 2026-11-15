@@ -3,11 +3,11 @@ id: TASK-1.71
 title: >-
   Boundaries: a CLAUDE.md for each package, rules for what is judgement, and
   lints for what is not
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T02:35:00Z'
-updated_date: '2026-11-15T03:59:00Z'
+updated_date: '2026-11-15T04:01:00Z'
 labels:
   - size-3
   - review-passed

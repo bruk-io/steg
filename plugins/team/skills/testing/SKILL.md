@@ -82,4 +82,6 @@ Every proof step the plan or an acceptance criterion calls for is recorded this 
 
 Done is measured against the task's acceptance criteria, written as things a check can show ("every test in `test_status.py` passes", "the lint command exits 0"). Whether the task closes is decided by its reviewer, not here.
 
+A change to what a person sees needs to be seen. When the change alters anything an app draws, its pull request's description carries an image of the result, taken from the built app and not from a design or a mock-up, placed so a reviewer sees it without checking the branch out. When the change is motion or a sequence, such as an animation, a drag or a flow through several states, it carries a recording as well. Show the state the change is about, and the state before it when the difference is the point. A diff cannot show that a pane is drawn in the right place; a picture can, and the person merging may be reading on a phone.
+
 Check a criterion clause by clause before the notes say it is covered. A criterion with two verbs ("a session takes the next colour, and its colour can be changed") needs a test for each, reached the way a caller would reach it. Say in the notes which test proves which clause, and name any clause that has none; "covers every acceptance criterion" as a summary line is a claim nobody can check.

@@ -3,12 +3,12 @@ id: doc-15
 title: 'Spec: domain'
 type: specification
 created_date: '2026-11-15T01:28:00Z'
-updated_date: '2026-11-15T03:50:00Z'
+updated_date: '2026-11-15T04:07:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
 - Rests on: decision-5 (focus, clients and windows), decision-6 (terminal size), decision-7 (status).
-- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R109 (the colour a sixth session takes), R112 (the order of a tab's panes) and R100 were added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
+- Status: draft, written 2026-11-15. R8 to R12, R78 and R85 to R91 were moved here from the server spec without rewording. R93 to R97 are new: they write down rules that until now were only in the design artifact or implied by a decision. R109 (the colour a sixth session takes), R112 (the order of a tab's panes), R113 (a pane's neighbour in a direction) and R100 were added on 2026-11-15, when Bruk set the smallest pane and confirmed R95 and R96.
 
 ## Scope
 
@@ -68,6 +68,7 @@ server
   layout tree, and the other panes keep running.
 - R109 (M1). A new session takes the first of the five colours that no session is using. When all five are in use it takes the first colour again, and so on round.
 - R112 (M1). A tab's panes have an order: the order of its layout tree's leaves, a split's first child before its second. A pane's position, as a target (R10), is its place in that order, counted from one. Changing a ratio does not change the order; splitting, closing, swapping or moving a pane does.
+- R113 (M1). A pane's neighbour in a direction is decided by where panes are, not by their order. It is a pane that touches that side of it and overlaps it along the other axis; when several do, it is the one whose overlap starts nearest the top, for left and right, or nearest the left, for up and down. When no pane touches that side the pane is at the edge. Wrapping goes to the pane at the tab's far edge that overlaps it the same way. Positions come from the layout tree and its ratios alone, so every client agrees whatever its size.
 - R100 (M1). No split or resize leaves a terminal pane smaller than 20 columns by 4 rows,
   judged by the terminal's size at the time. A split that would is refused, and a resize
   stops at that floor. A window growing smaller refuses and closes nothing: a pane may

@@ -3,11 +3,11 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T01:15:00Z'
+updated_date: '2026-11-15T01:23:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
-- Rests on: decision-4 (steg's grammar; Rex where undecided), decision-1 (commands are generated from the API description), decision-5 (the client noun and the three focus commands). The decision records are in pull request 5 until it merges.
+- Rests on: decision-4 (steg's grammar; Rex where undecided), decision-1 (commands are generated from the API description), decision-5 (the client noun and the three focus commands).
 - Status: draft. Reorganised from the single spec on 2026-11-15; every requirement here was moved without rewording, except that references to documents since retired now point at the decision records and at doc-10.
 
 ## Scope

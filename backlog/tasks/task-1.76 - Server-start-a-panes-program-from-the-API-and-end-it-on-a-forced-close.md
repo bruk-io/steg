@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T20:37:00Z'
+updated_date: '2026-11-15T20:59:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -742,6 +742,120 @@ ok      build (steg-app) (18.3s)
 ok      test (steg-app) (0.9s)
 ok      tool tests (1.9s)
 ok      architecture (1.5s)
+ok      recipe names (0.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-15T20:55:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes, last 40 of 64 lines:
+
+```text
+ 
+     fn lock(&self) -> std::sync::MutexGuard<'_, State> {
+[31m-        self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+(B[m[32m+        self.state
+(B[m[32m+            .lock()
+(B[m[32m+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+(B[m     }
+ 
+     /// `session.new`/`tab.new`/`pane.split`: mints through the existing,
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server/src/runtime.rs:279:
+ 
+         let spec = self.launch_spec(&program, size);
+ 
+[31m-        match pane::start(spec, new_pane, Arc::clone(&self.launcher), self.events.clone()) {
+(B[m[32m+        match pane::start(
+(B[m[32m+            spec,
+(B[m[32m+            new_pane,
+(B[m[32m+            Arc::clone(&self.launcher),
+(B[m[32m+            self.events.clone(),
+(B[m[32m+        ) {
+(B[m             Ok(handle) => {
+                 state.panes.insert(new_pane, handle);
+                 reapply_every_sized_tab(&mut state);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76/crates/server/src/runtime.rs:587:
+             settings: steg_kernel::Settings::new(),
+         };
+ 
+[31m-        apply_event_locked(&mut state, PaneEvent::Exited { pane: gone, exit_code: 0 });
+(B[m[32m+        apply_event_locked(
+(B[m[32m+            &mut state,
+(B[m[32m+            PaneEvent::Exited {
+(B[m[32m+                pane: gone,
+(B[m[32m+                exit_code: 0,
+(B[m[32m+            },
+(B[m[32m+        );
+(B[m 
+         assert!(
+             !state.panes.contains_key(&gone),
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 126 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-15T20:55:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes, last 40 of 65 lines:
+
+```text
+
+error: doc list item without indentation
+   --> crates/server/src/dispatch/pane.rs:183:5
+    |
+183 | /// that forces the program itself to end).
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+183 | ///   that forces the program itself to end).
+    |     ++
+
+error: docs for function which may panic missing `# Panics` section
+   --> crates/server/src/runtime.rs:91:5
+    |
+ 91 |     pub fn new(launcher: Arc<dyn ProgramLauncher>, login: LoginShell) -> Self {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+note: first possible panic found here
+   --> crates/server/src/runtime.rs:100:21
+    |
+100 |           let drain = thread::Builder::new()
+    |  _____________________^
+101 | |             .name("steg-runtime-drain".to_string())
+102 | |             .spawn(move || {
+103 | |                 for event in events_rx {
+...   |
+118 | |             })
+119 | |             .expect("spawning the one drain thread at construction");
+    | |____________________________________________________________________^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+    = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: could not compile `steg-server` (lib) due to 7 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (lib test) due to 6 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T20:59:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.76 on task-1.76-server-start-a-pane-s-program-from-the at d968e1111070 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (49.8s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (32.1s)
+ok      test (steg-server) (2.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.4s)
+ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

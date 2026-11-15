@@ -7,7 +7,7 @@
 //! the sdk (doc-16 R105; a client never mints an identifier, and the sdk is
 //! the public interface every client uses, R101).
 
-use steg_sdk::{PaneId, SessionId, TabId};
+use steg_sdk::{ClientId, PaneId, SessionId, TabId};
 
 /// Mints a fresh, ever-increasing identifier of each kind, from one shared
 /// counter, so that no two identifiers in a tree ever collide regardless of
@@ -44,6 +44,11 @@ impl Ids {
     pub fn next_pane(&mut self) -> PaneId {
         PaneId::from_raw(self.next_raw())
     }
+
+    /// Mints a fresh client id.
+    pub fn next_client(&mut self) -> ClientId {
+        ClientId::from_raw(self.next_raw())
+    }
 }
 
 #[cfg(test)]
@@ -51,17 +56,19 @@ mod tests {
     use super::Ids;
 
     #[test]
-    fn mints_distinct_increasing_values_across_all_three_kinds() {
+    fn mints_distinct_increasing_values_across_all_four_kinds() {
         let mut ids = Ids::new();
 
         let session = ids.next_session();
         let tab = ids.next_tab();
         let pane = ids.next_pane();
+        let client = ids.next_client();
         let second_session = ids.next_session();
 
         assert_eq!(session.into_raw(), 0);
         assert_eq!(tab.into_raw(), 1);
         assert_eq!(pane.into_raw(), 2);
-        assert_eq!(second_session.into_raw(), 3);
+        assert_eq!(client.into_raw(), 3);
+        assert_eq!(second_session.into_raw(), 4);
     }
 }

@@ -16,6 +16,7 @@
 //! `.cargo/config.toml`, `third_party/README.md`), never from `just check`.
 #![forbid(unsafe_code)]
 
+mod client;
 mod colour;
 mod error;
 mod ids;
@@ -27,13 +28,14 @@ mod target;
 mod terminal;
 mod tree;
 
+pub use client::Client;
 pub use error::Error;
 pub use pane::Pane;
 pub use session::{Session, TabClosed};
 pub use tab::{DirectionalFocus, PaneClosed, Tab};
 pub use target::Candidate;
 pub use terminal::Terminal;
-pub use tree::{ClosedPane, FocusMove, Focused, MovedPane, Tree};
+pub use tree::{ClosedPane, FocusMove, Focused, MovedPane, SizeChanged, Tree};
 
 #[cfg(test)]
 mod tests {

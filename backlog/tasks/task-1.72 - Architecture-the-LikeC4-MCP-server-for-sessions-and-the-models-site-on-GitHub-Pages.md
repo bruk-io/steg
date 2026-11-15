@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T02:48:00Z'
-updated_date: '2026-11-15T03:31:00Z'
+updated_date: '2026-11-15T03:36:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -77,6 +77,18 @@ Decided by Bruk on 2026-11-15: it is fine for the architecture site to be public
 Paused by Bruk on 2026-11-15: the GitHub Pages site is not part of this task for now. What was learned stays here for when it resumes: the repository is private and the bruk-io organisation is on GitHub's free plan, where Pages is not available for a private repository; a public site is acceptable to Bruk; the options were a separate public repository that receives only the built site, a paid plan, or making the repository public. The criteria removed were: a pinned workflow that builds and deploys the site on pushes to main that change the model; the site showing every view with its address in the README and doc-16; a model that does not validate failing the workflow and leaving the site as it was.
 
 Plan checked by @bruk.o against the task as narrowed (the MCP server only): ok. A project .mcp.json runs LikeC4's own MCP server over stdio, pinned to the version the check uses; the proof is a recorded session run plus an adapter test that speaks the protocol to the real pinned command, so it keeps being proved by just check. The test makes Node a requirement of the tools' tests as it already is of just check. TASK-1.73 renames the architecture recipe; whichever lands second uses the name on main.
+
+Check passed: `just check` exited 0 at 2026-11-15T03:36:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72 on task-1.72-architecture-the-likec4-mcp-server-for at d41ef04bd837:
+
+```text
+ok      format check (0.2s)
+ok      lint (18.5s)
+ok      boundaries (0.2s)
+ok      licences (0.7s)
+ok      tests (every crate) (19.2s)
+ok      tool tests (1.1s)
+ok      architecture (1.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

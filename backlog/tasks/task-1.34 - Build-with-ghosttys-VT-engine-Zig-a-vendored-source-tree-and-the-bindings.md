@@ -22,6 +22,8 @@ asdlc_branch: task-1.34-build-with-ghostty-s-vt-engine-zig-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'e63ab21b4e98'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -752,6 +754,15 @@ created: 2026-11-15T03:14:00Z
 ---
 
 Plan approved by @bruk (e63ab21b4e98, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T04:44:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.34: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

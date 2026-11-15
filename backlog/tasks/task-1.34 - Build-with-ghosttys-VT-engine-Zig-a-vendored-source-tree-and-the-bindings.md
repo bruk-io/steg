@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T06:31:00Z'
+updated_date: '2026-11-15T06:39:00Z'
 labels:
   - size-3
   - changes-requested
@@ -899,6 +899,39 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 32, 28 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c '
+set -e
+ZIG=/Users/brukhabtu/.local/share/mise/installs/zig/0.17.1/bin/zig
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+mkdir -p /tmp/ghostty-refresh-global-cache/p
+cp third_party/ghostty-vt-zig-deps/p/*.tar.gz /tmp/ghostty-refresh-global-cache/p/
+cd third_party/ghostty
+for t in aarch64-macos x86_64-macos; do
+  out=$(ZIG_GLOBAL_CACHE_DIR=/tmp/ghostty-refresh-global-cache ZIG_LOCAL_PKG_DIR=/tmp/ghostty-refresh-pkg "$ZIG" build -Demit-lib-vt -Doptimize=ReleaseFast -Dsimd=true -Dtarget=$t -Dcpu=baseline -Demit-xcframework=false -Demit-themes=false --prefix /tmp/ghostty-refresh-out --cache-dir /tmp/ghostty-refresh-cache 2>&1)
+  echo "$out"
+  if echo "$out" | grep -qi "fetching"; then
+    echo "FAIL: a fetch happened during the $t build - the vendored tarballs alone were not enough" >&2
+    exit 1
+  fi
+done
+cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34
+test -f /tmp/ghostty-refresh-out/lib/libghostty-vt.a
+n=$(ls /tmp/ghostty-refresh-pkg | wc -l | tr -d " ")
+test "$n" = "7"
+test ! -d third_party/ghostty/zig-pkg
+test ! -d third_party/ghostty/.zig-cache
+rm -rf /tmp/ghostty-refresh-out /tmp/ghostty-refresh-cache /tmp/ghostty-refresh-pkg /tmp/ghostty-refresh-global-cache
+echo "offline rebuild for both Darwin targets from the seven committed tarballs: zero fetches (checked the build log, not just git status), exactly 7 packages resolved into the local pkg dir, libghostty-vt.a produced, and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk afterward (checked directly, not through git status, which the new .gitignore entries would otherwise make blind to this)"
+'` exited 0 at 2026-11-15T06:39:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.34 on task-1.34-build-with-ghostty-s-vt-engine-zig-a at 8f81797c4b7c:
+
+```text
+
+
+offline rebuild for both Darwin targets from the seven committed tarballs: zero fetches (checked the build log, not just git status), exactly 7 packages resolved into the local pkg dir, libghostty-vt.a produced, and third_party/ghostty/zig-pkg and .zig-cache do not exist on disk afterward (checked directly, not through git status, which the new .gitignore entries would otherwise make blind to this)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

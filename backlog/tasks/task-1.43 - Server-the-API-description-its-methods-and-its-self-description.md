@@ -1,11 +1,11 @@
 ---
 id: TASK-1.43
 title: 'sdk: the API description, validation against it, and typed results'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T15:51:00Z'
+updated_date: '2026-11-15T15:52:00Z'
 labels:
   - size-4
   - review-passed

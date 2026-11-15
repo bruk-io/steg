@@ -98,6 +98,16 @@ pub fn map_kernel_error(error: Error) -> ApiError {
         Error::ProgramNotStarted(_) | Error::ShellCannotRestart(_) => {
             ApiError::new(ErrorCode::BadRequest, error.to_string())
         }
+        // An unknown setting name is "the target matched nothing" (R10),
+        // the same reading `api.rs::show` already gives an unknown
+        // method name - status 3, not a bad-usage status 2.
+        Error::UnknownSetting(_) => ApiError::new(ErrorCode::NoSuchTarget, error.to_string()),
+        // `BadRequest`'s own declared summary (`description::errors`) is
+        // literally "...or a value outside a closed set" - exactly this
+        // case, so no new code is needed.
+        Error::InvalidSettingValue { .. } => {
+            ApiError::new(ErrorCode::BadRequest, error.to_string())
+        }
     }
 }
 
@@ -274,6 +284,22 @@ mod tests {
             map_kernel_error(Error::ShellCannotRestart(id)).code,
             ErrorCode::BadRequest
         );
+    }
+
+    #[test]
+    fn unknown_setting_maps_to_no_such_target() {
+        let mapped = map_kernel_error(Error::UnknownSetting("nonsense".to_string()));
+        assert_eq!(mapped.code, ErrorCode::NoSuchTarget);
+        assert!(mapped.candidates.is_empty());
+    }
+
+    #[test]
+    fn invalid_setting_value_maps_to_bad_request() {
+        let mapped = map_kernel_error(Error::InvalidSettingValue {
+            name: "appearance".to_string(),
+            value: "neon".to_string(),
+        });
+        assert_eq!(mapped.code, ErrorCode::BadRequest);
     }
 
     // No unit test constructs `Error::Engine(..)` here: its inner

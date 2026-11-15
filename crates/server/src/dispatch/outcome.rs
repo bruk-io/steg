@@ -8,7 +8,7 @@
 //! (`mod.rs`).
 
 use serde_json::Value;
-use steg_sdk::{Description, Method, PaneId, SessionId, SessionRecord, TabId};
+use steg_sdk::{Description, Method, PaneId, SessionId, SessionRecord, SettingRecord, TabId};
 
 /// A served method's typed result, before it becomes the `Value` a
 /// [`steg_sdk::Response::Ok`] carries.
@@ -32,6 +32,10 @@ pub enum Outcome {
     Methods(Vec<Method>),
     /// The whole API description (`api.show` with no target).
     Description(Box<Description>),
+    /// One setting, in full (`setting.show`).
+    SettingRecord(SettingRecord),
+    /// Every setting (`setting.list`).
+    SettingRecords(Vec<SettingRecord>),
 }
 
 impl Outcome {
@@ -73,6 +77,12 @@ impl Outcome {
             }
             Self::Description(description) => {
                 serde_json::to_value(*description).expect("a Description always serialises")
+            }
+            Self::SettingRecord(record) => {
+                serde_json::to_value(record).expect("a SettingRecord always serialises")
+            }
+            Self::SettingRecords(records) => {
+                serde_json::to_value(records).expect("a Vec<SettingRecord> always serialises")
             }
         }
     }
@@ -123,6 +133,19 @@ mod tests {
         };
 
         let value = Outcome::SessionRecord(record.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(record).unwrap());
+    }
+
+    #[test]
+    fn a_setting_record_serialises_to_its_own_typed_shape() {
+        let record = steg_sdk::SettingRecord {
+            name: "appearance".to_string(),
+            value: "system".to_string(),
+            default: "system".to_string(),
+        };
+
+        let value = Outcome::SettingRecord(record.clone()).into_value();
 
         assert_eq!(value, serde_json::to_value(record).unwrap());
     }

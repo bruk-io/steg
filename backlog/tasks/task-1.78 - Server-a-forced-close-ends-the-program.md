@@ -4,9 +4,10 @@ title: 'Server: a forced close ends the program'
 status: To Do
 assignee: []
 created_date: '2026-11-15T19:42:00Z'
+updated_date: '2026-11-15T20:05:00Z'
 labels:
   - size-3
-milestone: m-0
+milestone: m-3
 dependencies:
   - TASK-1.76
 parent_task_id: TASK-1

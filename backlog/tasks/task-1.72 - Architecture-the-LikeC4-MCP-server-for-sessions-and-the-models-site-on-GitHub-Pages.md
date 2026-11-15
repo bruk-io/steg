@@ -89,6 +89,25 @@ ok      tests (every crate) (19.2s)
 ok      tool tests (1.1s)
 ok      architecture (1.1s)
 ```
+
+Check passed: `uv run --project tools pytest -v tools/tests/adapter/test_likec4_mcp_smoke.py tools/tests/unit/test_likec4_mcp.py` exited 0 at 2026-11-15T03:36:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72 on task-1.72-architecture-the-likec4-mcp-server-for at d41ef04bd837:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6dEB2W` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0 -- /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72/tools/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.72/tools
+configfile: pyproject.toml
+collecting ... collected 4 items
+
+tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server PASSED [ 25%]
+tools/tests/unit/test_likec4_mcp.py::test_pulls_title_view_ids_and_element_ids_regardless_of_response_order PASSED [ 50%]
+tools/tests/unit/test_likec4_mcp.py::test_missing_summary_response_raises_lookup_error PASSED [ 75%]
+tools/tests/unit/test_likec4_mcp.py::test_tool_error_raises_lookup_error PASSED [100%]
+
+============================== 4 passed in 0.99s ===============================
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

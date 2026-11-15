@@ -22,6 +22,8 @@ asdlc_branch: task-1.70-sdk-the-protocol-s-logic-and-the-local
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2aa568c163d'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -510,6 +512,15 @@ created: 2026-11-15T16:26:00Z
 ---
 
 Plan approved by @bruk (d2aa568c163d, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-15T16:53:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.70: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

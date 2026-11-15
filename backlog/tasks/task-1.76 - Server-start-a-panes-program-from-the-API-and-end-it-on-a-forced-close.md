@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T18:07:00Z'
-updated_date: '2026-11-15T23:10:00Z'
+updated_date: '2026-11-15T23:19:00Z'
 labels:
   - size-5
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -24,10 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '308d35ef87d0'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r4
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -2343,6 +2342,38 @@ created: 2026-11-15T23:10:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.76: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-15T23:19:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Head reviewed: 471542c780e1d962837d5584fa45dc6c4e9ed107 (PR #40's headRefOid, CI `check` green on this exact SHA). Worktree clean at this head throughout.
+
+1. The lock. OPENPTY_LOCK (crates/server/src/pty.rs) covers exactly the openpty() call inside RealLauncher::spawn, released before spawn_command and before anything that can wait (read by eye, pty.rs:96-160). It is a leaf lock: nothing is acquired or waited on while held, so it cannot cycle with Runtime's own `state` Mutex, which is always the outer lock (runtime.rs:280-327 holds `state` across the dispatch arm and pane::start/launcher.spawn, matching the plan's own §1 reasoning, unchanged this round) - no deadlock possible. Poisoning: `.unwrap_or_else(PoisonError::into_inner)` recovers the guard rather than propagating poison, so a panic while holding it (only openpty() itself could panic, and doesn't) would not permanently block every later open. No retry - matches the comment's own stated reasoning (a retry would hide the race, not remove it). `git grep openpty`/`native_pty_system` across crates/: the only call site is this one, in RealLauncher::spawn - nothing else in the crate opens a pty outside it (the fake launcher doesn't call openpty at all).
+
+2. The new test. many_threads_opening_a_real_pty_at_once_never_fails (tests/real_pty.rs) drives 32 real threads through a Barrier so every thread calls RealLauncher::spawn at the same instant, 10 rounds, reaping (child.wait()) every spawned process before the next round - no leaked processes across rounds. I scratch-removed OPENPTY_LOCK (reverted after) and ran it 5 times: failed 5/5, every failure the same `Os { code: -6 }` the second review's own isolated reproduction found; restored the lock and ran it 3 times: passed 3/3. With the lock, I also ran the full `many_threads_...` test in isolation and it passed cleanly.
+
+3. Reliability (the point of this round) - verified independently, not just read:
+   - `cargo test -p steg-server`, full output captured (not tail-truncated), 15 runs at this exact clean head: 0 FAILED lines, 145 tests/run across 6 test binaries (lib 54, three integration files 61/5/7, runtime suite 18, 0 doctests), every run identical in count.
+   - `just check`, 3 runs at this exact clean head: all exited 0, matching step-by-step the worker's own recorded `just check` output (format/lint/boundaries/licences/per-crate build+test/tool tests/architecture/recipe names).
+   - PR #40 CI `check` is green on 471542c itself (gh pr checks 40; gh pr view --json headRefOid confirms the SHA).
+   - The worker's recorded 20-run loop (`sh -c 'fail=0; for i in $(seq 1 20); do ... done; test "$fail" -eq 0'`): I reproduced its exact logic against a fake `cargo test` that fails - the loop's final exit status came back 1, i.e. it really would fail the recorded check had any of the 20 runs failed. The first `if ! ... | grep -E "test result|FAILED"` branch is near-inert (grep normally matches "test result" on both pass and fail, so it rarely increments `fail`, though it would catch a run that produces neither string at all, e.g. a compile error); the second `grep -q FAILED <logfile>` branch is the one doing the real work, and it does work.
+   - The worker's five `just check` runs are stamped "9e508ed with uncommitted changes," not the committed head - but `git diff --stat 9e508ed 471542c` is exactly this round's own fix (pty.rs +38, real_pty.rs +67) and nothing else, so the tested tree and the committed head are content-identical (only the commit object differs). The recorded loop's per-binary test counts (54/61/5/7/18/0 = 145) match my own 15 runs at 471542c exactly, same test inventory. The first of the five recorded `just check` runs shows real, non-trivial step timings (`build (steg-server) 29.1s`, `test (steg-server) 4.3s`) naming `-p steg-server` in its selection line; the later four are fast only because cargo's own incremental cache made the rebuild steps near-instant (0.1s build, 1.9s test) - the same pattern my own 3 runs reproduced (run 1: 28.8s/3.5s; runs 2-3: 0.1s/1.9s). Not a skip.
+
+4. Nothing since the prior review (b4dd502) touches anything but pty.rs/real_pty.rs - no unsafe added, no new dependency (Cargo.toml/Cargo.lock unchanged since b4dd502). The Implementation Notes' stale "a real pty-allocation ceiling in this sandbox, not a code defect" sentence (an earlier round's own claim) is explicitly revisited in the same Implementation Notes, later: "Corrected the earlier notes: there is no sandbox pty-allocation ceiling and no leak - withdrawn, per the reviewer's own isolated reproduction," with the real cause (a genuine openpty() concurrency race on this platform) stated in both the notes and the pty.rs/real_pty.rs comments.
+
+No Important findings.
+
+[Nit] crates/server/tests/real_pty.rs: `let _ = spawned.child.wait();` in the new concurrency test is an unbounded wait whose result is discarded, against this same file's own stated convention elsewhere (a named EVENT_TIMEOUT, "rather than hanging indefinitely on a misbehaving child"). In practice safe (`sh -c "true"` always exits immediately), so a Nit, not Important.
+
+--plan-matched no: this round's diff (crates/server/src/pty.rs) and several files from earlier rounds (dispatch/api.rs, dispatch/outcome.rs, sdk/record.rs, tests/runtime.rs in place of the plan's tests/start.rs) are not in the plan's own "Files that change" list. All are named and justified in the task's notes/comments as forced by review findings or the engineer's own follow-on asks, so none of them is itself a finding under review.md's "a departure... is a finding unless the task's notes say what changed and why" - but the flag itself is descriptive of the diff against the plan's file list, not a verdict, so it is reported as `no` rather than `yes`.
 
 ---
 <!-- COMMENTS:END -->

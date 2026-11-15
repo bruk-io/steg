@@ -284,4 +284,60 @@ Also noting for whoever takes this to review/build: AC #4 deletes `spikes/api-de
 The plan also proposes a possible split at the sdk/server boundary (steps 1-6 vs 7-12) for the engineer to consider, without changing the task's size here.
 
 ---
+
+created: 2026-11-15T14:18:00Z
+
+---
+
+## Starting design for the dispatch task
+
+Carried over from this task's first plan (written before the split), for whoever builds the server's dispatch. Not this task's scope; the sdk half's plan no longer includes any of it.
+
+### The method table (doc-2 section 8, 38 rows)
+
+Served now = every field its `returns` shape needs, and every kernel operation it calls, already exists after TASK-1.36/1.37/1.38/1.69.
+
+| Noun | Served now | Not yet (needs) |
+|---|---|---|
+| session | list, show, new, close, move, set, unset | focus (needs a client/window to address — TASK-1.42/1.46) |
+| tab | new, close, move, set, unset, focus | list, show (title, shown_status — TASK-1.39, 1.41) |
+| pane | split, close, move, set, unset, focus, resize, swap | list, show (title, cwd, program, exit_code, status — TASK-1.39–1.41); send, capture, wait (terminal engine — TASK-1.39/1.40) |
+| server | — | show, start, stop (TASK-1.44) |
+| event | — | watch (TASK-1.46) |
+| client | — | list, show (TASK-1.42) |
+| api | list, show, call | — |
+
+24 served, 14 `not_implemented_yet`. What falls out of "served" that is not full behaviour, to document rather than hide:
+- `--force` on `*.close` is accepted and currently a no-op: the kernel has no concept of a running program yet, so nothing it can see is ever running. TASK-1.40 gives it teeth.
+- `session.new --focus`/`--no-focus` is accepted and currently a no-op: there is no "current session" in doc-15, only `current_tab`/`current_pane`. What the flag really means (which client's window shows the new session) is R87's, and needs the client model (TASK-1.42) and the session-focus event (TASK-1.46) to do anything.
+- `tab.new`/`pane.split --no-focus` DO have real, kernel-level meaning (R115) and should be implemented for real: capture the previous current tab/pane, create, and if `focus=false` put it back, with no event in between (there is no eventing yet, so that half is structural, not separately provable here — TASK-1.46 is where "no focus change announced in between" becomes testable against a subscriber).
+
+### Where dispatch lives, and its signature
+
+Dispatch (actually running an operation) needs `&mut Tree`, which the sdk may never depend on. It goes in `steg-server`, which already depends on both `steg-kernel` and `steg-sdk` (R98). `dispatch` should take an explicit `Context { default_session, default_tab, default_pane }` alongside the `Request`, rather than reading anything off a connection — there is no connection yet (TASK-1.44/1.45), and the kernel's own target resolution (`Tree::resolve_pane_path` etc.) already takes its defaults as parameters, not from tracked state. `dispatch`'s signature should mirror that, so TASK-1.45 ("requests routed to the API") has exactly one thing left to do: build a `Context` from a connection's `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` and pass it through unchanged.
+
+### The kernel addition dispatch needs
+
+`crates/kernel/src/tree.rs`: `Tree::set_tab_current_pane(&mut self, tab: TabId, pane: PaneId) -> Result<(), Error>` (sets only that tab's own current pane, no cascade to the session — unlike `focus_pane`), and `Tree::tab_of_pane(&self, pane: PaneId) -> Option<TabId>` (read-only lookup). Needed for `pane.split --no-focus` (restoring the tab's own current pane without touching the session's `current_tab`) and for `pane.unset --zoomed` (`unfill_pane` takes a `TabId`, and there is currently no public way to find a pane's tab). Pure data, no event, no I/O — keep both minimal so TASK-1.46's eventing wraps them rather than replacing them.
+
+### Outcome: typed results in, one JSON value out
+
+Each dispatch arm should return `Result<Outcome, ApiError>`, not build `serde_json::Value` by hand per arm — that defines the wire form of every result twice (once by hand here, once in the sdk's types) with nothing checking they agree. `crates/server/src/dispatch/outcome.rs`: an `Outcome` enum — `Nothing`, `Session(SessionId)`, `Tab(TabId)`, `Pane(PaneId)`, `SessionRecord(SessionRecord)`, `SessionRecords(Vec<SessionRecord>)`, `Method(Box<Method>)`, `Methods(Vec<Method>)`, `Description(Box<Description>)` — covers every served method's result with nine cases, all built from sdk types that already exist after this task. One function, `Outcome::into_value`, is the only place that turns one into the `Value` `Response::Ok` carries: `Nothing` → `Value::Null`; an id variant → `{"id": "<it>"}` (naming decision-1 section 8's own flagged rough edge — "the real format should name that field" — rather than leaving it unnamed); the record variants and `Method`/`Methods`/`Description` → `serde_json::to_value` of the already-typed value.
+
+Tie it together with a test, not just prose: for every served method whose `returns` is `Record`/`Records`, the serialized typed value's own JSON keys should be compared against that method's declared `fields` names. `api.list`/`api.show`/`api.call` are checked on their own terms (their result *is* `Method`/`Description`, so the comparison is "it round-trips," not a `fields`-name comparison).
+
+`api.show` with no target: Bruk confirmed it returns the whole `Description`. The method's declared `returns` (from the sdk half) is a bare `Method`'s shape; the whole-`Description` case is a dispatch-time branch with a different, richer shape (extra top-level fields: `api_version`, `events`, `errors`, `methods` as an array). Decide in that task how `--json` should present this mismatch (e.g. document it in the method's own `details`, which the sdk half already does) — not solved here.
+
+### Files (in the dispatch task, not this one)
+
+- `crates/kernel/src/tree.rs`: `set_tab_current_pane`, `tab_of_pane`, with unit tests.
+- `boundaries.toml` + `crates/server/Cargo.toml`: add `serde_json` to `[steg-server]`'s allow list, reason: building the response payload dispatch answers with.
+- `crates/server/src/lib.rs`: `mod dispatch; pub use dispatch::{dispatch, Context}; pub use dispatch::outcome::Outcome;`.
+- `crates/server/src/dispatch/mod.rs`, `outcome.rs`, `session.rs`, `tab.rs`, `pane.rs`, `api.rs`, `kernel_error.rs` (new): the top-level match, `Outcome`/`into_value`, one file per noun's served arms, and `map_kernel_error(steg_kernel::Error) -> ApiError` (one arm per kernel `Error` variant).
+- `crates/server/tests/dispatch.rs` (functional, a real `Tree`, no doubles per testing-rust.md): per-method dispatch tests, the completeness test (every described method has a dispatch arm and every arm is described, both directions), the kernel-error-mapping test, the `Outcome`-versus-`fields` cross-check, and two end-to-end scenarios (split → set label → close a session; `tab.new` with `focus=false` leaving the original tab current).
+- `spikes/api-description/` deleted.
+
+One more thing worth re-flagging when that task is drafted in full: deleting `spikes/api-description/` leaves decision-1 sections 3 and 9's citations of `carry-one-method`/`measure.py` dangling. Decision text changes only via a PR containing nothing else — not any worker's to fix unprompted, but worth a line in that task's own notes too.
+
+---
 <!-- COMMENTS:END -->

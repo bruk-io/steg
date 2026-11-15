@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:50:00Z'
+updated_date: '2026-11-15T23:51:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -473,6 +473,51 @@ Check passed: `just test` exited 0 at 2026-11-15T23:50:47+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-kernel -p steg-server) (4.0s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-15T23:51:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.83 on task-1.83-kernel-running-finished-and-failed-for-a at 7cf881a0404e with uncommitted changes, last 40 of 64 lines:
+
+```text
+error[E0599]: no method named `note_command_ended` found for struct `pane::Pane` in the current scope
+   --> crates/kernel/src/pane.rs:882:14
+    |
+ 77 | pub struct Pane {
+    | --------------- method `note_command_ended` not found for this struct
+...
+882 |         pane.note_command_ended(Some(0), moment(0), 1);
+    |              ^^^^^^^^^^^^^^^^^^ method not found in `pane::Pane`
+
+error[E0599]: no method named `note_command_ended` found for struct `pane::Pane` in the current scope
+   --> crates/kernel/src/pane.rs:891:14
+    |
+ 77 | pub struct Pane {
+    | --------------- method `note_command_ended` not found for this struct
+...
+891 |         pane.note_command_ended(Some(0), moment(0), 1);
+    |              ^^^^^^^^^^^^^^^^^^ method not found in `pane::Pane`
+
+error[E0599]: no method named `note_command_ended` found for struct `pane::Pane` in the current scope
+   --> crates/kernel/src/pane.rs:900:14
+    |
+ 77 | pub struct Pane {
+    | --------------- method `note_command_ended` not found for this struct
+...
+900 |         pane.note_command_ended(Some(3), moment(0), 1);
+    |              ^^^^^^^^^^^^^^^^^^ method not found in `pane::Pane`
+
+error[E0599]: no method named `note_command_output_started` found for mutable reference `&mut pane::Pane` in the current scope
+   --> crates/kernel/src/tab.rs:747:14
+    |
+745 | /         tab.pane_mut(pane)
+746 | |             .unwrap()
+747 | |             .note_command_output_started(tick);
+    | |             -^^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `&mut pane::Pane`
+    | |_____________|
+    |
+
+error: could not compile `steg-kernel` (lib test) due to 22 previous errors
+full output: .quiet/tests-p-steg-p-steg-kernel-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -539,6 +539,12 @@ Check passed: `just test` exited 0 at 2026-11-15T16:33:27+00:00 in /Users/brukha
 ```text
 ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (42.1s)
 ```
+
+Check passed: `just check-boundaries` exited 0 at 2026-11-15T16:33:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.75 on task-1.75-server-dispatch-a-request-to-the-kernel at c8dc7cdd8d3d with uncommitted changes:
+
+```text
+ok      boundaries (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

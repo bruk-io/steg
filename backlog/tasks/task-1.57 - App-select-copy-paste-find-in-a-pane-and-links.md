@@ -1,13 +1,13 @@
 ---
 id: TASK-1.57
-title: 'App: select, copy, paste, find in a pane, and links'
+title: 'App: select, copy and paste'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T14:41:00Z'
+updated_date: '2026-11-15T20:06:00Z'
 labels:
   - size-4
-milestone: m-0
+milestone: m-4
 dependencies:
   - TASK-1.56
 parent_task_id: TASK-1
@@ -25,7 +25,10 @@ doc-9 R17. The app's look and behaviour is the design artifact (doc-10 says whic
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Text can be selected, copied and pasted, with bracketed paste where the program asks for it
-- [ ] #2 Find opens in the pane's own header, marks every match, moves to the next, and closes leaving the view where it was
-- [ ] #3 A link a program marks can be opened
-- [ ] #4 A link is drawn from the cell's link flag, and its address is asked for from the server by cell when the person acts on it (doc-9 R116); the method that asks is added to the API description and to doc-2's list
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split on 2026-11-15 under the engineer's standing decision to split by default, when M1 was divided into two usable stopping points: this task is selection, copy and paste, in milestone M1b. Find in a pane and links (the former criteria 2, 3 and 4) are a draft under TASK-1 in M1 that depends on this task. The size label is still 4 from before the split; only the engineer resizes accepted work.
+<!-- SECTION:NOTES:END -->

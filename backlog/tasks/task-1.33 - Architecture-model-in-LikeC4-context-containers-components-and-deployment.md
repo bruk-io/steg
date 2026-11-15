@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:32:00Z'
-updated_date: '2026-11-15T03:03:00Z'
+updated_date: '2026-11-15T03:04:00Z'
 labels:
   - size-2
 milestone: m-0
@@ -177,6 +177,18 @@ Departures from the approved plan during build (plan text unchanged, approval ho
 - Per the engineer's instruction, plugins/bruk-io-steg/commands.toml is deliberately left untouched in this worktree. Follow-up for the orchestrator after this merges: add "Node.js (npx, for `just architecture`)" to commands.toml's [check].needs and re-verify [check] through asdlc-plugin (its verified date is stale once this lands).
 
 Check passed: `just check` exited 0 at 2026-11-15T03:03:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at 988f3d0eb04e with uncommitted changes:
+
+```text
+ok      format check (0.1s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (0.3s)
+ok      tool tests (0.2s)
+ok      architecture (1.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-15T03:04:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.33 on task-1.33-architecture-model-in-likec4-context at af41e2487577:
 
 ```text
 ok      format check (0.1s)

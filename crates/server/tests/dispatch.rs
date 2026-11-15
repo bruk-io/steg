@@ -13,7 +13,7 @@
 )]
 
 use serde_json::{Value, json};
-use steg_kernel::Tree;
+use steg_kernel::{Settings, Tree};
 use steg_sdk::{Description, ErrorCode, Request, Response, SessionId, TabId, description};
 use steg_server::{Context, dispatch};
 
@@ -78,7 +78,13 @@ fn every_described_method_gets_a_response_with_no_panic() {
             .collect();
 
         // Not asserted on: only that calling it does not panic.
-        let _ = dispatch(&mut tree, &api, &context, &request(&dotted, params));
+        let _ = dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&dotted, params),
+        );
     }
 }
 
@@ -155,7 +161,13 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
         let (mut tree, context, api) = fresh();
         let before = tree.sessions().to_vec();
 
-        let error = err(dispatch(&mut tree, &api, &context, &request(method, extra)));
+        let error = err(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(method, extra),
+        ));
 
         assert_eq!(error.code, ErrorCode::NotImplementedYet, "{method}");
         assert!(
@@ -180,6 +192,7 @@ fn session_new_creates_a_plain_shell_session() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.new", vec![]),
@@ -195,6 +208,7 @@ fn session_show_matches_exactly_the_fields_the_description_declares() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.show", vec![]),
@@ -218,6 +232,7 @@ fn session_list_matches_exactly_the_fields_the_description_declares_per_record()
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.list", vec![]),
@@ -258,6 +273,7 @@ fn session_close_removes_it() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.close", vec![]),
@@ -273,6 +289,7 @@ fn session_move_converts_the_wire_position_before_calling_the_kernel() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -299,6 +316,7 @@ fn session_move_rejects_a_zero_position_without_touching_the_tree() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -325,6 +343,7 @@ fn session_set_and_unset_change_and_clear_the_label() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.set", vec![("label", json!("work"))]),
@@ -336,6 +355,7 @@ fn session_set_and_unset_change_and_clear_the_label() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.unset", vec![("label", json!(""))]),
@@ -350,6 +370,7 @@ fn session_show_with_an_unknown_target_is_no_such_target() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.show", vec![("target", json!(unknown.to_string()))]),
@@ -366,6 +387,7 @@ fn tab_new_makes_the_new_tab_current_by_default() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![]),
@@ -385,6 +407,7 @@ fn tab_new_with_no_focus_restores_the_previous_current_tab() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
@@ -426,6 +449,7 @@ fn tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
@@ -445,6 +469,7 @@ fn tab_new_with_position_one_places_the_new_tab_first() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("position", json!(1))]),
@@ -465,6 +490,7 @@ fn tab_new_with_a_middle_position_places_the_new_tab_there() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("position", json!(2))]),
@@ -491,6 +517,7 @@ fn tab_new_with_no_position_appends_at_the_end_as_before() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![]),
@@ -514,6 +541,7 @@ fn tab_new_with_position_zero_is_refused_and_creates_nothing() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("position", json!(0))]),
@@ -541,6 +569,7 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
 
     let new_error = err(dispatch(
         &mut new_tree,
+        &mut Settings::new(),
         &api,
         &new_context,
         &request("tab.new", vec![("position", json!(99))]),
@@ -558,6 +587,7 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
         .unwrap();
     let move_error = err(dispatch(
         &mut move_tree,
+        &mut Settings::new(),
         &api,
         &move_context,
         &request(
@@ -579,6 +609,7 @@ fn tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restore
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -598,6 +629,7 @@ fn tab_move_with_position_reorders() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -622,6 +654,7 @@ fn tab_close_removes_it() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.close", vec![("target", json!(second_tab.to_string()))]),
@@ -644,6 +677,7 @@ fn tab_focus_makes_it_current() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -666,6 +700,7 @@ fn pane_split_makes_the_new_pane_current_by_default() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("pane.split", vec![("direction", json!("right"))]),
@@ -694,6 +729,7 @@ fn pane_split_with_no_focus_restores_the_previous_current_pane() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -750,6 +786,7 @@ fn pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -785,6 +822,7 @@ fn pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -818,6 +856,7 @@ fn pane_split_with_a_program_refuses_and_creates_nothing() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -851,6 +890,7 @@ fn pane_close_removes_the_pane() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("pane.close", vec![("target", json!(second.to_string()))]),
@@ -881,6 +921,7 @@ fn pane_move_moves_it_to_another_tab() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -906,6 +947,7 @@ fn pane_set_zoomed_fills_and_unset_zoomed_unfills() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("pane.set", vec![("zoomed", json!(true))]),
@@ -921,6 +963,7 @@ fn pane_set_zoomed_fills_and_unset_zoomed_unfills() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("pane.unset", vec![("zoomed", json!(false))]),
@@ -949,6 +992,7 @@ fn pane_focus_moves_to_the_neighbour() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -983,6 +1027,7 @@ fn pane_swap_exchanges_two_panes() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -1014,6 +1059,7 @@ fn api_list_returns_every_method() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.list", vec![]),
@@ -1028,6 +1074,7 @@ fn api_show_with_a_target_returns_one_method() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.show", vec![("target", json!("pane.split"))]),
@@ -1042,6 +1089,7 @@ fn api_show_with_no_target_returns_the_whole_description() {
 
     let value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.show", vec![]),
@@ -1061,6 +1109,7 @@ fn api_show_an_unknown_method_is_no_such_target() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.show", vec![("target", json!("pane.nonexistent"))]),
@@ -1075,6 +1124,7 @@ fn api_call_with_no_target_is_a_bad_request() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.call", vec![]),
@@ -1089,6 +1139,7 @@ fn api_call_refuses_to_call_itself() {
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.call", vec![("target", json!("api.call"))]),
@@ -1107,12 +1158,14 @@ fn api_call_of_pane_split_gives_the_same_response_a_direct_call_would() {
 
     let direct = dispatch(
         &mut direct_tree,
+        &mut Settings::new(),
         &direct_api,
         &direct_context,
         &request("pane.split", vec![("direction", json!("right"))]),
     );
     let via_call = dispatch(
         &mut via_call_tree,
+        &mut Settings::new(),
         &via_call_api,
         &via_call_context,
         &request(
@@ -1136,6 +1189,7 @@ fn api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be(
 
     let error = err(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("api.call", vec![("target", json!("pane.nonexistent"))]),
@@ -1220,6 +1274,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 .collect();
             let error = err(dispatch(
                 &mut tree,
+                &mut Settings::new(),
                 &api,
                 &context,
                 &request(&dotted, params),
@@ -1259,13 +1314,21 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 ("with", json!(pane_for_swap.to_string())),
             ],
             "pane.split" => vec![("direction", json!("right"))],
+            "setting.set" => vec![("target", json!("appearance")), ("value", json!("light"))],
+            "setting.unset" => vec![("target", json!("appearance"))],
             other => panic!(
                 "{other} is Nothing/Identifier-returning but this test has no case for it - \
                  add one above"
             ),
         };
 
-        let response = dispatch(&mut tree, &api, &context, &request(&dotted, extra));
+        let response = dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&dotted, extra),
+        );
         match (&method.returns, response) {
             (steg_sdk::Returns::Nothing, Response::Ok(value)) => {
                 assert_eq!(value, Value::Null, "{dotted}");
@@ -1312,6 +1375,7 @@ fn split_set_label_then_close_the_session() {
 
     let split_value = ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("pane.split", vec![("direction", json!("right"))]),
@@ -1320,6 +1384,7 @@ fn split_set_label_then_close_the_session() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request(
@@ -1341,6 +1406,7 @@ fn split_set_label_then_close_the_session() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("session.close", vec![]),
@@ -1355,6 +1421,7 @@ fn tab_new_with_no_focus_leaves_the_original_tab_current() {
 
     ok(dispatch(
         &mut tree,
+        &mut Settings::new(),
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
@@ -1364,4 +1431,232 @@ fn tab_new_with_no_focus_leaves_the_original_tab_current() {
         tree.session(context.default_session).unwrap().current_tab(),
         original
     );
+}
+
+// --- setting (R80, decision-9; TASK-1.48) -----------------------------------
+
+#[test]
+fn setting_list_returns_every_registered_setting_with_its_current_value() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.list", vec![]),
+    ));
+
+    let records = value.as_array().unwrap();
+    assert_eq!(
+        records.len(),
+        1,
+        "one registered setting today (appearance)"
+    );
+    assert_eq!(records[0]["name"], json!("appearance"));
+    assert_eq!(records[0]["value"], json!("system"));
+    assert_eq!(records[0]["default"], json!("system"));
+}
+
+#[test]
+fn setting_show_returns_one_setting_in_full() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.show", vec![("target", json!("appearance"))]),
+    ));
+
+    assert_eq!(
+        value,
+        json!({"name": "appearance", "value": "system", "default": "system"})
+    );
+}
+
+#[test]
+fn setting_show_an_unknown_name_is_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.show", vec![("target", json!("nonsense"))]),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+/// AC #1 ("changed") and AC #2 ("applies at once"): a `set`, then an
+/// independent `show` call over the *same* `Settings` value, sees the new
+/// value immediately - there is no cache and no event to wait on.
+#[test]
+fn setting_set_changes_the_value_the_next_read_sees() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "setting.set",
+            vec![("target", json!("appearance")), ("value", json!("light"))],
+        ),
+    ));
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.show", vec![("target", json!("appearance"))]),
+    ));
+
+    assert_eq!(value["value"], json!("light"));
+    assert_eq!(value["default"], json!("system"), "the default never moves");
+}
+
+#[test]
+fn setting_set_rejects_an_unknown_name_with_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "setting.set",
+            vec![("target", json!("nonsense")), ("value", json!("anything"))],
+        ),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+#[test]
+fn setting_set_rejects_a_value_outside_the_closed_set_with_bad_request() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "setting.set",
+            vec![("target", json!("appearance")), ("value", json!("neon"))],
+        ),
+    ));
+
+    assert_eq!(error.code, ErrorCode::BadRequest);
+
+    // The rejected call changed nothing (mirrors the kernel's own
+    // `a_rejected_set_changes_nothing`, proven again here through the
+    // dispatch layer).
+    let value = ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.show", vec![("target", json!("appearance"))]),
+    ));
+    assert_eq!(value["value"], json!("system"));
+}
+
+#[test]
+fn setting_unset_reverts_to_the_default() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "setting.set",
+            vec![("target", json!("appearance")), ("value", json!("dark"))],
+        ),
+    ));
+    ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.unset", vec![("target", json!("appearance"))]),
+    ));
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.show", vec![("target", json!("appearance"))]),
+    ));
+    assert_eq!(value["value"], json!("system"));
+}
+
+#[test]
+fn setting_unset_an_unknown_name_is_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request("setting.unset", vec![("target", json!("nonsense"))]),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+/// AC #2's "still there after the app is quit and reopened," proved only
+/// as far as this layer can reach with no socket or process lifecycle yet
+/// (TASK-1.44/1.45 unbuilt): a fresh `Tree` and `Context` stand in for a
+/// new client/window connecting, while the *same* `Settings` value stands
+/// in for "the server, which outlives the app" (doc-8 R2/R3). This does
+/// not show the server itself surviving a restart - that is the
+/// persistence question on this task's plan, unresolved by this test.
+#[test]
+fn an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings() {
+    let (mut tree, context, api) = fresh();
+    let mut settings = Settings::new();
+
+    ok(dispatch(
+        &mut tree,
+        &mut settings,
+        &api,
+        &context,
+        &request(
+            "setting.set",
+            vec![("target", json!("appearance")), ("value", json!("dark"))],
+        ),
+    ));
+
+    // A different Tree and Context, as if a new client connected - the
+    // same Settings value is the only thing carried over.
+    let (mut other_tree, other_context, other_api) = fresh();
+    let value = ok(dispatch(
+        &mut other_tree,
+        &mut settings,
+        &other_api,
+        &other_context,
+        &request("setting.show", vec![("target", json!("appearance"))]),
+    ));
+
+    assert_eq!(value["value"], json!("dark"));
 }

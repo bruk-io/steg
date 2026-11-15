@@ -1,7 +1,7 @@
 //! The `api` noun's dispatch arms: the API's self-description, and
 //! calling any method by name (doc-2 section 2; decision-1).
 
-use steg_kernel::Tree;
+use steg_kernel::{Settings, Tree};
 use steg_sdk::{ApiError, Description, ErrorCode, Request, Response};
 
 use super::outcome::Outcome;
@@ -55,6 +55,7 @@ fn show(description: &Description, request: &Request) -> Result<Outcome, ApiErro
 /// `api.call`'s own schema.
 pub(super) fn call(
     tree: &mut Tree,
+    settings: &mut Settings,
     description: &Description,
     context: &Context,
     request: &Request,
@@ -73,5 +74,5 @@ pub(super) fn call(
         params,
     };
 
-    super::dispatch(tree, description, context, &inner)
+    super::dispatch(tree, settings, description, context, &inner)
 }

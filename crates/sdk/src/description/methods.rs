@@ -10,10 +10,11 @@
 //! `version` and `completion` are not API methods (doc-2 section 2) and are
 //! not. Which methods the kernel can serve today and which cannot yet is a
 //! dispatch question, carried on TASK-1.43's board task for the task that
-//! builds dispatch; this module describes all 38 regardless, each with the
+//! builds dispatch; this module describes all 42 regardless, each with the
 //! shape its `returns` promises, because `fields` alone already answers
-//! R37 whether or not a Rust type backs it yet (`SessionRecord` is the one
-//! that does, in `crate::record`, since `session.list`/`session.show` are
+//! R37 whether or not a Rust type backs it yet (`SessionRecord` and
+//! `SettingRecord` are the ones that do, in `crate::record`, since
+//! `session.list`/`session.show` and `setting.list`/`setting.show` are
 //! the only methods whose record the kernel can fill today).
 //!
 //! Grouped by noun, as section 8 is, so a method is easy to find and a
@@ -40,6 +41,7 @@ pub fn description() -> Description {
     methods.extend(server_methods());
     methods.extend(event_methods(&event_names));
     methods.extend(client_methods());
+    methods.extend(setting_methods());
     methods.extend(api_methods());
 
     Description {
@@ -1131,6 +1133,84 @@ fn client_methods() -> Vec<Method> {
     ]
 }
 
+// --- setting -----------------------------------------------------------
+
+/// `setting.list`/`setting.show`'s own row: a name, its current value
+/// (the override if one is set, else the default) and its default. Every
+/// field is `Text`: a setting's value is never typed per entry on the
+/// wire (`crate::setting`'s module doc; TASK-1.48's plan).
+fn setting_fields() -> Vec<Field> {
+    vec![
+        field("name", ValueKind::Text, "The setting's name"),
+        field(
+            "value",
+            ValueKind::Text,
+            "Its current value: the override if one is set, else the default",
+        ),
+        field("default", ValueKind::Text, "Its value with no override"),
+    ]
+}
+
+fn setting_methods() -> Vec<Method> {
+    vec![
+        Method {
+            name: method("setting", "list"),
+            summary: "Every setting, its current value and its default".into(),
+            details: String::new(),
+            params: Vec::new(),
+            returns: Returns::Records {
+                fields: setting_fields(),
+            },
+            errors: vec![ErrorCode::BadRequest],
+            since: VERSION,
+        },
+        Method {
+            name: method("setting", "show"),
+            summary: "One setting: its name, current value and default".into(),
+            details: String::new(),
+            params: vec![target_of_kind(
+                ValueKind::Text,
+                true,
+                "The setting to show, by its name",
+            )],
+            returns: Returns::Record {
+                fields: setting_fields(),
+            },
+            errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            since: VERSION,
+        },
+        Method {
+            name: method("setting", "set"),
+            summary: "Change a setting's value".into(),
+            details: "The setting is named by the positional and its new value is the \
+                      flag, since here the property is the thing addressed (doc-2 \
+                      section 8) — unlike `session set --label`, where the target is the \
+                      session and the property is its own flag."
+                .into(),
+            params: vec![
+                target_of_kind(ValueKind::Text, true, "The setting to change, by its name"),
+                flag("value", ValueKind::Text, true, "The setting's new value"),
+            ],
+            returns: Returns::Nothing,
+            errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            since: VERSION,
+        },
+        Method {
+            name: method("setting", "unset"),
+            summary: "Clear a setting's override, reverting it to its default".into(),
+            details: String::new(),
+            params: vec![target_of_kind(
+                ValueKind::Text,
+                true,
+                "The setting to change, by its name",
+            )],
+            returns: Returns::Nothing,
+            errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            since: VERSION,
+        },
+    ]
+}
+
 // --- api -------------------------------------------------------------------
 
 /// The projection `api.list`/`api.show` print in their flat text form: a
@@ -1318,13 +1398,17 @@ mod tests {
             ("api", "list"),
             ("api", "show"),
             ("api", "call"),
+            ("setting", "list"),
+            ("setting", "show"),
+            ("setting", "set"),
+            ("setting", "unset"),
         ]
     }
 
     #[test]
-    fn the_method_set_is_exactly_doc_2_section_8s_38_pairs() {
+    fn the_method_set_is_exactly_doc_2_section_8s_42_pairs() {
         let api = description();
-        assert_eq!(api.methods.len(), 38, "doc-2 section 8 lists 38 methods");
+        assert_eq!(api.methods.len(), 42, "doc-2 section 8 lists 42 methods");
 
         let described: HashSet<(String, String)> = api
             .methods
@@ -1567,6 +1651,10 @@ mod tests {
             ("event.watch", Some((false, ValueKind::Target))),
             ("client.list", None),
             ("client.show", Some((true, ValueKind::Target))),
+            ("setting.list", None),
+            ("setting.show", Some((true, ValueKind::Text))),
+            ("setting.set", Some((true, ValueKind::Text))),
+            ("setting.unset", Some((true, ValueKind::Text))),
             ("api.list", None),
             ("api.show", Some((false, ValueKind::Text))),
             ("api.call", Some((true, ValueKind::Text))),

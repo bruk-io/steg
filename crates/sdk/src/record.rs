@@ -1,11 +1,16 @@
 //! Records a client reads back over the API (doc-16 R105).
 //!
-//! `SessionRecord` is the only one this task adds: `session.list`/
+//! `SessionRecord` was the first this crate added: `session.list`/
 //! `session.show` are the only served methods (TASK-1.43's dispatch task)
 //! whose `returns` is a record at all. A `TabRecord`/`PaneRecord` arrives
 //! with the task that gives the kernel the fields they need (title,
 //! shown_status, cwd, program, exit code, status — TASK-1.39/1.41) — this
 //! crate fabricates nothing to fill a shape the kernel can't produce yet.
+//!
+//! `SettingRecord` (TASK-1.48) is the second: `setting.list`/`setting.show`
+//! read back a registry entry (`crate::setting::settings`) and its current
+//! value, every field as its own wire text (R80's settings are never typed
+//! per entry on the wire — see `crate::setting`'s module doc).
 
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +33,19 @@ pub struct SessionRecord {
     pub colour: Colour,
     /// The id of its current tab (doc-15 R85).
     pub current_tab: TabId,
+}
+
+/// One setting, as `setting.list`/`setting.show` return it: its name, its
+/// current value (the override if one is set, else the default) and its
+/// default, each as its own wire text (`crate::setting::Setting`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SettingRecord {
+    /// The setting's name.
+    pub name: String,
+    /// Its current value: the override if one is set, else the default.
+    pub value: String,
+    /// Its value with no override.
+    pub default: String,
 }
 
 #[cfg(test)]
@@ -111,6 +129,61 @@ mod tests {
             assert_eq!(
                 declared, record_keys,
                 "{dotted}'s declared fields and SessionRecord's own keys must match"
+            );
+        }
+    }
+
+    use super::SettingRecord;
+
+    fn setting_example() -> SettingRecord {
+        SettingRecord {
+            name: "appearance".to_string(),
+            value: "system".to_string(),
+            default: "system".to_string(),
+        }
+    }
+
+    #[test]
+    fn setting_record_serde_round_trips() {
+        let record = setting_example();
+        let json = serde_json::to_string(&record).unwrap();
+        assert_eq!(
+            serde_json::from_str::<SettingRecord>(&json).unwrap(),
+            record
+        );
+    }
+
+    /// Ties `SettingRecord`'s own shape to the description's, the same way
+    /// `matches_the_fields_session_show_and_session_list_declare` does for
+    /// `SessionRecord` above.
+    #[test]
+    fn matches_the_fields_setting_show_and_setting_list_declare() {
+        use std::collections::HashSet;
+
+        let api = crate::description::description();
+        let value = serde_json::to_value(setting_example()).unwrap();
+        let record_keys: HashSet<&str> = value
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+
+        for dotted in ["setting.show", "setting.list"] {
+            let method = api.method(dotted).unwrap();
+            let fields = match &method.returns {
+                crate::description::Returns::Record { fields }
+                | crate::description::Returns::Records { fields } => fields,
+                other @ (crate::description::Returns::Nothing
+                | crate::description::Returns::Identifier { .. }
+                | crate::description::Returns::Text) => {
+                    panic!("{dotted}'s returns is not a record: {other:?}")
+                }
+            };
+            let declared: HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+            assert_eq!(
+                declared, record_keys,
+                "{dotted}'s declared fields and SettingRecord's own keys must match"
             );
         }
     }

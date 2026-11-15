@@ -122,6 +122,16 @@ pub enum Error {
         /// The tab it has no attachment in.
         tab: TabId,
     },
+    /// No setting in `steg_sdk::settings()` has this name (R80; TASK-1.48).
+    UnknownSetting(String),
+    /// A setting's value did not match its own declared kind
+    /// (`steg_sdk::settings()`; TASK-1.48).
+    InvalidSettingValue {
+        /// The setting's name.
+        name: String,
+        /// The value that was given.
+        value: String,
+    },
 }
 
 impl fmt::Display for Error {
@@ -200,6 +210,10 @@ impl fmt::Display for Error {
                     "client {client} is not attached to any pane in tab {tab}"
                 )
             }
+            Error::UnknownSetting(name) => write!(f, "no setting named {name:?}"),
+            Error::InvalidSettingValue { name, value } => {
+                write!(f, "{value:?} is not a valid value for {name:?}")
+            }
         }
     }
 }
@@ -226,7 +240,9 @@ impl std::error::Error for Error {
             | Error::ShellCannotRestart(_)
             | Error::ClientNotFound(_)
             | Error::ClientNotViewingPane { .. }
-            | Error::ClientNotViewingTab { .. } => None,
+            | Error::ClientNotViewingTab { .. }
+            | Error::UnknownSetting(_)
+            | Error::InvalidSettingValue { .. } => None,
         }
     }
 }

@@ -2,10 +2,11 @@
 //! (TASK-1.75; doc-8 R36, R37; doc-16 R98, R101; decision-1).
 //!
 //! [`dispatch`] is a plain function from a [`steg_sdk::Request`] and a
-//! [`Context`] to a [`steg_sdk::Response`], over a [`steg_kernel::Tree`] —
-//! no socket, no I/O, in its signature: the tree is already in memory, and
-//! the request is already parsed. The server's own remaining job
-//! (TASK-1.44/1.45) is building a `Context` from a connection's
+//! [`Context`] to a [`steg_sdk::Response`], over a [`steg_kernel::Tree`]
+//! and the server's remembered [`steg_kernel::Settings`] (R80, decision-9;
+//! TASK-1.48) — no socket, no I/O, in its signature: both are already in
+//! memory, and the request is already parsed. The server's own remaining
+//! job (TASK-1.44/1.45) is building a `Context` from a connection's
 //! `STEG_SESSION`/`STEG_TAB`/`STEG_PANE` and calling this function
 //! unchanged.
 
@@ -14,13 +15,14 @@ mod kernel_error;
 pub(crate) mod outcome;
 mod pane;
 mod session;
+mod setting;
 mod tab;
 
 pub(crate) use kernel_error::map_kernel_error;
 pub use outcome::Outcome;
 
 use serde_json::Value;
-use steg_kernel::{Pane, Session, Tab, Tree};
+use steg_kernel::{Pane, Session, Settings, Tab, Tree};
 use steg_sdk::{
     ApiError, Description, ErrorCode, PaneId, Request, Response, SessionId, TabId, validate,
 };
@@ -53,6 +55,7 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all.extend(tab::HANDLED.iter().copied());
     all.extend(pane::HANDLED.iter().copied());
     all.extend(api::HANDLED.iter().copied());
+    all.extend(setting::HANDLED.iter().copied());
     all.extend(NOT_YET_NOUNS.iter().copied());
     all
 }
@@ -242,7 +245,10 @@ pub(crate) fn wire_position_to_index(position: i64) -> Result<usize, ApiError> {
 }
 
 /// Dispatches one request against `description`, over `tree`, with
-/// `context`'s defaults for any target part left out.
+/// `context`'s defaults for any target part left out. `settings` is the
+/// server's remembered overrides (R80, decision-9; TASK-1.48) — orthogonal
+/// to `tree`: a setting's target is its own name, never a session/tab/pane
+/// path, so it needs no `Context` either.
 ///
 /// # Panics
 ///
@@ -255,12 +261,13 @@ pub(crate) fn wire_position_to_index(position: i64) -> Result<usize, ApiError> {
 #[must_use]
 pub fn dispatch(
     tree: &mut Tree,
+    settings: &mut Settings,
     description: &Description,
     context: &Context,
     request: &Request,
 ) -> Response {
     if request.method == "api.call" {
-        return api::call(tree, description, context, request);
+        return api::call(tree, settings, description, context, request);
     }
 
     if let Err(error) = validate(description, request) {
@@ -284,6 +291,9 @@ pub fn dispatch(
         }
         (noun, verb) if api::HANDLED.contains(&(noun, verb)) => {
             api::dispatch(description, request, verb)
+        }
+        (noun, verb) if setting::HANDLED.contains(&(noun, verb)) => {
+            setting::dispatch(settings, request, verb)
         }
         ("server", _) => Err(not_implemented_yet(
             "the server's own socket and lifecycle (TASK-1.44)",

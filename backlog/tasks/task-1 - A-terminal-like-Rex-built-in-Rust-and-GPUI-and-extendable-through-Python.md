@@ -4,7 +4,7 @@ title: A terminal like Rex, built in Rust and GPUI and extendable through Python
 status: To Do
 assignee: []
 created_date: '2026-11-13T22:34:00Z'
-updated_date: '2026-11-15T00:53:00Z'
+updated_date: '2026-11-15T01:00:00Z'
 labels: []
 dependencies: []
 documentation:
@@ -68,6 +68,8 @@ Decided 2026-11-15 (Bruk): settings. There is no settings window and no separate
 Decided 2026-11-15 (Bruk): settings follow the convention of code configs. A setting changed in the palette applies at once and lasts for this run of the server, as an override; steg never writes to the Python config. The palette shows when a value differs from the config, and an action opens the config at the right place with the line to add. In M1, before the config exists, every setting is an override the server remembers. Recorded in doc-7 as D106 to D108.
 
 2026-11-15: Bruk read the day's spec work (doc-7 new; doc-1, doc-2 and doc-5 revised) and said it looks good. Recorded as he said it; the values doc-7 marks (proposed) were not gone through one by one, and doc-1's header still says draft.
+
+Decided 2026-11-15 (Bruk): the terminal emulation library is ghostty's VT engine, which is doc-6's recommendation. doc-6 names what follows from it and none of these is decided yet: the licence policy has to allow CDLA-Permissive-2.0 or exclude build-only dependencies, because the repository's own licence check refuses the ghostty path today; R19's first sentence needs replacing, since neither candidate meets 16 ms once the wait for the display is counted; and the build needs a Zig toolchain and a vendored source tree. The dependency doc-6 names is ghostty-vt 0.8 over ghostty 1.4.0-main, not libghostty-vt 0.2.2, which could not be built.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

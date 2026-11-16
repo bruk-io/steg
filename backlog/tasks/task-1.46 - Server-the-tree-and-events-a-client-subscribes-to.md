@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T04:31:00Z'
+updated_date: '2026-11-16T04:32:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -28,11 +28,10 @@ doc-8 R38 and doc-14. A client asks for the tree once and then receives changes.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 One request returns the tree: sessions, tabs and panes with their focus fields, layout and status
-- [ ] #2 Events report sessions, tabs and panes created, closed and changed; a focus change is one event carrying the whole path; a layout change carries the tab's layout whole
-- [ ] #3 Events report status changes and clients connecting, leaving, and starting or stopping viewing a session
-- [ ] #4 One event can be addressed to a single client, asking it to show a session
-- [ ] #5 A subscription can be narrowed to named events on the server
+- [ ] #1 One request returns the tree: sessions, tabs and panes with their focus fields, layout and status, as one coherent read; a client that subscribes gets that tree and then every event after it, with nothing lost or doubled between the two
+- [ ] #2 Events report sessions, tabs and panes created and closed; a focus change is one event carrying the whole path; a pane's program exiting and a pane's status changing are events. Each is caused by every place the tree changes that way, whether from a request, a program's exit or a typed command's start and end, and reaches every subscribed client in order
+- [ ] #3 A subscription can be narrowed to named events on the server, and ended; a client that subscribes and does not read is dealt with as decision-2 and the plan say, without delaying any other client or holding the runtime's lock while writing
+- [ ] #4 Subscribing, the tree and the events are offered through the sdk, so the CLI and the app do not each write them (R101), and this task's tests go through it over a real socket
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -467,3 +466,15 @@ captured on the task before this is offered as done, per `team:testing`.
   today (§2) — not blocking this task, but should not be forgotten once TASK-1.47
   starts.
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T04:32:00Z
+
+---
+
+Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps the tree, subscribing, delivery to every subscribed client, narrowing, and the events that already have a producer in the tree (created, closed, focused, exited, status changed). The events the API description does not have yet (a tab's layout changed, a session or tab changed, clients connecting, leaving and viewing, and the one event addressed to a single client for session focus) moved to a new draft, with session focus itself. Criteria reworded to match. Depends on TASK-1.89 for the tab record.
+
+---
+<!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:20:00Z'
+updated_date: '2026-11-16T02:24:00Z'
 labels:
   - size-3
   - changes-requested
@@ -954,6 +954,53 @@ test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... o
 test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
 
 test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib dispatch::lookup` exited 101 at 2026-11-16T02:24:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 3cada1b0b743 with uncommitted changes, last 40 of 65 lines:
+
+```text
+---- dispatch::lookup::tests::target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none stdout ----
+
+thread 'dispatch::lookup::tests::target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none' (18876801) panicked at crates/server/src/dispatch/lookup.rs:417:9:
+assertion `left == right` failed
+  left: Err(ApiError { code: BadRequest, message: "no target given, and this connection has no session context to fall back on", candidates: [] })
+ right: Ok(TabId(1))
+
+---- dispatch::lookup::tests::a_fully_explicit_target_resolves_from_context_none_unaffected stdout ----
+
+thread 'dispatch::lookup::tests::a_fully_explicit_target_resolves_from_context_none_unaffected' (18876794) panicked at crates/server/src/dispatch/lookup.rs:337:9:
+assertion `left == right` failed
+  left: Err(ApiError { code: BadRequest, message: "no target given, and this connection has no session context to fall back on", candidates: [] })
+ right: Ok(TabId(1))
+
+---- dispatch::lookup::tests::a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context stdout ----
+
+thread 'dispatch::lookup::tests::a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context' (18876795) panicked at crates/server/src/dispatch/lookup.rs:386:9:
+assertion `left == right` failed
+  left: "no target given, and this connection has no session context to fall back on"
+ right: "\"00000000/00000001/00000002\" is not a valid target path"
+
+---- dispatch::lookup::tests::a_fully_explicit_pane_target_resolves_from_context_none_unaffected stdout ----
+
+thread 'dispatch::lookup::tests::a_fully_explicit_pane_target_resolves_from_context_none_unaffected' (18876793) panicked at crates/server/src/dispatch/lookup.rs:349:9:
+assertion `left == right` failed
+  left: Err(ApiError { code: BadRequest, message: "no target given, and this connection has no session context to fall back on", candidates: [] })
+ right: Ok(PaneId(2))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dispatch::lookup::tests::a_fully_explicit_pane_target_resolves_from_context_none_unaffected
+    dispatch::lookup::tests::a_fully_explicit_target_resolves_from_context_none_unaffected
+    dispatch::lookup::tests::a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context
+    dispatch::lookup::tests::a_wrong_but_fully_explicit_target_from_context_none_is_a_real_not_found
+    dispatch::lookup::tests::target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none
+
+test result: FAILED. 6 passed; 5 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.

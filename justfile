@@ -33,7 +33,7 @@ default:
     @just --list
 
 # what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, and this file's own recipe names
-check: check-fmt lint check-boundaries deny test check-packages test-tools check-architecture check-recipes
+check: check-fmt lint check-boundaries check-design deny test check-packages test-tools check-architecture check-recipes
 
 # Seeds Zig's own package cache (`ZIG_GLOBAL_CACHE_DIR`, .cargo/config.toml) from the
 # committed, read-only tarballs in third_party/ghostty-vt-zig-deps/p/, so a real build never
@@ -159,6 +159,13 @@ deny:
 # refuse a crate dependency that crosses the boundaries in .claude/rules/architecture.md (boundaries.toml)
 check-boundaries:
     @if [ "{{rust}}" = no ]; then echo "skip    boundaries: no Rust workspace yet"; else {{quiet}} "boundaries" -- uv run --quiet --project tools steg-boundaries; fi
+
+# check crates/ui/design/foundations.json against the saved foundations pages' rendered
+# markup, by name and value (doc-17, R121, R122; TASK-1.96) - not gated on `rust`: the
+# data file and the saved pages are committed regardless of whether the Rust workspace
+# exists yet
+check-design:
+    @{{quiet}} "design pages" -- uv run --quiet --project tools steg-design-check
 
 # install or check what the recipes need beyond Rust itself (cargo-deny first, then the
 # pinned Zig mise.toml names - idempotent, and a no-op once it's installed)

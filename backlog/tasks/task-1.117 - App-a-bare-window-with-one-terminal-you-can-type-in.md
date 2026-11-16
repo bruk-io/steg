@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T16:48:00Z'
+updated_date: '2026-11-16T17:06:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -180,6 +180,51 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T17:06:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 64 lines:
+
+```text
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:107:
+                     .borrow_mut()
+                     .shaped(key, || shape_run(window, &run.text, text_run));
+                 let origin = point(bounds.origin.x + metrics.cell_width * f32::from(column), y);
+[31m-                if let Err(error) = shaped.paint_background(origin, metrics.line_height, window, cx) {
+(B[m[32m+                if let Err(error) = shaped.paint_background(origin, metrics.line_height, window, cx)
+(B[m[32m+                {
+(B[m                     eprintln!("painting a run's background failed: {error}");
+                 }
+                 if let Err(error) = shaped.paint(origin, metrics.line_height, window, cx) {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:194:
+ fn shape_run(window: &mut Window, text: &str, run: TextRun) -> ShapedLine {
+     let text: SharedString = text.to_owned().into();
+     let font_size = steg_ui::foundations::TERMINAL.size;
+[31m-    window.text_system().shape_line(text, font_size, &[run], None)
+(B[m[32m+    window
+(B[m[32m+        .text_system()
+(B[m[32m+        .shape_line(text, font_size, &[run], None)
+(B[m }
+ 
+ fn run_key(row: usize, column: u16, run: &Run) -> u64 {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:202:
+     row.hash(&mut hasher);
+     column.hash(&mut hasher);
+     run.text.hash(&mut hasher);
+[31m-    run.style.fg.map(|rgb| (rgb.r, rgb.g, rgb.b)).hash(&mut hasher);
+(B[m[31m-    run.style.bg.map(|rgb| (rgb.r, rgb.g, rgb.b)).hash(&mut hasher);
+(B[m[32m+    run.style
+(B[m[32m+        .fg
+(B[m[32m+        .map(|rgb| (rgb.r, rgb.g, rgb.b))
+(B[m[32m+        .hash(&mut hasher);
+(B[m[32m+    run.style
+(B[m[32m+        .bg
+(B[m[32m+        .map(|rgb| (rgb.r, rgb.g, rgb.b))
+(B[m[32m+        .hash(&mut hasher);
+(B[m     run.style.bold.hash(&mut hasher);
+     run.style.italic.hash(&mut hasher);
+     run.style.inverse.hash(&mut hasher);
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

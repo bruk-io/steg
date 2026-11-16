@@ -1481,6 +1481,31 @@ test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```
 
 Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 1 at 2026-11-16T14:58:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/connection.rs:481:
+                 // path out of it including a panic - `handle`'s own final
+                 // check below finds `None` here and sends nothing a
+                 // second time.
+[31m-                run_post_handshake(&mut stream, &mut connection, runtime, client_id, events.take());
+(B[m[32m+                run_post_handshake(
+(B[m[32m+                    &mut stream,
+(B[m[32m+                    &mut connection,
+(B[m[32m+                    runtime,
+(B[m[32m+                    client_id,
+(B[m[32m+                    events.take(),
+(B[m[32m+                );
+(B[m             }
+         }
+         FirstFrame::NotAHello(reason) => {
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

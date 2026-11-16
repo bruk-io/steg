@@ -1,16 +1,19 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:43:00Z'
+updated_date: '2026-11-16T02:52:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.92
+references:
+  - task-1.96-tools-check-the-design-s-data-file
+  - https://github.com/bruk-io/steg/pull/54
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -178,6 +181,84 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6velY9` does not 
 ....                                                                     [100%]
 4 passed in 0.07s
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:45:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at f99466903b08 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.2s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (54.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.9s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (5.2s)
+ok      test (steg-server, race-fixture) (5.2s)
+ok      build (steg) (0.5s)
+ok      test (steg) (0.3s)
+ok      test (steg, fixtures) (3.1s)
+ok      build (steg-ui) (0.9s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (1.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:46:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at dcbeaf2d3b83:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (5.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Built per the approved plan (digest d2f87de12c3c): tools/src/steg_tools/design_pages.py, CLI steg-design-check, recipe check-design wired into just check.
+
+Checks (all exit 0, recorded on the task):
+- just check, before any change (baseline).
+- Unit: tools/tests/unit/test_design_pages.py, 26 tests, first run found two real bugs (fixed before recording green): find_table_rows was passing the colour row's 4-cell tuple straight to ColourRow's 3-arg constructor; ambiguous_matches returned a 1-element tuple for the ordinary single-page case instead of () (fixed to only return non-empty when truly ambiguous); a float-imprecision case in the opacity-to-percent conversion (0.28*100 == 28.000000000000004) that would never equal the page's regex-extracted 28.0 (fixed by rounding to the nearest whole percent, documented in the code as the design's own convention).
+- Adapter: tools/tests/adapter/test_design_pages_real_workspace.py - the real data file against the real saved pages passes today; the two required negative controls (a changed dark hex in a scratch copy is refused naming both forms; a removed colour entry is reported missing via the reverse direction, since the real pages still draw it); plus a sanity check that a byte-identical scratch copy still passes.
+- just check at the rebased final head (dcbeaf2), after fetching and rebasing onto origin/main (branch had never been pushed) - clean, no conflicts: TASK-1.93/1.94/1.97 hadn't merged tools/pyproject.toml or justfile entries yet.
+- CI green on PR 54 at head dcbeaf2: gh pr checks 54 --watch, check passed in 4m20s.
+
+Build-time ordering (plan's "Module shape"): TASK-1.94's steg_tools.foundations.read() had not merged to origin/main at any point during this build (confirmed tools/src/steg_tools/ on origin/main before starting and again before pushing: no foundations.py either time) - so this task's design_pages.py reads the data file itself via a private _read_data_file, not TASK-1.94's shared reader. Swapping to that import once TASK-1.94 lands is a follow-up, named in the module's docstring and the PR description.
+
+Coverage, clause by clause (every proof item from the plan is in the test files above, none dropped):
+- AC#1: forward direction (Tier A exact-match for 17/18 colours + 32 ANSI colours, Tier B number-subset for 16 type/size entries) and reverse direction (page value missing from file, restricted to the same rows, allow-list "radius") both built and tested; a refusal names the value and both forms (file_form/page_form on Mismatch/Missing).
+- AC#2: unit tests with no I/O, an adapter test against the real files passing today, both required negative controls (value changed -> refused; value removed -> reported missing), part of just check and gated in CI via .github/workflows/ci.yml's existing `just check` call.
+- AC#3: TIER_C_SKIPS (24 entries) names everything this tool cannot see and why; printed by the tool itself on every passing run (not only the README), plus the module docstring's explicit statement that page/file agreement doesn't establish a value is part of the confirmed design (TASK-1.92's overlay.layout.max_height_percent_of_window precedent).
+
+One correction to the plan's own text, discovered during build (not a scope change - substance unchanged, just an internal inconsistency in my own planning prose): the plan said the reverse-direction allow-list "starts empty... everything on Tokens/Details maps to a file entry today." That's wrong by one entry: the Sizes table's "radius" row has no exact file key (file has radius.surface/track/inner/round, none spelled "radius"), so REVERSE_ALLOW_LIST contains exactly {"radius"} today, not nothing - the same radius.* exception the plan's Tier C section already discusses, just restated correctly for the reverse-direction registry specifically. No other reverse-direction surprises found; every other page name (17 colours, 16 type/size names, 32 ANSI names after underscore/space translation) matches a file key exactly, verified both by the adapter test and by hand against the real files during planning.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head dcbeaf2, CI green).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

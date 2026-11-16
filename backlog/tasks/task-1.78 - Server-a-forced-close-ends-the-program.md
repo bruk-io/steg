@@ -1,14 +1,13 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:44:00Z'
+updated_date: '2026-11-16T02:46:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -26,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1990,6 +1990,26 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 0.
+
+Review findings fixed. Leading with the headline fix: a signal can no longer reach a reaped pid - the pid-clearing that marks a run dead now happens atomically with the reap itself (RunGate: Mutex<GateState> + Condvar, generation-tracked), done only by the relay thread, under the same lock a signaller must hold to send. Previously this happened when the worker dequeued Exited - the same queue a flooding program's PtyBytes could back up arbitrarily, so a signal could in theory reach an already-reaped pid.
+
+Finding 1 (signal-to-reaped-pid race): replaced Arc<AtomicU64> pid with RunGate. The relay thread polls child.try_wait() under RunGate's lock (never a blocking wait() outside it); reap and pid-clear happen in one critical section. nix's waitid/WNOWAIT (observe without reaping) is not available on this project's macOS target - confirmed by reading sys/wait.rs's own cfg-gate directly before committing to try_wait-under-lock as the mechanism, not an alternative narrowing the window. join_worker split into settle_worker (&self, parallel-safe) + join_worker (consumes, sequential) so force_end settles every handle concurrently against one shared bound without reintroducing N-pane serial cost.
+
+Tests added for finding 1, each with a negative control run and reverted:
+- pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run - a direct unit test of RunGate::clear_if_current (shared by spawn_relay's two reap branches), not only an end-to-end test.
+- pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue - two separate handles, a real 1,000,000-item backlog, proving await_exit (RunGate-based) is unaffected while settle_worker (still queue-based by design) is measurably slower.
+- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler (tests/runtime.rs).
+- pane::ending_tests::restarting_then_forcing_ends_the_new_program_not_the_old_one - the Exited-arm pid-clear nit (restart a command pane, then force it: the new program is ended).
+
+Note named in the notes, not hidden: an end-to-end attempt to reproduce the misclassification via a real flooding shell program through a real pty did not reliably show a measurable delay under the reverted mechanism, because the kernel's own pty buffer throttles the writer before the backlog this bug needs can build up. The deterministic channel-flooding test above is what actually discriminates the two mechanisms; the end-to-end test is still kept as a realistic regression check.
+
+Finding 2 (AC #4 full-method coverage): added a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it and the tab/session equivalents in tests/runtime.rs, covering every other method that can name a pane/tab/session being forced (pane.close plain/swap/move/set/unset/focus; tab.close plain/move/set/unset/focus; session.close plain/show/move/set/unset). Methods not implemented yet are excluded. Negative control run by hand: reversed close_and_dispatch back to force-before-close (the rejected first draft's order) - all three new tests failed as predicted, reverted, not committed as a toggle.
+
+Nits: (1) the stale 10/10 run re-recorded as 20/20 clean at the final head, no leaked process; (2) any_pane_running's documented "pane id that cannot be found" branch now has a direct test; (3) the duplicated panes_in_close_scope call is left as-is with reasoning posted on the PR and here - dispatch::dispatch must stay correct when called directly (tests/dispatch.rs bypasses Runtime entirely), so the refusal check can't be removed from the three close arms without breaking that invariant, and the cost is a tree walk over a handful of panes, not a stated performance target.
+
+Merged origin/main: brought in TASK-1.45/1.77/1.84's own server changes (RunGate's module doc, pane.rs's own imports, boundaries.toml/Cargo.toml's nix feature list) plus unrelated crates/ui, tools, and backlog changes. Resolved conflicts in boundaries.toml, crates/server/Cargo.toml (merged both nix feature reasons - setsid for TASK-1.77, killpg/Signal for this task), and crates/server/src/pane.rs (merged both import lists). Fixed origin/main's own new runtime.rs tests (TASK-1.84) that used PaneHandle::stop() and the 2-arg Runtime::new, both since replaced by this task.
+
+Checks recorded: cargo test -p steg-server --lib (targeted generation-guard and backlog-comparison tests, each with its negative control); cargo test -p steg-server (full suite, clean after the merge); cargo test -p steg-server -p steg-kernel -p steg; just check (clean, twice - one transient exit 143 from resource contention with other concurrent workers on this shared machine, re-ran clean); the server suite 20 times at the final head (a4fb5d0), 0 failures, no leaked process. CI green at a4fb5d0 (gh pr checks 47, watched in the foreground). Review response posted to the PR as a comment.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2049,6 +2069,15 @@ Negative controls repeated by hand, reverted: (1) force_end pass 3's signal_kill
 Checked and clean: no unsafe anywhere in the diff; nix's "signal" feature is listed in boundaries.toml's [steg-server] allow/reason and Cargo.toml, matching plan §8; no crates/kernel or crates/sdk files touched; files touched match the plan's own "Files that change" list exactly.
 
 Overlap: TASK-1.84 (PR #46, in review) adds two apply_event_locked arms for command marks that "deliberately leave the handle in place" on PaneNotFound - that assumption is about to become moot once this merges, since close_and_dispatch now pops every scope pane's handle synchronously at close time (both forced and plain closes), before any mark or exit event for it can arrive; there will be no handle left in state.panes to leave in place. TASK-1.84 will need to revisit that comment/behaviour against this task's new reality, though it is not this task's own bug. TASK-1.45 (not yet in review) constructs Runtime::new and calls stop() explicitly; it will need to pass a force_grace argument (FORCE_GRACE_DEFAULT for production) and should expect stop() to take up to ~6s worst case now rather than up to 5s per pane serially.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T02:46:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.78: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

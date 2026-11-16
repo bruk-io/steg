@@ -400,6 +400,44 @@ test typed_bytes_reach_a_real_program_in_order ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
 ```
+
+Check FAILED: `cargo test -p steg-server --test attach input_clears_a_finished_status` exited 101 at 2026-11-16T17:53:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+warning: variable does not need to be mutable
+   --> crates/server/src/runtime.rs:591:13
+    |
+591 |         let mut state = self.lock();
+    |             ----^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test input_clears_a_finished_status ... FAILED
+
+failures:
+
+---- input_clears_a_finished_status stdout ----
+
+thread 'input_clears_a_finished_status' (44725105) panicked at crates/server/tests/attach.rs:794:9:
+input never cleared the Finished status: Object {"cwd": String("/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/"), "exit_code": Number(0), "id": String("00000003"), "kind": String("terminal"), "label": Null, "program": String("sh -c exit 0"), "program_status": String("ended"), "size": Null, "status": String("finished"), "title": Null}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    input_clears_a_finished_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

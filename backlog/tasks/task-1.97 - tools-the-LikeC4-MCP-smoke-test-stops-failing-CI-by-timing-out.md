@@ -24,6 +24,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -429,6 +430,15 @@ Reviewed at head 1e63d7b907f04794bf93bd759058e4af6d59e1eb (matches PR 53's head 
 [Compliance, Nit] .github/workflows/ci.yml:75-85 - "Install the pinned Zig (mise.toml)" (and its comment) now also installs the new `node` pin via the same jdx/mise-action step, but the name/comment weren't updated to mention it.
 
 Verified myself, no findings: the cause (read failed-run log job 133035963248: "FAILED tool tests (exit 1, 34.2s)", "TimeoutError: ... within 30.0s", "1 failed, 51 passed in 33.17s"; passing-run log job 133045320293: "tool tests (21.4s)" / "architecture (1.7s)" - both match the notes verbatim); the deterministic blocked-registry pair myself in a fresh review worktree (warm cache, HTTP(S)_PROXY to a closed port, .npmrc moved aside: failed at "did not answer (to start) within 60.0s", 65.04s wall; .npmrc restored: passed in 0.60s); .npmrc's blast radius (grepped, only .mcp.json/justfile/likec4_mcp.py use npx, confirmed covered); the actions/cache pin (55cc8345863c7cc4c66a329aec7e433d2d1c52a9 is really v6.1.0); the CI step ordering (Node confirm -> cache restore -> warm step -> just check, nothing removed); the 5.0s exchange bound's safety margin (direct call with timeout=0.5 against the full response - 7 views, 18 elements - passed, ~10x headroom); the merge commit 1e63d7b (only pulls in unrelated backlog/ files, no code the plan hadn't seen); and the Node pin in CI logs (v24.22.0 printed). Cleaned up: git status clean in the review worktree, no stray npx/likec4 processes, proxy env vars unset.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:27:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.97: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

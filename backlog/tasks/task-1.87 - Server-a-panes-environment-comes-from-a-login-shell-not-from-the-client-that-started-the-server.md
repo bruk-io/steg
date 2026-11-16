@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:00:00Z'
+updated_date: '2026-11-16T07:01:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1363,6 +1363,43 @@ running 1 test
 test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg --features fixtures --test login_environment` exited 101 at 2026-11-16T07:01:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ed80ab89ca26 with uncommitted changes:
+
+```text
+warning: unused variable: `timeout`
+   --> crates/server/src/login_env.rs:187:60
+    |
+187 | pub fn capture_login_environment(identity: &LoginIdentity, timeout: Duration) -> Capture {
+    |                                                            ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeout`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... FAILED
+
+failures:
+
+---- a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment stdout ----
+
+thread 'a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment' (26032171) panicked at crates/steg/tests/login_environment.rs:337:5:
+the throwaway .zprofile's own marker must reach the pane
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+error: test failed, to rerun pass `-p steg --test login_environment`
 ```
 
 Commits since the review: 0.

@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:58:00Z'
+updated_date: '2026-11-16T02:11:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -26,10 +27,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '33f0386d0f53'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review", "testing-rust"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -797,6 +796,39 @@ created: 2026-11-16T01:58:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T02:11:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Third round, same-machine review. Head reviewed: a0df2aa80b85387d8122745eedbbcb8639b60413 (PR #46's head; matches the task's own recorded `just check`). Independently reproduced at this head: a fresh detached worktree; `just check` exit 0 (all 19 steps, including architecture and recipe names); `a_command_panes_own_program_printing_marks_does_not_change_its_status` run 30/30 with no flakiness; the full `runtime::tests` module (18 tests) run 20/20 with no flakiness, default parallelism; `gh pr checks 46` green on this same head.
+
+Since c495468 (round two's head), only crates/server/src/runtime.rs changed (130 lines); crates/kernel/src/terminal.rs (21 lines) and crates/server/src/pane.rs (52 lines) are byte-for-byte what rounds one and two already found sound - confirmed by `git diff --stat c495468...HEAD`, which names only runtime.rs. The whole diff against main was read, not just this round's delta.
+
+1. What the test now waits on: `State::applied_marks`, a `#[cfg(test)]`-only `HashMap<PaneId, u64>`, incremented by `note_mark_applied` as the first statement inside both of `apply_event_locked`'s `CommandOutputStarted`/`CommandEnded` arms, before each arm's own call into the kernel (`state.tree.note_command_output_started`/`note_command_ended`). The increment and the kernel call both run inside the one critical section the drain thread's `Mutex<State>` guard holds for the whole iteration (`runtime.rs`'s drain loop: lock, `apply_event_locked`, implicit unlock at the end of the loop body) - the test's own poll (`wait_for_applied_mark_count`) must acquire that same lock to read the counter, so it cannot observe a count the drain thread hasn't released the lock after, and the kernel call for that same event has already run before that release. So although the counter is literally incremented "on receipt" (before the kernel call, not after), the shared lock makes that ordering invisible to any outside observer: by the time the test sees count == 2, both of this pane's own marks have been fully applied to the tree, never merely received. Confirmed this is load-bearing, not incidental: in a reverted scratch edit, I moved the increment into the drain loop itself, in its own separate (shorter) lock acquisition released *before* the lock for `apply_event_locked`, with an artificial 50ms gap between the two - decoupling the counter from the lock that guards the actual kernel call, the "count on receipt" failure mode the review brief asked about. Combined with the guard-bypass control below, the test then passed despite the broken guard - a silent vacuous pass, proving by construction that it's specifically the shared critical section in the shipped code, not luck, that makes the real version sound. Both edits reverted.
+
+   `applied_marks`/`note_mark_applied` grepped end to end: the field (behind `#[cfg(test)]`), its init in `Runtime::new` and in the test module's own `State` literal, the two increment call sites inside `apply_event_locked`, and the one read in `wait_for_applied_mark_count` - no other reference. `#[cfg(not(test))] fn note_mark_applied` is a true no-op with no access to the (nonexistent, in that build) field, so it cannot change release behaviour and isn't reachable from any non-test code path; `just check`'s `build (steg-server)` step compiles exactly that `#[cfg(not(test))]` arm and passed, so this is a run, not just an argument. `wait_for_applied_mark_count`'s `thread::sleep(Duration::from_millis(5))` is the poll interval between re-reads of a real fact inside a bounded loop, the identical shape the pre-existing `wait_for_pane_status` already uses (20ms) and that round two did not fault - not a sleep standing in for synchronisation, which is the thing `.claude/rules/testing-rust.md` forbids and round two actually found. No bare sleep used as a wait anywhere else in this round's diff; the sibling-shell-pane-plus-100ms-sleep design round two found is gone, not just hidden.
+
+   Scope note, not a finding: this test's two negative controls bypass both of `Pane::note_command_output_started`'s and `note_command_ended`'s guards together. If only the start-side guard were broken, the `C` mark would set `CommandRunning`, which renders as the same `Status::Running` value `start_program` already produces, and the (intact) end-side guard would return `Ignored` for the `D` mark - so this test would read `Running` throughout and pass regardless. That is inherent to the status model (both values coincide), not a gap this test introduces; the start-side guard alone is already proven directly at the `Pane` level by the kernel's own `note_command_output_started_on_a_command_pane_is_ignored` (crates/kernel/src/pane.rs:877, from TASK-1.83).
+
+2. Both negative controls reproduced myself in scratch edits, reverted afterward: (a) commented out the `drain_command_marks` call in `crates/server/src/pane.rs`'s `PtyBytes` arm - the test fails by its own bounded wait, "never reached 2 applied marks; last seen 0", matching the notes; (b) bypassed the kernel's command-pane guard (`if true`/`if !true` in place of `self.closes_on_exit()` in both `Pane::note_command_output_started` and `note_command_ended`, crates/kernel/src/pane.rs) - the test fails at `assert_eq!(pane_status(&runtime, pane), Some(Status::Running), "a command pane's own program always wins over a mark (R97)")`, reading `Failed { exit_code: 3 }`. A third, the review brief's own ask: decoupling the counter from the lock guarding the kernel call (described above) - with that decoupling and (b) both in place, the test passed; it would not have noticed. All edits reverted; `git diff --stat` clean before recording.
+
+3. 30/30 on the one test, 20/20 on the full `runtime::tests` module, both at default parallelism - reported above.
+
+4. The test's own doc comment is now 7 lines describing what the test proves (ordering, the differing exit codes, no sleep/other-pane inference), carrying no reviewer name or date - the round-two nit is fixed and stays fixed. Checked but not counted as a finding: `State::applied_marks`' field doc and `note_mark_applied`'s own doc both carry a parenthetical "(TASK-1.84 review)" in production code (behind `#[cfg(test)]`/`#[cfg(not(test))]`, so not shipped in a release binary's active logic either way). Unlike round two's nit, this names no reviewer and no date and will not go stale - it's a true, durable provenance note on why a test-only field exists, not a narration of review history. Judged not a finding, not merely skipped.
+
+5. Nothing changed outside what rounds one and two already reviewed and this round's own fix: confirmed above via `git diff --stat c495468...HEAD` (runtime.rs only, 130 lines) and by re-reading `apply_event_locked`'s two arms, the `PaneNotFound` no-op, the `unreachable!` arms, and `drain_command_marks` in pane.rs - all byte-identical to what rounds one and two found sound.
+
+`--plan-matched no`: two departures, both already explained in the task's notes rather than silent - the no-drain-after-resize departure (accepted at plan-check by @bruk.o, unchanged since round one) and, new since round one's own plan text, `State::applied_marks`: a per-pane applied-event counter, which round one's own plan (§1) explicitly named as the rejected alternative to the channel-ordering argument. Round two's review found the channel/sleep-based approach insufficient and asked for exactly this shape (a count of events applied per pane kept under cfg(test)); the task's notes for round two's fix say so plainly. Not a silent or unexplained departure, but a departure from the original plan text all the same, so `no` is the accurate, consistent answer (rounds one and two also recorded `no`, for the resize departure alone).
+
+No open draft in `asdlc board draft list` covers any mistake here; filing none - this round found no Important finding, and the lone item worth naming (the provenance marker) isn't a repeat of anything either earlier round found.
 
 ---
 <!-- COMMENTS:END -->

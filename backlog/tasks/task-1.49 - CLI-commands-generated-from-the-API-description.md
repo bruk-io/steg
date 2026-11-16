@@ -605,6 +605,21 @@ error: test failed, to rerun pass `-p steg --test cli_no_server`
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_no_server version_contacts_no_server` exited 0 at 2026-11-16T15:14:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running tests/cli_no_server.rs (target/debug/deps/cli_no_server-5e7f4e1a1e58a8d1)
+
+running 1 test
+test version_contacts_no_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.69s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

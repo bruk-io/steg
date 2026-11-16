@@ -18,17 +18,23 @@ steg-sdk = { path = "../sdk" }
 # section 9).
 portable-pty = "0.9"
 serde_json = "1"
-# The arbiter's lock (`nix::fcntl::Flock`, R99) and the owner checks
-# (`nix::unistd::geteuid`, AC #1) TASK-1.44 (part A) needs and std does
-# not expose. Pinned to "0.28" to resolve to the same line already in
-# the workspace's Cargo.lock through portable-pty's own dependency on it
-# - `cargo tree -p steg-server -i nix` is the check that this crate did
-# not add a second version; portable-pty's own choice of nix version is
-# outside this task's control and could move it later. `fs` for
-# `Flock`/`FlockArg`, `user` for `geteuid` - confirmed by compiling and
-# running exactly these calls, not assumed: `geteuid` needs `user`
-# specifically, it is not in nix's unguarded base surface.
-nix = { version = "0.28", default-features = false, features = ["fs", "user"] }
+# The arbiter's lock (`nix::fcntl::Flock`, R99), the owner checks
+# (`nix::unistd::geteuid`, AC #1) TASK-1.44 (part A) needs, and
+# `killpg`/`Signal` (TASK-1.78 §0/§1: the polite signal and its escalation,
+# sent to a forced-close pane's whole process group) - std exposes none of
+# these. Pinned to "0.28" to resolve to the same line already in the
+# workspace's Cargo.lock through portable-pty's own dependency on it -
+# `cargo tree -p steg-server -i nix` is the check that this crate did not
+# add a second version; portable-pty's own choice of nix version is outside
+# this task's control and could move it later. `fs` for `Flock`/`FlockArg`,
+# `user` for `geteuid` - confirmed by compiling and running exactly these
+# calls, not assumed: `geteuid` needs `user` specifically, it is not in
+# nix's unguarded base surface. `signal` (which pulls `process`
+# automatically, per nix's own `Cargo.toml.orig`) for `kill`/`killpg`/
+# `Signal` - confirmed gated behind exactly that feature by reading
+# `nix-0.28.0/src/sys/signal.rs`'s own `#[cfg(feature = "signal")]` lines,
+# not assumed from the feature list alone.
+nix = { version = "0.28", default-features = false, features = ["fs", "user", "signal"] }
 
 [features]
 # Gates the race test's own fixture binary and the integration test

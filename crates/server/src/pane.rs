@@ -23,31 +23,30 @@
 //! [`PaneHandle`]'s commands and the [`PaneEvent`]s this module sends out,
 //! both `Send`, so the `!Send` engine never has to cross a boundary.
 //!
-//! **A known gap**, unreachable by any client today (dispatch calls none
-//! of [`start`]/[`PaneHandle::shutdown`]/`restart` yet) and tracked for
-//! the task that will make it reachable, DRAFT-4 ("Server: start a
-//! pane's program from the API, and end it on a forced close"), whose
-//! own AC #4 already names it: "with `--force` the program is ended, its
-//! exit is observed, and its relay thread ends, for a program that is
-//! producing output and for one that prints nothing". [`PaneHandle::shutdown`]
-//! does **not** reliably do either today, confirmed by probing both: a
-//! program that would finish on its own within a second, and one that
-//! never writes anything at all, both end up with `child.wait()` blocked
-//! forever in the relay thread once `shutdown` has dropped the worker's
-//! `Running` - not just the silent case. What *is* fixed, and what the
-//! name "shutdown" in this module's own tests should not be read as more
-//! than: a failed forward (the worker is gone, independent of whether
-//! its fds were ever dropped) no longer skips `child.wait()` for a
-//! program that ends on its own regardless. See `spawn_relay`'s own
-//! comment for why dropping those handles does not deliver a reliable
-//! end, and for a way to actually end a program without `unsafe`.
+//! **Ending a running program** (TASK-1.78, closing the gap TASK-1.40/1.76
+//! left named): [`PaneHandle::signal_hangup`]/[`signal_kill`][PaneHandle::signal_kill]
+//! send a real `SIGHUP`/`SIGKILL` to the run's whole process group,
+//! straight to the OS (`crate::signal::send`) via the pid [`start`]/
+//! [`PaneHandle::restart`] read off the child before it moved into
+//! [`spawn_relay`] - not through this module's own command queue, and not
+//! through `portable_pty::ChildKiller` (its own clone sends `SIGHUP` by
+//! pid alone, with no escalation and no group - confirmed from
+//! `portable-pty` 0.9.0's `lib.rs`, correcting both TASK-1.40's and
+//! TASK-1.76's notes, which cited `unix.rs`). [`PaneHandle::await_exit`]
+//! is the other half: it waits for the run's own real exit (whether it
+//! came from one of those signals or the program ending on its own) and,
+//! once it has, ends the worker thread too - `Runtime::force_end`
+//! orchestrates all three across however many panes are in a forced
+//! close's scope, with one shared grace window, not one per pane.
 
 use std::io::{Read, Write};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
+use nix::sys::signal::Signal;
 use steg_kernel::Terminal;
 use steg_sdk::{PaneId, Screen};
 
@@ -72,23 +71,21 @@ pub const DEFAULT_PANE_SIZE: (u16, u16) = (80, 24);
 /// caller holding `Runtime`'s one lock indefinitely.
 const CWD_LOOKUP_TIMEOUT: Duration = Duration::from_millis(200);
 
-/// How long [`PaneHandle::stop`] waits for a running program to actually
-/// end, once asked, before giving up on *this* pane and moving on
-/// (review finding 3; `Runtime::stop`, the server stopping, not
-/// `--force` on one pane). A program that ignores the one signal sent -
-/// `SIGHUP` by pid, via `clone_killer()` - is not covered here: no grace
-/// period, no escalation to a stronger signal. That is exactly TASK-1.78's
-/// own job (a single pane's forced close, with its own grace period and
-/// what a client is told); this bound exists only so one unresponsive
-/// pane cannot keep the whole server from finishing a stop.
-pub(crate) const STOP_TIMEOUT: Duration = Duration::from_secs(5);
-
 /// How long the worker waits to join a run's relay thread once its own
 /// `Exited` has arrived - short, because by that point the relay thread
 /// is already on its way out (`Exited` is the last thing it sends before
 /// returning): this is a hard guarantee, not a real wait for anything to
 /// happen.
 const RELAY_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// `0` is never a real pid (the kernel reserves it), so it is the shared
+/// atomic's own sentinel for "no program is running right now" -
+/// `PaneHandle::signal_hangup`/`signal_kill` read it directly, with no
+/// channel round-trip through the worker thread's own command queue (see
+/// the module doc): that queue is the same one a run's relay thread pushes
+/// `PtyBytes` into, and a flooding program (`yes`) could otherwise delay a
+/// signal command behind its own backlog indefinitely.
+const NO_PROGRAM: u64 = 0;
 
 /// Joins `handle` with a bound, rather than waiting on it forever -
 /// `thread::JoinHandle` has no built-in timeout, so a watchdog thread does
@@ -137,15 +134,15 @@ enum PaneCommand {
     Cwd(Sender<Option<String>>),
     /// Resume with a freshly spawned program (a restart): the pieces
     /// [`SpawnedProgram`] splits apart, already spawned on the caller's
-    /// thread by [`PaneHandle::restart`].
+    /// thread by [`PaneHandle::restart`] - which also updates the shared
+    /// pid atomic itself, synchronously, before this is ever sent (see
+    /// [`PaneHandle::restart`]'s own doc for why a pid is not carried
+    /// here too).
     Resume {
         /// Writes to the new program's standard input.
         writer: Box<dyn Write + Send>,
         /// Resizes the new pseudo-terminal.
         resize: Box<dyn Fn(u16, u16) -> Result<(), Error> + Send>,
-        /// Signals the new run's process independently of the thread
-        /// blocked in its `child.wait()` (see [`Running`]'s own doc).
-        killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
         /// The new run's relay thread, joined once its own `Exited`
         /// arrives.
         relay_handle: thread::JoinHandle<()>,
@@ -154,10 +151,16 @@ enum PaneCommand {
     /// (`PaneHandle::shutdown`'s own long-named gap: this alone does not
     /// reliably end a still-running program).
     Shutdown,
-    /// End the worker thread *and* whatever program is running, reaping
-    /// it and joining its relay thread before replying - review finding
-    /// 3, `PaneHandle::stop`'s own command.
-    Stop(Sender<()>),
+    /// Replies once the current run has actually ended - immediately,
+    /// **and ends the worker thread too**, if nothing is running right
+    /// now (TASK-1.78 §1: the immediate-reply branch must still break the
+    /// loop, not only the branch that waits for `Exited`, or a run that
+    /// ends on its own before this is even read leaves the worker thread
+    /// never told to stop). Sends no signal of its own: `PaneHandle::
+    /// signal_hangup`/`signal_kill` are separate, so a caller forcing
+    /// several panes at once can signal all of them before waiting on
+    /// any (`Runtime::force_end`).
+    AwaitExit(Sender<()>),
     /// Bytes read from the current run's pseudo-terminal (internal: sent
     /// by this run's relay thread, never by a caller).
     PtyBytes(Vec<u8>),
@@ -166,36 +169,38 @@ enum PaneCommand {
     Exited(i32),
 }
 
-/// The writer, resize handle, killer and relay thread of whichever
-/// program is currently running in a pane, if any. `killer` is
-/// `child.clone_killer()` (`portable-pty`'s own safe code, confirmed
-/// from its 0.9.0 source: `Child: ChildKiller`, and the clone is
-/// `Send + Sync`, independent of every pty descriptor), taken *before*
-/// `child` itself moves into [`spawn_relay`] - the only way to signal
-/// the process from the pane's own worker thread while the relay thread
-/// may be blocked in `child.wait()` on the same `child`. `relay_handle`
-/// is that run's relay thread, joined (bounded, [`join_with_bound`])
-/// once its own [`PaneCommand::Exited`] arrives - not discarded, so a
-/// caller can know every thread this run started has actually ended,
-/// not merely that a message arrived.
+/// The writer, resize handle and relay thread of whichever program is
+/// currently running in a pane, if any - no killer here: TASK-1.78
+/// replaces `portable_pty::ChildKiller` (its own clone sends `SIGHUP` by
+/// pid alone, with no escalation and no group) with the pid in
+/// `PaneHandle`/`worker_loop`'s own shared atomic, read directly by
+/// `crate::signal::send`, never through this struct or the command queue
+/// (see the module doc). `relay_handle` is that run's relay thread, joined
+/// (bounded, [`join_with_bound`]) once its own [`PaneCommand::Exited`]
+/// arrives - not discarded, so a caller can know every thread this run
+/// started has actually ended, not merely that a message arrived.
 struct Running {
     writer: Box<dyn Write + Send>,
     resize: Box<dyn Fn(u16, u16) -> Result<(), Error> + Send>,
-    killer: Box<dyn portable_pty::ChildKiller + Send + Sync>,
     relay_handle: thread::JoinHandle<()>,
 }
 
 /// A handle to a pane's worker thread: the pane's whole program-lifecycle
 /// surface for later tasks. `send_input`/`snapshot` are what an attached
 /// stream calls (TASK-1.47); `resize` is the one call that keeps the
-/// kernel `Terminal` and the pseudo-terminal in step (TASK-1.42).
-/// `worker` is the worker thread's own handle, joined by
-/// [`PaneHandle::stop`] - not by [`PaneHandle::shutdown`], which stays
-/// fire-and-forget exactly as it already was.
+/// kernel `Terminal` and the pseudo-terminal in step (TASK-1.42). `worker`
+/// is the worker thread's own handle, joined by [`PaneHandle::join_worker`],
+/// not by [`PaneHandle::shutdown`], which stays fire-and-forget exactly
+/// as it already was. `pid` is shared with the worker thread (`Arc` over
+/// one `AtomicU64`, [`NO_PROGRAM`] meaning nothing is running), read
+/// directly by [`PaneHandle::signal_hangup`]/[`signal_kill`][PaneHandle::signal_kill],
+/// never through `commands`, so neither can be delayed behind a flooding
+/// run's own backlog of `PtyBytes` on that same queue (TASK-1.78 §1).
 pub struct PaneHandle {
     commands: Sender<PaneCommand>,
     launcher: Arc<dyn ProgramLauncher>,
     worker: thread::JoinHandle<()>,
+    pid: Arc<AtomicU64>,
 }
 
 impl PaneHandle {
@@ -279,13 +284,22 @@ impl PaneHandle {
     /// if the pane's worker thread is no longer there.
     pub fn restart(&self, spec: LaunchSpec) -> Result<(), Error> {
         let spawned = self.launcher.spawn(&spec)?;
-        let killer = spawned.child.clone_killer();
+        // Updates the shared atomic *before* `Resume` is even sent -
+        // synchronously, on this caller's own thread, the same as `start`
+        // (below) sets the initial value before the worker thread exists
+        // at all. A signal sent in the brief window before the worker
+        // itself processes `Resume` still reaches a real, already-spawned
+        // process, so this ordering is never observably wrong, only ever
+        // slightly ahead of the worker's own bookkeeping.
+        self.pid.store(
+            u64::from(spawned.child.process_id().unwrap_or(0)),
+            Ordering::SeqCst,
+        );
         let relay_handle = spawn_relay(spawned.reader, spawned.child, self.commands.clone());
         self.commands
             .send(PaneCommand::Resume {
                 writer: spawned.writer,
                 resize: spawned.resize,
-                killer,
                 relay_handle,
             })
             .map_err(|_| Error::PaneGone)
@@ -294,37 +308,68 @@ impl PaneHandle {
     /// Ends the pane's worker thread. Whatever is currently running loses
     /// its standard input and resize handle when this is dropped, but
     /// that alone does not reliably end a still-running program on this
-    /// platform (see the module doc's known gap and `spawn_relay`'s own
-    /// comment) - a program that has already ended on its own is reaped
-    /// cleanly; one that has not keeps running, with its relay thread
-    /// blocked for as long as it does. Killing the process outright
-    /// (`--force`) is [`PaneHandle::stop`]'s job when the whole server is
-    /// stopping, and TASK-1.78's for one pane.
+    /// platform (see `spawn_relay`'s own comment) - a program that has
+    /// already ended on its own is reaped cleanly; one that has not keeps
+    /// running, with its relay thread blocked for as long as it does.
+    /// Ending it outright is [`PaneHandle::signal_hangup`]/`signal_kill`'s
+    /// job (TASK-1.78).
     pub fn shutdown(self) {
         let _ = self.commands.send(PaneCommand::Shutdown);
     }
 
-    /// Ends whatever program is running (a real `SIGHUP` by pid, via the
-    /// run's own `clone_killer` - safe code, no escalation, see
-    /// [`STOP_TIMEOUT`]'s own doc), reaps it, joins its relay thread, then
-    /// ends and joins the worker thread itself - review finding 3. Used by
-    /// `Runtime::stop` (the server stopping), not by a single pane's
-    /// forced close (TASK-1.78).
-    ///
-    /// Bounded: if the running program ignores the signal, this still
-    /// returns within [`STOP_TIMEOUT`] plus the time a bounded join needs,
-    /// rather than blocking the caller forever - at the cost of leaving
-    /// that one pane's worker and relay threads running, named here rather
-    /// than hidden, since nothing *of this task's own* can end a program
-    /// that traps the one signal it sends.
-    pub fn stop(self) {
-        let (reply_tx, reply_rx) = mpsc::channel();
-        if self.commands.send(PaneCommand::Stop(reply_tx)).is_err() {
-            // The worker was already gone - nothing to join.
-            return;
+    /// Signals the run's own process group (if one is running right now)
+    /// with the polite signal, `SIGHUP` - straight to the OS
+    /// (`crate::signal::send`), reading the shared pid atomic directly, so
+    /// a backlog of `PtyBytes` the worker has not drained yet (a flooding
+    /// program) cannot delay this (module doc, TASK-1.78 §1). Fire-and-
+    /// forget: use [`PaneHandle::await_exit`] to learn whether it worked.
+    pub(crate) fn signal_hangup(&self) {
+        if let Some(pid) = self.live_pid() {
+            crate::signal::send(pid, Signal::SIGHUP);
         }
-        let _ = reply_rx.recv_timeout(STOP_TIMEOUT);
-        let _ = join_with_bound(self.worker, STOP_TIMEOUT);
+    }
+
+    /// Same, `SIGKILL` - the escalation, after a grace period, for a run
+    /// that ignored [`PaneHandle::signal_hangup`] (TASK-1.78 §2).
+    pub(crate) fn signal_kill(&self) {
+        if let Some(pid) = self.live_pid() {
+            crate::signal::send(pid, Signal::SIGKILL);
+        }
+    }
+
+    /// The pid of whichever program is running right now, if any - `None`
+    /// when the shared atomic reads [`NO_PROGRAM`] (nothing running, or
+    /// the worker has already cleared it on `Exited`).
+    fn live_pid(&self) -> Option<u32> {
+        let pid = self.pid.load(Ordering::SeqCst);
+        (pid != NO_PROGRAM).then(|| u32::try_from(pid).unwrap_or(0))
+    }
+
+    /// Waits up to `timeout` for the current run to actually end - `true`
+    /// if it did within that bound (including "nothing was running at
+    /// all", which answers at once), `false` on a real timeout. A send
+    /// failure (the worker is already gone) counts as "ended" too, not a
+    /// timeout: there is nothing left to wait for either way.
+    pub(crate) fn await_exit(&self, timeout: Duration) -> bool {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        if self
+            .commands
+            .send(PaneCommand::AwaitExit(reply_tx))
+            .is_err()
+        {
+            return true;
+        }
+        reply_rx.recv_timeout(timeout).is_ok()
+    }
+
+    /// Consumes the handle: joins its worker thread, bounded. Only
+    /// meaningful once [`PaneHandle::await_exit`] has returned `true` for
+    /// this handle - the worker's own loop only breaks once it has
+    /// answered an `AwaitExit` (module doc, TASK-1.78 §1), so calling this
+    /// first can time out on a worker still legitimately serving other
+    /// commands, which is not a bug in this method itself.
+    pub(crate) fn join_worker(self, timeout: Duration) -> bool {
+        join_with_bound(self.worker, timeout)
     }
 }
 
@@ -347,29 +392,44 @@ pub fn start(
     let spawned = launcher.spawn(&spec)?;
 
     let (commands_tx, commands_rx) = mpsc::channel::<PaneCommand>();
-    // The killer is cloned *before* `child` moves into `spawn_relay`,
-    // which is what makes a later `stop`/`restart` able to signal the
-    // process independently of the relay thread that will block in
-    // `child.wait()` (see `Running`'s own doc; review finding 3).
-    let killer = spawned.child.clone_killer();
+    // The pid is read *before* `child` moves into `spawn_relay`, the same
+    // ordering `clone_killer` used to need and for the same reason: once
+    // `child` is inside the relay thread's own `child.wait()`, nothing
+    // outside that thread can reach it through `child` itself. Stored in
+    // the atomic right away, on this thread, before the worker thread
+    // (which shares the same `Arc`) even exists - TASK-1.78 §1.
+    let pid = Arc::new(AtomicU64::new(u64::from(
+        spawned.child.process_id().unwrap_or(0),
+    )));
     let relay_handle = spawn_relay(spawned.reader, spawned.child, commands_tx.clone());
 
     let initial = Running {
         writer: spawned.writer,
         resize: spawned.resize,
-        killer,
         relay_handle,
     };
 
+    let worker_pid = Arc::clone(&pid);
     let worker = thread::Builder::new()
         .name(format!("steg-pane-{pane}"))
-        .spawn(move || worker_loop(commands_rx, cols, rows, Some(initial), pane, events))
+        .spawn(move || {
+            worker_loop(
+                commands_rx,
+                cols,
+                rows,
+                Some(initial),
+                pane,
+                events,
+                worker_pid,
+            )
+        })
         .map_err(Error::Io)?;
 
     Ok(PaneHandle {
         commands: commands_tx,
         launcher,
         worker,
+        pid,
     })
 }
 
@@ -389,15 +449,16 @@ fn worker_loop(
     initial: Option<Running>,
     pane: PaneId,
     events: Sender<PaneEvent>,
+    pid: Arc<AtomicU64>,
 ) {
     let Ok(mut terminal) = Terminal::new(cols, rows, DEFAULT_SCROLLBACK_LINES) else {
         return;
     };
     let mut current = initial;
-    // Set only while a `Stop` is waiting for the current run to actually
-    // end (review finding 3) - `None` the rest of the time, including
-    // whenever nothing is running at all.
-    let mut stopping: Option<Sender<()>> = None;
+    // Set only while an `AwaitExit` is waiting for the current run to
+    // actually end (TASK-1.78 §1) - `None` the rest of the time,
+    // including whenever nothing is running at all.
+    let mut awaiting_exit: Option<Sender<()>> = None;
 
     for command in commands_rx {
         match command {
@@ -421,13 +482,14 @@ fn worker_loop(
             PaneCommand::Resume {
                 writer,
                 resize,
-                killer,
                 relay_handle,
             } => {
+                // The shared `pid` atomic was already updated by
+                // `PaneHandle::restart`, synchronously, before this was
+                // even sent - nothing to do with it here.
                 current = Some(Running {
                     writer,
                     resize,
-                    killer,
                     relay_handle,
                 });
             }
@@ -440,26 +502,33 @@ fn worker_loop(
                     // `spawn_relay`'s closure does before returning) -
                     // this just makes that a hard guarantee rather than
                     // a timing assumption, for every exit, not only
-                    // during `stop`.
+                    // while something is awaiting it.
                     let _ = join_with_bound(running.relay_handle, RELAY_JOIN_TIMEOUT);
                 }
+                // Cleared *before* the event goes out: a stale signal
+                // sent after this point (nothing left to reach the pid
+                // it last knew about, in case the OS ever reused it) can
+                // only ever hit nothing, never a program this pane no
+                // longer owns (TASK-1.78 §1).
+                pid.store(NO_PROGRAM, Ordering::SeqCst);
                 let _ = events.send(PaneEvent::Exited { pane, exit_code });
-                if let Some(reply) = stopping.take() {
+                if let Some(reply) = awaiting_exit.take() {
                     let _ = reply.send(());
                     break;
                 }
             }
             PaneCommand::Shutdown => break,
-            PaneCommand::Stop(reply) => {
-                if let Some(running) = &mut current {
-                    // Safe code inside `portable-pty`, not this crate:
-                    // `ProcessSignaller::kill` sends `SIGHUP` by pid
-                    // (confirmed from its 0.9.0 source), independent of
-                    // every pty descriptor. No escalation - see
-                    // `STOP_TIMEOUT`'s own doc for the line this draws.
-                    let _ = running.killer.kill();
-                    stopping = Some(reply);
+            PaneCommand::AwaitExit(reply) => {
+                if current.is_some() {
+                    awaiting_exit = Some(reply);
                 } else {
+                    // Nothing running right now: reply at once, *and*
+                    // break the loop - the fix TASK-1.78 §1 is specifically
+                    // about. Without this, a run that ended on its own
+                    // before this command was even read leaves the worker
+                    // thread with nothing left to tell it to stop, and a
+                    // caller's own `PaneHandle::join_worker` would time
+                    // out on a thread that is never coming back.
                     let _ = reply.send(());
                     break;
                 }
@@ -507,42 +576,25 @@ fn spawn_relay(
         // Reached by a normal end-of-file, or by the send failure above -
         // a dropped receiver (the pane's worker thread is gone) must stop
         // forwarding, never skip reaping the child it's still attached
-        // to. That much is fixed and holds regardless of why the receiver
-        // is gone. But reaching this line at all still depends on the
-        // program ending on its own: probed directly (not assumed, and
-        // not only for a silent program - see this module's test module),
-        // dropping the worker thread's `Running` (its writer and the
-        // resize closure's `MasterPty`, which is what `PaneHandle::shutdown`
-        // does) does not reliably end a program that is still running,
-        // whether it writes nothing at all or was about to finish within
-        // a second anyway - both leave this thread blocked in the `read`
-        // above, or (having reached here) blocked in `child.wait()`
-        // itself, for as long as the program lives. The pty's hang-up
-        // does not reach it on this platform: the relay's own cloned
-        // reader (a genuinely separate descriptor from
-        // `MasterPty::try_clone_reader`) keeps the pty's master side from
-        // ever being fully closed, which is what the hang-up condition
-        // actually requires - and even where that drop does produce a
-        // visible effect (a terminal's own line discipline echoing the
-        // `\n` plus EOF character `UnixMasterWriter::drop` writes), it is
-        // not the hang-up and does not end the program. This task's plan
-        // covers neither a kill nor giving this thread a descriptor it
-        // can close itself; DRAFT-4 ("Server: start a pane's program from
-        // the API, and end it on a forced close") AC #4 already names
-        // ending a program "producing output" and one that "prints
-        // nothing" as one requirement, which is exactly this. Confirmed
-        // by reading `portable-pty` 0.9.0's own source (not just its
-        // docs): `Child: ChildKiller`, and on Unix `Child::clone_killer`
-        // hands back a `ProcessSignaller` whose own `kill` sends `SIGHUP`
-        // by pid (`libc::kill`, inside `portable-pty`, not this crate) -
-        // independent of every pty descriptor, so it would end a program
-        // that does not trap `SIGHUP` without the fd-ownership rework
-        // above, and with no `unsafe` of this crate's own (unlike
-        // `std::process::Child`'s own `ChildKiller::kill`, this clone
-        // does not escalate to a stronger signal if `SIGHUP` alone is
-        // not enough). Taking that clone before handing `child` to this
-        // function is DRAFT-4's to add, not this task's: killing a
-        // running program is this plan's own named exclusion.
+        // to. That much holds regardless of why the receiver is gone, but
+        // reaching this line at all still depends on the program ending
+        // on its own - which is why ending a still-running program is not
+        // this function's own job. Probed directly, not assumed (TASK-
+        // 1.40/1.76): dropping the worker thread's `Running` (its writer
+        // and the resize closure's `MasterPty`, which is what `PaneHandle::
+        // shutdown` does) does not reliably hang this platform's pty up,
+        // whether the program writes nothing at all or was about to
+        // finish within a second anyway - the relay's own cloned reader
+        // (a genuinely separate descriptor from `MasterPty::
+        // try_clone_reader`) keeps the pty's master side from ever being
+        // fully closed, which is what a real hang-up needs. TASK-1.78
+        // does not fix *this* - it ends a running program a different
+        // way entirely, independent of any pty descriptor: `PaneHandle::
+        // signal_hangup`/`signal_kill` (`crate::signal::send`) signal the
+        // process directly, by the pid `start`/`restart` read off `child`
+        // before it ever reached this function, so nothing here has to
+        // change for that to reach a program still blocked in the `read`
+        // above or, having reached this point, in `child.wait()` itself.
         let exit_code = match child.wait() {
             Ok(status) => i32::try_from(status.exit_code()).unwrap_or(i32::MAX),
             // Deliberately silent, not a bug: `wait()` on a `Child` this
@@ -667,17 +719,221 @@ mod tests {
     // So: the mid-run case above is fixed (a failed send no longer skips
     // `child.wait()`), but a pane shut down while its program has
     // produced nothing at all, ever, stays exactly as the review found
-    // it - its relay thread blocked in `read` for as long as the program
-    // lives, holding the pty's last master-side descriptor open. No
-    // explicit kill is added here: this task's plan already leaves
-    // killing a running program to the task that builds forced close
-    // (`--force`), and that is the only remaining way to end this case,
-    // since the natural hang-up this review asked for turns out not to
-    // reach a program with an open reader clone standing in its way. A
-    // fix would need the relay to own a descriptor it can close itself
-    // (dropping `try_clone_reader` for a raw descriptor taken from
-    // `MasterPty::as_raw_fd` and reconstructing resize without the
-    // trait object) - real surgery on `RealLauncher`'s ownership shape,
-    // not a one-line change, and `unsafe` this crate does not use
-    // anywhere else today.
+    // it on its own - its relay thread blocked in `read` for as long as
+    // the program lives, holding the pty's last master-side descriptor
+    // open - *through this path*. `PaneHandle::shutdown` alone still does
+    // not end a running program. TASK-1.78 ends one a different way
+    // entirely, bypassing this problem rather than solving it: `signal_
+    // hangup`/`signal_kill` (`crate::signal::send`) signal the process
+    // directly by pid, independent of every pty descriptor, so the relay
+    // thread's own open reader clone - the exact thing that defeats the
+    // natural hang-up above - never matters to it. No fd-ownership rework
+    // of `RealLauncher` was needed after all, and no `unsafe`.
+}
+
+/// `PaneHandle`'s own ending surface (TASK-1.78): `signal_hangup`/
+/// `signal_kill`/`await_exit`/`join_worker`, through the real public API,
+/// with real processes - `pane::tests` above covers `spawn_relay` directly
+/// (a focused check beneath `PaneHandle`); this covers the handle itself,
+/// the layer `Runtime::force_end` actually calls.
+#[cfg(test)]
+mod ending_tests {
+    use std::sync::Arc;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    use super::start;
+    use crate::pty::{LaunchSpec, RealLauncher};
+
+    /// Bounded, never a bare wait - the same reasoning every other real-
+    /// process wait in this crate gives.
+    const EVENT_TIMEOUT: Duration = Duration::from_secs(10);
+
+    fn real_spec(argv: Vec<&str>) -> LaunchSpec {
+        LaunchSpec {
+            argv: argv.into_iter().map(str::to_string).collect(),
+            cwd: std::env::temp_dir().to_str().unwrap().to_string(),
+            env: Vec::new(),
+            size: (80, 24),
+        }
+    }
+
+    /// The fix TASK-1.78 §1 is specifically about: a run that ends on its
+    /// own, with nothing yet asking `await_exit` about it, must still
+    /// leave the worker thread able to end once something does -
+    /// `AwaitExit`'s own "nothing is running, reply at once" branch has to
+    /// break the loop too, not only the branch that was already waiting.
+    /// Proven the strong way: not just that `await_exit` returns `true`,
+    /// but that the worker thread *actually ends* (`join_worker` succeeds,
+    /// bounded) - a weaker test asserting only the reply would have missed
+    /// exactly the bug this is named for, which left a leaked worker
+    /// thread behind a successful-looking reply.
+    ///
+    /// Negative control, run by hand against this exact test (not
+    /// committed as a toggle): removing the `break` from `AwaitExit`'s
+    /// immediate-reply arm in `worker_loop` makes `join_worker` below time
+    /// out (`false`) instead of succeeding - recorded on the task.
+    #[test]
+    fn await_exit_after_the_program_already_ended_still_ends_the_worker_thread() {
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exit 0"]),
+            steg_sdk::PaneId::from_raw(1),
+            Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+
+        // Wait for the real, natural exit first - by the time this
+        // arrives, the worker has already processed `Exited` and set
+        // `current` back to `None`, which is the exact precondition
+        // `AwaitExit`'s immediate-reply branch needs to be exercised by
+        // the call below, rather than its "something is running" branch.
+        events_rx
+            .recv_timeout(EVENT_TIMEOUT)
+            .expect("the real shell's own exit, within the bound");
+
+        assert!(
+            handle.await_exit(EVENT_TIMEOUT),
+            "await_exit must reply once nothing is running, not time out"
+        );
+        assert!(
+            handle.join_worker(EVENT_TIMEOUT),
+            "the worker thread must actually end, not just reply - the bug \
+             this test is named for left a worker thread running forever \
+             behind a reply that looked correct on its own"
+        );
+    }
+
+    /// `signal_hangup` ends a real, non-trapping program on its own -
+    /// TASK-1.78 §0's own silent/continuous-output experiments, through
+    /// `PaneHandle`'s real public surface rather than a scratch script.
+    #[test]
+    fn signal_hangup_ends_a_real_program_through_the_public_handle() {
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exec sleep 1000"]),
+            steg_sdk::PaneId::from_raw(2),
+            Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+
+        handle.signal_hangup();
+
+        events_rx
+            .recv_timeout(EVENT_TIMEOUT)
+            .expect("SIGHUP must end a plain sleep");
+        assert!(handle.await_exit(EVENT_TIMEOUT));
+        assert!(handle.join_worker(EVENT_TIMEOUT));
+    }
+
+    /// `signal_hangup` alone does not end a program that traps it, but
+    /// `signal_kill` does - TASK-1.78 §0's own trapping-program
+    /// experiment, reproduced here through the public handle. Proves the
+    /// escalation is real, not merely documented.
+    ///
+    /// Waits for a real marker file the shell writes *after* installing
+    /// its own trap, before sending anything - found necessary by probing,
+    /// not assumed: without it, this test raced `signal_hangup` against
+    /// the newly forked shell's own first few instructions and, under
+    /// heavy CPU contention (confirmed by running it in a tight loop, not
+    /// just once), the signal could arrive *before* the shell had reached
+    /// its own `trap` builtin at all - hitting the inherited default
+    /// disposition (terminate) instead of the trap this test means to
+    /// exercise. A real, timing-sensitive race in the test's own fixture,
+    /// not in `signal_hangup`/`signal_kill` themselves.
+    #[test]
+    fn signal_kill_ends_a_program_that_traps_the_polite_signal() {
+        let marker = std::env::temp_dir().join(format!(
+            "steg-signal-trap-ready-{}-{}.marker",
+            std::process::id(),
+            line!()
+        ));
+        let _ = std::fs::remove_file(&marker);
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec![
+                "sh",
+                "-c",
+                &format!("trap '' HUP; touch {}; exec sleep 1000", marker.display()),
+            ]),
+            steg_sdk::PaneId::from_raw(3),
+            Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+
+        let start_wait = std::time::Instant::now();
+        while !marker.exists() {
+            assert!(
+                start_wait.elapsed() < Duration::from_secs(10),
+                "the shell never reached its own trap+marker"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let _ = std::fs::remove_file(&marker);
+
+        handle.signal_hangup();
+        assert!(
+            !handle.await_exit(Duration::from_millis(500)),
+            "a program trapping SIGHUP must not end on that signal alone"
+        );
+
+        handle.signal_kill();
+        events_rx
+            .recv_timeout(EVENT_TIMEOUT)
+            .expect("SIGKILL cannot be trapped");
+        assert!(handle.await_exit(EVENT_TIMEOUT));
+        assert!(handle.join_worker(EVENT_TIMEOUT));
+    }
+
+    /// `signal_hangup` reaches the whole process group, not only the pane's
+    /// own direct child - TASK-1.78 §0's own grandchild experiment, through
+    /// the public handle: a backgrounded child of a non-interactive shell
+    /// shares its pgid (nothing here calls `setpgid`), so the one signal
+    /// this sends to the pane's own pid (which `portable-pty`'s own
+    /// `setsid()` in `pre_exec` makes equal to that pgid) ends it too.
+    #[test]
+    fn signal_hangup_reaches_a_backgrounded_grandchild_too() {
+        let marker = std::env::temp_dir().join(format!(
+            "steg-signal-grandchild-{}-{}.marker",
+            std::process::id(),
+            line!()
+        ));
+        let _ = std::fs::remove_file(&marker);
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec![
+                "sh",
+                "-c",
+                &format!("(sleep 1000; touch {}) & exec sleep 1000", marker.display()),
+            ]),
+            steg_sdk::PaneId::from_raw(4),
+            Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+
+        handle.signal_hangup();
+
+        events_rx
+            .recv_timeout(EVENT_TIMEOUT)
+            .expect("the main process must end");
+        assert!(handle.await_exit(EVENT_TIMEOUT));
+        assert!(handle.join_worker(EVENT_TIMEOUT));
+
+        // The background job never reaches its own `touch` if it was
+        // genuinely ended by the group signal rather than merely
+        // outliving its now-dead parent - give it a short, bounded moment
+        // past the parent's own death to prove a negative (it does not
+        // appear), not an instant check that could just be "too early".
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(
+            !marker.exists(),
+            "the backgrounded grandchild must have been signalled too, \
+             never reaching its own touch"
+        );
+        let _ = std::fs::remove_file(&marker);
+    }
 }

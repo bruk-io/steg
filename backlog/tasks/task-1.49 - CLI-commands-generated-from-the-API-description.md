@@ -5,13 +5,17 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:24:00Z'
+updated_date: '2026-11-16T15:11:00Z'
 labels:
   - size-4
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.77
+references:
+  - task-1.49-cli-commands-generated-from-the-api
+  - https://github.com/bruk-io/steg/pull/64
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,6 +24,10 @@ asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -392,6 +400,24 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built part 1 of the split (TASK-1.49): the CLI's whole command tree generated at run time from steg_sdk::description(), nothing names a method/flag/value kind by hand (R32).
+
+What was built:
+- clap builder API (never derive) walks description().methods(): one subcommand per noun, one sub-subcommand per verb, params mapped by Role (Target -> positional, Flag -> --name <value>, Switch -> --name/--no-name pair with overrides_with so the last given wins, Program -> trailing .last(true) arg after --). version/completion added once by name (doc-2's two non-method commands).
+- steg/steg <noun> alone list and exit 0 (engineer decision 1, taken), not the spike's status-2 choice.
+- main.rs keeps server start/server start --on-demand as the one hand-written case; every other command, including other server-start variants, goes through the generated tree and clap's own usage handling (replacing the old catch-all arm; its own existing test still passes).
+- A parsed, locally-valid command with nowhere to connect yet (TASK-1.119's) hits a named placeholder: exit 1 with a message naming the method, never 0 or 2.
+- session.unset/tab.unset/pane.unset's label param is now role: Switch (engineer decision 3, taken) - confirmed before building that dispatch needs no change at all (param_present already discards the value, matching pane.unset's own zoomed switch and its own comment anticipating exactly this).
+- clap 4.6.7 + clap_complete 4.6.11 added (versions decision-1's own licence table measured), boundaries.toml's [steg] updated with a deny-features guard against clap's derive feature.
+
+One correction to the approved plan, recorded here rather than by re-saving the plan section: clap::builder::Str/Id's From<String> impls are gated behind clap's own "string" feature (checked against clap_builder's own Cargo.toml directly, not docs.rs's always-every-feature build, which is what misled the plan's own claim) - off by default, no extra dependency, turned on explicitly. No leaking to 'static anywhere in the generator either way, as the plan intended.
+
+Checks recorded on the task via asdlc record-check: just check green at every step (baseline before any edit; after the unset --label switch; after adding clap/clap_complete; after the generator and its tests; after a task-id reference correction; after merging origin/main). Two negative controls performed by hand and reverted before committing: (1) dispatch/session.rs's unset temporarily changed from param_present to param_bool(...) == Some(true) - the new --no-label-also-clears test failed as expected, confirming it; (2) cli::run temporarily changed to return 0 unconditionally - the placeholder test failed as expected, confirming it. Both reverted before the relevant commit.
+
+Tests, all through the real binary or the built tree directly, never this machine's own server: tests/cli_drift.rs (criterion #1, a set comparison never a method count, both directions, with negative controls proving it catches a missing/extra command), tests/cli_no_server.rs (criterion #3, with a real listener bound at STEG_SOCKET_PATH proving these commands never attempt a connection, not merely that they happen to succeed anyway), tests/cli_run_placeholder.rs (criterion #4, every described method - server.start excluded as the hand-written exception already proved by tests/server_start.rs). All pre-existing tests (server_start.rs, login_environment.rs, dispatch.rs, runtime.rs, the sdk's own description tests) still pass unchanged.
+
+CI on the PR is green (just check, ~6m30s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -411,6 +437,60 @@ created: 2026-11-16T13:51:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted. TASK-1.119 has connecting, calling, the exit statuses and the connection closed before a hello; TASK-1.120 has the output formats. The approved plan calls them parts 2 and 3 (and TASK-1.49b in one message): cite TASK-1.119 and TASK-1.120 in code and notes.
+
+---
+
+created: 2026-11-16T14:50:00Z
+
+---
+
+Blocked (@bruk.w5): asdlc finish had already run (TASK-1.49 is In Review) before the request to add recorded controls arrived. asdlc record-check refuses while In Review ('TASK-1.49 is In Review, not In Progress'). Reverted the one control edit I had started (boundaries.toml's [steg] allow-list) immediately; worktree is clean. Waiting for the task to be moved back to In Progress before I can record: the boundaries check (allow-list reverted), the placeholder control (run() returns 0), both drift-test mutations (a method removed from the built tree; an extra bare subcommand added), the no-server control (a command made to actually reach for a connection), and the unset-switch step's sdk and dispatch tests run before and after.
+
+---
+
+created: 2026-11-16T14:52:00Z
+
+---
+
+Prepared (@bruk.w5), to run the moment this is back In Progress - each as a recorded failing run then a recorded passing run via asdlc record-check, worktree clean between every pair:
+
+1. Boundaries (crit #2/#6): `just check-boundaries` with [steg]'s allow-list/deny-features reverted to pre-task (drop clap, clap_complete, deny-features) - expect it names both as not allowed.
+2. Placeholder (crit #4): `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` with cli/run.rs's run() returning 0 instead of 1 - expect fail.
+3. Drift, missing command (crit #1): `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` with one verb (pane.split) skipped in tree.rs's noun_command - expect fail, missing: [(pane,split)].
+4. Drift, extra command (crit #1): same test, with an extra bare subcommand (pane bogus) added in tree.rs - expect fail, extra: [(pane,bogus)].
+5. No-server (crit #3): `cargo test -p steg --test cli_no_server version_contacts_no_server` with a stray UnixStream::connect added to main.rs's version arm - expect assert_never_accepted to panic.
+6. unset --label switch, sdk (decision 3): `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` with methods.rs's switch() reverted to flag() for the three unset methods - expect fail (role is Flag).
+7. unset --label switch, dispatch (decision 3): `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` with session.rs's unset changed from param_present to param_bool(...)==Some(true) - expect fail on --no-label.
+
+Also in the same sitting: correct boundaries.toml's [steg] reason text to name the "string" feature and why (From<String> for clap's Str/Id needs it; no extra dependency); build the proof table (item/test/recorded control) in the notes; just check once more on the final head; CI green; read inbox; finish.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:10:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 21m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:11:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Narrow first pass, Evidence only: the code has not been reviewed yet; a full review follows once this returns. Do not read this as a judgement of the work itself.
+
+[Evidence, Important] No recorded failing run exists for any of the seven negative controls the approved plan (comment #1/#2, plan 37c4dd0b7f74) and the worker's own comment #4 name as needed: the boundaries check with [steg]'s edit reverted, the placeholder made to return 0 unconditionally, the drift test with a method left out of the tree, the drift test with an extra bare subcommand added, the no-server tests with STEG_SOCKET_PATH pointed at a listening socket, and the unset --label switch's sdk and dispatch tests run before/after the description change. The task's only recorded checks (the "Check passed"/"Check FAILED" lines) are seven runs of `just check` as a whole; two failed, but both are ordinary development failures (a format-check diff, a clippy lint) caught and fixed mid-build, not negative controls of any of the above mechanisms. The worker's notes additionally describe two controls as "performed by hand and reverted before committing" (dispatch's unset changed to param_bool(...)==Some(true); cli::run changed to return 0) - these were never recorded through `asdlc record-check`, so there is no recorded failing run behind them either, only a narrative description after the fact. Comment #3 explains why: `asdlc finish` ran and moved the task to In Review before the request to add recorded controls arrived, and `asdlc record-check` refuses while a task is In Review. Comment #4 lists all seven controls, prepared and ready, "to run the moment this is back In Progress" - explicitly not yet run.
+
+What is needed before this comes back: each of the seven controls named in comment #4 recorded through `asdlc record-check` as a failing run followed by a passing run, against the tests as they stand on the final head; a table in the notes (proof item, test, recorded control) tying each one to its acceptance criterion or mechanism; and the pull request's CI green on that final head.
+
+Plan-matched: not assessed in this pass - the diff was not read, per instruction for this narrow Evidence-only check.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:06:00Z'
+updated_date: '2026-11-16T03:07:00Z'
 labels:
   - size-2
   - changes-requested
@@ -738,6 +738,17 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2
 ........................................................................ [ 50%]
 ........................................................................ [100%]
 144 passed in 1.29s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check-ui-colours` exited 1 at 2026-11-16T03:07:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944 with uncommitted changes:
+
+```text
+FAILED  ui colours (exit 1, 0.0s)
+crates/ui/src/atoms/mod.rs:9: `gpui::rgb(0x3d3b45)` is a colour literal, which doc-17 R120 refuses outside foundations. This value matches outline (dark), track (dark) - use that named value instead.
+full output: .quiet/ui-colours.log
+error: recipe `check-ui-colours` failed on line 270 with exit code 1
 ```
 
 Commits since the review: 0.

@@ -367,6 +367,16 @@ BUG REPRODUCED: the OLD implementation silently missed focus_ring['glow'] - revi
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T03:48:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpxQvYnQ` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+............................................................             [100%]
+60 passed in 0.26s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:42:00Z'
+updated_date: '2026-11-16T02:43:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -351,6 +351,15 @@ Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktree
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
 warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
 note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+```
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations'` exited 1 at 2026-11-16T02:43:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+FAILED  foundations (exit 1, 0.1s)
+crates/ui/src/foundations/generated.rs does not match crates/ui/design/foundations.json - run `just generate-foundations` and commit the result.
+full output: .quiet/foundations.log
+error: recipe `check-foundations` failed on line 162 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

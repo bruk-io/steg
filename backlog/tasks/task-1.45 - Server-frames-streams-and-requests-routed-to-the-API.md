@@ -576,6 +576,51 @@ warning: `steg-server` (lib) generated 4 warnings
 running 1 test
 exit code: 124
 ```
+
+Check passed: `cargo test -p steg-server --test routing` exited 0 at 2026-11-16T01:20:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 53 lines:
+
+```text
+
+warning: methods `open_stream`, `close_stream`, and `enqueue_data` are never used
+   --> crates/server/src/outbound.rs:162:19
+    |
+127 | impl Outbound {
+    | ------------- methods in this implementation
+...
+162 |     pub(crate) fn open_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^
+...
+175 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+...
+191 |     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 17 tests
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... ok
+test an_event_from_the_client_closes_the_connection ... ok
+test a_second_hello_after_the_handshake_closes_the_connection ... ok
+test an_unknown_kind_tag_post_handshake_closes_the_connection ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitly_closed ... ok
+test a_reply_shaped_frame_from_the_client_closes_the_connection ... ok
+test a_hostile_post_handshake_close_still_reports_disconnected ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

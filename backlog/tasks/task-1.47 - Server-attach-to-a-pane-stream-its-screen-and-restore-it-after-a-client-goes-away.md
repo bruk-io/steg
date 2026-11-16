@@ -1263,6 +1263,35 @@ test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply` exited 101 at 2026-11-16T14:11:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply ... FAILED
+
+failures:
+
+---- description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply stdout ----
+
+thread 'description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply' (40142448) panicked at crates/sdk/src/description/methods.rs:1947:9:
+stream_id_field names "streamid", which is not a field of PaneAttached: {"snapshot": Object {"cursor": Object {"blinking": Bool(false), "shape": String("Block"), "visible": Bool(true), "x": Number(0), "y": Number(0)}, "rows": Array []}, "stream": Number(1)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 162 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

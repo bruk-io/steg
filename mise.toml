@@ -12,3 +12,12 @@
 # recipe depend on mise being installed.
 [tools]
 zig = "0.17.1"
+# Pins the Node CI's own npx calls (`check-architecture`, likec4_mcp.py's smoke test)
+# run on (TASK-1.97, TASK-1.82). Node's own version wasn't shown to be the cause of
+# the smoke test's CI timeouts - that was npm's live registry round trip, fixed by the
+# root .npmrc and CI's own cache-warming step - but it was unpinned (floating with
+# whatever the runner image ships) and this is the cheapest place to fix that, since
+# `jdx/mise-action` (ci.yml) already installs and caches whatever `[tools]` lists.
+# 24.22.0 satisfies likec4 1.61.0's own `engines.node >=22.23.3` and matches the
+# version already in local use.
+node = "24.22.0"

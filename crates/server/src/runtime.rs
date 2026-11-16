@@ -1227,6 +1227,76 @@ mod tests {
         );
     }
 
+    /// AC #1/#4's own "a shell pane, not only a command pane" half -
+    /// `launch_spec`'s own env composition does not look at which variant
+    /// `Program` is at all (only `argv` differs, read above this
+    /// function's own `match`), so a shell pane gets exactly the same
+    /// captured base, `STEG_*` overrides and `TERM` a command pane
+    /// does - proven here directly, through `session.new` with *no*
+    /// `program` at all (the shell-pane case), sending real input to the
+    /// real login shell this `Runtime` resolved, rather than trusted by
+    /// construction alone.
+    #[test]
+    fn a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+
+        let pane = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
+        };
+
+        {
+            let state = runtime.state.lock().unwrap();
+            state
+                .panes
+                .get(&pane)
+                .unwrap()
+                .send_input(b"echo TERM=$TERM\n".to_vec())
+                .unwrap();
+        }
+
+        let start = std::time::Instant::now();
+        let text = loop {
+            let state = runtime.state.lock().unwrap();
+            let screen = state.panes[&pane].snapshot().unwrap();
+            let text = screen
+                .rows
+                .iter()
+                .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n");
+            drop(state);
+            if text.contains("TERM=xterm-256color") {
+                break text;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "the shell pane's own echo never landed within the bound; last screen: {text:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+
+        assert!(
+            text.contains("TERM=xterm-256color"),
+            "a shell pane must get the server's own TERM too: {text}"
+        );
+    }
+
     /// What a panic inside one connection's call to `Runtime::handle`
     /// (TASK-1.45 §5) actually rests on: `Runtime::lock`'s own existing
     /// `unwrap_or_else(PoisonError::into_inner)`. Proved directly, one

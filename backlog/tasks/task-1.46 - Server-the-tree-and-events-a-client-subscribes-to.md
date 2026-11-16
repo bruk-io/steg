@@ -1,13 +1,14 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:10:00Z'
+updated_date: '2026-11-16T15:32:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -24,10 +25,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=5,nit=2'
+asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1491,6 +1491,41 @@ created: 2026-11-16T15:10:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 5m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:32:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, testing. The diff does not match the plan.
+
+Second review (same-machine) at head ffd6f32 (matches the task's own recorded `just check` head; PR #63's CI reports no checks configured - nothing to wait on, confirmed with `gh pr checks`). Ran `just check` myself (clean after confirming one unrelated flaky failure - arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server, which passes in isolation and touches code this diff never changes); ran the server's `--test events` suite 30x (0 failures) and the `--lib` suite 5x (0 failures), with no leftover processes from my own runs afterward.
+
+Confirmed from round 1, unchanged, not reviewed again: the atomic reply, the tree's types, the description's vocabulary, the slow-subscriber shutdown.
+
+This round's fix for finding 1 (pane.close/tab.close losing their own cascade): verified by inspection and by reintroducing the exact bug myself (scratch-reverted both arms of emit_close_events) - the three new tests fail correctly, the rebuilt session_close test (wired through a different arm) still passes, exactly as the notes describe. The wire reply is unchanged (`Outcome::PaneClosed`/`TabClosed` both serialise to `Value::Null`, same as the old `Outcome::Nothing`). `dispatch_raw` has exactly one caller (`close_and_dispatch`); every other path (`Runtime::handle`'s generic arm, `start_and_dispatch`) still goes through `dispatch::dispatch`, which resolves `api.call` first - nothing bypasses that wrapper. Exit-driven and request-driven paths read the same kernel-reported `ClosedPane` fields the same way (confirmed by inspection of the two code paths - `emit_close_cascade` for exit-driven, the inlined equivalent in `emit_close_events`'s `pane.close` arm for request-driven - and their separate tests, not run side by side). A subscriber narrowed to another session sees nothing of a cascade (`broadcast` takes one `scope` for the whole cascade, checked per subscriber per event); one narrowed by event name sees only the matching names within the cascade, confirmed by `broadcast`'s own per-event, per-subscriber filtering.
+
+I also repeated the session-scope-filter control (scratch-disabled `scope_ok` in `Filter::matches`) and the creation-cascade-order control (scratch-removed the `TabCreated` broadcast in `session.new`'s own arm): both reproduce the task's recorded controls exactly, panic message for panic message.
+
+Two Important findings:
+
+1. [Bugs/Compliance, AC #2] `pane.move`'s own R94 cascade is never reported to subscribers. Moving a tab's last pane elsewhere closes that tab (and the session too, if it was the session's last tab) - the kernel's own `Tree::move_pane_to_tab` already reports this precisely (`MovedPane.source_tab_closed`/`source_session_closed`, with its own kernel-level test `move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane` proving the cascade is real and exercised), but `crates/server/src/dispatch/pane.rs`'s `move_` discards the whole `MovedPane` into `Outcome::Nothing`, and `Runtime::handle` routes `pane.move` through its generic `_` arm (not `start_and_dispatch`/`close_and_dispatch`), which never reads a cascade at all - only `reapply_every_sized_tab`/`emit_focus_event` run. Reproduced directly (scratch test added to `crates/server/tests/events.rs`, then reverted): a session with two tabs, moving the first tab's only pane into the second - `tab.list` confirms only the second tab remains afterward, but the subscriber receives nothing at all, no `pane.closed`/`tab.closed`. This answers the brief's own question ("is there any remaining way the tree loses a session, tab or pane without its event") - I grepped the kernel for every removal site: `Session::move_tab` (`session.rs:206`) and `Tree::move_session` (`tree.rs:1242`) are reorders (remove+reinsert), not removals; `Tab::remove_pane_for_move` (`tab.rs:425`), feeding `move_pane_to_tab`'s own cascade, is the one gap. Same class as the bug this round fixed for `pane.close`/`tab.close` (AC #2's "every place the tree changes that way"), on a method the plan's own §5 table never named and the notes never flag as a dropped case - the plan itself missed it, the same shape as the first review's own finding 1.
+
+2. [Evidence] The rebuilt `session_close_emits_the_whole_cascade_innermost_first` (two tabs, two panes each, built this round for finding 5) has no valid negative control on record for the one thing it was rebuilt to prove - per-tab interleaving. The only control on file for this test (13:59:07 at 84ab8324) was run against the *old single-tab version*, which cannot even express cross-tab interleaving (testing.md: "run the control again against the edited test before citing it" - this test was edited, materially, after that control). This round's own "bug-fix control" (reverting `emit_close_events`'s `pane.close`/`tab.close` arms) doesn't touch `session.close`'s own loop at all - I confirmed the 2x2 test still passes unaffected under that control, same as the notes' own account ("this test is wired through session.close/emit_close_events's own Session arm, which the review found already correct from reading"). The notes cite the bug-fix control for this row anyway ("recorded this round (the bug-fix control, all four)"), which is not accurate - it covers three rows, not this one. I built and ran the actual control myself (scratch-flattened `session.close`'s own loop in `emit_close_events` to "every pane across every tab, then every tab", reverted after): the rebuilt test fails correctly, at the right assertion (`expected the first tab's own tab.closed third, got PaneClosed`), so the mechanism the test proves is real - the control for it is just not on record, and the notes' claim that it is, is wrong.
+
+Nits (2):
+- The notes claim the `broadcast` doc comment (runtime.rs) was "rewritten" to stop saying "nothing here ever writes to a socket while state's lock is held" (false since a failed enqueue calls `shutdown.shutdown(Both)` right there, under the lock) - it was not: `runtime.rs:1636` is untouched by this round's diff, word for word the same overstated claim. The underlying nit (from round 1) is still open. For the record: `shutdown(Shutdown::Both)` on a Unix stream socket is a kernel-level syscall that marks the socket unable to send/receive and returns immediately, without waiting on the peer - it wakes any blocked reader with an error/EOF - so it is non-blocking in practice, but the comment's blanket claim remains false regardless.
+- `emit_close_cascade`'s own three-broadcast sequence (`PaneClosed`, then `TabClosed` if `Some`, then `SessionClosed` if `Some`) is duplicated verbatim in `emit_close_events`'s `pane.close` arm instead of reused - functionally identical (confirmed by reading both), just a second copy of the same decision to keep in sync later.
+
+Confirmed correct, not findings: the pane.close/tab.close doc-comment correction (crates/server/src/dispatch/{pane,session,tab}.rs) about when a running program actually ends - genuinely rewritten this round, and accurate against `close_and_dispatch`'s own code (the program ends via `force_end`, called after the lock is dropped, after `emit_close_events` runs); the `Connection::watch` signature departure is in the notes, as asked.
+
+plan-matched: no - the plan's own "Files that change" says explicitly "no change to `Outcome`/return shapes for any close/new arm (§5 reads tree state before and after instead...)" and §5 itself says "never by threading a new return shape through `dispatch::tab::close`/`session::close`". This round's diff adds `Outcome::PaneClosed`/`TabClosed` and stops reading the tree after a close - the opposite of what the plan says it does, for the reason the plan itself gives (the bug the first review found). The departure is right and already explained in the notes (so no separate Compliance finding beyond what's above) - the flag reflects the diff-vs-plan-text mismatch itself, not a fault in the decision to depart.
+
+One overlap to state for whoever merges second: TASK-1.86 (PR 60, in review) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. Whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping this task's `scope` (captured before `record_exit` runs, since `record_exit` can remove the very tab/session `scope` would otherwise have to be read back from) - 1.86's own notify must not move ahead of this task's broadcasts, and must not re-derive `scope` after `record_exit`.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:22:00Z'
+updated_date: '2026-11-16T01:23:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.92-ui-the-design-s-named-values-as-one-data
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'b3ded099a9d8'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -224,6 +227,15 @@ created: 2026-11-16T01:20:00Z
 ---
 
 2026-11-15, @bruk.o: at the engineer's word the design artifact was corrected in this session, as version 1794791991-5d11: in the seven pages that carry the shared rule, a disabled icon button now takes muted (the rule .lv-ib:disabled, and the still drawing on the Atoms page), and the scrim's sentence on the Tokens and Layout pages now says #050508 at 60% in dark. Nothing else was changed. The engineer had himself resized a few boxes on the Tokens page in the canvas an hour earlier (layout only, no value), which is why the pages were edited in place and not regenerated: the generator scripts no longer reproduce the Tokens page exactly, and the README must say so. After the correction nothing draws the colour off: it is still defined in the pages' theme data but unused, so it is not exported. The pages as they are in that version are saved at /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794791991-5d11 : these are the saved pages the data file is exported from and records as its version, and with them decisions 2 and 4 are no longer differences between the data file and the artifact.
+
+---
+
+author: @bruk
+created: 2026-11-16T01:23:00Z
+
+---
+
+Plan approved by @bruk (b3ded099a9d8, size-3): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

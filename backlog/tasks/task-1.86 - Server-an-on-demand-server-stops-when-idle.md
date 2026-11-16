@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T15:24:00Z'
+updated_date: '2026-11-16T15:44:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1681,6 +1680,33 @@ created: 2026-11-16T15:24:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 15m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T15:44:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second full review, head cbe0f15 (cbe0f15d9bab032dff00b43287fcc0cf6b4f72ae). PR 60 head matches (gh pr view: headRefOid cbe0f15..., check "check" conclusion SUCCESS). TASK-1.98 (PR 59, head 25696d14) is review-passed but still open/unmerged to origin/main; this task cannot merge before it.
+
+No findings. The prior review's one Important finding is fixed correctly: connection::handle moves `events` into run_post_handshake only on the accepted path; ConnectionCleanup (the guard that already runs on every path out of run_post_handshake, including a panic's unwind) now holds the sender and sends Disconnected from its own Drop, last, after its pre-existing cleanup steps keep their exact order; handle's own trailing send covers only the paths that never reach the guard (no complete frame, not a hello, a refused handshake), with events.take() making a double-send structurally impossible. Traced every path out of handle (no complete frame, not a hello, refused handshake, clean close, protocol violation post-handshake, write/shutdown-clone failure, a panic in a request handler, a connection the server force-shuts-down via its own shutdown_handle on stop) - each sends Connected once at entry and Disconnected exactly once, after the guard's other duties. Independently reproduced the fix's own negative control myself (reverted ConnectionCleanup's Disconnected send in a scratch edit, reverted after): the new test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out fails bounded at exactly its 1s join_within bound ("run should have returned within 1s"), not a hang; with the fix restored it passes in ~0.2s.
+
+The test's PanickingLauncher is confirmed test-only: ServerConfig.launcher is the existing production injection point, and this is only an unusual test implementation of it supplied from crates/server/tests/idle_stop.rs, not a new production path that can panic on request.
+
+The separate gap the worker names (a panic in a launcher's spawn, during session.new/tab.new/pane.split, skips pane::start's own rollback_mint) is real: pane::start (pane.rs) calls `launcher.spawn(&spec)?` directly, so a panic there unwinds straight past start_and_dispatch's `match pane::start(...)` (runtime.rs), skipping the `Err(error) => rollback_mint(...)` arm that only runs on a returned Err. Confirmed pre-existing: this match/rollback pairing is on commit 7a20452 (2026-11-15), part of TASK-1.76, already on origin/main before this task's branch started - not in this task's own scope or diff. A follow-up (on TASK-1.76 or a new task, not this one) should say: pane::start's call to the launcher needs panic-safety at the mint/spawn boundary (catch_unwind around the spawn, or a documented invariant that ProgramLauncher::spawn must never panic), because today a panicking launcher leaves a session/tab/pane in the tree with no pane handle in state.panes - silently un-rolled-back - which (per this task's own AC #1) would also keep session_count() above zero forever and block idle-stop permanently, the same class of bug this task's own fix just closed on the connection side.
+
+Nits from the prior review are fixed as recorded: the 300ms absence assertion in idle.rs now matches Err(RecvTimeoutError::Timeout) specifically; the task's own notes (comment #7) correct the reasoning for not re-running the five negative controls to the right criterion (whether the test/mechanism was edited since the control was recorded, not whether an unrelated merge touched the same file) and state the checker_tx.or(events)/checker_or_events touch to TASK-1.98's two AcceptRetried send sites in listen.rs as a departure from the plan's own "untouched by this task" claim.
+
+Evidence: this task's own four test targets (steg-server --lib idle::, --lib listen::, --test idle_stop; steg --features fixtures --test idle_stop) each run 20 times in the foreground, bounded (timeout 30s/command), 0 failures. Both broader suites (cargo test -p steg-server --tests; cargo test -p steg --features fixtures) run 3 times each in the foreground, bounded: 0 failures on the steg suite; one of three steg-server runs hit a 120s harness bound on an unrelated, untouched test (outbound::tests::a_broken_write_closes_the_queue...) while running concurrently with the other suite on this machine - reproduced 5/5 instantly in isolation afterward, and outbound.rs is unchanged by this branch (diff against both origin/main and a274b2c is empty), so this was my own resource contention, not a product defect; the retry (3 serial runs, no concurrent suite) was 0 failures. My own `just check` exited 0 on this exact head. No leftover processes from this worktree before, during, or after (checked by PID and by process list filtered to this worktree's path).
+
+Overlap for whoever merges TASK-1.46 (PR 63, still in review) and this task in either order: this branch's apply_event_locked PaneEvent::Exited arm sends ConnectionEvent::SessionCountChanged immediately after `state.panes.remove(&closed.pane)`, gated on `closed.session.is_some()`. TASK-1.46 restructures this same arm to broadcast pane.exited first, then pane.closed/tab.closed/session.closed (from the same ClosedPane) in innermost-first order, after capturing what it needs before record_exit runs. TASK-1.46's own notes already say correctly: whoever merges second must fold this task's SessionCountChanged send into that structure, placed after the broadcasts, with the scope still captured before record_exit - confirmed consistent by reading TASK-1.46's own plan section 5 directly, nothing further needed from this review beyond restating it.
+
+No earlier-review repeat found worth a rule-change draft: no new finding here repeats a mistake an earlier review already caught elsewhere; the existing nits were fixed, not repeated.
 
 ---
 <!-- COMMENTS:END -->

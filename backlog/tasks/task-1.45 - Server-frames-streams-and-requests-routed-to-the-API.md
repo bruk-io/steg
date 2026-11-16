@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:37:00Z'
+updated_date: '2026-11-16T00:38:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -211,6 +211,51 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib dispatch::lookup` exited 101 at 2026-11-16T00:38:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a1efb552dced with uncommitted changes, last 40 of 55 lines:
+
+```text
+test dispatch::lookup::tests::a_target_less_request_with_a_real_context_still_resolves ... ok
+test dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request ... FAILED
+test dispatch::lookup::tests::wire_position_converts_one_based_to_zero_based ... ok
+test dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request ... FAILED
+test dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part ... FAILED
+test dispatch::lookup::tests::a_wrong_but_fully_explicit_target_from_context_none_is_a_real_not_found ... ok
+test dispatch::lookup::tests::target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none ... ok
+test dispatch::lookup::tests::wire_position_rejects_zero_and_negative_without_a_kernel_call ... ok
+
+failures:
+
+---- dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request stdout ----
+
+thread 'dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request' (16036973) panicked at crates/server/src/dispatch/lookup.rs:365:9:
+assertion `left == right` failed
+  left: NoSuchTarget
+ right: BadRequest
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request stdout ----
+
+thread 'dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request' (16036974) panicked at crates/server/src/dispatch/lookup.rs:343:9:
+assertion `left == right` failed
+  left: NoSuchTarget
+ right: BadRequest
+
+---- dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part stdout ----
+
+thread 'dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part' (16036975) panicked at crates/server/src/dispatch/lookup.rs:279:18:
+called `Result::unwrap_err()` on an `Ok` value: SessionId(0)
+
+
+failures:
+    dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request
+    dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request
+    dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part
+
+test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

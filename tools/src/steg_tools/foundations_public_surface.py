@@ -6,10 +6,12 @@ instead: review #5 of TASK-1.93 found exactly this claim false once (a public
 `default_session(Appearance) -> Hsla`, found by calling it from outside `foundations`) and
 asked for the check the claim deserves.
 
-What this checks, precisely: every `pub fn ... -> Hsla` in
-`crates/ui/src/foundations/mod.rs` and `crates/ui/src/foundations/generated.rs`, found by
-regex over the raw source text, that falls outside every brace-matched `impl Theme { ... }`
-block in that same text. A violation names the function.
+What this checks, precisely: every `pub fn ... -> Hsla` found by regex over the raw source
+text of every `.rs` file under `crates/ui/src/**` and `crates/ui/gallery/**` (the crate's
+whole public surface, not just `foundations` - the claim is about the crate, and the one
+violation found so far was in `gallery/main.rs`, not `foundations` itself), that falls
+outside every brace-matched `impl Theme { ... }` block in that same file. A violation names
+the file and the function.
 
 What this cannot see, named outright: a function returning `Hsla` wrapped in another type
 (a tuple, `Option<Hsla>`, a struct with an `Hsla` field) - `hex_of`, `tint()` and `scrim()`
@@ -25,11 +27,15 @@ Usage: steg-foundations-public-surface
 import re
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 from steg_tools import workspace
 
-REPO_ROOT_RELATIVE_MOD_FILE = "crates/ui/src/foundations/mod.rs"
-REPO_ROOT_RELATIVE_GENERATED_FILE = "crates/ui/src/foundations/generated.rs"
+# Relative to the repo root; both exist today (TASK-1.93) and together are the whole of
+# this crate's source - kept as two directories, not individual file names, so a new
+# atom/molecule/organism file is covered without this module needing to know its name.
+REPO_ROOT_RELATIVE_SRC_DIR = "crates/ui/src"
+REPO_ROOT_RELATIVE_GALLERY_DIR = "crates/ui/gallery"
 
 _PUB_FN_RETURNING_HSLA = re.compile(r"pub fn (\w+)\([^)]*\)(?:\s*->\s*Hsla)\b")
 _IMPL_THEME_OPEN = re.compile(r"impl\s+Theme\s*\{")
@@ -81,19 +87,20 @@ def format_violation(violation: Violation) -> str:
     )
 
 
+def _rust_files(root: Path, *relative_dirs: str) -> tuple[Path, ...]:
+    """Every `.rs` file under each of `relative_dirs`, relative to `root`."""
+    return tuple(path for relative in relative_dirs for path in sorted((root / relative).rglob("*.rs")))
+
+
 def main() -> int:
-    """Check the real `foundations` module's own two hand-written-plus-generated files."""
+    """Check every `.rs` file in the real `steg-ui` crate - its `src/` and its gallery."""
     root = workspace.repo_root()
     if root is None:
         print("steg-foundations-public-surface: not in a git repository", file=sys.stderr)
         return 2
-    files = (REPO_ROOT_RELATIVE_MOD_FILE, REPO_ROOT_RELATIVE_GENERATED_FILE)
     found = []
-    for relative_path in files:
-        path = root / relative_path
-        if not path.exists():
-            continue
-        found.extend(bare_hsla_returning_functions(relative_path, path.read_text()))
+    for path in _rust_files(root, REPO_ROOT_RELATIVE_SRC_DIR, REPO_ROOT_RELATIVE_GALLERY_DIR):
+        found.extend(bare_hsla_returning_functions(str(path.relative_to(root)), path.read_text()))
     for violation in found:
         print(format_violation(violation))
     return 1 if found else 0

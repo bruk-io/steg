@@ -1,13 +1,14 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:58:00Z'
+updated_date: '2026-11-16T14:01:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -22,8 +23,10 @@ asdlc_branch: task-1.86-server-an-on-demand-server-stops-when
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1224,6 +1227,29 @@ created: 2026-11-16T13:58:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.86: a same-machine review: it waited 32m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Narrow first pass only: Evidence question, from gh and the task's notes alone. No worktree was made, no diff was read, no code was reviewed, and no suites were run. Nothing here is a judgement of the work - a full review follows once this comes back.
+
+[Evidence, Important] PR 60's only CI run has not passed on the branch's current head. Head d6c7ad92ba23950d0a88cc6ec71eeeaeedacdbde (task-1.86-server-an-on-demand-server-stops-when) has exactly one check, "CI / check", run 43875669315: started 2026-11-16T13:30:58Z, status COMPLETED, conclusion CANCELLED at 13:43:30Z (`gh run list` confirms no later run exists for this branch). Per the team's review.md Evidence pass: "Were the checks the worker recorded run on this branch, after its last change, and did they pass? A check recorded before the last commit, or not at all, is a finding." A cancelled run is not a passing run.
+
+Why it stalled: this branch merges TASK-1.98 at commit 0f38605 ("Server: the accept loop survives a recoverable accept() error"). `git log origin/main..origin/task-1.86-... -- crates/server/tests/accept_backoff.rs` returns exactly that one commit, and TASK-1.98's own fix commit (263d360, "Fix review findings: the accept-backoff test suite hangs", pushed to task-1.98-server-the-accept-loop-survives-an-error, head d2ab50c46927) is not an ancestor of 0f38605 (`git merge-base --is-ancestor` confirms). So this branch carries the pre-fix accept_backoff.rs / accept_backoff_attempt.rs that TASK-1.98's own review (PR 59, comment #3, 2026-11-16 13:12 UTC) already sent back for hanging CI: that review found a CI run stalled right after "ok test (steg-server, race-fixture)" and was killed by the 30-minute workflow timeout with an orphaned accept-backoff process. PR 60's cancelled run is consistent with the same unfixed hang (cancelled at ~12m41s into the job, after the same race-fixture step).
+
+What is needed before this returns to review: rebase/merge TASK-1.98's fixed head (not 0f38605) into this branch, run both suites and `just check` on the merged result, and get this pull request's own CI green on the final head.
+
+Plan match not assessed in this pass: no diff was read, so the positive "yes" condition (files match the plan, in order, building what it says) could not be verified. Recorded "no" per instructions for this case, not as a plan-departure finding.
+
+No earlier-review repeat found worth a rule-change draft: `review-done`'s own note that earlier reviews cited the same policy (review) points to TASK-1.98 (PR 59), but its Important finding was the hang itself (a mistake in the code/tests); this finding is that the task was sent to review before that fix reached this branch and before CI confirmed it - a different mistake, not a second instance of the same one. No draft filed.
 
 ---
 <!-- COMMENTS:END -->

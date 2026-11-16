@@ -32,6 +32,7 @@ mod paths;
 mod program_param;
 mod pty;
 mod runtime;
+mod signal;
 
 pub use arbiter::{Arbitration, Reason as ArbitrationReason, ServerHandle, attempt};
 pub use config::{DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT, ServerConfig};
@@ -46,4 +47,4 @@ pub use pane::{PaneEvent, PaneHandle, start};
 pub use paths::Reason as PathReason;
 pub use program_param::program_from_request;
 pub use pty::{LaunchSpec, ProgramLauncher, RealLauncher, SpawnedProgram};
-pub use runtime::{LoginShell, Runtime, build_login_shell};
+pub use runtime::{FORCE_GRACE_DEFAULT, LoginShell, Runtime, build_login_shell};

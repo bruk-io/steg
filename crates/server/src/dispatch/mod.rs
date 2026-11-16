@@ -22,8 +22,9 @@ mod tab;
 pub(crate) use api::resolve as resolve_api_call;
 pub(crate) use kernel_error::map_kernel_error;
 pub(crate) use lookup::{
-    find_tab, pane_mut, param_bool, param_i64, param_present, param_str, resolve_pane_str,
-    resolve_tab_str, tab_mut, target_pane, target_session, target_tab, wire_position_to_index,
+    any_pane_running, find_tab, pane_mut, panes_in_close_scope, param_bool, param_i64,
+    param_present, param_str, resolve_pane_str, resolve_tab_str, tab_mut, target_pane,
+    target_session, target_tab, wire_position_to_index,
 };
 pub use outcome::Outcome;
 

@@ -90,27 +90,17 @@ fn new(tree: &mut Tree, request: &Request) -> Result<Outcome, ApiError> {
 /// session's tabs has a program running and `--force` was not given,
 /// with `ErrorCode::ProgramRunning`, touching nothing - the same
 /// dispatch-level policy `pane::close`/`tab::close` use, over every pane
-/// the session holds.
+/// the session holds. With `--force`, this always proceeds - see
+/// `pane::close`'s own doc for why nothing is left running by the time
+/// this unconditional `tree.close_session` runs.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_session(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
 
-    if !force {
-        let any_running = tree
-            .session(id)
-            .ok_or_else(|| map_kernel_error(steg_kernel::Error::SessionNotFound(id)))?
-            .tabs()
-            .iter()
-            .flat_map(steg_kernel::Tab::panes)
-            .any(|pane| {
-                matches!(
-                    pane.program_status(),
-                    Some(steg_sdk::ProgramStatus::Running)
-                )
-            });
-        if any_running {
-            return Err(super::program_running());
-        }
+    if !force
+        && super::any_pane_running(tree, &super::panes_in_close_scope(tree, context, request)?)
+    {
+        return Err(super::program_running());
     }
 
     tree.close_session(id).map_err(map_kernel_error)?;

@@ -273,7 +273,11 @@ pub fn run(
     // this crate prints nothing (no `eprintln!`/`println!` appears
     // anywhere in `crates/server/src`, a line this task keeps true), and
     // a fallback worth reporting needs a caller able to print about it.
-    let mut runtime = Runtime::new(Arc::clone(&config.launcher), config.login.clone());
+    let mut runtime = Runtime::new(
+        Arc::clone(&config.launcher),
+        config.login.clone(),
+        crate::runtime::FORCE_GRACE_DEFAULT,
+    );
 
     // Split apart before the loop, not destructured after it as before:
     // `listener` has to be owned *inside* the `thread::scope` below (so

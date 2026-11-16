@@ -1295,6 +1295,19 @@ test pane_close_on_an_already_ended_pane_succeeds_without_force ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
 ```
+
+Check passed: `cargo test -p steg-server --lib runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle` exited 0 at 2026-11-16T01:23:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at b7e872af7f6b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 90 filtered out; finished in 0.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:40:00Z'
+updated_date: '2026-11-16T00:43:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -815,6 +815,40 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 ---- signal::tests::send_reaches_the_whole_process_group_not_only_the_leader stdout ----
 
 thread 'signal::tests::send_reaches_the_whole_process_group_not_only_the_leader' (15974999) panicked at crates/server/src/signal.rs:108:56:
+the signalled shell must exit
+
+
+failures:
+    signal::tests::send_reaches_a_real_process_with_the_named_signal
+    signal::tests::send_reaches_the_whole_process_group_not_only_the_leader
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 83 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `cargo test -p steg-server --lib signal::` exited 101 at 2026-11-16T00:43:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 2 tests
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... FAILED
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... FAILED
+
+failures:
+
+---- signal::tests::send_reaches_a_real_process_with_the_named_signal stdout ----
+
+thread 'signal::tests::send_reaches_a_real_process_with_the_named_signal' (16141512) panicked at crates/server/src/signal.rs:109:56:
+the signalled process must exit
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- signal::tests::send_reaches_the_whole_process_group_not_only_the_leader stdout ----
+
+thread 'signal::tests::send_reaches_the_whole_process_group_not_only_the_leader' (16141513) panicked at crates/server/src/signal.rs:143:56:
 the signalled shell must exit
 
 

@@ -926,6 +926,37 @@ error: test failed, to rerun pass `-p steg-server --test routing`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test routing` exited 0 at 2026-11-16T02:20:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 3cada1b0b743 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 18 tests
+test an_unknown_kind_tag_post_handshake_closes_the_connection ... ok
+test the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitly_closed ... ok
+test a_second_hello_after_the_handshake_closes_the_connection ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test an_event_from_the_client_closes_the_connection ... ok
+test a_reply_shaped_frame_from_the_client_closes_the_connection ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... ok
+test a_hostile_post_handshake_close_still_reports_disconnected ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

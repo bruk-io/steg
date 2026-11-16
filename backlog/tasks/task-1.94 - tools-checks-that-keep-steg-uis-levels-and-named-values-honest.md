@@ -351,6 +351,43 @@ FAILED tests/unit/test_ui_levels.py::test_violations_refuses_an_import_reached_o
 FAILED tests/unit/test_ui_levels.py::test_violations_counts_a_fully_qualified_expression_path_once_not_once_per_nesting
 6 failed, 33 passed in 0.05s
 ```
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_levels.py -k passes'` exited 1 at 2026-11-16T02:30:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_violations_passes_an_organism_using_a_molecule_an_atom_and_foundations __
+
+    def test_violations_passes_an_organism_using_a_molecule_an_atom_and_foundations() -> None:
+        file = RustFile(
+            "crates/ui/src/organisms/mod.rs",
+            "use crate::molecules::Tab;\nuse crate::atoms::Icon;\nuse crate::foundations::Colour;\n",
+        )
+>       assert violations((file,), {}) == ()
+E       AssertionError: assert (Violation(pa...foundations')) == ()
+E         
+E         Left contains 3 more items, first extra item: Violation(path='crates/ui/src/organisms/mod.rs', line=1, use_text='use crate::molecules::Tab;', importing_level='organisms', reached_level='molecules')
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:191: AssertionError
+________ test_violations_passes_an_organism_using_foundations_directly _________
+
+    def test_violations_passes_an_organism_using_foundations_directly() -> None:
+        # Two levels down: a comparison written as "exactly one level" would refuse this.
+        file = RustFile("crates/ui/src/organisms/mod.rs", "use crate::foundations::Colour;\n")
+>       assert violations((file,), {}) == ()
+E       AssertionError: assert (Violation(pa...oundations'),) == ()
+E         
+E         Left contains one more item: Violation(path='crates/ui/src/organisms/mod.rs', line=1, use_text='use crate::foundations::Colour;', importing_level='organisms', reached_level='foundations')
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:197: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_levels.py::test_violations_passes_an_organism_using_a_molecule_an_atom_and_foundations
+FAILED tests/unit/test_ui_levels.py::test_violations_passes_an_organism_using_foundations_directly
+2 failed, 35 deselected in 0.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

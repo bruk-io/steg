@@ -1,13 +1,14 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T04:29:00Z'
+updated_date: '2026-11-16T04:38:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=0'
+asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -764,6 +764,50 @@ created: 2026-11-16T04:29:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T04:38:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review, testing. The diff does not match the plan.
+
+Fourth review. Reviewed PR #54 at head a304d37 (matches the task's recorded `just check` and `gh pr view 54 --json headRefOid,statusCheckRollup`: SUCCESS at the same oid). Verdict: changes requested.
+
+Rounds 1-3's findings are genuinely fixed, and I reproduced the fixes myself rather than trusting the notes:
+- Round 1 (engineer's decisions, field-blindness, focus_ring.width/offset): all in the diff; track is Tier A (18/18); RADIUS_MAP checks the three corners; focus_ring.width/offset are in TIER_C_SKIPS.
+- Round 2 (themes[]/focus_ring enumerated from a fixed tuple): unaccounted_names now walks the data generically via _leaf_paths; a new field in a theme or focus_ring is refused.
+- Round 3 (string-prefix "accounted for", whole-entry colour ancestor): paths are tuples of segments, matched by whole-segment prefix (_is_accounted_for). I temporarily patched _is_accounted_for back to a joined-string-prefix compare (the pre-round-3 behaviour) and reran the dotted-name tests: the four unit-test and three adapter-test reproductions (sizes["palette.footer"], type["terminal.bold"], sizes["nav.side.extra"], ramp "ramp.secondary") all failed under the old matching and pass under the current code - reverted cleanly (git status clean after). A stray field on an existing colour/alias/opacity/ramp (contrast, weight, blur, intensity) is correctly refused, confirmed against the real file.
+
+[Compliance, Important] tools/src/steg_tools/design_pages.py:530-540 (`_NOT_A_LEAF_PATH`) excludes six field names - name, use, unit, ansi, artifact_version, artifact_url - unconditionally, at every dict, everywhere in the file, not only where each one's stated justification actually holds. This falsifies crates/ui/design/README.md's own claim ("a genuinely new key - at any level, under any name, however it happens to spell - cannot fall through both silently") and the module docstring's identical claim, and it is the same shape of defect rounds 2 and 3 already found twice on this task (a mechanism documented as exhaustive that is not). Confirmed with real negative controls against the real data file, each silently passing `steg-design-check` with no mismatch, no "unaccounted", and no TIER_C_SKIPS entry printed:
+- focus_ring["ansi"] = {"black": "#000"} - real hex content, reaching no checker at all. `ansi`'s exclusion comment says it is "checked structurally by ansi_mismatches", but ansi_mismatches only ever reads theme["ansi"]; it never looks at focus_ring, so this specific exclusion's justification is simply false outside themes[].
+- colours[0]["unit"] = "hex" and sizes["nav.side"]["use"] = "..." - "unit"/"use" are meant to describe a number or an entry beside them; applied blindly, a same-named field that is not actually doing that is swallowed all the same.
+- a bare dict (not a list-of-named-entries) whose only field is "name" - the exclusion's justification ("identifies the entry whose own name the path already carries") does not hold here, since this dict's name was never captured into the path, yet the field still vanishes.
+- colours[0]["artifact_version"] = "bogus" - same pattern.
+
+Worse, the property tests added this round to make the enumeration "independent" (test_design_pages.py / test_property_removing_any_...) cannot catch any of this: test_design_pages_real_workspace.py:278 defines `_INDEPENDENT_EXCLUDED_FIELDS` with the identical six names, hardcoded. The independence round 3 asked for (so a bug in the tool's own walker couldn't be masked by the test sharing it) is defeated for this specific class of bug, because the test's "independent" enumeration shares the exact over-broad exclusion set with the tool. This is round 3's own finding ("a mechanism documented as exhaustive, tested only against its own output") recurring one level over, in the one place the test suite was supposed to guard against it.
+
+Everything else I probed from the review's own list passed cleanly, confirmed by running the real CLI (`steg-design-check --data-file <scratch>`) against the real file, not by reasoning:
+- A new colour, colour_alias, opacity, ramp, theme, and a new ansi colour inside a theme: each refused (the new colour via Tier A's colour_mismatches, which iterates the file's own colours rather than a fixed list, not via unaccounted_names - correctly, since Tier A already covers every colour in the file).
+- A new field (numeric, string, boolean, null, nested object, nested list) on a colour/alias/opacity/ramp entry: all six refused.
+- A dotted-name collision at three depths, and a ramp whose name extends another ramp's name: all refused (round 3's fix holds).
+- A key that is a registered name's first dot-piece only (sizes["nav"], vs. the real "sizes.nav.side"), and a no-dot suffix (sizes["palette2"]): both correctly refused - segment matching, not string matching.
+- A new field inside an already-checked sizes group: numeric is silently absorbed (disclosed, both in the README and by its own pair of tests) and non-numeric is the same documented gap - not re-litigating this, it's accurately stated.
+- A duplicate colour entry: a byte-identical duplicate is silently fine (no disagreement to report, consistent with AC#1's literal wording); a duplicate where one copy's value is wrong is correctly refused (both Tier A checks run independently per entry). Not a finding.
+
+Nit:
+
+[Bugs, Nit] Two inputs crash instead of refusing cleanly: a colours[] entry with no "name" key (KeyError in unaccounted_names/main), and an existing colour field's value replaced by an object (colours[0]["dark"] = {"hex": ..., "extra": ...} crashes colour_mismatches with AttributeError: 'dict' object has no attribute 'lower', since Tier A assumes dark/light are flat strings - unlike the Tier B names this reasoning is modelled on, Tier A does not recurse the value, so the registry's own "a whole-segment prefix is accounted for because the checking function recurses the whole value" justification is false for colour fields specifically, though no real export ever produces this shape today). Neither is a silent pass, and neither falsifies AC#1-3's claims about names - both are a hard crash on malformed shape, not a name/value mismatch. Low priority: the real artifact export never produces either shape.
+
+Evidence: `gh pr view 54 --json body` matches the tool's own captured stdout byte-for-byte (the "ok (18 colours, 19 type/size entries, 32 ANSI colours checked)" line, the field-blind caveat, and all 31 TIER_C_SKIPS lines). `just check-design` run fresh in the review worktree at a304d37: ok. 67 unit+adapter tests pass. TASK-1.94's own files (foundations.py/ui_colours.py/ui_levels.py) have an empty diff against main in this branch; justfile's check: line keeps both check-design and check-ui-levels/check-ui-colours after the merge. foundations.py's read() reads only colours + opacity_names (confirmed by reading it) - the worker's claim that the shared reader doesn't cover what this task needs is true; keeping the private _read_data_file is the right call here, and extending foundations.py to the whole document is a real follow-up, not this task's.
+
+Plan-matched: no, same basis as rounds 2-3 (the plan's file list never named Tokens.dc.html/foundations.json/either README) - explained by task comments #2/#3, not itself a finding per policy.
+
+Unmet: AC#3 again, for a new reason each round - this round, the exclusion list itself is unconditional where its own stated reasons are not.
 
 ---
 <!-- COMMENTS:END -->

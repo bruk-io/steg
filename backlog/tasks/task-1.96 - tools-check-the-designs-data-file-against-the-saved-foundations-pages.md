@@ -474,6 +474,16 @@ BUG REPRODUCED: the OLD implementation silently missed ramp named 'ramp.secondar
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T04:18:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 320b9d785a96 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpVyiBXs` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+...................................................................      [100%]
+67 passed in 0.30s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

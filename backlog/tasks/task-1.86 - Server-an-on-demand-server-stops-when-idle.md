@@ -1,13 +1,14 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:16:00Z'
+updated_date: '2026-11-16T14:45:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1406,6 +1406,37 @@ created: 2026-11-16T14:16:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:45:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, testing. The diff does not match the plan.
+
+Full review at head a274b2c (a274b2cbeebc215c32b29dc9e20a0f5dade0777b). CI run 43882468307 confirmed success on this exact head (gh run view --json headSha matches gh pr view --json headRefOid). This task cannot merge before TASK-1.98 (PR 59, still in its second review); if that review changes listen.rs, this branch merges that change again on its next rebase.
+
+[Bugs, Important] crates/server/src/connection.rs:413-477 - `handle` sends `ConnectionEvent::Connected` at entry but sends the matching `Disconnected` only as a plain trailing statement after its `match`, which a panic's unwind skips. `ConnectionCleanup`'s `Drop` (connection.rs:304) is the only destructor on this path and is documented to cover "a panic unwinding through a call to `Runtime::handle` (a bug in a request handler)," but its fields (outbound/writer/shutdown_handle/runtime/client_id) do not include `events`, so it disconnects the client from the Runtime's tree but never sends `Disconnected` on the idle-checker's channel. Dropping the `events` sender clone during unwind emits nothing to the receiver (a channel only reports `Disconnected` once every sender is gone - the separate join-bound property in listen.rs section 6, not this one). Net effect: one post-handshake panic in a request handler permanently inflates `IdlePredicate::live_clients` in idle.rs, so `wait()` returns `Forever` for the rest of that process's life and the server never idle-stops again - R99 and AC #1 silently unmet from that point on. The plan's section 2 claim that `handle` "sends Disconnected on every path out of itself, including a panic unwinding past it (its own doc comment already says so)" is not true of this specific event; the doc comment it cites is about the tree-level disconnect, not this channel. No test in this diff reaches a connection-handler panic while idle-checking is on.
+
+Checked and clean, recorded for the next reviewer:
+- The `notify_session_count_changed` send in apply_event_locked runs under the drain thread's State lock, but the channel is unbounded `mpsc::channel()`, so `send` never blocks - no deadlock against `session_counter()`'s own lock acquisition.
+- Grepped the kernel and dispatch for every way a session closes: `apply_event_locked`'s `PaneEvent::Exited` arm (the one covered by the new notify) and `dispatch/session.rs::close`, `dispatch/tab.rs::close`, `dispatch/pane.rs::close`, and `rollback_mint` - all four of the latter are request-driven, always behind an already-accepted connection that eventually sends its own `Disconnected` (ordinary case; see the Important finding above for the panic exception to that).
+- `checker_tx.or(events)` is `events` byte-for-byte when `checker_tx` is `None` (explicit start) - confirmed by reading and by `just check` passing with every existing test, including the accept-backoff-fixture suite, unchanged.
+- No path in the shipped binary (crates/steg/src/main.rs) reads an env var to shorten or disable idle_timeout; only the fixtures-gated `fixture_server.rs` test binary does.
+- The 300ms absence window in `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` is test-controlled, not racing a background timer (the checker is in `Wait::Forever` throughout, which does not depend on elapsed time) - not vacuous: repeated the negative control myself (reverted the Forever arm to a bounded poll in a scratch edit, reverted after) and it fails exactly as the task's own recorded control claims. Also independently repeated the `every_sender_dropping_is_what_lets_run_return_after_stop` control (removed the notify-clearing line from Runtime::stop() in a scratch edit, reverted after): fails bounded, as claimed, not a hang.
+- Diffed a3ebd891939d (where the five negative controls were recorded) against a274b2c for every idle-stop test file: only idle.rs's test module changed (a new 300ms assertion plus a new, unrelated test and a clippy fix) - the control I re-ran above covers exactly that edit; the other three recorded controls are against byte-identical test code, so they remain valid as recorded.
+
+[Evidence, Nit] The task's own notes justify not re-running the five recorded negative controls by citing "none touch the files TASK-1.98's fix changed," which is the wrong criterion (testing.md's trigger is whether the test itself was edited since the control was recorded, not whether another task's fix touched the same file). The conclusion holds here (confirmed above) but the stated reasoning would not catch a case where it didn't.
+
+[Bugs, Nit] The 300ms absence assertion in the_checker_blocks_with_no_timeout_... uses `recv_timeout(...).is_err()`, which is also true if the observer channel disconnected early; a more precise absence check would match `Err(RecvTimeoutError::Timeout)` specifically.
+
+[Compliance, Nit] listen.rs's `checker_tx.or(events)` change to TASK-1.98's own two `AcceptRetried` send sites is a departure from the plan's own claim that those lines are "untouched by this task" - explained in the task's notes (a wiring bug found while merging TASK-1.98: the two sites read the raw `events` parameter, always `None` in production, never reaching the idle checker) and reasonable, but it is a departure the plan did not anticipate, hence `--plan-matched no`.
+
+Evidence otherwise clean: the task's own `just check`/`cargo test -p steg-server --tests`/`cargo test -p steg --features fixtures` are all recorded at or after a274b2c and exit 0; I reproduced all four of this task's own test targets 30 times each (0 failures) and both broader suites 5 times each (0 failures) plus my own `just check` (exit 0) on this exact head, with no leftover processes from this worktree before or after.
 
 ---
 <!-- COMMENTS:END -->

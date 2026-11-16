@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:05:00Z'
+updated_date: '2026-11-16T01:17:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -199,6 +199,14 @@ created: 2026-11-16T01:05:00Z
 ---
 
 Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps the data file and the durable home for the design's working files (reviewed by reading). The tested tool that checks the data file against the saved pages moved to a new draft. Criterion 3 reworded to match; criterion 1 no longer says 17 colours, since the plan found the pages draw two more.
+
+---
+
+created: 2026-11-16T01:17:00Z
+
+---
+
+Decided by the engineer on 2026-11-15, answering the plan's questions (he agreed with each recommendation put to him by @bruk.o): (1) track and off are named as real colours; they are drawn, so they exist. (2) A disabled control takes muted, as the Surfaces rule says: the icon button's use of off is the slip; off stays in the data file only if something else draws it, and the plan says which. This is a change to the design, to be made in the artifact too. (3) The terminal themes' cursor and the focus ring's colour are exported as a reference to the session colour, not as a fixed value. (4) The scrim is what is drawn, #050508 at 60% in dark, and the sentence saying black is corrected. (5) The fonts are the named ones: the system font for the interface; JetBrains Mono, then SF Mono, then Menlo for the terminal. Inter and the generic monospace in the pages are scaffolding and are not exported. (6) The three corner sizes are named by role: radius.surface 14, radius.track 10, radius.inner 8. (7) Only the current foundations files get a home in the repository: the superseded status-ball script, the backups and the font are left out. Where a decision differs from what the artifact's pages draw or say (2 and 4), the data file takes the decision, the README lists each difference, and the artifact is corrected to match as a follow-up the orchestrator raises with the engineer.
 
 ---
 <!-- COMMENTS:END -->

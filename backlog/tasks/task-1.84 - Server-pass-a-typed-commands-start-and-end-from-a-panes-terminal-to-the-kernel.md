@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-16T00:53:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -320,6 +320,41 @@ failures:
     runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it
 
 test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 87 filtered out; finished in 20.05s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `cargo test -p steg-server --lib a_shell_with_no_marks` exited 101 at 2026-11-16T00:53:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
+
+```text
+warning: function `drain_command_marks` is never used
+   --> crates/server/src/pane.rs:509:4
+    |
+509 | fn drain_command_marks(terminal: &mut Terminal, pane: PaneId, events: &Sender<PaneEvent>) {
+    |    ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... FAILED
+
+failures:
+
+---- runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives stdout ----
+
+thread 'runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives' (16292229) panicked at crates/server/src/runtime.rs:1560:13:
+pane 00000002 never reached status Some(Running); last seen None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 20.35s
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```

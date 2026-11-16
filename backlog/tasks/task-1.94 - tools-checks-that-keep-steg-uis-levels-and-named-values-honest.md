@@ -291,6 +291,13 @@ ERROR tests/unit/test_ui_colours.py
 !!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
 4 errors in 0.05s
 ```
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_foundations.py tests/unit/test_rust_source.py tests/unit/test_ui_levels.py tests/unit/test_ui_colours.py'` exited 0 at 2026-11-16T02:29:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+.....................................................................    [100%]
+69 passed in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

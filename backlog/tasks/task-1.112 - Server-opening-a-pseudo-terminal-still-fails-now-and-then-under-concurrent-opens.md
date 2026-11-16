@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:45:00Z'
+updated_date: '2026-11-16T13:47:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -414,6 +414,12 @@ running 1 test
 test cross_process_opens_at_the_shipped_default_never_fail ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.75s
+```
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:47:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      openpty race control (110.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

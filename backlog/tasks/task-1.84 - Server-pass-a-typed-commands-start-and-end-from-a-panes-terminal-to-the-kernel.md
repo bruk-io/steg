@@ -3,13 +3,14 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:03:00Z'
+updated_date: '2026-11-16T01:16:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -25,8 +26,10 @@ asdlc_branch: task-1.84-server-pass-a-typed-command-s-start-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '33f0386d0f53'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -522,6 +525,25 @@ created: 2026-11-16T01:03:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:16:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Head reviewed: 7f6ab3ae5a6e9b8766f2eab12dd457284dcb1ac7 (matches the task's final recorded `just check` and the pull request's green CI check run). Independently reproduced: `just check` exit 0 on this head in a fresh worktree; the 18 runtime::tests pass; the 6 new mark tests pass 20/20 on repeated runs with default parallelism (no flakiness observed); negative control (a) (removing the `drain_command_marks` call after `terminal.write`) reproduced in a scratch edit, reverted afterward - it reproduces the three recorded failures (`a_typed_command_that_succeeds...`, `a_typed_command_that_fails...`, `a_typed_command_still_running...`, plus `a_mark_then_the_shells_own_real_exit...` and `a_shell_with_no_marks...`, all failing "never reached status Some(Running); last seen None").
+
+[Evidence, Important] crates/server/src/runtime.rs, `a_command_panes_own_program_printing_marks_does_not_change_its_status` (named in plan §6 as the proof that `apply_event_locked`'s `NotAShellPane`/`Ignored` arms are reached end to end, not just compiled): under my repeated negative control (a) - `drain_command_marks` removed entirely, so no mark of any kind ever reaches `apply_event_locked` - this is the only one of the six new mark tests that still passes. The command pane's initial status is already `Running` from `start_program`, independent of any mark; the `C` mark fires near t=0 inside the 150ms assertion window but even applied as a shell pane's `Started` it sets the same `Running` value, so there is nothing to observe; the `D;0` mark fires at 0.3s, outside that window, and the script's own `exit 0` right behind it drives `Finished` through the ordinary `Exited`/`record_exit` path regardless of whether the mark was drained, ignored, or never delivered. The final `wait_for_pane_status(Finished)` therefore goes green off the real exit either way. The test cannot tell "the mark was correctly ignored" apart from "the mark mechanism does nothing, or was never wired up at all" - exactly the gap a negative control is for, and it fails that control.
+
+[Compliance, Nit] crates/server/src/runtime.rs, `a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic`'s own comment ("standing in for a forced close that has already happened ... until TASK-1.78 lands") will read as stale once TASK-1.78 merges, since the scenario becomes real rather than synthetic; the `PaneNotFound` arm's behaviour itself is generic (keyed only on whether the tree still holds the pane) and I found nothing in TASK-1.78's planned files that would change its meaning.
+
+Other brief items checked clean: `events.send` appears only twice in pane.rs, both inside `worker_loop` (the `Exited` arm and `drain_command_marks`, called only from the `PtyBytes` arm) - the worker is the sole sender of every `PaneEvent` for a pane on every path; a restart only ever targets a command pane (R97: a shell pane closes rather than restarting), and the kernel already treats marks on a command pane as `NotAShellPane`/`Ignored`, so no old-run mark can be misapplied to a new run even putting the channel-ordering argument aside. `apply_event_locked`'s two new arms match the plan exactly, including `now` computed once per event the same way the `Exited` arm already does, and the `Err(other) => unreachable!` arms are genuinely unreachable - `Tree::note_command_output_started`/`note_command_ended` only ever construct `Err(Error::PaneNotFound(id))`, confirmed by reading `tree.rs`. Kernel diff is confined to the one doc comment on `terminal.rs`; no other kernel file touched, no `unsafe`, no new dependency. The one departure from the plan (no drain after `Terminal::resize`) was already named and accepted at plan-check by @bruk.o, so `--plan-matched no` reflects that departure as data, not a new finding.
 
 ---
 <!-- COMMENTS:END -->

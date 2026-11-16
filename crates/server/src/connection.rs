@@ -928,6 +928,7 @@ mod tests {
                 runtime: &runtime,
                 client_id,
                 pane_streams: &pane_streams,
+                events: None,
             };
             // `_cleanup` drops here, running its sweep - the one thing
             // this test is about.

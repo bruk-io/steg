@@ -753,6 +753,7 @@ mod tests {
             std::sync::Arc::new(crate::pty::RealLauncher),
             crate::runtime::LoginShell::default(),
             Duration::from_millis(1),
+            Duration::from_millis(1),
         );
         let stop = super::Stopper::new();
 

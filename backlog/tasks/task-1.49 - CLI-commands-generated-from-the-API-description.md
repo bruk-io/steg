@@ -708,6 +708,21 @@ error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` exited 0 at 2026-11-16T15:15:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

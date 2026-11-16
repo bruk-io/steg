@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:21:00Z'
+updated_date: '2026-11-16T01:27:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1171,6 +1171,53 @@ test the_client_being_sigkilled_does_not_end_the_server ... ok
 test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+
+run 10: lingering steg processes: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in $(seq 1 10); do cargo test -p steg --features fixtures --test server_start || exit 1; count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " "); echo "run $i: lingering steg processes: $count"; if [ "$count" -ne 0 ]; then exit 1; fi; done'` exited 0 at 2026-11-16T01:27:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes, last 40 of 190 lines:
+
+```text
+
+run 8: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.29s
+
+run 9: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
 
 run 10: lingering steg processes: 0
 ```

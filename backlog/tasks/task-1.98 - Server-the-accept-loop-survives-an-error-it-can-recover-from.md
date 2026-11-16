@@ -1,14 +1,13 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T14:47:00Z'
+updated_date: '2026-11-16T15:04:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -836,6 +835,24 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 74, 73 without the Asdlc-Worker trailer.
+
+Second review round fixed, head 25696d1, CI green (run 43889556289, check passed in 5m58s - the ~16 minute wall time before that was macOS arm64 runner queueing, confirmed by the run's own "capacity constraints" annotation, not a hang: it was stuck at step 4 of 16, before just check even started, for most of that time).
+
+1. Important, fixed: surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers (crates/steg/tests/server_start.rs) asserted survival without ever confirming exhaustion was reached - the reviewer's own 20-run reproduction found 18/20 false passes with the recoverable arms disabled. Added wait_for_descriptor_exhaustion: polls the real server's own open-fd count (lsof -p pid, the same technique the reviewer used) until it reaches the configured RLIMIT_NOFILE, failing with a clear message if it never does within the bound - the same bounded-poll-on-an-external-fact shape wait_for_socket already uses in this file. The chosen -n (180) no longer has to be the proof itself, only low enough to reach within the bound; rewrote the doc comment to say so instead of resting on arithmetic.
+
+Re-recorded the control against the test as it now stands, per the team's rule: with the recoverable arms disabled (scratch edit, listen.rs), 20 of 20 runs now fail, each with the clear message ("exhaustion was never established... last observed 0" - the server dies before its fd count can be observed at the limit). Restored, 100 of 100 pass. Also ran 20 full-suite (all 11 tests) repetitions with the fix in place, clean.
+
+Checked the other four tests this task added (accept_backoff.rs) for the same shape, as asked: all four already wait for the fixture's own first AcceptRetried event before measuring or acting - tests 1/2 directly via CountReader::wait_for_first before max_within; tests 3/4 indirectly, since STOP_AFTER_RETRIES/DUP2_AFTER_RETRIES are themselves gated inside the fixture's own reporter thread on having seen one real retry before firing. None shared this gap. 20 full-suite repetitions of accept_backoff.rs also run, clean.
+
+2. Nit taken: wait_until_accepting (accept_backoff.rs) now uses connect_bounded instead of a bare connect(), matching the file's own stated rule that every wait is bounded.
+
+3. Nit answered, record corrected: ran a direct probe (bind a listener that never calls accept() at all - the most adversarial case - then connect() to it 300 times in a row). Every attempt either succeeded immediately or failed immediately with ECONNREFUSED; none blocked, matching the reviewer's own independent finding exactly. My earlier stated root cause (a full backlog makes connect() block) is retracted as unconfirmed and apparently wrong on this platform. What IS confirmed, by both my own reproduction and the reviewer's/team-lead's own sampling of the original hang: CountReader's own thread.join() had no bound, and hung whenever the fixture's stdout never closed (the fixture not exiting, for whatever reason - the condition ending quietly was the actual, confirmed reason it happened in practice). The fix (bound every wait) does not depend on which theory is right, so no code changed - only the module doc's own explanation, which now states what is confirmed, what was retracted, and that what causes a real blocking connect() on this platform, if anything does, remains unestablished.
+
+4. Nothing to do (already satisfied): the two files outside the plan's list are named in the first round's notes.
+
+Every run in this round was foreground, bounded (timeout per invocation), and ps-checked before being called clean - including working through one case where a loop I ran actually did get auto-backgrounded by the harness's own 120s default (my own timeout parameter was too short for a 20-run loop); I did not treat that as license to move on - I located it, confirmed it was still genuinely running (not stuck), and waited for its own completion notification before proceeding, same as if it had stayed in the foreground.
+
+PR: https://github.com/bruk-io/steg/pull/59
 <!-- SECTION:NOTES:END -->
 
 ## Comments

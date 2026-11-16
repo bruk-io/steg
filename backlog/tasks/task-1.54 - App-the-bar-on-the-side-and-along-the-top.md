@@ -4,12 +4,13 @@ title: 'App: the bar, on the side and along the top'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-16T00:35:00Z'
 labels:
   - size-4
 milestone: m-4
 dependencies:
   - TASK-1.53
+  - TASK-1.89
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -29,3 +30,15 @@ doc-10: R20, R26, R79. The app's look and behaviour is the design artifact (doc-
 - [ ] #3 A tab or a session is renamed in place
 - [ ] #4 Every control shows the five states the design gives it, and the bar follows the design's rules for running out of room
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T00:35:00Z
+
+---
+
+Now depends on TASK-1.89 (tab list and show, and the status a tab shows over the API), accepted 2026-11-15: the bar needs both.
+
+---
+<!-- COMMENTS:END -->

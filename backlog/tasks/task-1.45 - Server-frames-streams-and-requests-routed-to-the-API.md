@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:29:00Z'
+updated_date: '2026-11-16T01:20:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -166,6 +166,415 @@ ok      test (steg-app) (1.2s)
 ok      tool tests (2.7s)
 ok      architecture (2.0s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T00:37:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a1efb552dced with uncommitted changes, last 40 of 271 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib dispatch::lookup` exited 101 at 2026-11-16T00:38:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a1efb552dced with uncommitted changes, last 40 of 55 lines:
+
+```text
+test dispatch::lookup::tests::a_target_less_request_with_a_real_context_still_resolves ... ok
+test dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request ... FAILED
+test dispatch::lookup::tests::wire_position_converts_one_based_to_zero_based ... ok
+test dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request ... FAILED
+test dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part ... FAILED
+test dispatch::lookup::tests::a_wrong_but_fully_explicit_target_from_context_none_is_a_real_not_found ... ok
+test dispatch::lookup::tests::target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none ... ok
+test dispatch::lookup::tests::wire_position_rejects_zero_and_negative_without_a_kernel_call ... ok
+
+failures:
+
+---- dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request stdout ----
+
+thread 'dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request' (16036973) panicked at crates/server/src/dispatch/lookup.rs:365:9:
+assertion `left == right` failed
+  left: NoSuchTarget
+ right: BadRequest
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request stdout ----
+
+thread 'dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request' (16036974) panicked at crates/server/src/dispatch/lookup.rs:343:9:
+assertion `left == right` failed
+  left: NoSuchTarget
+ right: BadRequest
+
+---- dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part stdout ----
+
+thread 'dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part' (16036975) panicked at crates/server/src/dispatch/lookup.rs:279:18:
+called `Result::unwrap_err()` on an `Ok` value: SessionId(0)
+
+
+failures:
+    dispatch::lookup::tests::a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request
+    dispatch::lookup::tests::a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request
+    dispatch::lookup::tests::a_target_less_request_from_context_none_is_bad_request_for_every_part
+
+test result: FAILED. 7 passed; 3 failed; 0 ignored; 0 measured; 81 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T00:38:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a1efb552dced with uncommitted changes, last 40 of 272 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib outbound` exited 101 at 2026-11-16T00:45:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at c42025242d19 with uncommitted changes, last 40 of 49 lines:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 10 tests
+test outbound::tests::a_full_control_queue_refuses_rather_than_growing_without_bound ... ok
+test outbound::tests::enqueue_data_on_a_closed_stream_is_refused_the_same_way ... ok
+test outbound::tests::enqueue_refuses_once_closed ... ok
+test outbound::tests::enqueue_data_on_a_never_opened_stream_is_refused ... ok
+test outbound::tests::closing_drains_what_is_already_queued_then_the_writer_returns ... ok
+test outbound::tests::a_stream_with_nothing_queued_is_skipped_not_given_an_empty_turn ... ok
+test outbound::tests::data_streams_are_drained_round_robin_one_frame_at_a_time ... ok
+test outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first ... FAILED
+test outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply ... FAILED
+test outbound::tests::a_full_data_queue_drops_the_new_frame_rather_than_growing_or_blocking ... ok
+
+failures:
+
+---- outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first stdout ----
+
+thread 'outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first' (16171111) panicked at crates/server/src/outbound.rs:295:9:
+assertion `left == right` failed
+  left: [100, 97, 116, 97, 45, 102, 105, 114, 115, 116, 99, 111, 110, 116]
+ right: [99, 111, 110, 116, 114, 111, 108, 45, 115, 101, 99, 111, 110, 100]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply stdout ----
+
+thread 'outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply' (16171108) panicked at crates/server/src/outbound.rs:511:9:
+assertion `left == right` failed
+  left: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ right: [99, 111, 110, 116, 114, 111, 108, 45, 117, 110, 100, 101, 114, 45, 102, 108, 111, 111, 100]
+
+
+failures:
+    outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply
+    outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 91 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T00:45:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at c42025242d19 with uncommitted changes, last 40 of 379 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T00:49:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at f61775beb21b with uncommitted changes, last 40 of 380 lines:
+
+```text
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T00:55:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 65ea5815dcc8 with uncommitted changes, last 40 of 312 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::a_panic_while_holding` exited 101 at 2026-11-16T01:05:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 122 lines:
+
+```text
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:576:43
+  33:        0x102fa068c - std[5d97c59e5e5fafcc]::panicking::catch_unwind::<core[663bb9e1522ba5ef]::result::Result<(), alloc[cc4db322bb1ac55d]::string::String>, core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<test[4aa3eea2f4983582]::run_test_in_process::{closure#0}>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:544:19
+  34:        0x102fa068c - std[5d97c59e5e5fafcc]::panic::catch_unwind::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<test[4aa3eea2f4983582]::run_test_in_process::{closure#0}>, core[663bb9e1522ba5ef]::result::Result<(), alloc[cc4db322bb1ac55d]::string::String>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panic.rs:359:14
+  35:        0x102fa068c - test[4aa3eea2f4983582]::run_test_in_process
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:747:27
+  36:        0x102fa068c - test[4aa3eea2f4983582]::run_test::{closure#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:668:43
+  37:        0x102f9b56c - test[4aa3eea2f4983582]::run_test::{closure#1}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:698:41
+  38:        0x102f9b56c - std[5d97c59e5e5fafcc]::sys::backtrace::__rust_begin_short_backtrace::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/sys/backtrace.rs:166:18
+  39:        0x102fa2b54 - std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/thread/lifecycle.rs:70:13
+  40:        0x102fa2b54 - <core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}> as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panic/unwind_safe.rs:275:9
+  41:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panicking::catch_unwind::do_call::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:576:43
+  42:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panicking::catch_unwind::<(), core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:544:19
+  43:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panic::catch_unwind::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panic.rs:359:14
+  44:        0x102fa2b54 - std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/thread/lifecycle.rs:68:26
+  45:        0x102fa2b54 - <std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1} as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ops/function.rs:250:5
+  46:        0x1031477cc - <alloc[cc4db322bb1ac55d]::boxed::Box<dyn core[663bb9e1522ba5ef]::ops::function::FnOnce<(), Output = ()> + core[663bb9e1522ba5ef]::marker::Send> as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/alloc/src/boxed.rs:2319:9
+  47:        0x1031477cc - <std[5d97c59e5e5fafcc]::sys::thread::unix::Thread>::new::thread_start
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/sys/thread/unix.rs:123:17
+  48:        0x199ecdd00 - __pthread_exit
+
+thread 'runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call' (16535826) panicked at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panicking.rs:233:5:
+panic in a destructor during cleanup
+thread caused non-unwinding panic. aborting.
+error: test failed, to rerun pass `-p steg-server --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45/target/debug/deps/steg_server-75c81fd969602d6a 'runtime::tests::a_panic_while_holding'` (signal: 6, SIGABRT: process abort signal)
+```
+
+Build load note (not a code finding): the server crate's own real-socket test run time is fast on its own - every `tests/routing.rs` run that completed finished in 0.71-0.73s internally, every time. What is slow is `cargo test` itself getting scheduled at all: with this machine's load average around 9-11 (several other workers' own `cargo build`/`cargo test` running concurrently in sibling worktrees), repeating `cargo test -p steg-server --test routing` 10 times under a 60s-per-iteration timeout, 6 of the 10 iterations were killed by that timeout with no output at all - not a test failure, cargo never got far enough to print anything, including "Compiling"/"Finished". Only 4 of 10 iterations actually ran, and all 4 passed (17/17 each time, ~0.72s). No evidence this is my own code hanging: when the test binary itself runs, it is fast and deterministic.
+
+This is a real risk worth naming, not dismissing: this file's own tests use wall-clock bounds (2s for most "must close promptly" assertions, 5s for a few, matching this crate's existing convention in handshake.rs/shutdown.rs). Those bounds measure real time inside the test PROCESS once it is running, not the time to get scheduled in the first place - so they are at risk from CPU contention inside the process itself (a writer or reader thread not getting scheduled promptly), not from the kind of outer scheduling delay seen here (which is cargo/process-level, before the test binary even starts). I have not seen one of these in-process bounds actually trip under this load in any of the runs so far. This machine's load right now comes specifically from several asdlc workers building in parallel in sibling worktrees, not from anything inherent to this task; CI runs on its own dedicated runner and would not see this specific contention pattern. Recorded here rather than silently assumed fine either way.
+
+Check passed: `sh -c 'timeout 15 cargo test -p steg-server --test routing a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung; echo "exit code: $?"'` exited 0 at 2026-11-16T01:20:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 44 lines:
+
+```text
+    |        ----------------- field in this struct
+...
+263 |     shutdown_handle: UnixStream,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `DATA_CAP` is never used
+  --> crates/server/src/outbound.rs:35:7
+   |
+35 | const DATA_CAP: usize = 64;
+   |       ^^^^^^^^
+
+warning: enum `EnqueueDataError` is never used
+  --> crates/server/src/outbound.rs:51:17
+   |
+51 | pub(crate) enum EnqueueDataError {
+   |                 ^^^^^^^^^^^^^^^^
+
+warning: methods `open_stream`, `close_stream`, and `enqueue_data` are never used
+   --> crates/server/src/outbound.rs:162:19
+    |
+127 | impl Outbound {
+    | ------------- methods in this implementation
+...
+162 |     pub(crate) fn open_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^
+...
+175 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+...
+191 |     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 4 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 1 test
+exit code: 124
 ```
 <!-- SECTION:NOTES:END -->
 

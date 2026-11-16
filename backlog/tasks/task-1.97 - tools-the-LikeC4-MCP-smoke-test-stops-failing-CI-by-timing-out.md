@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T02:39:00Z'
+updated_date: '2026-11-16T02:40:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -143,6 +143,12 @@ Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/
  M mise.toml
  M tools/src/steg_tools/likec4_mcp.py
 ?? .npmrc
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && NPM_CONFIG_CACHE=/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.97-p4-coldcache just test-tools'` exited 0 at 2026-11-16T02:40:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 108747d79566 with uncommitted changes:
+
+```text
+ok      tool tests (11.9s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -249,6 +249,12 @@ ok design/canvas/project/Tokens.dc.html
 ok design/canvas/project/Layout.dc.html
 ok design/canvas/project/Details.dc.html
 ```
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-shape-check.py crates/ui/design/foundations.json` exited 0 at 2026-11-16T01:31:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 1c9f374426a1 with uncommitted changes:
+
+```text
+OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 17 size entries, 1 motion entries, 2 themes)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

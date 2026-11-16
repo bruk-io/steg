@@ -1,7 +1,7 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand and detach, from the steg entry point'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
@@ -11,6 +11,9 @@ labels:
 milestone: m-3
 dependencies:
   - TASK-1.44
+references:
+  - task-1.77-server-start-on-demand-detach-and-stop
+  - https://github.com/bruk-io/steg/pull/44
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -1059,6 +1062,8 @@ ok      tool tests (1.1s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
+
+Built per the approved plan (digest d29c62060a8b): steg_server::detach() (safe setsid wrapper) wired into crates/steg's entry point alongside attempt/run, both acceptance-criteria-named negative controls recorded matching the plan's own predictions, just check green at the final head, PR #44 CI green (one unrelated flake, reran). Full coverage writeup and the one build-time decision (process_group(0) for the SIGHUP test) are in the task's comments.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

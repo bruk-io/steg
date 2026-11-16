@@ -1,7 +1,7 @@
 ---
 id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
@@ -10,6 +10,9 @@ labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.97-tools-the-likec4-mcp-smoke-test-stops
+  - https://github.com/bruk-io/steg/pull/53
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -104,6 +107,8 @@ COVERAGE AGAINST THE FOUR ACCEPTANCE CRITERIA
 - AC #4 (Node pin if part of the cause, removed from TASK-1.82): covered above - pinned in mise.toml and confirmed in CI, done here per the engineer's decision even though the evidence says Node's version wasn't itself the cause.
 
 OPEN NOTE CARRIED FROM THE PLAN: two more CI runs retried in the days before this task (task-1.37's PR, 1 retry; task-1.42's PR, 6 retries) are not in TASK-1.82's tracked list of four and their logs had already expired by the time I checked (gh api returned BlobNotFound) - cause unconfirmed, not folded into the failure-rate arithmetic above either way.
+
+Built per the approved plan: a root .npmrc (prefer-offline=true), a CI cache-restore + warm step before just check, a node pin in mise.toml (AC #4), and a split of the smoke test's timeout into a startup bound and an exchange bound. Proof: deterministic blocked-registry negative/positive control (P2/P3), the ordinary cold-cache path unchanged (P4), check-architecture unaffected (P5), 10 local runs under simulated load (P6), 8-way concurrent on genuinely cold CI runners via a now-removed temporary workflow (P7, run 43794226923, all passed), the Node pin confirmed in CI (P8). just check green at the final head (1e63d7b) both locally and on CI (run 43794899362). Full writeup and coverage against all four acceptance criteria is in the task's notes.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

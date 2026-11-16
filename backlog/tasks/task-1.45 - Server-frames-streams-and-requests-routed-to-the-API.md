@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:09:00Z'
+updated_date: '2026-11-16T03:10:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1215,6 +1215,53 @@ ok      test (steg-app) (0.5s)
 ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
+```
+
+Commits since the review: 110, 109 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 23 passed"; then fail=$((fail+1)); echo "iteration $i FAILED:"; echo "$out" | tail -15; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 1 at 2026-11-16T03:10:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at ae9aeb6260fd, last 40 of 321 lines:
+
+```text
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+kill: 92592: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+iteration 19 FAILED:
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+kill: 92665: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+iteration 20 FAILED:
+test a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+kill: 92841: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+failures: 20 of 20
 ```
 
 Commits since the review: 110, 109 without the Asdlc-Worker trailer.

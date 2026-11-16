@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:09:00Z'
+updated_date: '2026-11-16T01:10:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1037,6 +1037,45 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_with_force_actually_ends_a_silent_program` exited 101 at 2026-11-16T01:10:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: unused variable: `scope`
+   --> crates/server/src/runtime.rs:453:13
+    |
+453 |         let scope = match dispatch::panes_in_close_scope(&state.tree, context, request) {
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_scope`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.91s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test pane_close_with_force_actually_ends_a_silent_program ... FAILED
+
+failures:
+
+---- pane_close_with_force_actually_ends_a_silent_program stdout ----
+
+thread 'pane_close_with_force_actually_ends_a_silent_program' (16678026) panicked at crates/server/tests/runtime.rs:556:5:
+a silent program must be ended too, not left running because it never produced output for the relay thread to read
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_actually_ends_a_silent_program
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T01:36:00Z'
+updated_date: '2026-11-16T03:17:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -60,6 +60,14 @@ created: 2026-11-16T01:36:00Z
 ---
 
 2026-11-15: a second test seen failing once without cause, reported by TASK-1.78's worker: crates/server arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server failed once under a full just check while six agents were building on the machine, in a file that task did not touch; clean on 8 immediate reruns. One occurrence, local, under heavy load: recorded to watch, not yet a pattern. If it is seen again, especially in CI, it gets a task of its own (the test's own timing bound under load is the first thing to look at).
+
+---
+
+created: 2026-11-16T03:17:00Z
+
+---
+
+2026-11-15: a third test seen failing once without cause, reported by TASK-1.93's worker: a steg-sdk local_socket test failed once with AddrInUse during a full just check while several agents were building on the machine; it passed alone and on every other run, and that task touched nothing in the sdk. With the arbiter's stale-socket test (noted above) this is two one-off failures in socket tests under heavy local load: both likely share a cause (a socket path or a bind racing another test or another worktree's run). Not seen in CI. If either recurs it gets a task: the first thing to check is whether the tests' socket paths are unique per process and per test.
 
 ---
 <!-- COMMENTS:END -->

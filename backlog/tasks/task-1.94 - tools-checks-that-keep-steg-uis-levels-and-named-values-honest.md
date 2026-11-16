@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:07:00Z'
+updated_date: '2026-11-16T03:26:00Z'
 labels:
   - size-2
   - changes-requested
@@ -23,8 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=3'
-asdlc_review_policies: ["review", "testing", "tools"]
+asdlc_review_findings: 'important=2,nit=0'
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
 ---
 
@@ -752,6 +752,182 @@ error: recipe `check-ui-colours` failed on line 270 with exit code 1
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:09:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (5.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 76, 75 without the Asdlc-Worker trailer.
+
+Review findings addressed:
+
+1. Important, the real bug: a colour reached through a constructor call (`rgb(0x...)`,
+   `rgba(0x...)`) is now read back out and matched against foundations the same way a
+   bare hex literal is - fixed by `_hex_argument` in ui_colours.py, which extracts the
+   call's own argument when the callee is `rgb`/`rgba` (the only two of
+   COLOUR_CONSTRUCTORS that take a hex at all - the others take plain floats or
+   nothing, per gpui 0.2.2's src/color.rs) and that argument is itself a hex literal.
+   An 8-digit `rgba` argument's trailing two digits (alpha) are dropped before matching
+   (`_rgb_hex`) - foundations' colours carry no alpha dimension, so `rgba(0x3d3b45ff)`
+   matches the same names a bare `0x3d3b45` or `rgb(0x3d3b45)` would. Decided and
+   stated in the module docstring: a call whose argument isn't itself a literal (a
+   variable, an expression) is still refused as a colour constructor call outside
+   foundations - there's simply nothing to suggest for it.
+
+2. Important, tests: fixed `test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument`
+   (renamed from `..._catches_a_named_constructor_call`, which asserted the wrong
+   result - hex_value=None - as the expected one). Added, each its own test: rgb with a
+   hex matching one name (test_violations_matches_one_name_through_an_rgb_call); matching
+   two (outline/track in dark, test_violations_matches_two_names_through_an_rgb_call);
+   matching none (test_violations_has_no_match_through_an_rgb_call_when_nothing_matches);
+   rgba with eight digits, alpha dropped before matching
+   (test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits,
+   test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha); a call with a
+   non-literal argument, still refused with nothing suggested
+   (test_literal_colours_has_no_hex_for_a_call_whose_argument_is_not_a_literal,
+   test_violations_refuses_a_call_with_a_non_literal_argument_with_nothing_to_suggest).
+   Negative control recorded: `_hex_argument` disabled (forced to always return `None`),
+   confirmed exactly the five matching-through-a-call tests fail (the "no match"/
+   "non-literal" tests correctly stay passing - they're vacuously true either way, which
+   is honest, not a gap), restored, confirmed green (144 passed) - recorded both runs on
+   the task. Also demonstrated live: a scratch `gpui::rgb(0x3d3b45)` in
+   crates/ui/src/atoms/mod.rs, refused by the real `just check-ui-colours` naming both
+   `outline (dark)` and `track (dark)` (the reviewer's own example), then reverted.
+
+3. Nits:
+   (a) Added to ui_levels.py's module docstring, confirmed empirically (parsing
+       `some_macro!(crate::atoms::Button)` finds zero scoped_identifier nodes - tree-sitter
+       hands a macro's argument list back as one opaque token_tree of bare tokens) and
+       proven inert with a new test
+       (test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments):
+       a path written as a macro's *argument* is invisible to this check, distinct from a
+       macro that *expands to* a cross-level reference (which the plan already named, and
+       which no static parse can see either way, since seeing it needs the expansion).
+       Also noted the same limitation applies to ui_colours.py for the same reason.
+   (b) tools/src/steg_tools/rust_source.py is a departure from the plan's file list: the
+       plan named foundations.py, ui_levels.py and ui_colours.py as new files but not this
+       one. It holds the `RustFile` dataclass and `rust_files()` helper both ui_levels.py
+       and ui_colours.py need (every .rs file under a folder, as a (path, text) pair) -
+       factored out rather than duplicated once it was clear both checks needed the exact
+       same thing. Not flagged in the original finish notes clearly enough as its own
+       departure; flagged explicitly now.
+   (c) Did not edit plugins/bruk-io-steg/rules/tools.md ("the tools use only the standard
+       library") - that rule now reads false given ast-grep-py, and the board guard and
+       this task's instructions both say a plugin changes only through asdlc-plugin, never
+       by a worker. Left for you to bring up to date separately, as you said.
+
+Checks recorded on this task, in order for this round: the fix's tests green (144 passed);
+the new extraction's own negative control, failing then passing; a live scratch violation
+matching the reviewer's own example, refused, then reverted; `just check` green on the
+pre-merge head; `just check` green again on the merged head (4cb9ada, after merging
+origin/main - 75 commits, all board/backlog, no code overlap, clean merge); CI green on
+the pushed head (PR #52, ~4m23s).
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2026-11-16T03:26:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes:
+
+```text
+........................................................................ [ 47%]
+........................................................................ [ 95%]
+.......                                                                  [100%]
+151 passed in 1.12s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py'` exited 1 at 2026-11-16T03:26:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes, last 40 of 44 lines:
+
+```text
+    def test_violations_carries_a_genuine_alpha_as_a_rounded_percentage() -> None:
+        # 0x80 = 128/255 ~= 50.2%, rounded to 50 - the reviewer's own example.
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b2180); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50),)
+E       AssertionError: assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b2180)', matches=(('surface.raised', 'dark'),), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b2180)', matches=(('surface.raised', 'dark'),), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:186: AssertionError
+__ test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too __
+
+    def test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", 'fn f() -> &\'static str { "#1c1b2180" }\n')
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, '"#1c1b2180"', (("surface.raised", "dark"),), 50),)
+E       assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='"#1c1b2180"', matches=(('surface.raised', 'dark'),), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='"#1c1b2180"', matches=(('surface.raised', 'dark'),), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:192: AssertionError
+__ test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name ___
+
+    def test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0xabcdef80); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0xabcdef80)", (), 50),)
+E       AssertionError: assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0xabcdef80)', matches=(), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0xabcdef80)', matches=(), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:198: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_violations_carries_a_genuine_alpha_as_a_rounded_percentage
+FAILED tests/unit/test_ui_colours.py::test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too
+FAILED tests/unit/test_ui_colours.py::test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name
+3 failed, 35 passed in 0.03s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2026-11-16T03:26:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes:
+
+```text
+........................................................................ [ 47%]
+........................................................................ [ 95%]
+.......                                                                  [100%]
+151 passed in 0.86s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check-ui-colours` exited 1 at 2026-11-16T03:26:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes:
+
+```text
+FAILED  ui colours (exit 1, 0.1s)
+crates/ui/src/atoms/mod.rs:9: `gpui::rgba(0x1c1b2180)` is a colour literal, which doc-17 R120 refuses outside foundations. It is the colour of surface.raised (dark) at 50% opacity, not that colour itself - foundations holds opacity as its own named values too (faint, tint, the ramp's caption_opacity, scrim), so name both the colour and an opacity, or add a new named value to the design - never the bare literal.
+full output: .quiet/ui-colours.log
+error: recipe `check-ui-colours` failed on line 270 with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -801,6 +977,42 @@ Nits (3, at the cap):
 [Bugs, Nit] ui_levels.py's cross-level detection misses a cross-level path written as a literal argument inside an unrelated macro invocation (e.g. `some_macro!(crate::atoms::Thing)`) - confirmed live: tree-sitter-rust parses macro arguments as an opaque `token_tree`, so `find_all(kind="scoped_identifier")` never sees inside it. This is a different, more mundane gap than the one the plan names ("a path built by a macro that expands to a cross-level reference") and isn't disclosed under that name. Likely low real-world risk since gpui components aren't built with macro DSLs today.
 
 Verified as working, not just as claimed: plain/grouped/glob/aliased `use`, a fully-qualified expression path (counted once, not per nesting), the crate-root `pub use` re-export loophole (plain and aliased), a second `super::` hop staying a documented no-op, a `#[path]`-relocated file under a new top-level folder refused loudly as unplaced (not silently skipped), a nested submodule under a level still correctly attributed and checked (the disclosed limitation is narrowly the `super::super::` chain, not "nested files unchecked" generally), both exemptions (foundations permanent, gallery temporary with its TASK-1.93 end-condition comment) as one named line each, a colour literal inside `#[cfg(test)]` refused like any other, a comment and an ordinary string correctly passed, a 4-digit hex correctly passed, an arithmetic-built colour correctly and silently passed (as disclosed), and the two/one/zero-match message forms all correct for bare hex literals. `just check` passes on this head with both new recipes wired through `steg-quiet` into `check:`; no CI workflow edit was needed or made.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:14:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:22:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed at head 4cb9adafe6911bd30d96977a1e1edb5c6d424b69 (matches PR #52's headRefOid; CI SUCCESS on that head, 4m23s; `just check` reproduced green by me independently in a fresh detached worktree of that commit, all 23 steps ok, including `ui colours`/`ui levels`).
+
+The first review's two Important findings are fixed and verified: `rgb(0x...)`/`rgba(0x...)` now reads its hex argument back out (`_hex_argument`) and matches it against foundations the same way a bare hex does, and the test suite now reaches that path (one name, two names, no match, rgba-alpha, non-literal argument). I ran the negative control myself: forcing `_hex_argument` to always return `None` fails exactly the five matching-through-a-call tests (`test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument`, `test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha`, `test_violations_matches_one_name_through_an_rgb_call`, `test_violations_matches_two_names_through_an_rgb_call`, `test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits`); restored, 144 passed.
+
+Live verification of every case asked for: `rgb(0x1c1b21)` -> surface.raised (dark); `rgb(0x3d3b45)` -> outline (dark), track (dark) both listed; `rgb(0x123456)` -> no match; `gpui::rgb(0x1c1b21)` -> surface.raised (dark), reported once not twice; `rgb(v)` and `rgb(0x1c1b21 + 1)` (non-literal argument) -> refused, no name to suggest, as documented; `hsla(...)` and `Hsla { .. }` -> refused, no name suggested, message reads sensibly; comment, string, grouped+aliased import, and a 4-digit hex all still pass/resolve correctly (no regression). `rgb(0X1C1B21)` (uppercase 0X prefix) isn't valid Rust and produces a parser ERROR node either way, not a real case; `rgb(0x1C1B21)` (valid, uppercase digits) matches correctly.
+
+New Important finding, found live, not in the prior round: for `rgba(0x1c1b21ff)` (alpha = ff, fully opaque) the match and message are correct. But for `rgba(0x1c1b2180)` (alpha = 0x80, ~50%) and for the 8-digit string form `"#1c1b2180"`, `_rgb_hex` drops the alpha before matching the same way, and `format_violation` still says "This value matches surface.raised (dark) - use that named value instead." That is wrong guidance: 0x1c1b2180 is a translucent colour, surface.raised is opaque (foundations' `colours[]` carries no alpha dimension at all - opacity is a separate, unconnected table in the same JSON), and swapping in the named value would silently remove the transparency. AC#2 promises the message names "the foundations value to use instead where one matches" - for a non-ff alpha, no foundations value actually matches what gets drawn, only its RGB does, so naming one here is incorrect guidance. Scoped narrowly: only alpha != 0xff, for both the `rgba(...)` call form and the `"#rrggbbaa"` string form (confirmed both live).
+
+[Compliance/Bugs, Important] tools/src/steg_tools/ui_colours.py:136-162 (`_rgb_hex`), 209-215 (`format_violation`): alpha is dropped before matching with no condition on its value, so a translucent `rgba`/`"#rrggbbaa"` literal with alpha != 0xff is reported as matching an opaque foundations colour, and the message tells a developer to "use that named value instead" - incorrect guidance that would change what gets drawn if followed. ff-alpha and alpha-less forms are correct and unaffected.
+
+[Evidence, Important] tools/tests/unit/test_ui_colours.py: no test reaches `format_violation`'s message, or asserts a "no match"/different-colour outcome, for a non-ff alpha. The one rgba-alpha test (`test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits`, alpha=ff) only covers the case that happens to be correct; every `format_violation` test uses an alpha-less bare hex. The branch this bug lives in - alpha dropped silently before naming a match - has no test and no negative control reaching it.
+
+Nits: none at the cap; plugins/bruk-io-steg/rules/tools.md (ast-grep-py vs "standard library only") remains correctly untouched here (plugin changes aren't a worker's to make); rust_source.py remains an undisclosed-in-the-plan file, now explicitly disclosed in the notes (addressed as a nit already, not re-raised as one here, but recorded as --plan-matched no per policy: "no for any departure, even one the notes explain").
+
+Verified as working, not just as claimed (unchanged from the first review, re-confirmed): plain/grouped/glob/aliased use, fully-qualified expression path counted once, crate-root pub use re-export loophole, super:: as documented no-op beyond one hop, unplaced-file refusal, nested submodule attribution, both path exemptions, cfg(test) literal refused, comment/string/short-hex correctly passed, arithmetic-built colour silently passed as disclosed. New this round: the macro-argument blind spot is now named in ui_levels.py's own docstring and backed by test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments (confirmed empirically: zero scoped_identifier nodes found inside a macro's token_tree).
 
 ---
 <!-- COMMENTS:END -->

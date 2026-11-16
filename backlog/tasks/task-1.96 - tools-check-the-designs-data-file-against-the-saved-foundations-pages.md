@@ -1,14 +1,13 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:06:00Z'
+updated_date: '2026-11-16T03:23:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -26,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -264,6 +264,97 @@ Coverage, clause by clause (every proof item from the plan is in the test files 
 One correction to the plan's own text, discovered during build (not a scope change - substance unchanged, just an internal inconsistency in my own planning prose): the plan said the reverse-direction allow-list "starts empty... everything on Tokens/Details maps to a file entry today." That's wrong by one entry: the Sizes table's "radius" row has no exact file key (file has radius.surface/track/inner/round, none spelled "radius"), so REVERSE_ALLOW_LIST contains exactly {"radius"} today, not nothing - the same radius.* exception the plan's Tier C section already discusses, just restated correctly for the reverse-direction registry specifically. No other reverse-direction surprises found; every other page name (17 colours, 16 type/size names, 32 ANSI names after underscore/space translation) matches a file key exactly, verified both by the adapter test and by hand against the real files during planning.
 
 PR: https://github.com/bruk-io/steg/pull/54 (head dcbeaf2, CI green).
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T03:17:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 7152cd7a370a with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpYK1CIf` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+..................................................                       [100%]
+50 passed in 0.38s
+```
+
+Commits since the review: 10, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:18:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 7152cd7a370a with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.5s)
+ok      architecture (1.4s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 10, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:19:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (4.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.6s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 80, 79 without the Asdlc-Worker trailer.
+
+Review findings addressed (@bruk.r1, 3 Important, PR 54 at pushed head dcbeaf2):
+
+1. The engineer's decisions (task comments #2/#3) are now in: design/canvas/project/Tokens.dc.html replaced byte-for-byte with the saved .../design-artifact-pages-1794796789-1b13/Tokens.dc.html (checksum 765c9e4e535e2af92d16d403ed9cd61751bc0c3b79e8b36adeacae85712bac4d confirmed both sides). crates/ui/design/foundations.json's diff is exactly the two lines promised (artifact_version; fill.quiet.use). track moved from TIER_C_SKIPS to Tier A (18 of 18 colours, no exception left; EXPECTED_SHAPES' Tokens colours minimum 17->18). The corner map (RADIUS_MAP: radius.surface/track/inner -> the page's one merged "radius" row, 14/10/8) replaces the three sizes.radius.* TIER_C_SKIPS entries; radius.round stays declared unseen. REVERSE_ALLOW_LIST went back to empty: reverse_missing now takes an explicit `allow` parameter and main() unions REVERSE_ALLOW_LIST with RADIUS_MAP.values(), so "radius" is matched through the map, not excused by a separate allow-list entry. Both READMEs updated (design/canvas/README.md's version note; a new section in crates/ui/design/README.md on steg-design-check's coverage and the field-blind caveat).
+
+2. The number check's field-blindness (reviewer's own negative control: swapping tab.width's usual/min left the same two numbers present and still passed) is tightened via FIELD_WORD_MAPS/RADIUS_WORD_MAP: a field's number is tied to the word that follows it in the page's own sentence (`_word_tied_number`/`_tightened_mismatches`), for every field whose clause has exactly one number followed by a distinguishing word - tab.width (all 3 fields), nav.side/nav.top/pane.gap/sizes.palette/status.ring (some fields), the three radius corners (RADIUS_WORD_MAP). Every field not covered this way stays on the weaker "present somewhere" check, now stated in main()'s own passing stdout and in crates/ui/design/README.md's new section, not only the module docstring.
+
+3. focus_ring.width/offset (neither checked nor declared unseen) are now in TIER_C_SKIPS, along with focus_ring.colour, themes[].cursor, and the top-level session_colour - three more occurrences of the literal "session" sentinel the same gap could have hidden, found while building `unaccounted_names()`: enumerates every leaf key of the data file against TIER_B_NAMES/RADIUS_MAP/TIER_C_SKIPS, wired into main() as its own refusal (not just a test), so a key added later can't fall through both silently.
+
+Checks (all exit 0, recorded on the task):
+- Unit+adapter: 50 tests (tools/tests/unit/test_design_pages.py, tools/tests/adapter/test_design_pages_real_workspace.py) - new tests for the tab.width swap (both as a synthetic fixture and against the real file), the FIELD_WORD_MAPS fallback case, unaccounted_names and its required negative control (removing one TIER_C_SKIPS entry makes exactly that key unaccounted), and the radius-map's own negative control.
+- just check at the merged final head (8626dc6), after fetching and merging origin/main (branch already pushed, so merged not rebased) - clean, no conflicts: TASK-1.93/1.94/1.97 still hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs as of this head, confirmed again before pushing.
+- CI green on PR 54 at head 8626dc6: gh pr checks 54 --watch, check passed in 2m43s.
+
+Tool's own output against the real files today: "ok (18 colours, 19 type/size entries, 32 ANSI colours checked)" plus the field-blind caveat (13 fields tightened) and 26 declared-unseen entries - full text in the PR description.
+
+TASK-1.94's steg_tools.foundations.read() still hadn't merged to origin/main as of this head (checked again), so the private _read_data_file shim stays; the swap-over remains a named follow-up in the module docstring and PR body.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head 8626dc6, CI green).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -332,6 +423,15 @@ What I verified clean, with my own negative controls (via --data-file scratch co
 - Repeated both of the plan's own required negative controls myself (changed value refused naming both forms; removed value reported missing) - both reproduced.
 
 Unmet: AC#1 (track and the three corners, per the engineer's decisions), AC#3 (focus_ring.width/offset silently uncovered; the README caveat never added). AC#2's tests/negative-controls/CI wiring are all present and I reproduced them.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:23:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:02:00Z'
+updated_date: '2026-11-16T03:23:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.97-tools-the-likec4-mcp-smoke-test-stops
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1b39eee49ff0'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -111,6 +114,265 @@ COVERAGE AGAINST THE FOUR ACCEPTANCE CRITERIA
 OPEN NOTE CARRIED FROM THE PLAN: two more CI runs retried in the days before this task (task-1.37's PR, 1 retry; task-1.42's PR, 6 retries) are not in TASK-1.82's tracked list of four and their logs had already expired by the time I checked (gh api returned BlobNotFound) - cause unconfirmed, not folded into the failure-rate arithmetic above either way.
 
 Built per the approved plan: a root .npmrc (prefer-offline=true), a CI cache-restore + warm step before just check, a node pin in mise.toml (AC #4), and a split of the smoke test's timeout into a startup bound and an exchange bound. Proof: deterministic blocked-registry negative/positive control (P2/P3), the ordinary cold-cache path unchanged (P4), check-architecture unaffected (P5), 10 local runs under simulated load (P6), 8-way concurrent on genuinely cold CI runners via a now-removed temporary workflow (P7, run 43794226923, all passed), the Node pin confirmed in CI (P8). just check green at the final head (1e63d7b) both locally and on CI (run 43794899362). Full writeup and coverage against all four acceptance criteria is in the task's notes.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp.py -v'` exited 0 at 2026-11-16T03:17:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpl05YxY` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp.py ..                             [100%]
+
+============================== 2 passed in 10.44s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp.py -v'` exited 1 at 2026-11-16T03:18:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpeLSTK2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp.py FF                             [100%]
+
+=================================== FAILURES ===================================
+____________ test_a_stall_before_any_reply_names_the_start_up_phase ____________
+
+    def test_a_stall_before_any_reply_names_the_start_up_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(to start\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(to start\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 5.0s'
+
+tools/tests/functional/test_likec4_mcp.py:23: AssertionError
+_______ test_a_stall_after_the_first_reply_names_the_mid_exchange_phase ________
+
+    def test_a_stall_after_the_first_reply_names_the_mid_exchange_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(mid-exchange\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(mid-exchange\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 0.2s'
+
+tools/tests/functional/test_likec4_mcp.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_likec4_mcp.py::test_a_stall_before_any_reply_names_the_start_up_phase
+FAILED tools/tests/functional/test_likec4_mcp.py::test_a_stall_after_the_first_reply_names_the_mid_exchange_phase
+============================== 2 failed in 15.26s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 2 at 2026-11-16T03:19:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (5.5s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.6s)
+ok      build (steg) (0.4s)
+ok      test (steg) (0.3s)
+ok      test (steg, fixtures) (2.7s)
+ok      build (steg-ui) (0.6s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+FAILED  tool tests (exit 2, 0.2s)
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/unit/test_likec4_mcp.py ________________
+import file mismatch:
+imported module 'test_likec4_mcp' has this __file__ attribute:
+  /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools/tests/functional/test_likec4_mcp.py
+which is not the same as the test file we want to collect:
+  /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools/tests/unit/test_likec4_mcp.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+=========================== short test summary info ============================
+ERROR tools/tests/unit/test_likec4_mcp.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.09s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 92 with exit code 2
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 0 at 2026-11-16T03:20:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.6s)
+ok      build (steg-ui) (0.6s)
+ok      test (steg-ui) (0.9s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (12.4s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp_phased_timeout.py -v'` exited 0 at 2026-11-16T03:20:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpEoHak6` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py ..              [100%]
+
+============================== 2 passed in 10.45s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp_phased_timeout.py -v'` exited 1 at 2026-11-16T03:21:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp3kQ7gM` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py FF              [100%]
+
+=================================== FAILURES ===================================
+____________ test_a_stall_before_any_reply_names_the_start_up_phase ____________
+
+    def test_a_stall_before_any_reply_names_the_start_up_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(to start\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(to start\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 5.0s'
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py:23: AssertionError
+_______ test_a_stall_after_the_first_reply_names_the_mid_exchange_phase ________
+
+    def test_a_stall_after_the_first_reply_names_the_mid_exchange_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(mid-exchange\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(mid-exchange\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 0.2s'
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_likec4_mcp_phased_timeout.py::test_a_stall_before_any_reply_names_the_start_up_phase
+FAILED tools/tests/functional/test_likec4_mcp_phased_timeout.py::test_a_stall_after_the_first_reply_names_the_mid_exchange_phase
+============================== 2 failed in 15.26s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && git status --short'` exited 0 at 2026-11-16T03:21:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+ M .github/workflows/ci.yml
+ M tools/src/steg_tools/likec4_mcp.py
+?? tools/tests/functional/test_likec4_mcp_phased_timeout.py
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 0 at 2026-11-16T03:22:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.1s)
+ok      test (steg-server, race-fixture) (4.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.4s)
+ok      architecture (0.9s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 0 at 2026-11-16T03:23:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 34311bf51cd9:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (3.8s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.3s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 78, 77 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -131,6 +393,27 @@ created: 2026-11-16T03:02:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.97: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:12:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review, testing. The diff matches the plan.
+
+Reviewed at head 1e63d7b907f04794bf93bd759058e4af6d59e1eb (matches PR 53's head and its green CI run 43794899362; the task's own recorded `just check` is also at this head).
+
+[Evidence, Important] tools/src/steg_tools/likec4_mcp.py:161-171, task notes PROOF item P9 - Item 5's timeout split adds a distinct "mid-exchange" branch (reached only after the first line is read, bound=timeout=5.0s), separate from the "to start" branch (bound=startup_timeout=60.0s). The notes drop P9 ("negative control showing the old single-timeout message carries no phase information vs. the new message naming the phase") saying "P2 above already exercises it directly - the negative control's actual failure message ('did not answer (to start) within 60.0s') is the P9 demonstration." That's wrong: `first` is only set False after a successful `lines.get()`, so P2 (registry blocked, .npmrc removed) can only ever hit the "to start" branch - I reran P2 myself and got exactly "did not answer (to start) within 60.0s", matching commit b3dd24f. I then called `read_project_summary(..., timeout=0.0001)` directly (uncommitted, nothing changed on disk) and got a materially different message - "likec4 mcp did not answer (mid-exchange) within 0.0001s" - proving the mid-exchange branch exists and is reachable, but also that nothing recorded on this task has ever reached it. Per review.md ("one direction of a pair... needs a test that reaches that branch") and testing.md ("named as dropped and say why" / "citing the plan's list is not covering it"), P9's drop reason is false and the branch is unproven. This is the same mistake shape as the open draft DRAFT-1 ("record every negative control's failing run, don't just claim it") - not filing a new draft, this one already covers it.
+
+[Evidence, Nit] tools/src/steg_tools/likec4_mcp.py:110-120 - the docstring cites "up to 70s when the registry itself is unreachable and npm's own retry ladder runs out" immediately next to the new startup_timeout=60.0, without noting that 70s figure was measured with .npmrc/prefer-offline absent; post-fix the same scenario is 0.43s per the plan. As written it reads as if the bound is smaller than a failure mode that can still occur, which isn't the case once .npmrc is always present. Worth a clarifying word.
+
+[Compliance, Nit] .github/workflows/ci.yml:75-85 - "Install the pinned Zig (mise.toml)" (and its comment) now also installs the new `node` pin via the same jdx/mise-action step, but the name/comment weren't updated to mention it.
+
+Verified myself, no findings: the cause (read failed-run log job 133035963248: "FAILED tool tests (exit 1, 34.2s)", "TimeoutError: ... within 30.0s", "1 failed, 51 passed in 33.17s"; passing-run log job 133045320293: "tool tests (21.4s)" / "architecture (1.7s)" - both match the notes verbatim); the deterministic blocked-registry pair myself in a fresh review worktree (warm cache, HTTP(S)_PROXY to a closed port, .npmrc moved aside: failed at "did not answer (to start) within 60.0s", 65.04s wall; .npmrc restored: passed in 0.60s); .npmrc's blast radius (grepped, only .mcp.json/justfile/likec4_mcp.py use npx, confirmed covered); the actions/cache pin (55cc8345863c7cc4c66a329aec7e433d2d1c52a9 is really v6.1.0); the CI step ordering (Node confirm -> cache restore -> warm step -> just check, nothing removed); the 5.0s exchange bound's safety margin (direct call with timeout=0.5 against the full response - 7 views, 18 elements - passed, ~10x headroom); the merge commit 1e63d7b (only pulls in unrelated backlog/ files, no code the plan hadn't seen); and the Node pin in CI logs (v24.22.0 printed). Cleaned up: git status clean in the review worktree, no stray npx/likec4 processes, proxy env vars unset.
 
 ---
 <!-- COMMENTS:END -->

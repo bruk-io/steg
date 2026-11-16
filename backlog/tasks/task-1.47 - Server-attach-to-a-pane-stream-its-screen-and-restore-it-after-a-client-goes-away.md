@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:15:00Z'
+updated_date: '2026-11-16T13:16:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -811,6 +811,47 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/
      // The marker file's own content is the pid (`echo $$`, not a bare
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:16:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 5.1s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/steg)
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:1969:13
+     |
+1969 |             other => panic!("expected Full, got {other:?}"),
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Delta { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+     = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:1997:13
+     |
+1997 |             other => panic!(
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Full { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:2030:13
+     |
+2030 |             other => panic!(
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Delta { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+
+error: could not compile `steg-server` (lib test) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

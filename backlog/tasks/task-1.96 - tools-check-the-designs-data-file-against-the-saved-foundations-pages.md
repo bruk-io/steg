@@ -1,11 +1,11 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T05:16:00Z'
+updated_date: '2026-11-16T11:53:00Z'
 labels:
   - size-2
   - review-passed

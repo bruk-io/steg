@@ -1,11 +1,11 @@
 ---
 id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:47:00Z'
+updated_date: '2026-11-16T04:22:00Z'
 labels:
   - size-2
   - review-passed

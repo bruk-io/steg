@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:48:00Z'
+updated_date: '2026-11-16T07:00:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1322,6 +1322,34 @@ shared line is unchanged from the last review's own note: listen.rs's
 Runtime::new(...) call (47 adds a third force_grace argument; this task
 only changes what config.login.clone() carries) - orthogonal, resolved by
 keeping both.
+
+Check FAILED: `cargo test -p steg --features fixtures --test login_environment` exited 101 at 2026-11-16T07:00:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ed80ab89ca26 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... FAILED
+
+failures:
+
+---- a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment stdout ----
+
+thread 'a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment' (26026008) panicked at crates/steg/tests/login_environment.rs:363:5:
+STEG_TEST_LEAK_MARKER, which the pane could never legitimately inherit from a real login shell's own profile, was present in the pane's own environment - its value is withheld from this message on purpose, since a pane's whole environment dump can carry an unrelated real secret
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+error: test failed, to rerun pass `-p steg --test login_environment`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

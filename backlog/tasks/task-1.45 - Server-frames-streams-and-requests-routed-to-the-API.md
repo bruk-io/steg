@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:21:00Z'
+updated_date: '2026-11-16T01:49:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -710,6 +710,12 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do if ! cargo test -p steg-server --test routing 2>&1 | grep -q "test result: ok. 17 passed"; then fail=$((fail+1)); fi; done; echo "failures: $fail of 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:49:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 9201dd78ad26 with uncommitted changes:
+
+```text
+failures: 0 of 10
 ```
 <!-- SECTION:NOTES:END -->
 

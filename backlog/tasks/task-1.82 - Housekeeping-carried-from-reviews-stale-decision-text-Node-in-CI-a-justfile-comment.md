@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-15T22:41:00Z'
+updated_date: '2026-11-16T01:00:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -35,3 +35,15 @@ Small things reviews and workers noted that belong to no open task. Decision rec
 <!-- SECTION:NOTES:BEGIN -->
 Added by @bruk.o 2026-11-15: the LikeC4 MCP smoke test in tools/ has timed out in CI on two unrelated pull requests (TASK-1.40's and TASK-1.76's), green on re-run each time. Find why it is slow or flaky on the runner and bound or fix it; a check that fails at random teaches people to re-run failures.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T01:00:00Z
+
+---
+
+2026-11-15: third occurrence of the LikeC4 MCP smoke test timing out in CI (30s, tools/tests/adapter/test_likec4_mcp_smoke.py), on pull request 44 (TASK-1.77), whose diff touches nothing under tools/ or architecture/; green on a re-run of the same head. Earlier: TASK-1.40's and TASK-1.76's pull requests. Each occurrence costs a re-run and a check that the failure was not the change's own.
+
+---
+<!-- COMMENTS:END -->

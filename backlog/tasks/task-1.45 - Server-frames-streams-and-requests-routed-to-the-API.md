@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:59:00Z'
+updated_date: '2026-11-16T02:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -26,6 +26,8 @@ asdlc_branch: task-1.45-server-frames-streams-and-requests
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1007366d16d6'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -890,6 +892,15 @@ created: 2026-11-16T00:24:00Z
 ---
 
 Plan approved by @bruk (1007366d16d6, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T02:00:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

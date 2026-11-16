@@ -29,6 +29,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -787,6 +788,15 @@ The 20x repeat count covers only the one test the commit since the last review c
 [Compliance, Nit] crates/server/src/runtime.rs:1842-1866: the 25-line `///` doc comment narrates this review's own history (reviewer name, finding, date) ahead of the test it attaches to. Useful today, but reads like a comment that will go stale exactly the way the first review's own nit (on the pane-not-found test) did once this round is old news - the "why" (vacuous-pass risk, two negative controls) is durable and belongs in the comment; the "who reviewed it and when" does not.
 
 Other items re-checked at this head, unchanged from the first review's findings: `apply_event_locked`'s two new arms, the `PaneNotFound` no-op, `unreachable!` arms, kernel diff confined to the one doc comment on `terminal.rs`, no `unsafe`, no new dependency, `--plan-matched no` reflecting the already-accepted resize departure (still the only departure). `Runtime::stop` (called from `Drop`) iterates every pane in `state.panes`, so the test's newly added second real pty child (the sibling shell pane) is reaped the same way the command pane is - no new leak from the fix (AC #3 holds). CI is green on c495468 (PR #46's head). No open draft in `asdlc board draft list` covers this or the prior finding; filing none, since the earlier Important finding was fixed rather than repeated.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,10 +1,11 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T11:34:00Z'
+updated_date: '2026-11-16T13:26:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -15,6 +16,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-19
+asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 ---
 
 ## Description

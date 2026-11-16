@@ -3,14 +3,13 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:07:00Z'
+updated_date: '2026-11-16T06:08:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -1211,6 +1210,117 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Every finding addressed. PR #56 updated (cc3e1f0 -> 6e1082e), CI green at the
+final head.
+
+## Important: the end-to-end test no longer reads this machine's real identity
+
+Added `crates/steg/tests/fixtures/fixture_server.rs`, a fourth `fixtures`
+-gated [[bin]] following the exact convention `already_a_group_leader`/
+`autostart_client`/`env_leak_client` already established: the real server
+code (attempt/detach/build_login_shell/run), given a LoginIdentity from its
+own environment (STEG_TEST_LOGIN_SHELL/_HOME/_USER) instead of
+resolve_login_identity's real password-database lookup. Factored the shared
+"capture, then report a fallback" step into steg_server::build_login_shell
+(new, exported) so main.rs and the fixture call the same code - this also
+closed a small round-trip risk the earlier version had (reconstructing a
+LoginIdentity by hand from LoginShell's own fields just to call
+capture_login_environment).
+
+login_environment.rs now builds a throwaway home with its own .zprofile
+(exporting a marker and a PATH addition), points the fixture client at
+fixture_server instead of the real steg binary, and asserts on: the
+throwaway profile's own marker and PATH addition being present (proving a
+real capture happened, not the fallback - specific to this test's own
+profile, nothing about this machine), a variable set only in the launching
+client's own environment being absent, and TERM=xterm-256color (AC #3).
+Nothing in the test depends on this machine's real account, real shell, or
+real .zprofile.
+
+Proved the fixture is actually absent from the shipped binary, not just
+inert: recorded `rm -f target/debug/{fixture_server,env_leak_client}; cargo
+build -p steg && test ! -f target/debug/fixture_server && test ! -f
+target/debug/env_leak_client` - exits 0, confirming a default build produces
+neither.
+
+Kept one small test of real identity resolution alone, strengthened per the
+request: resolve_login_identity_never_panics_and_returns_a_home_a_shell_and_
+a_user_that_exist now checks the returned shell is a real file, the home a
+real directory, and the user non-empty - not just non-empty strings.
+
+## Nits
+
+(a) capture_login_environment now spawns the shell in its own process group
+(.process_group(0)) and kills the whole group on timeout (kill -9 -<pgid>),
+not just the shell's own pid. Reproduced the exact finding first (a fake
+shell backgrounding a grandchild that holds stdout open, then exits) and
+confirmed the bug: without the group kill, the grandchild (confirmed alive
+via a pid file + repeated kill -0) is never reaped and the reader thread
+stays blocked on it indefinitely. New test:
+capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_
+open, asserting both halves (the function still returns within its own
+bound, and the grandchild is actually gone shortly after). Documented in
+capture_login_environment's own doc comment, including the one remaining,
+accepted gap stated plainly: a profile that deliberately re-parents its own
+background job into a different process group would still outlive the
+bound.
+
+(b) The capture marker is now generated fresh per call (capture_marker():
+pid + a monotonic counter + the current time) instead of a fixed constant,
+so a profile that happens to echo the same literal text can no longer
+corrupt parse_env_dump's own search for it - closed by construction rather
+than by searching for the last match instead. parse_env_dump now takes the
+marker as a parameter. The "noise before the marker" test now has its fake
+shell actually eval the real -c argument capture_login_environment passes
+(echo banner; eval "$3") instead of hardcoding what used to be a fixed
+global marker, so it exercises the real, now-dynamic mechanism rather than a
+stand-in for it.
+
+(c) The .zshrc-not-read limit is now documented in login_env.rs's own module
+doc (a new paragraph, with the engineer's own confirmation referenced) and
+in crates/server/CLAUDE.md, not only in board comments.
+
+(d) Traced the flaky run: capture_login_environment_prints_noise_before_the_
+marker_without_corrupting_the_dump (and its neighbours) used a 5s/10s bound
+with no particular reason to be tight - these test parsing correctness, not
+timing. Widened to 20s, matching this crate's own EVENT_TIMEOUT convention
+elsewhere. Left capture_login_environment_falls_back_on_a_shell_that_never_
+finishes_in_time's own 200ms bound alone - that one is testing the timeout
+path itself, so a short bound is the point.
+
+## Found and fixed one more race while stress-testing this round's own fixes
+
+env_leak_client's shell wrote its four-line output (TERM/STEG_SERVER/PATH/
+MARK_ZPROFILE) with a plain `> output_path` redirect. Stress-testing (10x
+loops) caught the test's own poll occasionally reading the file mid-write
+under load - two lines landed, two hadn't yet. Fixed by writing to a
+temporary path and renaming onto output_path, which is atomic on the same
+filesystem - the poll now only ever sees "absent" or "complete," never
+"partial." Confirmed with 15 additional isolated runs and the 10x sweep
+below, all clean.
+
+## Checks recorded
+
+login_env.rs's own module in isolation (new/changed tests); the negative
+control for the grandchild fix was the bug reproduction itself, recorded
+failing before the process-group fix landed (not a separate scratch-edit-
+and-revert, since this was a real fix to a real finding, not a mechanism
+already built); `just check`, twice (once mid-fix, once at the final
+pushed head); the "fixture absent from a default build" check above; the
+10x sweep: `cargo test -p steg-server` x10 and `cargo test -p steg
+--features fixtures` x10, with the real-process count (grep for steg/
+fixture binaries in `ps aux`) recorded at 0 both before and after - no
+leftover process from any of the 20 runs.
+
+## Overlap with PR #47 (TASK-1.78)
+
+Still open (checked `gh pr view 47` again just before this finish) - no
+merge to resolve yet. If it lands before this is reviewed again, the one
+shared line is unchanged from the last review's own note: listen.rs's
+Runtime::new(...) call (47 adds a third force_grace argument; this task
+only changes what config.login.clone() carries) - orthogonal, resolved by
+keeping both.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

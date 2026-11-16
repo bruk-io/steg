@@ -695,4 +695,12 @@ created: 2026-11-16T12:50:00Z
 2026-11-16, @bruk.o: the task the plan calls DRAFT-1 (a status that expires is reported to subscribers at its deadline) was accepted as TASK-1.116. The plan's text is left as approved; cite TASK-1.116 in code comments and notes.
 
 ---
+
+created: 2026-11-16T13:01:00Z
+
+---
+
+The first recorded check on this task (just check exited 101) raced my own in-progress edit to shapes.rs/methods.rs mid-run, not a real failure of the pre-existing codebase: the background process picked up a half-finished struct field addition while I was still editing. The next recorded check, after finishing that edit, is clean and is the true state at this step.
+
+---
 <!-- COMMENTS:END -->

@@ -130,7 +130,7 @@ def summary_from_command(
     back its project summary.
 
     `read_project_summary` is the real caller, with the exact `npx` command `.mcp.json`
-    configures; `tests/functional/test_likec4_mcp.py` is the other one, with a fake
+    configures; `tests/functional/test_likec4_mcp_phased_timeout.py` is the other one, with a fake
     child in place of a real likec4 server, to drive the two bounds below
     deterministically (`tests/adapter/test_likec4_mcp_smoke.py` is the one test that
     runs a real likec4 server, and proves this function against it).

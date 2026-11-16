@@ -26,3 +26,8 @@ def test_the_real_outline_and_track_colours_coincide_in_dark_and_differ_in_light
     index = hex_index(real_foundations())
     assert ("outline", "dark") in index["3d3b45"]
     assert ("track", "dark") in index["3d3b45"]
+
+
+def test_the_real_data_file_has_its_four_opacity_names() -> None:
+    # design/README.md: `opacities` (faint), `tint`, the ramp's `caption_opacity`, `scrim`.
+    assert real_foundations().opacity_names == ("faint", "tint", "ramp", "scrim")

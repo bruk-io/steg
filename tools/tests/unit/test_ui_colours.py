@@ -202,40 +202,60 @@ def test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name() 
 
 
 def test_format_violation_names_one_matching_foundations_value() -> None:
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x1c1b21", (("surface.raised", "dark"),)))
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x1c1b21", (("surface.raised", "dark"),)), ())
     assert "R120" in message
     assert "surface.raised" in message
     assert "dark" in message
 
 
 def test_format_violation_lists_two_matching_names() -> None:
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x3d3b45", (("outline", "dark"), ("track", "dark"))))
+    message = format_violation(
+        Violation("crates/ui/src/atoms/button.rs", 5, "0x3d3b45", (("outline", "dark"), ("track", "dark"))), ()
+    )
     assert "outline" in message
     assert "track" in message
 
 
 def test_format_violation_names_the_opacity_and_does_not_say_use_that_value_instead() -> None:
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50))
+    # The real reader's own output for the real data file today (test_foundations.py /
+    # test_foundations_real_repo.py), passed straight through - not retyped as prose.
+    message = format_violation(
+        Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50),
+        ("faint", "tint", "ramp", "scrim"),
+    )
     assert "R120" in message
     assert "surface.raised" in message
     assert "50%" in message
-    assert "faint" in message and "tint" in message and "caption_opacity" in message and "scrim" in message
+    assert "faint" in message and "tint" in message and "ramp" in message and "scrim" in message
     assert "use that named value instead" not in message
 
 
+def test_format_violation_names_exactly_the_opacity_names_it_is_given() -> None:
+    # Not a hardcoded list: removing a name from what's passed in removes it from the
+    # message, and a name that was never there doesn't appear either.
+    violation = Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50)
+    message = format_violation(violation, ("fictional-alpha", "fictional-beta"))
+    assert "fictional-alpha" in message
+    assert "fictional-beta" in message
+
+    message_with_one_removed = format_violation(violation, ("fictional-alpha",))
+    assert "fictional-alpha" in message_with_one_removed
+    assert "fictional-beta" not in message_with_one_removed
+
+
 def test_format_violation_uses_the_ordinary_wording_for_a_match_with_no_alpha() -> None:
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x1c1b21", (("surface.raised", "dark"),), None))
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x1c1b21", (("surface.raised", "dark"),), None), ())
     assert "use that named value instead" in message
     assert "%" not in message
 
 
 def test_format_violation_says_plainly_when_nothing_matches_even_with_an_alpha() -> None:
     # No name to combine opacity language with - the plain "no match" wording applies.
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0xabcdef80)", (), 50))
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0xabcdef80)", (), 50), ())
     assert "No foundations value" in message
     assert "%" not in message
 
 
 def test_format_violation_says_plainly_when_nothing_matches() -> None:
-    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0xabcdef", ()))
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0xabcdef", ()), ())
     assert "No foundations value" in message

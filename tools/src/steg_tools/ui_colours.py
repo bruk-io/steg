@@ -33,9 +33,11 @@ one it's compared against - `rgba(0x1c1b2180)` is `surface.raised` at roughly ha
 strength, not `surface.raised` itself, and saying "use that named value instead" would
 be wrong: the opaque named colour isn't a fix for a translucent literal. The message
 instead says what it actually is (the matching colour's name, and the alpha byte as a
-rounded percentage) and that foundations holds opacity as named values too (`faint`,
-`tint`, the ramp's `caption_opacity`, `scrim`) - so the fix is naming both the colour
-and an opacity, or adding a new named value to the design, never the bare literal.
+rounded percentage) and that foundations holds opacity as named values too - the names
+it offers are read from the data file itself
+(`foundations.opacity_names_from_document`), not typed here, so the message can never
+name an opacity the design no longer has - so the fix is naming both the colour and an
+opacity, or adding a new named value to the design, never the bare literal.
 
 Usage: steg-ui-colours
 """
@@ -236,14 +238,15 @@ def violations(
     return tuple(sorted(found, key=lambda violation: (violation.path, violation.line)))
 
 
-def format_violation(violation: Violation) -> str:
+def format_violation(violation: Violation, opacity_names: tuple[str, ...]) -> str:
     """Report one violation, naming the matching foundations value where there is one, and R120's own rule.
 
     A match with a genuine (non-opaque) alpha gets its own wording: the literal is a
     translucent version of a foundations colour, not that colour itself, so "use that
     named value instead" would be wrong advice - the fix is naming the colour *and* an
-    opacity (foundations holds those too: `faint`, `tint`, the ramp's
-    `caption_opacity`, `scrim`), or adding a new named value, never the bare literal.
+    opacity. `opacity_names` is read from the data file itself
+    (`foundations.opacity_names_from_document`), not typed here, so this message can
+    never name an opacity the design no longer has.
     """
     base = f"{violation.path}:{violation.line}: `{violation.text}` is a colour literal, which doc-17 R120 refuses outside foundations."
     if not violation.matches:
@@ -252,9 +255,9 @@ def format_violation(violation: Violation) -> str:
     if violation.alpha_percent is not None:
         return (
             f"{base} It is the colour of {names} at {violation.alpha_percent}% opacity, not that colour "
-            f"itself - foundations holds opacity as its own named values too (faint, tint, the ramp's "
-            f"caption_opacity, scrim), so name both the colour and an opacity, or add a new named value "
-            f"to the design - never the bare literal."
+            f"itself - foundations holds opacity as its own named values too ({', '.join(opacity_names)}), "
+            f"so name both the colour and an opacity, or add a new named value to the design - never the "
+            f"bare literal."
         )
     return f"{base} This value matches {names} - use that named value instead."
 
@@ -271,5 +274,5 @@ def main() -> int:
     files = rust_files(root, UI_SRC) + rust_files(root, GALLERY)
     found = violations(files, index)
     for violation in found:
-        print(format_violation(violation))
+        print(format_violation(violation, data.opacity_names))
     return 1 if found else 0

@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:58:00Z'
+updated_date: '2026-11-16T02:01:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -21,10 +22,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b3ded099a9d8'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -457,6 +456,33 @@ created: 2026-11-16T01:58:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.92: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T02:01:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second review, same-machine, at head 91d4e877b240 (matches the task's recorded `just check` and PR 49's headRefOid; CI "check" is SUCCESS on this head). Reviewed the whole diff against main, with particular attention to the three fixes and the new README.
+
+No findings.
+
+1. doc-10's not-yet-confirmed list, checked item by item against foundations.json: the pressed-state darkening, the button's 72px icon-only threshold, the pane header's three breakpoints (360/260/200), the smallest pane (200x110), the status bar's 250ms roll-out, the failure flakes' count/timing, and the overlay's 40px-clear/60%-height rule are all absent from the data file - none snuck back in, and overlay.layout.max_height_percent_of_window is gone, replaced by a `use` note pointing at doc-10's bullet. (The 72px in tab.width.min and the 200ms in motion.status-fade are different, independently-settled values, not the unconfirmed items re-appearing under another name - confirmed by rereading the plan's own settled tables.)
+
+2. References: wrote and ran my own script against the whole file (not the worker's), independent of the recorded checks. Found exactly 19 `{"ref": ...}` objects, all resolving to an existing name (a colours[] name, a sizes key, or `tint`). Found zero bare-string leftovers anywhere outside the three permitted colour forms (hex literal, the literal "session", or a `{"ref": ...}` object) - scrim.dark.colour is the one hex literal, "session" appears exactly at themes[].cursor (both themes), focus_ring.colour and tint.colour and nowhere else, matching the README's own count. crates/ui/design/README.md's "How a reference is written, everywhere" section states this rule once and it matches the file exactly, including naming the field-name exceptions (`track_colour`, `radius_outer`, the `ref` field on `colour_aliases`, etc) that make the rule non-obvious from the key name alone.
+
+3. radius.round is present as `{"shape": "round", "use": "..."}` - a structured shape, not the literal 999 standing in for a value. Spot-checked two cards in design/canvas/project/Tokens.dc.html myself: the radii card (14/10/8/999px "fully round: chips of colour, bars") matches radius.surface/track/inner/round exactly, and the colour-table captions (name/dark/light/used-for headers, all 17+track colours by name) match colours[]. Found no other captioned value missing beyond radius.round.
+
+4. Diff to foundations.json since the first-round head (dc9f985) is exactly the 38 lines described: the unconfirmed value's removal, the ref-wrapping, and the new radius.round entry - nothing else. All colours (18, both hex forms, full ramp names), both ramps, all 16 ANSI colours by name/position in both themes, sizes, scrim, and the one duration are untouched by this diff, so the first round's independent verification of those still holds.
+
+5. crates/ui/design/README.md and design/canvas/README.md don't contradict each other: the first documents the structured export's schema and reference rule, the second documents the working/history files and the artifact-vs-working-copy corrections; each points at the other and at the artifact as the source, and neither claims to be the source itself.
+
+Evidence: `just check` recorded on the task at 91d4e877b240 matches this head; CI "check" on PR 49 is SUCCESS at headRefOid 91d4e877b240, confirmed directly via `gh pr checks 49`.
 
 ---
 <!-- COMMENTS:END -->

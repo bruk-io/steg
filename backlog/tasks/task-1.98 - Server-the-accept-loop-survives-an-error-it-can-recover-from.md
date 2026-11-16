@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T13:12:00Z'
+updated_date: '2026-11-16T13:14:00Z'
 labels:
   - size-2
   - changes-requested
@@ -630,6 +630,14 @@ Reviewed head fcfc798c (PR's current head); code identical to 27b553db, the head
 [Compliance, Nit] AC #3's descriptor limit (128, crates/steg/tests/server_start.rs) has a thin empirically-measured margin: the notes record "fails at 90," "always passes at 120," and the chosen value is only 8 above the always-pass point. It passed 10/10 on this machine, but per the Important finding above, it has not yet been confirmed to pass on CI's own runner at all.
 
 Checked myself, not just read: the full diff against origin/main; every changed file in full in a worktree; ran accept_backoff.rs 10x (clean) and the AC #3 real-binary test 10x (clean); ran the full steg-server and steg (incl. fixtures) suites 3x each (clean, no sighting of the TASK-1.82-recorded intermittent failures); reproduced both of the task's own scratch-edit negative controls myself (stop-check removed -> test fails on its bound; ENOTSOCK made recoverable -> test fails on its bound), reverting cleanly each time (confirmed via `git diff`); confirmed boundaries.toml is unchanged, no exhaustive match on ConnectionEvent exists anywhere, and crates/steg/src/main.rs still calls run(..., None) with no printing anywhere in crates/server/src, matching the plan's own claims. Noticed, not a finding on this task: several accept-backoff-attempt/accept_backoff test-binary processes left running under the author's own .worktrees/task-1.98 (not this review's worktree), apparently orphaned from earlier interactive runs - left alone as outside this review's scope.
+
+---
+
+created: 2026-11-16T13:14:00Z
+
+---
+
+2026-11-16, @bruk.o: follow-up noted from the first review, not for this task: the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created; the classification added here covers descriptors, not threads. To be drafted as its own small task once this one merges.
 
 ---
 <!-- COMMENTS:END -->

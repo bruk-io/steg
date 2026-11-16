@@ -1,10 +1,11 @@
 ---
 id: TASK-1.91
 title: 'ui: the steg-ui package, its boundary, and the gallery'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-16T00:55:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -12,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.91-ui-the-steg-ui-package-its-boundary-and
 ---
 
 ## Description

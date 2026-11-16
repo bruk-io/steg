@@ -4,7 +4,7 @@
 //! part of the split: the tree itself, `--help`, `version` and
 //! `completion`, and the drift test (`tests/cli_drift.rs`). Calling a
 //! method for real, the exit-status mapping, and connecting to a server
-//! are TASK-1.49b's; [`run`] below is this part's own placeholder seam,
+//! are TASK-1.119's; [`run`] below is this part's own placeholder seam,
 //! replaced outright there.
 
 mod params;

@@ -10,7 +10,7 @@
 //! `steg::cli::build`) never does - a server being started never had a
 //! server to connect to in the first place. Every other command is built
 //! from the API description at run time (TASK-1.49); `steg::cli::run` is
-//! its own placeholder for calling one for real (TASK-1.49b's).
+//! its own placeholder for calling one for real (TASK-1.119's).
 
 use steg_server::Arbitration;
 

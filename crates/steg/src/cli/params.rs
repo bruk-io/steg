@@ -1,7 +1,7 @@
 //! Turning a parsed command's `ArgMatches` into the method's own
 //! parameters, by name - the same shape `steg_sdk::description::Request::
 //! params` takes. Shared by this task's own placeholder ([`super::run`])
-//! and, unchanged, by TASK-1.49b's real `Connection::call` once it
+//! and, unchanged, by TASK-1.119's real `Connection::call` once it
 //! replaces the placeholder: this is calling logic that does not change
 //! between the two.
 

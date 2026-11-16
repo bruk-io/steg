@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -1379,6 +1380,15 @@ Proved, not just fixed: a new suite-level check runs the whole `server_start.rs`
 Checks recorded, in order: the two fixed tests individually (pass); the suite-level zero-leak check (pass); the same check's negative control with the guard disabled (fail, count 2, as expected) then restored; the two new exit-status tests and the nit's test, each run 15x; the full 11-test suite, 10 consecutive runs each re-checked for zero leftover processes; `just check` at 3fbdf09 (pre-merge, green); merge of origin/main (clean, no code conflicts - only `backlog/` board files changed; confirmed `ServerConfig` still has no `launcher`/`login` fields, so TASK-1.45 has not actually merged its code yet despite its own check-recording commits being visible in history - no login-line adaptation needed); `just check` at the final head b5e2aa6 (green).
 
 PR #44's CI failed once more on this round, on the same already-tracked flake (TASK-1.82): `tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server`, `TimeoutError: likec4 mcp did not answer within 30.0s`, at the pre-merge head. Read the full log again before rerunning, not assumed the same: every one of this task's own steps (`test (steg)`, `test (steg, fixtures)`, `test (steg-server, race-fixture)`) passed; `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` showed nothing, same as the first occurrence. This is now the fourth independent occurrence of the exact same tracked test/error (two on other PRs per TASK-1.82's own description, two on this one) - reran and CI passed green at the final head (b5e2aa6, the merged one), confirmed via `gh pr view 44 --json headRefOid`.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T01:39:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.77: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

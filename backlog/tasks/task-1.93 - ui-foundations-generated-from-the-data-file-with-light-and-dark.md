@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:39:00Z'
+updated_date: '2026-11-16T02:41:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -300,6 +300,41 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpO2FZgV` does not 
 ..AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
 .
 3 passed in 0.03s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && cargo test -p steg-ui'` exited 0 at 2026-11-16T02:41:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/steg_ui-c8f1b2ea3c1c1c78)
+
+running 5 tests
+test foundations::tests::a_plain_value_with_no_light_dark_pair_needs_no_theme ... ok
+test foundations::tests::a_colour_alias_matches_the_colour_it_names ... ok
+test foundations::tests::appearance_toggles_to_its_own_inverse ... ok
+test foundations::tests::the_session_colour_is_whatever_new_was_given ... ok
+test foundations::tests::dark_and_light_pick_the_right_form_of_a_colour ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests gallery/main.rs (target/debug/deps/gallery-e19e5295ab444e60)
+
+running 5 tests
+test tests::an_unrecognised_value_falls_back_to_light_rather_than_failing ... ok
+test tests::dark_is_recognised_in_any_case ... ok
+test tests::light_is_explicit_too ... ok
+test tests::toggling_is_its_own_inverse ... ok
+test tests::unset_is_light ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -74,9 +74,7 @@ pub enum RecoverableAcceptError {
 /// for this.
 fn classify_accept_error(err: &std::io::Error) -> Option<RecoverableAcceptError> {
     match err.raw_os_error().map(Errno::from_raw) {
-        Some(Errno::EMFILE | Errno::ENFILE) => {
-            Some(RecoverableAcceptError::DescriptorsExhausted)
-        }
+        Some(Errno::EMFILE | Errno::ENFILE) => Some(RecoverableAcceptError::DescriptorsExhausted),
         Some(Errno::ECONNABORTED) => Some(RecoverableAcceptError::ConnectionAborted),
         Some(Errno::EINTR) => Some(RecoverableAcceptError::Interrupted),
         _ => None,

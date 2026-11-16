@@ -561,7 +561,9 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
             Some(1),
             "the session started before the storm should still be listed, got {value:?}"
         ),
-        Response::Error(error) => panic!("session.list failed during the exhaustion window: {error:?}"),
+        Response::Error(error) => {
+            panic!("session.list failed during the exhaustion window: {error:?}")
+        }
     }
 
     // "Every session and program is untouched": the same session's own
@@ -587,9 +589,9 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
                 "the session's program should still be running, got {value:?}"
             );
         }
-        Response::Error(error) => panic!(
-            "pane.show on the session started before the storm failed: {error:?}"
-        ),
+        Response::Error(error) => {
+            panic!("pane.show on the session started before the storm failed: {error:?}")
+        }
     }
 
     // Freeing roughly half the held connections is enough to let a fresh
@@ -605,8 +607,12 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
     // handshake` itself blocks until that happens, bounded by its own
     // read timeout.
     let (mut fresh_client, mut fresh_connection) = connect_and_handshake(&socket_path);
-    match call_and_read_reply(&mut fresh_client, &mut fresh_connection, "session.list", Map::new())
-    {
+    match call_and_read_reply(
+        &mut fresh_client,
+        &mut fresh_connection,
+        "session.list",
+        Map::new(),
+    ) {
         Response::Ok(_) => {}
         Response::Error(error) => panic!("a fresh client's own session.list failed: {error:?}"),
     }

@@ -1,14 +1,13 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T13:52:00Z'
+updated_date: '2026-11-16T13:59:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -704,6 +703,30 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 78, 68 without the Asdlc-Worker trailer.
+
+Review findings fixed, head d2ab50c, CI green (run 43880021096, check passed in 6m10s, confirmed via gh pr checks 59).
+
+1. Important (the hang): confirmed and fixed. Root cause, found by reproducing locally (not guessed): an earlier version sustained descriptor exhaustion with a background thread (ConnectionFlood) that kept calling UnixStream::connect forever, uncapped against this platform's own listen backlog - 128 on macOS, confirmed by reading library/std/src/os/unix/net/listener.rs, not assumed. Once that thread's own held connections reached the backlog's capacity, its next connect() blocked (UnixStream has no connect_timeout at all), and stopping the thread then joined it with no bound either - the real, reachable hang.
+
+Fix: every connect() in the test harness is now bounded. ConnectionSupply (replacing ConnectionFlood) spawns each individual connect() on its own thread and joins it with join_with_bound (the same shape crates/server/tests/shutdown.rs's own join_within already uses) - a timed-out attempt's own thread is abandoned, never joined again, so no single attempt can block the supply thread past its own bound, and stopping the supply is bounded the same way. Also bounded: ReapOnDrop's kill()+wait() (now polled with try_wait and a bound, since a Drop must never panic), and CountReader's own thread join.
+
+A one-shot batch (no thread at all) was tried first, per the reviewer's own suggestion to check whether a batch is enough - it is not, for two separate reasons, both confirmed by running it: (a) it let AC#4's own rate tests measure nothing, since the loop with no backoff drains a fixed batch in well under the 500ms measurement window; (b) more subtly, it could let the stop/fatal tests (AC#1/#2) pass even with their own fix removed - the storm having already ended quietly on its own by the time STOP_AFTER_RETRIES/DUP2_AFTER_RETRIES fired, letting stop()'s own ordinary wakeup (ariane real connect() on the loop's untouched success path) win regardless of the scratch edit. Confirmed directly: with the batch design, the stop-check-removed negative control passed instead of failing - exactly the false-pass the reviewer's own point (b) warned about. ConnectionSupply fixed both; every test in the file now uses it.
+
+The fixture's own ServerConfig now states handshake_timeout explicitly (60s) rather than inheriting the production default, so what sustains exhaustion for a test's own window is a value this test states for itself, not one owned by another task.
+
+Reproduced per the brief: each of the 4 tests alone, in a loop, foreground, bounded (timeout 15s/run) - 100 runs each, no hangs, both before this fix (reproduced the real hang: the stop/fatal tests passed vacuously, the rate tests sometimes failed to observe any retries) and after (all green). The whole suite together, 100 runs, also clean. ps checked for leftover processes after every batch, every time - none found. Confirmed on the real CI runner too (not just locally): run 43880021096's "just check" step passed in 6m10s.
+
+On the three stale local runs you found (72-80 minutes old): yes, almost certainly my own abandoned background invocations from earlier in this build (ab-run1/2/3, backgrounded via the Bash tool's own 120s auto-background behavior) - I read their partial log output mid-debugging, mistook that for completion, and moved on without confirming the process itself had exited. They resolved on their own partway through this fix (notifications arrived, both reporting "failed", well after I'd already fixed and moved past the code they were running). This is a distinct failure from the CI hang - a process-hygiene lapse on my part, not evidence of a second bug - and I'm naming it plainly rather than letting it blur with the real fix above. Every run in this round was foreground, bounded, and ps-checked.
+
+Both of the task's own scratch-edit negative controls were re-run against the changed file, per the team's rule: removing the stop-check (listen.rs) made the stop test fail exactly as before ("the fixture process did not exit within the bound"); making the classifier also treat ENOTSOCK as recoverable made the fatal-path test fail the same way. Both reverted, confirmed via git diff --stat matching before/after. The AC#4 zero-backoff control is a kept test (not a scratch edit), so the 100-run reproduction above covers it.
+
+2. Nit taken: crates/server/src/arbiter.rs (ServerHandle::listener_raw_fd(), feature-gated behind accept-backoff-fixture, needed by the fixture's own AC#2 dup2 proof to read the listener's raw fd before handle moves into run) and justfile (check-packages's new accept-backoff-fixture run, without which that whole suite would never execute under just check) are both real changes outside the plan's own file list, named here as the plan itself cannot be edited post-approval.
+
+3. Nit acknowledged, not fixed here per your own instruction: listen.rs's scope.spawn for a connection's own thread (near the loop's spawn call) isn't covered by classify_accept_error - if thread creation itself fails (a different resource limit than RLIMIT_NOFILE), the panic unwinds out of run(), skipping the classified-fatal path's own cleanup (socket removed, lock released). Recorded as your own follow-up, not touched in this round.
+
+4. Nit fixed: AC#3's own descriptor limit (crates/steg/tests/server_start.rs) is now derived, not merely widened. Measured the server's real steady-state cost (15 fds: one session, one client, via lsof -p <pid> against an unrestricted run) and the empirical bracket where the login-shell-capture startup spike actually bites (fails at -n 90, every run passes at -n 120 - the true peak sits somewhere in that bracket, not narrowed further since doing so needs no new information this test's own proof depends on). Chose 180: 1.5x the known-passing value for headroom against a runner with a slower login-shell spawn, and stated in the doc comment why it cannot pass vacuously regardless of the real baseline on any given runner (HELD_CONNECTIONS=100 all succeeding would need 180+200 descriptors, comfortably past 180 for any plausible baseline, which is what forces real EMFILE rather than quiet success). Reproduced 100 runs, no failures.
+
+PR: https://github.com/bruk-io/steg/pull/59
 <!-- SECTION:NOTES:END -->
 
 ## Comments

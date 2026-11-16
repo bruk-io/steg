@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:44:00Z'
+updated_date: '2026-11-16T05:46:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1050,6 +1050,15 @@ kill: 72252: No such process
 test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
 
 test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 115 filtered out; finished in 0.31s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'rm -f target/debug/fixture_server target/debug/env_leak_client; cargo build -p steg && test ! -f target/debug/fixture_server && test ! -f target/debug/env_leak_client && echo "fixture_server/env_leak_client absent from a default build, as required"'` exited 0 at 2026-11-16T05:46:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+fixture_server/env_leak_client absent from a default build, as required
 ```
 
 Commits since the review: 0.

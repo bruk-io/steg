@@ -1,7 +1,7 @@
 ---
-id: DRAFT-9
+id: TASK-1.106
 title: 'ui organisms: the bar, on the side and on top'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T02:46:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-9
 ---
 
 ## Description

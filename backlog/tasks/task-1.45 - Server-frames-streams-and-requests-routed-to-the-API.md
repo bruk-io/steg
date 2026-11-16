@@ -1,13 +1,14 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:00:00Z'
+updated_date: '2026-11-16T02:13:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -26,8 +27,10 @@ asdlc_branch: task-1.45-server-frames-streams-and-requests
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1007366d16d6'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -901,6 +904,29 @@ created: 2026-11-16T02:00:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T02:13:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+Reviewed at head 3cada1b0b743da0a4cf728940d85c1e289d092a3 (matches the task's own recorded final `just check` and PR #50's green CI on the same headRefOid). `just check` re-run here: all 19 steps green. `cargo test -p steg-server --test routing` run 20x at default parallelism: 0 failures, max 2.1s, none over 10s.
+
+[Evidence, Important] outbound.rs/connection.rs: the headline bug this task found and fixed - ConnectionCleanup::drop needing shutdown_handle.shutdown(Both) before writer.join(), because a writer blocked in write_all on a full OS send buffer never sees Outbound::close()'s notify - has no recorded negative control backing it. Every other negative control in this task (Context refusal, writer priority, AC#1 frame cap, panic/poison recovery) has a full "Check FAILED: ... exited ..." block with real captured output in the task's implementation notes; this one has only a prose claim ("Negative control (removing the shutdown call) recorded timing out (exit 124) at 15s") with no matching recorded block anywhere in the notes - the one exit-124 block that does exist (01:20:21Z, commit 8d3e2643d1d0) is for the unrelated unbounded-test-wait bug fixed later the same session, not this one. I repeated the control myself: reverted scratch edit removing the shutdown() call from ConnectionCleanup::drop, ran `a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung` 5 times - it passed every time, ~2s each, with no hang. The control queue's cap (256 small session.list replies) appears to fit in the OS send buffer without the writer ever blocking in write_all, so this test does not reliably exercise the condition the fix addresses. Per review.md's Evidence pass, a test cited as proof with no recorded negative control is a finding, and "a test that still passes with its mechanism removed proves nothing about it" is Important. The fix itself still looks correct and worth keeping; the test just doesn't prove it. (Edit reverted; worktree clean.)
+
+[Compliance, Nit] dispatch/lookup.rs: the plan-approval comment says "One point for the build, not the plan: where a partial target path meets a missing default, prefer deciding before the kernel is called over passing a placeholder id and remapping its error." The build kept the sentinel-and-remap approach unchanged (NO_DEFAULT_SESSION/NO_DEFAULT_TAB = u64::MAX, passed to Tree::resolve_tab_path/resolve_pane_path, caught and remapped in remap_missing_default) and the notes never say why the preferred alternative wasn't adopted. The sentinel approach itself is sound and well-tested (a test confirms the sentinel's hex value never appears in a client-facing message), so this is a nit, not a functional problem - but the orchestrator's own stated preference was silently not followed.
+
+[Bugs, Nit] outbound.rs/connection.rs: if the writer thread exits because sink.write_all itself fails (a genuinely broken socket, not the covered "client never reads" case), nothing marks Outbound closed or notifies the reader - the reader keeps calling enqueue_control successfully until the queue reaches CONTROL_CAP (256), so up to 256 replies can be computed and queued with no one ever draining them before the connection is noticed and closed. For a local Unix-domain socket this window is probably moot in practice (a write failure and a read failure on the same fd pair tend to arrive together), but it is an unstated assumption, not a tested property.
+
+No findings on: the reader/writer shape and thread joining on every path I checked (ordinary close, every hostile-input case, a stop() mid-request, a panic in Runtime::handle - confirmed via the existing tests and via runtime.rs's own poison-recovery test); the Runtime's lifetime and thread::scope ordering on both the happy path and the listener-accept-error path; Context::none() and the BadRequest refusal (both the no-target and partial-target cases are tested, including the real-NoSuchTarget negative case); AC#1-4 each have a real test and (except AC#4, proven by the diff itself as the plan says) a negative control I could verify at least one of (writer priority, reproduced failing then reverted). No unsafe, boundaries.toml untouched, ServerConfig's two new fields default to the real launcher/login. Hostile-input coverage (malformed frame, reply-shaped frame, second hello, oversized frame, frame on an unopened stream) each has its own test; none missing from the plan's own list.
+
+Overlap (none merged as of this head): TASK-1.77 (PR 44) touches only listen.rs's resolve_socket_path, unrelated to this task's own changes to run()'s body - trivial, no real conflict. TASK-1.78 (PR 47) rewrites Runtime::stop() immediately adjacent to where this task inserts connect_client/disconnect_client, and both edit runtime.rs's import list - a real textual merge conflict is likely for whichever merges second, but the two sets of changes are logically independent (client-tracking vs. forced-close) and TASK-1.78's own dispatch/lookup.rs additions (panes_in_close_scope, any_pane_running) call target_session/tab/pane and inherit this task's Option-based refusal automatically, with no adaptation needed - I see no conflict in meaning, only in text. TASK-1.84 (PR 46) touches runtime.rs's State struct and adds free functions/tests in regions that don't obviously overlap this task's own edit points, beyond the shared import list - lower risk, not fully traced line by line. Section 4's lock-serialization claim (two connections' mutating calls fully serialize on Runtime's one Mutex<State>) is explicitly named in the plan as inherited and unmeasured, not this task's to fix; I confirmed from TASK-1.78's own diff that its forced-close grace-period wait is deliberately released lock-free before force_end runs (drop(state) before force_end), so that specific future case does NOT block other clients - the plan's narrower, still-true claim is about ordinary synchronous dispatch (e.g. a pty open+fork under session.new), which this task did not change.
 
 ---
 <!-- COMMENTS:END -->

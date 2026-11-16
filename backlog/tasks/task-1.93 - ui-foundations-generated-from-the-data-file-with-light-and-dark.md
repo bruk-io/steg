@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:06:00Z'
+updated_date: '2026-11-16T04:07:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1010,6 +1010,14 @@ ok      build (gallery) (0.3s)
 ok      gallery image (light) (0.5s)
 ok      gallery image (dark) (0.5s)
 GALLERY_PROCESSES_AFTER: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.94-check-worktree'"'"' && uv run --project tools steg-ui-colours'` exited 0 at 2026-11-16T04:07:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCFDk5U` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 ```
 
 Commits since the review: 0.

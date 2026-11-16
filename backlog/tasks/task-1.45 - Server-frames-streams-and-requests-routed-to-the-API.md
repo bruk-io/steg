@@ -1,7 +1,7 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
@@ -15,6 +15,9 @@ dependencies:
   - TASK-1.70
   - TASK-1.75
   - TASK-1.76
+references:
+  - task-1.45-server-frames-streams-and-requests
+  - https://github.com/bruk-io/steg/pull/50
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -846,6 +849,36 @@ ok      tool tests (1.1s)
 ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ```
+
+Built as planned (plan digest 1007366d16d6, approved by @bruk), with two departures found and fixed while proving it, both disclosed below with their negative controls.
+
+Coverage against the four acceptance criteria, clause by clause:
+
+AC #1 (a frame over the cap is refused without allocating): unchanged sdk behaviour (crates/sdk/src/wire/frame.rs, not touched), proven at the server's post-handshake loop by routing.rs's an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection. Negative control: a scratch edit disabling frame.rs's own cap check (`if false && declared_len > MAX_FRAME`) made the test fail by its own 2s bound (WouldBlock, not a close) - recorded failing, then reverted; `git diff --stat crates/sdk/` is empty at every commit after.
+
+AC #2 (a request reaches the API and its response or error comes back with the same id): routing.rs's a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id (a real session.list call via the sdk's own Connection) and a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error (a hand-encoded bad method name, proving the server's own validate runs independently of the client's pre-send check, with the error carrying the same id).
+
+AC #3 (control written before data, shown by a test): two parts, since Outbound is pub(crate). Part 1, outbound.rs's own a_genuine_flood_on_a_data_stream_never_delays_a_control_reply - a real Barrier-synchronised flood of 5,000 1KB frames already queued before the writer starts, with the control reply still arriving promptly (well under 500ms). Negative control: reversing pop_next's own priority (data before control) made this test and control_is_drained_before_any_data_even_when_data_was_enqueued_first fail - recorded, then reverted. Part 2, routing.rs's several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies, proving the real connection::handle path (not a parallel mechanism) routes every reply through this same Outbound.
+
+AC #4 (framing/handshake/stream state come from the sdk; the server adds only the socket and routing): no line of protocol logic added anywhere in this task's diff - connection.rs's post-handshake loop is one match on the sdk's own Incoming variants, named explicitly (not a wildcard), confirmed by the diff itself and by cargo tree/grep showing no crates/sdk file changed at any commit.
+
+Departures found while building, both disclosed when found, both with a negative control recorded then reverted:
+
+1. ConnectionCleanup's Drop (connection.rs) originally only called Outbound::close() before joining the writer. A writer thread blocked inside write_all on a full OS send buffer (a client that floods requests and never reads any reply) never sees that notify - found by writing exactly that test. Fixed by giving the cleanup guard a second try_clone'd handle solely to call shutdown(Both) before the join, the same mechanism listen.rs's own shutdown_handle already relies on for a blocked read, now proven for a blocked write too. Negative control (removing the shutdown call) recorded timing out (exit 124) at 15s; restored and re-recorded passing.
+
+2. routing.rs's own flood test had two unbounded waits (a write loop with no write timeout, a drain loop bounded only per-read, not overall) - the same per-operation-vs-whole-wait gap TASK-1.44's review found in the handshake timeout, reintroduced here by me. Reproduced hanging past 60s under real concurrent build load on the dev machine, confirmed six times, with every other test in the file finishing in under a second regardless - not host noise, a real bug in my own test. Fixed with a 2s write timeout and one 10s overall deadline on the drain loop; the same one-deadline shape is now shared (read_n_replies helper) by every multi-reply wait in the file. Verified 10/10 repeated runs of the flood test alone and 10/10 of the whole file after the fix, all passing in 0-3s.
+
+Context (dispatch/mod.rs, dispatch/lookup.rs): the connection's default session/tab/pane are Option<...>, not a sentinel id - nothing on the wire supplies one today (the hello carries only kind/label), and the engineer's own review of the plan rejected a `u64::MAX` sentinel reaching a client; target_session/tab/pane refuse with BadRequest naming the missing part when no target is given and the default is None; a partial target needing an absent default is remapped the same way via an internal-only sentinel passed to the kernel's own resolve_tab_path/resolve_pane_path (required by signature) and caught before it can reach a response. Proven in dispatch/lookup.rs's own tests (a_target_less_request_from_context_none_is_bad_request_for_every_part and siblings), with a negative control (reverting to the old unchecked default) recorded failing then reverted.
+
+Runtime/listen.rs (§1): Runtime is one plain value per server process, never behind an Arc - listen::run wraps the accept loop and shutdown-and-join pass in std::thread::scope, each connection borrows &runtime, and runtime.stop() runs explicitly only after the scope returns (the borrow checker itself refuses this to compile while any connection might still hold the borrow). A panic inside Runtime::handle is defended by Runtime::lock's existing poison recovery, proven directly in runtime.rs (a real panic on another thread while holding the lock, then a later call still succeeds) with its own negative control (propagating the poison instead) recorded aborting the test process, then reverted.
+
+Checks recorded on this task, in order: just check (baseline, before any change); cargo test -p steg-server --lib --tests --features race-fixture after each of the Context, Outbound, config/Runtime, and connection/listen.rs commits; the negative control for the Context refusal (failing), restored (passing); the negative control for the writer priority (failing), restored (passing); the negative control for the AC #1 cap (failing), restored (passing); the negative control for the shutdown_handle fix (timeout, exit 124), restored (passing); the negative control for the panic/poison recovery (process abort), restored (passing); 10 consecutive runs of the flood test alone and 10 of the whole routing.rs file after the wall-clock-bound fix; just check at the rebased final head (3cada1b0, matching PR #50's own headRefOid) - green, all 19 steps.
+
+No file under crates/sdk or crates/kernel changed. origin/main was rebased in cleanly (the branch had never been pushed); neither TASK-1.77 nor TASK-1.78 had merged any code as of this head, confirmed by checking origin/main's own recent history before pushing - nothing to adapt to.
+
+Left out, by task, as the plan named: events and subscriptions (TASK-1.46); attach, screen-mode streams, the real drop-and-resync policy Outbound's data side is built for but not yet exercised by production code (TASK-1.47); the CLI and any real per-connection context (TASK-1.49); start-on-demand, detach, the login shell from the password database (TASK-1.77). The absence of a post-handshake per-frame deadline is this task's own chosen design (a trickling client is indistinguishable from an idle one, by intent), not a gap handed to another task - proven never-closed by routing.rs's own a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed.
+
+PR: https://github.com/bruk-io/steg/pull/50. CI green (check, 3m4s) at the final head.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

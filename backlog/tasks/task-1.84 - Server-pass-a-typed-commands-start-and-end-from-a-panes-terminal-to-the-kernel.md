@@ -3,11 +3,11 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:00:00Z'
+updated_date: '2026-11-16T01:03:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -15,6 +15,9 @@ dependencies:
   - TASK-1.79
   - TASK-1.76
   - TASK-1.83
+references:
+  - task-1.84-server-pass-a-typed-command-s-start-and
+  - https://github.com/bruk-io/steg/pull/46
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -475,6 +478,20 @@ ok      tool tests (1.1s)
 ok      architecture (1.1s)
 ok      recipe names (0.0s)
 ```
+
+Built as planned (approved digest 33f0386d0f53), with the one departure the plan check named: no drain after Terminal::resize - a resize can only ever queue Event::PtyWrite, never Event::SemanticPrompt, so there is nothing for it to drain and nothing to test; the kernel's terminal.rs doc fix says "drained after every write" to match.
+
+Coverage, clause by clause:
+
+#1 (kernel wiring, read through the kernel - the wire half is TASK-1.89's): crates/server/src/pane.rs's worker_loop drains Terminal::take_command_marks after every write and sends PaneEvent::CommandOutputStarted/CommandEnded on the same `events` channel Exited already uses - one sender per pane, so mpsc's FIFO order is the proof a mark can never be applied after that pane's own exit, not a lock. crates/server/src/runtime.rs's apply_event_locked applies them through Tree::note_command_output_started/note_command_ended with `now` computed the same way Exited's arm already does. A mark's PaneNotFound is a deliberate no-op (does not remove the PaneHandle, unlike Exited's own arm) - proven by a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic. Tree::tab_shown_status is asserted directly in a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it.
+
+#2 (shown end to end, real shell, real pty): a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it, a_typed_command_that_fails_is_failed_with_its_exit_code, a_typed_command_still_running_stays_running_until_told_otherwise, a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives (all four in crates/server/src/runtime.rs, each driving a real Runtime and a real pty program printing real OSC 133 directly - no shell integration exists yet, TASK-1.85's own job). Two more beyond the four named shapes, for the orderings criterion 1 argues: a_mark_then_the_shells_own_real_exit_cascades_with_no_panic (mark then the pane's own real exit, same channel, same pane) and a_command_panes_own_program_printing_marks_does_not_change_its_status (R97: a command pane's own program always wins over a mark).
+
+#3 (no leak): every test above drives a real Runtime and lets Drop (or the test's own explicit handle.stop()) end what it started; none of this change adds a new thread or process of its own - marks ride the existing events channel and drain thread.
+
+Checks recorded on this task: a baseline `just check` (exit 0) before any change; a failing `cargo check -p steg-server --tests` (exit 101, non-exhaustive match) before apply_event_locked's new arms existed; a passing `cargo test -p steg-server --lib runtime::tests` (exit 0, 18 tests) once they did; three negative controls, each applied, confirmed failing, and restored - (a) the drain call after terminal.write removed (the three mark tests fail, exit 101), (b) the CommandEnded arm made a no-op (succeeds/fails fail, and still-running's own second half - sending the end mark itself and watching the status move - fails too, while its first half still passes; this is what makes that one test able to tell CommandOutputStarted's own arm from CommandEnded's), (c) the no-marks test's own built-in control (feeding one real mark at the end) also fails under (a)'s removed drain, confirmed separately; a final `just check` (exit 0) at the merged, pushed head.
+
+TASK-1.78 (forced close) was still In Progress, not merged, at every check above and again just before pushing - the mark-for-a-pane-already-gone test's own comment ("until TASK-1.78 lands") still matches the repository's current state; nothing to re-read against a merge that hasn't happened yet. origin/main moved twice while this was in flight (once before the first push - rebased cleanly, no code touched; once after - merged, board-only files, no code touched); `just check` was re-run and recorded clean at the final head before the final push, and CI is green on that same head (7f6ab3a).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

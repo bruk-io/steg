@@ -307,7 +307,7 @@ fn session_methods() -> Vec<Method> {
             details: String::new(),
             params: vec![
                 target("The session to change. Defaults to the current session"),
-                flag("label", ValueKind::Text, false, "The session's label"),
+                switch("label", "The session's label"),
             ],
             returns: Returns::Nothing,
             errors: vec![
@@ -520,7 +520,7 @@ fn tab_methods() -> Vec<Method> {
             details: String::new(),
             params: vec![
                 target("The tab to change. Defaults to the current tab"),
-                flag("label", ValueKind::Text, false, "The tab's label"),
+                switch("label", "The tab's label"),
             ],
             returns: Returns::Nothing,
             errors: vec![
@@ -723,7 +723,7 @@ fn pane_methods() -> Vec<Method> {
             details: String::new(),
             params: vec![
                 target("The pane to change. Defaults to the current pane"),
-                flag("label", ValueKind::Text, false, "The pane's label"),
+                switch("label", "The pane's label"),
                 switch("zoomed", "Whether the pane fills its tab"),
             ],
             returns: Returns::Nothing,
@@ -1794,6 +1794,36 @@ mod tests {
                     assert_eq!(target.value, value, "{dotted}'s target value kind");
                 }
             }
+        }
+    }
+
+    /// TASK-1.49's own fix: `unset --label` used to be a value-taking flag
+    /// whose value `dispatch` discarded (`param_present`, not `param_str`),
+    /// forcing a script to type one anyway. It is a switch now, like
+    /// `pane.unset`'s own `zoomed` already is - `--label`/`--no-label` are
+    /// both accepted and both clear it (`dispatch/pane.rs`'s own comment:
+    /// "`unset` always clears, regardless of the switch's own boolean
+    /// value"), with no value required at all. `session.set`/`tab.set`/
+    /// `pane.set`'s own `label` stays `Flag`/`Text` - only `unset` changes,
+    /// since `set` genuinely needs the new label's text.
+    #[test]
+    fn unset_s_label_is_a_switch_not_a_value_taking_flag() {
+        let api = description();
+        for dotted in ["session.unset", "tab.unset", "pane.unset"] {
+            let method = api
+                .method(dotted)
+                .unwrap_or_else(|| panic!("{dotted} is not described"));
+            let label = method
+                .params
+                .iter()
+                .find(|p| p.name == "label")
+                .unwrap_or_else(|| panic!("{dotted} has no label param"));
+            assert_eq!(label.role, Role::Switch, "{dotted}'s label role");
+            assert_eq!(
+                label.value,
+                crate::description::shapes::ValueKind::Boolean,
+                "{dotted}'s label value kind"
+            );
         }
     }
 }

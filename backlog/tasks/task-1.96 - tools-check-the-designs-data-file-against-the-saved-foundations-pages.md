@@ -170,6 +170,14 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp5eNB2P` does not 
 ..........................                                               [100%]
 26 passed in 0.01s
 ```
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T02:43:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at f99466903b08 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6velY9` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+....                                                                     [100%]
+4 passed in 0.07s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

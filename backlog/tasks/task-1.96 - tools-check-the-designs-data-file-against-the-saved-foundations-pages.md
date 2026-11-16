@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:21:00Z'
+updated_date: '2026-11-16T02:23:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -33,7 +33,7 @@ Split from TASK-1.92 on 2026-11-15. doc-17 (R121, R122). The tool follows the ex
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-One reviewable change. New module `tools/src/steg_tools/foundations.py`, CLI `steg-foundations-check`, recipe `check-foundations`, in `just check`.
+One reviewable change. New module `tools/src/steg_tools/design_pages.py`, CLI `steg-design-check`, recipe `check-design`, in `just check`.
 
 ## What "appears under the same name and value" can mean, settled from the actual markup
 
@@ -56,7 +56,7 @@ Verified against the real files (not assumed): on Tokens.dc.html there are exact
 **Tier B - name present, every number in the file's entry found in that same name's value cell (not page-wide - scoped to the one row):**
 The 2-column rows whose name matches a file key exactly: `type.font.ui`, `type.font.terminal`, `type.terminal`, `type.ui.body`, `type.ui.small`, `type.ui.label`, `type.palette.input`, `sizes.space`, `sizes.nav.side`, `sizes.nav.top`, `sizes.tab.width`, `sizes.pane.gap`, `sizes.pane.caption`, `sizes.palette`, `sizes.status.ring`, `sizes.scrim`. A file entry's numbers are every int/float reachable in its JSON value (ignoring `ref`/`use`/`unit` string fields). `font.ui`/`font.terminal` are the only two Tier B entries with zero numbers to check, so for those two specifically this degrades to a name-presence check - documented here so a reader doesn't wonder which others silently degrade; every other Tier B entry has at least one number checked. `sizes.scrim` has a row on both Tokens.dc.html ("Sizes, spacing and corners") and Layout.dc.html's Overlay card; since Layout is out of scope entirely (above), Tokens' row is the one checked - stated once here as the rule, not decided by whichever page the parser happens to read first. A file key that somehow matched a name on more than one *in-scope* page would itself be a refusal (ambiguous match), not a silent first-match-wins; today this never happens; the module's test suite asserts it stays that way. This is deliberately weaker than Tier A: it cannot see that a number landed in the wrong field, only that it's present somewhere in the row's own sentence.
 
-**Tier C - declared unseen, each with its own one-line reason, printed by `steg-foundations-check` itself (not just the README) so passing is never silently read as "fully checked":**
+**Tier C - declared unseen, each with its own one-line reason, printed by `steg-design-check` itself (not just the README) so passing is never silently read as "fully checked":**
 - `track` (no named row anywhere in the body), `colour_aliases` (`blocked`/`done`/`error`: script-only), `opacities.faint` (script-only).
 - `ramps` (`ramp`, `ramp.extended`): the gradients are drawn but their per-stop percentages are not in rendered text, only in the script's `ramp6`. `ramp.caption_opacity` (50%/40% appears in Rules prose, with no name column).
 - `tint`: drawn as Layout's Track card row named `fill` ("The session colour at 18%"), not under the name `tint`, and Layout is out of scope (above).
@@ -77,21 +77,25 @@ Enumerate rows only from the Tier A/B table shapes above (Tokens.dc.html's four 
 
 Against this restricted list, an explicit, reviewed allow-list of page-named values deliberately absent from the file (currently empty - everything on Tokens/Details maps to a file entry today; the table exists so a future addition becomes a deliberate edit to it, not a silent exemption). A name on the restricted list that is in neither the file nor the allow-list is reported as missing, naming the value, its form on the page, and which page - this is `radius.round`'s exact scenario from TASK-1.92, now automatic.
 
-## Module shape (mirrors boundaries.py: pure comparison, thin shell)
+## Module shape (mirrors boundaries.py: pure comparison, thin shell) - reuses TASK-1.94's reader, does not duplicate it
 
-`tools/src/steg_tools/foundations.py`:
+TASK-1.94 (approved, building) is adding `tools/src/steg_tools/foundations.py`: `read(path) -> Foundations` (a frozen dataclass parse of `crates/ui/design/foundations.json`) and `hex_index(foundations) -> dict[str, tuple[NamedColour, ...]]`, resolving one level of `{"ref": ...}`. **This task imports that module for reading the data file; it does not write its own JSON loader.** `tier_a_mismatches`/`tier_b_mismatches`/`reverse_missing` below take a `Foundations` (TASK-1.94's type), not a raw `dict`.
+
+Build-time ordering, stated now so it isn't improvised later: if TASK-1.94's `foundations.py` has merged to `main` by the time this task builds, import it directly. If it has not, build against a minimal private shim inside this module (a few lines: `json.loads` plus the handful of fields this tool actually reads - colours, type, sizes, themes) under a name that cannot collide (`_fallback_read`), delete the shim and switch to the real import on the next rebase onto `main` once TASK-1.94 has landed. This task does not wait on TASK-1.94's merge to start building; it only waits to delete the shim.
+
+`tools/src/steg_tools/design_pages.py`:
 - `@dataclass(frozen=True)` row types: `ColourRow` (name, dark, light), `AnsiRow` (theme, name, hex), `SentenceRow` (name, text, numbers). A parsed page is `@dataclass(frozen=True) class Page: colours: tuple[ColourRow,...]; sentences: tuple[SentenceRow,...]; ansi: tuple[AnsiRow,...]`.
-- `parse_page(html: str) -> Page` - pure, stdlib `html.parser.HTMLParser` only (no new dependency: `tools/pyproject.toml`'s `dependencies = []` stays empty), keyed on header-row cell text as above.
+- `parse_page(html: str) -> Page` - pure, stdlib `html.parser.HTMLParser` only (no new dependency beyond what TASK-1.94 already adds to `tools/pyproject.toml`), keyed on header-row cell text as above.
 - `@dataclass(frozen=True) class Mismatch`: name, file_form, page_form, page. `@dataclass(frozen=True) class Missing`: name, page_form, page (reverse direction). `@dataclass(frozen=True) class Skipped`: name, reason (Tier C).
-- Pure functions: `tier_a_mismatches`, `tier_b_mismatches`, `reverse_missing`, each `(data: dict, pages: dict[str, Page]) -> tuple[...]`, taking already-parsed data, no I/O.
-- Thin `main()`: reads `crates/ui/design/foundations.json` and the three pages from disk (only I/O in the module), calls the pure functions, prints one line per `Mismatch`/`Missing` (naming the value, both forms, the page) and the Tier C summary, exits 1 if any `Mismatch`/`Missing`, 0 otherwise.
+- Pure functions: `tier_a_mismatches`, `tier_b_mismatches`, `reverse_missing`, each `(foundations: Foundations, pages: dict[str, Page]) -> tuple[...]`, taking an already-parsed `Foundations` and already-parsed pages, no I/O.
+- Thin `main()`: calls `steg_tools.foundations.read(...)` for the data file and reads the three pages from disk (only I/O in the module), calls the pure functions, prints one line per `Mismatch`/`Missing` (naming the value, both forms, the page) and the Tier C summary, exits 1 if any `Mismatch`/`Missing`, 0 otherwise.
 
-`tools/pyproject.toml`: add `steg-foundations-check = "steg_tools.foundations:main"` to `[project.scripts]`.
-`justfile`: add `check-foundations` (same shape as `check-boundaries`, line ~160) and add it to `check:`'s dependency list (line 36).
+`tools/pyproject.toml`: add `steg-design-check = "steg_tools.design_pages:main"` to `[project.scripts]`. No new dependency of this task's own.
+`justfile`: add `check-design` (same shape as `check-boundaries`, line ~160) and add it to `check:`'s dependency list (line 36).
 
 ## Proof (every line here is a test in the build, or it's dropped and said so in the notes)
 
-`tools/tests/unit/test_foundations.py` (pure, in-memory HTML fragments and dicts, no doubles):
+`tools/tests/unit/test_design_pages.py` (pure, in-memory HTML fragments and dicts, no doubles):
 - A 4-column `Name/Dark/Light/Used for` fragment parses to the right `ColourRow`s.
 - A 2-column `Name/Value` fragment parses to the right `SentenceRow`s, numbers extracted correctly.
 - An ANSI swatch card fragment parses to `AnsiRow`s, scoped per theme section.
@@ -101,17 +105,17 @@ Against this restricted list, an explicit, reviewed allow-list of page-named val
 - Reverse: a page name on the restricted list absent from both the file and the allow-list -> one `Missing`; a name on the allow-list absent from the file -> not reported; a Layout-only name -> never considered at all (not even constructed from Layout.dc.html's fragment).
 - Tier C: each declared-skip name produces exactly one `Skipped` with a non-empty reason, never a `Mismatch` or `Missing`.
 
-`tools/tests/adapter/test_foundations_real_workspace.py` (precedent: `test_affected_real_workspace.py`): `main()` against the real `crates/ui/design/foundations.json` and the real three pages exits 0 today.
+`tools/tests/adapter/test_design_pages_real_workspace.py` (precedent: `test_affected_real_workspace.py`): `main()` against the real `crates/ui/design/foundations.json` and the real three pages exits 0 today.
 
 Negative controls (via `tmp_path` copies of the real file, per team:testing - the repository's real pages stay untouched, only the data-file copy is mutated):
 - One colour's dark hex changed in the scratch copy -> exits 1, naming the value and both forms.
 - One colour entry removed from the scratch copy -> exits 1, reported as missing (reverse direction, run against the *real* pages which still draw it).
 
-`just check` and CI: `check-foundations` added to `justfile`'s `check:` list; no separate CI wiring needed since `check-foundations` runs inside `check`, already gated in CI.
+`just check` and CI: `check-design` added to `justfile`'s `check:` list; no separate CI wiring needed since `check-design` runs inside `check`, already gated in CI.
 
 ## Overlaps with TASK-1.93 and TASK-1.94
 
-Both touch `tools/pyproject.toml`'s `[project.scripts]` table and `justfile`'s `check:` line - three tasks landing on the same two lines is the likely merge conflict, not a design overlap; each adds its own script/recipe name, so a textual merge resolves it. `affected.py`'s `GLOBAL_FOLDERS` already includes `tools/`, so this change (like 1.93/1.94's) selects `test: all` rather than picking crates by diff - expected, not a defect to fix here. No functional overlap: 1.93 writes `generated.rs` from the data file (consumes the file, doesn't check it against pages), 1.94 adds crate-level checks inside `crates/ui` (R117/R119/R120, nothing about the design pages).
+**TASK-1.94 is a real functional dependency, not just a naming overlap**: this task imports `steg_tools.foundations.read()` (TASK-1.94's shared reader) instead of writing its own, per the above - TASK-1.94's own plan already names this task as the reason it built `foundations.py` as a shared module rather than inlining the reader into its own checks. Beyond that, both TASK-1.93 and TASK-1.94 touch `tools/pyproject.toml`'s `[project.scripts]` table and `justfile`'s `check:` line - three tasks landing on the same two lines is the likely merge conflict on top of the functional dependency; each adds its own script/recipe name, so a textual merge resolves it. `affected.py`'s `GLOBAL_FOLDERS` already includes `tools/`, so this change (like 1.93/1.94's) selects `test: all` rather than picking crates by diff - expected, not a defect to fix here. No other functional overlap: 1.93 writes `generated.rs` from the data file (consumes the file, doesn't check it against pages), 1.94's two checks are about `crates/ui`'s own source (R117/R119/R120), nothing about the design pages this task reads.
 
 ## For the engineer to decide
 
@@ -120,4 +124,5 @@ Both touch `tools/pyproject.toml`'s `[project.scripts]` table and `justfile`'s `
 1. Rendered body only, never the script block - confirmed from the actual markup, not assumed; flagging because it's the one choice that determines whether `track`/`off`/`faint`/the aliases are "missing" or "out of scope."
 2. The `radius.*` Tier C call: four file keys, one merged page row, no 1:1 map. Alternative is a hand-maintained `{"sizes.radius.surface": "radius", ...}` name-map reviewed and committed alongside - more coverage, more to keep honest by hand. Recommending Tier C (simpler, and the merged row's own numbers (14/10/8) still don't individually tie to a key without the map anyway).
 3. The reverse-direction allow-list starts empty. Any future page addition with no file entry is a deliberate choice to extend that table, not silence - worth confirming that's the intended failure mode (refuse first, allow-list second) rather than warn-only.
+4. Decision 0's gap is in the design's own page, not in this tool or the data file: `track` is a named colour of the design with no named row on Tokens.dc.html. Correcting the artifact (adding a `track` row to the colours table, the same kind of correction TASK-1.92 already made twice for `off` and the scrim sentence) is the engineer's to ask for, not this task's to do. Until the artifact is corrected, `track` stays a declared Tier C exception rather than something this task works around.
 <!-- SECTION:PLAN:END -->

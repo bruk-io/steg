@@ -1,15 +1,18 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:31:00Z'
+updated_date: '2026-11-16T01:57:00Z'
 labels:
   - size-3
 milestone: m-4
 dependencies: []
+references:
+  - task-1.92-ui-the-design-s-named-values-as-one-data
+  - https://github.com/bruk-io/steg/pull/49
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -17,6 +20,10 @@ asdlc_branch: task-1.92-ui-the-design-s-named-values-as-one-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b3ded099a9d8'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -249,6 +256,115 @@ ok design/canvas/project/Tokens.dc.html
 ok design/canvas/project/Layout.dc.html
 ok design/canvas/project/Details.dc.html
 ```
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-shape-check.py crates/ui/design/foundations.json` exited 0 at 2026-11-16T01:31:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 1c9f374426a1 with uncommitted changes:
+
+```text
+OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 17 size entries, 1 motion entries, 2 themes)
+```
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-colour-check.py crates/ui/design/foundations.json design/canvas/project/Tokens.dc.html` exited 0 at 2026-11-16T01:31:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 1c9f374426a1 with uncommitted changes:
+
+```text
+OK: all 18 colours' names and both hex values found in design/canvas/project/Tokens.dc.html
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:32:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Built per the approved plan (digest b3ded099a9d8), with one build-phase departure the team lead directed: focus_ring.radius_formula (a string formula) replaced with focus_ring.corner_radius_addition: 4 (a plain number) — the plan's string-formula sketch was exactly what AC#2 rules out, something a program must parse out of prose.
+
+While restoring the plan to match the approved digest after an inadvertent post-approval wording edit, I found and fixed a real value error in my own draft before writing crates/ui/design/foundations.json: I had truncated the six ramp colours' names from the design's own 'ramp.1 violet' etc. to bare 'ramp.1', which AC#4 ('no value is changed') and AC#1 ('under the design's own names') both rule out. Fixed before committing; the committed file uses the design's exact names throughout.
+
+What was built, matching the plan:
+- crates/ui/design/foundations.json: 18 colours (the design's 17 plus track; off excluded per the engineer's decision, since nothing in the corrected artifact draws it), 3 colour aliases, 1 opacity (faint), 2 ramps plus caption_opacity and tint, 7 type entries, 17 size entries (10 plus radius split three ways plus 5 Layout-page-only entries), 1 motion entry, 2 themes with 16 named ANSI colours each and a session-colour reference for cursor, and the focus ring. artifact_version: 1794791991-5d11.
+- design/canvas/: the pre-correction working foundations.json, gen_system.py and its one dependency rebuild_main.py (copied unchanged from the 2026-11-15 backup), and the three foundations pages at the corrected artifact version (copied unchanged from design-artifact-pages-1794791991-5d11). README.md says what's current, what's history, and that the artifact is the source, per the plan.
+
+Checks recorded on this task (all exit 0):
+- just check, before any change (baseline)
+- checksum verification: all 6 copied files byte-identical to their sources in ~/.claude/projects/.../design-canvas-backup-2026-11-15 and .../design-artifact-pages-1794791991-5d11
+- ad hoc shape check (not TASK-1.96's tool): every colour has name/dark/light as 6-digit hex, every numeric value is a real number never a string with an embedded unit, both themes have exactly 16 named ANSI colours
+- ad hoc colour check (not TASK-1.96's tool): all 18 colours' names and both hex values found in the saved Tokens.dc.html
+- just check at the final head (dc9f98533d16), after rebasing onto origin/main (TASK-1.91's crates/ui work had not yet merged to main at rebase time, so there was nothing to reconcile; the rebase was clean)
+
+The tested tool that checks the data file against the saved pages by name and value, with a negative control, is TASK-1.96 (not this task) — noted in the plan and in the PR description, not built here.
+
+CI green on the final head (dc9f98533d16): gh pr checks 49 --watch, 'check' passed in 3m11s.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-shape-check.py crates/ui/design/foundations.json` exited 0 at 2026-11-16T01:54:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 18 size entries, 1 motion entries, 2 themes)
+```
+
+Commits since the review: 0.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-colour-check.py crates/ui/design/foundations.json design/canvas/project/Tokens.dc.html` exited 0 at 2026-11-16T01:54:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: all 18 colours' names and both hex values found in design/canvas/project/Tokens.dc.html
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:54:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 91d4e877b240:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.5s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 30, 29 without the Asdlc-Worker trailer.
+
+Review findings fixed (@bruk.r3, 1 Important, 2 nits). Plan section untouched.
+
+1. [Important, fixed] Removed sizes.overlay.layout.max_height_percent_of_window: 60. doc-10's not-yet-confirmed list bundles the overlay's max-height-as-percent-of-window with its 40px-clear-below-720px rule as one bullet, not two settled values; I'd correctly left out the 40px half but exported the 60% half as settled anyway, breaking AC#2 and departing from the plan's own instruction to point at doc-10's list rather than re-decide it. Re-read doc-10's whole not-yet-confirmed list against the data file line by line as asked: the smallest pane (200x110), the pane header's three breakpoints (360/260/200), the status bar's roll-out (250ms), the failure flakes' count/timing, and the pressed state's darkening are all absent from the data file, as they should be - nothing else from that list had slipped in.
+
+2. [Nit, fixed] Every reference now uses the uniform wrapped form {"ref": "<name>"}: colour_aliases' ref field, both ramps' stops[].colour, status.ring.track_colour, scrim.light.colour, track.layout.fill.colour, track.layout.radius_outer/radius_inner. bg_inactive already used this form. Added crates/ui/design/README.md stating the rule once: a reference is always {"ref": "<name>"} naming any colour, size key, or tint in the file; the two exceptions are a bare hex literal and the literal "session". Extended the ad hoc shape check to assert every {"ref": ...} anywhere resolves to a name that exists, and that every colour-position field (colour/track_colour/cursor) is one of exactly those three forms - sanity-tested by corrupting one ref and confirming the check fails before trusting it to pass.
+
+3. [Nit, fixed] Added sizes.radius.round: {"shape": "round"} for the radii card's fourth swatch (999px "fully round: chips of colour, bars", Tokens.dc.html/gen_system.py:372) that was drawn but had no data-file entry; noted in the file that the name radius.round is the orchestrator's choice, which the engineer may change. Checked every other card on the three foundations pages the same way (Type's specimens - all already in type{}; the ramp/extended-ramp gradient bars; both terminal themes' 16-colour samples and base text; the focus ring's interactive states) for a captioned value with no entry: found none beyond this one.
+
+Checks re-recorded after the fixes: the two ad hoc checks (shape, colours-in-page) against the corrected file, and just check at the final head (91d4e877b240) after merging origin/main (branch was already pushed, so merged rather than rebased; TASK-1.91's crates/ui work still hadn't merged to main, so no overlap - diff stayed disjoint). CI green on that same head (gh pr checks 49 --watch, 2m13s). PR 49's description updated with the corrected section-by-section counts (colours 18, sizes 18 now with radius.round, etc).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -292,6 +408,45 @@ created: 2026-11-16T01:25:00Z
 ---
 
 Departure from the approved plan's wording, not its substance (restored the plan's exact approved text after accidentally re-saving it with these three clarifications past the approval; the plan itself is unchanged from digest b3ded099a9d8): (1) the off colour section notes it is still defined as an unused colour token in each page's own inline theme data, not just absent from drawing; (2) the generator-scripts README guidance says plainly they are how the pages were first drawn, not a way to regenerate them without losing the hand edit Bruk made to Tokens.dc.html since; (3) same point restated in the design/canvas/README.md bullet list. None of these change what is exported, what is excluded, the schema, or the file layout - they only make the README's wording match what the plan already decided.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T01:37:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.92: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T01:48:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/ui/design/foundations.json:217 exports overlay.layout.max_height_percent_of_window: 60. doc-10's "Values... not yet confirmed" lists this in the same bullet as the palette's 40px-clear-below-720px rule ("growing to at most 60% of the window's height"); R79 says neither is settled until Bruk says so. The approved plan itself (section 1, Durations/easings) says to carry this specific item forward by pointing at doc-10's list, "don't re-litigate or re-decide them here" - and the build correctly left out the 40px-clear half but exported the 60%-height half as a settled measurement anyway. That both breaks AC#2 ("anything the design does not actually fix is listed as a question and not guessed") and is an unremarked departure from the plan's own instruction.
+
+[Compliance, Nit] Reference-format inconsistency the plan itself introduces inconsistently and the build follows literally: bg_inactive is wrapped {"ref": "surface.pane"} (plan section 2) while scrim.light.colour ("text"), status.ring.track_colour ("track") and track.layout.fill.colour ("tint") are bare strings - and the plan's own table (section 1) specified {colour: {ref: "text"}, opacity: 0.28} for scrim.light, not the bare string the committed file has. track.layout.fill.colour: "tint" and track.layout.radius_outer: "radius.track" also reference names outside colours[] (a top-level key and a sizes key respectively), which the three-way colour-field rule in section 2 (foundations colour name / #-literal / "session") doesn't literally cover. TASK-1.93's generator will need to special-case more than one representation for what is conceptually the same "reference" concept.
+
+[Compliance, Nit] Tokens.dc.html's radii card (gen_system.py:372) draws a fourth corner value, 999px "fully round: chips of colour, bars", alongside the three (14/10/8) that are in foundations.json's radius.surface/track/inner. It isn't in the working foundations.json's "radius" sentence either (which only lists the three), so it reads as an unnamed shape idiom rather than a design-named value, and I'd treat its omission as acceptable - but it is a value drawn on the page with no entry in the data file, so noting it per the review brief's ask.
+
+Everything else checked independently and found correct, at head dc9f98533d16 (matches both the task's recorded `just check` and PR 49's headRefOid; CI "check" is SUCCESS on this head):
+- All 18 colours (the 17 plus track), both hex forms and the design's own names (including the ramp colours' full names, "ramp.1 violet" etc, not truncated), found in design/canvas/project/Tokens.dc.html and in the working design/canvas/foundations.json/gen_system.py, by independently grepping every hex value and cross-checking names - not by relying on the worker's recorded shape/colour-check scripts.
+- Both ramps' stops (including the short ramp skipping ramp.3 red) and both ramp-derived opacities (caption_opacity 0.50/0.40, tint 0.18) confirmed against gen_system.py's `ramp`/`ramp6`/`ramp50` gradient literals and the `TINT` alpha-suffix source.
+- All 16 ANSI colours of both themes, checked by name as well as by hex presence: gen_system.py:385's `nm` list (black..white, normal 0-7 then bright 8-15) against design/canvas/foundations.json's `ansi` arrays and the committed named entries, position by position - all 16 match in both themes.
+- The three corner sizes (14/10/8), the scrim (#050508 at 60% dark; text colour at 28% light), and the one duration (200ms) all confirmed against the corrected pages (both Tokens.dc.html and Layout.dc.html say "#050508 at 60% in dark, ink at 28% in light", not the stale "Black" sentence still present in the working design/canvas/foundations.json, exactly as the plan's section 4 describes).
+- JSON is syntactically valid, records artifact_version "1794791991-5d11", and I scripted a scan for any string value embedding a number+unit or a formula: none found outside name/use/url fields (focus_ring.radius_formula was correctly replaced with corner_radius_addition: 4, a plain number).
+- off is absent and correctly still only mentioned in the README/history, not the colours[] array; "session" is used only for cursor (both themes), focus_ring.colour and tint.colour, exactly the three places named.
+- The six copied files under design/canvas/ are byte-identical (shasum -a 256, done myself, not just re-reading the recorded check) to their sources in design-canvas-backup-2026-11-15 and design-artifact-pages-1794791991-5d11. README.md correctly states current vs. history, that the artifact is the source, that the generator scripts no longer reproduce Tokens.dc.html exactly, that the working foundations.json predates the two corrections, and where off went. No local filesystem path, credential, or font is committed; fairfax-hd-legacy.woff2 is named but correctly left out with its licence unconfirmed.
+- Repository checks: diff touches only the 8 files listed in `git diff --stat`, none under justfile/tools/.github, so no check is weakened or newly skipped. Cargo.toml's workspace members list is unchanged and still excludes crates/ui (no Cargo.toml is added under crates/ui/design/), consistent with the recorded `skip tests: this change touches no crate`. TASK-1.91 (PR 48) adds crates/ui's Cargo.toml/src/boundaries.toml entry; this task only touches crates/ui/design/ and design/canvas/ - disjoint paths - so either merge order is clean and neither leaves cargo looking at a non-crate directory.
+- No image needed: this task adds data and documents only, nothing the app draws.
+
+plan-matched is "no": the focus_ring.radius_formula -> corner_radius_addition departure is a real, correctly-explained departure, but it is still a departure from the approved digest's literal schema.
 
 ---
 <!-- COMMENTS:END -->

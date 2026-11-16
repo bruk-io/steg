@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.93
 title: 'ui: foundations generated from the data file, with light and dark'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

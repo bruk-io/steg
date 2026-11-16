@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.91
 title: 'ui: the steg-ui package, its boundary, and the gallery'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
 updated_date: '2026-11-16T00:52:00Z'
@@ -11,6 +11,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

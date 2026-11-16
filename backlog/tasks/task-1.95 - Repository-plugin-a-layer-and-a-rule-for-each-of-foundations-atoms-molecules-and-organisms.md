@@ -1,9 +1,9 @@
 ---
-id: DRAFT-5
+id: TASK-1.95
 title: >-
   Repository plugin: a layer and a rule for each of foundations, atoms,
   molecules and organisms
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

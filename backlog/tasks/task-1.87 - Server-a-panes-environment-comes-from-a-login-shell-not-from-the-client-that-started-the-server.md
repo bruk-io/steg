@@ -3,13 +3,14 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:19:00Z'
+updated_date: '2026-11-16T05:54:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -23,8 +24,10 @@ asdlc_branch: task-1.87-server-a-pane-s-environment-comes-from-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '03e926f72daf'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1024,6 +1027,120 @@ the pushed, CI-green head (cc3e1f0).
 PR #56, CI green at the final head. `crates/steg/tests/server_start.rs`'s own
 suite (the leftover-process discipline) still passes unchanged - no new
 leftover server or output file across repeated runs.
+
+Check passed: `cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-16T05:44:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 12 tests
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 72252: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 115 filtered out; finished in 0.31s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'rm -f target/debug/fixture_server target/debug/env_leak_client; cargo build -p steg && test ! -f target/debug/fixture_server && test ! -f target/debug/env_leak_client && echo "fixture_server/env_leak_client absent from a default build, as required"'` exited 0 at 2026-11-16T05:46:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.09s
+fixture_server/env_leak_client absent from a default build, as required
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T05:50:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes, last 40 of 68 lines:
+
+```text
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+kill: 7106: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 7103: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (25078114) panicked at crates/server/src/login_env.rs:635:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 126 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T05:54:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (6.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.7s)
+ok      test (steg-server, race-fixture) (4.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1044,6 +1161,35 @@ created: 2026-11-16T05:19:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T05:35:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 4 nit. Cites: review, testing. The diff does not match the plan.
+
+Head reviewed: cc3e1f0503a26cd0fbb1ee300278afb1aa940fb8 (PR #56). Task's own final `just check` passed at this exact head; PR #56's CI ("check") is SUCCESS at the same head.
+
+[Bugs, Important] crates/steg/tests/login_environment.rs + tests/fixtures/env_leak_client.rs + login_env::resolve_login_identity: the only end-to-end proof of AC #1 resolves the real password-database identity, so the real server it autostarts runs this developer's/CI runner's actual real login shell against their actual real ~/.zprofile (and /etc/zprofile) - directly reading this machine's own start-up files, which the orchestrator's brief said tests must never do. The test's own outcome therefore depends on the content and speed of a real person's shell configuration: a slow personal .zprofile step (a network check, a prompt, a direnv/asdf/nvm hook) can push the capture past its 3s bound and silently flip to the fixed fallback, failing the test's own "/System/Cryptexes/App/usr/bin" assertion for reasons unrelated to any regression; a customised PATH that strips that macOS path_helper entry, or any non-zsh login shell (which the plan itself names as an accepted *production* gap), would do the same. The module doc (login_environment.rs) weighs and rejects two alternatives (mutating the real ~/.zprofile; ZDOTDIR via ambient env) but never considers the one the crate's own convention already supports: crates/steg/Cargo.toml already ships three `fixtures`-feature-gated [[bin]] fixtures (already_a_group_leader, autostart_client, and this task's own env_leak_client), compiled out of the shipped binary entirely (fixtures = [], off by default) - confirmed by reading that file. A fixture-only entry point letting ServerConfig/run_server_start accept a pre-resolved LoginIdentity pointing at a throwaway home (with its own controlled .zprofile) follows that exact, already-accepted convention, never reaches the real shipped binary a client uses, and removes this test's dependence on whoever happens to run it. The worker's stated reason for rejecting "a test-only hook in the shipped binary" does not apply to this narrower, already-established pattern, which was never evaluated.
+
+[Bugs, Nit] crates/server/src/login_env.rs - capture_login_environment: tried myself with a fake shell that backgrounds a grandchild holding stdout open then exits (`(sleep 20)&; echo marker; exec env -0`). Confirmed empirically: the function still returns within its own bound (~312ms against a 300ms timeout), but the grandchild is left running - reparented to pid 1, still alive 2s later per `ps` - and the capture's own reader thread stays blocked in read_to_end (with the direct child left as a zombie) until the grandchild exits on its own, unbounded by this function's own timeout. Not tested, and not stated where the mechanism is documented (the module doc explains only why the thread owns the whole Child, never this consequence).
+
+[Bugs, Nit] crates/server/src/login_env.rs:227 parse_env_dump: finds the capture's own marker with `.position()` (first match), not the last. A start-up script whose own noise happens to echo a line equal to ENV_CAPTURE_MARKER before the capture's real marker would make the dump start parsing from the wrong, earlier point, silently corrupting the result rather than failing loudly. Low probability, easily made robust by searching from the end instead.
+
+[Compliance, Nit] The known, engineer-accepted limit (capturing via `-l` without `-i` means .zshrc is never read, so a command pane gets nothing a person set only there - many people set PATH/tool managers in .zshrc) is recorded only in the task's own board comments (bruk.o's plan-check note), never in the code's own documentation where the mechanism and a pane's environment are actually described - login_env.rs's module doc states only the "no tty" reason for -l without -i, never this consequence. Checked: doc-2 section 4 and doc-8 R99 (both read from the board) don't carry this detail either, which is fine for those (spec-level, engineer/orchestrator-only) - but nowhere in the repository states it.
+
+[Bugs/Evidence, Nit] Ran the server+steg suites 10 times at default parallelism (cargo test -p steg-server; cargo test -p steg --features fixtures), checking `ps` for leftover processes before/after: one run (6 of 10) failed login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump with Fallback(TimedOut, ...) - confirmed via `ps` that this coincided with heavy, unrelated concurrent compilation from a different review worktree on the same machine, not a leftover from this suite. Re-run 50/50 times in isolation (--test-threads=1, nothing else building): always passed. No leftover zsh/sh/env/sleep processes found after any run; the only post-run processes matching the filter belonged to an unrelated worktree's build. Slowest combined run: 10s. Not a logic bug, but the fixed 5s/10s bounds several login_env.rs tests use leave real margin risk under genuine CI/dev-machine contention.
+
+Repeated myself, as scratch edits immediately reverted: (1) removed RealLauncher::spawn's env_clear() in pty.rs - the leak test (a_real_programs_environment_never_leaks_this_processs_own_ambient_variables) failed as claimed, reverted, passes again. (2) reversed the base_env/overrides ordering in Runtime::launch_spec - steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env failed as claimed (the fake shell's TERM/STEG_SERVER won), reverted, passes again.
+
+Everything else checked out: the ~20 existing Runtime::new/LaunchSpec call sites fixed via test_base_env()/login()/login_for_marks() helpers, no expectation weakened; no `unsafe` anywhere in the diff; no new dependency/feature (serde_json moved to [dependencies] only for the fixture [[bin]], boundaries.toml updated with the reason stated); ServerConfig's two new timeouts have defaults; TERM=xterm-256color; capture happens once after bind, before accept (crates/steg/src/main.rs run_server_start), matching the plan and now reachable end-to-end since TASK-1.45 merged (listen::run builds the real Runtime from config.login). Overlap with PR #47 (TASK-1.78): the one shared line is listen.rs's Runtime::new(...) call - #47 adds a third `force_grace` argument, this task only changes what config.login.clone() now carries (richer LoginShell with user/base_env) - orthogonal in meaning, resolved by keeping both (three-arg call with the TASK-1.87-shaped LoginShell). #47's runtime.rs diff only changes Runtime::new's own signature/body (the grace field) and adds force_end/stop-test helpers; it never touches LoginShell's fields or launch_spec's environment composition, so there's no deeper semantic conflict beyond the many colliding call sites both tasks happen to touch in the shared test module - mechanical, not a design clash.
+
+plan-matched: no - the notes themselves record six stated departures from the plan's own text (the read-then-wait combining into one unit on timeout, Capture::Fallback carrying the built env, the two timeout constants living in config.rs not login_env.rs, program.rs needing no fix, serde_json in [dependencies] not [dev-dependencies], and the extra shell-pane test beyond the plan's own proof list) - each is explained, none is itself a finding, but the flag reflects the departure regardless.
 
 ---
 <!-- COMMENTS:END -->

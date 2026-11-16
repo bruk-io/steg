@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:37:00Z'
+updated_date: '2026-11-16T01:52:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -20,8 +21,9 @@ asdlc_branch: task-1.91-ui-the-steg-ui-package-its-boundary-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'f7b4047abc0d'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r4
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -434,6 +436,34 @@ created: 2026-11-16T01:37:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.91: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T01:52:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Verdict: clean. Reviewed at head 90c7a99 (PR #48's headRefOid matches; CI run 43786853386 green on that same head; my own `just check` also passed there just now, all 21 steps, including build/test (steg-ui)).
+
+Checked live, not assumed:
+- Boundary (AC#1): scratch-added `steg-sdk = { path = "../sdk" }` to crates/ui/Cargo.toml (the plan's own direction). `just check-boundaries` refused it, quoting the [steg-ui] reason verbatim. Reverted; worktree clean afterward.
+- Crate shape: lib.rs declares only the four level modules, nothing of the gallery. `cargo build -p steg-app` compiles steg-ui's lib but produces no target/debug/gallery - confirmed by checking for the file, not assumed. `just check-packages`'s loop builds+tests steg-ui alone (ok build/test (steg-ui) in the run above).
+- Gallery (AC#2): `just run-gallery` opened a real window (confirmed via ps while it ran); killed cleanly after.
+- Capture (AC#3): ran `just capture-gallery` for real - both checks passed, produced target/gallery/{light,dark}.png. Viewed both: they show the placeholder gallery window, light and dark, and visibly differ; they match the two images attached to PR #48. No leftover gallery process afterward (ps).
+- Failure injection (per the brief): (a) made window_id.swift always exit 1 (simulating the window-id lookup dying) - capture-gallery aborted immediately, but zero gallery processes were left (ps before/after); (b) made screencapture fail (bogus flag) - same: recipe failed cleanly, zero leftover processes. Both confirm the `trap ... EXIT` cleans up on every path tested.
+- `check: check-fmt lint check-boundaries deny test check-packages test-tools check-architecture check-recipes` - neither run-gallery nor capture-gallery is reachable from it, matching CI's green run (compile-only, no window).
+- Affected tool (AC#4): test_affected_real_workspace.py now asserts the real positive (`crates/ui/src/lib.rs` -> `-p steg-app -p steg-ui`) and negative (`crates/app/src/main.rs` -> `-p steg-app` only) selection against the real workspace - a real test, not a manual touch-and-revert. `just check-architecture` passes; architecture/models/.../ui-pkg.c4's description matches doc-16's package-table row for `ui` verbatim.
+- Overlap with TASK-1.92 (PR #49, in review): its diff touches only crates/ui/design/foundations.json and design/canvas/** - disjoint from this diff's crates/ui/{Cargo.toml,CLAUDE.md,src/**,gallery/**}. No merge conflict either order. `owner()` (affected.py) is a longest-folder-prefix match, file-type-agnostic, so the JSON correctly maps to steg-ui once both land; `boundaries.py` reads `cargo metadata`, not raw files, so a non-Rust file under crates/ui doesn't trip it.
+- doc-17 (R117-R124), decision-11 and doc-16 (R104, R108, R111) all checked against the diff directly (boundaries.toml reasons, package table wording, CLAUDE.md, architecture model) - all match.
+
+[Bugs, Nit] justfile:224 - `window_id="$(swift crates/ui/gallery/window_id.swift "$pid" | head -1 | cut -d' ' -f1)"` has no `|| true`. window_id.swift has its own non-zero exit path (window_id.swift:19-22, `CGWindowListCopyWindowInfo returned nothing` -> exit 1), and with `set -euo pipefail`, that propagates through the pipe into this plain (non-`local`) assignment and aborts the script on iteration 1 of the retry loop - skipping the remaining ~10s budget and the recipe's own named message at justfile:229 ("the gallery never opened a window within 10s"), replaced by just's generic "failed with exit code 1". Confirmed live by forcing that exact exit path. Not Important: process cleanup still holds on this path (checked with ps, no leftover gallery process), and the path isn't exercised in the tested/normal run (the unmodified lookup never errors when a window is already open or not-yet-open, only when CoreGraphics itself returns nothing).
+
+plan-matched: no. The plan's file list doesn't include tools/src/steg_tools/gallery.py, tools/pyproject.toml, tools/tests/conftest.py, tools/tests/{unit,functional}/test_gallery*.py, or tools/tests/adapter/test_affected_real_workspace.py. The notes explain each (orchestrator's recorded agreement for the gallery checker; the Cargo.toml-members race for the adapter test) - not a Compliance finding, just a mechanical flag since the touched files depart from the plan's list.
 
 ---
 <!-- COMMENTS:END -->

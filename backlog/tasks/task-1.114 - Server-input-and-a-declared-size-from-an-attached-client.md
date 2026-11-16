@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T18:00:00Z'
+updated_date: '2026-11-16T18:04:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -815,6 +815,39 @@ error: could not compile `steg-server` (test "attach") due to 2 previous errors
 warning: build failed, waiting for other jobs to finish...
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T18:04:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (29.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (24.5s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (2.0s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (28.6s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (21.1s)
+ok      test (steg-server, race-fixture) (22.3s)
+ok      build (steg) (1.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.2s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

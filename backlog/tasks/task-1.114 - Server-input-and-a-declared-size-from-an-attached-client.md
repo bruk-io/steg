@@ -217,3 +217,9 @@ TASK-1.46 and TASK-1.47 are both `In Progress` (1.47 `changes-requested`); this 
 
 This stays one task: input, the declared size, and the size carried on every update are one coherent change — what an attached client sends, and what it is told back — and AC #2's own proof is unprovable without AC #1's routing already in place (the sdk's own `send_input`/`open_stream` sequencing is identical for both). No split proposed.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (ec385ef4d563) checked against the four acceptance criteria, decision-2 section 3, doc-14 and doc-15 R91, doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Built on TASK-1.47's branch (not merged) and to merge after it. Revised once at the orchestrator's request: the full cost of a program that does not read its input is stated (that pane's worker is blocked, so its screen stops updating and its commands wait), with a proof item on a real program that never reads (the connection stays responsive, another pane keeps updating, a forced close and a server stop return within their bounds), and that a failure there is a bug to fix in this task. For the engineer: the new method tab.declare_size (a row in doc-2; the method count moves to 45); a size with zero columns or rows is refused; and the accepted limit that one pane's own screen freezes while its program refuses input, with a follow-up proposed.
+<!-- SECTION:NOTES:END -->

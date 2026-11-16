@@ -1,14 +1,13 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:54:00Z'
+updated_date: '2026-11-16T01:57:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -356,6 +355,16 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 30, 29 without the Asdlc-Worker trailer.
+
+Review findings fixed (@bruk.r3, 1 Important, 2 nits). Plan section untouched.
+
+1. [Important, fixed] Removed sizes.overlay.layout.max_height_percent_of_window: 60. doc-10's not-yet-confirmed list bundles the overlay's max-height-as-percent-of-window with its 40px-clear-below-720px rule as one bullet, not two settled values; I'd correctly left out the 40px half but exported the 60% half as settled anyway, breaking AC#2 and departing from the plan's own instruction to point at doc-10's list rather than re-decide it. Re-read doc-10's whole not-yet-confirmed list against the data file line by line as asked: the smallest pane (200x110), the pane header's three breakpoints (360/260/200), the status bar's roll-out (250ms), the failure flakes' count/timing, and the pressed state's darkening are all absent from the data file, as they should be - nothing else from that list had slipped in.
+
+2. [Nit, fixed] Every reference now uses the uniform wrapped form {"ref": "<name>"}: colour_aliases' ref field, both ramps' stops[].colour, status.ring.track_colour, scrim.light.colour, track.layout.fill.colour, track.layout.radius_outer/radius_inner. bg_inactive already used this form. Added crates/ui/design/README.md stating the rule once: a reference is always {"ref": "<name>"} naming any colour, size key, or tint in the file; the two exceptions are a bare hex literal and the literal "session". Extended the ad hoc shape check to assert every {"ref": ...} anywhere resolves to a name that exists, and that every colour-position field (colour/track_colour/cursor) is one of exactly those three forms - sanity-tested by corrupting one ref and confirming the check fails before trusting it to pass.
+
+3. [Nit, fixed] Added sizes.radius.round: {"shape": "round"} for the radii card's fourth swatch (999px "fully round: chips of colour, bars", Tokens.dc.html/gen_system.py:372) that was drawn but had no data-file entry; noted in the file that the name radius.round is the orchestrator's choice, which the engineer may change. Checked every other card on the three foundations pages the same way (Type's specimens - all already in type{}; the ramp/extended-ramp gradient bars; both terminal themes' 16-colour samples and base text; the focus ring's interactive states) for a captioned value with no entry: found none beyond this one.
+
+Checks re-recorded after the fixes: the two ad hoc checks (shape, colours-in-page) against the corrected file, and just check at the final head (91d4e877b240) after merging origin/main (branch was already pushed, so merged rather than rebased; TASK-1.91's crates/ui work still hadn't merged to main, so no overlap - diff stayed disjoint). CI green on that same head (gh pr checks 49 --watch, 2m13s). PR 49's description updated with the corrected section-by-section counts (colours 18, sizes 18 now with radius.round, etc).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:09:00Z'
+updated_date: '2026-11-16T12:12:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -477,6 +477,12 @@ Check passed: `just test` exited 0 at 2026-11-16T12:09:28+00:00 in /Users/brukha
 
 ```text
 ok      tests (every crate) (57.4s)
+```
+
+Check passed: `just test` exited 0 at 2026-11-16T12:12:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at 4e4006d5c0a8:
+
+```text
+ok      tests (every crate) (16.3s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:05:00Z'
+updated_date: '2026-11-16T12:18:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -116,49 +116,59 @@ Two corrections to this plan's own first draft, both the lead's:
    serialises everything through (it has no other state to race against:
    it is the only thread that ever touches `attachments` or `tracked_seq`).
 
-## The method vocabulary this needs, and its one overlap with TASK-1.46
+## The method vocabulary, aligned to TASK-1.46's actual plan (not my own guess)
 
-`pane.attach`'s reply is `{"stream": <u32>, "snapshot": <Screen as JSON>}` -
-nested, not flat fields, which `Returns`'s current cases (`Nothing |
-Identifier | Record{flat fields} | Records{flat fields} | Text`) have no
-vocabulary for. **This is the identical gap TASK-1.46 hit for `event.watch`'s
-own one-time tree reply**, and its engineer-approved direction (2026-11-16:
-"the tree is the reply to event watch") commits to adding exactly this
-vocabulary first. I am not inventing a second mechanism for the same need:
-this task depends on whatever `Returns` case 1.46 lands - my own working name
-for it, until 1.46's rewritten plan fixes the real one, is `Returns::Value`
-("an arbitrary JSON value; the generated CLI prints it as JSON and does not
-attempt record/column rendering"). **Dependency direction, stated plainly so
-the orchestrator can sequence it**: TASK-1.46 is further along (in progress,
-its own vocabulary decision already made) and should land the `Returns`
-addition; this task reuses the same variant by name once 1.46 merges. If this
-task is built first for some reason, I propose `Returns::Value` under that
-exact name and ask 1.46 to rebase onto it rather than invent its own - either
-way, one variant, not two.
+TASK-1.46's plan ("For the engineer" point 1) settled this: `Returns` gains
+`Snapshot { of: String }` (a nested reply, named in prose - the same honesty
+`ValueKind::Text` already uses for `layout`/`status`); `Method` gains
+`stream_item: Option<Returns>` - when `Some`, the method's one id-matched
+reply is followed by further items with no id, shaped as given. `event.
+watch` becomes `returns: Snapshot{of: "the tree..."}`, `stream_item:
+Some(Records{fields:[event,data]})`. Its own plan already names what this
+task uses: `pane.attach` becomes `returns: Snapshot{of: "a pane's screen"}`,
+`stream_item: Some(Snapshot{of: "a screen update"})` (a delta is nested too -
+it carries changed rows by position, not flat fields). I am building against
+these two names, not my own working guess from the first draft of this
+section (dropped: `Returns::Value`, and dropped entirely: my own
+`Method::opens_stream` field and its mechanical touch to every existing
+`Method` literal - `stream_item: Some(_)` already *is* the structural marker
+a CLI generator needs to know a method keeps producing items after its first
+reply, so a second, parallel "this opens a stream" flag would have been
+exactly the second mechanism for the same need the lead warned against. I
+was wrong to add it in the previous revision; withdrawn here, not layered on
+top of 1.46's field.
 
-What is *not* shared with 1.46, because 1.46 does not need it: `pane.attach`
-also opens a stream, which `event.watch` never does (its own updates stay on
-stream 0, already multiplexed with everything else that connection does).
-**This gets its own structural marker, not prose alone**: a new field on
-`Method` itself (`crates/sdk/src/description/shapes.rs`), `opens_stream:
-bool`, `false` on every existing method. doc-16 R110 is explicit that "a
-boundary a program can check is checked by the repository's check, not left
-to a rule" - prose in `details` alone would leave nothing stopping the CLI
-generator from rendering `pane.attach` exactly like any one-shot command, and
-nothing distinguishing it from `pane.detach` (which answers `Returns::
-Nothing` and opens no stream) beyond a human reading two paragraphs of free
-text. With the field: the generated CLI's help output appends one fixed
-sentence whenever `opens_stream` is true (pointing at the sdk for real use,
-wording below), and a small description-level test - the same shape as
-`event_watch_for_is_drawn_from_the_event_names` already is - asserts every
-method with `opens_stream: true` names "stream" in its own `details`, so the
-exception stays mechanically tied to the method that needs it rather than a
-convention someone has to remember. Cost, named plainly: every existing
-`Method` literal in `methods.rs` gains one more field
-(`opens_stream: false`) - mechanical and bounded (the method count is 42
-today, see below), not a design risk.
+**One real gap, raised rather than resolved silently, as asked**: neither
+`Snapshot{of}` nor `stream_item: Option<Returns>` says *which stream* the
+follow-on items travel on. `event.watch`'s own items stay on stream 0 - the
+same connection, already multiplexed with everything else it does. `pane.
+attach`'s own items travel on the attachment's own, newly-opened stream,
+whose id is itself part of the first reply (my JSON shape: `{"stream":
+<u32>, "snapshot": <the Snapshot's own value>}` - the reply is an object
+carrying both the plain integer and the nested value `Snapshot{of}`
+describes; reading `of` as describing the whole reply object, not literally
+one bare nested value, already covers *that* half with no new field, the
+same loose reading `Snapshot{of}` already gives `event.watch`'s own tree).
+What is missing is purely the routing fact: today, nothing in the
+description distinguishes "stream_item's items are on stream 0" from
+"stream_item's items are on a stream this reply itself names." **This is
+protocol-relevant, not merely documentation quality - R110 again: a
+generated client or a future lint deciding *where to read from* needs this
+mechanically, not from a sentence a person wrote.** My own recommendation,
+offered for the engineer to confirm or overrule rather than built against
+silently: one more field, scoped to exactly this question and nothing else -
+e.g. `Method.stream_item_channel: Option<ItemChannel>` where `ItemChannel`
+is `StreamZero | NamedInReply` (only meaningful when `stream_item` is
+`Some`; `event.watch` declares `StreamZero`, `pane.attach` declares
+`NamedInReply`). I am not building against this until it is settled on
+1.46's plan (the field belongs beside `stream_item`, so it is that task's
+to add, the same as `Returns::Snapshot`/`stream_item` themselves) - naming it
+now so it is decided once, before either plan is approved, not discovered
+by a reviewer asking "which stream does this mean."
 
-`pane.attach`'s own `details` (the sentence the field's own check reads for):
+`pane.attach`'s own `details`, until the routing question above is settled
+either leaves this to prose or becomes redundant with the structural
+answer:
 
 > "Opens a stream to the pane's screen. The reply is the stream's id and its
 > opening snapshot; updates that follow arrive on that stream, not as this
@@ -186,7 +196,7 @@ stale pre-merge guess:
   nothing
 - `methods.rs`'s `the_method_set_is_exactly_doc_2_section_8s_42_pairs` moves
   to 44 (`("pane","attach")`, `("pane","detach")` added) - the test's own
-  name needs the new number, same mechanical update TASK-1.89 and TASK-1.46b
+  name needs the new number, same mechanical update TASK-1.89 and TASK-1.109
   each already make for their own additions.
 
 `api show pane.attach` needs no renderer change: `details` is already free
@@ -225,44 +235,77 @@ handshake` calling a new `Runtime::register_subscriber`... right after
 - `connection.rs`'s read loop (`run_post_handshake`'s inner `match
   connection.poll()`) gains its own arm, *before* falling through to the
   existing `Incoming::Request { .. } => runtime.handle(...)` path: when
-  `request.method` is `"pane.attach"` or `"pane.detach"`, call a new
-  `Runtime::attach_pane(&self, context, request, outbound: Arc<Outbound>,
-  stream: u32) -> Response` / `Runtime::detach_pane(&self, context,
-  request) -> Response`, passing the `Arc<Outbound>` this function already
-  holds and a stream id from a small per-connection counter kept beside it
-  (not in the kernel, not in `Runtime` - a connection concern, the same
-  place the counter for data vs. control frames already conceptually
-  belongs). Every other request keeps going through `runtime.handle(...)`
-  unchanged.
-- `Runtime::attach_pane` takes the lock, resolves the target the same way
-  `dispatch/pane.rs`'s own target-resolution helpers do (widened from
-  `pub(super)` to `pub(crate)` so `runtime.rs` can reuse them rather than
-  duplicate target parsing - a files-changed item, not a design decision),
-  calls `tree.view_pane(client, pane)` (kernel, already built -
-  `crates/kernel/src/tree.rs`), and sends the pane's `PaneHandle` a new
-  `PaneCommand::Attach { outbound: Arc<Outbound>, stream: u32, reply:
-  Sender<Screen> }`. The worker handles it in one step (§"For the
-  engineer" point 4): read `terminal.screen()`, register the attachment as
-  `CaughtUp(tracked_seq)`, send the reply.
-- Back in `connection.rs`: build `Response::Ok` from the reply
-  (`{"stream", "snapshot"}`), enqueue it on `Outbound`'s control queue, and
-  **only after** that succeeds call `connection.open_stream(stream)` /
-  `outbound`'s own stream registration (`Outbound::open_stream`, so the
-  writer thread may now also pull data frames for it) - the two-step
-  ordering rule decision-2 §3 names ("queue the attach result first,
-  register the attachment's queue second," learned the hard way: gotten
-  wrong once, it silently dropped 12 lines). Because the attachment's own
-  caught-up bookkeeping already happened inside the worker's single step
-  above (point 4), this ordering rule is purely about *when the writer
-  thread is told this stream exists at all*, nothing about correctness of
-  what is sent once it does.
+  `request.method` (after `api.call` resolution, the same cheap second
+  resolution TASK-1.46 §4 already does for `event.watch`, for the same
+  reason - a client reaching `pane.attach` *through* `api.call` must be
+  routed here too) is `"pane.attach"` or `"pane.detach"`, call a new
+  `Runtime::attach_pane(&self, description, context, request, outbound:
+  &Arc<Outbound>, stream: u32) -> Result<(), ApiError>` / `Runtime::
+  detach_pane(&self, description, context, request) -> Result<(), ApiError>`,
+  passing the `Arc<Outbound>` this function already holds and a stream id
+  from a small per-connection counter kept beside it (not in the kernel,
+  not in `Runtime` - a connection concern). Every other request keeps going
+  through `runtime.handle(...)` unchanged. On `Err`, `connection.rs` builds
+  and enqueues the ordinary error reply itself, exactly as TASK-1.46's own
+  `subscribe` path does on its own validation failure.
+- **`Runtime::attach_pane` builds and enqueues its own reply, the same
+  shape as `Runtime::subscribe`, not split across the `Runtime`/
+  `connection.rs` boundary the way this plan's previous revision had it.**
+  Lock held only for the part that needs it: takes the lock, validates,
+  resolves the target the same way `dispatch/pane.rs`'s own target
+  -resolution helpers do (widened from `pub(super)` to `pub(crate)` so
+  `runtime.rs` can reuse them rather than duplicate target parsing - a
+  files-changed item, not a design decision), calls `tree.view_pane(client,
+  pane)` (kernel, already built - `crates/kernel/src/tree.rs`), sends the
+  pane's `PaneHandle` a new `PaneCommand::Attach { stream: u32, reply:
+  Sender<Screen> }` and waits on the bounded reply (the worker handles it
+  in one step, §"For the engineer" point 4: read `terminal.screen()`,
+  register the attachment as `CaughtUp(tracked_seq)` - but *not* yet handed
+  the `Outbound`, see below - and reply), releases the lock, then - lock
+  -free from here - builds `Response::Ok({"stream", "snapshot"})`, calls
+  `outbound.enqueue_control(bytes)`, and **only once that succeeds** hands
+  the worker's attachment entry the `Arc<Outbound>` it needs to actually
+  send anything (one more short message, `PaneCommand::ArmAttachment
+  { stream, outbound: Arc<Outbound> }`, or the `Outbound` handle is simply
+  not read by the tick body for an attachment until this message arrives -
+  either shape works, decided during implementation) and calls `Outbound::
+  open_stream(stream)`. This is decision-2 §3's ordering rule applied
+  exactly: "queue the attach result first, register the attachment's queue
+  second" - here, "register the attachment's queue" is deliberately two
+  things kept apart: the worker's own internal bookkeeping (`CaughtUp`/
+  `NeedsResync`, safe to set immediately, nothing reads it until armed) and
+  the `Outbound`/writer-visible registration (`open_stream`, *and* handing
+  the worker the `Arc<Outbound>` it needs to call `enqueue_data` at all) -
+  only the second one is what decision-2's rule is actually about, and it
+  is what happens last.
+- **The race this closes, stated precisely, not just asserted**: without
+  the worker-side split above, a tick could fire between the worker
+  registering the attachment and `connection.rs`'s thread calling
+  `open_stream` (two different threads; the worker's own `recv_timeout`
+  cadence does not wait for anything outside itself), and would otherwise
+  need the `Arc<Outbound>` to attempt `enqueue_data` early. Not handing it
+  the `Outbound` until after `open_stream` has run makes that attempt
+  structurally impossible rather than merely unlikely. As a second,
+  independent line of defence (belt and suspenders, not load-bearing on its
+  own - the same relationship `outbound.rs`'s existing `Closed` check has
+  to `Outbound::close()`): if a tick ever did reach `enqueue_data` for a
+  stream `Outbound::open_stream` has not yet registered, `EnqueueDataError::
+  NotOpen` comes back, and the tick body (§2) treats that exactly like
+  `Full` - mark `NeedsResync`, skip, retry next tick - so even a timing
+  assumption proven wrong costs one tick's delay, never a silently dropped
+  frame or an `unknown_stream_frames` count above zero.
 - `Runtime::detach_pane` takes the lock, resolves the target pane, looks up
   which stream this connection attached it on (the connection's own
   `PaneId -> stream` map, not a parameter the client supplies - see "For
   the engineer" point 1's revision above), calls `tree.stop_viewing(client,
   pane)`, and sends the pane's worker a `PaneCommand::Detach(stream)` to
-  drop it from the fan-out list. `connection.rs` then calls `Outbound::
-  close_stream(stream)`/`Connection::close_stream(stream)` locally.
+  drop it from the fan-out list, enqueues `Response::Ok(())`, then calls
+  `Outbound::close_stream(stream)` (order reversed from attach, on purpose:
+  here it is safe, even preferable, to stop the writer delivering to a
+  stream the client is about to be told is done, before the reply
+  confirming that is even on the wire - there is no "told about a stream
+  too early" hazard symmetric to attach's, since closing never surprises a
+  client with data it wasn't expecting).
 - **Named, not silently left**: this task's own change to `connection.rs`'s
   match also has to stop it closing the connection on an `Incoming::Data`
   for a now-open stream (today, every arm except `Incoming::Request` and
@@ -274,10 +317,27 @@ handshake` calling a new `Runtime::register_subscriber`... right after
   nothing in this task's own acceptance criteria sends input on an
   attachment's stream.
 
-Expect the predicted merge conflict with TASK-1.46 to land exactly here:
-both tasks touch `connection.rs`'s read-loop match and both add a
-`Runtime` method called from `run_post_handshake`/the read loop rather than
-from `dispatch`, for the identical structural reason.
+**Why this does not contradict TASK-1.46's own ordering rule, stated in one
+place rather than left for a reviewer to work out**: 1.46's rule protects
+atomicity between `event.watch`'s *own* snapshot and the tree-change events
+that follow it, all on stream 0, interleaved with everything else that
+connection does - the hazard is a *different* request's reply or an
+unrelated broadcast landing out of order *relative to that one subscription's
+own promise*. Mine protects atomicity between `pane.attach`'s own snapshot
+and the screen updates that follow it, on the attachment's *own*, separate
+stream - a completely different pair of frames on a completely different
+queue. Nothing stops an `event.watch` reply and a `pane.attach` reply on the
+*same* connection interleaving with each other in either order (they are
+unrelated requests, matched by id, with no ordering promise between them to
+begin with); each rule only ever has to hold *within its own pair*, and nei-
+ther rule reads or writes the other's state (`State.subscribers` vs. a
+pane's own `PaneHandle`/its worker's `attachments` list).
+
+Expect the predicted merge conflict with TASK-1.46 to land exactly in
+`connection.rs`'s read-loop match: both tasks add a `Runtime` method called
+directly from `run_post_handshake`'s reader loop rather than from
+`dispatch`, for the identical structural reason, and both touch the same
+`match connection.poll()`.
 
 `Connection` (sdk) gains a client-side `attach` convenience mirroring
 `call` (same validate-then-encode shape, same `(id, bytes)` return) - not
@@ -314,12 +374,15 @@ clears `next_tick` and runs the tick body:
    `CaughtUp(new seq)` if `Outbound::enqueue_data` actually queues it.
 4. `Outbound::enqueue_data` returning `Full` (decision-2 §6's placeholder,
    already built in `outbound.rs`, waiting on this task to use it for
-   real) moves that attachment to `NeedsResync` and skips it for the rest
-   of this tick - the next tick tries a fresh snapshot again, never a
-   delta, until one actually queues. This is the whole of AC #3's second
-   half ("a client that falls behind gets one fresh screen-sized snapshot,
-   without scrollback"): no scrollback is ever part of a resync, by
-   construction, since `terminal.screen()` never reads it.
+   real) **or `NotOpen`** (§1's own belt-and-suspenders case - an
+   attachment the worker knows about but `Outbound` has not yet been told
+   to open, or has already closed) moves that attachment to `NeedsResync`
+   and skips it for the rest of this tick - the next tick tries a fresh
+   snapshot again, never a delta, until one actually queues. This is the
+   whole of AC #3's second half ("a client that falls behind gets one
+   fresh screen-sized snapshot, without scrollback"): no scrollback is
+   ever part of a resync, by construction, since `terminal.screen()` never
+   reads it.
 
 `PaneHandle` gains no new public method for the tick itself - it is internal
 to the worker's own loop body.
@@ -375,8 +438,10 @@ code, encoding/decoding `Update` directly rather than wrapping it in
   Duration`, threaded to every `pane::start` call; two new public methods,
   `attach_pane`/`detach_pane` (§1), called only from `connection.rs` (not
   from `dispatch::dispatch`, which cannot reach `Outbound` - §1's own
-  correction), each taking the lock, resolving the target via the widened
-  `dispatch` helpers below, and talking to the relevant `PaneHandle`.
+  correction), each building and enqueueing its own reply on the `Arc<
+  Outbound>` it is given and returning `Result<(), ApiError>` - the same
+  shape TASK-1.46's own `Runtime::subscribe` uses, not a `Response` handed
+  back for `connection.rs` to enqueue (the previous revision's mistake).
 - `crates/server/src/dispatch/mod.rs` or `lookup.rs`: widen `target_pane`
   (and whichever sibling helper resolves a plain pane target) from
   `pub(super)` to `pub(crate)`, so `runtime.rs` can reuse the same target
@@ -389,25 +454,29 @@ code, encoding/decoding `Update` directly rather than wrapping it in
   `PaneHandle::attach`/`detach` alongside the existing `send_input`/
   `resize`/`snapshot`/`cwd`.
 - `crates/server/src/connection.rs`: the read loop's new arm, intercepting
-  `request.method == "pane.attach" | "pane.detach"` *before* the existing
-  `Incoming::Request { .. } => runtime.handle(...)` fallthrough; a
-  per-connection stream-id counter and a `PaneId -> stream` map beside
-  `Outbound` (so `pane.detach`'s plain pane target can be turned into a
-  stream id locally, §"For the engineer" point 1); the ordering-rule
-  sequencing itself (queue the reply, then `Outbound::open_stream`/
-  `connection.open_stream`); the match's catch-all arm narrowed so an
-  `Incoming::Data`/`StreamControl` frame for a now-open attachment stream
-  does not close the connection outright the way every non-`Request`
-  variant does today (named limitation for TASK-1.114, above).
-- `crates/sdk/src/description/shapes.rs`: `Method::opens_stream: bool`, and
-  every existing `Method` literal in `methods.rs` gains `opens_stream:
-  false` (mechanical, bounded - 42 literals today).
+  `request.method == "pane.attach" | "pane.detach"` (after `api.call`
+  resolution) *before* the existing `Incoming::Request { .. } => runtime.
+  handle(...)` fallthrough; a per-connection stream-id counter and a
+  `PaneId -> stream` map beside `Outbound` (so `pane.detach`'s plain pane
+  target can be turned into a stream id locally, §"For the engineer" point
+  1); on `Err` from either `Runtime` call, building and enqueueing the
+  ordinary error reply itself (the `Ok` case needs nothing further -
+  `Runtime::attach_pane`/`detach_pane` already enqueued it, §1); the
+  match's catch-all arm narrowed so an `Incoming::Data`/`StreamControl`
+  frame for a now-open attachment stream does not close the connection
+  outright the way every non-`Request` variant does today (named
+  limitation for TASK-1.114, above).
 - `crates/sdk/src/description/methods.rs`: the two new `Method` entries
-  (`pane.attach` with `opens_stream: true`, `pane.detach` with `opens_stream:
-  false`), using whichever `Returns` vocabulary TASK-1.46 lands (see above);
-  a new test asserting every `opens_stream: true` method's `details` names
-  "stream"; `the_method_set_is_exactly_doc_2_section_8s_42_pairs`'s own
-  count, bumped to 44.
+  (`pane.attach` with `returns: Snapshot{of: "a pane's screen"}`,
+  `stream_item: Some(Snapshot{of: "a screen update"})`; `pane.detach` with
+  `returns: Nothing`, `stream_item: None` - both exactly TASK-1.46's own
+  vocabulary, no field of this task's own invention), plus whichever field
+  TASK-1.46 adds for the stream-routing question raised above, once it is
+  settled; `the_method_set_is_exactly_doc_2_section_8s_42_pairs`'s own
+  count, bumped to 44. **`Method::opens_stream` and its touch to every
+  existing literal, named in the previous revision of this plan, are
+  withdrawn** - subsumed by `stream_item` itself, which is TASK-1.46's
+  field to add, not this task's.
 - `crates/sdk/src/screen.rs`: the serde derives (above).
 - `crates/sdk/src/wire/connection.rs`: `Connection::attach` (client-side
   convenience, mirroring `call` - §1).
@@ -435,9 +504,18 @@ code, encoding/decoding `Update` directly rather than wrapping it in
    subscriber table. This is also where the idle/no-wake-up proof belongs
    (point 3's own test), before anything else depends on the loop's shape.
 4. `pane.attach`/`pane.detach` dispatch + the sdk's description entries +
-   `Connection::attach` - once TASK-1.46's `Returns` vocabulary has merged
-   (hard dependency, named in "For the engineer" above); proven by a plain
-   attach/detach round trip with no tick activity yet.
+   `Connection::attach` - once TASK-1.46's `Returns::Snapshot`/
+   `stream_item` (and the stream-routing field, once settled) have merged;
+   proven by a plain attach/detach round trip with no tick activity yet.
+   **What this task builds against in the meantime (steps 1-3 do not wait
+   on 1.46 at all)**: `PaneCommand::Attach`/`Detach`, the per-attachment
+   list, the tick body and its back-pressure are all exercised directly -
+   a test constructs `PaneCommand::Attach` by hand and sends it on a
+   `PaneHandle`'s own channel, bypassing `Runtime::attach_pane`/the
+   description entirely, the same way this crate's own tests already drive
+   `PaneCommand`s directly below the dispatch layer elsewhere. Only step 4
+   itself - the method wiring, `connection.rs`'s new arm, and `Connection::
+   attach` - is blocked on 1.46 merging.
 5. The tick body itself (§2): one attachment, no contention, a known write
    producing a known delta; then the new-attachment-caught-up-at-snapshot
    -seq test (point 4).
@@ -541,17 +619,25 @@ offered as done, per `team:testing`.
 
 ## Risks / for the engineer
 
-- The hard dependency on TASK-1.46's `Returns` vocabulary (above) blocks
-  step 4 of "order of work" until it merges - named here so it is not
-  discovered as a blocked PR.
+- This task's own dependency on TASK-1.46 is scoped exactly to step 4 of
+  "order of work" (the method wiring) - steps 1-3 (the worker loop, the
+  tick, back-pressure) build and prove against `PaneCommand` directly, with
+  no sdk/description dependency at all - named so the whole task is not
+  mistakenly read as blocked.
+- **Still open, raised above, not yet settled**: which stream `pane.
+  attach`'s `stream_item` travels on - `event.watch`'s own precedent is
+  stream 0, mine is a stream named in the reply, and today's vocabulary
+  (`Returns::Snapshot`/`Method.stream_item`) does not say which. My own
+  recommendation (a small `ItemChannel` field beside `stream_item`) is
+  offered, not built against; this task's step 4 cannot be called done
+  until it is confirmed one way or another.
 - `connection.rs` and `runtime.rs` are both being touched by TASK-1.46,
   1.98 and 1.86 at the same time (listen.rs, connection.rs's event enum,
   runtime.rs, per the lead's own note) - expect a real merge conflict in
-  `State`'s struct literal and `Runtime::new`'s signature, not a design
-  problem; this task should rebase onto whichever merges first.
-- `opens_stream` touching every existing `Method` literal in `methods.rs`
-  is a wide but mechanical diff (42 one-line additions) - named so a
-  reviewer expects it rather than reading it as scope creep.
+  `State`'s struct literal, `Runtime::new`'s signature, and `connection.
+  rs`'s read-loop match (both this task and 1.46 add a `Runtime` method
+  called directly from there, §1's own note), not a design problem; this
+  task should rebase onto whichever merges first.
 - TASK-1.114 and TASK-1.115 both depend on this task merging first; neither
   can start their own build until the attachment list/`PaneCommand::Attach`
   shape here is final, since both add to the same per-attachment state.

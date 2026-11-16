@@ -114,16 +114,50 @@ fn call_and_read_reply(
 ) -> (u64, Response) {
     let (id, bytes) = connection.call(method, params).expect("a valid call");
     stream.write_all(&bytes).unwrap();
+    // One deadline for the whole wait, not just each individual read -
+    // this file's own flood test found that distinction matters under
+    // load (a bound on each read alone lets the total time a read loop
+    // runs for grow without one).
+    let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         if let Some(Incoming::Reply { id: reply_id, response }) = connection.poll() {
             assert_eq!(reply_id, id, "the reply must carry the id this call minted");
             return (reply_id, response);
         }
+        assert!(Instant::now() < deadline, "timed out waiting for a reply to {method}");
         let mut buf = [0_u8; 65536];
         let n = stream.read(&mut buf).expect("reading the reply");
         assert!(n > 0, "server closed before replying");
         connection.receive(&buf[..n]);
     }
+}
+
+/// Reads exactly `want` replies, in the order they arrive - one overall
+/// deadline for the whole wait, the same reasoning `call_and_read_reply`'s
+/// own doc gives.
+fn read_n_replies(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    want: usize,
+) -> Vec<(u64, Response)> {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut replies = Vec::new();
+    while replies.len() < want {
+        if let Some(Incoming::Reply { id, response }) = connection.poll() {
+            replies.push((id, response));
+            continue;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for {want} replies, got {}",
+            replies.len()
+        );
+        let mut buf = [0_u8; 4096];
+        let n = stream.read(&mut buf).unwrap();
+        assert!(n > 0);
+        connection.receive(&buf[..n]);
+    }
+    replies
 }
 
 /// Asserts `stream` closes - a clean `Ok(0)` or any error other than a
@@ -231,17 +265,7 @@ fn two_requests_sharing_one_id_both_get_correctly_matched_independent_replies() 
         .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, second.to_payload().unwrap())).unwrap())
         .unwrap();
 
-    let mut replies = Vec::new();
-    while replies.len() < 2 {
-        if let Some(Incoming::Reply { id, response }) = connection.poll() {
-            replies.push((id, response));
-            continue;
-        }
-        let mut buf = [0_u8; 4096];
-        let n = stream.read(&mut buf).unwrap();
-        assert!(n > 0);
-        connection.receive(&buf[..n]);
-    }
+    let replies = read_n_replies(&mut stream, &mut connection, 2);
 
     assert_eq!(replies[0].0, 7);
     assert_eq!(replies[1].0, 7);
@@ -278,17 +302,7 @@ fn several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_repl
         stream.write_all(&bytes).unwrap();
     }
 
-    let mut replies = Vec::new();
-    while replies.len() < calls.len() {
-        if let Some(Incoming::Reply { id, response }) = connection.poll() {
-            replies.push((id, response));
-            continue;
-        }
-        let mut buf = [0_u8; 4096];
-        let n = stream.read(&mut buf).unwrap();
-        assert!(n > 0);
-        connection.receive(&buf[..n]);
-    }
+    let replies = read_n_replies(&mut stream, &mut connection, calls.len());
 
     assert_eq!(
         replies.iter().map(|(id, _)| *id).collect::<Vec<_>>(),
@@ -430,6 +444,17 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
     let (socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
+    // A write timeout, not just the read timeout `connect_and_handshake`
+    // already set: once the server stops reading (closing its own side
+    // of the connection as this test means it to), this loop's own
+    // `write_all` calls can block on a full OS send buffer with nothing
+    // ever draining it, for as long as the OS lets a write wait - found
+    // by this test itself hanging under heavy concurrent build load on
+    // this machine, well past the drain loop below (which already had
+    // its own deadline), because the loop never even got that far
+    // (recorded on the task).
+    stream.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
+
     // Comfortably past the control queue's own 256-entry cap - every
     // call is sent, none is ever read back.
     for _ in 0..2000 {
@@ -437,7 +462,9 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
             break;
         };
         if stream.write_all(&bytes).is_err() {
-            break; // the server already closed its side - fine, that's the point
+            break; // the server already closed its side (or this write
+            // timed out) - fine, either way, that's the point: nothing
+            // here waits for ever.
         }
     }
 
@@ -445,13 +472,28 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
     // OS socket buffer may still hold some of the server's own already
     // -written replies (sent before the queue filled) - a real close is
     // only visible once those are drained, not on the very first read.
-    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    //
+    // **One deadline for the whole drain, not just a per-read timeout** -
+    // the same bound shape as `connection.rs`'s own handshake deadline,
+    // for the same reason: under load, the server's writer thread can
+    // deliver its backlog in many small, individually-fast reads (each
+    // one well inside a per-read timeout), so bounding only each read
+    // would let the *total* wall-clock time this loop runs for grow
+    // without bound - found by this test itself hanging for minutes
+    // under heavy concurrent build load on this machine, with every
+    // other test in this file finishing in under a second, before this
+    // fix (recorded on the task).
+    let deadline = Instant::now() + Duration::from_secs(10);
+    stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
     let mut buf = [0_u8; 65536];
     let closed = loop {
+        if Instant::now() >= deadline {
+            break false;
+        }
         match stream.read(&mut buf) {
             Ok(0) => break true,
             Ok(_) => continue, // more backlog to drain first
-            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => break false,
+            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => continue, // re-check the deadline above
             Err(_) => break true, // a reset is also a legitimate close
         }
     };

@@ -576,6 +576,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; fini
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_no_server version_contacts_no_server` exited 101 at 2026-11-16T15:14:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running tests/cli_no_server.rs (target/debug/deps/cli_no_server-5e7f4e1a1e58a8d1)
+
+running 1 test
+test version_contacts_no_server ... FAILED
+
+failures:
+
+---- version_contacts_no_server stdout ----
+
+thread 'version_contacts_no_server' (42178987) panicked at crates/steg/tests/cli_no_server.rs:54:21:
+a connection was accepted; the command reached for the server
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    version_contacts_no_server
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.17s
+
+error: test failed, to rerun pass `-p steg --test cli_no_server`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

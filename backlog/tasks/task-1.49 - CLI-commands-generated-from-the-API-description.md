@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:50:00Z'
+updated_date: '2026-11-16T13:51:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -31,12 +31,9 @@ doc-2, sections 2 to 6 and 8: R32, R34. decision-4. Nothing in the CLI names a m
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Every API method has a command and every command an API method, checked by a test that fails when they drift
-- [ ] #2 The grammar, the flags every command has, `--json`, and `-q` printing identifiers only each behave as doc-2 says
-- [ ] #3 Each exit status in doc-2 section 6 is produced by a test
-- [ ] #4 `steg version`, `steg completion <shell>` and `--help` work with no server running; `--no-autostart` exits 4 without starting one
-- [ ] #5 A list is tab-separated with full identifiers, no header and no alignment, the same piped or not
-- [ ] #6 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
-- [ ] #7 A client whose connection is accepted and then closed before a hello arrives treats that the same as no server being there, and arbitrates again once; shown with real processes against a server stopping as the client connects (moved from TASK-1.86's fourth criterion, whose plan the engineer approved on 2026-11-16: nothing built before this task reads a hello)
+- [ ] #2 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
+- [ ] #3 steg version, steg completion <shell> and --help at every level work with no server running and without starting one
+- [ ] #4 A command that parses and validates but cannot yet connect exits 1 with a message naming the method, until TASK-1.119 replaces that; an invalid one exits 2
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -163,6 +160,14 @@ created: 2026-11-16T13:50:00Z
 ---
 
 Plan approved by @bruk (37c4dd0b7f74, size-4): its worker may build it.
+
+---
+
+created: 2026-11-16T13:51:00Z
+
+---
+
+2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted. TASK-1.119 has connecting, calling, the exit statuses and the connection closed before a hello; TASK-1.120 has the output formats. The approved plan calls them parts 2 and 3 (and TASK-1.49b in one message): cite TASK-1.119 and TASK-1.120 in code and notes.
 
 ---
 <!-- COMMENTS:END -->

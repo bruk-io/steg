@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T06:02:00Z'
+updated_date: '2026-11-16T06:20:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6a1e03383d92'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_findings: 'important=0,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1563,6 +1563,38 @@ created: 2026-11-16T06:02:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.93: a same-machine review: it waited 8m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T06:20:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+Reviewed PR #55 at head 23759ee (the branch's current head: TASK-1.96's reviewed head c5b48cb merged in at db3c654, then a 2-line regenerate commit). Diff judged: `git diff c5b48cbcbed3b7c46bcc2d3c8a307bbd16a4a881 23759ee` (TASK-1.93's own files only - excludes TASK-1.96's design_pages.py/Tokens.dc.html/design READMEs, which are that task's content carried along until it merges to main separately). `just check` passes clean (28/28) on my own run at 23759ee; the task's own recorded check at 31c799f is covered by CI green at 23759ee and by this run, per this review's brief - not counted as a finding.
+
+1. R123's public-surface check (tools/src/steg_tools/foundations_public_surface.py), read line by line, then attacked with scratch edits in a worktree, each reverted:
+   - REFUSED: a `pub fn` on another type's `impl` block returning the literal `Hsla` (e.g. `impl OtherThing { pub fn colour(&self) -> Hsla {...} }`) outside `impl Theme` - caught, `cargo build` still compiles, confirming the check's stated core case still works.
+   - PASSED, undisclosed: `pub const STRAY: Hsla = Hsla { h: 0.5, s: 0.5, l: 0.5, a: 1.0 };` - compiles clean (`Hsla`'s fields are all `pub` per gpui 0.2.2's `color.rs:272`, so a struct literal is a valid `const`), hands out a bare colour to any caller with no `Theme`, and `check-foundations-public-surface` reports `ok`. Also PASSED, undisclosed: `use gpui::{Global, Hsla as Colour};` + `pub fn stray_renamed() -> Colour {...}`, and a local `pub type BareColour = Hsla;` + `pub fn stray_alias() -> BareColour {...}` - both compile and both pass the check (its regex matches only the literal spellings `Hsla`/`gpui::Hsla`, not a resolved type identity).
+   - PASSED, disclosed: `pub fn stray_tuple() -> (Hsla, f32)` and `pub fn stray_option() -> Option<Hsla>` outside `impl Theme` - not caught, but the check's own docstring explicitly names "a function returning Hsla wrapped in another type (a tuple, Option<Hsla>, a struct with an Hsla field)" as invisible by design, so this isn't a wider claim than stated.
+   - Verdict on the claim: crates/ui/src/foundations/mod.rs:38-39 ("reaching one not through Theme is a compile error, not a convention") and crates/ui/CLAUDE.md:23 ("a build failure, not a convention") are literally false for a `pub const` or a renamed/aliased spelling of `Hsla` - nothing stops either, compile-time or check-time, and neither is in the check's own stated limitation list. This is a real gap, but it binds nothing that currently ships: the check, `steg-ui-colours`, and `just check` are all clean at 23759ee, and generated.rs never emits a `pub const` of a paired colour (colours are private functions, per the plan's own note that neither `rgb()` nor `Rgba->Hsla` is `const fn`) - AC#2 is met as built. Nit, not Important: the fix is narrowing three sentences of prose (mod.rs, CLAUDE.md, and the stale justfile:172 comment, which still says "a public function in crates/ui/src/foundations" though e4f757c widened the scan to the whole crate), or widening the check itself (e.g. with ast_grep_py, already used in this same crate's ui_colours.py, rather than brace-matching regex) - not a code or behaviour change.
+   - Checked but not a hole: `crates/ui/src/foundations/mod.rs:14`'s `pub use generated::*;` re-exports `pub fn steg_dark(session: Hsla) -> TerminalTheme`, a public free function whose `TerminalTheme` has public `Hsla` fields (`bg`, `fg`, ...), reachable with no `Theme` at all. Checked against R123's own wording ("where the design gives both"): "steg dark"/"steg light" are each one fixed, flat colour set, not a light/dark pair of one named value (confirmed in the plan and design/README.md), so R123 doesn't bind them - not a finding.
+
+2. The merge of PR #54 (TASK-1.96, c5b48cb) into this branch: `git diff db3c654 23759ee -- crates/ui/src/foundations/generated.rs` is exactly 2 lines (artifact_version; fill.quiet's doc comment losing "progress track"); `foundations.json`, `Tokens.dc.html`, both design READMEs and `design_pages.py` are byte-identical between c5b48cb and 23759ee; the merged justfile's `check:` line and recipe bodies keep every recipe from both sides (`check-design` from TASK-1.96, `check-foundations`/`check-foundations-public-surface`/`generate-foundations` from this task) - confirmed by diff and by running `just check-design` and `just check-foundations` directly. Matches comment #9.
+
+3. ui_colours.py: `EXEMPT_PREFIXES = (FOUNDATIONS,)` - the gallery's exemption is gone, `GALLERY` stays only as a discovery root. `uv run steg-ui-colours` against the real tree: exit 0, no violations. The two tests asserting the gallery is no longer exempt pass; grep of gallery/main.rs finds no hex/rgb/struct-literal colour construction at all.
+
+4. Generator/staleness: a scratch edit to foundations.json makes `just check-foundations` fail naming `just generate-foundations`; reverting and instead hand-editing generated.rs directly also fails the same way; `--check` run twice against HEAD's own data is byte-identical. Names: `track` (the engineer's addition, design/README.md: "18... plus track") generates correctly as `Theme::track()`. I could not find any design entry literally named "off" anywhere in foundations.json, design/README.md, or the task's history to check the brief's "off not exported" point against - noting this rather than guessing.
+
+5. Gallery images (read via the Read tool only, from the author's worktree's target/gallery/*.png - not committed, target/ is gitignored; verified these are the final-shape captures, not stale placeholders, by running `steg-gallery-check` against them at (8,60) with the current surface.ground hexes, both passing): both appearances present; tint/scrim each show their opacity inline ("tint @ 18%", "scrim @ 28%"/"60%"); ramps are smooth gradients, not hard bands; "Other named values" columns are not clipped; terminal theme rows are labelled "steg dark"/"steg light" with 21 swatches each. fill.quiet (this round's only data change) appears only as a swatch + hex in both images, with no "use" text rendered anywhere for any colour - confirms the "progress track" wording change can't be visible, matching comment #9's claim, checked from the image rather than assumed.
+
+6. AC#4 reproduced independently: `design_entries()` finds 54 names in the real data file, `grep -c 'Design name:' generated.rs` = 54, the adapter test passes with the same count. `just check` 28/28 clean at 23759ee (my own run).
+
+plan-matched: no - same explained departures recorded in the notes/comments #4,#6,#9 (module name forced by the engineer's brief; radius.round as a plain Pixels const; resolve_for_appearance not existing; this round's PR #54 absorption and regenerate). Policy's --plan-matched is literal about any departure, explained or not, so this stays "no" across every round.
 
 ---
 <!-- COMMENTS:END -->

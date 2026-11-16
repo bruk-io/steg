@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:21:00Z'
+updated_date: '2026-11-16T01:49:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -711,6 +711,66 @@ test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do if ! cargo test -p steg-server --test routing 2>&1 | grep -q "test result: ok. 17 passed"; then fail=$((fail+1)); fi; done; echo "failures: $fail of 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:49:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 9201dd78ad26 with uncommitted changes:
+
+```text
+failures: 0 of 10
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T01:49:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 9201dd78ad26 with uncommitted changes, last 40 of 337 lines:
+
+```text
+test session_new_with_a_nonexistent_cwd_fails_and_leaves_nothing_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Correction to the build-load note above: it was wrong, and I withdraw its conclusion. Reproducing the "6 of 10 iterations killed by an outer 60s timeout" result in isolation found it was not cargo-scheduling delay - it was a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung genuinely hanging, every time it failed, with every other test in the same binary finishing in under a second regardless. The test itself had two real, unbounded waits:
+
+1. The client's own write loop set no write timeout at all. Once the server stops reading (which is exactly what this test provokes), write_all can block forever on a full OS send buffer that nothing is draining.
+2. The drain loop afterward bounded only each individual read (5s), not its own total running time - the same shape TASK-1.44's own review found and fixed in the handshake's per-read timeout, reintroduced here by me.
+
+Fixed both: a 2s write timeout on the client stream, treated the same as a closed connection; one overall 10s deadline on the drain loop, checked every iteration, not just per-read. Extracted the same one-deadline shape into a shared read_n_replies helper used by every multi-reply wait in routing.rs. Verified: 10/10 repeated runs of the flood test alone and 10/10 of the whole file, all now passing in 0-3s each, against 6 reproduced hangs past 60s before the fix. Recorded via record-check both the failing (timeout, exit 124) and the fixed, repeated-passing runs.
+
+The load this surfaced under (several other workers' cargo builds running concurrently on this machine, load average 9-12) is real and worth keeping in mind for future work on this task, but it was the trigger that made a pre-existing bug in my own test visible, not the cause of a false failure - the underlying wait really was unbounded regardless of load.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

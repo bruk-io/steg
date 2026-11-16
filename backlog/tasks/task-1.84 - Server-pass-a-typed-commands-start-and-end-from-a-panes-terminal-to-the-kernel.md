@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:22:00Z'
+updated_date: '2026-11-16T01:52:00Z'
 labels:
   - size-2
   - changes-requested
@@ -28,7 +28,7 @@ asdlc_plan_approved_hash: '33f0386d0f53'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review"]
+asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: no
 ---
 
@@ -564,6 +564,110 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:24:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7cbed63ed702 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-kernel -p steg-server) (36.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (7.0s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 48, 48 without the Asdlc-Worker trailer.
+
+Review findings fixed (review by @bruk.r2, 2026-11-16):
+
+Important: a_command_panes_own_program_printing_marks_does_not_change_its_status could not fail - its D mark and its real exit both read as Finished, and the D landed outside the one window the test ever checked Running inside, so a wrongly-applied mark and a mark that never arrived were both invisible to it. Fixed as the finding's own second option: the D mark now carries exit code 3, differing from the real exit's own 0, so a wrongly-applied mark is observable as Failed{exit_code:3} - a value the real exit path alone can never produce. Before asserting anything about the command pane, the test now proves the marks had time to land by running the identical script in a sibling shell pane and waiting for it to read that same Failed{exit_code:3} first, over the one drain thread every pane's marks share (picked over an in-crate applied-event counter: this reuses the real channel and drain thread as they already are, with no test-only instrumentation added to production types). Two negative controls run, confirmed failing, and restored, each recorded with asdlc record-check: the kernel's command-pane guard bypassed in both Pane::note_command_output_started and note_command_ended (crates/kernel/src/pane.rs) - the test fails, reading Failed{exit_code:3} where it must read Running; and the mark drain removed again in crates/server/src/pane.rs - the test fails, the shell-pane control itself timing out waiting for Failed, so the test no longer passes when nothing arrives either.
+
+Nit: reworded the mark-for-a-pane-already-gone test's own comment (crates/server/src/runtime.rs) to describe what the test stands for - a pane whose own real program may still be running after its tree entry is gone - rather than naming TASK-1.78 as the task whose merge would make the wording stale.
+
+Checks recorded on this task since the review: a passing run of the fixed test alone (exit 0), five repeats with no flakiness; the bypass-the-guard control (exit 101, confirmed failing, restored); the drain-removed control (exit 101, confirmed failing, restored); the full runtime::tests suite (18 tests, exit 0) after restoring both; a full `just check` (exit 0) at the merged head.
+
+origin/main moved while this was in flight - fetched and merged (git merge --no-edit, branch already pushed): every incoming commit was board-only (backlog/ task and draft updates, review and check records); no crates/ file touched. TASK-1.78 (forced close) was still In Progress at merge time and remains so - the reworded comment on the gone-pane test no longer names it, so nothing here depends on when it lands. `just check` was re-recorded clean at the merged, pushed head, and CI is green on that same head (c495468).
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:51:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at c495468451b0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (18189515) panicked at crates/server/src/runtime.rs:1926:9:
+assertion `left == right` failed: a command pane's own program always wins over a mark (R97)
+  left: Some(Failed { exit_code: 3 })
+ right: Some(Running)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:52:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at c495468451b0 with uncommitted changes:
+
+```text
+warning: function `drain_command_marks` is never used
+   --> crates/server/src/pane.rs:509:4
+    |
+509 | fn drain_command_marks(terminal: &mut Terminal, pane: PaneId, events: &Sender<PaneEvent>) {
+    |    ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (18205310) panicked at crates/server/src/runtime.rs:1615:13:
+pane 00000002 never reached 2 applied marks; last seen 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 20.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -611,6 +715,38 @@ Head reviewed: 7f6ab3ae5a6e9b8766f2eab12dd457284dcb1ac7 (matches the task's fina
 [Compliance, Nit] crates/server/src/runtime.rs, `a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic`'s own comment ("standing in for a forced close that has already happened ... until TASK-1.78 lands") will read as stale once TASK-1.78 merges, since the scenario becomes real rather than synthetic; the `PaneNotFound` arm's behaviour itself is generic (keyed only on whether the tree still holds the pane) and I found nothing in TASK-1.78's planned files that would change its meaning.
 
 Other brief items checked clean: `events.send` appears only twice in pane.rs, both inside `worker_loop` (the `Exited` arm and `drain_command_marks`, called only from the `PtyBytes` arm) - the worker is the sole sender of every `PaneEvent` for a pane on every path; a restart only ever targets a command pane (R97: a shell pane closes rather than restarting), and the kernel already treats marks on a command pane as `NotAShellPane`/`Ignored`, so no old-run mark can be misapplied to a new run even putting the channel-ordering argument aside. `apply_event_locked`'s two new arms match the plan exactly, including `now` computed once per event the same way the `Exited` arm already does, and the `Err(other) => unreachable!` arms are genuinely unreachable - `Tree::note_command_output_started`/`note_command_ended` only ever construct `Err(Error::PaneNotFound(id))`, confirmed by reading `tree.rs`. Kernel diff is confined to the one doc comment on `terminal.rs`; no other kernel file touched, no `unsafe`, no new dependency. The one departure from the plan (no drain after `Terminal::resize`) was already named and accepted at plan-check by @bruk.o, so `--plan-matched no` reflects that departure as data, not a new finding.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:28:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:43:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review, testing-rust. The diff does not match the plan.
+
+Review by @bruk.r2 (same-machine), second round. Head reviewed: c495468451b06859b18464fd2839d734614ca46a (matches the task's recorded `just check` tree and the pull request's green CI check run on this head).
+
+Independently reproduced: a fresh detached worktree at c495468; `just check` exit 0 (all 19 steps ok, including `tests (-p steg -p steg-kernel -p steg-server)`, `test (steg-server)`, `test (steg-server, race-fixture)`, `architecture`, `recipe names`); the fixed test, `a_command_panes_own_program_printing_marks_does_not_change_its_status`, run 20/20 with no flakiness; the full `runtime::tests` module (18 tests) passing before and after my own controls. Both of the fix's own negative controls reproduced in scratch edits, reverted afterward: (a) commenting out the `drain_command_marks` call in `crates/server/src/pane.rs`'s `PtyBytes` arm - the test fails, the sibling shell-pane control itself timing out waiting for `Failed { exit_code: 3 }`; (b) bypassing the kernel's command-pane guard (`if true`/`if false` in place of `self.closes_on_exit()` in both `Pane::note_command_output_started` and `Pane::note_command_ended`, `crates/kernel/src/pane.rs`) - the test fails at its `Some(Status::Running)` assertion, reading `Failed { exit_code: 3 }` instead. The fix genuinely repairs the Important finding from the first review (the test could not fail before): it is now sensitive in both directions.
+
+The 20x repeat count covers only the one test the commit since the last review changed; the six mark tests as a group were already run 20/20 by the first review at 7f6ab3a, and the code producing them (`pane.rs`, `terminal.rs`, and `apply_event_locked`'s two new arms) is untouched since - re-confirmed by `git diff --stat 7f6ab3a..c495468`, which touches only `crates/server/src/runtime.rs`'s test module, board-only files aside.
+
+[Bugs, Important] crates/server/src/runtime.rs:1899-1910, `a_command_panes_own_program_printing_marks_does_not_change_its_status`: the fixed test proves its D mark arrived for the *sibling shell pane*, not for the command pane the assertion is actually about, then infers the command pane's identical, near-simultaneous mark has also had time to land using a bare `thread::sleep(Duration::from_millis(100))` - not an event wait. `.claude/rules/testing-rust.md`: "No test sleeps to wait for something; it waits on the event." The shared `events_rx`/drain thread gives FIFO delivery only per sender (the plan's own §1 argument, and the code comment on `drain_command_marks`); nothing orders the command pane's worker thread's send relative to the shell pane's, since they are two independently scheduled real processes and two independent worker threads. The 100ms margin is the one thing standing between "the mark landed" and "the mark had not yet landed" for the pane under test, with no bound tied to any event of the command pane's own. If the kernel's command-pane guard were broken, but the command pane's worker thread were descheduled past the shell pane's run for longer than that margin (plausible, not just theoretical, under load - e.g. CI), the test would pass despite the bug: a silent vacuous pass, the same class of defect the first review found here, now hiding behind a timing assumption rather than unreachable code. My own 20/20 and the two controls ran on an otherwise-idle machine and cannot rule this out; a deterministic negative result there does not prove the assumption holds under load. Fix needs a real event to wait on for the command pane specifically - for example asserting on the command pane's own mark having been drained from the terminal (`Terminal::take_command_marks` returning empty, polled) before checking its status, or an in-crate hook that is not test-only instrumentation on `Runtime` itself, rather than inferring timing from a different pane.
+
+[Compliance, Nit] crates/server/src/runtime.rs:1842-1866: the 25-line `///` doc comment narrates this review's own history (reviewer name, finding, date) ahead of the test it attaches to. Useful today, but reads like a comment that will go stale exactly the way the first review's own nit (on the pane-not-found test) did once this round is old news - the "why" (vacuous-pass risk, two negative controls) is durable and belongs in the comment; the "who reviewed it and when" does not.
+
+Other items re-checked at this head, unchanged from the first review's findings: `apply_event_locked`'s two new arms, the `PaneNotFound` no-op, `unreachable!` arms, kernel diff confined to the one doc comment on `terminal.rs`, no `unsafe`, no new dependency, `--plan-matched no` reflecting the already-accepted resize departure (still the only departure). `Runtime::stop` (called from `Drop`) iterates every pane in `state.panes`, so the test's newly added second real pty child (the sibling shell pane) is reaped the same way the command pane is - no new leak from the fix (AC #3 holds). CI is green on c495468 (PR #46's head). No open draft in `asdlc board draft list` covers this or the prior finding; filing none, since the earlier Important finding was fixed rather than repeated.
 
 ---
 <!-- COMMENTS:END -->

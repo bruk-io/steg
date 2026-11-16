@@ -1,14 +1,13 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:11:00Z'
+updated_date: '2026-11-16T03:14:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -1273,6 +1272,20 @@ failures: 0 of 20
 ```
 
 Commits since the review: 110, 109 without the Asdlc-Worker trailer.
+
+Second review round addressed. Leading with what the headline test now waits on: it establishes, as a bounded fact rather than a sleep, that bytes already delivered to the client have stopped growing at a value above zero across two consecutive FIONREAD polls (wait_until_bytes_available_plateaus) - the one fact that can only hold once the server's writer has genuinely written something and then stopped, which on a full send buffer means blocked. The flood sent before that wait is sized from this connection's own real SO_SNDBUF/SO_RCVBUF, read with getsockopt, exceeded with a wide margin, so no OS-dependent constant is guessed. The retrospective check now requires received > 0 (the writer did write) and < total_sent (it was cut off), closing the "writer never started" gap the sleep-based version could not rule out. Negative control re-recorded: shutdown_handle.shutdown removed, 5/5 runs failed by their own ~5-6s bound (Err(Timeout), not a hang); restored, 20/20 passing, and the full tests/routing.rs suite (21 tests) run 20 times at the final head with 0 failures.
+
+Nit (a): built, not dropped. stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket starts a real program through session.new (writes its own pid to a file, then sleeps), confirms it alive via kill -0, calls stop() through listen::run's own serve(), then asserts in order: the real process is gone, the socket file is removed, and a second serve() can bind at the same path (proving the arbiter lock was actually released, not merely leaked and eventually reclaimed).
+
+Nit (b): built. a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method sends session.show, tab.focus and pane.show with no target over a real connection with Context::none(), and asserts BadRequest with a missing-context message for each - target is optional at validate() for all three, so this can only be dispatch's own refusal.
+
+Nit (c): took the "or justify why the unit test is sufficient" option, with a reason grounded in a direct measurement, not a guess: I wrote a standalone repro (UnixStream::pair(), one side shutdown(Shutdown::Read), the other side does 2000 writes of 1KB) and every write succeeded - a half-closed read side does not make the peer's writes fail or block on this platform. The only reliable way left to make a real connection's write fail is the client fully disconnecting, but that also trips the reader's own, pre-existing EOF handling in run_post_handshake independently of this fix, so a routing-level test built that way would pass identically with the fix removed and prove nothing about this specific mechanism. Documented this reasoning directly on the existing outbound.rs unit test (which isolates run_writer with no reader or connection in the way, specifically because the routing level cannot). Also added a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly for the real, provable end-to-end claim: a client gone with several replies queued still gets a prompt, clean Disconnected.
+
+Checks recorded via asdlc record-check: the 5x negative control (fail 5/5 by bound), the 20x routing.rs repetition at the final head (0/20 failures, 21 tests each), and `just check` (all green: format, lint, boundaries, licences, every crate's build/tests, tool tests, architecture, recipe names).
+
+Merge: fetched origin/main - nothing touched crates/ or any build file since the last merge (diff from merge-base to origin/main on crates/justfile/Cargo.toml/Cargo.lock is empty); the merge brought in only backlog/ board and doc commits (new UI-crate tasks, review records, other tasks' check records), no conflicts.
+
+Pushed; gh run watch on the triggered CI run passed (check job, 2m38s); gh pr checks 50 confirms pass.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

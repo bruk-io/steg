@@ -1,16 +1,19 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:35:00Z'
+updated_date: '2026-11-16T17:45:00Z'
 labels:
   - size-5
 milestone: m-4
 dependencies:
   - TASK-1.47
+references:
+  - task-1.117-app-a-bare-window-with-one-terminal-you
+  - https://github.com/bruk-io/steg/pull/65
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -753,6 +756,51 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Part 1 of the plan's three-way split built as approved: a bare window that
+starts/finds a server, finds or makes the labelled session (replacing its
+pane with a fresh tab if the found pane's program has ended), attaches, and
+draws the fixed grid read-only. Threading matches the plan exactly: a
+dedicated thread blocks on the socket and decodes with the sdk's own
+Connection, forwarding each update over a futures::channel::mpsc the
+foreground task awaits - never polled; startup runs on its own dedicated
+thread too, off gpui's background-executor pool.
+
+Two real bugs found and fixed by running the app against a real server
+(nothing in just check opens a window): the model cannot derive a column
+count from a row's own content (a freshly attached, not-yet-printed-to row
+is blank, which read back as 0 columns and capped every row's paint width to
+0) - fixed by tracking only the row count and cropping columns to the
+window's own pixel width instead, with a regression test; and gpui's
+canvas() element needs its own size_full, separate from its wrapping div's,
+confirmed from gpui's own elements/canvas.rs.
+
+Checks recorded via asdlc record-check: just check, clean before and after
+merging origin/main. Every proof item in the plan's own list has a named
+control, each recorded as a failing run (mechanism deliberately broken) and
+a passing run (reverted): the model's fixed row count surviving a delta; the
+blank-first-row regression; columns_that_fit's floor-not-round boundary; a
+Wide run's column count doubling; the channel decoding a StreamControl
+frame; and shutdown() unblocking the reader thread, proven with a bounded
+wait (std::thread::JoinHandle::join has no timeout) so a broken mechanism
+fails the test rather than hanging it.
+
+Build note: this branch's dependency, TASK-1.47, is not on main yet (per
+the engineer's own note it is "rebuilt on main" later) - origin/main's own
+new idle-stop/accept-backoff work was merged in and reconciled by hand
+where both sides touched the same server-internal structs (all additive,
+no logical conflict); diffed clean against origin/main everywhere outside
+crates/app before pushing.
+
+Run by hand against a real on-demand server on a throwaway socket path,
+with a throwaway, isolated shell for the one manual verification pass
+(reverted before committing - the shipped code always defaults to the real
+login shell, doc-9 R13). Confirmed: live output draws; closing and
+relaunching re-attaches to the same session; every process started for
+this was stopped and reaped (ps confirmed clean) before pushing. PR carries
+the screenshot.
+
+CI green on the PR (gh pr checks --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.122
 title: 'App: measure key to paint, and bound the work per frame'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T15:26:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.117
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

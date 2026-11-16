@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:19:00Z'
+updated_date: '2026-11-16T14:23:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -323,6 +323,39 @@ ok      test (steg-app) (0.3s)
 ok      tool tests (11.9s)
 ok      architecture (0.8s)
 ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:23:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 645a8d57280a with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (14.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.6s)
+ok      test (steg-server) (11.1s)
+ok      test (steg-server, race-fixture) (9.9s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.3s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```

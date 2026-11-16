@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:10:00Z'
+updated_date: '2026-11-16T13:12:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -306,6 +306,44 @@ running 1 test
 test cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.60s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime a_panes_pty_that_cannot_be_opened` exited 101 at 2026-11-16T13:12:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+warning: function `rollback_mint` is never used
+   --> crates/server/src/runtime.rs:805:4
+    |
+805 | fn rollback_mint(tree: &mut Tree, method: &str, new_pane: PaneId) {
+    |    ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind ... FAILED
+
+failures:
+
+---- a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind stdout ----
+
+thread 'a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind' (28305068) panicked at crates/server/tests/runtime.rs:311:5:
+assertion `left == right` failed: nothing should be left behind when the open step itself exhausts every attempt
+  left: (1, 1)
+ right: (0, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 <!-- SECTION:NOTES:END -->
 

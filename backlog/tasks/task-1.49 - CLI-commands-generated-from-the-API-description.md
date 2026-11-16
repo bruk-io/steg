@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:24:00Z'
+updated_date: '2026-11-16T15:28:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -864,6 +865,15 @@ Proof table (@bruk.w5) - each row recorded on this task via asdlc record-check a
 | Engineer decision 3, unset --label is discarded regardless of its value (dispatch) | `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` | `dispatch/session.rs`'s `unset` changed from `param_present` to `param_bool(...) == Some(true)` -> fails on --no-label (left: Some("y"), right: None); reverted -> passes |
 
 Correction: this task's plan claimed `clap::builder::Str`/`Id` implement `From<String>` unconditionally (checked against docs.rs, which builds every feature). That was wrong: the impl is gated behind clap's own "string" feature, confirmed directly against `clap_builder`'s own Cargo.toml (`string = []`, no extra dependency). `boundaries.toml`'s `[steg]` reason text now says so and why. No leaking to 'static was ever needed either way, as the plan intended - only the feature flag was missing from the plan's own claim, not from the build.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:28:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

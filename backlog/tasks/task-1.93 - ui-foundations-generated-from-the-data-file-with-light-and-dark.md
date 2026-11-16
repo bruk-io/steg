@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:16:00Z'
+updated_date: '2026-11-16T03:17:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -22,6 +22,8 @@ asdlc_branch: task-1.93-ui-foundations-generated-from-the-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6a1e03383d92'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -755,6 +757,15 @@ created: 2026-11-16T02:44:00Z
 Point 2 (fully round corner): built one Radius type for all four corners, not a separate marker type. Checked gpui 0.2.2's own source first: `corner_radii` takes `Corners<AbsoluteLength>`, and `AbsoluteLength` is only `Pixels` or `Rems` - no percentage/fraction variant exists for a corner radius in this pinned version (unlike width/height, which do have `DefiniteLength::Fraction`). GPUI has no "fully round" primitive at all; the idiomatic way (and the one the data file's own comment already points at - the CSS 999px convention) is a conventionally large `Pixels` value, which paints fully round once it reaches half of whatever it rings, regardless of the exact number. So `radius.round` generates as `pub const RADIUS_ROUND: Pixels = px(999.0);` - same type as `radius.surface`/`radius.track`/`radius.inner`, applied by a component the same way as any other radius, with a doc comment explaining the convention. A marker type would have claimed a distinction GPUI itself doesn't draw.
 
 Also recorded: TASK-1.94's own plan (see its notes) already named the same gallery-colour-literal-exemption overlap I flagged in the plan - its check's gallery exclusion is scoped to stay until this task lands.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:17:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

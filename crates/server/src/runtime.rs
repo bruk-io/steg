@@ -893,7 +893,10 @@ mod tests {
                 .tree
                 .declare_size(a, tab_id, Size::new(80, 24))
                 .unwrap();
-            state.tree.declare_size(b, tab_id, Size::new(40, 10)).unwrap()
+            state
+                .tree
+                .declare_size(b, tab_id, Size::new(40, 10))
+                .unwrap()
         };
         runtime.apply_size_changed(&first_change);
         assert_eq!(
@@ -949,7 +952,10 @@ mod tests {
             panic!("a bug inside a request handler, simulated for this test");
         })
         .join();
-        assert!(panicked.is_err(), "the spawned thread really did panic while holding the lock");
+        assert!(
+            panicked.is_err(),
+            "the spawned thread really did panic while holding the lock"
+        );
 
         let description = steg_sdk::description();
         let context = crate::dispatch::Context::none();

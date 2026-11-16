@@ -333,7 +333,9 @@ fn session_set_and_unset_change_and_clear_the_label() {
         &request("session.set", vec![("label", json!("work"))]),
     ));
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().label(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .label(),
         Some("work")
     );
 
@@ -344,7 +346,12 @@ fn session_set_and_unset_change_and_clear_the_label() {
         &context,
         &request("session.unset", vec![("label", json!(""))]),
     ));
-    assert_eq!(tree.session(context.default_session.unwrap()).unwrap().label(), None);
+    assert_eq!(
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .label(),
+        None
+    );
 }
 
 #[test]
@@ -379,7 +386,9 @@ fn tab_new_makes_the_new_tab_current_by_default() {
 
     let id: TabId = value["id"].as_str().unwrap().parse().unwrap();
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().current_tab(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .current_tab(),
         id
     );
 }
@@ -387,7 +396,10 @@ fn tab_new_makes_the_new_tab_current_by_default() {
 #[test]
 fn tab_new_with_no_focus_restores_the_previous_current_tab() {
     let (mut tree, context, api) = fresh();
-    let before = tree.session(context.default_session.unwrap()).unwrap().clone();
+    let before = tree
+        .session(context.default_session.unwrap())
+        .unwrap()
+        .clone();
 
     let value = ok(dispatch(
         &mut tree,
@@ -420,13 +432,20 @@ fn tab_new_with_no_focus_restores_the_previous_current_tab() {
 #[test]
 fn tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first() {
     let (mut tree, context, api) = fresh();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
-    let _third_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
+    let _third_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
     // `new_tab` just made `_third_tab` current (R115); focus the middle
     // one instead, so the session's current tab is neither its first nor
     // its last tab before the call below.
     tree.focus_tab(second_tab).unwrap();
-    let before = tree.session(context.default_session.unwrap()).unwrap().clone();
+    let before = tree
+        .session(context.default_session.unwrap())
+        .unwrap()
+        .clone();
     assert_eq!(before.current_tab(), second_tab);
     assert_ne!(before.tabs()[0].id(), second_tab);
     assert_ne!(before.tabs().last().unwrap().id(), second_tab);
@@ -460,7 +479,10 @@ fn tab_new_with_position_one_places_the_new_tab_first() {
     ));
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
 
-    let tabs = tree.session(context.default_session.unwrap()).unwrap().tabs();
+    let tabs = tree
+        .session(context.default_session.unwrap())
+        .unwrap()
+        .tabs();
     assert_eq!(tabs[0].id(), new_tab);
     assert_eq!(tabs[1].id(), context.default_tab.unwrap());
 }
@@ -468,8 +490,12 @@ fn tab_new_with_position_one_places_the_new_tab_first() {
 #[test]
 fn tab_new_with_a_middle_position_places_the_new_tab_there() {
     let (mut tree, context, api) = fresh();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
-    let third_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
+    let third_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
     // Order so far: [default_tab, second_tab, third_tab].
 
     let value = ok(dispatch(
@@ -497,7 +523,9 @@ fn tab_new_with_a_middle_position_places_the_new_tab_there() {
 #[test]
 fn tab_new_with_no_position_appends_at_the_end_as_before() {
     let (mut tree, context, api) = fresh();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     let value = ok(dispatch(
         &mut tree,
@@ -515,13 +543,19 @@ fn tab_new_with_no_position_appends_at_the_end_as_before() {
         .iter()
         .map(steg_kernel::Tab::id)
         .collect();
-    assert_eq!(tabs, vec![context.default_tab.unwrap(), second_tab, new_tab]);
+    assert_eq!(
+        tabs,
+        vec![context.default_tab.unwrap(), second_tab, new_tab]
+    );
 }
 
 #[test]
 fn tab_new_with_position_zero_is_refused_and_creates_nothing() {
     let (mut tree, context, api) = fresh();
-    let before = tree.session(context.default_session.unwrap()).unwrap().clone();
+    let before = tree
+        .session(context.default_session.unwrap())
+        .unwrap()
+        .clone();
 
     let error = err(dispatch(
         &mut tree,
@@ -532,7 +566,10 @@ fn tab_new_with_position_zero_is_refused_and_creates_nothing() {
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
-    assert_eq!(&before, tree.session(context.default_session.unwrap()).unwrap());
+    assert_eq!(
+        &before,
+        tree.session(context.default_session.unwrap()).unwrap()
+    );
 }
 
 /// A position past the end behaves exactly as `tab.move`'s own arm does
@@ -562,7 +599,9 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
     assert_eq!(new_error.code, ErrorCode::PositionOutOfRange);
     assert_eq!(
         &before,
-        new_tree.session(new_context.default_session.unwrap()).unwrap()
+        new_tree
+            .session(new_context.default_session.unwrap())
+            .unwrap()
     );
 
     let (mut move_tree, move_context, _) = fresh();
@@ -589,7 +628,10 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
 #[test]
 fn tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus() {
     let (mut tree, context, api) = fresh();
-    let before = tree.session(context.default_session.unwrap()).unwrap().clone();
+    let before = tree
+        .session(context.default_session.unwrap())
+        .unwrap()
+        .clone();
 
     let error = err(dispatch(
         &mut tree,
@@ -603,13 +645,18 @@ fn tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restore
     ));
 
     assert_eq!(error.code, ErrorCode::PositionOutOfRange);
-    assert_eq!(&before, tree.session(context.default_session.unwrap()).unwrap());
+    assert_eq!(
+        &before,
+        tree.session(context.default_session.unwrap()).unwrap()
+    );
 }
 
 #[test]
 fn tab_move_with_position_reorders() {
     let (mut tree, context, api) = fresh();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     ok(dispatch(
         &mut tree,
@@ -626,7 +673,10 @@ fn tab_move_with_position_reorders() {
     ));
 
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().tabs()[0].id(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .tabs()[0]
+            .id(),
         second_tab
     );
 }
@@ -634,7 +684,9 @@ fn tab_move_with_position_reorders() {
 #[test]
 fn tab_close_removes_it() {
     let (mut tree, context, api) = fresh();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     ok(dispatch(
         &mut tree,
@@ -657,7 +709,8 @@ fn tab_focus_makes_it_current() {
     let (mut tree, context, api) = fresh();
     // `new_tab` just made the new tab current (R115); focus back onto the
     // default tab.
-    tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    tree.new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     ok(dispatch(
         &mut tree,
@@ -671,7 +724,9 @@ fn tab_focus_makes_it_current() {
     ));
 
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().current_tab(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .current_tab(),
         context.default_tab.unwrap()
     );
 }
@@ -913,7 +968,9 @@ fn pane_move_moves_it_to_another_tab() {
             steg_sdk::PaneKind::Terminal,
         )
         .unwrap();
-    let second_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let second_tab = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     ok(dispatch(
         &mut tree,
@@ -1404,13 +1461,18 @@ fn api_call_of_pane_set_names_the_target_pane_not_the_context_default() {
         .tab(context.default_tab.unwrap())
         .unwrap();
     assert_eq!(tab.pane(named).unwrap().label(), Some("logs"));
-    assert_eq!(tab.pane(context.default_pane.unwrap()).unwrap().label(), None);
+    assert_eq!(
+        tab.pane(context.default_pane.unwrap()).unwrap().label(),
+        None
+    );
 }
 
 #[test]
 fn api_call_of_tab_set_names_the_target_tab_not_the_context_default() {
     let (mut tree, context, api) = fresh();
-    let named = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let named = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
 
     ok(dispatch(
         &mut tree,
@@ -1458,7 +1520,9 @@ fn api_call_of_session_set_names_the_target_session_not_the_context_default() {
 
     assert_eq!(tree.session(named).unwrap().label(), Some("scratch"));
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().label(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .label(),
         None,
         "the context's default session must be untouched"
     );
@@ -1549,13 +1613,21 @@ fn extra_params_for(
         }
         "pane.show" | "pane.close" | "pane.send" | "pane.capture" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![("target", json!(other_pane.to_string()))]
         }
         "pane.split" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1564,9 +1636,15 @@ fn extra_params_for(
         }
         "pane.move" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
-            let other_tab = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+            let other_tab = tree
+                .new_tab(context.default_session.unwrap(), None)
+                .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
                 ("to", json!(other_tab.to_string())),
@@ -1574,7 +1652,11 @@ fn extra_params_for(
         }
         "pane.set" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1583,7 +1665,11 @@ fn extra_params_for(
         }
         "pane.unset" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1592,13 +1678,21 @@ fn extra_params_for(
         }
         "pane.focus" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![("target", json!(other_pane.to_string()))]
         }
         "pane.resize" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1608,7 +1702,11 @@ fn extra_params_for(
         }
         "pane.swap" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1617,7 +1715,11 @@ fn extra_params_for(
         }
         "pane.wait" => {
             let other_pane = tree
-                .split_pane(context.default_pane.unwrap(), Direction::Right, PaneKind::Terminal)
+                .split_pane(
+                    context.default_pane.unwrap(),
+                    Direction::Right,
+                    PaneKind::Terminal,
+                )
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
@@ -1732,10 +1834,18 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
     // so no two cases ever compete for the same piece of state.
     let session_to_close = tree.new_session(None).unwrap();
     let session_to_move = tree.new_session(None).unwrap();
-    let tab_to_close = tree.new_tab(context.default_session.unwrap(), None).unwrap();
-    let tab_to_move = tree.new_tab(context.default_session.unwrap(), None).unwrap();
-    let tab_to_focus = tree.new_tab(context.default_session.unwrap(), None).unwrap();
-    let tab_for_pane_move = tree.new_tab(context.default_session.unwrap(), None).unwrap();
+    let tab_to_close = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
+    let tab_to_move = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
+    let tab_to_focus = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
+    let tab_for_pane_move = tree
+        .new_tab(context.default_session.unwrap(), None)
+        .unwrap();
     let pane_to_close = tree
         .split_pane(
             context.default_pane.unwrap(),
@@ -1944,7 +2054,9 @@ fn tab_new_with_no_focus_leaves_the_original_tab_current() {
     ));
 
     assert_eq!(
-        tree.session(context.default_session.unwrap()).unwrap().current_tab(),
+        tree.session(context.default_session.unwrap())
+            .unwrap()
+            .current_tab(),
         original
     );
 }

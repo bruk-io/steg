@@ -96,7 +96,9 @@ fn connect_and_handshake(socket_path: &std::path::Path) -> (UnixStream, Connecti
             }
         }
         let mut buf = [0_u8; 4096];
-        let n = stream.read(&mut buf).expect("reading the server's hello reply");
+        let n = stream
+            .read(&mut buf)
+            .expect("reading the server's hello reply");
         assert!(n > 0, "server closed before replying to the hello");
         connection.receive(&buf[..n]);
     };
@@ -120,11 +122,18 @@ fn call_and_read_reply(
     // runs for grow without one).
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        if let Some(Incoming::Reply { id: reply_id, response }) = connection.poll() {
+        if let Some(Incoming::Reply {
+            id: reply_id,
+            response,
+        }) = connection.poll()
+        {
             assert_eq!(reply_id, id, "the reply must carry the id this call minted");
             return (reply_id, response);
         }
-        assert!(Instant::now() < deadline, "timed out waiting for a reply to {method}");
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for a reply to {method}"
+        );
         let mut buf = [0_u8; 65536];
         let n = stream.read(&mut buf).expect("reading the reply");
         assert!(n > 0, "server closed before replying");
@@ -213,8 +222,11 @@ fn a_request_that_would_fail_client_side_validation_still_gets_a_matching_server
             params: Map::new(),
         },
     };
-    let bytes = encode_frame(&Frame::control(CONTROL_STREAM, control.to_payload().unwrap()))
-        .unwrap();
+    let bytes = encode_frame(&Frame::control(
+        CONTROL_STREAM,
+        control.to_payload().unwrap(),
+    ))
+    .unwrap();
     stream.write_all(&bytes).unwrap();
 
     let reply = loop {
@@ -226,7 +238,10 @@ fn a_request_that_would_fail_client_side_validation_still_gets_a_matching_server
         assert!(n > 0);
         connection.receive(&buf[..n]);
     };
-    assert_eq!(reply.0, 42, "the reply must carry the same id the request named");
+    assert_eq!(
+        reply.0, 42,
+        "the reply must carry the same id the request named"
+    );
     match reply.1 {
         Response::Error(error) => assert_eq!(error.code, steg_sdk::ErrorCode::BadRequest),
         Response::Ok(value) => panic!("an unknown method must not succeed: {value}"),
@@ -259,10 +274,18 @@ fn two_requests_sharing_one_id_both_get_correctly_matched_independent_replies() 
         },
     };
     stream
-        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, first.to_payload().unwrap())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::control(CONTROL_STREAM, first.to_payload().unwrap())).unwrap(),
+        )
         .unwrap();
     stream
-        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, second.to_payload().unwrap())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::control(
+                CONTROL_STREAM,
+                second.to_payload().unwrap(),
+            ))
+            .unwrap(),
+        )
         .unwrap();
 
     let replies = read_n_replies(&mut stream, &mut connection, 2);
@@ -364,7 +387,9 @@ fn a_non_json_control_payload_post_handshake_closes_the_connection() {
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     stream
-        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, b"not json at all".to_vec())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::control(CONTROL_STREAM, b"not json at all".to_vec())).unwrap(),
+        )
         .unwrap();
 
     assert_closes(&mut stream, Duration::from_secs(2));
@@ -381,7 +406,9 @@ fn a_reply_shaped_frame_from_the_client_closes_the_connection() {
         response: Response::Ok(json!(null)),
     };
     stream
-        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, reply.to_payload().unwrap())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::control(CONTROL_STREAM, reply.to_payload().unwrap())).unwrap(),
+        )
         .unwrap();
 
     assert_closes(&mut stream, Duration::from_secs(2));
@@ -398,7 +425,9 @@ fn an_event_from_the_client_closes_the_connection() {
         body: json!({}),
     };
     stream
-        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, event.to_payload().unwrap())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::control(CONTROL_STREAM, event.to_payload().unwrap())).unwrap(),
+        )
         .unwrap();
 
     assert_closes(&mut stream, Duration::from_secs(2));
@@ -426,7 +455,9 @@ fn data_on_a_stream_never_opened_closes_the_connection() {
     // No attach exists yet (TASK-1.47), so every non-zero stream is, by
     // construction, one this connection never opened.
     stream
-        .write_all(&encode_frame(&Frame::data(7, b"typed while nothing is attached".to_vec())).unwrap())
+        .write_all(
+            &encode_frame(&Frame::data(7, b"typed while nothing is attached".to_vec())).unwrap(),
+        )
         .unwrap();
 
     assert_closes(&mut stream, Duration::from_secs(2));
@@ -453,7 +484,9 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
     // this machine, well past the drain loop below (which already had
     // its own deadline), because the loop never even got that far
     // (recorded on the task).
-    stream.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
+    stream
+        .set_write_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
 
     // Comfortably past the control queue's own 256-entry cap - every
     // call is sent, none is ever read back.
@@ -484,7 +517,9 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
     // other test in this file finishing in under a second, before this
     // fix (recorded on the task).
     let deadline = Instant::now() + Duration::from_secs(10);
-    stream.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
     let mut buf = [0_u8; 65536];
     let closed = loop {
         if Instant::now() >= deadline {
@@ -532,7 +567,9 @@ fn a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed() {
     // case with no event to wait on instead of a bounded sleep
     // (handshake.rs's own established exception to "no sleeps").
     std::thread::sleep(Duration::from_millis(500));
-    stream.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_millis(200)))
+        .unwrap();
     let mut buf = [0_u8; 16];
     match stream.read(&mut buf) {
         Err(err) if err.kind() == std::io::ErrorKind::WouldBlock => {}
@@ -671,7 +708,9 @@ fn a_hostile_post_handshake_close_still_reports_disconnected() {
 fn a_reply_delivered_one_byte_at_a_time_still_decodes_correctly() {
     let (socket_path, stop, handle) = start_server();
     let mut stream = UnixStream::connect(&socket_path).unwrap();
-    stream.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
     let hello_bytes = Connection::send_hello("routing-test-client", ClientKind::Cli, None);
     stream.write_all(&hello_bytes).unwrap();
 
@@ -700,7 +739,11 @@ fn a_reply_delivered_one_byte_at_a_time_still_decodes_correctly() {
         assert!(n > 0);
         decoder.push(&buf[..n]);
     };
-    let Control::Reply { id: reply_id, response } = Control::from_payload(&reply).unwrap() else {
+    let Control::Reply {
+        id: reply_id,
+        response,
+    } = Control::from_payload(&reply).unwrap()
+    else {
         panic!("expected a reply");
     };
     assert_eq!(reply_id, id);

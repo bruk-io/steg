@@ -286,9 +286,7 @@ mod tests {
         let request = request_with_no_target();
 
         assert_eq!(
-            target_session(&tree, &context, &request)
-                .unwrap_err()
-                .code,
+            target_session(&tree, &context, &request).unwrap_err().code,
             ErrorCode::BadRequest
         );
         assert_eq!(
@@ -403,7 +401,8 @@ mod tests {
         let context = Context::none();
         let wrong_tab = super::TabId::from_raw(999);
 
-        let error = resolve_tab_str(&tree, &context, &format!("{session}/{wrong_tab}")).unwrap_err();
+        let error =
+            resolve_tab_str(&tree, &context, &format!("{session}/{wrong_tab}")).unwrap_err();
         assert_eq!(error.code, ErrorCode::NoSuchTarget);
     }
 }

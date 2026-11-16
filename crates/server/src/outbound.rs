@@ -32,6 +32,16 @@ use std::thread::{self, JoinHandle};
 const CONTROL_CAP: usize = 256;
 
 /// decision-2 §6's own measured number for a data-mode attachment's queue.
+/// Read only by this module's own tests today: nothing in this task ever
+/// opens a real stream (attach is TASK-1.47), so a production build never
+/// reaches it.
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "TASK-1.47's attach is the first real caller of the data side this guards; exercised today only by this module's own tests, which is why the expectation is scoped to a non-test build"
+    )
+)]
 const DATA_CAP: usize = 64;
 
 /// Why [`Outbound::enqueue_control`] refused.
@@ -46,7 +56,17 @@ pub(crate) enum EnqueueControlError {
     Closed,
 }
 
-/// Why [`Outbound::enqueue_data`] refused.
+/// Why [`Outbound::enqueue_data`] refused. Built and returned only by
+/// [`Outbound::enqueue_data`], which (see its own doc) is itself reachable
+/// only from this module's own tests today - the same TASK-1.47 gap as
+/// [`DATA_CAP`].
+#[cfg_attr(
+    not(test),
+    expect(
+        dead_code,
+        reason = "TASK-1.47's attach is the first real caller of enqueue_data, the only thing that ever produces this; exercised today only by this module's own tests"
+    )
+)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum EnqueueDataError {
     /// [`Outbound::open_stream`] was never called for this stream id (or
@@ -159,6 +179,13 @@ impl Outbound {
     /// an already-open stream changes nothing (not reached today - nothing
     /// in this task calls this at all; TASK-1.47's own attach code is the
     /// first real caller).
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
+        )
+    )]
     pub(crate) fn open_stream(&self, stream: u32) {
         let mut queues = self.lock();
         if let std::collections::hash_map::Entry::Vacant(entry) = queues.data.entry(stream) {
@@ -172,6 +199,13 @@ impl Outbound {
     /// construction - removing by position and taking `cursor` modulo the
     /// new (possibly smaller) length, rather than leaving it pointing past
     /// the end.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
+        )
+    )]
     pub(crate) fn close_stream(&self, stream: u32) {
         let mut queues = self.lock();
         queues.data.remove(&stream);
@@ -188,6 +222,13 @@ impl Outbound {
     /// Queues opaque bytes on an already-open data stream - reached only by
     /// this module's own tests today (see [`EnqueueDataError::NotOpen`]'s
     /// own doc).
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
+        )
+    )]
     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
         let mut queues = self.lock();
         if queues.closed {
@@ -285,7 +326,9 @@ mod tests {
         let outbound = Arc::new(Outbound::new());
         outbound.open_stream(7);
         outbound.enqueue_data(7, b"data-first".to_vec()).unwrap();
-        outbound.enqueue_control(b"control-second".to_vec()).unwrap();
+        outbound
+            .enqueue_control(b"control-second".to_vec())
+            .unwrap();
 
         let (mut client, server) = UnixStream::pair().unwrap();
         let writer_outbound = Arc::clone(&outbound);
@@ -345,7 +388,10 @@ mod tests {
         let writer_outbound = Arc::clone(&outbound);
         let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
 
-        assert_eq!(read_exact_bytes(&mut client, b"only-this".len()), b"only-this");
+        assert_eq!(
+            read_exact_bytes(&mut client, b"only-this".len()),
+            b"only-this"
+        );
 
         outbound.close();
         writer.join().unwrap();
@@ -360,7 +406,10 @@ mod tests {
         let (mut client, server) = UnixStream::pair().unwrap();
         run_writer(&outbound, server); // returns on its own: no thread needed
 
-        assert_eq!(read_exact_bytes(&mut client, b"last-one".len()), b"last-one");
+        assert_eq!(
+            read_exact_bytes(&mut client, b"last-one".len()),
+            b"last-one"
+        );
     }
 
     #[test]

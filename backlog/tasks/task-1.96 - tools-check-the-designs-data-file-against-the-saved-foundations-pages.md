@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -917,6 +918,15 @@ Evidence: `gh pr view 54 --json body` matches the tool's own captured stdout byt
 Plan-matched: no, same basis as rounds 2-3 (the plan's file list never named Tokens.dc.html/foundations.json/either README) - explained by task comments #2/#3, not itself a finding per policy.
 
 Unmet: AC#3 again, for a new reason each round - this round, the exclusion list itself is unconditional where its own stated reasons are not.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T05:02:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

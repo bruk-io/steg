@@ -89,7 +89,7 @@ def format_violation(violation: Violation) -> str:
     )
 
 
-def _rust_files(root: Path, *relative_dirs: str) -> tuple[Path, ...]:
+def rust_files(root: Path, *relative_dirs: str) -> tuple[Path, ...]:
     """Every `.rs` file under each of `relative_dirs`, relative to `root`."""
     return tuple(path for relative in relative_dirs for path in sorted((root / relative).rglob("*.rs")))
 
@@ -101,7 +101,7 @@ def main() -> int:
         print("steg-foundations-public-surface: not in a git repository", file=sys.stderr)
         return 2
     found = []
-    for path in _rust_files(root, REPO_ROOT_RELATIVE_SRC_DIR, REPO_ROOT_RELATIVE_GALLERY_DIR):
+    for path in rust_files(root, REPO_ROOT_RELATIVE_SRC_DIR, REPO_ROOT_RELATIVE_GALLERY_DIR):
         found.extend(bare_hsla_returning_functions(str(path.relative_to(root)), path.read_text()))
     for violation in found:
         print(format_violation(violation))

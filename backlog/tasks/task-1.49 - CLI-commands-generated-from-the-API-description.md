@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:15:00Z'
+updated_date: '2026-11-16T15:18:00Z'
 labels:
   - size-4
   - changes-requested
@@ -723,6 +723,41 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 76 filtered out; fin
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:18:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at d2cc62a8f848 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (5.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (20.4s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (1.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (35.1s)
+ok      test (steg-server) (12.9s)
+ok      test (steg-server, race-fixture) (15.6s)
+ok      build (steg) (1.6s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (8.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (1.1s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.1s)
+ok      architecture (1.6s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -796,6 +831,26 @@ Narrow first pass, Evidence only: the code has not been reviewed yet; a full rev
 What is needed before this comes back: each of the seven controls named in comment #4 recorded through `asdlc record-check` as a failing run followed by a passing run, against the tests as they stand on the final head; a table in the notes (proof item, test, recorded control) tying each one to its acceptance criterion or mechanism; and the pull request's CI green on that final head.
 
 Plan-matched: not assessed in this pass - the diff was not read, per instruction for this narrow Evidence-only check.
+
+---
+
+created: 2026-11-16T15:16:00Z
+
+---
+
+Proof table (@bruk.w5) - each row recorded on this task via asdlc record-check as a failing run (mechanism removed/fault planted) immediately followed by a passing run (reverted, git status confirmed clean), against the tests as they stand now:
+
+| Proof item | Test | Recorded control |
+|---|---|---|
+| Criterion #2/#6, crate boundaries | `just check-boundaries` | [steg]'s allow-list/deny-features reverted to pre-task -> fails naming clap and clap_complete; restored -> passes |
+| Criterion #4, the placeholder seam | `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` | `cli/run.rs`'s `run()` returns 0 instead of 1 -> fails on session.list (left: 0, right: 1); reverted -> passes |
+| Criterion #1, a method with no command | `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` | `pane.split` skipped in `tree.rs`'s `noun_command` -> fails, missing: [(pane, split)]; reverted -> passes |
+| Criterion #1, a command with no method | same test | an extra bare `pane bogus` subcommand added in `tree.rs` -> fails, extra: [(pane, bogus)]; reverted -> passes |
+| Criterion #3, no-server commands never reach for a connection | `cargo test -p steg --test cli_no_server version_contacts_no_server` | a stray `UnixStream::connect` added to `version`'s own arm in `main.rs` -> fails (`assert_never_accepted` panics: "a connection was accepted"); reverted -> passes |
+| Engineer decision 3, unset --label is a switch (sdk) | `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` | the three `switch("label", ...)` calls in `methods.rs` reverted to `flag(..., ValueKind::Text, false, ...)` -> fails (role is Flag, expected Switch); re-applied -> passes |
+| Engineer decision 3, unset --label is discarded regardless of its value (dispatch) | `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` | `dispatch/session.rs`'s `unset` changed from `param_present` to `param_bool(...) == Some(true)` -> fails on --no-label (left: Some("y"), right: None); reverted -> passes |
+
+Correction: this task's plan claimed `clap::builder::Str`/`Id` implement `From<String>` unconditionally (checked against docs.rs, which builds every feature). That was wrong: the impl is gated behind clap's own "string" feature, confirmed directly against `clap_builder`'s own Cargo.toml (`string = []`, no extra dependency). `boundaries.toml`'s `[steg]` reason text now says so and why. No leaking to 'static was ever needed either way, as the plan intended - only the feature flag was missing from the plan's own claim, not from the build.
 
 ---
 <!-- COMMENTS:END -->

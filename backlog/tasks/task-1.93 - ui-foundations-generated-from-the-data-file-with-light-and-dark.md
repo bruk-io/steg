@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:39:00Z'
+updated_date: '2026-11-16T03:42:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -1015,6 +1015,14 @@ created: 2026-11-16T03:39:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+created: 2026-11-16T03:42:00Z
+
+---
+
+On review #4's plan-matched: no, one of the three departures listed needs attribution I left out: the generator module being tools/src/steg_tools/foundations_generate.py rather than the plan's own foundations.py wasn't my call - it's what the engineer's phase-2 brief directed outright (avoiding a name collision with TASK-1.94's own foundations.py reader, which the plan was approved before that collision was known), not an unexplained rename. The other two departures (resolve_for_appearance not existing; radius.round as a plain Pixels const) are mine, reasoned and recorded in the notes and in comment #2 respectively.
 
 ---
 <!-- COMMENTS:END -->

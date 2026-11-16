@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T11:33:00Z'
+updated_date: '2026-11-16T11:39:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -436,6 +436,36 @@ immediately after, which showed nothing changed. It did not touch
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (040e19a11fea) checked against the four acceptance criteria, doc-8 R1 and R99 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised once at the orchestrator's request: the stop flag is checked in both recoverable arms before classifying (a stop during an exhaustion storm ends the server within one backoff), with its own proof and control; criterion 2 is proven with a real fatal error (the listener's descriptor replaced by a non-socket in the fixture's own process, ENOTSOCK, shown feasible by a probe) and is no longer dropped unless that fails once built; a recoverable error is reported as a ConnectionEvent variant, with no static counter; criterion 3's control is a recorded run against the test as built. For the engineer: the reporting choice (event, recommended, or a test-only counter), and that nothing is printed until the binary consumes events.
+
+Check passed: `just check` exited 0 at 2026-11-16T11:39:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at 6cd401e74d40:
+
+```text
+ok      format check (0.2s)
+ok      lint (91.2s)
+ok      boundaries (0.2s)
+ok      licences (0.9s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (43.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (48.7s)
+ok      test (steg-server) (15.4s)
+ok      test (steg-server, race-fixture) (15.0s)
+ok      build (steg) (4.6s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (3.5s)
+ok      build (steg-ui) (20.5s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

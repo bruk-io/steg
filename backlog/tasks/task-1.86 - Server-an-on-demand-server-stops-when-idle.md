@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1396,6 +1397,15 @@ What is needed before this returns to review: rebase/merge TASK-1.98's fixed hea
 Plan match not assessed in this pass: no diff was read, so the positive "yes" condition (files match the plan, in order, building what it says) could not be verified. Recorded "no" per instructions for this case, not as a plan-departure finding.
 
 No earlier-review repeat found worth a rule-change draft: `review-done`'s own note that earlier reviews cited the same policy (review) points to TASK-1.98 (PR 59), but its Important finding was the hang itself (a mistake in the code/tests); this finding is that the task was sent to review before that fix reached this branch and before CI confirmed it - a different mistake, not a second instance of the same one. No draft filed.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:16:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

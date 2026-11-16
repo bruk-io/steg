@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:27:00Z'
+updated_date: '2026-11-16T01:29:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1220,6 +1220,34 @@ test the_client_being_sigkilled_does_not_end_the_server ... ok
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
 
 run 10: lingering steg processes: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:29:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (4.7s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.1s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
 ```
 
 Commits since the review: 0.

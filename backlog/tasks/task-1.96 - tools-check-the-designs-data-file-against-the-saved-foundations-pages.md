@@ -1,14 +1,13 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T04:57:00Z'
+updated_date: '2026-11-16T05:02:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -693,6 +692,22 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 40, 39 without the Asdlc-Worker trailer.
+
+Review finding (@bruk.r1, round 5, 1 Important, 1 nit) addressed: the six excluded field names (name, use, unit, ansi, artifact_version, artifact_url) were excluded at every level of the file, not only where each one's reason held - focus_ring["ansi"], colours[0]["unit"], a bare dict with only "name", and colours[0]["artifact_version"] all passed unseen. Same shape of defect found twice before (a field tuple, then a string-prefix rule); each time a patch to an open-ended walk. Stopped patching the walk.
+
+Fixed: design_pages.py now has one declarative structure, SCHEMA, describing the whole document's shape position by position - Fields (a dict with exactly these keys, closed), NamedEntries (a list open to a new entry, closed in each entry's own fields), and three terminal kinds: Checked (a named checking function inspects it; recurses=True says that function's own walk already covers everything beneath, by design), DeclaredUnseen (out of reach, with its reason), Descriptive (name/use/unit/artifact_version/artifact_url, allowed only at the specific positions that actually have them). validate() walks the real data against SCHEMA and refuses anything at any position the schema doesn't name - no exclusion list, no prefix rule left to be over-broad. TIER_B_NAMES, RADIUS_MAP and the printed "not checked" list are all derived from SCHEMA (_derive_tier_b_names, _derive_radius_map, declared_unseen), never written down beside it, so the printed list and validate()'s refusals cannot disagree.
+
+Nit fixed for free by the same change: a colours[] entry with no "name" (used to raise KeyError) and a colour field replaced by an object (used to raise AttributeError) are both now a named refusal from validate(), which runs before any Tier A/B check in main().
+
+Checks (recorded on the task):
+- Negative control, recorded not claimed: a scratch script running a verbatim copy of the pre-this-round (exclusion-list) implementation against the real data file with the reviewer's mutations applied (focus_ring["ansi"], colours[0]["unit"], sizes["nav.side"]["use"], colours[0]["artifact_version"]) silently misses all of them (exit 1) - confirming the bug before the fix. sizes["nav.side"]["use"] is the one case this task's schema also intentionally still passes (nav.side is a documented terminal Tier B position, the same already-accepted gap the review's own "everything else passed cleanly" section declined to re-litigate) - stated as such in a dedicated test and in crates/ui/design/README.md, not silently left unexplained.
+- Unit+adapter: 82 tests (up from 67) - new: validate()'s own mechanics against small, hand-built Position trees; the real SCHEMA against a minimal but fully-compliant whole-document fixture, mutated at a dozen positions (a colour/alias/opacity/ramp field, inside caption_opacity, a type/sizes key, inside scrim, a theme field, inside ansi, a focus_ring field, tint) - each either refused or explicitly confirmed terminal-by-design; declared_unseen()/leaf_classification_counts() arithmetic; the same positions and all five rounds' reproductions against the real file.
+- just check at the merged final head (c5b48cb), after fetching and merging origin/main - clean, no conflicts; TASK-1.93/1.97 still hadn't merged their own tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs entries.
+- CI green on PR 54 at head c5b48cb: gh pr checks 54 --watch, check passed in 3m59s.
+
+Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked; 31 declared-unseen entries) - full text in the PR description.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head c5b48cb, CI green).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

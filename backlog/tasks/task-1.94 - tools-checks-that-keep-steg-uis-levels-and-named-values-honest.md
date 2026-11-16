@@ -508,6 +508,15 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2
 ...............................................................          [100%]
 135 passed in 1.19s
 ```
+
+Check FAILED: `just check-ui-levels` exited 1 at 2026-11-16T02:32:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+FAILED  ui levels (exit 1, 0.0s)
+crates/ui/src/foundations/mod.rs:9: `use crate::atoms::Icon;` reaches into atoms from foundations, which doc-17 R119 refuses (a level uses only the levels before it: foundations < atoms < molecules < organisms).
+full output: .quiet/ui-levels.log
+error: recipe `check-ui-levels` failed on line 258 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

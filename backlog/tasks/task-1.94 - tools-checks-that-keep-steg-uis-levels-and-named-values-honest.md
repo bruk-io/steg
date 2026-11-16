@@ -1,14 +1,13 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:09:00Z'
+updated_date: '2026-11-16T03:14:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -784,6 +783,70 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 76, 75 without the Asdlc-Worker trailer.
+
+Review findings addressed:
+
+1. Important, the real bug: a colour reached through a constructor call (`rgb(0x...)`,
+   `rgba(0x...)`) is now read back out and matched against foundations the same way a
+   bare hex literal is - fixed by `_hex_argument` in ui_colours.py, which extracts the
+   call's own argument when the callee is `rgb`/`rgba` (the only two of
+   COLOUR_CONSTRUCTORS that take a hex at all - the others take plain floats or
+   nothing, per gpui 0.2.2's src/color.rs) and that argument is itself a hex literal.
+   An 8-digit `rgba` argument's trailing two digits (alpha) are dropped before matching
+   (`_rgb_hex`) - foundations' colours carry no alpha dimension, so `rgba(0x3d3b45ff)`
+   matches the same names a bare `0x3d3b45` or `rgb(0x3d3b45)` would. Decided and
+   stated in the module docstring: a call whose argument isn't itself a literal (a
+   variable, an expression) is still refused as a colour constructor call outside
+   foundations - there's simply nothing to suggest for it.
+
+2. Important, tests: fixed `test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument`
+   (renamed from `..._catches_a_named_constructor_call`, which asserted the wrong
+   result - hex_value=None - as the expected one). Added, each its own test: rgb with a
+   hex matching one name (test_violations_matches_one_name_through_an_rgb_call); matching
+   two (outline/track in dark, test_violations_matches_two_names_through_an_rgb_call);
+   matching none (test_violations_has_no_match_through_an_rgb_call_when_nothing_matches);
+   rgba with eight digits, alpha dropped before matching
+   (test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits,
+   test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha); a call with a
+   non-literal argument, still refused with nothing suggested
+   (test_literal_colours_has_no_hex_for_a_call_whose_argument_is_not_a_literal,
+   test_violations_refuses_a_call_with_a_non_literal_argument_with_nothing_to_suggest).
+   Negative control recorded: `_hex_argument` disabled (forced to always return `None`),
+   confirmed exactly the five matching-through-a-call tests fail (the "no match"/
+   "non-literal" tests correctly stay passing - they're vacuously true either way, which
+   is honest, not a gap), restored, confirmed green (144 passed) - recorded both runs on
+   the task. Also demonstrated live: a scratch `gpui::rgb(0x3d3b45)` in
+   crates/ui/src/atoms/mod.rs, refused by the real `just check-ui-colours` naming both
+   `outline (dark)` and `track (dark)` (the reviewer's own example), then reverted.
+
+3. Nits:
+   (a) Added to ui_levels.py's module docstring, confirmed empirically (parsing
+       `some_macro!(crate::atoms::Button)` finds zero scoped_identifier nodes - tree-sitter
+       hands a macro's argument list back as one opaque token_tree of bare tokens) and
+       proven inert with a new test
+       (test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments):
+       a path written as a macro's *argument* is invisible to this check, distinct from a
+       macro that *expands to* a cross-level reference (which the plan already named, and
+       which no static parse can see either way, since seeing it needs the expansion).
+       Also noted the same limitation applies to ui_colours.py for the same reason.
+   (b) tools/src/steg_tools/rust_source.py is a departure from the plan's file list: the
+       plan named foundations.py, ui_levels.py and ui_colours.py as new files but not this
+       one. It holds the `RustFile` dataclass and `rust_files()` helper both ui_levels.py
+       and ui_colours.py need (every .rs file under a folder, as a (path, text) pair) -
+       factored out rather than duplicated once it was clear both checks needed the exact
+       same thing. Not flagged in the original finish notes clearly enough as its own
+       departure; flagged explicitly now.
+   (c) Did not edit plugins/bruk-io-steg/rules/tools.md ("the tools use only the standard
+       library") - that rule now reads false given ast-grep-py, and the board guard and
+       this task's instructions both say a plugin changes only through asdlc-plugin, never
+       by a worker. Left for you to bring up to date separately, as you said.
+
+Checks recorded on this task, in order for this round: the fix's tests green (144 passed);
+the new extraction's own negative control, failing then passing; a live scratch violation
+matching the reviewer's own example, refused, then reverted; `just check` green on the
+pre-merge head; `just check` green again on the merged head (4cb9ada, after merging
+origin/main - 75 commits, all board/backlog, no code overlap, clean merge); CI green on
+the pushed head (PR #52, ~4m23s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

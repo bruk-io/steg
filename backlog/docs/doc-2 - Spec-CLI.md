@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-16T13:50:00Z'
+updated_date: '2026-11-16T15:42:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -193,7 +193,8 @@ Outside a steg terminal there is no context, so a command that needs a target an
 
 | Flag | On | Meaning |
 |---|---|---|
-| `--label <text>` | `new`, `set`, `unset` | The thing's label |
+| `--label <text>` | `new`, `set` | The thing's label |
+| `--label` | `unset` | Clears the label. A switch with no value, as `--zoomed` is on `unset` (decided by Bruk on 2026-11-16 with TASK-1.49's plan; it took a value that was discarded before) |
 | `--position <n>` | `new`, `move` | Where it goes among its siblings |
 | `--to <target>` | `move` | The new parent |
 | `--direction <left, right, up or down>` | `pane split`, `pane resize`, `pane focus` | Which way |

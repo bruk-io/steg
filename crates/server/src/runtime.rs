@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use steg_kernel::{
     CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree,
@@ -30,13 +30,24 @@ use crate::pane::{self, DEFAULT_PANE_SIZE, PaneEvent, PaneHandle};
 use crate::program_param::program_from_request;
 use crate::pty::{LaunchSpec, ProgramLauncher};
 
-/// The login shell's resolved program and home directory - the one value
-/// [`Runtime`] is given rather than reading `SHELL`/`HOME` from the
-/// process environment itself in several places (TASK-1.76 §2).
-/// [`LoginShell::from_process_env`] is a named stand-in for TASK-1.77's
-/// own draft (start on demand, detach, the login shell resolved from the
-/// password database): when that lands, its own resolution replaces this
-/// one's call site, and nothing downstream of this struct changes.
+/// The login shell's resolved identity and captured environment - the one
+/// value [`Runtime`] is given rather than reading `SHELL`/`HOME` from the
+/// process's own (possibly client-inherited) environment in several
+/// places (TASK-1.76 §2; doc-8 R99).
+///
+/// Resolved in two steps, at two different points in the server's own
+/// start-up (TASK-1.87 §3): [`LoginShell::resolve_identity`] is cheap (a
+/// local passwd lookup, no child process) and runs *before* the socket is
+/// bound, at `crates/steg/src/main.rs`'s existing pre-`attempt` call
+/// site - its own `base_env` is always empty, since nothing has captured
+/// one yet. `base_env` itself is filled in afterward, once, inside
+/// [`crate::listen::run`] - after the socket is already bound and before
+/// its accept loop starts - by calling
+/// [`crate::login_env::capture_login_environment`] with this struct's own
+/// `argv0`/`home`/`user` and replacing `base_env` on the result. Neither
+/// step is a method on this struct: both are free functions in
+/// `crate::login_env`, since only the first one needs no identity to work
+/// from yet.
 #[derive(Debug, Clone)]
 pub struct LoginShell {
     /// What [`steg_sdk::Program::Shell`] resolves to when a pane actually
@@ -46,18 +57,90 @@ pub struct LoginShell {
     /// was given, and (rule B, §2) there is no pane to inherit one from,
     /// or it has not reported one yet.
     pub home: String,
+    /// The account's own login name, from the same password-database
+    /// lookup as `argv0`/`home` - carried here so
+    /// [`crate::login_env::capture_login_environment`] can seed `USER`/
+    /// `LOGNAME` in the capture it runs later, without a second lookup.
+    /// `None` only when the lookup itself found no identity at all
+    /// (TASK-1.87's own honest gap: unreproducible on a real account).
+    pub user: Option<String>,
+    /// The login shell's own exported environment, captured once at
+    /// server start (TASK-1.87) - empty until
+    /// [`crate::listen::run`] fills it in; never read before then, since
+    /// nothing starts a pane before the socket is even bound.
+    pub base_env: Vec<(std::ffi::OsString, std::ffi::OsString)>,
+}
+
+impl Default for LoginShell {
+    /// A fixed, zero-I/O value - deliberately *not* a real password
+    /// -database lookup: `ServerConfig::default()` (and every test that
+    /// builds one with `..ServerConfig::default()`) must stay free of
+    /// hidden syscalls, so the real resolution is
+    /// [`LoginShell::resolve_identity`], called explicitly, never this.
+    fn default() -> Self {
+        Self {
+            argv0: "/bin/zsh".to_string(),
+            home: "/".to_string(),
+            user: None,
+            base_env: Vec::new(),
+        }
+    }
 }
 
 impl LoginShell {
-    /// Reads `SHELL`/`HOME` from this process's own environment, falling
-    /// back to `/bin/zsh`/`/` if either is unset.
+    /// Resolves the login identity from the password database
+    /// (`crate::login_env::resolve_login_identity`, TASK-1.87) - never
+    /// from `$SHELL`/`$HOME`/`$USER` in this process's own environment,
+    /// which is exactly what R99 forbids. `base_env` is always empty on
+    /// the result: this step runs before the socket is bound, and
+    /// capturing the real environment is deliberately deferred past that
+    /// point (§3 of this task's own plan) so a slow shell never delays a
+    /// client's `connect()`, only its first request.
     #[must_use]
-    pub fn from_process_env() -> Self {
+    pub fn resolve_identity(timeout: std::time::Duration) -> Self {
+        let identity = crate::login_env::resolve_login_identity(timeout);
         Self {
-            argv0: std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string()),
-            home: std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
+            argv0: identity.shell.to_string_lossy().into_owned(),
+            home: identity.home.to_string_lossy().into_owned(),
+            user: identity.user,
+            base_env: Vec::new(),
         }
     }
+}
+
+/// Captures `identity`'s own login shell environment and builds the
+/// [`LoginShell`] a caller passes to [`Runtime::new`] from it - the
+/// "capture, then report a fallback" step `crates/steg/src/main.rs`'s
+/// own `run_server_start` needs, written once so it is not duplicated at
+/// TASK-1.87's own fixture-only entry point for tests
+/// (`crates/steg/tests/fixtures/fixture_server.rs`), which calls this
+/// with a *fabricated* identity (a throwaway home, never the password
+/// database) instead of [`LoginShell::resolve_identity`]'s real one -
+/// everything from this call onward is the real path: the real capture,
+/// the real launcher, a real client over a real socket.
+///
+/// Returns the reason alongside the built `LoginShell` on a fallback,
+/// rather than printing anything itself - this crate does no I/O of that
+/// kind (no `eprintln!`/`println!` appears anywhere in `crates/server/
+/// src`, and this function keeps that true); the caller decides whether
+/// and how to report it.
+#[must_use]
+pub fn build_login_shell(
+    identity: crate::login_env::LoginIdentity,
+    environment_timeout: std::time::Duration,
+) -> (LoginShell, Option<crate::login_env::FallbackReason>) {
+    let (base_env, fallback_reason) =
+        match crate::login_env::capture_login_environment(&identity, environment_timeout) {
+            crate::login_env::Capture::Captured(env) => (env, None),
+            crate::login_env::Capture::Fallback(reason, env) => (env, Some(reason)),
+        };
+    let login = LoginShell {
+        argv0: identity.shell.to_string_lossy().into_owned(),
+        home: identity.home.to_string_lossy().into_owned(),
+        user: identity.user,
+        base_env,
+    };
+    (login, fallback_reason)
 }
 
 /// The kernel's tree, and every pane's real runtime, held together under
@@ -111,13 +194,44 @@ pub struct Runtime {
     // `Drop` share the one implementation safely.
     events: Option<Sender<PaneEvent>>,
     drain: Option<JoinHandle<()>>,
+    // TASK-1.78 §3: a named, injected value, the same pattern `login`
+    // already uses - production reads `FORCE_GRACE_DEFAULT`; this crate's
+    // own tests pass a tiny value, so the suite's own total time does not
+    // grow by the production grace on every test that exercises forcing.
+    force_grace: Duration,
 }
+
+/// The production default for [`Runtime::new`]'s own `force_grace`
+/// parameter (TASK-1.78 §3) - two seconds: long enough that a program
+/// doing real cleanup on the polite signal (flushing a file, a graceful
+/// shutdown handler) has a realistic chance, short enough that a person
+/// who asked to force-close is not left waiting much longer than they
+/// would be for an ordinary close. Read by `listen::run`'s own `Runtime::
+/// new` call (TASK-1.45 §1), the real call site this was named for
+/// before that socket existed to call it.
+pub const FORCE_GRACE_DEFAULT: Duration = Duration::from_secs(2);
+
+/// How long [`force_end`] waits, after escalating, for a program that
+/// ignored the polite signal to actually die (TASK-1.78 §2) - `SIGKILL`
+/// cannot be trapped or blocked, so this bounds only OS scheduling and
+/// reap latency, never a real wait for cooperation.
+const ESCALATE_CONFIRM_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// How long [`force_end`] waits to join each worker thread once its own
+/// run has been confirmed ended (TASK-1.78 §2) - the same reasoning as
+/// `pane`'s own `RELAY_JOIN_TIMEOUT`: by that point the worker has already
+/// broken its loop (`PaneCommand::AwaitExit`'s own fix, TASK-1.78 §1) and
+/// is on its way out, so this is a hard guarantee, not a real wait.
+const FORCE_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
 
 impl Runtime {
     /// Builds an empty `Runtime` (no sessions yet) and starts its one
     /// drain thread, which applies every [`PaneEvent`] a pane's real
     /// program reports - most importantly, a natural exit - to the tree
-    /// (§1).
+    /// (§1). `force_grace` is the grace period `force_end` gives a forced
+    /// pane's own polite signal before escalating (§3) - injected, not
+    /// read from anywhere, so a caller choosing to construct a `Runtime`
+    /// decides it explicitly (`FORCE_GRACE_DEFAULT` for production).
     ///
     /// # Panics
     ///
@@ -126,7 +240,11 @@ impl Runtime {
     /// treats as fatal to the whole server rather than returning a
     /// `Runtime` that silently never drains any event.
     #[must_use]
-    pub fn new(launcher: Arc<dyn ProgramLauncher>, login: LoginShell) -> Self {
+    pub fn new(
+        launcher: Arc<dyn ProgramLauncher>,
+        login: LoginShell,
+        force_grace: Duration,
+    ) -> Self {
         let (events_tx, events_rx) = mpsc::channel();
         let state = Arc::new(Mutex::new(State {
             tree: Tree::new(),
@@ -169,6 +287,7 @@ impl Runtime {
             login,
             events: Some(events_tx),
             drain: Some(drain),
+            force_grace,
         }
     }
 
@@ -208,6 +327,9 @@ impl Runtime {
             "session.new" | "tab.new" | "pane.split" => {
                 self.start_and_dispatch(description, context, &resolved)
             }
+            "pane.close" | "tab.close" | "session.close" => {
+                self.close_and_dispatch(description, context, &resolved)
+            }
             _ => {
                 let mut guard = self.lock();
                 // One explicit deref first: `&mut guard.tree`/`&mut
@@ -218,12 +340,14 @@ impl Runtime {
                 // up front turns this into plain struct field access,
                 // which it can split-borrow normally.
                 let state: &mut State = &mut guard;
+                let now = Moment::new(Instant::now().duration_since(state.clock_origin));
                 let response = dispatch::dispatch(
                     &mut state.tree,
                     &mut state.settings,
                     description,
                     context,
                     &resolved,
+                    now,
                 );
                 if matches!(response, Response::Ok(_)) {
                     reapply_every_sized_tab(state);
@@ -279,17 +403,22 @@ impl Runtime {
         }
     }
 
-    /// Stops this `Runtime`: ends every running program (`PaneHandle::
-    /// stop`'s own `SIGHUP` by pid, no escalation - see its own doc for
-    /// the line this draws against TASK-1.78), reaps each one, shuts its
-    /// worker thread down and joins it, then joins the one drain thread
-    /// too (review finding 3 - this is the server stopping, not `--force`
-    /// on one pane, which stays untouched by `--force` itself, R94's own
-    /// stated gap, until TASK-1.78). TASK-1.78 can reuse `PaneHandle::
-    /// stop`'s own mechanism (`clone_killer`, taken before `child` moves
-    /// into the relay thread) directly for a single pane; what it still
-    /// has to add on top is the grace period before escalating and what a
-    /// client is told, neither of which this method needs.
+    /// Stops this `Runtime`: ends every running program, reaps each one,
+    /// joins every worker thread, then joins the one drain thread too
+    /// (review finding 3; rewritten for TASK-1.78 §4 to reuse [`force_end`],
+    /// the same mechanism a single pane's forced close uses, not the
+    /// old `PaneHandle::stop`'s pid-only, unescalated `SIGHUP`, which
+    /// TASK-1.76's own reviewer confirmed left a program trapping that
+    /// signal running forever even once the whole server tried to stop).
+    /// A behaviour change, named rather than folded in silently: this used
+    /// to be serial (`N * STOP_TIMEOUT` worst case, 5s per pane); now it is
+    /// `force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT` for
+    /// *any* number of panes, reaching a trapping program and a
+    /// non-job-control grandchild (§0.4) the old mechanism could not. This
+    /// is the method `listen::run` calls, once every connection thread
+    /// has already been joined (TASK-1.45 §1 - `&mut self` is what makes
+    /// that a property the compiler itself enforces there, not merely
+    /// documented).
     ///
     /// Idempotent: every field this empties is `Option`-wrapped, so a
     /// second call (including the one `Drop` makes) finds nothing left to
@@ -303,9 +432,7 @@ impl Runtime {
             let mut state = self.lock();
             std::mem::take(&mut state.panes)
         };
-        for (_, handle) in panes {
-            handle.stop();
-        }
+        force_end(panes.into_iter().collect(), self.force_grace);
 
         // Dropping every clone of `events` (this one, the last) is what
         // lets the drain thread's own `for event in events_rx` end -
@@ -313,7 +440,12 @@ impl Runtime {
         // stopped just above.
         drop(self.events.take());
         if let Some(drain) = self.drain.take() {
-            let _ = crate::pane::join_with_bound(drain, crate::pane::STOP_TIMEOUT);
+            // The same hard-guarantee reasoning as `FORCE_JOIN_TIMEOUT`:
+            // every pane's own clone of `events` is already gone by this
+            // point (dropped above, inside `force_end`'s own joins), so
+            // the drain thread's loop has nothing left to read and is
+            // already on its way out.
+            let _ = crate::pane::join_with_bound(drain, FORCE_JOIN_TIMEOUT);
         }
     }
 
@@ -369,12 +501,14 @@ impl Runtime {
             // plain `&mut State`, not two overlapping `DerefMut` calls on
             // `state` (the `MutexGuard`) itself.
             let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
             dispatch::dispatch(
                 &mut state.tree,
                 &mut state.settings,
                 description,
                 context,
                 request,
+                now,
             )
         };
         let Response::Ok(value) = response else {
@@ -441,6 +575,78 @@ impl Runtime {
         }
     }
 
+    /// `pane.close`/`tab.close`/`session.close`: closes the tree *first*,
+    /// under one lock acquisition, then ends every program that scope had
+    /// running - the reverse of this task's own AC #1 wording, deliberate
+    /// and explained in the task's own plan (§5/§6): the instant the lock
+    /// below is released, the whole scope is already gone from the tree,
+    /// so *every* other method - not only a second `--force` - gets the
+    /// ordinary `PaneNotFound`/`TabNotFound`/`SessionNotFound` any stale
+    /// target already gets, with nothing new threaded through `dispatch`'s
+    /// own lookup helpers (AC #4, in full, not only force-vs-force).
+    fn close_and_dispatch(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+    ) -> Response {
+        let mut state = self.lock();
+
+        // Read *before* `dispatch` runs: once a close succeeds, the tree
+        // can no longer be asked which panes it used to cover.
+        let scope = match dispatch::panes_in_close_scope(&state.tree, context, request) {
+            Ok(scope) => scope,
+            Err(error) => return Response::Error(error),
+        };
+
+        let response = {
+            // See `start_and_dispatch`'s own comment: one explicit deref
+            // so the two `&mut` arguments below project to disjoint
+            // fields of a plain `&mut State`.
+            let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            dispatch::dispatch(
+                &mut state.tree,
+                &mut state.settings,
+                description,
+                context,
+                request,
+                now,
+            )
+        };
+        if !matches!(response, Response::Ok(_)) {
+            // The refusal (no `--force`, something running) or any other
+            // error `dispatch`'s own arm gives - nothing changed, so
+            // nothing to pop or end.
+            return response;
+        }
+
+        // The close just ran, under the lock still held: the whole scope
+        // is gone from the tree now, atomically - not partially, since
+        // `close_pane`/`close_tab`/`close_session` are each one kernel
+        // operation, never a loop this could interrupt midway.
+        let to_force: Vec<(PaneId, PaneHandle)> = scope
+            .into_iter()
+            .filter_map(|pane| state.panes.remove(&pane).map(|handle| (pane, handle)))
+            .collect();
+        reapply_every_sized_tab(&mut state);
+        drop(state);
+
+        // Lock-free: no other pane's request is ever stalled by this
+        // (AC #4's first clause). `to_force` holds every popped handle
+        // regardless of whether its own program was genuinely running -
+        // `force_end` treats an already-ended one cheaply (its own
+        // `signal_hangup`/`signal_kill` no-op, `await_exit` replies at
+        // once), which is also this task's fix for the adjacent gap a
+        // *plain* close of an already-ended pane used to leave behind
+        // (its idle handle and worker thread, never cleaned up before
+        // this task - not named by any of the five criteria, included
+        // here because it falls out of this same pass at no extra cost).
+        force_end(to_force, self.force_grace);
+
+        response
+    }
+
     /// Rule B, §2: the live directory of the pane this request's target
     /// inherits from (the pane being split, or the session's current
     /// pane for `tab.new`), falling back to [`LoginShell::home`] in
@@ -481,6 +687,19 @@ impl Runtime {
     /// reads from instead, the same gap `pane_environment`'s own doc
     /// already names), so this reads this process's own binary location
     /// and an empty server address rather than inventing either.
+    ///
+    /// **The environment composition (TASK-1.87, doc-8 R99/AC #3): the
+    /// captured login shell's own environment first, then
+    /// `pane_environment`'s five `STEG_*` variables and `PATH`, then
+    /// `TERM` - in that order, deliberately**, since
+    /// `crate::pty::RealLauncher::spawn`'s own `.env_clear()` plus a
+    /// later `.env()` call for an already-set key overwriting the
+    /// earlier one (verified directly against `portable_pty`'s own
+    /// `CommandBuilder`, not assumed) is what makes a later entry in this
+    /// `Vec` win - never `std::env::var_os("PATH")` (today's actual bug:
+    /// that reads *this server process's own* `PATH`, itself inherited
+    /// from whatever client happened to start it), always
+    /// `self.login.base_env`'s own captured `PATH`.
     fn launch_spec(&self, program: &Program, size: (u16, u16)) -> LaunchSpec {
         let argv = match program {
             Program::Shell { .. } => vec![self.login.argv0.clone()],
@@ -490,14 +709,28 @@ impl Runtime {
             .ok()
             .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
             .unwrap_or_else(|| std::path::PathBuf::from("/usr/local/bin"));
-        let env = pane_environment(
+        let current_path = self
+            .login
+            .base_env
+            .iter()
+            .find(|(key, _)| key == "PATH")
+            .map(|(_, value)| value.as_os_str());
+        let overrides = pane_environment(
             "",
             steg_sdk::SessionId::from_raw(0),
             steg_sdk::TabId::from_raw(0),
             steg_sdk::PaneId::from_raw(0),
             &bin_dir,
-            std::env::var_os("PATH").as_deref(),
+            current_path,
         );
+
+        let mut env = self.login.base_env.clone();
+        env.extend(overrides);
+        env.push((
+            std::ffi::OsString::from("TERM"),
+            std::ffi::OsString::from(PANE_TERM),
+        ));
+
         LaunchSpec {
             argv,
             cwd: program.cwd().to_string(),
@@ -506,6 +739,19 @@ impl Runtime {
         }
     }
 }
+
+/// `TERM` every pane gets, whatever the login shell's own profile says
+/// (AC #3) - matching this repository's own existing precedent
+/// (`spikes/task-1.2-wire-protocol/probe-server/src/pty.rs:49`), not
+/// invented here. Deliberately not `ghostty_vt::terminfo::TERM`
+/// (`"xterm-ghostty"`): that compiled terminfo entry is not installed on
+/// a user's own machine, and using it would need writing
+/// `ghostty_vt::terminfo::dir()`'s own cache directory somewhere
+/// persistent and setting `TERMINFO` to it too - a second piece of
+/// integration this task's own acceptance criteria do not ask for,
+/// flagged here for the engineer to schedule separately rather than
+/// silently dropped.
+const PANE_TERM: &str = "xterm-256color";
 
 /// Dropping a `Runtime` stops it (review finding 3) - the safer of the
 /// two choices named in the review (stop automatically, or refuse to
@@ -617,11 +863,20 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
                 }
                 Ok(ExitOutcome::Stayed) => {}
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
-                    // The orphan a forced close leaves (§5, until the task
-                    // that ends a running program on `--force`): the tree no
-                    // longer has this pane at all, so there is nothing left
-                    // to record an exit on - the one thing left to do is stop
-                    // leaking the now-pointless `PaneHandle`.
+                    // TASK-1.78: this is now *exactly* what a forced close
+                    // produces for its own grace window, every time, by
+                    // design (`Runtime::close_and_dispatch` closes the
+                    // tree *before* ending the program, §5) - not the
+                    // "--force orphan" gap this arm was first written for.
+                    // `state.panes` never has this pane's handle either by
+                    // the time this runs (popped into `force_end`'s own
+                    // local scope, never put back), so the `remove` below
+                    // is a defensive no-op in practice, provably
+                    // unreachable by any path this task's own design
+                    // permits - kept rather than turned into an
+                    // `unreachable!()`: a wrong "impossible" assumption
+                    // panicking this live drain thread is worse than one
+                    // harmless, documented, no-op branch.
                     state.panes.remove(&pane);
                 }
                 Err(other) => {
@@ -644,15 +899,26 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
                     // above; nothing further to do here today.
                 }
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
-                    // Unlike `Exited`'s own `PaneNotFound` arm above, a
-                    // mark arriving for a pane the tree no longer holds
-                    // must not remove this pane's `PaneHandle`: the
-                    // program it owns may still be running (a forced
-                    // close raced this mark), and removing the handle
-                    // here would drop its only `Sender` clone, ending
-                    // the worker loop and leaking the relay thread and
-                    // an unkilled child - worse than the race being
-                    // guarded against.
+                    // The mark is ignored - there is nothing else to do
+                    // with one for a pane the tree no longer holds.
+                    //
+                    // Reachable by exactly one path, traced for TASK-
+                    // 1.78's review: `close_and_dispatch` removes the
+                    // pane from the tree *and* takes its `PaneHandle` out
+                    // of `state.panes` under the same lock, before
+                    // `force_end` has actually ended its program (§5) -
+                    // a still-running program can emit an OSC 133 mark
+                    // during that same grace window, forwarded by its
+                    // relay/worker thread exactly as it would have been
+                    // before the close. By the time this event reaches
+                    // the control thread, the handle is already with
+                    // `force_end`, not `state.panes` - this arm was never
+                    // at risk of dropping its only `Sender` clone on this
+                    // path, since there is no handle here to drop either
+                    // way. `force_end` is what ends the program and
+                    // joins its threads, on its own stated bound; this
+                    // mark is simply overtaken by it. Not a gap
+                    // close-first left open.
                 }
                 Err(other) => unreachable!(
                     "Tree::note_command_output_started documents only Error::PaneNotFound \
@@ -681,6 +947,106 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
                 ),
             }
         }
+    }
+}
+
+/// Ends every program in `handles`, reaps each, joins every worker thread -
+/// bounded by `grace` (shared across every pane in `handles`, not a fresh
+/// window per pane) plus two small, fixed margins, regardless of how many
+/// panes are given (TASK-1.78 §2). Used by both [`Runtime::stop`] (scope:
+/// every pane) and [`crate::dispatch`]'s own close-with-`--force` wrapper
+/// (scope: one pane, a tab's panes, or a session's tabs' panes) - one
+/// shared primitive rather than two copies of "signal, wait, escalate,
+/// join" that could drift apart. Never panics, never blocks past its own
+/// stated bound; takes no lock of its own and must be called with none
+/// held, since its own waits are real (bounded, but real).
+fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
+    // Pass 1: signal every pane at once. `signal_hangup` goes straight
+    // through `RunGate` (a `Mutex`, held only for the length of the
+    // signal call itself - review finding 1), never through the
+    // worker's own command queue, so this loop costs microseconds
+    // regardless of how backed up any one pane's own worker is with its
+    // own run's `PtyBytes`.
+    for (_, handle) in &handles {
+        handle.signal_hangup();
+    }
+
+    // Pass 2: wait against one shared deadline, not N deadlines - one
+    // thread per pane so N panes share the deadline, not N * it.
+    // `await_exit` is also `RunGate`-based (a `Condvar` wait, never the
+    // worker's queue), which is what makes this a real "has the process
+    // ended" check rather than "has the worker drained its backlog far
+    // enough to notice" (the misclassification finding 1 found).
+    let deadline = Instant::now() + grace;
+    let stragglers: Vec<PaneId> = thread::scope(|scope| {
+        let jobs: Vec<_> = handles
+            .iter()
+            .map(|(pane, handle)| {
+                scope.spawn(move || {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    (*pane, handle.await_exit(remaining))
+                })
+            })
+            .collect();
+        jobs.into_iter()
+            .map(|job| {
+                job.join()
+                    .expect("await_exit only waits on a Condvar with a bound, never panics")
+            })
+            .filter(|(_, ended)| !ended)
+            .map(|(pane, _)| pane)
+            .collect()
+    });
+
+    // Pass 3: escalate only the stragglers - same direct-`RunGate`
+    // reasoning as pass 1.
+    for (pane, handle) in &handles {
+        if stragglers.contains(pane) {
+            handle.signal_kill();
+        }
+    }
+
+    // Pass 4: confirm the escalated ones actually died (`SIGKILL` cannot
+    // be trapped, so this bound is a safety margin, not a real wait for
+    // cooperation) - a pane that already ended during pass 2 is not
+    // re-visited here.
+    thread::scope(|scope| {
+        for pane in &stragglers {
+            if let Some((_, handle)) = handles.iter().find(|(p, _)| p == pane) {
+                scope.spawn(|| {
+                    handle.await_exit(ESCALATE_CONFIRM_TIMEOUT);
+                });
+            }
+        }
+    });
+
+    // Pass 5: settle every worker thread *in parallel* - telling each
+    // one its own run has ended, via `PaneHandle::settle_worker`, and
+    // waiting for its reply, costs up to `FORCE_JOIN_TIMEOUT` in total
+    // regardless of how many panes are in `handles`, because this runs
+    // all of them at once rather than one after another. Folding this
+    // into `join_worker` itself instead (settle-then-join, called once
+    // per handle in the sequential pass below) was rejected during
+    // review: that would have put the exact N-pane-multiplication risk
+    // this task's own `force_end` exists to remove back into the one
+    // place a worker's own queue can still be genuinely backed up (a
+    // flooding run's `PtyBytes`) even after `RunGate` has already
+    // confirmed, promptly, that the process itself is dead.
+    thread::scope(|scope| {
+        for (_, handle) in &handles {
+            scope.spawn(|| {
+                handle.settle_worker(FORCE_JOIN_TIMEOUT);
+            });
+        }
+    });
+
+    // Pass 6: join every worker thread, bounded - sequential, not
+    // scoped: `join_worker` consumes `self` by value, and by this point
+    // every handle's own worker has already been told to stop and
+    // settled (pass 5), so each join is expected to return almost at
+    // once, never block on another pane's own wait.
+    for (_, handle) in handles {
+        let _ = handle.join_worker(FORCE_JOIN_TIMEOUT);
     }
 }
 
@@ -716,7 +1082,7 @@ mod tests {
 
     use steg_sdk::{Program, ProgramStatus, Size, Status};
 
-    use super::{LoginShell, Moment, Runtime, State, apply_event_locked};
+    use super::{LoginShell, Moment, Runtime, State, apply_event_locked, force_end};
     use crate::pane::{PaneEvent, PaneHandle};
     use crate::pty::RealLauncher;
 
@@ -724,10 +1090,34 @@ mod tests {
     /// for every real-process wait in this crate's tests.
     const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
 
+    /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s
+    /// own `.env_clear()` means a `LaunchSpec.env` with no `PATH` at all
+    /// cannot resolve a relative program name like `"sh"` (confirmed
+    /// directly with `portable_pty`, not assumed - `spawn_command` fails
+    /// with "Unable to resolve the PATH"). Reading this *test* process's
+    /// own ambient `PATH` is fine here - a test, allowed to, unlike
+    /// production code (this function's own doc on `ServerConfig`'s
+    /// `login_env` module says why production code never does).
+    fn test_base_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+        vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )]
+    }
+
+    /// A tiny `force_grace` for every `Runtime::new` in this module - none
+    /// of these tests exercise forcing *through a `Runtime`* (the one
+    /// direct `force_end` call, cleaning up an orphaned handle this
+    /// module built by hand with no `Runtime` around it, is the
+    /// exception), so the value only has to be cheap, never realistic.
+    const TEST_GRACE: Duration = Duration::from_millis(30);
+
     fn login() -> LoginShell {
         LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -820,7 +1210,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 1".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             gone,
@@ -867,7 +1257,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -895,7 +1285,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 1".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -930,7 +1320,7 @@ mod tests {
     fn disconnect_client_reapplies_the_next_latest_declared_size() {
         use steg_sdk::{ClientKind, Request, Size};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
         let session = match runtime.handle(
@@ -1000,14 +1390,196 @@ mod tests {
     }
 
     #[test]
-    fn login_shell_from_process_env_never_panics_and_is_never_empty() {
-        // A smoke test, not a claim about this machine's own `SHELL`/
-        // `HOME` - those are read once, by whichever binary builds the
-        // real `Runtime`, and this only proves the fallback path exists
-        // and is well-formed.
-        let login = LoginShell::from_process_env();
+    fn login_shell_default_is_a_fixed_zero_io_value() {
+        // `ServerConfig::default()` (and every test built from
+        // `..ServerConfig::default()`) must stay free of hidden syscalls
+        // (TASK-1.87) - this is the thing that proves it: not a claim
+        // about any real account, just that the literal fallback is
+        // well-formed.
+        let login = LoginShell::default();
         assert!(!login.argv0.is_empty());
         assert!(!login.home.is_empty());
+        assert_eq!(login.user, None);
+        assert!(login.base_env.is_empty());
+    }
+
+    #[test]
+    fn login_shell_resolve_identity_never_panics_and_is_never_empty() {
+        // A smoke test, not a claim about this machine's own account -
+        // every real account has a passwd entry, so the fallback path
+        // itself is proven by fabrication in `login_env`'s own tests.
+        // `base_env` stays empty here on purpose: identity resolution
+        // never captures an environment (TASK-1.87 §3 - that happens
+        // later, after the socket is bound).
+        let login = LoginShell::resolve_identity(Duration::from_secs(5));
+        assert!(!login.argv0.is_empty());
+        assert!(!login.home.is_empty());
+        assert!(login.base_env.is_empty());
+    }
+
+    /// AC #3: `STEG_*` and `TERM` always win, even when a captured login
+    /// shell's own profile happens to export a conflicting value for one
+    /// of those same keys - proven here with a fabricated `base_env`
+    /// standing in for exactly that (unlikely, but not impossible) case,
+    /// through `Runtime::handle`'s own public surface, a real pty and a
+    /// real `env` dump - not merely by reading `launch_spec`'s own source
+    /// and trusting the ordering.
+    #[test]
+    fn steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env() {
+        let login = LoginShell {
+            base_env: vec![
+                (
+                    std::ffi::OsString::from("PATH"),
+                    std::ffi::OsString::from("/usr/bin:/bin"),
+                ),
+                (
+                    std::ffi::OsString::from("TERM"),
+                    std::ffi::OsString::from("bogus-term-from-login-shell"),
+                ),
+                (
+                    std::ffi::OsString::from("STEG_SERVER"),
+                    std::ffi::OsString::from("bogus-server-from-login-shell"),
+                ),
+            ],
+            ..login()
+        };
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login, TEST_GRACE);
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+
+        // Two short, targeted lines, never a full `env` dump: the real
+        // `PATH` this developer's own machine carries can run long enough
+        // to wrap `TERM=`/`STEG_SERVER=` off the default 80x24 pane
+        // before either line is even printed - found by running this
+        // test, not assumed, so it is written to need no particular pane
+        // size at all.
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({
+                    "program": ["sh", "-c", "echo TERM=$TERM; echo STEG_SERVER=$STEG_SERVER"]
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+
+        let pane = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
+        };
+
+        let start = std::time::Instant::now();
+        let text = loop {
+            let state = runtime.state.lock().unwrap();
+            let screen = state.panes[&pane].snapshot().unwrap();
+            let text = screen
+                .rows
+                .iter()
+                .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n");
+            drop(state);
+            if text.contains("STEG_SERVER=") {
+                break text;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "the real program's own two lines never landed within the bound; \
+                 last screen: {text:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+
+        assert!(
+            text.contains("TERM=xterm-256color"),
+            "the server's own TERM must win over the login shell's own base_env: {text}"
+        );
+        assert!(
+            !text.contains("bogus-term-from-login-shell"),
+            "the login shell's own conflicting TERM must not survive: {text}"
+        );
+        assert!(
+            !text.contains("bogus-server-from-login-shell"),
+            "the login shell's own conflicting STEG_SERVER must not survive: {text}"
+        );
+    }
+
+    /// AC #1/#4's own "a shell pane, not only a command pane" half -
+    /// `launch_spec`'s own env composition does not look at which variant
+    /// `Program` is at all (only `argv` differs, read above this
+    /// function's own `match`), so a shell pane gets exactly the same
+    /// captured base, `STEG_*` overrides and `TERM` a command pane
+    /// does - proven here directly, through `session.new` with *no*
+    /// `program` at all (the shell-pane case), sending real input to the
+    /// real login shell this `Runtime` resolved, rather than trusted by
+    /// construction alone.
+    #[test]
+    fn a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+
+        let pane = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
+        };
+
+        {
+            let state = runtime.state.lock().unwrap();
+            state
+                .panes
+                .get(&pane)
+                .unwrap()
+                .send_input(b"echo TERM=$TERM\n".to_vec())
+                .unwrap();
+        }
+
+        let start = std::time::Instant::now();
+        let text = loop {
+            let state = runtime.state.lock().unwrap();
+            let screen = state.panes[&pane].snapshot().unwrap();
+            let text = screen
+                .rows
+                .iter()
+                .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n");
+            drop(state);
+            if text.contains("TERM=xterm-256color") {
+                break text;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "the shell pane's own echo never landed within the bound; last screen: {text:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+
+        assert!(
+            text.contains("TERM=xterm-256color"),
+            "a shell pane must get the server's own TERM too: {text}"
+        );
     }
 
     /// What a panic inside one connection's call to `Runtime::handle`
@@ -1021,7 +1593,7 @@ mod tests {
     /// still succeeds rather than hanging or propagating the poison.
     #[test]
     fn a_panic_while_holding_the_lock_does_not_poison_a_later_call() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
 
         let state_handle = std::sync::Arc::clone(&runtime.state);
         let panicked = std::thread::spawn(move || {
@@ -1054,7 +1626,7 @@ mod tests {
 
     #[test]
     fn runtime_new_does_not_panic_and_starts_empty() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
         let description = steg_sdk::description();
         let context = crate::dispatch::Context::none();
         let response = runtime.handle(
@@ -1069,6 +1641,100 @@ mod tests {
             steg_sdk::Response::Ok(value) => assert_eq!(value, serde_json::json!([])),
             steg_sdk::Response::Error(error) => panic!("expected Ok, got {error:?}"),
         }
+    }
+
+    /// The idle-handle fix itself (TASK-1.78 §5, item 2), proven where it
+    /// can actually be observed - `state.panes`, private to this module,
+    /// not through `Runtime::handle`'s own public responses, which never
+    /// expose it either way (DRAFT-1: `tests/runtime.rs`'s own black-box
+    /// sibling, `pane_close_on_an_already_ended_pane_succeeds_without_
+    /// force`, would pass identically with or without this fix, so it is
+    /// not offered as proof of it - this is).
+    #[test]
+    fn a_plain_close_of_an_already_ended_pane_removes_its_idle_handle() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exit 0"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+        let (pane, tab_id) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            (tab.panes()[0].id(), tab.id())
+        };
+
+        // Waits for the real exit first (R97: a command pane stays) by
+        // polling the kernel's own status directly - bounded, no event
+        // for this exists on the server side (`PaneEvent::Exited` only
+        // reaches the drain thread, not a test holding the lock between
+        // polls).
+        let start = std::time::Instant::now();
+        loop {
+            let ended = {
+                let state = runtime.state.lock().unwrap();
+                matches!(
+                    state
+                        .tree
+                        .session(session_id)
+                        .and_then(|s| s.tabs()[0].pane(pane))
+                        .and_then(steg_kernel::Pane::program_status),
+                    Some(steg_sdk::ProgramStatus::Ended { .. })
+                )
+            };
+            if ended {
+                break;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "the real `exit 0` never reached Ended within the bound"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            runtime.state.lock().unwrap().panes.contains_key(&pane),
+            "the idle handle must still be there right after the program ends - \
+             this is the gap's own starting condition, not yet the fix"
+        );
+
+        let context = crate::dispatch::Context {
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(pane),
+        };
+        match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "pane.close".to_string(),
+                params: serde_json::json!({"target": pane.to_string()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.close failed: {error:?}"),
+        }
+
+        assert!(
+            !runtime.state.lock().unwrap().panes.contains_key(&pane),
+            "the plain close must remove the now-pointless idle handle, \
+             not leave it (and its worker thread) running forever"
+        );
     }
 
     /// Rule B (§2): the live directory (`Terminal::cwd`, set by a real
@@ -1091,7 +1757,7 @@ mod tests {
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1214,7 +1880,7 @@ mod tests {
     fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1366,7 +2032,7 @@ mod tests {
     fn the_general_sizing_step_reaches_every_pane_through_split_close_and_swap() {
         use steg_sdk::{ClientKind, Request, SessionId, Size, TabId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1649,7 +2315,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 100".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -1803,7 +2469,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: argv.into_iter().map(str::to_string).collect(),
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -1819,6 +2485,8 @@ mod tests {
         LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -1827,7 +2495,11 @@ mod tests {
     /// through the kernel, both reflect a typed command that succeeds.
     #[test]
     fn a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, tab_id, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -1855,7 +2527,11 @@ mod tests {
 
     #[test]
     fn a_typed_command_that_fails_is_failed_with_its_exit_code() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -1874,7 +2550,11 @@ mod tests {
 
     #[test]
     fn a_typed_command_still_running_stays_running_until_told_otherwise() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -1902,7 +2582,11 @@ mod tests {
 
     #[test]
     fn a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -1949,7 +2633,11 @@ mod tests {
 
     #[test]
     fn a_mark_then_the_shells_own_real_exit_cascades_with_no_panic() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (session_id, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -1989,12 +2677,17 @@ mod tests {
     fn a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic() {
         // Same shape as `apply_event_on_a_pane_the_tree_no_longer_holds_
         // removes_the_stale_handle_without_panicking`: the tree never
-        // gets this pane at all, standing in for any pane whose own real
-        // program may still be running after its tree entry is already
-        // gone - whatever the real reason, today only a forced close
-        // that does not yet end the program (that sibling test's own
-        // comment names the gap) - but a real, still-running
-        // `PaneHandle` for it is in `panes`.
+        // gets this pane at all, standing in for the one path this arm
+        // is actually reachable by (TASK-1.78's review traced it): a
+        // forced close's own grace window, where `close_and_dispatch`
+        // has already removed the pane from the tree, but `force_end`
+        // has not yet ended its still-running program, which can still
+        // emit a mark in the meantime. On the real path the handle
+        // itself has already moved into `force_end`'s own local scope,
+        // out of `panes` entirely - kept in `panes` here only to prove
+        // this arm does not touch it (`assert!(state.panes.contains_
+        // key(...))` below), not to claim the real path ever has it
+        // there too.
         let tree = steg_kernel::Tree::new();
         let gone = steg_sdk::PaneId::from_raw(999);
         let (events_tx, _events_rx) = mpsc::channel();
@@ -2002,7 +2695,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 100".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             gone,
@@ -2033,8 +2726,11 @@ mod tests {
         // sibling test's own `Exited`-driven removal) or from
         // `Runtime::stop` ending every pane when the whole server
         // stops; this test has neither a tree pane nor a `Runtime`
-        // around it to give it one automatically.
-        state.panes.remove(&gone).unwrap().stop();
+        // around it to give it one automatically. `force_end` (TASK-
+        // 1.78) is that same cleanup path's own real implementation now
+        // that `PaneHandle::stop` no longer exists.
+        let handle = state.panes.remove(&gone).unwrap();
+        force_end(vec![(gone, handle)], TEST_GRACE);
     }
 
     /// A command pane's own program printing OSC 133 (R97): both marks
@@ -2046,7 +2742,11 @@ mod tests {
     /// can never produce. Only the later, real exit drives `Finished`.
     #[test]
     fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
 
         let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
                        sleep 0.3; exit 0";
@@ -2084,6 +2784,127 @@ mod tests {
         // code, 3).
         wait_for_pane_status(&runtime, pane, Some(Status::Finished));
     }
+
+    /// A pane.show/tab.show request for `pane`'s own context, over the
+    /// public `Runtime::handle` - the same entry point a real connection
+    /// reaches (`connection.rs`). Panics with the response's own error on
+    /// anything but `Response::Ok`, since every call site below already
+    /// knows the method it names must succeed.
+    fn show_pane_and_tab(
+        runtime: &Runtime,
+        session: steg_sdk::SessionId,
+        tab: steg_sdk::TabId,
+        pane: steg_sdk::PaneId,
+    ) -> (serde_json::Value, serde_json::Value) {
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context {
+            default_session: Some(session),
+            default_tab: Some(tab),
+            default_pane: Some(pane),
+        };
+        let pane_record = match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "pane.show".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("pane.show failed: {error:?}"),
+        };
+        let tab_record = match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "tab.show".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("tab.show failed: {error:?}"),
+        };
+        (pane_record, tab_record)
+    }
+
+    /// AC #4's "a typed command's status reaching pane show and tab show
+    /// through a real pty" (TASK-1.84's own marks), proven through the
+    /// public `Runtime::handle` - not just the kernel's own `Pane::status`
+    /// the way this module's sibling tests above already do (criterion 1
+    /// of TASK-1.84's own plan). The kernel-level wait
+    /// (`wait_for_pane_status`) is what makes the one `Runtime::handle`
+    /// call below deterministic: by the time it returns, the drain thread
+    /// has already applied both marks under the same lock `dispatch`
+    /// itself takes.
+    #[test]
+    fn a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle() {
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
+        let (session, tab_id, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "printf '\\033]133;C\\007'; sleep 0.5; printf '\\033]133;D;3\\007'; sleep 100",
+            ],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+        let (pane_record, tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(pane_record["status"], serde_json::json!("running"));
+        assert_eq!(
+            tab_record["shown_status"],
+            serde_json::json!(pane.to_string())
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Failed { exit_code: 3 }));
+        let (pane_record, tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(
+            pane_record["status"],
+            serde_json::json!({"failed": {"exit_code": 3}})
+        );
+        assert_eq!(
+            tab_record["shown_status"],
+            serde_json::json!(pane.to_string())
+        );
+    }
+
+    /// AC #4's "a command pane's status from its exit", through
+    /// `Runtime::handle` - `program_status` and `status` agree here (both
+    /// move the instant the real program exits), unlike the typed-command
+    /// case above, where only `status` is driven by a mark.
+    #[test]
+    fn a_command_panes_exit_reaches_pane_show_through_runtime_handle() {
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
+        let (session, tab_id, pane) = start_real_pane(
+            &runtime,
+            Program::Command {
+                argv: vec!["sh".to_string(), "-c".to_string(), "exit 7".to_string()],
+                cwd: "/tmp".to_string(),
+            },
+            vec!["sh", "-c", "exit 7"],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Failed { exit_code: 7 }));
+
+        let (pane_record, _tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(
+            pane_record["status"],
+            serde_json::json!({"failed": {"exit_code": 7}})
+        );
+        assert_eq!(pane_record["program_status"], serde_json::json!("ended"));
+        assert_eq!(pane_record["exit_code"], serde_json::json!(7));
+    }
 }
 
 #[cfg(test)]
@@ -2102,10 +2923,31 @@ mod stop_tests {
     /// real-process wait in this crate gives.
     const POLL_TIMEOUT: Duration = Duration::from_secs(10);
 
+    /// A working `PATH` is required (TASK-1.87): see `mod tests`'s own
+    /// `test_base_env` for why - duplicated here rather than shared
+    /// across modules, matching this file's own existing style of each
+    /// test module carrying its own small `login`-style helper.
+    fn test_base_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+        vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )]
+    }
+
+    /// A short, real `force_grace` for this module's own tests - unlike
+    /// `tests::TEST_GRACE`, every test here actually exercises `force_end`
+    /// through `Runtime::stop`, so this has to be long enough for a
+    /// trapping program's test to prove the escalation really happens
+    /// after the polite signal is given a real chance, not so long that
+    /// the whole module's run time grows needlessly.
+    const TEST_GRACE: Duration = Duration::from_millis(200);
+
     fn login() -> super::LoginShell {
         super::LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -2184,7 +3026,7 @@ mod stop_tests {
                     format!("echo $$ > {} ; exec {then}", pid_file.display()),
                 ],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -2214,7 +3056,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_program_producing_output() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "yes");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -2230,7 +3072,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_silent_program() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "sleep 1000");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -2246,7 +3088,7 @@ mod stop_tests {
 
     #[test]
     fn stop_is_a_no_op_for_a_pane_whose_program_has_already_ended() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
         // `true` exits at once, no `exec sleep` keeping it alive - by the
         // time this pid is known at all (printed, then read back), the
         // process behind it is already gone or going; this test only
@@ -2284,8 +3126,68 @@ mod stop_tests {
 
     #[test]
     fn stop_with_no_panes_at_all_returns_at_once() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login());
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
         runtime.stop();
+        assert!(runtime.state.lock().unwrap().panes.is_empty());
+    }
+
+    /// TASK-1.78 §4's own real behaviour change: the old `PaneHandle::
+    /// stop` sent only an unescalated `SIGHUP` by pid, so a program
+    /// trapping it survived `Runtime::stop`/`Drop` indefinitely (confirmed
+    /// by this task's own reviewer, in a scratch test against the
+    /// previous mechanism). Reusing `force_end` fixes this as a direct
+    /// consequence, not a special case - proven here rather than only
+    /// argued.
+    #[test]
+    fn stop_ends_a_program_that_traps_the_polite_signal() {
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+
+        // Waits for a real marker the nested shell writes *after*
+        // installing its own trap, before calling `stop` - found
+        // necessary by probing, not assumed: without it, `stop` can race
+        // the newly forked shell's own first few instructions and, under
+        // heavy CPU contention, send its signal before the shell has
+        // reached its own `trap` builtin at all (the same race `pane::
+        // ending_tests`'s own trapping test found and fixed the same
+        // way). `start_pane_reporting_its_pid`'s own `exec {then}` means
+        // `then` here is a nested `sh -c` so the trap can be installed
+        // *inside* the process that then execs into `sleep`, not applied
+        // to `trap` itself (which has no external binary to exec).
+        let ready = std::env::temp_dir().join(format!(
+            "steg-stop-trap-ready-{}-{}.marker",
+            std::process::id(),
+            line!()
+        ));
+        let _ = std::fs::remove_file(&ready);
+        let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(
+            &runtime,
+            &format!(
+                "sh -c \"trap '' HUP; touch {}; exec sleep 1000\"",
+                ready.display()
+            ),
+        );
+        runtime.state.lock().unwrap().panes.insert(pane, handle);
+        assert!(
+            process_exists(pid),
+            "the program must be running before stop"
+        );
+        let start = std::time::Instant::now();
+        while !ready.exists() {
+            assert!(
+                start.elapsed() < POLL_TIMEOUT,
+                "the nested shell never reached its own trap+marker"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let _ = std::fs::remove_file(&ready);
+
+        runtime.stop();
+
+        assert!(
+            !process_exists(pid),
+            "stop must still end a program that traps the polite signal, \
+             by escalating - the old mechanism could not"
+        );
         assert!(runtime.state.lock().unwrap().panes.is_empty());
     }
 }

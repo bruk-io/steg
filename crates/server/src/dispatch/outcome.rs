@@ -10,6 +10,7 @@
 use serde_json::Value;
 use steg_sdk::{
     Description, Method, PaneId, PaneRecord, SessionId, SessionRecord, SettingRecord, TabId,
+    TabRecord,
 };
 
 /// A served method's typed result, before it becomes the `Value` a
@@ -40,6 +41,12 @@ pub enum Outcome {
     SettingRecords(Vec<SettingRecord>),
     /// One pane, in full (`pane.show`; TASK-1.76 AC #2).
     PaneRecord(PaneRecord),
+    /// Every pane of a tab (`pane.list`; TASK-1.89).
+    PaneRecords(Vec<PaneRecord>),
+    /// One tab, in full (`tab.show`; TASK-1.89).
+    TabRecord(TabRecord),
+    /// Every tab of a session (`tab.list`; TASK-1.89).
+    TabRecords(Vec<TabRecord>),
 }
 
 impl Outcome {
@@ -90,6 +97,15 @@ impl Outcome {
             }
             Self::PaneRecord(record) => {
                 serde_json::to_value(record).expect("a PaneRecord always serialises")
+            }
+            Self::PaneRecords(records) => {
+                serde_json::to_value(records).expect("a Vec<PaneRecord> always serialises")
+            }
+            Self::TabRecord(record) => {
+                serde_json::to_value(record).expect("a TabRecord always serialises")
+            }
+            Self::TabRecords(records) => {
+                serde_json::to_value(records).expect("a Vec<TabRecord> always serialises")
             }
         }
     }
@@ -157,20 +173,66 @@ mod tests {
         assert_eq!(value, serde_json::to_value(record).unwrap());
     }
 
-    #[test]
-    fn a_pane_record_serialises_to_its_own_typed_shape() {
-        let record = steg_sdk::PaneRecord {
+    fn pane_record_example() -> steg_sdk::PaneRecord {
+        steg_sdk::PaneRecord {
             id: PaneId::from_raw(1),
             label: None,
             title: None,
+            kind: steg_sdk::PaneKind::Terminal,
             cwd: "/tmp".to_string(),
             program: "shell".to_string(),
             exit_code: None,
-            status: Some("running".to_string()),
-        };
+            program_status: Some("running".to_string()),
+            status: Some(steg_sdk::Status::Running),
+            size: None,
+        }
+    }
+
+    #[test]
+    fn a_pane_record_serialises_to_its_own_typed_shape() {
+        let record = pane_record_example();
 
         let value = Outcome::PaneRecord(record.clone()).into_value();
 
         assert_eq!(value, serde_json::to_value(record).unwrap());
+    }
+
+    #[test]
+    fn a_vec_of_pane_records_serialises_to_its_own_typed_shape() {
+        let records = vec![pane_record_example()];
+
+        let value = Outcome::PaneRecords(records.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(records).unwrap());
+    }
+
+    fn tab_record_example() -> steg_sdk::TabRecord {
+        steg_sdk::TabRecord {
+            id: TabId::from_raw(1),
+            label: None,
+            title: None,
+            position: 1,
+            current_pane: PaneId::from_raw(1),
+            layout: steg_sdk::Layout::Pane(PaneId::from_raw(1)),
+            shown_status: None,
+        }
+    }
+
+    #[test]
+    fn a_tab_record_serialises_to_its_own_typed_shape() {
+        let record = tab_record_example();
+
+        let value = Outcome::TabRecord(record.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(record).unwrap());
+    }
+
+    #[test]
+    fn a_vec_of_tab_records_serialises_to_its_own_typed_shape() {
+        let records = vec![tab_record_example()];
+
+        let value = Outcome::TabRecords(records.clone()).into_value();
+
+        assert_eq!(value, serde_json::to_value(records).unwrap());
     }
 }

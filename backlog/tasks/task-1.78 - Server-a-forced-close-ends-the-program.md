@@ -1,11 +1,11 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T04:52:00Z'
+updated_date: '2026-11-16T11:52:00Z'
 labels:
   - size-3
   - review-passed

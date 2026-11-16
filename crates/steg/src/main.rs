@@ -43,7 +43,15 @@ fn main() {
 /// own outcome lines on standard output/error and returns the exit status doc-2
 /// section 6 gives for each outcome (the plan's own table).
 fn run_server_start(on_demand: bool) -> i32 {
-    let config = steg_server::ServerConfig::default();
+    let mut config = steg_server::ServerConfig::default();
+    // The login identity (doc-8 R99, TASK-1.87) - cheap (a local
+    // passwd lookup, no child process), so resolved here, before the
+    // socket is even bound: a directory-service-bound account's own
+    // lookup *can* stall (TASK-1.77's own accepted risk for this exact
+    // call), bounded by `login_identity_timeout`. Capturing the actual
+    // environment is deliberately *not* done here - see below, after
+    // the socket is bound.
+    config.login = steg_server::LoginShell::resolve_identity(config.login_identity_timeout);
     let socket_path = steg_server::resolve_socket_path(&config);
     match steg_server::attempt(&config, &socket_path) {
         Ok(Arbitration::AlreadyRunning) => {
@@ -70,6 +78,36 @@ fn run_server_start(on_demand: bool) -> i32 {
                      attached - closing this terminal will end this server"
                 );
             }
+
+            // The login shell's own environment (doc-8 R99, TASK-1.87) -
+            // captured here, deliberately: the socket is already bound
+            // (so a client's `connect()` already succeeds, racing
+            // nothing), and `run` below has not been called yet (so this
+            // bounded wait delays a client's *first request*, never its
+            // `connect()`). On any failure, the fallback is a fixed,
+            // minimal environment, never this process's own inherited
+            // one - reported here, since `steg-server` itself prints
+            // nothing. `build_login_shell` is the one place this
+            // "capture, then report a fallback" step is written - shared
+            // with TASK-1.87's own fixture-only entry point for tests
+            // (`crates/steg/tests/fixtures/fixture_server.rs`), which
+            // calls it with a fabricated identity instead of the real
+            // one just resolved above.
+            let identity = steg_server::LoginIdentity {
+                shell: std::path::PathBuf::from(&config.login.argv0),
+                home: std::path::PathBuf::from(&config.login.home),
+                user: config.login.user.clone(),
+            };
+            let (login, fallback_reason) =
+                steg_server::build_login_shell(identity, config.login_environment_timeout);
+            config.login = login;
+            if let Some(reason) = fallback_reason {
+                eprintln!(
+                    "steg: could not capture the login shell's environment ({reason:?}); \
+                     panes will start with a minimal default environment instead"
+                );
+            }
+
             // `listen::run` requires a `&Stopper`; one must exist regardless of
             // whether anything outside this call can reach it yet (nothing can,
             // today - no dispatch exists that reaches `Stopper::stop`, TASK-1.45's).

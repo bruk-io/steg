@@ -105,9 +105,10 @@ pub(super) fn call(
     description: &Description,
     context: &Context,
     request: &Request,
+    now: steg_kernel::Moment,
 ) -> Response {
     match resolve(request) {
-        Ok(inner) => super::dispatch(tree, settings, description, context, &inner),
+        Ok(inner) => super::dispatch(tree, settings, description, context, &inner, now),
         Err(error) => Response::Error(error),
     }
 }

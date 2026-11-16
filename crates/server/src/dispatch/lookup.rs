@@ -91,6 +91,76 @@ pub(crate) fn target_pane(
     }
 }
 
+/// Every pane `request`'s own target covers (TASK-1.78 §5): one pane for
+/// `pane.close`, a tab's panes for `tab.close`, a session's tabs' panes
+/// for `session.close` - the exact three lookups each of those methods'
+/// own `any_running` refusal check already needed, pulled out once here
+/// so `Runtime`'s force-close wrapper and those checks share one
+/// implementation rather than three copies that could drift apart. Takes
+/// only `request.method`, not a separate noun parameter, so a caller never
+/// has to repeat which of the three it already knows it is calling.
+///
+/// # Errors
+///
+/// Returns whatever the target itself fails to resolve with
+/// (`PaneNotFound`/`TabNotFound`/`SessionNotFound`, mapped) - the same
+/// error any of the three methods' own dispatch arm would give for an
+/// unresolvable target.
+pub(crate) fn panes_in_close_scope(
+    tree: &Tree,
+    context: &Context,
+    request: &Request,
+) -> Result<Vec<PaneId>, ApiError> {
+    match request.method.as_str() {
+        "pane.close" => Ok(vec![target_pane(tree, context, request)?]),
+        "tab.close" => {
+            let tab = target_tab(tree, context, request)?;
+            Ok(find_tab(tree, tab)
+                .ok_or_else(|| map_kernel_error(steg_kernel::Error::TabNotFound(tab)))?
+                .panes()
+                .iter()
+                .map(Pane::id)
+                .collect())
+        }
+        "session.close" => {
+            let session = target_session(tree, context, request)?;
+            Ok(tree
+                .session(session)
+                .ok_or_else(|| map_kernel_error(steg_kernel::Error::SessionNotFound(session)))?
+                .tabs()
+                .iter()
+                .flat_map(Tab::panes)
+                .map(Pane::id)
+                .collect())
+        }
+        other => unreachable!(
+            "panes_in_close_scope is only ever called for the three close methods, not {other}"
+        ),
+    }
+}
+
+/// Whether any of `panes` has a program running right now - the one check
+/// `pane.close`/`tab.close`/`session.close`'s own refusal (without
+/// `--force`) needs, over whatever [`panes_in_close_scope`] found. A pane
+/// id that cannot be looked up (never expected - these are only ever ids
+/// `panes_in_close_scope` itself just read straight out of the same
+/// `tree`) counts as not running, not an error: this function only ever
+/// answers "is there something to refuse for", and a pane that has
+/// vanished has nothing to refuse.
+pub(crate) fn any_pane_running(tree: &Tree, panes: &[PaneId]) -> bool {
+    panes.iter().any(|&pane| {
+        tree.tab_of_pane(pane)
+            .and_then(|tab_id| find_tab(tree, tab_id))
+            .and_then(|tab| tab.pane(pane))
+            .is_some_and(|pane| {
+                matches!(
+                    pane.program_status(),
+                    Some(steg_sdk::ProgramStatus::Running)
+                )
+            })
+    })
+}
+
 /// Resolves a session from a target path given as a bare string. Only
 /// `target_session` (below) calls this today - no method's own flag is a
 /// session target, unlike `resolve_tab_str`/`resolve_pane_str`, which
@@ -189,6 +259,24 @@ pub(crate) fn find_tab(tree: &Tree, tab: TabId) -> Option<&Tab> {
     tree.sessions().iter().find_map(|session| session.tab(tab))
 }
 
+/// `tab`'s one-based position among its own session's tabs (doc-15 R10;
+/// `TabRecord.position`, TASK-1.89) - found the same way
+/// [`session_owning_tab`] already does for [`tab_mut`], then the index of
+/// `tab` within that session's own `tabs()` order.
+pub(crate) fn tab_position(tree: &Tree, tab: TabId) -> Result<usize, ApiError> {
+    let session_id = session_owning_tab(tree, tab)
+        .ok_or_else(|| map_kernel_error(steg_kernel::Error::TabNotFound(tab)))?;
+    let session = tree
+        .session(session_id)
+        .expect("session_owning_tab just found this tab in this session");
+    let index = session
+        .tabs()
+        .iter()
+        .position(|t| t.id() == tab)
+        .expect("session_owning_tab just confirmed this session holds this tab");
+    Ok(index + 1)
+}
+
 /// A mutable reference to the tab with this id, by way of its owning
 /// session.
 pub(crate) fn tab_mut(tree: &mut Tree, tab: TabId) -> Result<&mut Tab, ApiError> {
@@ -231,8 +319,8 @@ pub(crate) fn wire_position_to_index(position: i64) -> Result<usize, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use super::wire_position_to_index;
-    use steg_sdk::ErrorCode;
+    use super::{any_pane_running, wire_position_to_index};
+    use steg_sdk::{ErrorCode, PaneId};
 
     #[test]
     fn wire_position_converts_one_based_to_zero_based() {
@@ -250,6 +338,20 @@ mod tests {
             wire_position_to_index(-1).unwrap_err().code,
             ErrorCode::BadRequest
         );
+    }
+
+    /// `any_pane_running`'s own documented edge case (TASK-1.78's review,
+    /// one more nit): a pane id that cannot be looked up at all counts as
+    /// not running, not an error - never expected in practice (every id
+    /// it is ever given comes straight from `panes_in_close_scope` over
+    /// the same `tree`), but exercised directly here rather than left
+    /// untested, as the review asked.
+    #[test]
+    fn a_pane_id_that_cannot_be_found_counts_as_not_running() {
+        let tree = steg_kernel::Tree::new();
+        let nonexistent = PaneId::from_raw(999_999);
+
+        assert!(!any_pane_running(&tree, &[nonexistent]));
     }
 
     // --- Context::none() and the missing-context refusal (TASK-1.45 §1) --

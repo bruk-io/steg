@@ -4,13 +4,15 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-16T11:36:00Z'
 labels:
   - size-5
 milestone: m-4
 dependencies:
   - TASK-1.55
   - TASK-1.47
+  - TASK-1.114
+  - TASK-1.115
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

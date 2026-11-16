@@ -1,13 +1,14 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:37:00Z'
+updated_date: '2026-11-16T01:48:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.92-ui-the-design-s-named-values-as-one-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b3ded099a9d8'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -362,6 +365,36 @@ created: 2026-11-16T01:37:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.92: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T01:48:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/ui/design/foundations.json:217 exports overlay.layout.max_height_percent_of_window: 60. doc-10's "Values... not yet confirmed" lists this in the same bullet as the palette's 40px-clear-below-720px rule ("growing to at most 60% of the window's height"); R79 says neither is settled until Bruk says so. The approved plan itself (section 1, Durations/easings) says to carry this specific item forward by pointing at doc-10's list, "don't re-litigate or re-decide them here" - and the build correctly left out the 40px-clear half but exported the 60%-height half as a settled measurement anyway. That both breaks AC#2 ("anything the design does not actually fix is listed as a question and not guessed") and is an unremarked departure from the plan's own instruction.
+
+[Compliance, Nit] Reference-format inconsistency the plan itself introduces inconsistently and the build follows literally: bg_inactive is wrapped {"ref": "surface.pane"} (plan section 2) while scrim.light.colour ("text"), status.ring.track_colour ("track") and track.layout.fill.colour ("tint") are bare strings - and the plan's own table (section 1) specified {colour: {ref: "text"}, opacity: 0.28} for scrim.light, not the bare string the committed file has. track.layout.fill.colour: "tint" and track.layout.radius_outer: "radius.track" also reference names outside colours[] (a top-level key and a sizes key respectively), which the three-way colour-field rule in section 2 (foundations colour name / #-literal / "session") doesn't literally cover. TASK-1.93's generator will need to special-case more than one representation for what is conceptually the same "reference" concept.
+
+[Compliance, Nit] Tokens.dc.html's radii card (gen_system.py:372) draws a fourth corner value, 999px "fully round: chips of colour, bars", alongside the three (14/10/8) that are in foundations.json's radius.surface/track/inner. It isn't in the working foundations.json's "radius" sentence either (which only lists the three), so it reads as an unnamed shape idiom rather than a design-named value, and I'd treat its omission as acceptable - but it is a value drawn on the page with no entry in the data file, so noting it per the review brief's ask.
+
+Everything else checked independently and found correct, at head dc9f98533d16 (matches both the task's recorded `just check` and PR 49's headRefOid; CI "check" is SUCCESS on this head):
+- All 18 colours (the 17 plus track), both hex forms and the design's own names (including the ramp colours' full names, "ramp.1 violet" etc, not truncated), found in design/canvas/project/Tokens.dc.html and in the working design/canvas/foundations.json/gen_system.py, by independently grepping every hex value and cross-checking names - not by relying on the worker's recorded shape/colour-check scripts.
+- Both ramps' stops (including the short ramp skipping ramp.3 red) and both ramp-derived opacities (caption_opacity 0.50/0.40, tint 0.18) confirmed against gen_system.py's `ramp`/`ramp6`/`ramp50` gradient literals and the `TINT` alpha-suffix source.
+- All 16 ANSI colours of both themes, checked by name as well as by hex presence: gen_system.py:385's `nm` list (black..white, normal 0-7 then bright 8-15) against design/canvas/foundations.json's `ansi` arrays and the committed named entries, position by position - all 16 match in both themes.
+- The three corner sizes (14/10/8), the scrim (#050508 at 60% dark; text colour at 28% light), and the one duration (200ms) all confirmed against the corrected pages (both Tokens.dc.html and Layout.dc.html say "#050508 at 60% in dark, ink at 28% in light", not the stale "Black" sentence still present in the working design/canvas/foundations.json, exactly as the plan's section 4 describes).
+- JSON is syntactically valid, records artifact_version "1794791991-5d11", and I scripted a scan for any string value embedding a number+unit or a formula: none found outside name/use/url fields (focus_ring.radius_formula was correctly replaced with corner_radius_addition: 4, a plain number).
+- off is absent and correctly still only mentioned in the README/history, not the colours[] array; "session" is used only for cursor (both themes), focus_ring.colour and tint.colour, exactly the three places named.
+- The six copied files under design/canvas/ are byte-identical (shasum -a 256, done myself, not just re-reading the recorded check) to their sources in design-canvas-backup-2026-11-15 and design-artifact-pages-1794791991-5d11. README.md correctly states current vs. history, that the artifact is the source, that the generator scripts no longer reproduce Tokens.dc.html exactly, that the working foundations.json predates the two corrections, and where off went. No local filesystem path, credential, or font is committed; fairfax-hd-legacy.woff2 is named but correctly left out with its licence unconfirmed.
+- Repository checks: diff touches only the 8 files listed in `git diff --stat`, none under justfile/tools/.github, so no check is weakened or newly skipped. Cargo.toml's workspace members list is unchanged and still excludes crates/ui (no Cargo.toml is added under crates/ui/design/), consistent with the recorded `skip tests: this change touches no crate`. TASK-1.91 (PR 48) adds crates/ui's Cargo.toml/src/boundaries.toml entry; this task only touches crates/ui/design/ and design/canvas/ - disjoint paths - so either merge order is clean and neither leaves cargo looking at a non-crate directory.
+- No image needed: this task adds data and documents only, nothing the app draws.
+
+plan-matched is "no": the focus_ring.radius_formula -> corner_radius_addition departure is a real, correctly-explained departure, but it is still a departure from the approved digest's literal schema.
 
 ---
 <!-- COMMENTS:END -->

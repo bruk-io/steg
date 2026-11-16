@@ -378,21 +378,6 @@ enum PaneCommand {
     /// currently registered (it was detached before this arrived, or the
     /// `Attach` it answers never reached this worker - `Error::PaneGone`
     /// already covers that case for the caller).
-    ///
-    /// No real (non-test) caller yet: `connection.rs`'s own `pane.attach`
-    /// dispatch, which calls this after queuing the reply and opening the
-    /// stream, is TASK-1.47's step 4, blocked on TASK-1.46's description
-    /// vocabulary (`Returns::Nested`/`Method.follows`) - this module's own
-    /// tests (`attach_tests`) exercise it directly in the meantime, the
-    /// same gap `crate::outbound`'s `open_stream`/`close_stream` already
-    /// have and are already marked this way for.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's own connection.rs wiring (step 4) is the first real caller; exercised today only by this module's own tests, blocked on TASK-1.46's description vocabulary"
-        )
-    )]
     Arm {
         /// The attachment to arm.
         stream: u32,
@@ -543,13 +528,6 @@ impl PaneHandle {
     ///
     /// Returns [`Error::PaneGone`] if the pane's worker thread is no
     /// longer there.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's own connection.rs wiring (step 4) is the first real caller; exercised today only by this module's own tests, blocked on TASK-1.46's description vocabulary"
-        )
-    )]
     pub(crate) fn arm(&self, stream: u32, outbound: Arc<Outbound>) -> Result<(), Error> {
         self.commands
             .send(PaneCommand::Arm { stream, outbound })

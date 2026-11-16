@@ -165,16 +165,9 @@ impl Outbound {
 
     /// Registers a stream so [`Outbound::enqueue_data`] accepts frames for
     /// it and the writer's round robin gives it a turn. Idempotent: opening
-    /// an already-open stream changes nothing (not reached today - nothing
-    /// in this task calls this at all; TASK-1.47's own attach code is the
-    /// first real caller).
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
-        )
-    )]
+    /// an already-open stream changes nothing. Called by `connection.rs`'s
+    /// own `pane.attach` handling (TASK-1.47), after the attach reply is
+    /// already queued (decision-2 section 3's ordering rule).
     pub(crate) fn open_stream(&self, stream: u32) {
         let mut queues = self.lock();
         if let std::collections::hash_map::Entry::Vacant(entry) = queues.data.entry(stream) {
@@ -187,14 +180,8 @@ impl Outbound {
     /// whatever was still queued for it is dropped. Keeps `cursor` valid by
     /// construction - removing by position and taking `cursor` modulo the
     /// new (possibly smaller) length, rather than leaving it pointing past
-    /// the end.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
-        )
-    )]
+    /// the end. Called by `connection.rs`'s own `pane.detach` handling
+    /// (TASK-1.47).
     pub(crate) fn close_stream(&self, stream: u32) {
         let mut queues = self.lock();
         queues.data.remove(&stream);

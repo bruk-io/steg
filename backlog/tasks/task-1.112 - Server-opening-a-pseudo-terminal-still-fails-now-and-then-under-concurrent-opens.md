@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:16:00Z'
+updated_date: '2026-11-16T13:38:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -428,6 +428,24 @@ Likely cause: the plan's density numbers came from a bare ctypes/libc probe (tig
 Raising density (tried 32 processes x 500 opens = 16,000 as a diagnostic, not committed) ran into the test's own 20s per-result timeout instead of resolving it cleanly - needs either a longer bound or a different way to drive more opens per wall-clock second, not just more processes.
 
 I have not changed CONCURRENT_PROCESSES/OPENS_PER_PROCESS from the plan's stated 16x200 in the committed code. Both tests pass right now (recorded via asdlc record-check), but the permanent control's own reliability is lower than planned. Options I see, for you to pick: (a) accept this miss rate and treat an occasional control failure as "re-run," the same as other cross-process tests this repo already tolerates under load; (b) raise the bound/opens-per-process and the timeout together; (c) a tighter release mechanism than the current stdin-byte handshake, if that's really what's diluting the overlap - not verified which of these it actually is. Holding the temporary CI loop and the independence-assumption measurement (order of work, step 5) until I hear back, since both are sized against the same density assumption.
+
+---
+
+created: 2026-11-16T13:38:00Z
+
+---
+
+Built the sequential design (long-lived warm workers, ready/release handshake, stop-at-first-failure, bounded by a total open count not wall clock) exactly as directed. New finding, before I pick a bound: the achieved rate is far less stable than a single number can capture on this machine.
+
+Numbers, all taken within the last 30 minutes, same machine, same code:
+- 9 runs of the new sequential control (16 workers, cap 1,250 each = 20,000 total): 5 reproduced (first failure at opens-until-first-failure of 1, 1, 1, 461, 946 on the worker that saw it - often near-instant), 4 reached the full 20,000 with zero.
+- Direct measurement bypassing the test's early-stop (16 workers x 3,000 opens each = 48,000, run twice back to back): 20 failures (0.042%), then 11 failures (0.023%) - roughly 2x apart, minutes apart, same code, same machine.
+- The original bare-libc probe (no Rust, no portable-pty, the one that first established the mechanism), re-run right now at the same density (16 x 200 x 3 trials): 3, 2, and 0 failures - a clean miss in one of three trials even there.
+- A run at a 5x larger bound (6,250 opens/worker, 100,000 total) did not complete in over two minutes and I stopped it rather than let it run unbounded while I didn't yet know if that was genuine progress or something degrading under this machine's own load.
+
+Reading this together: the rate looks bursty, not a stable per-open constant - several of the fast reproductions (opens-until-first-failure = 1) suggest something *else* on this shared machine was also hammering ptys at that exact moment, and the self-contained rate from this fixture's own 16 workers alone, with nothing else helping, may be considerably lower and is what the zero-failure runs and the newly re-measured ~0.02-0.05% (not the original ~0.3-0.4% from early in this investigation) are showing. I don't yet have a bound I'm confident in without more time on this, and a naive 5x-larger bound just cost over two minutes without finishing - possibly fine on a quieter machine, possibly a sign the approach needs a different shape (e.g. sized and tuned against CI's own numbers rather than this heavily-shared dev machine, since CI's contention profile is presumably more stable run to run).
+
+Not weakening the control to force a pass - holding here instead, same as before. The code for the sequential design (fixture + test) is in the worktree, not committed; CONCURRENT_WORKERS/TOTAL_OPEN_BOUND are still placeholders (16/20,000) pending direction.
 
 ---
 <!-- COMMENTS:END -->

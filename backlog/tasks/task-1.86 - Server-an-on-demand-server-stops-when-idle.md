@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T15:02:00Z'
+updated_date: '2026-11-16T15:04:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1644,6 +1644,18 @@ Checked and clean, recorded for the next reviewer:
 [Compliance, Nit] listen.rs's `checker_tx.or(events)` change to TASK-1.98's own two `AcceptRetried` send sites is a departure from the plan's own claim that those lines are "untouched by this task" - explained in the task's notes (a wiring bug found while merging TASK-1.98: the two sites read the raw `events` parameter, always `None` in production, never reaching the idle checker) and reasonable, but it is a departure the plan did not anticipate, hence `--plan-matched no`.
 
 Evidence otherwise clean: the task's own `just check`/`cargo test -p steg-server --tests`/`cargo test -p steg --features fixtures` are all recorded at or after a274b2c and exit 0; I reproduced all four of this task's own test targets 30 times each (0 failures) and both broader suites 5 times each (0 failures) plus my own `just check` (exit 0) on this exact head, with no leftover processes from this worktree before or after.
+
+---
+
+created: 2026-11-16T15:04:00Z
+
+---
+
+Review findings fixed (head cbe0f15, merged TASK-1.98's newest head 25696d14 on top - see the separate finish notes for the full build record). Two corrections asked for, both addressed directly here since they're about the task's own notes, not the code:
+
+**Nit 1 corrected: the right reason not to re-run the five recorded negative controls is not "the merge didn't touch the same files."** That was the wrong criterion - testing.md's own trigger is whether the test, or the mechanism it proves, was edited since the control was recorded, not whether some other task's unrelated fix happened to land in the same file. The right check, which the reviewer independently performed and confirmed (review #6): diff the commit where the five controls were recorded (a3ebd891) against the current head, file by file, for every idle-stop test and the production code each one proves - if neither the test nor its mechanism changed, the control still holds; if either did, it needs re-recording. For this task's own five controls, none of the files they exercise or prove against were touched by any of the TASK-1.98 merges, which is the actual reason they didn't need re-running - not a coincidence about which files a different task happened to change.
+
+**Nit 3: `checker_tx.or(events)`'s touch to TASK-1.98's own two `AcceptRetried` send sites in listen.rs is a departure from this task's own plan, stated here as one.** The plan's section 6 claimed those two lines were "untouched by this task." They are not: while merging TASK-1.98's first head, I found both sites read the raw `events` parameter directly, which is always `None` in production, so `AcceptRetried` would never have reached the idle checker at all. Fixed by computing one effective sender once, before the loop (`checker_tx.or(events)`), with all three send sites in the loop - TASK-1.98's two retries and this task's own per-connection clone - reading it. Reported to the engineer in full (the exact before/after of both lines) at the time, for TASK-1.98's own reviewer to see; recording it here too, as the plan's own departure it is.
 
 ---
 <!-- COMMENTS:END -->

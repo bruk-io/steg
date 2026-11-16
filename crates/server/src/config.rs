@@ -27,6 +27,17 @@ pub const DEFAULT_HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// does not happen).
 pub const DEFAULT_ARBITRATION_TIMEOUT: Duration = Duration::from_secs(5);
 
+/// How long `run`'s accept loop sleeps after an `accept()`/`try_clone()`
+/// error it classified as recoverable (TASK-1.98 AC #1), before retrying -
+/// long enough that the loop cannot spin at full speed while the condition
+/// lasts (AC #4), short enough that an operator does not notice a delay
+/// once descriptors free up again. Data, not a hardcoded sleep inside
+/// `run` itself, for the same reason every other duration in this file is:
+/// AC #4's own negative control (a real spin, proven to exceed the same
+/// bound a real backoff stays under) needs to turn this down to zero
+/// without editing production code to do it.
+pub const DEFAULT_ACCEPT_ERROR_BACKOFF: Duration = Duration::from_millis(20);
+
 /// Everything this task's server-starting path needs that would otherwise
 /// be read from the environment or the clock, so every test overrides it
 /// instead of waiting a production-length duration.
@@ -56,6 +67,10 @@ pub struct ServerConfig {
     /// ([`LoginShell::from_process_env`]), the same placeholder TASK-1.77's
     /// own entry point replaces with a real password-database resolution.
     pub login: LoginShell,
+    /// How long [`crate::listen::run`]'s accept loop sleeps after a
+    /// recoverable `accept()`/`try_clone()` error before retrying (AC #1/
+    /// #4) - see [`DEFAULT_ACCEPT_ERROR_BACKOFF`].
+    pub accept_error_backoff: Duration,
 }
 
 impl Default for ServerConfig {
@@ -66,6 +81,7 @@ impl Default for ServerConfig {
             arbitration_timeout: DEFAULT_ARBITRATION_TIMEOUT,
             launcher: Arc::new(RealLauncher),
             login: LoginShell::from_process_env(),
+            accept_error_backoff: DEFAULT_ACCEPT_ERROR_BACKOFF,
         }
     }
 }
@@ -82,6 +98,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("arbitration_timeout", &self.arbitration_timeout)
             .field("launcher", &"<dyn ProgramLauncher>")
             .field("login", &self.login)
+            .field("accept_error_backoff", &self.accept_error_backoff)
             .finish()
     }
 }

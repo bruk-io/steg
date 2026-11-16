@@ -13,11 +13,75 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use nix::errno::Errno;
+
 use crate::arbiter::{self, Arbitration};
 use crate::config::ServerConfig;
 use crate::connection::{self, ConnectionEvent};
 use crate::error::Error;
 use crate::runtime::Runtime;
+
+/// Why `run`'s accept loop treats one `accept()`/`try_clone()` error as safe
+/// to retry rather than as a reason to stop the whole server (TASK-1.98 AC
+/// #1). Matched by raw errno (`classify_accept_error`, below), never by
+/// `std::io::ErrorKind`: `EMFILE`/`ENFILE` have no `ErrorKind` variant that
+/// round-trips through this platform's own `decode_error_kind` - confirmed
+/// by reading this toolchain's own
+/// `library/std/src/sys/net/connection/socket/unix.rs`, not assumed - so an
+/// `ErrorKind`-based classifier could never cover the one case AC #4 is
+/// about (the loop must not spin while descriptors stay exhausted).
+///
+/// `pub`: carried on [`ConnectionEvent::AcceptRetried`] so a caller given
+/// `events` can tell which of the three kinds happened, same as any other
+/// `ConnectionEvent`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoverableAcceptError {
+    /// `EMFILE` (this process is out of descriptors) or `ENFILE` (the whole
+    /// system is). Unlike the other two kinds, this does not clear on its
+    /// own - it lasts until some descriptor, anywhere, is closed - which is
+    /// exactly why the loop backs off instead of retrying at full speed
+    /// while it lasts (AC #4), and why `run`'s own stop check now runs
+    /// before this classifier does: a storm that never resolves on its own
+    /// must still let `stop()` end the loop within one backoff interval,
+    /// not leave it retrying forever.
+    DescriptorsExhausted,
+    /// `ECONNABORTED` - a connection the kernel already queued was reset or
+    /// torn down by its own peer before this loop's `accept()` picked it
+    /// up. Not this listener's fault, and nothing to do with `run`'s own
+    /// stop mechanism either: `Stopper::stop` wakes a blocked `accept()`
+    /// with a real `UnixStream::connect` (`wake_accept`, above), never a
+    /// `shutdown`/`close` of the listener from another thread, so there is
+    /// no path here where `run`'s own stop produces this error itself.
+    ConnectionAborted,
+    /// `EINTR` - interrupted by a signal before a connection was ready.
+    /// **Checked, not assumed, to be dead in practice on this target**:
+    /// `UnixListener::accept` calls `Socket::accept`, which on macOS (not in
+    /// that file's `accept4`-capable target list) wraps `libc::accept` in
+    /// `cvt_r`, already retrying `EINTR` internally - so this arm is a
+    /// defensive backstop for a classifier that has to be correct
+    /// regardless of what std happens to do today, not because it is
+    /// expected to fire. Kept because AC #1 names it explicitly.
+    Interrupted,
+}
+
+/// `Some(kind)` for the three cases AC #1 names as recoverable; `None` for
+/// everything else, including `raw_os_error() == None` (a `std::io::Error`
+/// not actually sourced from a syscall) - the same conservative default
+/// `run` always had before this task, only narrowed by the three kinds
+/// above and never widened past them. Matched through `nix::errno::Errno`
+/// (already an allowed dependency of this crate, `boundaries.toml`), which
+/// re-exports `libc` itself (`nix::libc`), so no new dependency is needed
+/// for this.
+fn classify_accept_error(err: &std::io::Error) -> Option<RecoverableAcceptError> {
+    match err.raw_os_error().map(Errno::from_raw) {
+        Some(Errno::EMFILE | Errno::ENFILE) => {
+            Some(RecoverableAcceptError::DescriptorsExhausted)
+        }
+        Some(Errno::ECONNABORTED) => Some(RecoverableAcceptError::ConnectionAborted),
+        Some(Errno::EINTR) => Some(RecoverableAcceptError::Interrupted),
+        _ => None,
+    }
+}
 
 /// What [`serve`] reports once it has a final answer.
 #[derive(Debug)]
@@ -300,7 +364,38 @@ pub fn run(
             let accept_result = loop {
                 let (stream, _addr) = match listener.accept() {
                     Ok(accepted) => accepted,
-                    Err(err) => break Err(err.into()),
+                    Err(err) => {
+                        // Checked before this error is even classified, not
+                        // only before the sleep below: TASK-1.98's own
+                        // review found that without this, a `stop()` called
+                        // while descriptors stay exhausted (`EMFILE`/
+                        // `ENFILE` do not clear on their own) could go
+                        // unnoticed for as long as the storm lasts, since
+                        // `should_stop` was otherwise only ever checked
+                        // after a *successful* `accept()` - worse than
+                        // today, where any error ends the loop at once.
+                        // Checking first bounds that to one loop iteration
+                        // instead, every time through.
+                        if stop.should_stop() {
+                            break Ok(());
+                        }
+                        match classify_accept_error(&err) {
+                            Some(kind) => {
+                                if let Some(tx) = &events {
+                                    let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
+                                }
+                                // Opportunistic: a connection that finished
+                                // on its own during this storm gives its fd
+                                // back now, rather than waiting for the
+                                // next successful `accept()` - which, under
+                                // `ENFILE`, might be a while.
+                                reap_finished(&mut connections);
+                                thread::sleep(config.accept_error_backoff);
+                                continue;
+                            }
+                            None => break Err(err.into()),
+                        }
+                    }
                 };
                 reap_finished(&mut connections);
                 if stop.should_stop() {
@@ -311,7 +406,20 @@ pub fn run(
                     Ok(cloned) => cloned,
                     Err(err) => {
                         drop(stream);
-                        break Err(err.into());
+                        if stop.should_stop() {
+                            break Ok(());
+                        }
+                        match classify_accept_error(&err) {
+                            Some(kind) => {
+                                if let Some(tx) = &events {
+                                    let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
+                                }
+                                reap_finished(&mut connections);
+                                thread::sleep(config.accept_error_backoff);
+                                continue;
+                            }
+                            None => break Err(err.into()),
+                        }
                     }
                 };
                 let handshake_timeout = config.handshake_timeout;
@@ -429,7 +537,64 @@ mod tests {
     use std::sync::mpsc;
     use std::time::Duration;
 
-    use super::reap_finished;
+    use super::{RecoverableAcceptError, classify_accept_error, reap_finished};
+
+    /// AC #1: the three named cases, each a real `std::io::Error` built
+    /// from a real errno value (`from_raw_os_error`, not a mock of
+    /// `accept()` itself) - every one of these is a value the real
+    /// `accept()`/`try_clone()` calls in `run`'s loop can actually return
+    /// on this platform.
+    #[test]
+    fn descriptor_exhaustion_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EMFILE)),
+            Some(RecoverableAcceptError::DescriptorsExhausted)
+        );
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::ENFILE)),
+            Some(RecoverableAcceptError::DescriptorsExhausted)
+        );
+    }
+
+    #[test]
+    fn a_connection_aborted_before_accept_picked_it_up_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::ECONNABORTED)),
+            Some(RecoverableAcceptError::ConnectionAborted)
+        );
+    }
+
+    #[test]
+    fn an_interrupted_call_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EINTR)),
+            Some(RecoverableAcceptError::Interrupted)
+        );
+    }
+
+    /// The negative control for the three tests above: two plausible but
+    /// wrong neighbours (not an exhaustive list) and "no errno at all" -
+    /// each must come back fatal, or a classifier that wrongly folded
+    /// everything into `Some` would pass the recoverable tests above for
+    /// the wrong reason.
+    #[test]
+    fn an_unlisted_errno_is_fatal() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EBADF)),
+            None
+        );
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EINVAL)),
+            None
+        );
+    }
+
+    #[test]
+    fn an_error_with_no_os_code_at_all_is_fatal() {
+        let err = std::io::Error::other("not from a syscall");
+        assert_eq!(err.raw_os_error(), None);
+        assert_eq!(classify_accept_error(&err), None);
+    }
 
     /// A thread that finishes the instant it is spawned leaves
     /// `is_finished()` `true` almost immediately - this test waits on

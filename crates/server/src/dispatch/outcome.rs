@@ -56,6 +56,14 @@ pub enum Outcome {
     PaneClosed(steg_kernel::ClosedPane),
     /// `tab.close`: what `Tree::close_tab` actually closed, same reason.
     TabClosed(steg_kernel::TabClosed),
+    /// `pane.move`: what `Tree::move_pane_to_tab` actually did, including
+    /// whether it cascaded into closing the source tab and/or session
+    /// (R94, TASK-1.46 - the same class of bug `PaneClosed`/`TabClosed`
+    /// above were added for, found one round later on this method). Same
+    /// reason: serialises as `Nothing` (doc-2's own `Returns::Nothing`
+    /// contract for `pane.move` is unchanged); exists so `Runtime`'s own
+    /// `move_and_dispatch` can read the kernel's own cascade directly.
+    PaneMoved(steg_kernel::MovedPane),
 }
 
 impl Outcome {
@@ -116,7 +124,7 @@ impl Outcome {
             Self::TabRecords(records) => {
                 serde_json::to_value(records).expect("a Vec<TabRecord> always serialises")
             }
-            Self::PaneClosed(_) | Self::TabClosed(_) => Value::Null,
+            Self::PaneClosed(_) | Self::TabClosed(_) | Self::PaneMoved(_) => Value::Null,
         }
     }
 }

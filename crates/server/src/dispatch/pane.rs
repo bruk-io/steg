@@ -256,6 +256,15 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
     Ok(Outcome::PaneClosed(closed))
 }
 
+/// `pane.move`: moves `pane` into another tab, by `--direction`'s own
+/// default when none is given (doc-2 section 8 names no direction field
+/// for this method). If `pane` was its own tab's last, `move_pane_to_tab`
+/// cascades the same way `close_pane` does (R94) - closing the source tab
+/// and, if that tab was the session's last, the source session too.
+/// `Outcome::PaneMoved` carries that cascade out so `Runtime`'s own
+/// `move_and_dispatch` can emit `tab.closed`/`session.closed` from it,
+/// same reason and same shape as `pane.close`/`tab.close` (TASK-1.46,
+/// found one review round later on this method).
 fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let pane = target_pane(tree, context, request)?;
     let to = param_str(request, "to").ok_or_else(|| bad_request("needs to"))?;
@@ -266,9 +275,10 @@ fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
     // dispatch's own default - appending at the end of the target tab -
     // documented here since the description gives no way for a caller to
     // ask for anything else.
-    tree.move_pane_to_tab(pane, target_tab, Direction::Right)
+    let moved = tree
+        .move_pane_to_tab(pane, target_tab, Direction::Right)
         .map_err(map_kernel_error)?;
-    Ok(Outcome::Nothing)
+    Ok(Outcome::PaneMoved(moved))
 }
 
 fn set(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {

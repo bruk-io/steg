@@ -355,6 +355,7 @@ impl Runtime {
             "pane.close" | "tab.close" | "session.close" => {
                 self.close_and_dispatch(description, context, &resolved)
             }
+            "pane.move" => self.move_and_dispatch(description, context, &resolved),
             _ => {
                 let mut guard = self.lock();
                 // One explicit deref first: `&mut guard.tree`/`&mut
@@ -801,6 +802,76 @@ impl Runtime {
         response
     }
 
+    /// `pane.move` (TASK-1.46, found one review round after `close_and_
+    /// dispatch` was built the same way): `Tree::move_pane_to_tab` can
+    /// cascade into closing the pane's own source tab and, if that was
+    /// the session's last tab, the source session too (R94, the same
+    /// cascade `close_pane` has) - the generic `_` arm in `handle` above
+    /// has no way to read that cascade back out (it only ever sees a
+    /// `Response`, already erased to a `Value`), so this method, like
+    /// `close_and_dispatch`, calls `dispatch_raw` directly for the typed
+    /// `Outcome::PaneMoved` and emits from it.
+    fn move_and_dispatch(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+    ) -> Response {
+        use steg_sdk::TreeEvent;
+
+        let mut state = self.lock();
+
+        // Captured before the move can cascade the source tab (and its
+        // session) away - the same reason `capture_close_pre` reads its
+        // own scope before `dispatch_raw` runs.
+        let pane = match dispatch::target_pane(&state.tree, context, request) {
+            Ok(pane) => pane,
+            Err(error) => return Response::Error(error),
+        };
+        let source_tab = state
+            .tree
+            .tab_of_pane(pane)
+            .expect("target_pane just resolved this pane; it is in the tree");
+        let source_session = session_owning_tab(&state.tree, source_tab);
+
+        let outcome = {
+            let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            dispatch::dispatch_raw(
+                &mut state.tree,
+                &mut state.settings,
+                description,
+                context,
+                request,
+                now,
+            )
+        };
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => return Response::Error(error),
+        };
+
+        let Outcome::PaneMoved(moved) = &outcome else {
+            unreachable!("pane.move always produces Outcome::PaneMoved on success")
+        };
+        // Innermost first, same rule as every close path: the tab before
+        // the session it was the last tab of.
+        if let Some(tab) = moved.source_tab_closed {
+            broadcast(&state, &TreeEvent::TabClosed { id: tab }, source_session);
+        }
+        if let Some(session) = moved.source_session_closed {
+            broadcast(
+                &state,
+                &TreeEvent::SessionClosed { id: session },
+                source_session,
+            );
+        }
+
+        let response = Response::Ok(outcome.into_value());
+        reapply_every_sized_tab(&mut state);
+        response
+    }
+
     /// Rule B, §2: the live directory of the pane this request's target
     /// inherits from (the pane being split, or the session's current
     /// pane for `tab.new`), falling back to [`LoginShell::home`] in
@@ -1099,19 +1170,11 @@ fn emit_close_events(
             let Outcome::PaneClosed(closed) = outcome else {
                 unreachable!("pane.close always produces Outcome::PaneClosed on success")
             };
-            broadcast(state, &TreeEvent::PaneClosed { id: closed.pane }, *session);
-            if let Some(tab) = closed.tab {
-                broadcast(state, &TreeEvent::TabClosed { id: tab }, *session);
-            }
-            if let Some(session_also_closed) = closed.session {
-                broadcast(
-                    state,
-                    &TreeEvent::SessionClosed {
-                        id: session_also_closed,
-                    },
-                    *session,
-                );
-            }
+            // Same shape `record_exit`'s own exit-driven cascade already
+            // emits from a `ClosedPane` - one function, not two (the
+            // second review round's own nit; this arm used to repeat
+            // `emit_close_cascade`'s body verbatim).
+            emit_close_cascade(state, closed, *session);
         }
         "tab.close" => {
             let ClosePre::Tab { session } = pre else {
@@ -1633,11 +1696,14 @@ fn reapply_every_sized_tab(state: &mut State) {
 /// own `to_wire` is the one place its name and body are derived - the
 /// same definition a subscriber's own `TreeEvent::parse` reads back.
 /// `enqueue_control` is lock-free and does no I/O (`outbound.rs`'s own
-/// doc), so nothing here ever writes to a socket while `state`'s lock is
-/// held; a full or closed queue is silently dropped here (AC #3: the
-/// server's own answer to a slow subscriber is closing its connection,
-/// not resending - the writer thread's own broken-write/full-queue
-/// handling is what actually closes it, not this call).
+/// doc) - but a failed one *does* call `shutdown(Both)` on this
+/// subscriber's own cloned socket, below, which is a real syscall made
+/// while `state`'s lock is still held (non-blocking on a Unix socket in
+/// practice, the same cross-thread-shutdown idiom `ConnectionCleanup`
+/// already uses, not a bug - just not "nothing writes to a socket," which
+/// an earlier draft of this comment overstated). AC #3's own answer to a
+/// slow or closed subscriber is exactly that shutdown, called from here,
+/// not a resend and not left to the writer thread to notice on its own.
 fn broadcast(state: &State, event: &steg_sdk::TreeEvent, scope: SessionId) {
     let (name, body) = event.to_wire();
     for subscriber in state.subscribers.values() {

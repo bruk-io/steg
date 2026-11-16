@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:30:00Z'
+updated_date: '2026-11-16T01:32:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -304,6 +304,33 @@ ok      build (steg-app) (0.4s)
 ok      test (steg-app) (0.3s)
 ok      tool tests (1.4s)
 ok      architecture (0.9s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:32:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.91 on task-1.91-ui-the-steg-ui-package-its-boundary-and at 90c7a992686c:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (5.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-ui) (0.7s)
+ok      test (steg-ui) (0.9s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.0s)
+ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

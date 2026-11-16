@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:22:00Z'
+updated_date: '2026-11-16T12:47:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -23,6 +23,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-17
 asdlc_branch: task-1.47-server-attach-to-a-pane-stream-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '9cff507ccc3f'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -692,6 +695,15 @@ created: 2026-11-16T12:05:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to match the split the engineer accepted (TASK-1.114 has input and the declared size; TASK-1.115 has scrollback pages, the restore proof and the spike's deletion). Depends on TASK-1.46, which decides how the API description states a reply that carries a nested record and a method that opens a stream.
+
+---
+
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (9cff507ccc3f, size-5): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

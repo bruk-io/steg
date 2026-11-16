@@ -10,7 +10,11 @@
 //! exactly how a test quietly becomes a sleep.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
+
+use crate::pty::{ProgramLauncher, RealLauncher};
+use crate::runtime::LoginShell;
 
 /// How long a server started on demand, with no `--on-demand` distinction
 /// yet (that is part B's), waits for a handshake before giving up on a
@@ -26,7 +30,7 @@ pub const DEFAULT_ARBITRATION_TIMEOUT: Duration = Duration::from_secs(5);
 /// Everything this task's server-starting path needs that would otherwise
 /// be read from the environment or the clock, so every test overrides it
 /// instead of waiting a production-length duration.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServerConfig {
     /// `None` means "resolve it from the real environment", the same way
     /// `steg_sdk::local_socket`'s provider does (`STEG_SOCKET_PATH`,
@@ -40,6 +44,18 @@ pub struct ServerConfig {
     /// How long [`crate::arbiter::attempt`] waits for a contended lock's
     /// holder to finish becoming the server before giving up (AC #2).
     pub arbitration_timeout: Duration,
+    /// What [`crate::listen::run`] builds its one [`crate::Runtime`] with
+    /// (TASK-1.45 §1) - defaulted to the real launcher, same as every
+    /// other field here defaults to the real thing. A socket-level test
+    /// that never needs a real program can override this with a fake, the
+    /// same way `runtime.rs`'s own tests already inject one.
+    pub launcher: Arc<dyn ProgramLauncher>,
+    /// The login shell [`crate::Runtime`] falls back to when a pane names
+    /// no program and no source pane to inherit a `cwd` from (TASK-1.76
+    /// §2) - defaulted from this process's own environment
+    /// ([`LoginShell::from_process_env`]), the same placeholder TASK-1.77's
+    /// own entry point replaces with a real password-database resolution.
+    pub login: LoginShell,
 }
 
 impl Default for ServerConfig {
@@ -48,6 +64,24 @@ impl Default for ServerConfig {
             socket_path: None,
             handshake_timeout: DEFAULT_HANDSHAKE_TIMEOUT,
             arbitration_timeout: DEFAULT_ARBITRATION_TIMEOUT,
+            launcher: Arc::new(RealLauncher),
+            login: LoginShell::from_process_env(),
         }
+    }
+}
+
+impl std::fmt::Debug for ServerConfig {
+    /// `launcher` is `dyn ProgramLauncher`, which carries no `Debug` bound
+    /// (nothing needs one, and adding one would force every fake launcher
+    /// a test builds to derive it too) - shown as a placeholder instead of
+    /// widening that trait just to satisfy a derive here.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServerConfig")
+            .field("socket_path", &self.socket_path)
+            .field("handshake_timeout", &self.handshake_timeout)
+            .field("arbitration_timeout", &self.arbitration_timeout)
+            .field("launcher", &"<dyn ProgramLauncher>")
+            .field("login", &self.login)
+            .finish()
     }
 }

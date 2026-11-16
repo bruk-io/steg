@@ -42,11 +42,7 @@ fn runtime() -> (Runtime, Description) {
 /// method in these tests is given an explicit target instead of relying
 /// on a default.
 fn no_context() -> Context {
-    Context {
-        default_session: SessionId::from_raw(0),
-        default_tab: TabId::from_raw(0),
-        default_pane: PaneId::from_raw(0),
-    }
+    Context::none()
 }
 
 fn request(method: &str, pairs: Vec<(&str, Value)>) -> Request {
@@ -105,9 +101,9 @@ fn counts(runtime: &Runtime, api: &Description) -> (usize, usize) {
         // 1 is always this tab's only or first pane, and polling further
         // positions would need `pane.list`, not built in this task.
         let context = Context {
-            default_session: session_id.parse().unwrap(),
-            default_tab: tab_id.parse().unwrap(),
-            default_pane: PaneId::from_raw(0),
+            default_session: Some(session_id.parse().unwrap()),
+            default_tab: Some(tab_id.parse().unwrap()),
+            default_pane: Some(PaneId::from_raw(0)),
         };
         if matches!(
             runtime.handle(
@@ -171,9 +167,9 @@ fn session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_en
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     let record = poll(|| {
@@ -202,9 +198,9 @@ fn pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home() {
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     let record = ok(runtime.handle(
@@ -245,9 +241,9 @@ fn tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind() {
     let session = ok(runtime.handle(&api, &no_context(), &request("session.new", vec![])));
     let session_id: SessionId = id_of(&session).parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: TabId::from_raw(0),
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(TabId::from_raw(0)),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 
@@ -279,9 +275,9 @@ fn pane_split_with_a_bad_command_leaves_no_new_pane_behind() {
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 
@@ -336,9 +332,9 @@ fn pane_close_refuses_while_its_program_is_running_and_touches_nothing() {
     let (runtime, api) = runtime();
     let (session_id, tab_id) = session_with_a_long_running_pane(&runtime, &api);
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 
@@ -364,9 +360,9 @@ fn tab_close_refuses_while_any_of_its_panes_is_running() {
     let (runtime, api) = runtime();
     let (session_id, tab_id) = session_with_a_long_running_pane(&runtime, &api);
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     // A second, already-ended pane in the same tab - the refusal must
     // still trigger because of the *other* pane, not only when every
@@ -400,9 +396,9 @@ fn session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running() {
     let (runtime, api) = runtime();
     let (session_id, _tab_id) = session_with_a_long_running_pane(&runtime, &api);
     let context = Context {
-        default_session: session_id,
-        default_tab: TabId::from_raw(0),
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(TabId::from_raw(0)),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 
@@ -437,9 +433,9 @@ fn pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stat
     let (runtime, api) = runtime();
     let (session_id, tab_id) = session_with_a_long_running_pane(&runtime, &api);
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     ok(runtime.handle(
@@ -480,9 +476,9 @@ fn session_new_through_api_call_starts_a_real_program() {
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     let record = poll(|| {
@@ -509,9 +505,9 @@ fn session_new_through_api_call_with_no_program_runs_the_login_shell() {
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     let record = ok(runtime.handle(
@@ -529,9 +525,9 @@ fn tab_new_through_api_call_starts_a_real_program() {
     let session = ok(runtime.handle(&api, &no_context(), &request("session.new", vec![])));
     let session_id: SessionId = id_of(&session).parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: TabId::from_raw(0),
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(TabId::from_raw(0)),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     // No explicit inner `target` here: under the current wire scheme
@@ -548,9 +544,9 @@ fn tab_new_through_api_call_starts_a_real_program() {
     ));
     let tab_id: TabId = id_of(&tab).parse().unwrap();
     let tab_context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
 
     let record = poll(|| {
@@ -581,9 +577,9 @@ fn pane_split_through_api_call_starts_a_real_program() {
     // omit its own `target` entirely and still split the right pane,
     // avoiding the same `target`-key collision named above.
     let lookup_context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let first_pane: PaneId = ok(runtime.handle(
         &api,
@@ -595,9 +591,9 @@ fn pane_split_through_api_call_starts_a_real_program() {
         .parse()
         .unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: first_pane,
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(first_pane),
     };
 
     let split = ok(runtime.handle(
@@ -612,9 +608,9 @@ fn pane_split_through_api_call_starts_a_real_program() {
         ),
     ));
     let new_pane_context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: id_of(&split).parse().unwrap(),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(id_of(&split).parse().unwrap()),
     };
 
     let record = poll(|| {
@@ -688,9 +684,9 @@ fn tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind() {
     let session = ok(runtime.handle(&api, &no_context(), &request("session.new", vec![])));
     let session_id: SessionId = id_of(&session).parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: TabId::from_raw(0),
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(TabId::from_raw(0)),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 
@@ -722,9 +718,9 @@ fn pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind() {
     ));
     let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
     let context = Context {
-        default_session: session_id,
-        default_tab: tab_id,
-        default_pane: PaneId::from_raw(0),
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
     };
     let before = counts(&runtime, &api);
 

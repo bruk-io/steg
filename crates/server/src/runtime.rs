@@ -19,7 +19,10 @@ use std::time::Instant;
 use steg_kernel::{
     CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree,
 };
-use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
+use steg_sdk::{
+    ApiError, ClientId, ClientKind, Description, ErrorCode, PaneId, Program, Request, Response,
+    validate,
+};
 
 use crate::dispatch::{self, Context};
 use crate::env::pane_environment;
@@ -240,6 +243,40 @@ impl Runtime {
     pub fn apply_size_changed(&self, change: &SizeChanged) {
         let mut state = self.lock();
         apply_size_changed_locked(&mut state, change);
+    }
+
+    /// Mints a real, tree-tracked client (TASK-1.45 §1): `connection::
+    /// handle` calls this once, right after a successful handshake, before
+    /// the `ServerHello` is built - replacing `connection.rs`'s own
+    /// previous `next_local_client_id()`, a local counter with no kernel
+    /// backing at all (its own doc named wiring a real model in as this
+    /// task's job). Self-locking, same shape as [`Runtime::apply_size_changed`].
+    pub fn connect_client(&self, kind: ClientKind, label: Option<String>) -> ClientId {
+        self.lock().tree.connect_client(kind, label)
+    }
+
+    /// Disconnects a client this `Runtime` minted (TASK-1.45 §1), applying
+    /// every `SizeChanged` the kernel reports as a consequence (a
+    /// disconnecting client may have been the latest declarer for some
+    /// tab's size, decision-6) - the same `apply_size_changed_locked` every
+    /// other mutation already reapplies through. Called once, on every
+    /// path out of `connection::handle` (ordinary close, a protocol
+    /// violation, a panic unwinding past it).
+    ///
+    /// # Panics
+    /// Never in practice: the only way `Tree::disconnect_client` can fail
+    /// is an id this `Runtime` never minted, which `connection::handle`
+    /// never passes (it only ever passes back the id its own, prior
+    /// `connect_client` call returned).
+    pub fn disconnect_client(&self, id: ClientId) {
+        let mut state = self.lock();
+        let changes = state
+            .tree
+            .disconnect_client(id)
+            .expect("connection::handle only ever disconnects a client it minted itself");
+        for change in &changes {
+            apply_size_changed_locked(&mut state, change);
+        }
     }
 
     /// Stops this `Runtime`: ends every running program (`PaneHandle::
@@ -880,6 +917,88 @@ mod tests {
         assert_eq!(screen.rows.len(), 10);
     }
 
+    /// `Runtime::connect_client`/`disconnect_client` (TASK-1.45 §1): a
+    /// thin, self-locking wrapper proof, not a re-proof of the kernel's
+    /// own cascade (`crates/kernel/src/tree.rs`'s own
+    /// `latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure`
+    /// already proves `Tree::disconnect_client` itself). What this proves
+    /// is that `Runtime`'s own wrapper actually calls through to the real
+    /// tree and reapplies whatever `SizeChanged`s it gets back - checked
+    /// on a real pane's real pty, the same way every other
+    /// `apply_size_changed` test in this module already does.
+    #[test]
+    fn disconnect_client_reapplies_the_next_latest_declared_size() {
+        use steg_sdk::{ClientKind, Request, Size};
+
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+        let (pane, tab_id) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            (tab.panes()[0].id(), tab.id())
+        };
+
+        // `a` and `b` are minted through the public wrapper this test is
+        // about; `view_pane`/`declare_size` have no `Runtime`-level
+        // wrapper of their own (no dispatch method reaches them yet,
+        // TASK-1.42's own gap), so those two calls reach the tree
+        // directly, the same way this module's other size tests already
+        // do.
+        let a = runtime.connect_client(ClientKind::App, None);
+        let b = runtime.connect_client(ClientKind::Cli, None);
+        let first_change = {
+            let mut state = runtime.state.lock().unwrap();
+            state.tree.view_pane(a, pane).unwrap();
+            state.tree.view_pane(b, pane).unwrap();
+            state
+                .tree
+                .declare_size(a, tab_id, Size::new(80, 24))
+                .unwrap();
+            state
+                .tree
+                .declare_size(b, tab_id, Size::new(40, 10))
+                .unwrap()
+        };
+        runtime.apply_size_changed(&first_change);
+        assert_eq!(
+            runtime.state.lock().unwrap().panes[&pane]
+                .snapshot()
+                .unwrap()
+                .rows
+                .len(),
+            10,
+            "b, the latest, declared 40x10 last"
+        );
+
+        runtime.disconnect_client(b);
+
+        assert_eq!(
+            runtime.state.lock().unwrap().panes[&pane]
+                .snapshot()
+                .unwrap()
+                .rows
+                .len(),
+            24,
+            "a's own 80x24 must be reapplied once b (the latest) disconnects"
+        );
+    }
+
     #[test]
     fn login_shell_from_process_env_never_panics_and_is_never_empty() {
         // A smoke test, not a claim about this machine's own `SHELL`/
@@ -891,15 +1010,53 @@ mod tests {
         assert!(!login.home.is_empty());
     }
 
+    /// What a panic inside one connection's call to `Runtime::handle`
+    /// (TASK-1.45 §5) actually rests on: `Runtime::lock`'s own existing
+    /// `unwrap_or_else(PoisonError::into_inner)`. Proved directly, one
+    /// layer down from a real connection (which this task adds no
+    /// deliberate panic-injection hook to simulate end-to-end, the same
+    /// reasoning TASK-1.44's review gave for rejecting a shipped
+    /// test-only hook): poison the lock for real, on another thread, then
+    /// confirm a subsequent call through the public `Runtime::handle`
+    /// still succeeds rather than hanging or propagating the poison.
+    #[test]
+    fn a_panic_while_holding_the_lock_does_not_poison_a_later_call() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+
+        let state_handle = std::sync::Arc::clone(&runtime.state);
+        let panicked = std::thread::spawn(move || {
+            let _guard = state_handle.lock().unwrap();
+            panic!("a bug inside a request handler, simulated for this test");
+        })
+        .join();
+        assert!(
+            panicked.is_err(),
+            "the spawned thread really did panic while holding the lock"
+        );
+
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+        let response = runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "session.list".to_string(),
+                params: serde_json::Map::new(),
+            },
+        );
+        match response {
+            steg_sdk::Response::Ok(value) => assert_eq!(value, serde_json::json!([])),
+            steg_sdk::Response::Error(error) => {
+                panic!("expected Ok after recovering from the poison, got {error:?}")
+            }
+        }
+    }
+
     #[test]
     fn runtime_new_does_not_panic_and_starts_empty() {
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let context = crate::dispatch::Context {
-            default_session: steg_sdk::SessionId::from_raw(0),
-            default_tab: steg_sdk::TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let context = crate::dispatch::Context::none();
         let response = runtime.handle(
             &description,
             &context,
@@ -932,15 +1089,11 @@ mod tests {
     /// inheritance at all.
     #[test]
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
-        use steg_sdk::{Request, SessionId, TabId};
+        use steg_sdk::{Request, SessionId};
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         let live_cwd =
             std::env::temp_dir().join(format!("steg-live-cwd-{}-{}", std::process::id(), line!()));
@@ -1008,9 +1161,9 @@ mod tests {
             state.tree.tab_of_pane(source_pane).unwrap()
         };
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: source_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(source_pane),
         };
 
         let split = match runtime.handle(
@@ -1059,15 +1212,11 @@ mod tests {
     /// exactly as if the source pane had reported no cwd at all.
     #[test]
     fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
-        use steg_sdk::{Request, SessionId, TabId};
+        use steg_sdk::{Request, SessionId};
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         let vanished = std::env::temp_dir().join(format!(
             "steg-vanishing-cwd-{}-{}",
@@ -1145,9 +1294,9 @@ mod tests {
             state.tree.tab_of_pane(source_pane).unwrap()
         };
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: source_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(source_pane),
         };
 
         let split = match runtime.handle(
@@ -1219,11 +1368,7 @@ mod tests {
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         fn polling_program() -> Vec<&'static str> {
             vec!["sh", "-c", "while :; do stty size; sleep 0.05; done"]
@@ -1374,9 +1519,9 @@ mod tests {
         assert_eq!(terminal_rows(&runtime, first_pane), 20);
 
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: first_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(first_pane),
         };
 
         // Split right: two panes.
@@ -1408,9 +1553,9 @@ mod tests {
         let split_down = match runtime.handle(
             &description,
             &crate::dispatch::Context {
-                default_session: session_id,
-                default_tab: tab_id,
-                default_pane: first_pane,
+                default_session: Some(session_id),
+                default_tab: Some(tab_id),
+                default_pane: Some(first_pane),
             },
             &Request {
                 method: "pane.split".to_string(),

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T14:02:00Z'
+updated_date: '2026-11-16T14:47:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -24,9 +25,8 @@ asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review"]
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -728,6 +728,114 @@ Both of the task's own scratch-edit negative controls were re-run against the ch
 4. Nit fixed: AC#3's own descriptor limit (crates/steg/tests/server_start.rs) is now derived, not merely widened. Measured the server's real steady-state cost (15 fds: one session, one client, via lsof -p <pid> against an unrestricted run) and the empirical bracket where the login-shell-capture startup spike actually bites (fails at -n 90, every run passes at -n 120 - the true peak sits somewhere in that bracket, not narrowed further since doing so needs no new information this test's own proof depends on). Chose 180: 1.5x the known-passing value for headroom against a runner with a slower login-shell spawn, and stated in the doc comment why it cannot pass vacuously regardless of the real baseline on any given runner (HELD_CONNECTIONS=100 all succeeding would need 180+200 descriptors, comfortably past 180 for any plausible baseline, which is what forces real EMFILE rather than quiet success). Reproduced 100 runs, no failures.
 
 PR: https://github.com/bruk-io/steg/pull/59
+
+Check passed: `just check` exited 0 at 2026-11-16T14:38:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at d2ab50c46927 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (20.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.4s)
+ok      test (steg-server) (14.9s)
+ok      test (steg-server, race-fixture) (14.8s)
+ok      test (steg-server, accept-backoff-fixture) (16.6s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.9s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:44:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at d2ab50c46927 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (17.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.0s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.0s)
+ok      test (steg-server) (13.9s)
+ok      test (steg-server, race-fixture) (15.5s)
+ok      test (steg-server, accept-backoff-fixture) (17.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.3s)
+ok      test (steg, fixtures) (4.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:47:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at 25696d14e727:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (11.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (15.4s)
+ok      test (steg-server, race-fixture) (15.7s)
+ok      test (steg-server, accept-backoff-fixture) (18.3s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 74, 73 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -788,6 +896,31 @@ created: 2026-11-16T14:02:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T14:28:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed head d2ab50c (CI green: run 43880021096, attempts 1 and 2 both succeeded; attempt 1's "just check" step passed in 6m10s with `ok      test (steg-server, accept-backoff-fixture) (34.9s)` confirmed present and finished, not skipped, in the attempt-1 log). Board's recorded `just check` at d2ab50c matches this head.
+
+Reproduced myself (30x sequential, 30x default-parallel, 15x under background CPU load, all foreground, bounded, ps-checked after every batch): 0 hangs, 0 failures, no leftover processes. Repeated both of the task's own listen.rs-side negative controls myself against the code as it stands: removing the stop-check from both recoverable-error arms makes a_stop_asked_mid_exhaustion_ends_the_server_promptly fail on its own bound (5.2s, "the fixture process did not exit within the bound"); making classify_accept_error also return Some(..) for ENOTSOCK makes a_fatal_accept_error_ends_the_server_and_cleans_up fail the same way (5.19s). Both reverted, confirmed via git diff --stat matching before/after. `just check` passes cleanly on my own run at d2ab50c; `just test` x5 with stable process counts (902->894, no leftovers) before/after.
+
+[Evidence, Important] crates/steg/tests/server_start.rs (surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers): AC#3's own negative control was not re-run after this round's own edit to this test (RLIMIT_NOFILE 128->180 in 263d360, per the team's rule added this cycle: "when a test is edited after its control was recorded... run the control again against the edited test before citing it"). The board's notes for this round name only the two listen.rs-side controls as re-recorded; AC#3's own control is still the one cited from the 128 build. I repeated it myself against the test as it stands: the same scratch edit the task's own notes describe (classify_accept_error forced to treat EMFILE/ENFILE as fatal), run 20 times - it passes vacuously (mechanism not exercised, reports "ok") 18/20 times, and only fails (mechanism actually detected) 2/20. Confirmed with `lsof` on the real server's own pid mid-test that of the 100 held raw connections, only ~27 reach the server's own fd table before true exhaustion would occur; the test's own assertions typically run fast enough after the connect loop (0.04-0.4s total) that the server has not yet dequeued enough of the backlog to hit EMFILE at all, so most runs assert survival without the recoverable path ever having been reached. This contradicts the doc comment's claim that the chosen headroom "guarantees real exhaustion occurs... by construction, not by luck" - the construction's own fd-budget arithmetic is sound, but the test has no synchronization forcing its assertions to wait until that budget is actually exhausted, so most runs pass for a reason other than the mechanism under test (the team's rule: "a test that passes either way is passing for some other reason").
+
+[Bugs, Nit] crates/server/tests/accept_backoff.rs:186, wait_until_accepting calls UnixStream::connect(path) directly, not through connect_bounded - the one connect in this file not itself wrapped in the file's own bound, though its own module doc claims "every wait in this file is bounded... a connect." Not reachable in practice (nothing else is connected to a freshly-bound listener at that point), but it is the literal answer to the brief's question of whether a bound is ever skipped.
+
+[Bugs/Evidence, Nit] My own reproduction (UnixStream::connect against a deliberately-never-accepted listener, both one-at-a-time and 400-way concurrent) got immediate ECONNREFUSED once the backlog (128) filled, never a block, on this machine - contradicting the stated root cause ("its next connect() blocked - UnixStream has no connect_timeout") and the notes' "confirmed as the real mechanism, not assumed." Does not change the verdict on its own: the fix bounds every wait regardless of the real cause, and CI is independently green on the reviewed head. But the true cause of the original CI hang remains unconfirmed by measurement on this platform.
+
+[Compliance, Nit] arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture line in check-packages remain outside the plan's own "Files that change" list in the diff against main (unchanged since fcfc798c). This round's notes now name and explain both (addressing round 1's nit about the board being silent on them), but per policy plan-matched stays "no": these are still touched files the plan never named, even though the notes now explain them.
+
+Not re-litigated (unchanged since the first review, per the brief): the classification, both guarded points, and the stop check's own correctness as code, all judged sound in round 1.
 
 ---
 <!-- COMMENTS:END -->

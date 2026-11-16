@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:26:00Z'
+updated_date: '2026-11-16T13:36:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1194,6 +1194,25 @@ created: 2026-11-16T11:33:00Z
 ---
 
 Plan approved by @bruk (7161104a6d7b, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T13:36:00Z
+
+---
+
+Per the engineer's note that fcfc798c's accept-backoff tests can intermittently hang: ran this task's own four test targets 50 times each, in the foreground, each individual run bounded with `timeout 30`. 200 runs total, 0 failures. Checked for leftover processes from this worktree after each batch and after the full set: none.
+
+- `cargo test -p steg-server --lib idle::` x50 - 0 failures
+- `cargo test -p steg-server --lib listen::` x50 - 0 failures
+- `cargo test -p steg-server --test idle_stop` x50 - 0 failures
+- `cargo test -p steg --features fixtures --test idle_stop` x50 - 0 failures
+
+None of these touch the `accept-backoff-fixture` feature at all (that is TASK-1.98's own gated test file, a different one), so they were never exposed to the specific hang the engineer described - run anyway, as asked, to rule out anything in this task's own tests independently.
+
+Checked the exact-wait test's own 300ms absence window (`idle.rs`'s `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`) for margin under machine load, as asked - what would make something arrive late into it or after it:
+
+Nothing legitimate can. The checker is in `Wait::Forever` for the whole window because `live_clients > 0` makes `wait()` return `Forever` unconditionally, regardless of how much time has elapsed - this does not depend on `idle_timeout` (50ms in this test) or on timing precision at all. The window's own boundaries are entirely test-controlled, not racing a background timer: it starts only after the test's own blocking (untimed) `.recv()` for the second observation has already returned, and the test does not send `Disconnected` - the only thing that could end the window - until after the window's own `recv_timeout` call has already returned. So there is no clock for machine load to make something arrive "late" into or after this window; the only way anything can appear inside it is a real implementation regression (a reverted periodic-poll design), which the committed negative control already confirmed bites, cleanly, at a bounded 300ms - about 3x the 100ms poll interval that regression used.
 
 ---
 <!-- COMMENTS:END -->

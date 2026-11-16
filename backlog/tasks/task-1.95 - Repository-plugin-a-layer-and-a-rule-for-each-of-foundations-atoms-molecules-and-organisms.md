@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:03:00Z'
+updated_date: '2026-11-16T06:21:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -38,3 +38,15 @@ doc-17 (the four levels, R118, R125, R126). The plugin is plugins/bruk-io-steg, 
 
 2026-11-15, @bruk.o, from TASK-1.94's review: the repository plugin's tools rule (plugins/bruk-io-steg/rules/tools.md) says the tools use only the standard library. TASK-1.94 adds ast-grep-py as the tools' first runtime dependency, approved by the engineer. This task changes the plugin through asdlc-plugin anyway: bring that line up to date here (the tools may take a dependency the engineer has approved; ast-grep-py is the one today, for parsing Rust), so the rule and the code agree.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T06:21:00Z
+
+---
+
+2026-11-16, @bruk.o: from TASK-1.93's third review. The check that no public function returns a bare colour (foundations_public_surface.py) does not see a pub const or static of the colour type, a renamed import of it, or a type alias; nothing in the tree uses those today. When this task writes the foundations rule, either the rule states that limit for a reader, or the check is widened first (an ast-grep rule over public items whose type resolves to the colour type would do it). Also: the terminal themes' colour sets are public with public fields, which the reviewer judged outside R123 because each is one fixed set and not a light and dark pair: say so in the rule.
+
+---
+<!-- COMMENTS:END -->

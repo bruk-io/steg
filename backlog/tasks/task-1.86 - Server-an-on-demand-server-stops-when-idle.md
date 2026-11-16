@@ -1,11 +1,11 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T15:44:00Z'
+updated_date: '2026-11-16T16:44:00Z'
 labels:
   - size-3
   - review-passed

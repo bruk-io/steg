@@ -320,4 +320,18 @@ created: 2026-11-16T12:47:00Z
 Plan approved by @bruk (4592947e385d, size-2): its worker may build it.
 
 ---
+
+created: 2026-11-16T13:10:00Z
+
+---
+
+Finding before finishing (pausing per the build instructions - the permanent control not firing on a runner): at the plan's own stated density (16 processes x 200 opens = 3,200 total, through the real subprocess fixture, not the bare-libc probe used while planning), the permanent negative control (max_open_attempts=1) does not reliably show a failure even on this dev machine. Local sample, 20 independent runs of that one test: 17/20 showed at least one failure (passed), 3/20 showed zero (failed) - about a 15% miss rate, far above the <1-in-10,000 the plan's arithmetic assumed. The shipped/fixed test (5 attempts) stayed clean across a separate 15/15 runs - no false failures there.
+
+Likely cause: the plan's density numbers came from a bare ctypes/libc probe (tight loop, no subprocess exec, workers forked from an already-warm parent). This fixture instead execs a fresh Rust binary per worker; process startup/scheduling jitter plausibly spreads out the true instant of overlap, achieving a lower real contention density than the bare-libc measurement predicted (back-solving the observed ~15% miss rate across 3,200 opens suggests something nearer 0.05% per open here, versus the ~0.3-0.4% measured with the bare-libc probe).
+
+Raising density (tried 32 processes x 500 opens = 16,000 as a diagnostic, not committed) ran into the test's own 20s per-result timeout instead of resolving it cleanly - needs either a longer bound or a different way to drive more opens per wall-clock second, not just more processes.
+
+I have not changed CONCURRENT_PROCESSES/OPENS_PER_PROCESS from the plan's stated 16x200 in the committed code. Both tests pass right now (recorded via asdlc record-check), but the permanent control's own reliability is lower than planned. Options I see, for you to pick: (a) accept this miss rate and treat an occasional control failure as "re-run," the same as other cross-process tests this repo already tolerates under load; (b) raise the bound/opens-per-process and the timeout together; (c) a tighter release mechanism than the current stdin-byte handshake, if that's really what's diluting the overlap - not verified which of these it actually is. Holding the temporary CI loop and the independence-assumption measurement (order of work, step 5) until I hear back, since both are sized against the same density assumption.
+
+---
 <!-- COMMENTS:END -->

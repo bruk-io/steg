@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:05:00Z'
+updated_date: '2026-11-16T04:06:00Z'
 labels:
   - size-3
   - changes-requested
@@ -999,6 +999,17 @@ Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktree
 
 ```text
 ok      foundations public surface (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T04:06:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+ok      build (gallery) (0.3s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
 ```
 
 Commits since the review: 0.

@@ -3,15 +3,18 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T19:54:00Z'
+updated_date: '2026-11-16T20:03:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.112-server-opening-a-pseudo-terminal-still
+  - https://github.com/bruk-io/steg/pull/61
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -623,6 +626,18 @@ ok      recipe names (0.1s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
+
+Built per the engineer's final direction (sequential warm-worker design; the no-retry control #[ignore]d and run on demand, not a just-check gate; the departure and the full table recorded in the task's own notes under its own heading).
+
+What was built: RealLauncher retries any failure of the open step (not the spawn), up to 5 attempts by default, no sleep, the attempt count folded into the error on exhaustion; a retry is never silent (PaneEvent::OpenRetried from both start and restart). OPENPTY_LOCK is unchanged.
+
+Proof, recorded via asdlc record-check throughout:
+- pty.rs's own unit-test seam (open_with_retry) with its revert-based negative control.
+- A Runtime-level test for a pane whose open exhausts every attempt (AC #3), with its own revert-based control on the existing rollback path.
+- A new pty-race-fixture Cargo feature (mirrors race-fixture): a fixed, modest cross-process test at the shipped default gates just check (~4-5s locally, 2.6-4.7s on CI); the sequential no-retry control is ignored but run on demand (just test-openpty-race-control) and recorded reproducing the race on every attempt made, on both this dev machine and CI's own runner (numbers in the task's notes).
+- A temporary CI workflow step gathered CI's own numbers for both tests, then was reverted (764a9d2) before this PR's head.
+
+just check is green on the final head (CI run 43944340331, 7m20s). Two merge-conflict fixups (RealLauncher/SpawnedProgram call sites TASK-1.98's own merged work added) are in a separate, clearly-labelled commit.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

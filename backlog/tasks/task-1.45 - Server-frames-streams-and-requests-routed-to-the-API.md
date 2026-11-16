@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:02:00Z'
+updated_date: '2026-11-16T03:09:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1188,6 +1188,36 @@ failures: 0 of 20
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:09:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at ae9aeb6260fd:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (39.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.9s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (9.9s)
+ok      test (steg-server, race-fixture) (12.0s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 110, 109 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

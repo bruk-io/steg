@@ -306,6 +306,51 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2
 ..............................................................           [100%]
 134 passed in 1.14s
 ```
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_levels.py tests/adapter/test_ui_levels_real_repo.py'` exited 1 at 2026-11-16T02:30:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes, last 40 of 81 lines:
+
+```text
+        # Non-adjacent: a comparison written as "exactly one level up" would miss this.
+        file = RustFile("crates/ui/src/foundations/mod.rs", "use crate::organisms::Bar;\n")
+        found = violations((file,), {})
+>       assert found == (Violation(file.path, 1, "use crate::organisms::Bar;", "foundations", "organisms"),)
+E       AssertionError: assert () == (Violation(pa...'organisms'),)
+E         
+E         Right contains one more item: Violation(path='crates/ui/src/foundations/mod.rs', line=1, use_text='use crate::organisms::Bar;', importing_level='foundations', reached_level='organisms')
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:183: AssertionError
+_ test_violations_refuses_an_import_reached_only_through_a_crate_root_reexport _
+
+    def test_violations_refuses_an_import_reached_only_through_a_crate_root_reexport() -> None:
+        file = RustFile("crates/ui/src/foundations/mod.rs", "use crate::Button;\n")
+        found = violations((file,), {"Button": "atoms"})
+>       assert found == (Violation(file.path, 1, "use crate::Button;", "foundations", "atoms"),)
+E       AssertionError: assert () == (Violation(pa...vel='atoms'),)
+E         
+E         Right contains one more item: Violation(path='crates/ui/src/foundations/mod.rs', line=1, use_text='use crate::Button;', importing_level='foundations', reached_level='atoms')
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:203: AssertionError
+_ test_violations_counts_a_fully_qualified_expression_path_once_not_once_per_nesting _
+
+    def test_violations_counts_a_fully_qualified_expression_path_once_not_once_per_nesting() -> None:
+        file = RustFile("crates/ui/src/foundations/mod.rs", "fn f() { let _ = crate::atoms::Button::new(); }\n")
+        found = violations((file,), {})
+>       assert len(found) == 1
+E       assert 0 == 1
+E        +  where 0 = len(())
+
+tests/unit/test_ui_levels.py:215: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_levels.py::test_violations_refuses_foundations_importing_atoms
+FAILED tests/unit/test_ui_levels.py::test_violations_refuses_atoms_importing_molecules
+FAILED tests/unit/test_ui_levels.py::test_violations_refuses_molecules_importing_organisms
+FAILED tests/unit/test_ui_levels.py::test_violations_refuses_foundations_importing_organisms_directly
+FAILED tests/unit/test_ui_levels.py::test_violations_refuses_an_import_reached_only_through_a_crate_root_reexport
+FAILED tests/unit/test_ui_levels.py::test_violations_counts_a_fully_qualified_expression_path_once_not_once_per_nesting
+6 failed, 33 passed in 0.05s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

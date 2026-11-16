@@ -74,6 +74,18 @@ pub enum ConnectionEvent {
     /// it from in this one case (TASK-1.86's own plan, "Why only the
     /// `PaneEvent::Exited` arm").
     SessionCountChanged,
+    /// `run`'s accept loop hit an `accept()`/`try_clone()` error it
+    /// classified as safe to retry (TASK-1.98 AC #1/#4), sent once per
+    /// retry, before the loop's own backoff sleep. Not a connection at
+    /// all - no stream exists on this path - so it is its own variant
+    /// rather than folded into `Connected`/`Disconnected`, which both
+    /// name a real one. The idle checker's own catch-all (TASK-1.86,
+    /// `idle::run_checker_with_observer`'s match) treats this the same
+    /// as any other variant it does not specifically care about: it
+    /// wakes the loop to re-evaluate, never counted as a client arriving
+    /// (confirmed by this file's own `a_recoverable_accept_retry_does_
+    /// not_count_as_a_client_arriving` test, below).
+    AcceptRetried(crate::listen::RecoverableAcceptError),
 }
 
 /// How long is left before `deadline`, as of `now` - `None` once `now`

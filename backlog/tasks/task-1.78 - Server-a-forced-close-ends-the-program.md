@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:05:00Z'
+updated_date: '2026-11-16T00:06:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -723,3 +723,9 @@ stale one, the exact thing TASK-1.76's second review was dinged for).
   (TASK-1.76 PR #40) - named explicitly rather than folded in silently, per
   that task's own two "unnamed departure" findings.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Rewritten plan checked against doc-2 sections 8 and 9, doc-8 R97, doc-15 and doc-16 by @bruk.o: ok, with one item that is the engineer's. The forced close is done close-first: under one lock acquisition the refusals are checked, the handles taken and the pane, tab or session closed in the tree; the lock is dropped; then every program in scope is ended outside it (the process group signalled, one shared deadline, the stragglers killed, each exit observed, every thread joined) and the caller answered. From the instant the lock is released nothing can name a pane being forced, which meets the fourth criterion for every method and needs no extra state; the program's own exit event finding no pane is what apply_event already tolerates. This reverses the order the first criterion's wording gives (end, observe, then close): approving the plan confirms the change, and the orchestrator then rewords that criterion. Runtime::stop is rebuilt on the same primitive, so its bound no longer grows with the number of panes and a program ignoring a hangup no longer survives it. Folded in, found in TASK-1.76's code: a plain close of a pane whose program had ended left its handle and worker thread behind. Stated residuals: a process in an uninterruptible kernel sleep may outlive the kill for a time, with its thread pair left until it clears; an interactive shell's job control moving a background job to its own process group is not reached by the group signal. No kernel or sdk change, no new dependency (one feature on nix), no unsafe.
+<!-- SECTION:NOTES:END -->

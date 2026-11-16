@@ -272,3 +272,9 @@ events task by its own title (no id yet either). None is left citing TASK-1.39, 
   the events task; its reworded message is covered by reading the diff, not a test,
   since there is no behaviour change to assert on.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Final plan checked against doc-2 section 8, doc-11 (R50, R82, R83), decision-7, doc-15 and doc-16 by @bruk.o: ok, with one decision that is the engineer's in approving it. The sdk gains a tab record (id, label, title, position, current pane, layout, shown status), defined here once and embedded as it is by TASK-1.46's tree; the pane record gains its kind and its size where known. The server reads its clock once per request and passes a Moment into dispatch, which stays pure; a status's ten-minute end is shown with an injected Moment, not a wait. The decision: the pane record's existing status field (running or ended) is renamed program_status, and status carries doc-11's Status (running, finished, failed with its exit code, or nothing); nothing outside this repository reads the record yet. Every not-yet answer left in dispatch names its real owner: pane resize and moving a tab to another session by the titles of the drafts split from this task; pane send, capture and wait TASK-1.90; session focus the events task split from TASK-1.46, whose dispatch arm this task does not touch. A pane's cwd is the directory its program was started in and its title is empty until the kernel holds one: both read at the request, no polling.
+<!-- SECTION:NOTES:END -->

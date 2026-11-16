@@ -390,6 +390,14 @@ enum PaneCommand {
         /// The attachment to end.
         stream: u32,
     },
+    /// How many attachments this pane's own fan-out list currently holds,
+    /// read back through this reply channel (TASK-1.47 review): test-only,
+    /// since nothing outside a test needs it - the one fact that is true
+    /// exactly when a `Detach`, or the sweep `ConnectionCleanup::Drop`
+    /// sends in its place, has actually been applied by this worker, not
+    /// merely sent.
+    #[cfg(test)]
+    AttachmentCount(Sender<usize>),
 }
 
 /// The writer, resize handle and relay thread of whichever program is
@@ -547,6 +555,24 @@ impl PaneHandle {
         self.commands
             .send(PaneCommand::Detach { stream })
             .map_err(|_| Error::PaneGone)
+    }
+
+    /// How many attachments this pane's own fan-out list currently holds
+    /// (TASK-1.47 review) - test-only; see [`PaneCommand::AttachmentCount`]'s
+    /// own doc. `0` if the worker is already gone: nothing is left
+    /// attached to a pane with no worker, whatever this call's own reply
+    /// channel says.
+    #[cfg(test)]
+    pub(crate) fn attachment_count(&self) -> usize {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        if self
+            .commands
+            .send(PaneCommand::AttachmentCount(reply_tx))
+            .is_err()
+        {
+            return 0;
+        }
+        reply_rx.recv().unwrap_or(0)
     }
 
     /// Runs the pane's program again (R97): a new pseudo-terminal and a
@@ -908,6 +934,10 @@ fn worker_loop(
             }
             PaneCommand::Detach { stream } => {
                 attachments.retain(|a| a.stream != stream);
+            }
+            #[cfg(test)]
+            PaneCommand::AttachmentCount(reply) => {
+                let _ = reply.send(attachments.len());
             }
         }
     }

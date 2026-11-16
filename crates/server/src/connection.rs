@@ -596,6 +596,178 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::time_remaining;
+    use super::{Arc, ConnectionCleanup, HashMap, Outbound, RefCell, Runtime, UnixStream};
+    use crate::dispatch::Context;
+    use crate::outbound::spawn_writer;
+    use crate::pty::RealLauncher;
+    use crate::runtime::{Attaching, LoginShell};
+    use steg_sdk::{ClientKind, Request, Response};
+
+    const TEST_GRACE: Duration = Duration::from_millis(30);
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
+    fn login() -> LoginShell {
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: std::env::temp_dir().to_str().unwrap().to_string(),
+            user: None,
+            base_env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
+        }
+    }
+
+    /// Builds a session, its one tab and its one pane through `Runtime::
+    /// handle` itself (no real socket), and returns the full `session/tab/
+    /// pane` path - the one shape `pane.attach`'s own target resolves with
+    /// no session context (R10, the same gap `attach.rs`'s own integration
+    /// tests already name).
+    fn new_pane_path(
+        runtime: &Runtime,
+        description: &steg_sdk::Description,
+        context: &Context,
+    ) -> String {
+        let session = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id = session["id"].as_str().unwrap().to_string();
+
+        let tabs = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "tab.list".to_string(),
+                params: serde_json::json!({"target": session_id})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("tab.list failed: {error:?}"),
+        };
+        let tab_id = tabs.as_array().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let panes = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "pane.list".to_string(),
+                params: serde_json::json!({"target": format!("{session_id}/{tab_id}")})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("pane.list failed: {error:?}"),
+        };
+        let pane_id = panes.as_array().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        format!("{session_id}/{tab_id}/{pane_id}")
+    }
+
+    /// Bounded, polling the one fact that is true exactly once the
+    /// worker has actually applied an `Attach`/`Detach` (or the sweep
+    /// `ConnectionCleanup::Drop` sends in its place) - never a sleep
+    /// assumed long enough.
+    fn wait_for_attachment_count(runtime: &Runtime, pane: steg_sdk::PaneId, expected: usize) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let found = runtime.attachment_count_for_test(pane);
+            if found == expected {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "pane {pane} never reached {expected} attachments; last saw {found}"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    /// TASK-1.47 review: a connection that ends without ever calling
+    /// `pane.detach` must not leave a dead attachment in a pane's own
+    /// fan-out list forever - proven here by actually counting it
+    /// (`Runtime::attachment_count_for_test`), not merely by a later
+    /// `pane.attach` not hanging (`attach.rs`'s own integration test's
+    /// own, weaker proof). `ConnectionCleanup`'s `Drop` is exercised
+    /// directly - not `Runtime::forget_attachment` called by hand, which
+    /// would only prove that method works, never that `Drop` actually
+    /// calls it - built in-process with a real pane and a real `Outbound`/
+    /// writer pair over a real `UnixStream::pair()`, but no real socket
+    /// listener.
+    #[test]
+    fn connection_cleanups_drop_sweeps_every_attachment_it_still_holds() {
+        let runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+        let description = steg_sdk::description();
+        let context = Context::none();
+        let path = new_pane_path(&runtime, &description, &context);
+
+        let (client_writer, _server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let writer = spawn_writer(Arc::clone(&outbound), client_writer);
+
+        let stream = 1_u32;
+        let client_id = runtime.connect_client(ClientKind::App, None);
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(path));
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params,
+        };
+        let pane = runtime
+            .attach_pane(
+                &description,
+                &context,
+                Attaching {
+                    client: client_id,
+                    id: 1,
+                    stream,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("attach_pane succeeds");
+        outbound.open_stream(stream);
+        runtime.arm_attachment(pane, stream, Arc::clone(&outbound));
+        wait_for_attachment_count(&runtime, pane, 1);
+
+        let pane_streams = RefCell::new(HashMap::from([(pane, stream)]));
+        let (_shutdown_a, shutdown_b) = UnixStream::pair().unwrap();
+        {
+            let _cleanup = ConnectionCleanup {
+                outbound,
+                writer: Some(writer),
+                shutdown_handle: shutdown_b,
+                runtime: &runtime,
+                client_id,
+                pane_streams: &pane_streams,
+            };
+            // `_cleanup` drops here, running its sweep - the one thing
+            // this test is about.
+        }
+
+        wait_for_attachment_count(&runtime, pane, 0);
+    }
 
     /// `Instant::now()` is read exactly once here, as a base - every
     /// instant compared against it below is that base plus a literal

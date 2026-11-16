@@ -565,6 +565,21 @@ impl Runtime {
         }
     }
 
+    /// How many attachments `pane`'s own worker currently holds
+    /// (TASK-1.47 review): test-only, reaching `PaneHandle::
+    /// attachment_count` (itself `#[cfg(test)]`) for a connection.rs test
+    /// that proves `ConnectionCleanup`'s own sweep, not merely this
+    /// method, is what returns the count to what it was. `0` if `pane`
+    /// has no running worker at all.
+    #[cfg(test)]
+    pub(crate) fn attachment_count_for_test(&self, pane: PaneId) -> usize {
+        let state = self.lock();
+        state
+            .panes
+            .get(&pane)
+            .map_or(0, PaneHandle::attachment_count)
+    }
+
     /// Stops this `Runtime`: ends every running program, reaps each one,
     /// joins every worker thread, then joins the one drain thread too
     /// (review finding 3; rewritten for TASK-1.78 §4 to reuse [`force_end`],

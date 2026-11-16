@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:58:00Z'
+updated_date: '2026-11-16T02:11:00Z'
 labels:
   - size-3
   - review-passed
@@ -1420,6 +1420,22 @@ Verification performed independently, in a fresh worktree:
 [Bugs, Nit] crates/steg/tests/server_start.rs:381-384 - `running_out_of_file_descriptors_exits_1`'s final `server.child.wait()` has no timeout. Ran reliably 20/20 times here, but if the chosen fd count/limit ever fails to exhaust the accept loop on a different machine, this call blocks indefinitely rather than failing promptly - the same hazard this file's own `read_one_line_bounded` doc comment says a test "must not" have.
 
 [Evidence, Nit] crates/steg/tests/server_start.rs:69-83 - `find_server_pid` silently no-ops (via `.ok()?`) when `lsof` is absent or errors, and reads only the first line if `lsof` ever reports more than one pid for the lock path. Neither condition arises in this suite today (lock paths are unique per test; the arbiter's lock is exclusive), but on a machine without `lsof` the leak-prevention guard this task added would regress to the pre-fix leaking behaviour with no test failure to signal it.
+
+---
+
+created: 2026-11-16T02:11:00Z
+
+---
+
+Three review nits taken at head f2af794 (PR #44), change kept to crates/steg/tests/server_start.rs only:
+
+1. The SIGHUP test now calls a new `wait_bounded(&mut client.child, Duration::from_secs(5))` instead of marking `client.done = true` unwaited - it was leaving a zombie until the test binary itself exited. Asserts the client's own exit status was not a success, confirming it was actually ended by the signal rather than exiting cleanly on its own.
+2. `running_out_of_file_descriptors_exits_1`'s final `server.child.wait()` is now the same `wait_bounded` call, bounded to 5s, rather than an unbounded wait that would hang on a machine where the fd-exhaustion assumption does not hold.
+3. `find_server_pid` now panics with a clear message if `lsof` itself cannot be spawned (`.output().expect(...)`, which only trips on a spawn failure, not a non-zero exit - `lsof -t` exiting 1 with empty output for "nothing found" is still the normal, non-fatal `None` case), or if it reports more than one pid (`match pids.as_slice() { [] => None, [one] => Some(...), many => panic!(...) }`). Previously both cases silently returned `None`, indistinguishable from "nothing to clean up."
+
+`wait_bounded` is a new, small shared helper (polling `try_wait`, the same style `wait_for_socket`/`assert_stays_reachable` already use in this file - no thread/channel needed, unlike `read_one_line_bounded`, since `try_wait` itself is non-blocking).
+
+Verification run as asked, not through record-check/finish: process count before the run (0), the 11-test suite run 10 consecutive times with the count checked after every run (0 every time), process count after (0); `just check` green (including "tool tests" this time, no flake). PR #44's CI passed on the first attempt this round, no flake to investigate. Confirmed clean with `ps`/`pgrep` before starting and again just now.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,0 +1,43 @@
+# TASK-1.97 proof item P7, temporary: 8 parallel jobs, each a genuinely cold runner
+# with no pre-existing npm cache (no actions/cache step here, deliberately), all
+# running `just test-tools` at once - double the worst documented real concurrency (4
+# CI runs queued at once, TASK-1.82 comment #2) that preceded the LikeC4 MCP smoke
+# test's CI timeouts. All 8 are expected to pass after the fix, corroborating the
+# deterministic blocked-registry control recorded on the task.
+#
+# Deleted again before this branch's pull request is opened for review; its run is
+# linked in the task's notes instead.
+name: "TASK-1.97: repeat the LikeC4 smoke test under concurrency (temporary)"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repeat:
+    runs-on: macos-26
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        instance: [1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
+        with:
+          install: true
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.8"
+          python-version: "3.15.2"
+          enable-cache: true
+
+      - uses: taiki-e/install-action@4a76afe23f9e08d2d9550fb56e556444e8611d21 # v2.90.4
+        with:
+          tool: just@1.59.0
+
+      - name: just test-tools
+        run: just test-tools

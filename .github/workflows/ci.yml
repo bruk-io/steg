@@ -84,11 +84,54 @@ jobs:
       - name: Confirm the pinned Zig toolchain
         run: zig version
 
+      - name: Confirm the pinned Node toolchain
+        # Node itself wasn't the cause of the LikeC4 smoke test's CI timeouts - that
+        # was npm's own live registry round trip, fixed below - but it was unpinned,
+        # floating with whatever this runner image happens to ship (TASK-1.97,
+        # TASK-1.82). mise.toml pins it now, and the mise-action step above already
+        # installs and caches it, same as Zig; this just makes the pin a checked fact
+        # in the log instead of an assumption.
+        run: node --version
+
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: "0.13.8"
           python-version: "3.15.2"
           enable-cache: true
+
+      - name: Find npm's cache directory
+        # Read empirically rather than assumed: npm's default cache location is an
+        # implementation detail of the npm version mise just installed, not something
+        # this file should hardcode (TASK-1.97).
+        id: npm-cache-dir
+        run: echo "path=$(npm config get cache)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the LikeC4 npm cache
+        # Without this, every job starts with no npm cache at all, so npx always pays
+        # the cost of resolving and downloading likec4@<version> from the registry
+        # fresh, and that live resolution happens on *every* invocation regardless of
+        # a warm cache unless `.npmrc`'s `prefer-offline=true` can already find one
+        # there - which is exactly what turned a slow or congested registry into the
+        # smoke test's 30s+ CI timeout (TASK-1.97). Keyed on the files that already
+        # carry the pinned version by hand (.mcp.json, likec4_mcp.py, justfile), not
+        # the version number itself again, so this cache entry can never drift out of
+        # step with the pin the way a hand-copied version string here could.
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.path }}
+          key: ${{ runner.os }}-likec4-npm-${{ hashFiles('.mcp.json', 'tools/src/steg_tools/likec4_mcp.py', 'justfile') }}
+
+      - name: Warm the LikeC4 npx cache
+        # Pays whatever this costs - a real download on a cache miss (a cold cache, or
+        # the pin above has changed), near-instant on a hit - as its own named step,
+        # bounded only by this job's own 30-minute timeout, so it never lands inside
+        # the LikeC4 MCP smoke test's own tight wait the way it did before (TASK-1.97).
+        # No model validation, just enough that npm resolves and caches the package;
+        # reads the pinned version out of likec4_mcp.py itself rather than writing it
+        # down a fourth time in this file.
+        run: |
+          version=$(uv run --project tools python -c "from steg_tools.likec4_mcp import PINNED_LIKEC4_VERSION as v; print(v)")
+          npx --yes "likec4@$version" --version
 
       - name: Install just and cargo-deny
         # Prebuilt, pinned binaries from GitHub Releases: `cargo install --locked`

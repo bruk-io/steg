@@ -1443,6 +1443,53 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach detach_ends_the_stream_even_though_the_program_keeps_producing_output` exited 101 at 2026-11-16T14:14:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes, last 40 of 42 lines:
+
+```text
+   --> crates/server/src/runtime.rs:539:70
+    |
+539 |     pub(crate) fn detach_pane(&self, client: ClientId, pane: PaneId, stream: u32) {
+    |                                                                      ^^^^^^ help: if this is intentional, prefix it with an underscore: `_stream`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `close_stream` is never used
+   --> crates/server/src/outbound.rs:185:19
+    |
+136 | impl Outbound {
+    | ------------- method in this implementation
+...
+185 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 2 warnings (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... FAILED
+
+failures:
+
+---- detach_ends_the_stream_even_though_the_program_keeps_producing_output stdout ----
+
+thread 'detach_ends_the_stream_even_though_the_program_keeps_producing_output' (40177165) panicked at crates/server/tests/attach.rs:459:17:
+the server kept sending for a stream this connection already detached (decoded as UnknownStream, since this connection also closed its own side of it)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detach_ends_the_stream_even_though_the_program_keeps_producing_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

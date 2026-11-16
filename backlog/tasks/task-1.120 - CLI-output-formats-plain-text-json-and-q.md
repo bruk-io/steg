@@ -4,11 +4,13 @@ title: 'CLI: output formats: plain text, --json and -q'
 status: To Do
 assignee: []
 created_date: '2026-11-16T13:35:00Z'
+updated_date: '2026-11-16T13:51:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.49
+  - TASK-1.119
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3

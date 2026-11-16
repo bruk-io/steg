@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:23:00Z'
+updated_date: '2026-11-16T01:26:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1307,6 +1307,33 @@ running 1 test
 test runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 90 filtered out; finished in 0.02s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime -- tab_close_with_force_ends_every_program_in_scope_within_one_grace_window` exited 101 at 2026-11-16T01:26:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at b7e872af7f6b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... FAILED
+
+failures:
+
+---- tab_close_with_force_ends_every_program_in_scope_within_one_grace_window stdout ----
+
+thread 'tab_close_with_force_ends_every_program_in_scope_within_one_grace_window' (17067257) panicked at crates/server/tests/runtime.rs:712:5:
+ending four trapping panes at once took 2.020947792s, more than twice one grace window (500ms) - the bound this task's own force_end gives is one shared window regardless of pane count, not `panes * grace`, which four of them would already exceed on its own (2s)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_close_with_force_ends_every_program_in_scope_within_one_grace_window
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 2.06s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 <!-- SECTION:NOTES:END -->
 

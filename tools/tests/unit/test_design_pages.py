@@ -3,24 +3,30 @@
 from steg_tools.design_pages import (
     RADIUS_MAP,
     REVERSE_ALLOW_LIST,
-    SKIPPED_COLOURS,
+    SCHEMA,
     TIER_B_NAMES,
-    TIER_C_SKIPS,
     AnsiRow,
+    Checked,
     ColourRow,
+    DeclaredUnseen,
+    Descriptive,
+    Fields,
     Mismatch,
     Missing,
+    NamedEntries,
     SentenceRow,
-    Skipped,
     ansi_mismatches,
     ansi_reverse_missing,
     colour_mismatches,
+    declared_unseen,
+    leaf_classification_counts,
     mapped_sentence_mismatches,
     parse_page,
     reverse_missing,
+    schema_violations,
     sentence_mismatches,
     shape_problems,
-    unaccounted_names,
+    validate,
 )
 
 HELMET = "</helmet>"
@@ -142,11 +148,10 @@ def test_tier_a_a_name_absent_from_the_page_is_a_mismatch() -> None:
 
 
 def test_tier_a_track_is_checked_like_any_other_colour_no_exception_left() -> None:
-    # Closed at artifact version 1794796789-1b13: track gained its own row, so it is no
-    # longer in SKIPPED_COLOURS and is checked exactly like every other colour.
+    # Closed at artifact version 1794796789-1b13: track gained its own row, so
+    # colour_mismatches checks it exactly like every other colour, unconditionally.
     from steg_tools.design_pages import Page
 
-    assert "track" not in SKIPPED_COLOURS
     page = Page((ColourRow("track", "#3d3b45", "#cfcbc5"),), (), ())
     found = colour_mismatches(({"name": "track", "dark": "#3d3b45", "light": "#cfcbc5"},), page, "Tokens.dc.html")
     assert found == ()
@@ -289,10 +294,11 @@ def test_radius_map_a_page_row_absent_is_a_mismatch() -> None:
 
 def test_the_fully_round_corner_is_not_in_the_map_and_stays_declared_unseen() -> None:
     assert "radius.round" not in RADIUS_MAP
-    assert any(skip.name == ("sizes", "radius.round") for skip in TIER_C_SKIPS)
-    assert not any(skip.name[:2] == ("sizes", "radius.surface") for skip in TIER_C_SKIPS)
-    assert not any(skip.name[:2] == ("sizes", "radius.track") for skip in TIER_C_SKIPS)
-    assert not any(skip.name[:2] == ("sizes", "radius.inner") for skip in TIER_C_SKIPS)
+    sizes_fields = SCHEMA.fields["sizes"].fields
+    assert isinstance(sizes_fields["radius.round"], DeclaredUnseen)
+    assert isinstance(sizes_fields["radius.surface"], Checked)
+    assert isinstance(sizes_fields["radius.track"], Checked)
+    assert isinstance(sizes_fields["radius.inner"], Checked)
 
 
 def test_ansi_mismatch_is_scoped_to_its_own_theme() -> None:
@@ -374,13 +380,6 @@ def test_ansi_reverse_a_page_name_absent_from_the_themes_ansi_is_reported() -> N
     assert found == (Missing("steg dark.ghost", "#000000", "Details.dc.html"),)
 
 
-def test_tier_c_every_declared_skip_has_a_non_empty_reason() -> None:
-    assert len(TIER_C_SKIPS) > 0
-    for skip in TIER_C_SKIPS:
-        assert isinstance(skip, Skipped)
-        assert skip.reason.strip() != ""
-
-
 def test_tier_b_names_has_no_duplicate() -> None:
     assert len(TIER_B_NAMES) == len(set(TIER_B_NAMES))
 
@@ -408,7 +407,71 @@ def test_a_file_key_matched_on_only_one_page_is_not_ambiguous() -> None:
     assert ambiguous_matches("scrim", pages) == ()
 
 
+
+# --- `validate()`'s own mechanics: small, hand-built Position trees, isolated from the
+# real SCHEMA, so these prove the validator itself, not any one of its positions.
+
+
+def test_validate_an_unknown_key_in_a_fields_position_is_refused() -> None:
+    schema = Fields({"a": Descriptive("x")})
+    assert validate({"a": 1, "b": 2}, schema) == ((("b",), "not described by the schema"),)
+
+
+def test_validate_a_missing_required_field_is_refused() -> None:
+    schema = Fields({"a": Descriptive("x"), "b": Descriptive("y")})
+    assert validate({"a": 1}, schema) == ((("b",), "missing: the schema requires it"),)
+
+
+def test_validate_a_missing_optional_field_is_not_refused() -> None:
+    schema = Fields({"a": Descriptive("x"), "b": Descriptive("y")}, optional=frozenset({"b"}))
+    assert validate({"a": 1}, schema) == ()
+
+
+def test_validate_a_type_mismatch_at_a_checked_position_is_refused_naming_the_path() -> None:
+    schema = Fields({"a": Checked("some_check", expected=str)})
+    assert validate({"a": 123}, schema) == ((("a",), "expected str, found int"),)
+
+
+def test_validate_a_named_entries_item_with_no_name_is_refused_not_a_crash() -> None:
+    schema = NamedEntries(Fields({"name": Descriptive("x")}))
+    assert validate([{"not_name": 1}], schema) == ((("0",), 'a named-entries item must be an object with a string "name"'),)
+
+
+def test_validate_a_fields_position_given_a_non_dict_is_refused() -> None:
+    schema = Fields({"a": Descriptive("x")})
+    assert validate([1, 2], schema) == (((), "expected an object, found list"),)
+
+
+def test_validate_a_named_entries_position_given_a_non_list_is_refused() -> None:
+    schema = NamedEntries(Fields({"name": Descriptive("x")}))
+    assert validate({"name": "x"}, schema) == (((), "expected a list, found dict"),)
+
+
+def test_validate_an_unknown_field_inside_a_named_entries_item_is_refused() -> None:
+    schema = NamedEntries(Fields({"name": Descriptive("x"), "dark": Checked("c", expected=str)}))
+    assert validate([{"name": "a", "dark": "#000", "extra": 1}], schema) == ((("a", "extra"), "not described by the schema"),)
+
+
+def test_validate_a_fully_matching_value_has_no_problems() -> None:
+    schema = Fields({"a": Checked("c", expected=int), "b": Descriptive("x")})
+    assert validate({"a": 1, "b": "y"}, schema) == ()
+
+
+def test_validate_an_optional_field_present_is_still_type_checked() -> None:
+    schema = Fields({"a": Checked("c", expected=str)}, optional=frozenset({"a"}))
+    assert validate({"a": 123}, schema) == ((("a",), "expected str, found int"),)
+
+
+# --- The real SCHEMA, against a small, hand-built but fully-compliant whole-document
+# fixture - every section the real file has, so a mutation can be made at each position
+# the review named: top level, a colour field, an alias field, an opacity field, a ramp
+# field and inside caption_opacity, a type key, a sizes key, inside scrim, a theme
+# field, inside a theme's ansi, a focus_ring field, and tint.
+
 MINIMAL_DATA = {
+    "artifact_version": "x",
+    "artifact_url": "x",
+    "session_colour": "session",
     "colours": [{"name": "track", "dark": "#000000", "light": "#ffffff", "use": "x"}],
     "colour_aliases": [{"name": "blocked", "ref": {"ref": "ramp.5 amber"}, "use": "x"}],
     "opacities": [{"name": "faint", "dark": 0.3, "light": 0.45, "use": "x"}],
@@ -418,93 +481,143 @@ MINIMAL_DATA = {
     ],
     "tint": {"name": "tint", "colour": "session", "opacity": 0.18, "use": "x"},
     "type": {"font.ui": {"family": "system", "role": "ui"}},
-    "sizes": {"nav.side": {"width": 232, "unit": "px"}, "radius.surface": {"value": 14}, "radius.round": {"shape": "round"}},
+    "sizes": {
+        "nav.side": {"width": 232, "unit": "px"},
+        "radius.surface": {"value": 14},
+        "radius.round": {"shape": "round"},
+        "scrim": {"dark": {"colour": "#000", "opacity": 0.6}, "light": {"colour": "#fff", "opacity": 0.28}},
+    },
     "motion": [{"name": "motion.status-fade", "duration": 200, "unit": "ms", "use": "x"}],
     "themes": [
         {"name": "steg dark", "bg": "#1", "fg": "#2", "bg_inactive": {"ref": "surface.pane"}, "selection": "#3", "cursor": "session", "ansi": {"black": "#4"}},
         {"name": "steg light", "bg": "#5", "fg": "#6", "bg_inactive": {"ref": "surface.pane"}, "selection": "#7", "cursor": "session", "ansi": {"black": "#8"}},
     ],
-    "focus_ring": {"width": 2, "offset": 2, "colour": "session", "corner_radius_addition": 4},
-    "session_colour": "session",
+    "focus_ring": {"width": 2, "offset": 2, "unit": "px", "colour": "session", "corner_radius_addition": 4},
 }
 
-MINIMAL_SKIPPED = frozenset(
-    {
-        ("colour_aliases", "blocked", "ref"),
-        ("opacities", "faint", "dark"),
-        ("opacities", "faint", "light"),
-        ("ramps", "ramp", "stops"),
-        ("ramps", "ramp", "caption_opacity"),
-        ("ramps", "ramp.extended", "stops"),
-        ("tint",),
-        ("sizes", "radius.round"),
-        ("motion", "motion.status-fade", "duration"),
-        ("themes", "steg dark", "bg"),
-        ("themes", "steg dark", "fg"),
-        ("themes", "steg dark", "bg_inactive"),
-        ("themes", "steg dark", "selection"),
-        ("themes", "steg dark", "cursor"),
-        ("themes", "steg light", "bg"),
-        ("themes", "steg light", "fg"),
-        ("themes", "steg light", "bg_inactive"),
-        ("themes", "steg light", "selection"),
-        ("themes", "steg light", "cursor"),
-        ("focus_ring", "width"),
-        ("focus_ring", "offset"),
-        ("focus_ring", "colour"),
-        ("focus_ring", "corner_radius_addition"),
-        ("session_colour",),
-    }
-)
 
-MINIMAL_CHECKED = frozenset({"font.ui", "nav.side", "radius.surface"})
+def test_the_minimal_fixture_itself_matches_schema_exactly() -> None:
+    # Sanity check for every mutation test below: if this ever fails, every "refused"
+    # assertion downstream would be meaningless (refused for the wrong reason).
+    assert validate(MINIMAL_DATA, SCHEMA) == ()
 
 
-def test_unaccounted_names_is_empty_when_every_leaf_key_is_accounted_for() -> None:
-    assert unaccounted_names(MINIMAL_DATA, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED) == ()
+def test_schema_violations_formats_a_problem_as_path_colon_reason() -> None:
+    data = {**MINIMAL_DATA, "glow_colour": "#fff"}
+    assert schema_violations(data) == ("glow_colour: not described by the schema",)
 
 
-def test_unaccounted_names_flags_a_key_on_neither_list() -> None:
-    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "a.new.size": {"value": 5, "unit": "px"}}}
-    found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
-    assert found == ("sizes.a.new.size.value",)
+# One mutation per position the review named, each refused naming its path.
+_POSITION_MUTATIONS = {
+    "top level": (lambda d: {**d, "glow_colour": "#fff"}, "glow_colour"),
+    "a colour field": (lambda d: {**d, "colours": [{**d["colours"][0], "contrast": 1.5}]}, "colours.track.contrast"),
+    "an alias field": (lambda d: {**d, "colour_aliases": [{**d["colour_aliases"][0], "weight": 2}]}, "colour_aliases.blocked.weight"),
+    "an opacity field": (lambda d: {**d, "opacities": [{**d["opacities"][0], "blur": 1}]}, "opacities.faint.blur"),
+    "a ramp field": (lambda d: {**d, "ramps": [{**d["ramps"][0], "intensity": 2}, d["ramps"][1]]}, "ramps.ramp.intensity"),
+    "inside caption_opacity": (
+        lambda d: {**d, "ramps": [{**d["ramps"][0], "caption_opacity": {**d["ramps"][0]["caption_opacity"], "extra": 1}}, d["ramps"][1]]},
+        None,  # caption_opacity is DeclaredUnseen as a whole, like ansi/tint - terminal by design, see the next test.
+    ),
+    "a type key": (lambda d: {**d, "type": {**d["type"], "terminal.bold": {"weight": 700}}}, "type.terminal.bold"),
+    "a sizes key": (lambda d: {**d, "sizes": {**d["sizes"], "palette.footer": {"value": 1}}}, "sizes.palette.footer"),
+    "inside scrim": (
+        lambda d: {**d, "sizes": {**d["sizes"], "scrim": {**d["sizes"]["scrim"], "extra": 1}}},
+        None,  # sizes.scrim is Checked(recurses=True), the same documented Tier B terminal gap as "a sizes key"'s sibling fields - see the next test.
+    ),
+    "a theme field": (lambda d: {**d, "themes": [{**d["themes"][0], "underline": "#fff"}, d["themes"][1]]}, "themes.steg dark.underline"),
+    "inside a theme's ansi": (
+        lambda d: {**d, "themes": [{**d["themes"][0], "ansi": {**d["themes"][0]["ansi"], "extra": "#fff"}}, d["themes"][1]]},
+        None,  # ansi is Checked(recurses=True): the schema never looks inside it at all, by design - see the next test.
+    ),
+    "a focus_ring field": (lambda d: {**d, "focus_ring": {**d["focus_ring"], "glow": 3}}, "focus_ring.glow"),
+    "tint": (lambda d: {**d, "tint": {**d["tint"], "glow": 3}}, None),  # tint is DeclaredUnseen as a whole: same reasoning as ansi.
+}
 
 
-def test_unaccounted_names_an_entirely_empty_value_has_nothing_to_account_for() -> None:
-    # A new key whose value is an empty dict or list has no leaves at all - vacuously
-    # accounted for, not a false positive on the container key itself. Real data never
-    # does this (every entry has at least one scalar or a `name`), but the walker's own
-    # rule should hold regardless.
-    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "empty.size": {}}}
-    assert unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED) == ()
+def test_every_named_position_s_mutation_is_refused_naming_its_path() -> None:
+    for label, (mutate, expected_path) in _POSITION_MUTATIONS.items():
+        if expected_path is None:
+            continue
+        mutated = mutate(MINIMAL_DATA)
+        found = schema_violations(mutated)
+        assert any(violation.startswith(f"{expected_path}:") for violation in found), f"{label}: expected {expected_path!r} in {found!r}"
 
 
-def test_unaccounted_names_negative_control_removing_a_declared_unseen_entry_fails_naming_it() -> None:
-    # The required negative control: a declared-unseen entry removed from `skipped` must
-    # make that exact key show up as unaccounted, not fall through silently.
-    without_focus_ring_width = MINIMAL_SKIPPED - {("focus_ring", "width")}
-    found = unaccounted_names(MINIMAL_DATA, skipped=without_focus_ring_width, checked=MINIMAL_CHECKED)
-    assert found == ("focus_ring.width",)
+def test_a_mutation_inside_an_already_terminal_position_is_not_refused() -> None:
+    # ansi and tint are terminal (Checked(recurses=True) / DeclaredUnseen) - the schema
+    # does not look inside either, by design (ansi_mismatches/the declared-unseen reason
+    # cover them as a whole). Stated here so the gap is a documented property of the
+    # schema, not an untested assumption.
+    mutated, _ = _POSITION_MUTATIONS["inside a theme's ansi"]
+    assert validate(mutated(MINIMAL_DATA), SCHEMA) == ()
+    mutated, _ = _POSITION_MUTATIONS["tint"]
+    assert validate(mutated(MINIMAL_DATA), SCHEMA) == ()
+    mutated, _ = _POSITION_MUTATIONS["inside caption_opacity"]
+    assert validate(mutated(MINIMAL_DATA), SCHEMA) == ()
+    mutated, _ = _POSITION_MUTATIONS["inside scrim"]
+    assert validate(mutated(MINIMAL_DATA), SCHEMA) == ()
 
 
-def test_unaccounted_names_a_dotted_key_is_never_mistaken_for_a_child_of_an_unrelated_name() -> None:
-    # The review's own four reproductions, against the minimal fixture: a name that
-    # merely shares a *string* prefix with a registered one (because a real JSON key can
-    # itself contain a dot) must not be swallowed by it.
-    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "nav.side.extra": {"value": 1, "unit": "px"}}}
-    found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
-    assert found == ("sizes.nav.side.extra.value",)
+def test_a_malformed_colour_with_no_name_is_refused_not_a_crash() -> None:
+    data = {**MINIMAL_DATA, "colours": [{"dark": "#000", "light": "#fff", "use": "x"}]}
+    found = schema_violations(data)
+    assert any("name" in violation for violation in found)
 
 
-def test_unaccounted_names_a_new_colour_field_nothing_checks_is_unaccounted() -> None:
-    # A review finding: colours were registered as a whole-entry ancestor, so a stray
-    # field nothing checks (only "dark"/"light" are) was silently swallowed.
-    data = {**MINIMAL_DATA, "colours": [{**MINIMAL_DATA["colours"][0], "contrast": 1.5}]}
-    found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
-    assert found == ("colours.track.contrast",)
+def test_a_colours_field_replaced_by_an_object_is_refused_not_a_crash() -> None:
+    data = {**MINIMAL_DATA, "colours": [{**MINIMAL_DATA["colours"][0], "dark": {"hex": "#000"}}]}
+    found = schema_violations(data)
+    assert any(violation.startswith("colours.track.dark:") for violation in found)
 
 
-def test_unaccounted_names_default_arguments_cover_the_real_modules_own_registries() -> None:
-    # Sanity check for the defaults themselves (TIER_C_SKIPS/TIER_B_NAMES/RADIUS_MAP), not
-    # the real data file - the adapter test covers that against the real file on disk.
-    assert unaccounted_names(MINIMAL_DATA) == ()
+def test_declared_unseen_expands_named_entries_to_their_real_names() -> None:
+    found = {skip.name: skip.reason for skip in declared_unseen(MINIMAL_DATA)}
+    assert ("colour_aliases", "blocked", "ref") in found
+    assert ("opacities", "faint", "dark") in found
+    assert ("ramps", "ramp", "stops") in found
+    assert ("ramps", "ramp", "caption_opacity") in found
+    assert ("ramps", "ramp.extended", "stops") in found
+    assert ("ramps", "ramp.extended", "caption_opacity") not in found  # optional, absent on this entry
+    assert ("themes", "steg dark", "bg") in found
+    assert ("themes", "steg light", "bg") in found
+    assert ("sizes", "radius.round") in found
+    assert ("tint",) in found
+    assert ("focus_ring", "width") in found
+    assert ("session_colour",) in found
+    assert all(reason.strip() for reason in found.values())
+
+
+def test_declared_unseen_never_names_a_checked_or_descriptive_position() -> None:
+    found = {skip.name for skip in declared_unseen(MINIMAL_DATA)}
+    assert ("colours", "track", "dark") not in found
+    assert ("type", "font.ui") not in found
+    assert ("themes", "steg dark", "ansi") not in found
+    assert ("colours", "track", "use") not in found
+
+
+def test_leaf_classification_counts_add_up_to_the_minimal_fixtures_own_leaf_count() -> None:
+    def exhaustive(value: object) -> int:
+        if isinstance(value, dict):
+            return (value and sum(exhaustive(sub) for sub in value.values())) or 1
+        if isinstance(value, list):
+            return (value and sum(exhaustive(item) for item in value)) or 1
+        return 1
+
+    counts = leaf_classification_counts(MINIMAL_DATA)
+    assert sum(counts.values()) == exhaustive(MINIMAL_DATA)
+
+
+def test_leaf_classification_counts_negative_control_an_unaccounted_mutation_breaks_the_arithmetic() -> None:
+    # If a mutation isn't classified at all (the review's "a key added later cannot fall
+    # through silently" promise, as arithmetic rather than a refusal), the three counts
+    # fall short of the fixture's own exhaustive leaf count.
+    def exhaustive(value: object) -> int:
+        if isinstance(value, dict):
+            return (value and sum(exhaustive(sub) for sub in value.values())) or 1
+        if isinstance(value, list):
+            return (value and sum(exhaustive(item) for item in value)) or 1
+        return 1
+
+    mutated = {**MINIMAL_DATA, "glow_colour": "#fff"}
+    counts = leaf_classification_counts(mutated)
+    assert sum(counts.values()) < exhaustive(mutated)

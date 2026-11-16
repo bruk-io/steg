@@ -25,26 +25,43 @@ name's row on `design/canvas/project/Tokens.dc.html` or `Details.dc.html`, by th
   merged `radius` row. The engineer asked for this small, reviewed map rather than leaving
   all three as a declared exception; `radius.round` has no number on the page at all and
   stays in `TIER_C_SKIPS`.
-- Tier C (`TIER_C_SKIPS`): every other named value in the file is declared out of this
-  tool's reach, each with its own reason - printed by `main()` itself on every passing run,
-  so a clean exit is never read as "every value checked" (AC#3). `unaccounted_names`
-  walks the data file's own structure generically (`_leaf_paths` - no section's field
-  names are written into this module as a list, a review finding: the first version
-  enumerated `themes[]`/`focus_ring` from a fixed tuple, invisible to a field not already
-  in it) and refuses if a leaf has no covering name in `checked` or `TIER_C_SKIPS` - a key
-  added to the file later, at any level, cannot fall through both silently.
+- Tier C: every other named value in the file is declared out of this tool's reach, each
+  with its own reason - printed by `main()` itself on every passing run, so a clean exit
+  is never read as "every value checked" (AC#3).
 
-  Every path, in both the walk and the registry, is a tuple of segments - never a joined
-  string (a further review finding: the data file's own keys contain literal dots -
-  `font.ui`, `nav.side`, `radius.surface`, `ramp.extended` - so a string-prefix comparison
-  cannot tell "one key with a dot in it" from "two nested keys" apart; it let
-  `sizes["palette.footer"]`, `sizes["nav.side.extra"]`, `type["terminal.bold"]`, and a ramp
-  literally named `"ramp.secondary"` all pass as covered by an unrelated registered name).
-  `_is_accounted_for` compares whole segments only (`Skipped.display()` joins with "."
-  purely for people to read, never for this comparison). Every colour, colour alias,
-  opacity and ramp is registered field by field, never as a whole-entry ancestor (a third
-  review finding: a blanket `("colours", name)` silently covered a stray field, such as
-  `contrast`, that nothing actually checks - only `dark`/`light` are).
+  This task tried three narrower mechanisms first, and a review found each one's blind
+  spot in turn: a field tuple naming which fields to look at (invisible to a field not
+  already in it); a string-prefix "is this name covered by that one" test (defeated by
+  the file's own keys containing literal dots - `font.ui`, `nav.side`, `radius.surface`,
+  `ramp.extended` - so `sizes["palette.footer"]` passed as "covered by" the unrelated
+  `palette`); and a fixed exclusion list of descriptive field names (`name`/`use`/`unit`/
+  `ansi`/`artifact_version`/`artifact_url`) applied at *every* position regardless of
+  whether that position's own reason for excluding them held - so `focus_ring["ansi"]`,
+  `colours[0]["unit"]` and `colours[0]["artifact_version"]` all passed, because the
+  exclusion didn't check *where* it was being applied.
+
+  `SCHEMA` (`Fields`/`NamedEntries`/`Checked`/`DeclaredUnseen`/`Descriptive`) replaces all
+  three with one closed description of the document's actual shape, position by
+  position: a `Fields` dict names exactly the keys allowed there; a `NamedEntries` list is
+  open to a new entry (a new colour, size or theme) but closed in each entry's own fields;
+  a `Checked`/`DeclaredUnseen`/`Descriptive` leaf is terminal. `validate()` walks the real
+  data against `SCHEMA` and refuses any key at any position the schema doesn't name, by
+  construction - there is no exclusion list and no prefix rule left to be over-broad.
+  `name`/`use`/`unit`/`ansi` are `Descriptive`/`Checked` only at the specific positions
+  `SCHEMA` lists them (a theme's `ansi`, not `focus_ring`'s; a colour's `use`, not its
+  `unit`, which isn't a field there at all).
+
+  `TIER_B_NAMES`, `RADIUS_MAP` and `declared_unseen()`'s printed list are all *derived*
+  from `SCHEMA` (`_derive_tier_b_names`, `_derive_radius_map`), never written down beside
+  it - so the printed "not checked" list and `validate()`'s refusals cannot disagree with
+  each other, the recurring shape of this task's last three review findings.
+
+  A `Checked(recurses=True)` position (every Tier B/mapped `type`/`sizes` entry, and a
+  theme's `ansi`) is terminal *by design*, not because nobody described it further: the
+  checking function it names already walks the whole value (`_numbers_in` sees every
+  number under `sizes.nav.side`; `ansi_mismatches` every ANSI colour), so a new numeric
+  field added inside one is still inspected. A new *non-numeric* field the same way is a
+  known, accepted gap of the same shape (crates/ui/design/README.md), not a silent one.
 
 Only the rendered body is read - everything between `</helmet>` and the page's own
 `<script type="text/x-dc">` block - never that script block itself: it holds the page's
@@ -412,229 +429,337 @@ def shape_problems(pages: dict[str, Page]) -> tuple[str, ...]:
 
 
 # ---------------------------------------------------------------------------
-# Tier C: declared, out of reach, with a reason - see the module docstring
+# The schema: a closed description of the whole document's shape, position by
+# position - see the module docstring. This replaces every exclusion list this task
+# has tried before (a field tuple, then a prefix rule, then a name list) with the one
+# thing none of those were: a description that says what is *allowed* at each position,
+# so anything else there is refused by construction, not by a growing list of what to
+# ignore.
 # ---------------------------------------------------------------------------
 
-TIER_C_SKIPS: tuple[Skipped, ...] = (
-    # colours.track was here (no named row) until artifact version 1794796789-1b13,
-    # when the engineer added a track row to Tokens.dc.html's first colours table -
-    # track is now checked like every other colour (Tier A), no exception left.
-    #
-    # colour_aliases/opacities/ramps/motion are registered field by field, never as a
-    # whole-entry ancestor (`("colour_aliases", "blocked")` alone) - a review finding: a
-    # whole-entry ancestor silently swallows a stray new field nothing actually checks
-    # (the same bug fixed for colours in `unaccounted_names`). Each alias's one real
-    # field is its `ref`; each opacity's are `dark`/`light`; each ramp's are `stops` and,
-    # on "ramp" only, `caption_opacity`; motion's one entry's is `duration`.
-    Skipped(("colour_aliases", "blocked", "ref"), "a reference to ramp.5 amber, never drawn under its own name"),
-    Skipped(("colour_aliases", "done", "ref"), "a reference to ramp.6 green, never drawn under its own name"),
-    Skipped(("colour_aliases", "error", "ref"), "a reference to ramp.3 red, never drawn under its own name"),
-    Skipped(("opacities", "faint", "dark"), "drawn only in each page's own script-block colour variables (0.3/0.45), never under its own name"),
-    Skipped(("opacities", "faint", "light"), "drawn only in each page's own script-block colour variables (0.3/0.45), never under its own name"),
-    Skipped(("ramps", "ramp", "stops"), "the gradient is drawn; its per-stop percentages are only in the page's own script block"),
-    Skipped(("ramps", "ramp", "caption_opacity"), "50%/40% is in Rules prose with no name column"),
-    Skipped(("ramps", "ramp.extended", "stops"), "the gradient is drawn; its per-stop percentages are only in the page's own script block"),
-    Skipped(
-        ("tint",),
-        'drawn as Layout.dc.html\'s Track card row named "fill", not under the name "tint" - '
-        "and Layout.dc.html is out of scope entirely (its own text: \"values... are on the "
-        'first Foundations board"); see sizes.row.gap below',
-    ),
-    Skipped(("motion", "motion.status-fade", "duration"), "200ms is in Rules prose with no name column"),
-    Skipped(("focus_ring", "width"), "2px is in the Focus ring section's prose (\"A 2px ring in the session colour\"), no name column"),
-    Skipped(("focus_ring", "offset"), "2px clear of the control is in the Focus ring section's prose, no name column"),
-    Skipped(("focus_ring", "colour"), "the literal sentinel \"session\" (R26): the active session's own colour, assigned at runtime, not a fixed page form"),
-    Skipped(("focus_ring", "corner_radius_addition"), "derived (12px corner minus 8px corner); 4 never appears as a number on the page"),
-    # Per theme instance, not a "themes[]" wildcard: a generic leaf walk (unaccounted_names)
-    # has no way to collapse two theme instances into one pattern without re-introducing
-    # the per-section field list this registry exists to avoid - so each of the two
-    # themes' five prose-only fields has its own entry.
-    Skipped(("themes", "steg dark", "bg"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg dark", "fg"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg dark", "bg_inactive"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg dark", "selection"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg dark", "cursor"), "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
-    Skipped(("themes", "steg light", "bg"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg light", "fg"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg light", "bg_inactive"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg light", "selection"), "a trailing prose line per theme, not a named row"),
-    Skipped(("themes", "steg light", "cursor"), "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
-    # sizes.radius.surface/track/inner were here until the engineer asked for a small,
-    # reviewed name map instead (RADIUS_MAP below): each now checks its own number
-    # against Tokens.dc.html's one merged "radius" row (14/10/8).
-    Skipped(("sizes", "radius.round"), 'drawn as an unlabelled swatch ("fully round: chips of colour, bars"), no px number and no name at all'),
-    Skipped(("sizes", "row.gap"), "only on Layout.dc.html, out of scope entirely"),
-    Skipped(("sizes", "stack.gap"), "only on Layout.dc.html, out of scope entirely"),
-    Skipped(("sizes", "track.layout"), "only on Layout.dc.html, out of scope entirely"),
-    Skipped(("sizes", "split.layout"), "only on Layout.dc.html, out of scope entirely"),
-    Skipped(("sizes", "overlay.layout"), "only on Layout.dc.html, out of scope entirely"),
-    Skipped(("session_colour",), "a top-level pointer to the literal sentinel \"session\" (R26), not a fixed page form - same sentinel as each theme's cursor and focus_ring.colour"),
+
+@dataclass(frozen=True)
+class Checked:
+    """A position a named checking function inspects. `recurses=True` says that function's
+    own walk already covers everything beneath this position (Tier B/mapped values do,
+    via `_numbers_in`; `ansi_mismatches` does, for a theme's `ansi`) - terminal *by design*,
+    not because nobody described it further: a non-numeric field added inside such a
+    position is a known, accepted gap (crates/ui/design/README.md), not a silent one.
+    `page_row` names the page's row for a mapped entry, when it differs from the file key.
+    """
+
+    by: str
+    expected: type | tuple[type, ...] | None = None
+    recurses: bool = False
+    page_row: str | None = None
+
+
+@dataclass(frozen=True)
+class DeclaredUnseen:
+    """A position declared out of this tool's reach, and why (AC#3) - terminal: not
+    descended into further, whatever shape it holds.
+    """
+
+    reason: str
+    expected: type | tuple[type, ...] | None = None
+
+
+@dataclass(frozen=True)
+class Descriptive:
+    """A field that describes its sibling rather than being a value of its own - allowed
+    only at the specific positions the schema lists it, never assumed wherever the same
+    key spells the same (the review finding this replaces: `name`/`use`/`unit`/`ansi`/
+    `artifact_version`/`artifact_url` used to be excluded everywhere, so `focus_ring
+    ["ansi"]`, `colours[0]["unit"]` and `colours[0]["artifact_version"]` all passed).
+    """
+
+    reason: str
+
+
+@dataclass(frozen=True)
+class Fields:
+    """A dict position with exactly these keys - closed. A key in `optional` may be
+    absent; every other key in `fields` is required.
+    """
+
+    fields: dict[str, "Position"]
+    optional: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class NamedEntries:
+    """A list of dicts, each required to carry its own `name` - open to a new entry (the
+    design can add a new colour, size or theme), closed in each entry's own fields
+    (`entry`, a `Fields` that must itself list `"name"`, typically as `Descriptive`).
+    """
+
+    entry: Fields
+
+
+type Position = Checked | DeclaredUnseen | Descriptive | Fields | NamedEntries
+
+_NAME_FIELD = Descriptive("identifies the entry; the path already carries it")
+_USE_FIELD = Descriptive("prose describing the value beside it, never itself a value")
+_UNIT_FIELD = Descriptive("the measurement unit of the number beside it, never itself a value")
+
+_COLOUR_ENTRY = Fields({"name": _NAME_FIELD, "dark": Checked("colour_mismatches", expected=str), "light": Checked("colour_mismatches", expected=str), "use": _USE_FIELD})
+_COLOUR_ALIAS_ENTRY = Fields(
+    {"name": _NAME_FIELD, "ref": DeclaredUnseen("a reference to the ramp colour it names, never drawn under its own name", expected=dict), "use": _USE_FIELD}
+)
+_OPACITY_ENTRY = Fields(
+    {
+        "name": _NAME_FIELD,
+        "dark": DeclaredUnseen("drawn only in each page's own script-block colour variables, never under its own name", expected=(int, float)),
+        "light": DeclaredUnseen("drawn only in each page's own script-block colour variables, never under its own name", expected=(int, float)),
+        "use": _USE_FIELD,
+    }
+)
+_RAMP_ENTRY = Fields(
+    {
+        "name": _NAME_FIELD,
+        "use": _USE_FIELD,
+        "stops": DeclaredUnseen("the gradient is drawn; its per-stop percentages are only in the page's own script block", expected=list),
+        # Only "ramp" has caption_opacity; "ramp.extended" doesn't - optional, not a
+        # second entry schema, so one NamedEntries still describes the whole list.
+        "caption_opacity": DeclaredUnseen("50%/40% is in Rules prose with no name column", expected=dict),
+    },
+    optional=frozenset({"caption_opacity"}),
+)
+_MOTION_ENTRY = Fields(
+    {"name": _NAME_FIELD, "duration": DeclaredUnseen("200ms is in Rules prose with no name column", expected=(int, float)), "unit": _UNIT_FIELD, "use": _USE_FIELD}
+)
+_THEME_ENTRY = Fields(
+    {
+        "name": _NAME_FIELD,
+        "bg": DeclaredUnseen("a trailing prose line per theme, not a named row", expected=str),
+        "fg": DeclaredUnseen("a trailing prose line per theme, not a named row", expected=str),
+        "bg_inactive": DeclaredUnseen("a trailing prose line per theme, not a named row", expected=dict),
+        "selection": DeclaredUnseen("a trailing prose line per theme, not a named row", expected=str),
+        "cursor": DeclaredUnseen("the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form", expected=str),
+        # ansi belongs only here: checked structurally by ansi_mismatches, which reads
+        # theme["ansi"] and nowhere else - the schema says so explicitly, at this one
+        # position, rather than excluding the key "ansi" everywhere it might appear.
+        "ansi": Checked("ansi_mismatches", expected=dict, recurses=True),
+    }
 )
 
-
-def _skipped_colour_names() -> frozenset[str]:
-    """Every colour name `TIER_C_SKIPS` declares unseen as a whole - a 2-segment
-    `("colours", name)` entry, not the 3-segment `("colours", name, "dark"|"light")` form
-    every checked colour's own fields are registered under. None today: `track` was the
-    last one, closed at artifact version 1794796789-1b13.
-    """
-    return frozenset(skip.name[1] for skip in TIER_C_SKIPS if len(skip.name) == 2 and skip.name[0] == "colours")
-
-
-SKIPPED_COLOURS = _skipped_colour_names()
-
-# A page name deliberately absent from the file, exempted from the reverse direction.
-# Empty today: "radius" was here until RADIUS_MAP (below) gave it a real match instead
-# of an exemption - `reverse_missing`'s caller unions this with `RADIUS_MAP.values()`,
-# so a page row the map explains is matched, not merely excused.
-REVERSE_ALLOW_LIST: frozenset[str] = frozenset()
-
-# A file key whose page row is named differently from the key itself - a small, reviewed
-# map (the engineer's decision on TASK-1.96), not a general mechanism: Tokens.dc.html
-# merges three corner sizes into one row named "radius" ("14px panes and palette; 10px
-# tab track and session chips; 8px inside them"). sizes.radius.round has no number on the
-# page at all (TIER_C_SKIPS) and is deliberately not in this map.
-RADIUS_MAP = {
-    "radius.surface": "radius",
-    "radius.track": "radius",
-    "radius.inner": "radius",
+_TYPE_FIELDS: dict[str, Position] = {
+    "font.ui": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "font.terminal": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "terminal": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "ui.body": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "ui.small": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "ui.label": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "palette.input": Checked("sentence_mismatches", expected=dict, recurses=True),
 }
 
-# The 2-column file keys this tool checks by name + every number in the file's entry
-# (Tier B). Everything else under `type`/`sizes` is Tier C (see TIER_C_SKIPS) or simply
-# not drawn on a page this tool reads.
-TIER_B_NAMES = (
-    "font.ui",
-    "font.terminal",
-    "terminal",
-    "ui.body",
-    "ui.small",
-    "ui.label",
-    "palette.input",
-    "space",
-    "nav.side",
-    "nav.top",
-    "tab.width",
-    "pane.gap",
-    "pane.caption",
-    "palette",
-    "status.ring",
-    "scrim",
-)
+_SIZES_FIELDS: dict[str, Position] = {
+    "space": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "nav.side": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "nav.top": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "tab.width": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "pane.gap": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "pane.caption": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "palette": Checked("sentence_mismatches", expected=dict, recurses=True),
+    # The engineer's small, reviewed map: these three check against Tokens.dc.html's one
+    # merged "radius" row, not a row of their own.
+    "radius.surface": Checked("mapped_sentence_mismatches", expected=dict, recurses=True, page_row="radius"),
+    "radius.track": Checked("mapped_sentence_mismatches", expected=dict, recurses=True, page_row="radius"),
+    "radius.inner": Checked("mapped_sentence_mismatches", expected=dict, recurses=True, page_row="radius"),
+    "radius.round": DeclaredUnseen('drawn as an unlabelled swatch ("fully round: chips of colour, bars"), no px number and no name at all', expected=dict),
+    "status.ring": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "scrim": Checked("sentence_mismatches", expected=dict, recurses=True),
+    "row.gap": DeclaredUnseen("only on Layout.dc.html, out of scope entirely", expected=dict),
+    "stack.gap": DeclaredUnseen("only on Layout.dc.html, out of scope entirely", expected=dict),
+    "track.layout": DeclaredUnseen("only on Layout.dc.html, out of scope entirely", expected=dict),
+    "split.layout": DeclaredUnseen("only on Layout.dc.html, out of scope entirely", expected=dict),
+    "overlay.layout": DeclaredUnseen("only on Layout.dc.html, out of scope entirely", expected=dict),
+}
 
-
-# Fields that describe the value beside them rather than being one, or that another
-# mechanism already checks structurally - a small, universal, stated rule, applied by
-# `_leaf_paths` to every dict at every level; no section's field names are written into
-# this module as a list.
-_NOT_A_LEAF_PATH = frozenset(
+# The whole document, position by position. Nothing - not `TIER_C_SKIPS`, not
+# `TIER_B_NAMES`, not `RADIUS_MAP` - is written down a second time beside this: they are
+# all derived from it below, so the printed "not checked" list and `validate()`'s
+# refusals cannot disagree with each other.
+SCHEMA = Fields(
     {
-        "name",  # identifies the entry whose own name the path already carries
-        "use",  # prose describing the value beside it, never itself a value
-        "unit",  # the measurement unit of a number beside it, never itself a value
-        "ansi",  # each theme's 16 ANSI colours - checked structurally by
-        # `ansi_mismatches` (Tier A), not by this name-based registry
-        "artifact_version",  # this export's own provenance, not a design value
-        "artifact_url",  # same
+        "artifact_version": Descriptive("this export's own provenance, not a design value"),
+        "artifact_url": Descriptive("this export's own provenance, not a design value"),
+        "session_colour": DeclaredUnseen(
+            "a top-level pointer to the literal sentinel \"session\" (R26), not a fixed page form - same sentinel as each theme's cursor and focus_ring.colour",
+            expected=str,
+        ),
+        "colours": NamedEntries(_COLOUR_ENTRY),
+        "colour_aliases": NamedEntries(_COLOUR_ALIAS_ENTRY),
+        "opacities": NamedEntries(_OPACITY_ENTRY),
+        "ramps": NamedEntries(_RAMP_ENTRY),
+        "tint": DeclaredUnseen(
+            'drawn as Layout.dc.html\'s Track card row named "fill", not under the name "tint" - and Layout.dc.html is out of scope entirely '
+            '(its own text: "values... are on the first Foundations board"); see sizes.row.gap below',
+            expected=dict,
+        ),
+        # Every key under type/sizes is optional, not required: doc-17's own rule is that
+        # a value the design hasn't actually fixed is never guessed into this file
+        # (crates/ui/design/README.md, "What is deliberately not here") - this schema
+        # closes which keys are *allowed*, not how many of them must be present.
+        "type": Fields(_TYPE_FIELDS, optional=frozenset(_TYPE_FIELDS)),
+        "sizes": Fields(_SIZES_FIELDS, optional=frozenset(_SIZES_FIELDS)),
+        "motion": NamedEntries(_MOTION_ENTRY),
+        "themes": NamedEntries(_THEME_ENTRY),
+        "focus_ring": Fields(
+            {
+                "width": DeclaredUnseen("2px is in the Focus ring section's prose (\"A 2px ring in the session colour\"), no name column", expected=(int, float)),
+                "offset": DeclaredUnseen("2px clear of the control is in the Focus ring section's prose, no name column", expected=(int, float)),
+                "unit": _UNIT_FIELD,
+                "colour": DeclaredUnseen(
+                    "the literal sentinel \"session\" (R26): the active session's own colour, assigned at runtime, not a fixed page form", expected=str
+                ),
+                "corner_radius_addition": DeclaredUnseen("derived (12px corner minus 8px corner); 4 never appears as a number on the page", expected=(int, float)),
+            }
+        ),
     }
 )
 
 
-def _leaf_paths(value: object, path: tuple[str, ...]) -> list[tuple[str, ...]]:
-    """Every leaf path under `value`, walked generically from the data itself, as a tuple
-    of segments - one JSON key or entry name per segment, never split on an internal dot,
-    and never joined into a string for this function's own recursion:
+def _type_name(expected: type | tuple[type, ...]) -> str:
+    if isinstance(expected, type):
+        return expected.__name__
+    return " or ".join(kind.__name__ for kind in expected)
 
-    - a dict's keys become `(*path, key)` (skipping `_NOT_A_LEAF_PATH`, which also drops a
-      list entry's own `name` once it has been used as the next segment below);
-    - a non-empty list whose items are all dicts carrying their own `name` is a list of
-      named entries: one path per entry, `(*path, item["name"])` - `name` is used whole,
-      however many dots it contains (`motion`'s own entry is `"motion.status-fade"`, one
-      segment, not re-split), recursing into that entry's whole dict the same way;
-    - anything else reached this way - a scalar, a `{"ref": ...}` object, a plain list of
-      numbers or strings, or a list of un-named dicts - is one leaf at `path`.
+
+def validate(value: object, position: Position, path: tuple[str, ...] = ()) -> tuple[tuple[tuple[str, ...], str], ...]:
+    """Every `(path, reason)` problem found walking `value` against `position` - empty
+    when `value` matches the schema exactly: no key the schema doesn't name, no key the
+    schema requires but `value` lacks, and every terminal position's own type matches.
     """
-    if isinstance(value, dict):
-        found = []
-        for key, sub in value.items():
-            if key in _NOT_A_LEAF_PATH:
+    if isinstance(position, Fields):
+        if not isinstance(value, dict):
+            return ((path, f"expected an object, found {type(value).__name__}"),)
+        found: list[tuple[tuple[str, ...], str]] = []
+        for key, sub_value in value.items():
+            if key not in position.fields:
+                found.append((path + (key,), "not described by the schema"))
                 continue
-            found.extend(_leaf_paths(sub, (*path, key)))
-        return found
-    if isinstance(value, list) and all(isinstance(item, dict) and "name" in item for item in value):
-        # `all()` on an empty list is vacuously true - an empty list of named entries
-        # has zero of them, not one leaf for the empty container itself.
+            found.extend(validate(sub_value, position.fields[key], path + (key,)))
+        for key in position.fields:
+            if key not in position.optional and key not in value:
+                found.append((path + (key,), "missing: the schema requires it"))
+        return tuple(found)
+    if isinstance(position, NamedEntries):
+        if not isinstance(value, list):
+            return ((path, f"expected a list, found {type(value).__name__}"),)
         found = []
-        for item in value:
-            found.extend(_leaf_paths(item, (*path, item["name"])))
-        return found
-    return [path]
+        for index, item in enumerate(value):
+            if not (isinstance(item, dict) and isinstance(item.get("name"), str)):
+                found.append((path + (str(index),), 'a named-entries item must be an object with a string "name"'))
+                continue
+            found.extend(validate(item, position.entry, path + (item["name"],)))
+        return tuple(found)
+    # Checked / DeclaredUnseen / Descriptive - terminal: no further structure described.
+    expected = getattr(position, "expected", None)
+    if expected is not None and not isinstance(value, expected):
+        return ((path, f"expected {_type_name(expected)}, found {type(value).__name__}"),)
+    return ()
 
 
-def _is_accounted_for(path: tuple[str, ...], registered: frozenset[tuple[str, ...]]) -> bool:
-    """`path` is accounted for if it equals, or has as a *whole-segment* prefix, some path
-    in `registered`. Comparison is segment by segment, never on the joined string: `nav.
-    side` is one segment, so `("sizes", "nav.side.extra")` is never mistaken for a child
-    of `("sizes", "nav.side")` just because the joined strings happen to share a prefix (a
-    review finding this exists to fix - string-prefix matching let `sizes["palette.
-    footer"]`, `type["terminal.bold"]`, `sizes["nav.side.extra"]` and a ramp literally
-    named `"ramp.secondary"` all pass as "covered by" an unrelated registered name).
-
-    A whole-segment prefix is accounted for because the checking function that
-    registered name stands for already recurses the whole value under it (`_numbers_in`
-    sees every number under `("sizes", "nav.side")`, `ansi_mismatches` every ANSI colour)
-    - only a path with no covering ancestor at all is new.
+def schema_violations(data: dict) -> tuple[str, ...]:
+    """`validate(data, SCHEMA)`'s problems, formatted as `"<path>: <reason>"` strings for
+    `main()` to print and refuse on - run before any Tier A/B check, so a malformed shape
+    (a missing `name`, a `dark` that isn't a string) is a named refusal here, never a
+    `KeyError`/`AttributeError` three functions downstream.
     """
-    return any(path[: len(name)] == name for name in registered)
+    return tuple(f"{'.'.join(path)}: {reason}" for path, reason in validate(data, SCHEMA))
 
 
-def unaccounted_names(
-    data: dict,
-    skipped: frozenset[tuple[str, ...]] = frozenset(skip.name for skip in TIER_C_SKIPS),
-    checked: frozenset[str] = frozenset(TIER_B_NAMES) | frozenset(RADIUS_MAP),
-) -> tuple[str, ...]:
-    """Every leaf path in `data` with no covering name in `checked` or `skipped` - empty
-    when every leaf key is accounted for, one way or the other (a key added to the real
-    data file later and left off both shows up here, named exactly - joined with "." only
-    for the string this returns, never for the comparison that found it).
-
-    Discovery is generic: `_leaf_paths` walks `data` itself as tuples of segments, so a
-    field this module has never heard of is found regardless of where it sits, and a
-    name that merely shares a string prefix with a registered one is never mistaken for
-    its descendant (both were review findings on this task).
-
-    Accounting stays the explicit, reviewed registry this module already keeps
-    (`TIER_B_NAMES`/`RADIUS_MAP`/`TIER_C_SKIPS`): `checked`'s bare `type`/`sizes` keys are
-    translated to a `("type"|"sizes", key)` tuple by checking which of `data["type"]`/
-    `data["sizes"]` actually holds that key - read from the data, not asserted. A leaf
-    *inside* one of these whole values (e.g. a new number added inside `sizes.nav.side`)
-    is accounted for by that covering name, not flagged here, since `_numbers_in` already
-    recurses the whole value - nothing numeric there goes uninspected. A new *non-numeric*
-    field added the same way is not inspected either, and this function does not catch
-    that case: a known, accepted gap of the same shape as Tier B's own field-blindness,
-    not a silent one (crates/ui/design/README.md).
-
-    Every colour, colour alias, opacity, ramp and theme is registered field by field
-    (`("colours", name, "dark")`, never the whole-entry `("colours", name)`) - a review
-    finding: a blanket whole-entry ancestor silently swallowed a stray new field
-    (`colours[].contrast`) that nothing actually checks. Only the fields a checking
-    function reads, or that `TIER_C_SKIPS` names individually, are registered; anything
-    else on such an entry is unaccounted, even though the entry's own name is known.
+def _derive_tier_b_names() -> tuple[str, ...]:
+    """Every bare `type`/`sizes` key `SCHEMA` classifies `Checked("sentence_mismatches")`
+    - `sentence_mismatches` reads this list directly; see `SCHEMA` for the source.
     """
-    registered: set[tuple[str, ...]] = set(skipped)
-    for name in checked:
-        if name in data.get("type", {}):
-            registered.add(("type", name))
-        if name in data.get("sizes", {}):
-            registered.add(("sizes", name))
-    for colour in data.get("colours", []):
-        if colour["name"] not in SKIPPED_COLOURS:
-            registered.add(("colours", colour["name"], "dark"))
-            registered.add(("colours", colour["name"], "light"))
-    registered_frozen = frozenset(registered)
+    return tuple(
+        key for fields in (_TYPE_FIELDS, _SIZES_FIELDS) for key, position in fields.items() if isinstance(position, Checked) and position.by == "sentence_mismatches"
+    )
 
-    leaves = _leaf_paths(data, ())
-    return tuple(".".join(path) for path in leaves if not _is_accounted_for(path, registered_frozen))
+
+def _derive_radius_map() -> dict[str, str]:
+    """Every `sizes` key `SCHEMA` classifies `Checked("mapped_sentence_mismatches")`,
+    mapped to its `page_row` - `mapped_sentence_mismatches` reads this dict directly.
+    """
+    return {key: position.page_row for key, position in _SIZES_FIELDS.items() if isinstance(position, Checked) and position.by == "mapped_sentence_mismatches" and position.page_row}
+
+
+TIER_B_NAMES = _derive_tier_b_names()
+RADIUS_MAP = _derive_radius_map()
+
+# A page name deliberately absent from the file, exempted from the reverse direction.
+# Empty today: "radius" was here until RADIUS_MAP gave it a real match instead of an
+# exemption - `reverse_missing`'s caller unions this with `RADIUS_MAP.values()`, so a
+# page row the map explains is matched, not merely excused.
+REVERSE_ALLOW_LIST: frozenset[str] = frozenset()
+
+
+def declared_unseen(data: dict) -> tuple[Skipped, ...]:
+    """Every `DeclaredUnseen` position `SCHEMA` reaches in `data`, expanded to the real
+    entry names a `NamedEntries` list actually has - this is what `main()` prints on
+    every passing run (AC#3), derived from the one schema `validate()` also uses, so the
+    printed list and the refusal cannot disagree. Assumes `data` already matches `SCHEMA`
+    (call after `schema_violations` finds nothing).
+    """
+    found: list[Skipped] = []
+
+    def walk(value: object, position: Position, path: tuple[str, ...]) -> None:
+        if isinstance(position, DeclaredUnseen):
+            found.append(Skipped(path, position.reason))
+            return
+        if isinstance(position, (Checked, Descriptive)):
+            return
+        if isinstance(position, Fields):
+            for key, sub_position in position.fields.items():
+                if key in value:  # type: ignore[operator]
+                    walk(value[key], sub_position, path + (key,))  # type: ignore[index]
+            return
+        if isinstance(position, NamedEntries):
+            for item in value:  # type: ignore[union-attr]
+                walk(item, position.entry, path + (item["name"],))
+
+    walk(data, SCHEMA, ())
+    return tuple(found)
+
+
+def leaf_classification_counts(data: dict) -> dict[str, int]:
+    """How many genuine JSON leaves (recursing with no exclusions at all, all the way to
+    every scalar - the same exhaustive depth an independent test enumerator would reach)
+    fall under a `Checked`, `DeclaredUnseen` or `Descriptive` position of `SCHEMA` -
+    `{"checked": N, "declared_unseen": M, "descriptive": K}`.
+
+    A `recurses=True` `Checked`/any `DeclaredUnseen` position is terminal for
+    `validate()`, but every leaf actually reachable underneath still inherits its
+    classification here, so a test's own from-scratch, no-exclusions leaf count can be
+    checked against these three numbers for an exact match - the test this task's review
+    asked for: "every leaf it finds must be classified... the three counts add up".
+    """
+    counts = {"checked": 0, "declared_unseen": 0, "descriptive": 0}
+    label_by_position_type = {Checked: "checked", DeclaredUnseen: "declared_unseen", Descriptive: "descriptive"}
+
+    def exhaustive_leaf_count(value: object) -> int:
+        if isinstance(value, dict):
+            return len(value) and sum(exhaustive_leaf_count(sub) for sub in value.values()) or 1
+        if isinstance(value, list):
+            return len(value) and sum(exhaustive_leaf_count(item) for item in value) or 1
+        return 1
+
+    def walk(value: object, position: Position) -> None:
+        if isinstance(position, Fields):
+            for key, sub_position in position.fields.items():
+                if key in value:  # type: ignore[operator]
+                    walk(value[key], sub_position)  # type: ignore[index]
+            return
+        if isinstance(position, NamedEntries):
+            for item in value:  # type: ignore[union-attr]
+                walk(item, position.entry)
+            return
+        counts[label_by_position_type[type(position)]] += exhaustive_leaf_count(value)
+
+    walk(data, SCHEMA)
+    return counts
 
 
 # ---------------------------------------------------------------------------
@@ -643,13 +768,15 @@ def unaccounted_names(
 
 
 def colour_mismatches(file_colours: tuple[dict, ...], page: Page, page_name: str) -> tuple[Mismatch, ...]:
-    """Tier A, colours: every file colour (but `SKIPPED_COLOURS`) against its named page row."""
+    """Tier A, colours: every file colour against its named page row - all of them,
+    unconditionally: `SCHEMA`'s colour entry checks `dark`/`light` on every colour, with
+    no per-colour exception (the last one, `track`, closed at artifact version
+    `1794796789-1b13`).
+    """
     by_name = {row.name: row for row in page.colours}
     found = []
     for entry in file_colours:
         name = entry["name"]
-        if name in SKIPPED_COLOURS:
-            continue
         file_form = f"dark={entry['dark']} light={entry['light']}"
         page_row = by_name.get(name)
         if page_row is None:
@@ -959,10 +1086,13 @@ def main(argv: list[str] | None = None) -> int:
     if problems:
         return 1
 
-    unaccounted = unaccounted_names(data)
-    for name in unaccounted:
-        print(f"steg-design-check: {name} is neither checked nor declared unseen (TIER_C_SKIPS) - add it to one", file=sys.stderr)
-    if unaccounted:
+    # Validated against SCHEMA before any Tier A/B check runs: a malformed shape (a
+    # missing "name", a "dark" that isn't a string) is a named refusal here, never a
+    # KeyError/AttributeError three functions downstream.
+    violations = schema_violations(data)
+    for violation in violations:
+        print(f"steg-design-check: {violation}", file=sys.stderr)
+    if violations:
         return 1
 
     file_type = data.get("type", {})
@@ -1004,7 +1134,7 @@ def main(argv: list[str] | None = None) -> int:
     if mismatches or missing:
         return 1
 
-    checked_colours = len([c for c in data["colours"] if c["name"] not in SKIPPED_COLOURS])
+    checked_colours = len(data["colours"])
     checked_ansi = sum(len(theme["ansi"]) for theme in data["themes"])
     checked_sentences = len(TIER_B_NAMES) + len(RADIUS_MAP)
     tightened = sum(len(fields) for fields in FIELD_WORD_MAPS.values()) + len(RADIUS_WORD_MAP)
@@ -1015,7 +1145,7 @@ def main(argv: list[str] | None = None) -> int:
         f"field by tying it to the word that follows its number on the page; {tightened} fields are tightened "
         f"this way today, every other number in every Tier B/mapped entry is still only checked for presence"
     )
-    for skip in TIER_C_SKIPS:
+    for skip in declared_unseen(data):
         print(f"steg-design-check: not checked - {skip.display()}: {skip.reason}")
     return 0
 

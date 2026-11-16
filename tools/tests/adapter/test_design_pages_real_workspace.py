@@ -8,10 +8,11 @@ this check exists to validate is swapped for a controlled one).
 
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 from steg_tools import workspace
-from steg_tools.design_pages import RADIUS_MAP, TIER_B_NAMES, TIER_C_SKIPS, main, unaccounted_names
+from steg_tools.design_pages import SCHEMA, declared_unseen, leaf_classification_counts, main, schema_violations, validate
 
 
 def real_data_path() -> Path:
@@ -113,96 +114,99 @@ def test_the_tools_passing_output_names_the_field_blind_caveat(capsys: object) -
     assert "field-blind" in captured.out
 
 
-def test_every_leaf_key_of_the_real_data_file_is_checked_or_declared_unseen() -> None:
+def test_the_real_data_file_matches_schema_exactly() -> None:
     data = json.loads(real_data_path().read_text())
-    assert unaccounted_names(data) == ()
+    assert validate(data, SCHEMA) == ()
 
 
-def test_removing_a_declared_unseen_entry_makes_that_key_unaccounted(tmp_path: Path) -> None:
-    # Required negative control: a declared-unseen entry removed, the key it covered
-    # must show up as unaccounted, not fall through silently.
+# --- Round 4 (@bruk.r1): the exclusion list (name/use/unit/ansi/artifact_version/
+# artifact_url) was applied at every position, not only where its own reason held, so
+# `focus_ring["ansi"]`, `colours[0]["unit"]` and `colours[0]["artifact_version"]` all
+# passed unseen. The reviewer's own reproductions, against the real file.
+
+
+def test_focus_rings_ansi_is_refused_the_exclusion_no_longer_applies_everywhere() -> None:
+    # ansi is Checked/recurses only inside a theme entry - focus_ring's own Fields
+    # schema has no "ansi" key at all, so it is refused there like any other stray key.
     data = json.loads(real_data_path().read_text())
-    skipped_without_one = frozenset(skip.name for skip in TIER_C_SKIPS) - {("session_colour",)}
-    found = unaccounted_names(data, skipped=skipped_without_one)
-    assert found == ("session_colour",)
+    data["focus_ring"]["ansi"] = {"black": "#000"}
+    found = schema_violations(data)
+    assert any(violation.startswith("focus_ring.ansi:") for violation in found)
 
 
-# --- Review findings. Round 2 (@bruk.r5): unaccounted_names must discover fields from
-# the data itself at every level the file has, not from a fixed tuple written in the
-# tool. Round 3 (@bruk.r1 again): "accounted for" compared joined strings, and the data
-# file's own keys contain dots (font.ui, nav.side, radius.surface, ramp.extended), so a
-# name that merely *extends* a registered one as a string was swallowed unchecked; and a
-# whole-entry ancestor (colours, aliases, opacities, ramps, themes) silently covered any
-# stray field, not only the ones actually checked. One test per level/case named across
-# both rounds: top level, inside `sizes` directly, inside a theme, inside `focus_ring`,
-# a new list entry, a dotted-name collision at three different depths, a new ramp whose
-# own name extends an existing one, and a stray field on an existing colour/alias/
-# opacity/ramp. "Inside a size's group" (a new *numeric* field added inside an existing
-# checked whole value such as `nav.side`) is its own pair of tests, with the reasoning
-# for why the numeric case is not refused and the non-numeric case is a documented gap.
+def test_a_colours_unit_field_is_refused() -> None:
+    # "unit" describes a number beside it (focus_ring's, a size's) - it is not one of a
+    # colour entry's four allowed fields (name, dark, light, use) at all.
+    data = json.loads(real_data_path().read_text())
+    data["colours"][0]["unit"] = "hex"
+    found = schema_violations(data)
+    assert any(violation.startswith(f"colours.{data['colours'][0]['name']}.unit:") for violation in found)
 
 
-def test_a_new_top_level_key_is_refused(tmp_path: Path) -> None:
+def test_a_colours_artifact_version_field_is_refused() -> None:
+    # artifact_version is this export's own top-level provenance field - not allowed
+    # inside a colour entry, which has no such field either.
+    data = json.loads(real_data_path().read_text())
+    data["colours"][0]["artifact_version"] = "bogus"
+    found = schema_violations(data)
+    assert any(violation.startswith(f"colours.{data['colours'][0]['name']}.artifact_version:") for violation in found)
+
+
+def test_sizes_nav_sides_use_field_is_not_refused_a_documented_terminal_gap_not_a_regression() -> None:
+    # The review's own fourth example (sizes["nav.side"]["use"]) is cited alongside the
+    # three above as evidence the *old* unconditional exclusion was unsound - but
+    # sizes.nav.side is Checked(recurses=True) under the new schema (a Tier B whole
+    # value, terminal by design, the same gap this review's own "everything else passed
+    # cleanly" section explicitly declines to re-litigate for a numeric field). A stray
+    # "use" here is not inspected by anything, same as any other non-numeric field added
+    # inside an already-checked group - a known, accepted gap, not a silent one.
+    data = json.loads(real_data_path().read_text())
+    data["sizes"]["nav.side"]["use"] = "not a value anything checks"
+    assert validate(data, SCHEMA) == ()
+
+
+# --- Earlier rounds' reproductions, re-run against the real file to prove they still hold.
+
+
+def test_a_new_top_level_key_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
     data["glow_colour"] = "#ffffff"
-    assert unaccounted_names(data) == ("glow_colour",)
+    assert schema_violations(data) == ("glow_colour: not described by the schema",)
 
 
-def test_a_new_key_directly_inside_sizes_is_refused(tmp_path: Path) -> None:
+def test_a_new_key_directly_inside_sizes_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
     data["sizes"]["new_group"] = {"value": 5, "unit": "px"}
-    assert unaccounted_names(data) == ("sizes.new_group.value",)
+    found = schema_violations(data)
+    assert any(violation.startswith("sizes.new_group:") for violation in found)
 
 
-def test_a_new_field_inside_a_theme_is_refused_exactly_like_the_reviewers_reproduction() -> None:
-    # The review's own reproduction (@bruk.r5): themes[0]["underline"] = "#fff" on a
-    # scratch copy used to print "ok" and exit 0. Reproduced here against the real file,
-    # not a fixture, so the fix is proven against what was actually broken.
+def test_a_new_field_inside_a_theme_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
     assert data["themes"][0]["name"] == "steg dark"
     data["themes"][0]["underline"] = "#fff"
-    assert unaccounted_names(data) == ("themes.steg dark.underline",)
+    found = schema_violations(data)
+    assert any(violation.startswith("themes.steg dark.underline:") for violation in found)
 
 
-def test_a_new_field_inside_focus_ring_is_refused_exactly_like_the_reviewers_reproduction() -> None:
-    # The review's other reproduction: focus_ring["glow"] = 3.
+def test_a_new_field_inside_focus_ring_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
     data["focus_ring"]["glow"] = 3
-    assert unaccounted_names(data) == ("focus_ring.glow",)
+    found = schema_violations(data)
+    assert any(violation.startswith("focus_ring.glow:") for violation in found)
 
 
 def test_a_new_entry_in_a_list_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
     data["colour_aliases"].append({"name": "warning", "ref": {"ref": "ramp.5 amber"}, "use": "x"})
-    found = unaccounted_names(data)
-    assert "colour_aliases.warning.ref.ref" in found
+    assert validate(data, SCHEMA) == ()  # a well-formed new alias is fine - open to a new entry
 
 
-def test_a_new_numeric_field_inside_an_existing_checked_group_is_accounted_for_by_its_ancestor() -> None:
-    # Chosen reading of "inside a size's group" (ambiguous in the review's paraphrase;
-    # the review's own literal reproduction only covers themes[]/focus_ring, tested
-    # above). sizes.nav.side is already a covered whole value (TIER_B_NAMES); a new
-    # *numeric* field added inside it is accounted for by that covering name, because
-    # sentence_mismatches' _numbers_in already recurses the whole value and would check
-    # this number for presence on the page - nothing numeric there goes uninspected. Not
-    # the same as "undetectable": see the next test for the gap this leaves.
+def test_a_new_entry_in_a_list_with_an_unknown_field_is_refused() -> None:
     data = json.loads(real_data_path().read_text())
-    data["sizes"]["nav.side"]["new_measurement"] = 999
-    assert unaccounted_names(data) == ()
-
-
-def test_a_new_non_numeric_field_inside_an_existing_checked_group_is_a_known_accepted_gap() -> None:
-    # The flip side of the test above, stated so it is a documented limit, not a silent
-    # one: a non-numeric field inside an already-covered group is not inspected by
-    # _numbers_in either, and unaccounted_names does not catch it (it is still "inside"
-    # a covering ancestor). crates/ui/design/README.md says this plainly.
-    data = json.loads(real_data_path().read_text())
-    data["sizes"]["nav.side"]["alias"] = "a string _numbers_in never looks at"
-    assert unaccounted_names(data) == ()
-
-
-# --- Round 3 (@bruk.r1): the reviewer's four dotted-name reproductions, and the
-# colour/alias/opacity/ramp field-blindness, reproduced against the real file.
+    data["colour_aliases"].append({"name": "warning", "ref": {"ref": "ramp.5 amber"}, "use": "x", "weight": 2})
+    found = schema_violations(data)
+    assert any(violation.startswith("colour_aliases.warning.weight:") for violation in found)
 
 
 def test_a_key_that_merely_extends_an_existing_sizes_key_as_a_string_is_refused() -> None:
@@ -212,7 +216,8 @@ def test_a_key_that_merely_extends_an_existing_sizes_key_as_a_string_is_refused(
     data = json.loads(real_data_path().read_text())
     assert "palette" in data["sizes"] and "palette.footer" not in data["sizes"]
     data["sizes"]["palette.footer"] = {"value": 1, "unit": "px"}
-    assert unaccounted_names(data) == ("sizes.palette.footer.value",)
+    found = schema_violations(data)
+    assert any(violation.startswith("sizes.palette.footer:") for violation in found)
 
 
 def test_a_key_that_merely_extends_an_existing_type_key_as_a_string_is_refused() -> None:
@@ -220,8 +225,8 @@ def test_a_key_that_merely_extends_an_existing_type_key_as_a_string_is_refused()
     data = json.loads(real_data_path().read_text())
     assert "terminal" in data["type"] and "terminal.bold" not in data["type"]
     data["type"]["terminal.bold"] = {"weight": 700, "unit": "px"}
-    found = unaccounted_names(data)
-    assert "type.terminal.bold.weight" in found
+    found = schema_violations(data)
+    assert any(violation.startswith("type.terminal.bold:") for violation in found)
 
 
 def test_a_key_that_extends_a_key_which_itself_contains_a_dot_is_refused() -> None:
@@ -231,23 +236,24 @@ def test_a_key_that_extends_a_key_which_itself_contains_a_dot_is_refused() -> No
     data = json.loads(real_data_path().read_text())
     assert "nav.side" in data["sizes"] and "nav.side.extra" not in data["sizes"]
     data["sizes"]["nav.side.extra"] = {"value": 1, "unit": "px"}
-    assert unaccounted_names(data) == ("sizes.nav.side.extra.value",)
+    found = schema_violations(data)
+    assert any(violation.startswith("sizes.nav.side.extra:") for violation in found)
 
 
 def test_a_new_ramp_whose_name_extends_an_existing_ones_name_is_refused() -> None:
-    # The reviewer's reproduction: a ramp named "ramp.secondary" - "ramp" is declared
-    # unseen; "ramp.secondary" is an unrelated entry that happens to start with "ramp".
+    # The reviewer's reproduction: a ramp named "ramp.secondary" - a well-formed new
+    # entry is fine (NamedEntries is open); an *unknown field* on it is what's refused.
     data = json.loads(real_data_path().read_text())
     assert not any(ramp["name"] == "ramp.secondary" for ramp in data["ramps"])
-    data["ramps"].append({"name": "ramp.secondary", "use": "x", "stops": [{"stop": 0}]})
-    found = unaccounted_names(data)
-    assert "ramps.ramp.secondary.stops" in found
+    data["ramps"].append({"name": "ramp.secondary", "use": "x", "stops": [{"stop": 0}], "weight": 1})
+    found = schema_violations(data)
+    assert any(violation.startswith("ramps.ramp.secondary.weight:") for violation in found)
 
 
 def test_a_stray_field_on_an_existing_colour_alias_opacity_or_ramp_is_refused() -> None:
     # The reviewer's reproduction, one per kind: each entry is registered field by field
     # (dark/light for a colour; ref for an alias; dark/light for an opacity; stops/
-    # caption_opacity for a ramp) - a field beyond those is unaccounted even though the
+    # caption_opacity for a ramp) - a field beyond those is refused even though the
     # entry's own name is known, since nothing actually checks it.
     data = json.loads(real_data_path().read_text())
     for entry in data["colours"]:
@@ -263,106 +269,45 @@ def test_a_stray_field_on_an_existing_colour_alias_opacity_or_ramp_is_refused() 
         if entry["name"] == "ramp":
             entry["intensity"] = 2
 
-    found = unaccounted_names(data)
-    assert "colours.surface.ground.contrast" in found
-    assert "colour_aliases.blocked.weight" in found
-    assert "opacities.faint.blur" in found
-    assert "ramps.ramp.intensity" in found
+    found = schema_violations(data)
+    assert any(violation.startswith("colours.surface.ground.contrast:") for violation in found)
+    assert any(violation.startswith("colour_aliases.blocked.weight:") for violation in found)
+    assert any(violation.startswith("opacities.faint.blur:") for violation in found)
+    assert any(violation.startswith("ramps.ramp.intensity:") for violation in found)
 
 
-# --- Property-style tests. The round 3 review explicitly required the leaves these
-# iterate to come from an enumeration *independent* of the tool's own walker
-# (`design_pages._leaf_paths`), written here from scratch, so a bug in that walker alone
-# cannot be masked by the test sharing it.
-
-_INDEPENDENT_EXCLUDED_FIELDS = frozenset({"name", "use", "unit", "ansi", "artifact_version", "artifact_url"})
-
-
-def _independent_leaf_paths(value: object, path: tuple[str, ...] = ()) -> list[tuple[str, ...]]:
-    """A from-scratch leaf-path walker, not importing or calling anything from
-    `steg_tools.design_pages` - written to the same rules stated in this task's review
-    (a dict's keys are segments, minus the stated descriptive/structural exclusions; a
-    list of dicts each with a `name` is a list of named entries, one path per entry,
-    recursing; anything else is one leaf), but as its own independent few lines.
-    """
-    if isinstance(value, dict):
-        paths = []
-        for key, sub in value.items():
-            if key in _INDEPENDENT_EXCLUDED_FIELDS:
-                continue
-            paths.extend(_independent_leaf_paths(sub, (*path, key)))
-        return paths
-    if isinstance(value, list) and all(isinstance(item, dict) and "name" in item for item in value):
-        paths = []
-        for item in value:
-            paths.extend(_independent_leaf_paths(item, (*path, item["name"])))
-        return paths
-    return [path]
-
-
-def _covers(leaf: tuple[str, ...], name: tuple[str, ...]) -> bool:
-    return leaf[: len(name)] == name
-
-
-def _real_registry(data: dict) -> tuple[frozenset[tuple[str, ...]], frozenset[tuple[str, ...]]]:
-    """The real `skipped` (as tuples) and the real `checked`-derived full-path registry
-    (type/sizes bare names translated to their section, colours registered field by
-    field) - built the same way `unaccounted_names` builds it, so the property tests
-    remove exactly what the function itself would consider removable.
-    """
-    skipped = frozenset(skip.name for skip in TIER_C_SKIPS)
-    checked_full: set[tuple[str, ...]] = set()
-    for bare in frozenset(TIER_B_NAMES) | frozenset(RADIUS_MAP):
-        if bare in data.get("type", {}):
-            checked_full.add(("type", bare))
-        if bare in data.get("sizes", {}):
-            checked_full.add(("sizes", bare))
-    for colour in data["colours"]:
-        checked_full.add(("colours", colour["name"], "dark"))
-        checked_full.add(("colours", colour["name"], "light"))
-    return skipped, frozenset(checked_full)
-
-
-def test_property_removing_any_declared_unseen_entry_flags_every_leaf_it_alone_covered() -> None:
-    """For every `TIER_C_SKIPS` entry, and every real leaf (from the independent
-    enumeration above) it covers: if no other registered name also covers that leaf,
-    removing the entry makes the tool name that leaf exactly.
-    """
+def test_declared_unseen_against_the_real_file_lists_every_entry_with_a_reason() -> None:
     data = json.loads(real_data_path().read_text())
-    leaves = _independent_leaf_paths(data)
-    skipped, checked_full = _real_registry(data)
-    registered = skipped | checked_full
-    exercised = 0
-    for skip_name in skipped:
-        covered = [leaf for leaf in leaves if _covers(leaf, skip_name)]
-        for leaf in covered:
-            others = registered - {skip_name}
-            if any(_covers(leaf, other) for other in others):
-                continue  # another name still covers it - not this entry's to prove
-            exercised += 1
-            found = unaccounted_names(data, skipped=skipped - {skip_name})
-            assert ".".join(leaf) in found, f"removing {skip_name!r} should have named {leaf!r}, got {found!r}"
-    assert exercised > 0, "no TIER_C_SKIPS entry was uniquely responsible for a real leaf - test would be vacuous"
+    found = declared_unseen(data)
+    assert len(found) > 0
+    assert all(skip.reason.strip() for skip in found)
 
 
-def test_property_removing_any_checked_entry_flags_every_leaf_it_alone_covered() -> None:
-    """Same property, for the "checked" half: every `TIER_B_NAMES`/`RADIUS_MAP` entry
-    that uniquely covers a real leaf, removed, makes the tool name that leaf.
-    """
+def test_removing_a_declared_unseen_entry_makes_that_key_unaccounted() -> None:
+    # Required negative control: with "session_colour" struck from SCHEMA entirely, it
+    # is refused as unknown rather than silently accepted.
     data = json.loads(real_data_path().read_text())
-    leaves = _independent_leaf_paths(data)
-    skipped, checked_full = _real_registry(data)
-    registered = skipped | checked_full
-    bare_checked = frozenset(TIER_B_NAMES) | frozenset(RADIUS_MAP)
-    exercised = 0
-    for bare in bare_checked:
-        full_names = [("type", bare), ("sizes", bare)]
-        covered = [leaf for leaf in leaves if any(_covers(leaf, full) for full in full_names)]
-        for leaf in covered:
-            others = registered - set(full_names)
-            if any(_covers(leaf, other) for other in others):
-                continue
-            exercised += 1
-            found = unaccounted_names(data, checked=bare_checked - {bare})
-            assert ".".join(leaf) in found, f"removing {bare!r} should have named {leaf!r}, got {found!r}"
-    assert exercised > 0, "no checked entry was uniquely responsible for a real leaf - test would be vacuous"
+    reduced_fields = {key: value for key, value in SCHEMA.fields.items() if key != "session_colour"}
+    reduced_schema = replace(SCHEMA, fields=reduced_fields)
+    found = validate(data, reduced_schema)
+    assert any(path == ("session_colour",) and "not described" in reason for path, reason in found)
+
+
+def test_leaf_classification_counts_add_up_to_the_real_files_own_leaf_count() -> None:
+    # The arithmetic the review asked for: every leaf an exhaustive, no-exclusions
+    # enumeration finds is classified as exactly one of checked/declared_unseen/
+    # descriptive - nothing falls through uncounted.
+    data = json.loads(real_data_path().read_text())
+
+    def exhaustive(value: object) -> int:
+        if isinstance(value, dict):
+            return (value and sum(exhaustive(sub) for sub in value.values())) or 1
+        if isinstance(value, list):
+            return (value and sum(exhaustive(item) for item in value)) or 1
+        return 1
+
+    counts = leaf_classification_counts(data)
+    assert sum(counts.values()) == exhaustive(data)
+    assert counts["checked"] > 0
+    assert counts["declared_unseen"] > 0
+    assert counts["descriptive"] > 0

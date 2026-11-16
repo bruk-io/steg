@@ -62,60 +62,78 @@ darkening.
 
 `tools/src/steg_tools/design_pages.py` (`just check-design`) compares this file against
 `design/canvas/project/{Tokens,Details}.dc.html`'s rendered markup, by name and value,
-in both directions. Its own passing output lists what it did not check and why
-(`TIER_C_SKIPS`, printed on every run) - this section is the short version:
+in both directions.
 
-- Every colour (18 of 18) and every ANSI colour (32) are checked exactly: name and both
-  hex forms must match, or it refuses, naming the value and both forms.
-- 16 `type`/`sizes` entries, plus the three corner sizes (`radius.surface`/`track`/
-  `inner`, via a small reviewed map to the page's one merged `radius` row) are checked
-  by name, but **by default only as a set of numbers**: a sentence such as
-  `tab.width`'s "120px usual, 240px at most, 72px at least" is checked for "every number
-  in the file's entry is present somewhere in this sentence", not for which number
-  belongs to which field. Two of an entry's own fields swapped (its numbers unchanged,
-  just attached to the wrong field) is **not** caught by this weaker check alone.
-  `FIELD_WORD_MAPS`/`RADIUS_WORD_MAP` tighten specific fields where the page's own
-  sentence ties a number to a distinguishing word right after it (`tab.width`'s three
-  fields all tighten this way; most other entries have at least one field that does not,
-  because its word comes before the number instead of after, or shares a clause with
-  another number - those fields stay on the weaker set check, which the tool's own
-  passing output says plainly every time it runs).
-- Everything else named in this file - `colour_aliases`, `opacities`, `ramps` (including
-  `ramp.caption_opacity`), `tint`, `motion.status-fade`, `focus_ring.width`/`offset`/
-  `colour`/`corner_radius_addition`, `session_colour`, each theme's `bg`/`fg`/
-  `bg_inactive`/`selection`/`cursor`, and every `sizes` key that lives only on
-  Layout.dc.html - is declared out of this tool's reach, each with its own reason, not
-  silently passed over.
-- This is enforced generically, not by a list of field names written into the tool - two
-  review findings fixed this, the second after the first: `unaccounted_names` used to
-  enumerate `themes[]`/`focus_ring` from a fixed tuple, invisible to a field not already
-  in it (adding `focus_ring.glow` or a new field to one theme passed silently); and once
-  that was fixed, "accounted for" still compared *joined* dotted strings, which this
-  file's own keys defeat - `font.ui`, `nav.side`, `radius.surface` and `ramp.extended`
-  are each one real key that happens to contain a literal dot, so `sizes["palette.
-  footer"]`, `sizes["nav.side.extra"]`, a new `type["terminal.bold"]`, and a ramp
-  literally named `"ramp.secondary"` all passed as "covered by" an unrelated registered
-  name. `unaccounted_names` now walks the data file's own structure
-  (`design_pages.py`'s `_leaf_paths`) as tuples of segments, comparing whole segments
-  only, never a joined string - printing still joins with "." for people to read, never
-  for the comparison that found the gap.
-- A leaf *inside* an already-checked `type`/`sizes` whole value (say, a new number added
-  inside `sizes.nav.side`) is accounted for by that covering name, not flagged
-  separately - `sentence_mismatches`' own number-walk already recurses the whole value,
-  so nothing numeric there goes uninspected. A new *non-numeric* field added the same way
-  is **not** inspected either way - a known, accepted gap of the same shape as the
-  field-blindness above, not a silent one. This does **not** extend to colours, colour
-  aliases, opacities or ramps: a third review finding found a blanket whole-entry
-  ancestor (`("colours", name)`) silently covering a stray field nothing actually checks
-  (`contrast` on a colour, say) - each of these is registered field by field instead
-  (a colour's `dark`/`light`; an alias's `ref`; an opacity's `dark`/`light`; a ramp's
-  `stops` and, on `"ramp"` only, `caption_opacity`), so a field beyond those is
-  unaccounted even though the entry's own name is known.
-- Tests enumerate every leaf path of the real file this way, from an enumeration written
-  independently of the tool's own walker (so a bug in one cannot be masked by the other
-  sharing it), and assert each one is checked or declared unseen, so a genuinely new key
-  - at any level, under any name, however it happens to spell - cannot fall through both
-  silently.
-- Agreement between this file and a page proves nothing about whether a value is part
-  of the *confirmed* design (see "What is deliberately not here", above) - this tool is
-  a consistency check between two documents, not a substitute for reading doc-10.
+**This file's own shape is closed.** `design_pages.py`'s `SCHEMA` describes the document
+position by position - at the top level, these keys and no others; under `colours`, a
+list open to a new entry but each entry closed to exactly `name`/`dark`/`light`/`use`;
+under `sizes`, these named groups; and so on, for every section. `validate()` walks the
+real file against `SCHEMA` and refuses any key at any position the schema doesn't name,
+naming its path - there is no exclusion list and no prefix rule involved, so a stray key
+cannot pass because it happens to share a name, or a string prefix, with something the
+schema does describe elsewhere. `just check-design` runs this before anything else, so a
+malformed shape (a colour missing `name`, a `dark` that isn't a string) is a named
+refusal, never a crash.
+
+This task tried three narrower mechanisms first, and a review found each one's blind
+spot in turn: a fixed tuple of field names to look at (invisible to a field not already
+in it); a string-prefix "is this covered by that" test (defeated by this file's own keys
+containing literal dots - `font.ui`, `nav.side`, `radius.surface`, `ramp.extended` - so
+`sizes["palette.footer"]` passed as "covered by" the unrelated `palette`); and a fixed
+exclusion list (`name`/`use`/`unit`/`ansi`/`artifact_version`/`artifact_url`) applied at
+every position regardless of whether that position's own reason for excluding it held -
+so `focus_ring["ansi"]`, `colours[0]["unit"]` and `colours[0]["artifact_version"]` all
+passed, because the exclusion never checked *where* it was being applied. `SCHEMA`
+replaces all three: `name`/`use`/`unit`/`ansi` are allowed only at the specific positions
+that actually list them (a theme's `ansi`, not `focus_ring`'s; a colour's `use`, not a
+`unit` field it doesn't have at all).
+
+What the schema classifies each position as:
+
+- **Checked.** Every colour (18 of 18) and every ANSI colour (32): name and both hex
+  forms must match, or the tool refuses, naming the value and both forms. 16 `type`/
+  `sizes` entries, plus the three corner sizes (`radius.surface`/`track`/`inner`, via a
+  small reviewed map to the page's one merged `radius` row) are checked by name, but **by
+  default only as a set of numbers**: a sentence such as `tab.width`'s "120px usual, 240px
+  at most, 72px at least" is checked for "every number in the file's entry is present
+  somewhere in this sentence", not for which number belongs to which field. Two of an
+  entry's own fields swapped (its numbers unchanged, just attached to the wrong field) is
+  **not** caught by this weaker check alone. `FIELD_WORD_MAPS`/`RADIUS_WORD_MAP` tighten
+  specific fields where the page's own sentence ties a number to a distinguishing word
+  right after it (`tab.width`'s three fields all tighten this way; most other entries
+  have at least one field that does not, because its word comes before the number
+  instead of after, or shares a clause with another number) - those fields stay on the
+  weaker set check, which the tool's own passing output says plainly every time it runs.
+
+  A Tier B/mapped position, and a theme's `ansi`, is terminal *by design*: the schema
+  doesn't describe what's inside `sizes.nav.side` field by field, because the checking
+  function that position names already recurses the whole value (`_numbers_in` sees
+  every number under it; `ansi_mismatches` every ANSI colour). A new *numeric* field
+  added inside one is still inspected; a new *non-numeric* field the same way is a known,
+  accepted gap of the same shape as the field-blindness above, not a silent one.
+
+- **Declared unseen.** Everything else named in this file - `colour_aliases`,
+  `opacities`, `ramps` (`stops` and, on `"ramp"` only, `caption_opacity`), `tint`,
+  `motion.status-fade`, `focus_ring.width`/`offset`/`colour`/`corner_radius_addition`,
+  `session_colour`, each theme's `bg`/`fg`/`bg_inactive`/`selection`/`cursor`, and every
+  `sizes` key that lives only on Layout.dc.html - is declared out of this tool's reach,
+  each with its own reason, printed on every passing run, not silently passed over.
+  Every colour, colour alias, opacity and ramp is registered field by field (a colour's
+  `dark`/`light`; an alias's `ref`; an opacity's `dark`/`light`; a ramp's `stops` and,
+  on `"ramp"` only, `caption_opacity`) - a stray field beyond those on an otherwise-known
+  entry (`contrast` on a colour, say) is refused, not swallowed by the entry's name
+  being known.
+
+- **Descriptive.** `name`, `use` and `unit` only at the specific positions that have
+  them (a colour's `use`, not `unit`, which it has no such field for at all), plus the
+  two top-level export-provenance fields, `artifact_version`/`artifact_url`.
+
+A test enumerates every leaf path of the real file from an enumeration written
+independently of `SCHEMA` (so a bug in one cannot be masked by the other sharing it) and
+asserts each one is classified checked, declared unseen or descriptive by the tool - the
+three counts must add up to the leaf count the test found on its own, so a key that
+falls through all three silently breaks the arithmetic, not just a missed assertion.
+
+Agreement between this file and a page proves nothing about whether a value is part of
+the *confirmed* design (see "What is deliberately not here", above) - this tool is a
+consistency check between two documents, not a substitute for reading doc-10.

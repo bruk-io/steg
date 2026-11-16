@@ -1,7 +1,8 @@
 //! The tree: every session, tab and pane a server owns (doc-15, R85).
 
 use steg_sdk::{
-    ClientId, ClientKind, Direction, PaneId, PaneKind, Program, Ratio, SessionId, Size, TabId,
+    ClientId, ClientKind, Direction, Layout, PaneId, PaneKind, Program, Ratio, SessionId, Size,
+    TabId,
 };
 
 use crate::client::Client;
@@ -719,6 +720,22 @@ impl Tree {
             .tab_by_id(tab)
             .ok_or(Error::TabNotFound(tab))?
             .shown_status(now))
+    }
+
+    /// `tab`'s layout tree (R95; `TabRecord.layout`, TASK-1.89) - a thin
+    /// wrapper over [`Tab::layout`], which stays `pub(crate)`: everything
+    /// else that needs a leaf's position already goes through `Tab`'s own
+    /// direction/order methods instead, so this is the one place outside
+    /// the kernel that needs the whole tree, the same reason
+    /// [`Tree::tab_shown_status`] wraps [`Tab::shown_status`] instead of
+    /// making it public directly.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::TabNotFound`] if the tree holds no tab with that
+    /// id.
+    pub fn tab_layout(&self, tab: TabId) -> Result<&Layout, Error> {
+        Ok(self.tab_by_id(tab).ok_or(Error::TabNotFound(tab))?.layout())
     }
 
     /// The soonest moment some pane's status will end on its own, with no
@@ -3937,6 +3954,30 @@ mod tests {
 
         assert_eq!(
             tree.tab_shown_status(unknown, moment(0)),
+            Err(crate::error::Error::TabNotFound(unknown))
+        );
+    }
+
+    #[test]
+    fn tab_layout_returns_the_tabs_own_layout_tree() {
+        let mut tree = Tree::new();
+        let session_id = tree.new_session(None).unwrap();
+        let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+        let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
+
+        assert_eq!(
+            tree.tab_layout(tab_id),
+            Ok(&steg_sdk::Layout::Pane(first))
+        );
+    }
+
+    #[test]
+    fn tab_layout_on_an_unknown_tab_errors() {
+        let tree = Tree::new();
+        let unknown = steg_sdk::TabId::from_raw(999);
+
+        assert_eq!(
+            tree.tab_layout(unknown),
             Err(crate::error::Error::TabNotFound(unknown))
         );
     }

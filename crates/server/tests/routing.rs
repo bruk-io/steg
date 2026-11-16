@@ -390,6 +390,88 @@ fn a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_a
     stop_server(&stop, handle);
 }
 
+/// TASK-1.89's own proof item: "the lists and shows over a real socket
+/// with the sdk's client" - `tab.list`, `tab.show` and `pane.list`, each
+/// answered through a real connection and a real `Connection` doing its
+/// own encoding/decoding, not just the in-process `dispatch` calls
+/// `dispatch.rs`'s own tests already cover.
+#[test]
+fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let (_, response) =
+        call_and_read_reply(&mut stream, &mut connection, "session.new", Map::new());
+    let session = match response {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("session.new failed: {error:?}"),
+    };
+    let session_id = session["id"].as_str().unwrap().to_string();
+
+    let mut show_params = Map::new();
+    show_params.insert("target".to_string(), json!(session_id));
+    let (_, response) =
+        call_and_read_reply(&mut stream, &mut connection, "session.show", show_params);
+    let shown = match response {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("session.show failed: {error:?}"),
+    };
+    let tab_id = shown["current_tab"].as_str().unwrap().to_string();
+
+    let mut list_params = Map::new();
+    list_params.insert("target".to_string(), json!(session_id));
+    let (_, response) =
+        call_and_read_reply(&mut stream, &mut connection, "tab.list", list_params);
+    let tabs = match response {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("tab.list failed: {error:?}"),
+    };
+    let tabs = tabs.as_array().unwrap();
+    assert_eq!(tabs.len(), 1);
+    assert_eq!(tabs[0]["id"], json!(tab_id));
+    assert_eq!(tabs[0]["position"], json!(1));
+
+    // A bare tab id needs this connection's own session context to
+    // resolve, which this socket-only connection has none of
+    // (`dispatch/lookup.rs`'s own missing-context refusal) - the full
+    // `session/tab` path resolves with no context at all.
+    let mut tab_show_params = Map::new();
+    tab_show_params.insert(
+        "target".to_string(),
+        json!(format!("{session_id}/{tab_id}")),
+    );
+    let (_, response) =
+        call_and_read_reply(&mut stream, &mut connection, "tab.show", tab_show_params);
+    let tab = match response {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("tab.show failed: {error:?}"),
+    };
+    assert_eq!(tab["id"], json!(tab_id));
+    let current_pane = tab["current_pane"].as_str().unwrap().to_string();
+
+    let mut pane_list_params = Map::new();
+    pane_list_params.insert(
+        "target".to_string(),
+        json!(format!("{session_id}/{tab_id}")),
+    );
+    let (_, response) = call_and_read_reply(
+        &mut stream,
+        &mut connection,
+        "pane.list",
+        pane_list_params,
+    );
+    let panes = match response {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("pane.list failed: {error:?}"),
+    };
+    let panes = panes.as_array().unwrap();
+    assert_eq!(panes.len(), 1);
+    assert_eq!(panes[0]["id"], json!(current_pane));
+    assert_eq!(panes[0]["kind"], json!("terminal"));
+
+    stop_server(&stop, handle);
+}
+
 // --- AC #1: a frame over the cap, post-handshake --------------------------
 
 #[test]

@@ -23,7 +23,8 @@ pub(crate) use api::resolve as resolve_api_call;
 pub(crate) use kernel_error::map_kernel_error;
 pub(crate) use lookup::{
     find_tab, pane_mut, param_bool, param_i64, param_present, param_str, resolve_pane_str,
-    resolve_tab_str, tab_mut, target_pane, target_session, target_tab, wire_position_to_index,
+    resolve_tab_str, tab_mut, tab_position, target_pane, target_session, target_tab,
+    wire_position_to_index,
 };
 pub use outcome::Outcome;
 
@@ -155,9 +156,10 @@ pub fn dispatch(
     description: &Description,
     context: &Context,
     request: &Request,
+    now: steg_kernel::Moment,
 ) -> Response {
     if request.method == "api.call" {
-        return api::call(tree, settings, description, context, request);
+        return api::call(tree, settings, description, context, request, now);
     }
 
     if let Err(error) = validate(description, request) {
@@ -174,10 +176,10 @@ pub fn dispatch(
             session::dispatch(tree, context, request, verb)
         }
         (noun, verb) if tab::HANDLED.contains(&(noun, verb)) => {
-            tab::dispatch(tree, context, request, verb)
+            tab::dispatch(tree, context, request, verb, now)
         }
         (noun, verb) if pane::HANDLED.contains(&(noun, verb)) => {
-            pane::dispatch(tree, context, request, verb)
+            pane::dispatch(tree, context, request, verb, now)
         }
         (noun, verb) if api::HANDLED.contains(&(noun, verb)) => {
             api::dispatch(description, request, verb)

@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:27:00Z'
+updated_date: '2026-11-16T03:40:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -21,10 +22,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1b39eee49ff0'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review", "testing"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r3
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -439,6 +439,47 @@ created: 2026-11-16T03:27:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.97: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:40:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at head 34311bf51cd9e5b8822faad05aff3573fbe3778d (matches PR 53's head; PR's CI is green at this head, run https://github.com/bruk-io/steg/actions/runs/43797888831, 3m35s; the task's own recorded `just check` is also at this head, and I reran `just check` myself in a fresh worktree at this head - green, including "tool tests (11.7s)" and "architecture (0.7s)").
+
+Verified the fix for @bruk.r2's prior Important finding (P9/mid-exchange untested): the refactor extracts `summary_from_command(argv, *, startup_timeout, timeout)` out of `read_project_summary`, which is now a thin wrapper passing both bounds through unchanged and building the identical `npx` argv (byte-for-byte the same list as before the refactor). The two new tests in `tools/tests/functional/test_likec4_mcp_phased_timeout.py` drive a real fake child process (`python -c`, never a real likec4 server - that stays `tests/adapter/test_likec4_mcp_smoke.py`'s job): one that never replies (reaches the "to start" branch) and one that replies once then hangs (reaches "mid-exchange", only reachable after `first` is set False by a successfully consumed first line). Both deterministic (bounded `queue.get`, no sleep standing in for a condition), ~10.4s combined only because of the pre-existing 5s `wait(timeout=5)` grace period in the unchanged `finally` block before `kill()` - not new, and not a flaw in these tests' own bounds (0.2s/5.0s).
+
+I repeated the negative control myself: collapsed the phase-naming/two-bound branch to one generic message in a scratch edit - both new tests failed for the stated reason (`AssertionError: ... Actual message: 'likec4 mcp did not answer within 0.2s'`), then reverted (`git status --short` clean after). This is the same branch the first review found unproven; it is now proven.
+
+Child cleanup (Bugs pass, since a process is started): the `finally` block (close stdin -> `wait(timeout=5)` -> `kill()` on timeout) is unchanged by this diff and runs on every path - success, each timeout, and any exception - confirmed with `ps` after running the new tests and after the real adapter test's blocked-registry pair (none left). `kill()` isn't followed by a second `wait()`, so a killed child could zombie until the parent exits, but that's pre-existing, not introduced here, and out of this task's scope.
+
+Repeated the deterministic blocked-registry pair on this head directly against the real pinned server (`tests/adapter/test_likec4_mcp_smoke.py`): `.npmrc` moved aside, warm cache, registry blocked (closed-port HTTP(S)_PROXY) - failed at "likec4 mcp did not answer (to start) within 60.0s", 65.04s wall, matching the first review's numbers; `.npmrc` restored - passed in 0.64s. That test isn't in the diff's stat against main, so it still asserts exactly what it did before. Cleaned up after: proxy vars were command-scoped (none left in env), `git status --short` clean, no likec4/npx process left.
+
+`summary_from_command` being public matches the module's existing convention (`take_replies`, `parse_project_summary` are also public with callers in both the module and its tests) - nothing newly exposed that shouldn't be.
+
+Taxonomy (testing-python.md only names unit/adapter for this repo's Python tools, but the team's testing.md and this repo's existing `tools/tests/functional/test_gallery_check.py` establish `functional` as the right layer for "behaviour, with the outside world faked at the boundary" - a fake child process at the process boundary, not a mock of the code under test): `functional` is the right place and name; the `_phased_timeout` suffix is load-bearing (distinguishes it from the pre-existing, unrelated `tests/unit/test_likec4_mcp.py`, whose colliding basename with an earlier draft of this file caused the recorded "import file mismatch" failure now fixed by this name).
+
+P5 (check-architecture) drop reason confirmed sound: same `.npmrc`, same cwd-root `prefer-offline` resolution, same mechanism as P2/P3; this head's CI shows "architecture (1.6s)" right after a genuine cache miss on the warm step, which is the stronger version of the same confirmation.
+
+Read `.github/workflows/ci.yml` and `mise.toml` in full in the review worktree (not just hunks): step order is Rust confirm -> mise install (Zig+Node) -> Zig confirm -> Node confirm -> uv setup -> npm cache-dir lookup -> cache restore -> warm step -> just/cargo-deny install -> cargo-cache -> just check -> just test-all (push only). Matches the notes; nothing removed or reordered since the first review (ci.yml's only change since 1e63d7b is the step-name/comment nit fix below).
+
+Both nits from the first review are fixed as described: the docstring now says the 70s unreachable-registry figure predates the `.npmrc` fix (well under a second with it present); `ci.yml`'s mise-install step is renamed "Install the pinned Zig and Node (mise.toml)" with a comment naming the Node pin.
+
+One new nit: `likec4_mcp.py`'s `summary_from_command` docstring says "`tests/functional/test_likec4_mcp.py` is the other one" (the fake-child caller) - that file doesn't exist. The real file, deliberately renamed to avoid the collision recorded in this task's own notes (03:19:30 "import file mismatch" between `functional/test_likec4_mcp.py` and the pre-existing `unit/test_likec4_mcp.py`), is `tests/functional/test_likec4_mcp_phased_timeout.py`. A stale pointer, not a behaviour change - Nit per review.md's wording skip, with the "would make a reader or a model do the wrong thing" carve-out: a reader following it finds nothing, or a model recreating it reintroduces the same collision.
+
+Every proof item P2-P9 has a recorded run or a named-and-sound drop reason (P5, unchanged from the first review); P9 is no longer dropped, replaced by the two tests above and their negative control, which the task's notes correctly say supersedes the earlier (wrong) drop claim.
+
+`--plan-matched no`: the diff since the plan's approval includes a file the plan doesn't name (`tools/tests/functional/test_likec4_mcp_phased_timeout.py`) and a refactor (extracting `summary_from_command` to take `argv`) that item 5 didn't specify, both added in response to the first review's finding rather than the plan's own order of work. The notes explain this fully and it's the right fix, but the flag records the departure regardless of the explanation, per its own wording.
+
+No drafts filed: `asdlc board draft list --plain` shows no open drafts, and this review's one finding (the stale docstring path) isn't a repeat of a mistake an earlier review cited - it's new.
+
+Cleanup: worktree left clean (`git status --short` empty), no likec4/npx processes left, no proxy env vars left set.
 
 ---
 <!-- COMMENTS:END -->

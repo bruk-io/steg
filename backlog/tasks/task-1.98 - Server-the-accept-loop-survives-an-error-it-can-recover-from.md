@@ -428,3 +428,9 @@ outside the repository - confirmed with `git status` on the task's own worktree
 immediately after, which showed nothing changed. It did not touch
 `rust-toolchain.toml`, any `Cargo.toml`/`Cargo.lock`, or anything else tracked.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (040e19a11fea) checked against the four acceptance criteria, doc-8 R1 and R99 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised once at the orchestrator's request: the stop flag is checked in both recoverable arms before classifying (a stop during an exhaustion storm ends the server within one backoff), with its own proof and control; criterion 2 is proven with a real fatal error (the listener's descriptor replaced by a non-socket in the fixture's own process, ENOTSOCK, shown feasible by a probe) and is no longer dropped unless that fails once built; a recoverable error is reported as a ConnectionEvent variant, with no static counter; criterion 3's control is a recorded run against the test as built. For the engineer: the reporting choice (event, recommended, or a test-only counter), and that nothing is printed until the binary consumes events.
+<!-- SECTION:NOTES:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:45:00Z'
+updated_date: '2026-11-16T02:46:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -205,6 +205,35 @@ ok      build (steg-app) (0.4s)
 ok      test (steg-app) (0.5s)
 ok      tool tests (1.9s)
 ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:46:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at dcbeaf2d3b83:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (5.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

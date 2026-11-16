@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T09:06:00Z'
+updated_date: '2026-11-16T09:07:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -444,4 +444,6 @@ No `Cargo.toml` dependency change, no `boundaries.toml` change, no `unsafe`.
 
 <!-- SECTION:NOTES:BEGIN -->
 Carried from TASK-1.77's planning (2026-11-15): when a server is stopping, a connection the accept loop takes in the instant it sees the stop flag is dropped with no reply, so the client sees connect succeed and then end of file, a third outcome beside refused and not found. The idle stop is what makes that instant reachable in ordinary use: this task's fourth criterion (a client connecting as the server stops starts a fresh one) must cover it, either by closing that window in the server or by proving the client's handling.
+
+Plan (7161104a6d7b) checked against the four acceptance criteria, doc-8 R3 and R99, doc-16 and the team's testing rules by @bruk.o, 2026-11-16: ok, with one decision for the engineer. Revised twice at the orchestrator's request: no periodic wake-up (the checker blocks while a client or a session exists and waits exactly to the deadline otherwise); one thread and one channel (the Runtime notifies the checker when a session closes with no client connected, which the kernel's cascade on a pane's exit can do); the join bound derived from where each sender is dropped, with a test and its control. For the engineer: criterion 4's exact-instant case (a connection accepted and then closed before a hello) cannot be observed by anything built yet; the plan proves the ordinary case with real processes and proposes the rest as a criterion on TASK-1.49, the first client that reads a hello. Nit for the build: SessionCountChanged is not a connection's event; a name for the enum that covers both is worth a line.
 <!-- SECTION:NOTES:END -->

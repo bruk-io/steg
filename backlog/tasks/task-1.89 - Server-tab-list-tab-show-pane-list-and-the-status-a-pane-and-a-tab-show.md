@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:03:00Z'
+updated_date: '2026-11-16T05:05:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -459,6 +459,44 @@ test every_described_method_gets_a_response_with_no_panic ... ok
 test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
 
 test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Check FAILED: `cargo test -p steg-server --test dispatch -- a_finished_status_expires_through_dispatch_at_the_ten_minute_mark` exited 101 at 2026-11-16T05:05:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89/crates/server)
+warning: unused variable: `now`
+  --> crates/server/src/dispatch/pane.rs:83:66
+   |
+83 | fn record_for(tree: &Tree, tab_id: steg_sdk::TabId, pane: &Pane, now: Moment) -> PaneRecord {
+   |                                                                  ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-a3fcf474f697b99f)
+
+running 1 test
+test a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not ... FAILED
+
+failures:
+
+---- a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not stdout ----
+
+thread 'a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not' (23998301) panicked at crates/server/tests/dispatch.rs:1128:5:
+assertion `left == right` failed: R83: finished ends after ten minutes
+  left: String("finished")
+ right: Null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:02:00Z'
+updated_date: '2026-11-16T14:09:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1052,6 +1052,46 @@ ok      ui colours (0.0s)
 ```
 
 Built the approved plan in full: the worker-thread tick (ServerConfig.attach_tick, arms only when output is pending and an attachment exists), PaneCommand::Attach/Arm/Detach with per-tick fan-out and bounded-queue back-pressure (drop-and-resync, never block), pane.attach/pane.detach as described API methods on TASK-1.46's merged Returns::Nested/Follows vocabulary, connection.rs's interception before the generic dispatch path implementing decision-2 section 3's ordering rule, and a ConnectionCleanup sweep for attachments left open on disconnect. Checks recorded: just check green before and after the final rebase onto origin/main (format, lint, boundaries, licences, all affected crate tests, tool tests, architecture model, recipe names). New integration suite crates/server/tests/attach.rs (5 tests) plus 11 unit tests in pane.rs's attach_tests and extended sdk vocabulary/completeness tests - every proof has a negative control run by hand and reverted, including two real test-harness confounds found and fixed (a silently-swallowed Incoming::UnknownStream, and queue/OS-buffer saturation masking a disabled detach mechanism). PR: https://github.com/bruk-io/steg/pull/62
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::no_attachments_never_arms` exited 101 at 2026-11-16T14:09:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused variable: `attachments`
+   --> crates/server/src/pane.rs:956:5
+    |
+956 |     attachments: &[Attachment],
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_attachments`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::no_attachments_never_arms ... FAILED
+
+failures:
+
+---- pane::attach_tests::no_attachments_never_arms stdout ----
+
+thread 'pane::attach_tests::no_attachments_never_arms' (40114863) panicked at crates/server/src/pane.rs:1897:9:
+assertion `left == right` failed
+  left: Some(Instant { tv_sec: 228169, tv_nsec: 212650750 })
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::no_attachments_never_arms
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

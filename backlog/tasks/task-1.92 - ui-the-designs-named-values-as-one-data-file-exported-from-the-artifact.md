@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:31:00Z'
+updated_date: '2026-11-16T01:32:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -260,6 +260,31 @@ Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-co
 
 ```text
 OK: all 18 colours' names and both hex values found in design/canvas/project/Tokens.dc.html
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:32:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

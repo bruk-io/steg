@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T04:32:00Z'
+updated_date: '2026-11-16T04:34:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -245,4 +245,29 @@ just drop the stale TASK-1.42 half of its citation.
   building - split off, per this plan's own top section. `session.focus` building -
   still blocked on TASK-1.46; its reworded message is covered by reading the diff, not
   a test, since there is no behaviour change to assert on.
+
+## Update: ownership clarified with the team lead (TASK-1.46/events)
+
+- `session.focus` is not mine: it is an event addressed to one client, owned by the
+  new events task split from TASK-1.46. Dropped from "Files that change"/"Order of
+  work": `crates/server/src/dispatch/session.rs`'s `focus` arm is left untouched,
+  stale TASK-1.42 citation and all - the task that owns it fixes the citation when it
+  builds the arm. Said here so the reviewer does not look for that edit; it is a
+  deliberate drop, not an oversight.
+- `TabRecord`'s field names (`id`, `label`, `title`, `position`, `current_pane`,
+  `layout`, `shown_status`) are the shape TASK-1.46's own nested-tree snapshot embeds
+  directly - it now depends on this task for the record instead of defining its own.
+  Nothing changes in this plan's own design for that reason: the names already matched
+  `SessionRecord`/`PaneRecord`'s own convention before this note, so the dependency
+  only raises the cost of renaming later, not the shape itself.
+- `cwd` (`PaneRecord`) and `title` (`PaneRecord`, `TabRecord`): both are read on demand
+  from the tree at the moment of the request, never cached and nothing polls for a
+  change. `cwd` is `Program::cwd()`, the directory the program *started* in - the live
+  directory a real OSC 7 reports is a different, I/O-backed value `PaneHandle` holds
+  (`runtime.rs`'s own `resolve_default_cwd`), never this pure record's business. `title`
+  is always `None`, on both records: no part of the kernel's tree holds one yet, and
+  this task adds no background watch for one. TASK-1.46's plan assumes the server
+  notices neither a live directory nor a live title changing - this task's own fields
+  hold that assumption already, for the same underlying reason (dispatch is pure, no
+  I/O), and this note makes it explicit rather than leaving it to be inferred.
 <!-- SECTION:PLAN:END -->

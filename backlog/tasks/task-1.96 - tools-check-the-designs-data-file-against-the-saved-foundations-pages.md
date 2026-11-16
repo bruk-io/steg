@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T04:38:00Z'
+updated_date: '2026-11-16T04:54:00Z'
 labels:
   - size-2
   - changes-requested
@@ -599,6 +599,23 @@ TASK-1.94's shared steg_tools.foundations.read() (now merged) covers colours/opa
 Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked) - only the printed field-level breakdown for colour_aliases/opacities/ramps changed; full text in the PR description.
 
 PR: https://github.com/bruk-io/steg/pull/54 (head a304d37, CI green).
+
+Check FAILED: `sh -c 'cd tools && uv run --project . python "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-exclusion-list-negative-control.py" "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-pre-schema-design-pages.py" ../crates/ui/design/foundations.json'` exited 1 at 2026-11-16T04:54:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at a304d37220d9 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpbPWTk7` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+baseline (unmodified real file) unaccounted: ()
+focus_ring['ansi'] = {...}: OLD (exclusion-list) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed focus_ring['ansi'] = {...}
+colours[0]['unit'] = 'hex': OLD (exclusion-list) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed colours[0]['unit'] = 'hex'
+sizes['nav.side']['use'] = '...': OLD (exclusion-list) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed sizes['nav.side']['use'] = '...'
+colours[0]['artifact_version'] = 'bogus': OLD (exclusion-list) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed colours[0]['artifact_version'] = 'bogus'
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

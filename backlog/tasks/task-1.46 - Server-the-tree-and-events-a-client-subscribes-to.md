@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:40:00Z'
+updated_date: '2026-11-16T15:41:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1487,6 +1487,53 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.03s
 
 error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-16T15:41:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        Duration::from_millis(300),
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46/crates/server/tests/events.rs:613:
+     // tab, which was the source session's last, so the source session
+     // closes too.
+     let mut move_params = Map::new();
+[31m-    move_params.insert(
+(B[m[31m-        "target".to_string(),
+(B[m[31m-        json!(format!("{source_session}/1/1")),
+(B[m[31m-    );
+(B[m[32m+    move_params.insert("target".to_string(), json!(format!("{source_session}/1/1")));
+(B[m     move_params.insert("to".to_string(), json!(format!("{target_session}/1")));
+[31m-    let response = call(&mut client_stream, &mut client_connection, "pane.move", move_params);
+(B[m[32m+    let response = call(
+(B[m[32m+        &mut client_stream,
+(B[m[32m+        &mut client_connection,
+(B[m[32m+        "pane.move",
+(B[m[32m+        move_params,
+(B[m[32m+    );
+(B[m     assert!(matches!(response, Response::Ok(_)), "{response:?}");
+ 
+     let first = read_event(&mut sub_stream, &mut sub_connection);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46/crates/server/tests/events.rs:628:
+         panic!("expected session.closed second, got {second:?}");
+     };
+     assert_eq!(id.to_string(), source_session);
+[31m-    assert_nothing_arrives_within(&mut sub_stream, &mut sub_connection, Duration::from_millis(300));
+(B[m[32m+    assert_nothing_arrives_within(
+(B[m[32m+        &mut sub_stream,
+(B[m[32m+        &mut sub_connection,
+(B[m[32m+        Duration::from_millis(300),
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
 ```
 
 Commits since the review: 0.

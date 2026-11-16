@@ -1,15 +1,18 @@
 ---
 id: TASK-1.91
 title: 'ui: the steg-ui package, its boundary, and the gallery'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:32:00Z'
+updated_date: '2026-11-16T01:37:00Z'
 labels:
   - size-3
 milestone: m-4
 dependencies: []
+references:
+  - task-1.91-ui-the-steg-ui-package-its-boundary-and
+  - https://github.com/bruk-io/steg/pull/48
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -333,6 +336,82 @@ ok      tool tests (1.0s)
 ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ```
+
+Built as planned (digest f7b4047abc0d), no departures.
+
+AC#1 (boundary): crates/ui (steg-ui) exists with the five folders doc-17 gives,
+each level a doc-comment-only placeholder. boundaries.toml: new [steg-ui]
+(allow = ["gpui"]) and [steg-app] gains "steg-ui", each with its reason;
+crates/app/Cargo.toml depends on it. Negative control run live: a scratch
+steg-sdk dependency on steg-ui was refused by `steg-boundaries` quoting the
+[steg-ui] reason, then reverted before committing.
+
+AC#2 (gallery window + switch): gallery/main.rs is a [[bin]] of steg-ui (not
+an example or a separate crate - reasoning on the task's plan). Opens a real
+GPUI window with one placeholder, theme set by STEG_GALLERY_THEME (light/dark,
+case-insensitive, unrecognised/unset falls back to light) and toggled live by
+`t`. 5 unit tests on the pure parsing/toggling logic (cargo test -p steg-ui).
+Ran it directly for both themes and screenshotted each (CGWindowID capture) to
+confirm the placeholder and the switch actually render distinctly before
+building the recipe around the same mechanism.
+
+AC#3 (capture): `just capture-gallery` launches the binary twice
+(STEG_GALLERY_THEME=light, then dark), finds each window's CGWindowID
+(crates/ui/gallery/window_id.swift - pid lookup, no Accessibility permission),
+captures with `screencapture -l<id>`, and checks each PNG with
+`steg-gallery-check` (tools/src/steg_tools/gallery.py, stdlib-only PNG
+decoder) before calling it done - a wrong or blank capture fails the recipe
+with a message naming Screen Recording permission, rather than reaching a
+pull request. Ran the real recipe end to end: both images produced, both
+checks passed, and the negative control (checked light.png against dark's
+expected colour) failed with that exact message. 6 unit tests + 2 functional
+tests (tmp_path, real file I/O) on the checker itself, including its own
+negative control (a desktop-coloured pixel must not pass as the gallery's
+placeholder). Confirmed no leftover `gallery` process after every run
+(`pgrep`/`ps aux`, clean each time - the recipe's `trap ... EXIT` on every
+tracked pid). Neither this recipe nor `run-gallery` is reachable from `just
+check`; ci.yml has no TCC accommodation, matching the plan's finding that
+GitHub's hosted macOS runner cannot grant Screen Recording unattended. Both
+images attached to the PR via `gh pr comment --attach` (real
+user-attachments URLs, not placeholders) and linked from the PR body.
+
+AC#4 (architecture + affected tool): new
+architecture/models/steg/app/ui-pkg.c4 (component `ui`, no #shared - built
+into one container) plus one edge (appPkg -> ui) in that container's
+_relationships.c4; `views/steg/packages.c4` needed no edit (`include
+steg.app.*` already pulls in every child - checked by reading it, not
+assumed). `likec4 validate architecture` passes. The affected-crates tool
+(tools/src/steg_tools/affected.py) needed no code change - it's generic over
+`cargo metadata` - but tools/tests/adapter/test_affected_real_workspace.py's
+hardcoded five-crate expectation did, and now asserts, against the real
+workspace: a change under crates/ui alone selects `-p steg-app -p steg-ui`
+(positive), and a change under crates/app alone selects only `-p steg-app`,
+not steg-ui (negative control for the one-directional dependency) - stronger
+and more durable than a manual touch-and-revert probe, so that's what stands
+as the proof rather than a throwaway manual run. `check-packages`'s hardcoded
+crate loop gained steg-ui.
+
+Checks recorded on this task: `just check` at the pre-rebase head (exit 0,
+all 21 steps ok) and again at the post-rebase head 90c7a99 (exit 0, same).
+CI (https://github.com/bruk-io/steg/actions/runs/43786853386) passed in
+3m58s against that same head - watched to completion in the foreground, not
+backgrounded. pytest tools/tests: 60 passed (51 pre-existing + 9 new: 6 unit
++ 2 functional for the gallery checker, 1 unit-suite addition folded into the
+existing file's count via the edited adapter test).
+
+Rebase onto origin/main (never pushed before, so rebase not merge) brought in
+two unrelated board-only commits (a check record on TASK-1.77, then after a
+second fetch also one on TASK-1.78 and TASK-1.92) - no code, no conflicts.
+TASK-1.92's own commits add crates/ui/design/ alongside this task's crates/ui/
+tree; nothing in this diff touches that path, so no interaction expected, but
+flagging since the task description named it as the known adjacent landing.
+
+One thing not in the original plan, caught by the first `just check` run
+racing with an early edit (both editing Cargo.toml's members list at
+overlapping times - noted here since it's a plan-time gap, not a build
+mistake): tools/tests/adapter/test_affected_real_workspace.py's hardcoded
+five-crate assertion wasn't on the plan's file list. Fixed as part of AC#4
+(see above); no behaviour change beyond what the plan already called for.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

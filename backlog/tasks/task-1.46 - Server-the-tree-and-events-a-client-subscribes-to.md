@@ -11,8 +11,7 @@ labels:
 milestone: m-3
 dependencies:
   - TASK-1.45
-  - TASK-1.42
-  - TASK-1.41
+  - TASK-1.89
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

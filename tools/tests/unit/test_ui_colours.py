@@ -169,6 +169,35 @@ def test_violations_refuses_a_call_with_a_non_literal_argument_with_nothing_to_s
     assert found == (Violation(file.path, 1, "rgb(c)", ()),)
 
 
+# --- violations with a genuine alpha: the second review's finding -----------------------
+
+
+def test_violations_treats_an_rgba_call_with_ff_alpha_as_an_opaque_match() -> None:
+    # ff (fully opaque) carries no "translucent" meaning - the ordinary wording applies.
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b21ff); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgba(0x1c1b21ff)", (("surface.raised", "dark"),), None),)
+
+
+def test_violations_carries_a_genuine_alpha_as_a_rounded_percentage() -> None:
+    # 0x80 = 128/255 ~= 50.2%, rounded to 50 - the reviewer's own example.
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b2180); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50),)
+
+
+def test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", 'fn f() -> &\'static str { "#1c1b2180" }\n')
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, '"#1c1b2180"', (("surface.raised", "dark"),), 50),)
+
+
+def test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0xabcdef80); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgba(0xabcdef80)", (), 50),)
+
+
 # --- formatting --------------------------------------------------------------------------
 
 
@@ -183,6 +212,28 @@ def test_format_violation_lists_two_matching_names() -> None:
     message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x3d3b45", (("outline", "dark"), ("track", "dark"))))
     assert "outline" in message
     assert "track" in message
+
+
+def test_format_violation_names_the_opacity_and_does_not_say_use_that_value_instead() -> None:
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50))
+    assert "R120" in message
+    assert "surface.raised" in message
+    assert "50%" in message
+    assert "faint" in message and "tint" in message and "caption_opacity" in message and "scrim" in message
+    assert "use that named value instead" not in message
+
+
+def test_format_violation_uses_the_ordinary_wording_for_a_match_with_no_alpha() -> None:
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "0x1c1b21", (("surface.raised", "dark"),), None))
+    assert "use that named value instead" in message
+    assert "%" not in message
+
+
+def test_format_violation_says_plainly_when_nothing_matches_even_with_an_alpha() -> None:
+    # No name to combine opacity language with - the plain "no match" wording applies.
+    message = format_violation(Violation("crates/ui/src/atoms/button.rs", 5, "rgba(0xabcdef80)", (), 50))
+    assert "No foundations value" in message
+    assert "%" not in message
 
 
 def test_format_violation_says_plainly_when_nothing_matches() -> None:

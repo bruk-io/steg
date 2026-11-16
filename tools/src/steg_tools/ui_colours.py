@@ -21,12 +21,21 @@ caught there, at its one true source.
 
 `rgb`/`rgba`'s own argument, when it is itself a hex literal, is read back out and
 matched against foundations the same way a bare hex is - `rgb(0x3d3b45)` names the same
-colour as a bare `0x3d3b45` would, and must match the same names. An 8-digit `rgba`
-argument's trailing two digits are alpha, which foundations' colours don't carry, so
-they're dropped before matching: `rgba(0x3d3b45ff)` matches on `3d3b45`, the same as
-`rgb(0x3d3b45)`. A call whose argument isn't itself a literal (a variable, an
-expression) is still refused as a colour constructor call outside foundations - there's
-simply no name to suggest for it.
+colour as a bare `0x3d3b45` would, and must match the same names. A call whose argument
+isn't itself a literal (a variable, an expression) is still refused as a colour
+constructor call outside foundations - there's simply no name to suggest for it.
+
+An 8-digit value's trailing two digits are alpha. When alpha is `ff` (fully opaque) or
+absent (a 6-digit value has none to begin with), it's dropped before matching and the
+message reads as if it were never there - `rgba(0x3d3b45ff)` matches the same names
+`rgb(0x3d3b45)` does. Any other alpha is a genuinely different colour from the opaque
+one it's compared against - `rgba(0x1c1b2180)` is `surface.raised` at roughly half
+strength, not `surface.raised` itself, and saying "use that named value instead" would
+be wrong: the opaque named colour isn't a fix for a translucent literal. The message
+instead says what it actually is (the matching colour's name, and the alpha byte as a
+rounded percentage) and that foundations holds opacity as named values too (`faint`,
+`tint`, the ramp's `caption_opacity`, `scrim`) - so the fix is naming both the colour
+and an opacity, or adding a new named value to the design, never the bare literal.
 
 Usage: steg-ui-colours
 """
@@ -91,24 +100,29 @@ HEX_STRING_RE = re.compile(r'^"#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})"$')
 
 @dataclass(frozen=True)
 class Literal:
-    """One colour literal found in a file: its line, its text, and its normalised hex
-    value - a named-constructor call with no hex argument, or a bare struct literal,
-    has none."""
+    """One colour literal found in a file: its line, its text, its normalised RGB hex
+    value with alpha dropped - a named-constructor call with no hex argument, or a bare
+    struct literal, has none - and the alpha byte as a rounded percentage, `None` when
+    it's fully opaque (absent, or `ff`)."""
 
     line: int
     text: str
     hex_value: str | None
+    alpha_percent: int | None = None
 
 
 @dataclass(frozen=True)
 class Violation:
-    """One colour literal outside foundations: where it is, and every foundations value
-    (name, "dark"|"light") whose hex it matches - empty when none match."""
+    """One colour literal outside foundations: where it is, every foundations value
+    (name, "dark"|"light") whose hex it matches - empty when none match - and, when it
+    carries a genuine alpha, that alpha as a rounded percentage (`None` means fully
+    opaque, the ordinary case)."""
 
     path: str
     line: int
     text: str
     matches: tuple[tuple[str, str], ...]
+    alpha_percent: int | None = None
 
 
 def is_exempt(path: str) -> bool:
@@ -133,20 +147,32 @@ def _is_colour_constructor_call(node: SgNode) -> bool:
     return callee is not None and callee.text().rsplit("::", 1)[-1] in COLOUR_CONSTRUCTORS
 
 
-def _rgb_hex(text: str) -> str:
-    """Normalise a hex literal's text to its RGB portion: lowercase, no `#`/`0x`
-    prefix, and alpha (an 8th and 9th digit) dropped - foundations' colours carry no
-    alpha, so `rgba(0x3d3b45ff)` matches on `3d3b45`, the same name a bare `0x3d3b45`
-    or `rgb(0x3d3b45)` would."""
-    return foundations.normalise_hex(text)[:6]
+def _alpha_percent(normalised_hex: str) -> int | None:
+    """The alpha byte of an 8-digit normalised hex value, as a rounded percentage -
+    `None` when there's no alpha digit (a 6-digit value) or it's `ff` (fully opaque):
+    both read, to a match, as if there were no alpha at all."""
+    if len(normalised_hex) < 8:
+        return None
+    alpha_byte = normalised_hex[6:8]
+    if alpha_byte == "ff":
+        return None
+    return round(int(alpha_byte, 16) / 255 * 100)
 
 
-def _hex_argument(node: SgNode) -> str | None:
-    """The hex a `rgb`/`rgba` call's own argument names, when that argument is itself a
-    hex literal - `None` for any other constructor (none of them take a hex argument at
-    all) or for an argument that isn't a plain literal (a variable, an expression): that
-    call is still refused as a colour constructor outside foundations, just with no name
-    to suggest for it."""
+def _rgb_and_alpha(text: str) -> tuple[str, int | None]:
+    """A hex literal's text, normalised to its RGB portion for matching (lowercase, no
+    `#`/`0x` prefix, alpha digits dropped) and its alpha as a rounded percentage - see
+    `_alpha_percent`."""
+    normalised = foundations.normalise_hex(text)
+    return normalised[:6], _alpha_percent(normalised)
+
+
+def _hex_argument(node: SgNode) -> tuple[str, int | None] | None:
+    """The `(rgb_hex, alpha_percent)` a `rgb`/`rgba` call's own argument names, when
+    that argument is itself a hex literal - `None` for any other constructor (none of
+    them take a hex argument at all) or for an argument that isn't a plain literal (a
+    variable, an expression): that call is still refused as a colour constructor
+    outside foundations, just with no name to suggest for it."""
     callee = node.field("function")
     if callee is None or callee.text().rsplit("::", 1)[-1] not in HEX_ARGUMENT_CONSTRUCTORS:
         return None
@@ -158,7 +184,7 @@ def _hex_argument(node: SgNode) -> str | None:
         return None
     argument = parts[0]
     if argument.kind() == "integer_literal" and HEX_INT_RE.match(argument.text()):
-        return _rgb_hex(argument.text())
+        return _rgb_and_alpha(argument.text())
     return None
 
 
@@ -178,13 +204,17 @@ def literal_colours(source: str) -> tuple[Literal, ...]:
     found: list[Literal] = []
     for node in root.find_all(kind="call_expression"):
         if _is_colour_constructor_call(node):
-            found.append(Literal(_line(node), node.text(), _hex_argument(node)))
+            extracted = _hex_argument(node)
+            hex_value, alpha_percent = extracted if extracted is not None else (None, None)
+            found.append(Literal(_line(node), node.text(), hex_value, alpha_percent))
     for node in root.find_all(kind="integer_literal"):
         if HEX_INT_RE.match(node.text()) and not _inside_colour_constructor_call(node):
-            found.append(Literal(_line(node), node.text(), _rgb_hex(node.text())))
+            hex_value, alpha_percent = _rgb_and_alpha(node.text())
+            found.append(Literal(_line(node), node.text(), hex_value, alpha_percent))
     for node in root.find_all(kind="string_literal"):
         if HEX_STRING_RE.match(node.text()):
-            found.append(Literal(_line(node), node.text(), _rgb_hex(node.text().strip('"'))))
+            hex_value, alpha_percent = _rgb_and_alpha(node.text().strip('"'))
+            found.append(Literal(_line(node), node.text(), hex_value, alpha_percent))
     for node in root.find_all(kind="struct_expression"):
         type_node = node.field("name")
         if type_node is not None and type_node.text().rsplit("::", 1)[-1] in COLOUR_STRUCT_TYPES:
@@ -202,17 +232,31 @@ def violations(
             continue
         for literal in literal_colours(file.text):
             matches = index.get(literal.hex_value, ()) if literal.hex_value is not None else ()
-            found.append(Violation(file.path, literal.line, literal.text, matches))
+            found.append(Violation(file.path, literal.line, literal.text, matches, literal.alpha_percent))
     return tuple(sorted(found, key=lambda violation: (violation.path, violation.line)))
 
 
 def format_violation(violation: Violation) -> str:
-    """Report one violation, naming the matching foundations value where there is one, and R120's own rule."""
+    """Report one violation, naming the matching foundations value where there is one, and R120's own rule.
+
+    A match with a genuine (non-opaque) alpha gets its own wording: the literal is a
+    translucent version of a foundations colour, not that colour itself, so "use that
+    named value instead" would be wrong advice - the fix is naming the colour *and* an
+    opacity (foundations holds those too: `faint`, `tint`, the ramp's
+    `caption_opacity`, `scrim`), or adding a new named value, never the bare literal.
+    """
     base = f"{violation.path}:{violation.line}: `{violation.text}` is a colour literal, which doc-17 R120 refuses outside foundations."
-    if violation.matches:
-        names = ", ".join(f"{name} ({form})" for name, form in sorted(violation.matches))
-        return f"{base} This value matches {names} - use that named value instead."
-    return f"{base} No foundations value has this colour - confirm it belongs in foundations and export it there, or that this literal is wrong."
+    if not violation.matches:
+        return f"{base} No foundations value has this colour - confirm it belongs in foundations and export it there, or that this literal is wrong."
+    names = ", ".join(f"{name} ({form})" for name, form in sorted(violation.matches))
+    if violation.alpha_percent is not None:
+        return (
+            f"{base} It is the colour of {names} at {violation.alpha_percent}% opacity, not that colour "
+            f"itself - foundations holds opacity as its own named values too (faint, tint, the ramp's "
+            f"caption_opacity, scrim), so name both the colour and an opacity, or add a new named value "
+            f"to the design - never the bare literal."
+        )
+    return f"{base} This value matches {names} - use that named value instead."
 
 
 def main() -> int:

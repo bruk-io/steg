@@ -57,3 +57,37 @@ breakpoints, the overlay's 40px-clear-below-720px rule and its own max-height-as
 percent-of-window (one bullet in doc-10, not two settled values), the status bar's
 roll-out time, the failure flakes' count and timing, and the pressed state's exact
 darkening.
+
+## What `steg-design-check` checks against the saved pages, and what it does not see
+
+`tools/src/steg_tools/design_pages.py` (`just check-design`) compares this file against
+`design/canvas/project/{Tokens,Details}.dc.html`'s rendered markup, by name and value,
+in both directions. Its own passing output lists what it did not check and why
+(`TIER_C_SKIPS`, printed on every run) - this section is the short version:
+
+- Every colour (18 of 18) and every ANSI colour (32) are checked exactly: name and both
+  hex forms must match, or it refuses, naming the value and both forms.
+- 16 `type`/`sizes` entries, plus the three corner sizes (`radius.surface`/`track`/
+  `inner`, via a small reviewed map to the page's one merged `radius` row) are checked
+  by name, but **by default only as a set of numbers**: a sentence such as
+  `tab.width`'s "120px usual, 240px at most, 72px at least" is checked for "every number
+  in the file's entry is present somewhere in this sentence", not for which number
+  belongs to which field. Two of an entry's own fields swapped (its numbers unchanged,
+  just attached to the wrong field) is **not** caught by this weaker check alone.
+  `FIELD_WORD_MAPS`/`RADIUS_WORD_MAP` tighten specific fields where the page's own
+  sentence ties a number to a distinguishing word right after it (`tab.width`'s three
+  fields all tighten this way; most other entries have at least one field that does not,
+  because its word comes before the number instead of after, or shares a clause with
+  another number - those fields stay on the weaker set check, which the tool's own
+  passing output says plainly every time it runs).
+- Everything else named in this file - `colour_aliases`, `opacities`, `ramps` (including
+  `ramp.caption_opacity`), `tint`, `motion.status-fade`, `focus_ring.width`/`offset`/
+  `colour`/`corner_radius_addition`, `session_colour`, `themes[].bg`/`fg`/`bg_inactive`/
+  `selection`/`cursor`, and every `sizes` key that lives only on Layout.dc.html - is
+  declared out of this tool's reach, each with its own reason, not silently passed over.
+  A test (`tools/tests/adapter/test_design_pages_real_workspace.py`) enumerates every
+  leaf key of this file and asserts each one is either checked or in that declared list,
+  so a key added here later cannot fall through both silently.
+- Agreement between this file and a page proves nothing about whether a value is part
+  of the *confirmed* design (see "What is deliberately not here", above) - this tool is
+  a consistency check between two documents, not a substitute for reading doc-10.

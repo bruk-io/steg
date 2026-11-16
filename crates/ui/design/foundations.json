@@ -1,5 +1,5 @@
 {
-  "artifact_version": "1794791991-5d11",
+  "artifact_version": "1794796789-1b13",
   "artifact_url": "https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ",
   "session_colour": "session",
   "colours": [
@@ -37,7 +37,7 @@
       "name": "fill.quiet",
       "dark": "#28272e",
       "light": "#dfdcd7",
-      "use": "Key caps, progress track, a button under the pointer"
+      "use": "Key caps, a button under the pointer"
     },
     {
       "name": "outline",

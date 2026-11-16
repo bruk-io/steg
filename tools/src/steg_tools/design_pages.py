@@ -4,17 +4,32 @@ TASK-1.96 (doc-17, R121, R122). A named value in the data file is compared again
 name's row on `design/canvas/project/Tokens.dc.html` or `Details.dc.html`, by three tiers:
 
 - Tier A (`colour_mismatches`, `ansi_mismatches`): name and value match exactly, both
-  directions. The 17 of 18 colours with a Name/Dark/Light/Used for row on Tokens.dc.html
-  (`colours[]` minus `track`, which has no named row anywhere in either page's rendered
-  body - a declared exception, not a gap: see `TIER_C_SKIPS`), and all 32 ANSI colours
+  directions. All 18 colours with a Name/Dark/Light/Used for row on Tokens.dc.html
+  (`track` gained its own row at artifact version `1794796789-1b13`, closing what was
+  a declared exception here - see the task's build notes), and all 32 ANSI colours
   (16 names x 2 themes) on Details.dc.html.
 - Tier B (`sentence_mismatches`): the name is present and every number reachable in the
-  file's entry is found somewhere in that same name's sentence cell - weaker than Tier A,
-  since it cannot see a number land in the wrong field. `TIER_B_NAMES` is the exhaustive
-  list of file keys this covers.
+  file's entry is found somewhere in that same name's sentence cell - by default this
+  checks the numbers only as a set, which is field-blind (a review finding: two of an
+  entry's own fields swapped leaves the same numbers present and still passes).
+  `FIELD_WORD_MAPS` tightens specific fields where the page's sentence ties a number to a
+  distinguishing word right after it (`_word_tied_number`, `_tightened_mismatches`); a
+  field not in that map, or whose word comes before its number or shares a clause with
+  another number, stays on the weaker set check - printed as a caveat in `main()`'s
+  passing output and in `crates/ui/design/README.md`, never silently assumed tightened.
+  `TIER_B_NAMES` is the exhaustive list of file keys Tier B covers, one file key to one
+  page row.
+- Tier B, mapped (`mapped_sentence_mismatches`, `RADIUS_MAP`, `RADIUS_WORD_MAP`): the same
+  check and the same tightening, but for a file key whose page row is named differently -
+  `sizes.radius.surface/track/inner` (14/10/8) all check against Tokens.dc.html's one
+  merged `radius` row. The engineer asked for this small, reviewed map rather than leaving
+  all three as a declared exception; `radius.round` has no number on the page at all and
+  stays in `TIER_C_SKIPS`.
 - Tier C (`TIER_C_SKIPS`): every other named value in the file is declared out of this
   tool's reach, each with its own reason - printed by `main()` itself on every passing run,
-  so a clean exit is never read as "every value checked" (AC#3).
+  so a clean exit is never read as "every value checked" (AC#3). `unaccounted_names`
+  enumerates the data file's own leaf keys and refuses if one is neither checked nor in
+  `TIER_C_SKIPS` - a key added to the file later cannot fall through both silently.
 
 Only the rendered body is read - everything between `</helmet>` and the page's own
 `<script type="text/x-dc">` block - never that script block itself: it holds the page's
@@ -25,10 +40,13 @@ against in TASK-1.92) look like page-named values missing from the file.
 The reverse direction (`reverse_missing`, `ansi_reverse_missing`) lists every name drawn
 under a Name/Dark/Light/Used for, Name/Value, or ANSI swatch row and reports one with no
 matching file entry - restricted to exactly those rows (never Layout.dc.html, never a
-Rules bullet or a Stories caption), against `REVERSE_ALLOW_LIST` for a page name
-deliberately absent from the file (today: `"radius"`, which merges four file keys into
-one row - see `TIER_C_SKIPS`). This is `sizes.radius.round`'s exact scenario from
-TASK-1.92's review (a value drawn with no file entry), now automatic.
+Rules bullet or a Stories caption). `main()` calls `reverse_missing` with `allow` set to
+`REVERSE_ALLOW_LIST` (page names deliberately absent from the file - empty today) unioned
+with `RADIUS_MAP.values()` (page names a map explains instead - `"radius"`): a name the
+map matches is matched, not merely excused, so the two stay separate even though both end
+up widening the same `allow` set. This is `sizes.radius.round`'s exact scenario from
+TASK-1.92's review (a value drawn with no file entry): the three sized corners are now
+mapped and checked; the fully round one stays a declared exception.
 
 Agreement between the file and a page proves nothing about whether a value is part of the
 *confirmed* design (TASK-1.92's one real miss, `overlay.layout.max_height_percent_of_window`,
@@ -339,7 +357,12 @@ class ExpectedShape:
 
 
 EXPECTED_SHAPES = (
-    ExpectedShape("Tokens.dc.html", "colours", 17),
+    # 18, not 17: the "Surfaces and text" table gained an 11th row (track) at artifact
+    # version 1794796789-1b13 - this total also covers "the first colours table's
+    # minimum becomes at least 11" (the engineer's wording), since a drop back to 10
+    # there would bring the page-wide total below 18 even if "The six colours" table
+    # (7 rows) stayed full.
+    ExpectedShape("Tokens.dc.html", "colours", 18),
     ExpectedShape("Tokens.dc.html", "sentences", 17),
     ExpectedShape("Details.dc.html", "ansi", 32),
 )
@@ -361,11 +384,9 @@ def shape_problems(pages: dict[str, Page]) -> tuple[str, ...]:
 # ---------------------------------------------------------------------------
 
 TIER_C_SKIPS: tuple[Skipped, ...] = (
-    Skipped(
-        "colours.track",
-        'no Name/Dark/Light/Used for row on either page - drawn only in each page\'s own '
-        "script-block colour variables, never under its own name",
-    ),
+    # colours.track was here (no named row) until artifact version 1794796789-1b13,
+    # when the engineer added a track row to Tokens.dc.html's first colours table -
+    # track is now checked like every other colour (Tier A), no exception left.
     Skipped("colour_aliases.blocked", "a reference to ramp.5 amber, never drawn under its own name"),
     Skipped("colour_aliases.done", "a reference to ramp.6 green, never drawn under its own name"),
     Skipped("colour_aliases.error", "a reference to ramp.3 red, never drawn under its own name"),
@@ -380,21 +401,25 @@ TIER_C_SKIPS: tuple[Skipped, ...] = (
         'first Foundations board"); see sizes.row.gap below',
     ),
     Skipped("motion.status-fade", "200ms is in Rules prose with no name column"),
+    Skipped("focus_ring.width", "2px is in the Focus ring section's prose (\"A 2px ring in the session colour\"), no name column"),
+    Skipped("focus_ring.offset", "2px clear of the control is in the Focus ring section's prose, no name column"),
+    Skipped("focus_ring.colour", "the literal sentinel \"session\" (R26): the active session's own colour, assigned at runtime, not a fixed page form"),
     Skipped("focus_ring.corner_radius_addition", "derived (12px corner minus 8px corner); 4 never appears as a number on the page"),
     Skipped("themes[].bg", "a trailing prose line per theme, not a named row"),
     Skipped("themes[].fg", "a trailing prose line per theme, not a named row"),
     Skipped("themes[].bg_inactive", "a trailing prose line per theme, not a named row"),
     Skipped("themes[].selection", "a trailing prose line per theme, not a named row"),
-    Skipped("sizes.radius.surface", 'the page has one merged row "radius" for all three corner sizes plus "round"; no 1:1 name match'),
-    Skipped("sizes.radius.track", 'the page has one merged row "radius" for all three corner sizes plus "round"; no 1:1 name match'),
-    Skipped("sizes.radius.inner", 'the page has one merged row "radius" for all three corner sizes plus "round"; no 1:1 name match'),
+    Skipped("themes[].cursor", "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
+    # sizes.radius.surface/track/inner were here until the engineer asked for a small,
+    # reviewed name map instead (RADIUS_MAP below): each now checks its own number
+    # against Tokens.dc.html's one merged "radius" row (14/10/8).
     Skipped("sizes.radius.round", 'drawn as an unlabelled swatch ("fully round: chips of colour, bars"), no px number and no name at all'),
     Skipped("sizes.row.gap", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.stack.gap", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.track.layout", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.split.layout", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.overlay.layout", "only on Layout.dc.html, out of scope entirely"),
-    Skipped("session", "a runtime sentinel (the active session's own colour); no fixed page form"),
+    Skipped("session_colour", "a top-level pointer to the literal sentinel \"session\" (R26), not a fixed page form - same sentinel as themes[].cursor and focus_ring.colour"),
 )
 
 
@@ -405,9 +430,22 @@ def _skip_names(prefix: str) -> frozenset[str]:
 
 SKIPPED_COLOURS = _skip_names("colours.")
 
-# Tokens.dc.html's Sizes table: merges sizes.radius.surface/track/inner/round into one row
-# named "radius" with no 1:1 file key - see TIER_C_SKIPS above.
-REVERSE_ALLOW_LIST = frozenset({"radius"})
+# A page name deliberately absent from the file, exempted from the reverse direction.
+# Empty today: "radius" was here until RADIUS_MAP (below) gave it a real match instead
+# of an exemption - `reverse_missing`'s caller unions this with `RADIUS_MAP.values()`,
+# so a page row the map explains is matched, not merely excused.
+REVERSE_ALLOW_LIST: frozenset[str] = frozenset()
+
+# A file key whose page row is named differently from the key itself - a small, reviewed
+# map (the engineer's decision on TASK-1.96), not a general mechanism: Tokens.dc.html
+# merges three corner sizes into one row named "radius" ("14px panes and palette; 10px
+# tab track and session chips; 8px inside them"). sizes.radius.round has no number on the
+# page at all (TIER_C_SKIPS) and is deliberately not in this map.
+RADIUS_MAP = {
+    "radius.surface": "radius",
+    "radius.track": "radius",
+    "radius.inner": "radius",
+}
 
 # The 2-column file keys this tool checks by name + every number in the file's entry
 # (Tier B). Everything else under `type`/`sizes` is Tier C (see TIER_C_SKIPS) or simply
@@ -430,6 +468,65 @@ TIER_B_NAMES = (
     "status.ring",
     "scrim",
 )
+
+
+def unaccounted_names(
+    data: dict,
+    skipped: frozenset[str] = frozenset(skip.name for skip in TIER_C_SKIPS),
+    checked: frozenset[str] = frozenset(TIER_B_NAMES) | frozenset(RADIUS_MAP),
+) -> tuple[str, ...]:
+    """Every named value in `data` that `skipped` doesn't declare unseen and `checked`
+    doesn't cover - empty when every leaf key is accounted for, one way or the other
+    (a key added to the real data file later and left off both lists shows up here).
+
+    Walks the data file's own sections by hand, matching this module's existing naming
+    scheme: colours are all Tier A today (`SKIPPED_COLOURS` is empty, so nothing to check
+    here - a future exception would need its own `colours.<name>` entry in `skipped`, the
+    same shape this function already expects for the other sections); colour_aliases/
+    opacities/ramps entries are named "<section>.<name>"; motion entries already carry
+    their own prefix (`"motion.status-fade"`); `type`/`sizes` keys are bare, matched
+    against `checked` first and `"sizes.<key>"` in `skipped` second; `themes[]` and
+    `focus_ring` fields are named `"themes[].<field>"`/`"focus_ring.<field>"`.
+    `artifact_version`/`artifact_url` are this export's own metadata, not a design value,
+    and are never enumerated.
+    """
+    found = []
+
+    for entry in data.get("colour_aliases", []):
+        if f"colour_aliases.{entry['name']}" not in skipped:
+            found.append(f"colour_aliases.{entry['name']}")
+    for entry in data.get("opacities", []):
+        if f"opacities.{entry['name']}" not in skipped:
+            found.append(f"opacities.{entry['name']}")
+    for entry in data.get("ramps", []):
+        if f"ramps.{entry['name']}" not in skipped:
+            found.append(f"ramps.{entry['name']}")
+        if "caption_opacity" in entry and "ramps.ramp.caption_opacity" not in skipped:
+            found.append("ramps.ramp.caption_opacity")
+    if "tint" in data and "tint" not in skipped:
+        found.append("tint")
+    for entry in data.get("motion", []):
+        if entry["name"] not in skipped:
+            found.append(entry["name"])
+    for key in data.get("type", {}):
+        if key not in checked:
+            found.append(f"type.{key}")
+    for key in data.get("sizes", {}):
+        if key in checked or f"sizes.{key}" in skipped:
+            continue
+        found.append(f"sizes.{key}")
+    if data.get("themes"):
+        for field in ("bg", "fg", "bg_inactive", "selection", "cursor"):
+            if f"themes[].{field}" not in skipped:
+                found.append(f"themes[].{field}")
+    if "focus_ring" in data:
+        for field in ("width", "offset", "colour", "corner_radius_addition"):
+            if f"focus_ring.{field}" not in skipped:
+                found.append(f"focus_ring.{field}")
+    if "session_colour" in data and "session_colour" not in skipped:
+        found.append("session_colour")
+
+    return tuple(found)
 
 
 # ---------------------------------------------------------------------------
@@ -506,11 +603,93 @@ def _numbers_in_text(text: str) -> frozenset[float]:
     return frozenset(float(match) for match in _NUMBER_RE.findall(text))
 
 
+_CLAUSE_SPLIT_RE = re.compile(r"[,;.]")
+
+
+def _single_number_clauses(text: str) -> tuple[tuple[float, str], ...]:
+    """Each `,`/`;`/`.`-separated clause of `text` with exactly one number in it, paired
+    with the text that follows that number within the clause.
+
+    A clause with zero or two-or-more numbers is left out entirely: attributing a word to
+    one of several numbers in the same clause ("tabs 30px in a track with a 2px inset")
+    would be a guess, not a reading. `FIELD_WORD_MAPS`/`RADIUS_WORD_MAP` rely on this: a
+    field whose clause doesn't take this shape simply isn't tightened, and falls back to
+    the weaker "present somewhere" check `sentence_mismatches`/`mapped_sentence_mismatches`
+    already do.
+    """
+    pairs = []
+    for clause in (c.strip() for c in _CLAUSE_SPLIT_RE.split(text) if c.strip()):
+        numbers = _NUMBER_RE.findall(clause)
+        if len(numbers) != 1:
+            continue
+        match = _NUMBER_RE.search(clause)
+        assert match is not None
+        remainder = clause[match.end() :].strip()
+        if remainder:
+            pairs.append((float(numbers[0]), remainder))
+    return tuple(pairs)
+
+
+def _word_tied_number(text: str, word: str) -> float | None:
+    """The number in a single-number clause of `text` whose remainder contains `word`, or
+    `None` if no such clause exists (the sentence gives no word to tie to - the caller
+    falls back to the weak check rather than treat this as a mismatch).
+    """
+    for number, remainder in _single_number_clauses(text):
+        if word in remainder:
+            return number
+    return None
+
+
+# A small, reviewed map from one field of a `TIER_B_NAMES` entry's value to the word that
+# follows its number in the page's sentence - tightens the otherwise field-blind "every
+# number is present somewhere" check (review finding on TASK-1.96: swapping sizes.tab.
+# width's usual/min left the same two numbers present and still passed). Built by hand,
+# one row at a time, against the real pages - not a general NLP parse: a field is in here
+# only where its clause unambiguously has one number followed by one identifying word.
+# Every field *not* listed here (the majority: a number precedes its word, or shares a
+# clause with another number) stays on the weaker "present somewhere" check alone, printed
+# as a caveat in the tool's own output (see `main`) and in crates/ui/design/README.md.
+FIELD_WORD_MAPS: dict[str, dict[str, str]] = {
+    "tab.width": {"usual": "usual", "max": "at most", "min": "at least"},
+    "nav.side": {"width": "wide"},
+    "nav.top": {"height": "high"},
+    "pane.gap": {"resting": "between"},
+    "palette": {"width": "wide", "top_offset": "from the top"},
+    "status.ring": {"diameter": "across", "thickness": "thick"},
+}
+
+
+def _tightened_mismatches(name: str, value: object, page_row: SentenceRow, page_name: str) -> tuple[Mismatch, ...]:
+    """`FIELD_WORD_MAPS`'s per-field tightening for one `TIER_B_NAMES` entry already known
+    to have a page row - a field whose word ties to a different number than the file gives
+    it is a mismatch even though the plain "present somewhere" check above it never sees
+    one (both numbers are still present, just swapped between fields).
+    """
+    word_map = FIELD_WORD_MAPS.get(name)
+    if word_map is None or not isinstance(value, dict):
+        return ()
+    found = []
+    for field, word in word_map.items():
+        required = value.get(field)
+        if not isinstance(required, int | float):
+            continue
+        tied = _word_tied_number(page_row.text, word)
+        if tied is None:
+            continue  # the sentence gives no clean single-number clause for this word
+        if tied != float(required):
+            found.append(Mismatch(f"{name}.{field}", f"{required} (tied to {word!r})", f"{word!r} is next to {tied}", page_name))
+    return tuple(found)
+
+
 def sentence_mismatches(file_type: dict, file_sizes: dict, page: Page, page_name: str) -> tuple[Mismatch, ...]:
     """Tier B: every `TIER_B_NAMES` entry present in the file against its named page row.
 
     A name with no numbers in the file (`font.ui`, `font.terminal`) degrades to a
-    name-presence check only - documented here, not hidden.
+    name-presence check only - documented here, not hidden. `FIELD_WORD_MAPS` tightens
+    the entries it covers (see `_tightened_mismatches`); every other entry's numbers are
+    only checked as a set, so two numbers swapped between two of its fields is invisible
+    to this function alone - also documented, not hidden (`main`'s printed caveat).
     """
     by_name = {row.name: row for row in page.sentences}
     source = {**file_type, **file_sizes}
@@ -524,12 +703,53 @@ def sentence_mismatches(file_type: dict, file_sizes: dict, page: Page, page_name
             found.append(Mismatch(name, repr(value), "<no row found>", page_name))
             continue
         needed = _numbers_in(value)
-        if not needed:
+        if needed:
+            have = _numbers_in_text(page_row.text)
+            missing = needed - have
+            if missing:
+                found.append(Mismatch(name, f"numbers {sorted(needed)}", page_row.text, page_name))
+        found.extend(_tightened_mismatches(name, value, page_row, page_name))
+    return tuple(found)
+
+
+# RADIUS_MAP's own small, reviewed word map (same idea as FIELD_WORD_MAPS, but keyed by
+# the whole file key rather than a field of one entry's dict, since each of these three
+# file keys is itself a single number, not a dict of several).
+RADIUS_WORD_MAP = {
+    "radius.surface": "palette",
+    "radius.track": "tab track",
+    "radius.inner": "inside",
+}
+
+
+def mapped_sentence_mismatches(file_sizes: dict, mapping: dict[str, str], page: Page, page_name: str) -> tuple[Mismatch, ...]:
+    """Tier B, mapped: like `sentence_mismatches`, but the page row's name differs from the
+    file key (`RADIUS_MAP`) - several file keys can map to the same page row, so
+    `RADIUS_WORD_MAP` tightens the otherwise field-blind check the same way
+    `FIELD_WORD_MAPS` does for `sentence_mismatches`.
+    """
+    by_name = {row.name: row for row in page.sentences}
+    found = []
+    for file_key, page_row_name in mapping.items():
+        value = file_sizes.get(file_key)
+        if value is None:
+            continue  # absent from the file entirely - not this check's job to flag
+        page_row = by_name.get(page_row_name)
+        if page_row is None:
+            found.append(Mismatch(file_key, repr(value), "<no row found>", page_name))
             continue
-        have = _numbers_in_text(page_row.text)
-        missing = needed - have
-        if missing:
-            found.append(Mismatch(name, f"numbers {sorted(needed)}", page_row.text, page_name))
+        needed = _numbers_in(value)
+        if needed:
+            have = _numbers_in_text(page_row.text)
+            missing = needed - have
+            if missing:
+                found.append(Mismatch(file_key, f"numbers {sorted(needed)}", page_row.text, page_name))
+        word = RADIUS_WORD_MAP.get(file_key)
+        if word is not None and needed:
+            required = next(iter(needed))
+            tied = _word_tied_number(page_row.text, word)
+            if tied is not None and tied != required:
+                found.append(Mismatch(file_key, f"{required} (tied to {word!r})", f"{word!r} is next to {tied}", page_name))
     return tuple(found)
 
 
@@ -544,14 +764,25 @@ def ambiguous_matches(name: str, pages: dict[str, Page]) -> tuple[str, ...]:
     return found if len(found) > 1 else ()
 
 
-def reverse_missing(file_colour_names: frozenset[str], file_type_and_size_names: frozenset[str], page: Page, page_name: str) -> tuple[Missing, ...]:
-    """Every colour/sentence row drawn on `page` with no matching file entry, `REVERSE_ALLOW_LIST` aside."""
+def reverse_missing(
+    file_colour_names: frozenset[str],
+    file_type_and_size_names: frozenset[str],
+    page: Page,
+    page_name: str,
+    allow: frozenset[str] = REVERSE_ALLOW_LIST,
+) -> tuple[Missing, ...]:
+    """Every colour/sentence row drawn on `page` with no matching file entry, `allow` aside.
+
+    The caller passes `allow` explicitly (rather than this reading the module constant on
+    its own) so a name matched through a map (`RADIUS_MAP`) and a name genuinely exempted
+    (`REVERSE_ALLOW_LIST`) are two different things the caller unions, not one hidden list.
+    """
     found = []
     for row in page.colours:
-        if row.name not in file_colour_names and row.name not in REVERSE_ALLOW_LIST:
+        if row.name not in file_colour_names and row.name not in allow:
             found.append(Missing(row.name, f"dark={row.dark} light={row.light}", page_name))
     for row in page.sentences:
-        if row.name not in file_type_and_size_names and row.name not in REVERSE_ALLOW_LIST:
+        if row.name not in file_type_and_size_names and row.name not in allow:
             found.append(Missing(row.name, row.text, page_name))
     return tuple(found)
 
@@ -618,6 +849,12 @@ def main(argv: list[str] | None = None) -> int:
     if problems:
         return 1
 
+    unaccounted = unaccounted_names(data)
+    for name in unaccounted:
+        print(f"steg-design-check: {name} is neither checked nor declared unseen (TIER_C_SKIPS) - add it to one", file=sys.stderr)
+    if unaccounted:
+        return 1
+
     file_type = data.get("type", {})
     file_sizes = data.get("sizes", {})
     assert isinstance(file_type, dict)
@@ -626,6 +863,7 @@ def main(argv: list[str] | None = None) -> int:
     mismatches: list[Mismatch] = []
     mismatches.extend(colour_mismatches(tuple(data["colours"]), tokens_page, "Tokens.dc.html"))
     mismatches.extend(sentence_mismatches(file_type, file_sizes, tokens_page, "Tokens.dc.html"))
+    mismatches.extend(mapped_sentence_mismatches(file_sizes, RADIUS_MAP, tokens_page, "Tokens.dc.html"))
     mismatches.extend(ansi_mismatches(tuple(data["themes"]), details_page, "Details.dc.html"))
     for name in TIER_B_NAMES:
         found_on = ambiguous_matches(name, pages)
@@ -639,6 +877,7 @@ def main(argv: list[str] | None = None) -> int:
             frozenset(file_type) | frozenset(file_sizes),
             tokens_page,
             "Tokens.dc.html",
+            allow=REVERSE_ALLOW_LIST | frozenset(RADIUS_MAP.values()),
         )
     )
     for theme in data["themes"]:
@@ -657,7 +896,15 @@ def main(argv: list[str] | None = None) -> int:
 
     checked_colours = len([c for c in data["colours"] if c["name"] not in SKIPPED_COLOURS])
     checked_ansi = sum(len(theme["ansi"]) for theme in data["themes"])
-    print(f"steg-design-check: ok ({checked_colours} colours, {len(TIER_B_NAMES)} type/size entries, {checked_ansi} ANSI colours checked)")
+    checked_sentences = len(TIER_B_NAMES) + len(RADIUS_MAP)
+    tightened = sum(len(fields) for fields in FIELD_WORD_MAPS.values()) + len(RADIUS_WORD_MAP)
+    print(f"steg-design-check: ok ({checked_colours} colours, {checked_sentences} type/size entries, {checked_ansi} ANSI colours checked)")
+    print(
+        f"steg-design-check: field-blind by default - a Tier B/mapped entry's numbers are only checked as a set "
+        f"(two of its own fields swapped would still pass) unless FIELD_WORD_MAPS/RADIUS_WORD_MAP tightens that "
+        f"field by tying it to the word that follows its number on the page; {tightened} fields are tightened "
+        f"this way today, every other number in every Tier B/mapped entry is still only checked for presence"
+    )
     for skip in TIER_C_SKIPS:
         print(f"steg-design-check: not checked - {skip.name}: {skip.reason}")
     return 0

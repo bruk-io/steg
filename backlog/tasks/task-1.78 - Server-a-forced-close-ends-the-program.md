@@ -1282,6 +1282,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 90 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_on_an_already_ended_pane_succeeds_without_force` exited 0 at 2026-11-16T01:23:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at b7e872af7f6b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test pane_close_on_an_already_ended_pane_succeeds_without_force ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

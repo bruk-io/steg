@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:57:00Z'
+updated_date: '2026-11-16T15:00:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1292,6 +1292,41 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:00:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (19.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (30.6s)
+ok      test (steg-server) (21.8s)
+ok      test (steg-server, race-fixture) (21.2s)
+ok      build (steg) (0.7s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

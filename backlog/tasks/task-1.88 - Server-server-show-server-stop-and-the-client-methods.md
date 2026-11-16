@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.88
 title: 'Server: server show, server stop, and the client methods'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:01:00Z'
 updated_date: '2026-11-16T00:01:00Z'
@@ -14,6 +14,7 @@ dependencies:
   - TASK-1.78
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

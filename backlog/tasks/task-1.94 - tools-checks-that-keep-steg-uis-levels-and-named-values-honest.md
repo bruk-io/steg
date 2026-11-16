@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:32:00Z'
+updated_date: '2026-11-16T03:45:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=0'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=2'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1094,6 +1093,49 @@ created: 2026-11-16T03:32:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:45:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. The diff does not match the plan.
+
+Reviewed at head 66dc63b8a8593df344bee0d73fdab12f396c2235 (matches PR #52's headRefOid; CI SUCCESS on that head; `just check` reproduced green by me independently in a fresh detached worktree of that commit, all 23 steps ok including `ui levels`/`ui colours`; `tool tests` there is the full pytest suite, 151 passed).
+
+Scope since the second review (4cb9ada): exactly tools/src/steg_tools/ui_colours.py (110 changed lines) and tools/tests/unit/test_ui_colours.py (+51 lines), confirmed by diffing 4cb9ada..66dc63b - nothing else in the two files beyond the alpha-aware Literal/Violation fields, _alpha_percent/_rgb_and_alpha, and format_violation's new branch. Alpha handling lives in one place: _alpha_percent is called only from _rgb_and_alpha, the single normaliser used by all three literal forms (bare hex int, hex string, rgb/rgba call argument).
+
+Second review's two findings (wrong "use that named value instead" advice for a non-ff alpha; no test reaching that branch) are fixed and verified. I ran the negative control myself: _alpha_percent forced to always return None fails exactly the 3 tests that assert a genuine (non-ff) alpha (test_violations_carries_a_genuine_alpha_as_a_rounded_percentage, ..._from_an_eight_digit_hex_string_too, ..._has_an_alpha_but_no_match_...); 35 others, including the ff-alpha and format-level tests, correctly stay green since they don't exercise that branch (they construct Violation/alpha_percent directly or use ff). Restored, 151 passed again.
+
+Live verification of every case the brief asked for, each refused exactly once, then reverted (clean worktree confirmed after):
+- gpui::rgba(0x1c1b21ff) (ff/opaque) -> "This value matches surface.raised (dark) - use that named value instead." (ordinary wording, unchanged)
+- gpui::rgba(0x1c1b2180) and "#1c1b2180" (translucent, one name) -> "It is the colour of surface.raised (dark) at 50% opacity, not that colour itself - foundations holds opacity as its own named values too (faint, tint, the ramp's caption_opacity, scrim), so name both the colour and an opacity, or add a new named value to the design - never the bare literal." Never "use that named value instead."
+- gpui::rgba(0x1c1b2100) (0%) -> same wording at "0% opacity" - literally true, and still points a developer somewhere useful, if a little odd for a fully transparent value; not incorrect.
+- gpui::rgba(0x12345680) (translucent, no name) -> plain "No foundations value has this colour..." (no opacity language, correct per format_violation's own documented choice: nothing to combine it with).
+- gpui::rgba(0x3d3b4580) (translucent, two names) -> "outline (dark), track (dark)" both listed, with the opacity wording.
+- gpui::rgba(0x1c1b2133) (~20%, a byte that requires rounding) -> "20%" - exact, and the general claim holds: 0x33 = 51/255 = 20.0% precisely; no alpha byte in this family produces an exact .5 (round-half) case, since a*20/51 is integral only at multiples of 51 (0,51,102,153,204,255 -> 0/20/40/60/80/100%), so there's no banker's-rounding edge to worry about.
+- rgb(0x1c1b21), bare 0x1c1b21 (unchanged, no alpha): unchanged "use that named value instead" wording, confirmed.
+- rgba(c) (non-literal argument): still refused with the plain "no match" wording, unchanged.
+- No eight-digit-hex-not-meant-as-a-colour exemption exists in the check's rules (unchanged from earlier rounds, the plan's own named under-reach for 1-4 digit hex only) - nothing to test there.
+Checked foundations.json directly: all four names in the hard-coded opacity list are real - faint (opacities[]), tint (top-level, opacity 0.18), caption_opacity (ramps[0].caption_opacity), scrim (sizes.scrim, each form carrying its own opacity) - so the message is currently accurate, not currently wrong.
+
+Regression sample (unaffected by this round, re-confirmed): a grouped import across two levels still passes (organisms using atoms+molecules via `use crate::{atoms::Button, molecules::Tab};`), a comment mentioning a hex value and an ordinary string both pass, a short (2-digit) hex passes, lib.rs has no pub use today (unchanged); full tools suite (151) and adapter tests against the real tree (10) both green; `just check` green on 66dc63b (23/23 ok).
+
+No Important findings.
+
+Nits (2):
+
+[Compliance, Nit] tools/src/steg_tools/ui_colours.py:252-258: format_violation's opacity-match wording names four foundations values (faint, tint, caption_opacity, scrim) as literal hard-coded strings, not read from crates/ui/design/foundations.json the way the colour match itself is (via foundations.hex_index). All four are real today, so the message isn't currently wrong - but nothing ties them to the data file: test_ui_colours.py:222 only asserts the four literal strings appear in the message, so a rename or restructuring of these entries in the design (the exact kind of drift hex_index exists to survive) would go stale with no test catching it. Narrower than it first looks: foundations.json's `opacities[]` list itself holds exactly one named entry (`faint`); `tint`, `caption_opacity` and `scrim` are opacity-carrying fields elsewhere in the file (tint is a top-level colour-like entry, caption_opacity sits on a ramp, scrim is under `sizes`), not a second data source this module could index the same way hex_index does. A later task mining opacities generally (R120's other literal kinds, named as out of scope here) would need to decide how to represent that structure; not worth growing this task to fix, worth a line on the task.
+
+[Bugs, Nit] The 0% case (`rgba(0x1c1b2100)`): wording reads "It is the colour of surface.raised (dark) at 0% opacity, not that colour itself ... name both the colour and an opacity" - literally true and not misleading, but a 0%-alpha literal draws nothing at all, so "name both the colour and an opacity" is slightly odd advice for a value with no visible colour to name. Not incorrect, just worth a second look if this message is revised again.
+
+No rule-change draft filed: neither nit repeats a mistake an earlier review on this task found (round one: the rgb(0x...) extraction bug; round two: wrong "use instead" advice for a non-ff alpha) - the hard-coded-opacity-names observation is new, not a repeat.
+
+plugins/bruk-io-steg/rules/tools.md ("standard library only" vs ast-grep-py) and rust_source.py's plan departure remain exactly as both prior reviews left them - not re-raised as findings here, --plan-matched recorded no per policy ("no for any departure, even one the notes explain") since rust_source.py is still a new file not in the plan's list, now explained in notes.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:26:00Z'
+updated_date: '2026-11-16T17:27:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -628,6 +628,51 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:27:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 6a1b69b8f805, last 40 of 65 lines:
+
+```text
+2761 |         let handle = crate::pane::start(
+ ...
+2770 |             events_tx,
+2771 ~             /* std::time::Duration */,
+2772 ~         )
+     |
+
+error[E0061]: this function takes 5 arguments but 4 arguments were supplied
+    --> crates/server/src/runtime.rs:3088:22
+     |
+3088 |           let handle = crate::pane::start(
+     |  ______________________^^^^^^^^^^^^^^^^^^-
+3089 | |             LaunchSpec {
+3090 | |                 argv: vec![
+3091 | |                     "sh".to_string(),
+...    |
+3101 | |             events_tx,
+3102 | |         )
+     | |_________- argument #5 of type `std::time::Duration` is missing
+     |
+note: function defined here
+    --> crates/server/src/pane.rs:707:8
+     |
+ 707 | pub fn start(
+     |        ^^^^^
+...
+ 712 |     attach_tick: Duration,
+     |     ---------------------
+help: provide the argument
+     |
+3088 |         let handle = crate::pane::start(
+ ...
+3101 |             events_tx,
+3102 ~             /* std::time::Duration */,
+3103 ~         )
+     |
+
+error: could not compile `steg-server` (lib test) due to 10 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:46:00Z'
+updated_date: '2026-11-16T15:54:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1762,6 +1763,15 @@ Confirmed correct, not findings: the pane.close/tab.close doc-comment correction
 plan-matched: no - the plan's own "Files that change" says explicitly "no change to `Outcome`/return shapes for any close/new arm (§5 reads tree state before and after instead...)" and §5 itself says "never by threading a new return shape through `dispatch::tab::close`/`session::close`". This round's diff adds `Outcome::PaneClosed`/`TabClosed` and stops reading the tree after a close - the opposite of what the plan says it does, for the reason the plan itself gives (the bug the first review found). The departure is right and already explained in the notes (so no separate Compliance finding beyond what's above) - the flag reflects the diff-vs-plan-text mismatch itself, not a fault in the decision to depart.
 
 One overlap to state for whoever merges second: TASK-1.86 (PR 60, in review) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. Whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping this task's `scope` (captured before `record_exit` runs, since `record_exit` can remove the very tab/session `scope` would otherwise have to be read back from) - 1.86's own notify must not move ahead of this task's broadcasts, and must not re-derive `scope` after `record_exit`.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:54:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

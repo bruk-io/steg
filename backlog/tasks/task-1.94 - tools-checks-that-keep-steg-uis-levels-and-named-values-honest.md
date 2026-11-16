@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:01:00Z'
+updated_date: '2026-11-16T03:06:00Z'
 labels:
   - size-2
   - changes-requested
@@ -684,6 +684,53 @@ before adding it that PyPI publishes a cp315-cp315-macosx_11_0_arm64 wheel, matc
 runner and Python pin exactly, with no build step.
 
 CI green on the pushed head (PR #52, both checks passed in ~3m41s).
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py'` exited 1 at 2026-11-16T03:06:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944 with uncommitted changes, last 40 of 70 lines:
+
+```text
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x1c1b21); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgb(0x1c1b21)", (("surface.raised", "dark"),)),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa..., 'dark'),)),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x1c1b21)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x1c1b21)', matches=(('surface.raised', 'dark'),))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:145: AssertionError
+____________ test_violations_matches_two_names_through_an_rgb_call _____________
+
+    def test_violations_matches_two_names_through_an_rgb_call() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x3d3b45); }\n")
+        found = violations((file,), COINCIDING_INDEX)
+>       assert found == (Violation(file.path, 1, "rgb(0x3d3b45)", (("outline", "dark"), ("track", "dark"))),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa...', 'dark'))),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x3d3b45)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x3d3b45)', matches=(('outline', 'dark'), ('track', 'dark')))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:151: AssertionError
+____ test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits ____
+
+    def test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b21ff); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0x1c1b21ff)", (("surface.raised", "dark"),)),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa..., 'dark'),)),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b21ff)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b21ff)', matches=(('surface.raised', 'dark'),))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:163: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_one_name_through_an_rgb_call
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_two_names_through_an_rgb_call
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits
+5 failed, 26 passed in 0.03s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,17 +1,20 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:25:00Z'
+updated_date: '2026-11-16T13:26:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.77
   - TASK-1.45
+references:
+  - task-1.86-server-an-on-demand-server-stops-when
+  - https://github.com/bruk-io/steg/pull/60
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -1162,6 +1165,24 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built per the approved plan. Summary:
+
+- IdlePredicate (crates/server/src/idle.rs): pure function of counts and a given time, returns Wait::Forever/Until(remaining)/Expired - no periodic wake. 9 unit tests (29/30/31s boundary, mid-handshake counting, arbiter-probe shape with the corrected "full period not a few seconds" claim, 29s reconnector, exact-wait durations, the exact-wait loop's own observer-driven proof, and AcceptRetried not counted as a client - added after merging TASK-1.98).
+- ConnectionEvent gains SessionCountChanged (connection.rs); Runtime gains session_counter/set_idle_notifier and one new arm in apply_event_locked's PaneEvent::Exited match, one new line in Runtime::stop() (runtime.rs).
+- listen::run wires one checker thread via build_idle_wiring, gated on config.idle_timeout.is_some(). Join happens once, after runtime.stop(), with the bound derived against every sender into the channel (the closure's own clone, every per-connection clone, Runtime's own clone) and every path out of run - confirmed by a dedicated test with its own negative control.
+- ServerConfig.idle_timeout: Option<Duration>, default None; crates/steg/src/main.rs sets it explicitly only for on_demand; fixture_server.rs mirrors it with a STEG_TEST_IDLE_TIMEOUT_MS override.
+- Merged, in order: origin/main (PRs 47/57/56/54), then TASK-1.98's two successive heads (4e4006d5, then fcfc798c after its own review). Found and fixed a real wiring bug while merging: TASK-1.98's two AcceptRetried send sites read the raw `events` parameter (always None in production), never reaching the idle checker - fixed by computing one effective sender once (checker_tx.or(events)) and having all three send sites in the loop read it; this also fixed a second bug my first attempt introduced (a stray clone of checker_tx left alive in run()'s own outer scope would have kept the checker's channel from ever disconnecting). Added a test confirming AcceptRetried doesn't count as a client arriving. Reported both the fix and an unrelated pre-existing test failure (running_out_of_file_descriptors_exits_1, since replaced on TASK-1.98's final head) to the engineer as I found them.
+
+Checks recorded on the task throughout, including:
+- just check: exit 0 (several times; final run included foundations/design-pages checks from an unrelated later main merge, and accept-backoff-fixture with no stall)
+- cargo test -p steg-server --tests: exit 0
+- cargo test -p steg --features fixtures: exit 0
+- Five negative controls, each recorded failing then reverted: idle_timeout: None instead of Some; the session-close notify line removed from apply_event_locked; the notify-clear line removed from Runtime::stop(); the exact-wait loop's Forever arm reverted to a 100ms poll (first attempt didn't bite - the test's own script left no real window to observe it, fixed with a genuine 300ms recv_timeout().is_err() window before re-recording); the fixture's STEG_TEST_IDLE_TIMEOUT_MS reading disabled.
+
+AC #4's exact-instant race (a client connecting in the same accept-loop iteration the stop flag becomes true) is proven for the ordinary-timing case only, through the real binary and the sdk's own unmodified autostart - the engineer approved this reading and is adding the exact-instant case as a criterion on TASK-1.49 instead, per the plan's own "For the engineer" section.
+
+Reviewer: please check PR #60 includes the merges of origin/main and TASK-1.98's branch cleanly (no leftover conflict markers), and that the one-effective-sender change to listen.rs (TASK-1.98's own file) reads correctly in context.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T17:58:00Z'
+updated_date: '2026-11-16T17:59:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -725,6 +725,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates
  
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:59:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 65 lines:
+
+```text
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+162 | ///   like one that needs a resync: a fresh `Full`, which already carries
+    |     ++
+
+error: doc list item without indentation
+   --> crates/sdk/src/screen.rs:163:5
+    |
+163 | /// the current size by construction, no extra field needed on `Delta` at
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+163 | ///   the current size by construction, no extra field needed on `Delta` at
+    |     ++
+
+error: doc list item without indentation
+   --> crates/sdk/src/screen.rs:164:5
+    |
+164 | /// all.
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+164 | ///   all.
+    |     ++
+
+error: could not compile `steg-sdk` (lib) due to 7 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-sdk` (lib test) due to 7 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

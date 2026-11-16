@@ -238,4 +238,12 @@ created: 2026-11-16T01:23:00Z
 Plan approved by @bruk (b3ded099a9d8, size-3): its worker may build it.
 
 ---
+
+created: 2026-11-16T01:25:00Z
+
+---
+
+Departure from the approved plan's wording, not its substance (restored the plan's exact approved text after accidentally re-saving it with these three clarifications past the approval; the plan itself is unchanged from digest b3ded099a9d8): (1) the off colour section notes it is still defined as an unused colour token in each page's own inline theme data, not just absent from drawing; (2) the generator-scripts README guidance says plainly they are how the pages were first drawn, not a way to regenerate them without losing the hand edit Bruk made to Tokens.dc.html since; (3) same point restated in the design/canvas/README.md bullet list. None of these change what is exported, what is excluded, the schema, or the file layout - they only make the README's wording match what the plan already decided.
+
+---
 <!-- COMMENTS:END -->

@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -570,6 +571,15 @@ Nit:
 Plan-matched: no, by the mechanical rule (the plan's "Module shape" file list names design_pages.py/pyproject.toml/justfile/tests - never Tokens.dc.html, foundations.json, or either README) - but the task's notes and task comments #2/#3 fully explain the departure (the engineer's decisions after plan approval), so per review policy this is not itself a finding.
 
 Unmet: none of AC#1/AC#2's requirements - all reproduced. AC#3 is not fully met: the enumeration mechanism (unaccounted_names) does not live up to its own documented claim for themes[]/focus_ring, per the Important finding above.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:55:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

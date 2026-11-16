@@ -265,7 +265,11 @@ pub fn run(
     // even type-check while a `scope.spawn`ed closure might still hold
     // `&runtime`, and `thread::scope` guarantees none does by the time
     // it returns.
-    let mut runtime = Runtime::new(Arc::clone(&config.launcher), config.login.clone());
+    let mut runtime = Runtime::new(
+        Arc::clone(&config.launcher),
+        config.login.clone(),
+        crate::runtime::FORCE_GRACE_DEFAULT,
+    );
 
     // Split apart before the loop, not destructured after it as before:
     // `listener` has to be owned *inside* the `thread::scope` below (so

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:44:00Z'
+updated_date: '2026-11-16T00:47:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1032,6 +1032,32 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (1.1s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T00:47:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c:
+
+```text
+ok      format check (0.2s)
+ok      lint (30.3s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (9.5s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.3s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (30.5s)
+ok      test (steg-server) (6.7s)
+ok      test (steg-server, race-fixture) (7.0s)
+ok      build (steg) (1.8s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (3.2s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

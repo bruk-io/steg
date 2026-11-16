@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:59:00Z'
+updated_date: '2026-11-16T03:03:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -35,4 +35,6 @@ doc-17 (the four levels, R118, R125, R126). The plugin is plugins/bruk-io-steg, 
 
 <!-- SECTION:NOTES:BEGIN -->
 2026-11-15, @bruk.o: the first real components are TASK-1.100 (atoms), TASK-1.103 (molecules) and TASK-1.106 (organisms); each level's rule points at one file from those when it exists.
+
+2026-11-15, @bruk.o, from TASK-1.94's review: the repository plugin's tools rule (plugins/bruk-io-steg/rules/tools.md) says the tools use only the standard library. TASK-1.94 adds ast-grep-py as the tools' first runtime dependency, approved by the engineer. This task changes the plugin through asdlc-plugin anyway: bring that line up to date here (the tools may take a dependency the engineer has approved; ast-grep-py is the one today, for parsing Rust), so the rule and the code agree.
 <!-- SECTION:NOTES:END -->

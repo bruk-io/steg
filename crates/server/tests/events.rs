@@ -239,11 +239,12 @@ fn session_new_emits_session_created_tab_created_and_pane_created_in_order() {
 // --- AC #2: closure, innermost first ---------------------------------------
 
 #[test]
+/// Two tabs, two panes each (the plan's own proof, not the one-tab-one
+/// -pane shape a first draft of this test used, which cannot show order
+/// *across* tabs at all) - every pane closed, then its own tab, repeated
+/// per tab in the session's own order, then the session itself.
 fn session_close_emits_the_whole_cascade_innermost_first() {
     let (socket_path, stop, handle) = start_server();
-    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
-    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
-
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -251,14 +252,43 @@ fn session_close_emits_the_whole_cascade_innermost_first() {
         "session.new",
         Map::new(),
     ));
-    // Drain this subscriber's own three creation events before closing,
-    // so the assertions below are only about the close cascade.
-    for _ in 0..3 {
-        read_event(&mut sub_stream, &mut sub_connection);
-    }
+    // The session's own default tab (position 1), split into two panes.
+    let mut split_params = Map::new();
+    split_params.insert("target".to_string(), json!(format!("{session_id}/1/1")));
+    split_params.insert("direction".to_string(), json!("right"));
+    call(
+        &mut client_stream,
+        &mut client_connection,
+        "pane.split",
+        split_params,
+    );
+    // A second tab, also split into two panes.
+    let mut tab_params = Map::new();
+    tab_params.insert("target".to_string(), json!(session_id.clone()));
+    let second_tab = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "tab.new",
+        tab_params,
+    ));
+    let mut split_params = Map::new();
+    split_params.insert(
+        "target".to_string(),
+        json!(format!("{session_id}/{second_tab}/1")),
+    );
+    split_params.insert("direction".to_string(), json!("right"));
+    call(
+        &mut client_stream,
+        &mut client_connection,
+        "pane.split",
+        split_params,
+    );
+
+    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
+    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
 
     let mut params = Map::new();
-    params.insert("target".to_string(), json!(session_id));
+    params.insert("target".to_string(), json!(session_id.clone()));
     // session.new's own default program is a shell, which is "running"
     // until it exits - force is needed, the same as any other close of a
     // session with a live program in it.
@@ -271,21 +301,201 @@ fn session_close_emits_the_whole_cascade_innermost_first() {
     );
     assert!(matches!(response, Response::Ok(_)), "{response:?}");
 
+    // First tab: both its panes, then itself.
     let first = read_event(&mut sub_stream, &mut sub_connection);
-    assert!(
-        matches!(first, TreeEvent::PaneClosed { .. }),
-        "expected pane.closed first, got {first:?}"
-    );
+    assert!(matches!(first, TreeEvent::PaneClosed { .. }), "{first:?}");
     let second = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(second, TreeEvent::PaneClosed { .. }), "{second:?}");
+    let third = read_event(&mut sub_stream, &mut sub_connection);
     assert!(
-        matches!(second, TreeEvent::TabClosed { .. }),
-        "expected tab.closed second, got {second:?}"
+        matches!(third, TreeEvent::TabClosed { .. }),
+        "expected the first tab's own tab.closed third, got {third:?}"
     );
+    // Second tab: both its panes, then itself.
+    let fourth = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(fourth, TreeEvent::PaneClosed { .. }), "{fourth:?}");
+    let fifth = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(fifth, TreeEvent::PaneClosed { .. }), "{fifth:?}");
+    let sixth = read_event(&mut sub_stream, &mut sub_connection);
+    let TreeEvent::TabClosed { id } = sixth else {
+        panic!("expected the second tab's own tab.closed sixth, got {sixth:?}");
+    };
+    assert_eq!(id.to_string(), second_tab);
+    // Finally, the session itself.
+    let seventh = read_event(&mut sub_stream, &mut sub_connection);
+    let TreeEvent::SessionClosed { id } = seventh else {
+        panic!("expected session.closed seventh, got {seventh:?}");
+    };
+    assert_eq!(id.to_string(), session_id);
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// Important review finding: `pane.close` on the last pane of a tab that
+/// is *not* the last tab in its session must still emit `tab.closed` for
+/// the tab the kernel's own cascade also removed (R94) - the session
+/// must not close, since another tab remains.
+#[test]
+fn pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
+    let session_id = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "session.new",
+        Map::new(),
+    ));
+    let mut tab_params = Map::new();
+    tab_params.insert("target".to_string(), json!(session_id.clone()));
+    let second_tab = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "tab.new",
+        tab_params,
+    ));
+
+    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
+    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
+
+    // The second tab's own one pane, by position - closing it is closing
+    // that tab's last pane, so the tab closes too, but the session must
+    // not (the first tab still holds it open).
+    let mut close_params = Map::new();
+    close_params.insert(
+        "target".to_string(),
+        json!(format!("{session_id}/{second_tab}/1")),
+    );
+    close_params.insert("force".to_string(), json!(true));
+    let response = call(
+        &mut client_stream,
+        &mut client_connection,
+        "pane.close",
+        close_params,
+    );
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    let first = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(first, TreeEvent::PaneClosed { .. }), "{first:?}");
+    let second = read_event(&mut sub_stream, &mut sub_connection);
+    let TreeEvent::TabClosed { id } = second else {
+        panic!("expected tab.closed second, got {second:?}");
+    };
+    assert_eq!(id.to_string(), second_tab);
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// Important review finding, the case the review itself reproduced
+/// against a running server: `pane.close` on the last pane of the *last*
+/// tab in a session must cascade all three events, in order - before this
+/// fix, only `pane.closed` was ever emitted, though the kernel's own
+/// `close_pane` already reported the tab and the session closing too.
+#[test]
+fn pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
+    let session_id = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "session.new",
+        Map::new(),
+    ));
+
+    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
+    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
+
+    let mut close_params = Map::new();
+    close_params.insert("target".to_string(), json!(format!("{session_id}/1/1")));
+    close_params.insert("force".to_string(), json!(true));
+    let response = call(
+        &mut client_stream,
+        &mut client_connection,
+        "pane.close",
+        close_params,
+    );
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    let first = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(first, TreeEvent::PaneClosed { .. }), "{first:?}");
+    let second = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(second, TreeEvent::TabClosed { .. }), "{second:?}");
     let third = read_event(&mut sub_stream, &mut sub_connection);
     let TreeEvent::SessionClosed { id } = third else {
         panic!("expected session.closed third, got {third:?}");
     };
     assert_eq!(id.to_string(), session_id);
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// Important review finding, the mirror case on `tab.close`: closing the
+/// last tab of a session must emit every one of its own panes closed,
+/// then the tab, then the session, in that order.
+#[test]
+fn tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
+    let session_id = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "session.new",
+        Map::new(),
+    ));
+    let mut split_params = Map::new();
+    split_params.insert("target".to_string(), json!(format!("{session_id}/1/1")));
+    split_params.insert("direction".to_string(), json!("right"));
+    call(
+        &mut client_stream,
+        &mut client_connection,
+        "pane.split",
+        split_params,
+    );
+
+    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
+    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
+
+    let mut close_params = Map::new();
+    close_params.insert("target".to_string(), json!(format!("{session_id}/1")));
+    close_params.insert("force".to_string(), json!(true));
+    let response = call(
+        &mut client_stream,
+        &mut client_connection,
+        "tab.close",
+        close_params,
+    );
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    let first = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(first, TreeEvent::PaneClosed { .. }), "{first:?}");
+    let second = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(second, TreeEvent::PaneClosed { .. }), "{second:?}");
+    let third = read_event(&mut sub_stream, &mut sub_connection);
+    assert!(matches!(third, TreeEvent::TabClosed { .. }), "{third:?}");
+    let fourth = read_event(&mut sub_stream, &mut sub_connection);
+    let TreeEvent::SessionClosed { id } = fourth else {
+        panic!("expected session.closed fourth, got {fourth:?}");
+    };
+    assert_eq!(id.to_string(), session_id);
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
+    );
 
     stop_server(&stop, handle);
 }

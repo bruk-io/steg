@@ -235,10 +235,13 @@ fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
 /// `Pane::program_status()`, because the kernel's `close_pane` has no concept of
 /// "refuse" (TASK-1.40's own plan rejected threading a force flag through
 /// its signature, the same reasoning this plan's own §5 repeats). With
-/// `--force`, this always proceeds (whether anything is running or not) -
-/// `Runtime::close_and_dispatch` (TASK-1.78 §5) is what ends a running
-/// program *before* calling this, under the same lock, so by the time this
-/// unconditional `tree.close_pane` runs there is nothing left to force.
+/// `--force`, this always proceeds (whether anything is running or not):
+/// the kernel's own tree has no notion of a still-running OS process
+/// either way, only of a pane that exists or does not. Actually ending a
+/// running program is `Runtime::close_and_dispatch`'s own job (TASK-1.78
+/// §5), and it happens *after* this call returns, not before - once the
+/// kernel has reported what the close removed, under the same lock, the
+/// caller pops that pane's handle and asks it to end, outside the lock.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_pane(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
@@ -249,8 +252,8 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
         return Err(super::program_running());
     }
 
-    tree.close_pane(id).map_err(map_kernel_error)?;
-    Ok(Outcome::Nothing)
+    let closed = tree.close_pane(id).map_err(map_kernel_error)?;
+    Ok(Outcome::PaneClosed(closed))
 }
 
 fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {

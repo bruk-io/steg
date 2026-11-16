@@ -162,8 +162,8 @@ fn new(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome,
 /// running and `--force` was not given, with `ErrorCode::ProgramRunning`,
 /// touching nothing - the same dispatch-level policy `pane::close` uses,
 /// over every pane the tab holds rather than one. With `--force`, this
-/// always proceeds - see `pane::close`'s own doc for why nothing is left
-/// running by the time this unconditional `tree.close_tab` runs.
+/// always proceeds - see `pane::close`'s own doc for why ending whatever
+/// was still running is not this function's own job either.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_tab(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
@@ -174,8 +174,8 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
         return Err(super::program_running());
     }
 
-    tree.close_tab(id).map_err(map_kernel_error)?;
-    Ok(Outcome::Nothing)
+    let closed = tree.close_tab(id).map_err(map_kernel_error)?;
+    Ok(Outcome::TabClosed(closed))
 }
 
 fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {

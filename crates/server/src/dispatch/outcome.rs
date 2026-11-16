@@ -47,6 +47,15 @@ pub enum Outcome {
     TabRecord(TabRecord),
     /// Every tab of a session (`tab.list`; TASK-1.89).
     TabRecords(Vec<TabRecord>),
+    /// `pane.close`: what `Tree::close_pane` actually closed (TASK-1.46) -
+    /// serialises the same as `Nothing` (doc-2's own `Returns::Nothing`
+    /// contract for this method is unchanged; this variant exists so
+    /// `close_and_dispatch` can read the kernel's own cascade directly,
+    /// from what it returned, rather than re-deriving it with a second
+    /// read of the tree).
+    PaneClosed(steg_kernel::ClosedPane),
+    /// `tab.close`: what `Tree::close_tab` actually closed, same reason.
+    TabClosed(steg_kernel::TabClosed),
 }
 
 impl Outcome {
@@ -107,6 +116,7 @@ impl Outcome {
             Self::TabRecords(records) => {
                 serde_json::to_value(records).expect("a Vec<TabRecord> always serialises")
             }
+            Self::PaneClosed(_) | Self::TabClosed(_) => Value::Null,
         }
     }
 }

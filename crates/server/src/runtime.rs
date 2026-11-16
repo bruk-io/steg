@@ -24,7 +24,7 @@ use steg_sdk::{
     Response, SessionId, validate,
 };
 
-use crate::dispatch::{self, Context, Filter};
+use crate::dispatch::{self, Context, Filter, Outcome};
 use crate::env::pane_environment;
 use crate::outbound::Outbound;
 use crate::pane::{self, DEFAULT_PANE_SIZE, PaneEvent, PaneHandle};
@@ -717,27 +717,33 @@ impl Runtime {
     ) -> Response {
         let mut state = self.lock();
 
-        // Read *before* `dispatch` runs: once a close succeeds, the tree
-        // can no longer be asked which panes it used to cover.
+        // Read *before* `dispatch_raw` runs: once a close succeeds, the
+        // tree can no longer be asked which panes it used to cover.
         let scope = match dispatch::panes_in_close_scope(&state.tree, context, request) {
             Ok(scope) => scope,
             Err(error) => return Response::Error(error),
         };
-        // Same reason, for this task's own closure events (§5): captured
-        // once, before anything closes, reused for `emit_close_events`
-        // after a successful dispatch below.
-        let cascade = match capture_close_cascade(&state.tree, context, request) {
-            Ok(cascade) => cascade,
+        // Same reason, for this task's own closure events (§5): the one
+        // thing every case needs that the kernel's own return value
+        // cannot give (which session this cascade is scoped to, for
+        // `broadcast`'s own filter - needed even when the cascade stops
+        // at just the pane), plus, for `session.close` only, its tabs
+        // grouped with their own panes (`Tree::close_session` reports no
+        // structured cascade at all, unlike the other two methods - see
+        // `emit_close_events`'s own doc for why this is the one case
+        // still read entirely from the tree before the close).
+        let pre = match capture_close_pre(&state.tree, context, request) {
+            Ok(pre) => pre,
             Err(error) => return Response::Error(error),
         };
 
-        let response = {
+        let outcome = {
             // See `start_and_dispatch`'s own comment: one explicit deref
             // so the two `&mut` arguments below project to disjoint
             // fields of a plain `&mut State`.
             let state: &mut State = &mut state;
             let now = Moment::new(Instant::now().duration_since(state.clock_origin));
-            dispatch::dispatch(
+            dispatch::dispatch_raw(
                 &mut state.tree,
                 &mut state.settings,
                 description,
@@ -746,12 +752,15 @@ impl Runtime {
                 now,
             )
         };
-        if !matches!(response, Response::Ok(_)) {
-            // The refusal (no `--force`, something running) or any other
-            // error `dispatch`'s own arm gives - nothing changed, so
-            // nothing to pop or end.
-            return response;
-        }
+        let outcome = match outcome {
+            Ok(outcome) => outcome,
+            Err(error) => {
+                // The refusal (no `--force`, something running) or any
+                // other error `dispatch_raw`'s own arm gives - nothing
+                // changed, so nothing to pop or end.
+                return Response::Error(error);
+            }
+        };
 
         // The close just ran, under the lock still held: the whole scope
         // is gone from the tree now, atomically - not partially, since
@@ -761,8 +770,14 @@ impl Runtime {
         // dropped a few lines down) - the close events describe the
         // tree, not the program's own lifecycle, and the tree has
         // already changed by this point (TASK-1.78's own plan already
-        // assumed exactly this timing for this task).
-        emit_close_events(&state, &cascade);
+        // assumed exactly this timing for this task). Reads `outcome`
+        // itself (the kernel's own report of what actually closed, AC #2
+        // and the review that found this task's first draft missed it
+        // for `pane.close`/`tab.close`'s own cascades) before consuming
+        // it into the reply's own value, below.
+        emit_close_events(&state, request.method.as_str(), &pre, &scope, &outcome);
+
+        let response = Response::Ok(outcome.into_value());
 
         let to_force: Vec<(PaneId, PaneHandle)> = scope
             .into_iter()
@@ -968,61 +983,62 @@ fn emit_pane_status_changed(state: &State, pane: PaneId, status: Option<steg_sdk
     );
 }
 
-/// What `pane.close`/`tab.close`/`session.close` will close, captured
-/// *before* `dispatch` runs (§5 of this task's own plan): once the close
-/// succeeds the tree can no longer be asked, the same reasoning
-/// `panes_in_close_scope` already uses for `force_end`'s own needs,
-/// applied here to this task's own event emission instead.
-enum CloseCascade {
-    /// `pane.close`: the one pane, and the session it scopes to.
-    Pane { id: PaneId, session: SessionId },
-    /// `tab.close`: the tab, its session, and its panes in order -
-    /// whether the session also closed (R94) is checked *after*
-    /// dispatch runs, since only then is it known.
-    Tab {
-        id: steg_sdk::TabId,
-        session: SessionId,
-        panes: Vec<PaneId>,
-    },
-    /// `session.close`: the session, and its tabs in order, each with
-    /// its own panes in order.
+/// What `close_and_dispatch` needs captured *before* `dispatch_raw` runs
+/// (§5 of this task's own plan, revised after a review found the first
+/// version missed `pane.close`/`tab.close`'s own cascades): the session
+/// every event in this close is scoped to - needed even when the kernel's
+/// own cascade stops at just the pane, since nothing else still names it
+/// once the pane is gone - and, for `session.close` alone, its tabs
+/// grouped with their own panes. `pane.close`/`tab.close` need nothing
+/// else pre-captured: what they actually closed comes back from the
+/// kernel itself (`Outcome::PaneClosed`/`TabClosed`, read in
+/// `emit_close_events` below), not from a second read of the tree after
+/// the fact - the bug a review of this task found, and the reason this
+/// is no longer named `CloseCascade`.
+enum ClosePre {
+    /// `pane.close`: just the session it was in.
+    Pane { session: SessionId },
+    /// `tab.close`: just the session it was in - its own panes are
+    /// `close_and_dispatch`'s own `scope` (`panes_in_close_scope`),
+    /// already exactly this tab's panes, reused rather than captured a
+    /// second time here.
+    Tab { session: SessionId },
+    /// `session.close`: the session, and its tabs in order, each with its
+    /// own panes in order - `Tree::close_session` reports no structured
+    /// cascade of its own at all (unlike the other two), so this is the
+    /// one case still read entirely from the tree before the close.
     Session {
         id: SessionId,
         tabs: Vec<(steg_sdk::TabId, Vec<PaneId>)>,
     },
 }
 
-/// Builds the [`CloseCascade`] `close_and_dispatch` needs, before it
-/// closes anything.
+/// Builds the [`ClosePre`] `close_and_dispatch` needs, before it closes
+/// anything.
 ///
 /// # Errors
 /// Whatever resolving the request's own target gives - the same errors
 /// `dispatch`'s own close arm would refuse with, caught here first since
 /// this runs before it.
-fn capture_close_cascade(
+fn capture_close_pre(
     tree: &Tree,
     context: &Context,
     request: &Request,
-) -> Result<CloseCascade, ApiError> {
+) -> Result<ClosePre, ApiError> {
     match request.method.as_str() {
         "pane.close" => {
             let pane = dispatch::target_pane(tree, context, request)?;
             let tab = tree
                 .tab_of_pane(pane)
                 .expect("target_pane just resolved this pane; it is in the tree");
-            Ok(CloseCascade::Pane {
-                id: pane,
+            Ok(ClosePre::Pane {
                 session: session_owning_tab(tree, tab),
             })
         }
         "tab.close" => {
             let tab = dispatch::target_tab(tree, context, request)?;
-            let session = session_owning_tab(tree, tab);
-            let panes = dispatch::panes_in_close_scope(tree, context, request)?;
-            Ok(CloseCascade::Tab {
-                id: tab,
-                session,
-                panes,
+            Ok(ClosePre::Tab {
+                session: session_owning_tab(tree, tab),
             })
         }
         "session.close" => {
@@ -1040,36 +1056,82 @@ fn capture_close_cascade(
                         .collect()
                 })
                 .unwrap_or_default();
-            Ok(CloseCascade::Session { id: session, tabs })
+            Ok(ClosePre::Session { id: session, tabs })
         }
-        other => unreachable!(
-            "capture_close_cascade is only ever called for the three close methods, not {other}"
-        ),
+        other => {
+            unreachable!(
+                "capture_close_pre is only ever called for the three close methods, not {other}"
+            )
+        }
     }
 }
 
-/// Emits a [`CloseCascade`]'s own events, innermost first (§5 of this
-/// task's own plan): every pane, then its tab if the tab closed too, then
-/// the session if that closed too - one rule, whichever of the three
-/// methods caused it.
-fn emit_close_events(state: &State, cascade: &CloseCascade) {
+/// Emits one close's own events, innermost first (§5 of this task's own
+/// plan): every pane, then its tab if the tab closed too, then the
+/// session if that closed too - one rule, on every path, whichever of the
+/// three methods caused it. `pane.close`/`tab.close` read what actually
+/// closed from the kernel's own report (`outcome`); `session.close` reads
+/// it from `pre` instead, since `Tree::close_session` reports none of its
+/// own (`capture_close_pre`'s own doc says why). `tab_scope_panes` is
+/// `close_and_dispatch`'s own `scope` (`panes_in_close_scope`) - for
+/// `tab.close` this is already exactly that tab's own panes, so it is
+/// reused here rather than captured a second time in `ClosePre`.
+///
+/// # Panics
+/// Never in practice: `method` is always one of the three close verbs
+/// (`close_and_dispatch`'s only caller), and `outcome`/`pre` are always
+/// what that exact verb's own code just produced - the two are never
+/// mismatched.
+fn emit_close_events(
+    state: &State,
+    method: &str,
+    pre: &ClosePre,
+    tab_scope_panes: &[PaneId],
+    outcome: &Outcome,
+) {
     use steg_sdk::TreeEvent;
 
-    match cascade {
-        CloseCascade::Pane { id, session } => {
-            broadcast(state, &TreeEvent::PaneClosed { id: *id }, *session);
+    match method {
+        "pane.close" => {
+            let ClosePre::Pane { session } = pre else {
+                unreachable!("pane.close's own ClosePre is always ClosePre::Pane")
+            };
+            let Outcome::PaneClosed(closed) = outcome else {
+                unreachable!("pane.close always produces Outcome::PaneClosed on success")
+            };
+            broadcast(state, &TreeEvent::PaneClosed { id: closed.pane }, *session);
+            if let Some(tab) = closed.tab {
+                broadcast(state, &TreeEvent::TabClosed { id: tab }, *session);
+            }
+            if let Some(session_also_closed) = closed.session {
+                broadcast(
+                    state,
+                    &TreeEvent::SessionClosed {
+                        id: session_also_closed,
+                    },
+                    *session,
+                );
+            }
         }
-        CloseCascade::Tab { id, session, panes } => {
-            for pane in panes {
+        "tab.close" => {
+            let ClosePre::Tab { session } = pre else {
+                unreachable!("tab.close's own ClosePre is always ClosePre::Tab")
+            };
+            let Outcome::TabClosed(closed) = outcome else {
+                unreachable!("tab.close always produces Outcome::TabClosed on success")
+            };
+            for pane in tab_scope_panes {
                 broadcast(state, &TreeEvent::PaneClosed { id: *pane }, *session);
             }
-            broadcast(state, &TreeEvent::TabClosed { id: *id }, *session);
-            if state.tree.session(*session).is_none() {
-                // R94's cascade reached the session too.
+            broadcast(state, &TreeEvent::TabClosed { id: closed.tab }, *session);
+            if closed.session_now_empty {
                 broadcast(state, &TreeEvent::SessionClosed { id: *session }, *session);
             }
         }
-        CloseCascade::Session { id, tabs } => {
+        "session.close" => {
+            let ClosePre::Session { id, tabs } = pre else {
+                unreachable!("session.close's own ClosePre is always ClosePre::Session")
+            };
             for (tab_id, panes) in tabs {
                 for pane in panes {
                     broadcast(state, &TreeEvent::PaneClosed { id: *pane }, *id);
@@ -1078,6 +1140,9 @@ fn emit_close_events(state: &State, cascade: &CloseCascade) {
             }
             broadcast(state, &TreeEvent::SessionClosed { id: *id }, *id);
         }
+        other => unreachable!(
+            "emit_close_events is only ever called for the three close methods, not {other}"
+        ),
     }
 }
 

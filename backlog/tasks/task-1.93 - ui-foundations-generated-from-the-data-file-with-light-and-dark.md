@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:41:00Z'
+updated_date: '2026-11-16T02:42:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -335,6 +335,14 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py tools/tests/adapter/test_foundations_generate_real_data.py'` exited 0 at 2026-11-16T02:42:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCmDGVI` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.......................................                                  [100%]
+39 passed in 0.04s
 ```
 <!-- SECTION:NOTES:END -->
 

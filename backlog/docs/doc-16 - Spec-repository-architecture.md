@@ -3,7 +3,7 @@ id: doc-16
 title: 'Spec: repository architecture'
 type: specification
 created_date: '2026-11-15T02:34:00Z'
-updated_date: '2026-11-15T02:43:00Z'
+updated_date: '2026-11-16T00:51:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused.
@@ -47,6 +47,7 @@ A package here is a crate. Packages are not things that run: each container abov
 | kernel | The server's logic: the tree, layout, focus, status, the terminal engine | No | The server |
 | server | The kernel plus sockets, pseudo-terminals, processes and the clock | Yes | The server |
 | `steg` | The CLI, and the entry point that starts the server | Yes | The server and the CLI |
+| ui | The app's components and the design's named values. Pure interface, with nothing of steg's domain in it (doc-17) | No | Steg.app |
 | app | The GPUI window | Yes | Steg.app |
 
 ### Who may depend on whom
@@ -57,7 +58,8 @@ A package here is a crate. Packages are not things that run: each container abov
 | kernel | sdk |
 | server | kernel, sdk |
 | `steg` | sdk, server |
-| app | sdk |
+| ui | nothing of steg's |
+| app | sdk, ui |
 
 Anything not in that table is refused (R104).
 

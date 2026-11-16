@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:43:00Z'
+updated_date: '2026-11-16T02:45:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -177,6 +177,35 @@ Check passed: `sh -c 'cd tools && uv run --project . pytest tests/adapter/test_d
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6velY9` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
 ....                                                                     [100%]
 4 passed in 0.07s
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:45:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at f99466903b08 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.2s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (54.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.9s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (5.2s)
+ok      test (steg-server, race-fixture) (5.2s)
+ok      build (steg) (0.5s)
+ok      test (steg) (0.3s)
+ok      test (steg, fixtures) (3.1s)
+ok      build (steg-ui) (0.9s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (1.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

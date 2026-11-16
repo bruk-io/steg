@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:51:00Z'
+updated_date: '2026-11-16T13:54:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -465,6 +465,40 @@ The approved plan's own words were "a permanent second test" in `just check` for
 From two aggregate runs of the warm fixture at `max_open_attempts = 5` (16 workers, 2,000 opens each, bypassing the test's own early-stop so every worker runs to completion): 64,000 opens total, 0 opens ever exhausted all 5 attempts. Of those 64,000, 23 needed more than one attempt (all 23 succeeded on the second attempt; none needed a third, fourth, or fifth).
 
 Honestly: the volume here (23 observed retries) is too low to rigorously test whether a third attempt fails disproportionately often, because zero third-attempts were ever needed to observe in this sample - there is nothing to compare a "third-attempt rate" against. What the sample does say: of 23 opens that needed a retry, the very next attempt recovered every single time, which is consistent with the shipped bound's own independence assumption (an independent model would predict close to zero third-attempts needed at this per-attempt rate and this sample size too) - it does not contradict it, but it is not a strong confirmation either, only a failure to find the correlation the engineer asked to check for, at a volume too small to rule a modest one out.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:54:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.1s)
+ok      tests (every crate) (15.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (34.3s)
+ok      test (steg-server) (13.5s)
+ok      test (steg-server, race-fixture) (16.4s)
+ok      test (steg-server, pty-race-fixture) (21.2s)
+ok      build (steg) (1.5s)
+ok      test (steg) (0.7s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

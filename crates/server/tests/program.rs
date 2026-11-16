@@ -141,6 +141,9 @@ impl ProgramLauncher for FakeLauncher {
             child: Box::new(FakeChild {
                 exit_code: Mutex::new(exit_rx),
             }),
+            // No real open to retry here (TASK-1.112) - this fake never
+            // fails its own "open", so it always took exactly one attempt.
+            open_attempts: 1,
         })
     }
 }

@@ -108,7 +108,9 @@ test-tools:
 # steg-server alone is tested a second time the same way, with `--features race-fixture` -
 # the same reason: off by default (a review of TASK-1.44 found the race test's own fixture
 # binary should not build for an ordinary `cargo build`), so without this second run the
-# race test (AC #2) would never execute under `just check` either.
+# race test (AC #2) would never execute under `just check` either. A third run, with
+# `--features pty-race-fixture` (TASK-1.112), is the same reason again for the
+# cross-process pty-open race's own fixture and proof test.
 #
 # steg alone, the same way again, with `--features fixtures` (TASK-1.77): off by default for
 # the identical reason - its two fixture binaries (the process-group-leader and autostart
@@ -127,11 +129,19 @@ check-packages: zig-deps-seeded
         fi
         if [ "$pkg" = steg-server ]; then
             {{quiet}} "test (steg-server, race-fixture)" -- cargo test -p steg-server --features race-fixture
+            {{quiet}} "test (steg-server, pty-race-fixture)" -- cargo test -p steg-server --features pty-race-fixture
         fi
         if [ "$pkg" = steg ]; then
             {{quiet}} "test (steg, fixtures)" -- cargo test -p steg --features fixtures
         fi
     done
+
+# runs TASK-1.112's own ignored negative control on demand - not part of `just check`: its
+# pass/fail depends on what else this machine is doing with ptys at the moment it runs, not only
+# on this crate's own code (`tests/openpty_race.rs`'s own module doc has why), so it is read for
+# the record each time, through `asdlc record-check`, rather than trusted to gate every run
+test-openpty-race-control:
+    @{{quiet}} "openpty race control" -- cargo test -p steg-server --features pty-race-fixture --test openpty_race -- --ignored --nocapture cross_process_opens_with_no_retry_the_permanent_control_eventually_fails
 
 # format the code
 fmt:

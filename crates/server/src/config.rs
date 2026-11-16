@@ -96,7 +96,7 @@ impl Default for ServerConfig {
             socket_path: None,
             handshake_timeout: DEFAULT_HANDSHAKE_TIMEOUT,
             arbitration_timeout: DEFAULT_ARBITRATION_TIMEOUT,
-            launcher: Arc::new(RealLauncher),
+            launcher: Arc::new(RealLauncher::default()),
             login: LoginShell::default(),
             login_identity_timeout: DEFAULT_LOGIN_IDENTITY_TIMEOUT,
             login_environment_timeout: DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT,

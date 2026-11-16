@@ -2141,6 +2141,15 @@ fn extra_params_for(
                 ("label", json!("")),
             ]
         }
+        "tab.declare-size" => {
+            let other_session = tree.new_session(None).unwrap();
+            let other_tab = tree.new_tab(other_session, None).unwrap();
+            vec![
+                ("target", json!(other_tab.to_string())),
+                ("columns", json!(80)),
+                ("rows", json!(24)),
+            ]
+        }
 
         "pane.list" => {
             // This noun's own target is a tab, not a pane.
@@ -2413,6 +2422,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
         "pane.resize",
         "pane.send",
         "pane.detach",
+        "tab.declare-size",
         "server.start",
         "server.stop",
     ];

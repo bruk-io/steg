@@ -21,7 +21,7 @@ use steg_kernel::{
 };
 use steg_sdk::{
     ApiError, ClientId, ClientKind, Description, ErrorCode, PaneId, Program, Request, Response,
-    validate,
+    Size, validate,
 };
 
 use crate::dispatch::{self, Context};
@@ -469,10 +469,10 @@ impl Runtime {
         attaching: Attaching,
         request: &Request,
         outbound: &Arc<crate::outbound::Outbound>,
-    ) -> Result<PaneId, ApiError> {
+    ) -> Result<(PaneId, pane::AttachmentId), ApiError> {
         let Attaching { client, id, stream } = attaching;
         validate(description, request)?;
-        let (pane, screen) = {
+        let (pane, attachment_id, screen) = {
             let mut state = self.lock();
             let pane = dispatch::target_pane(&state.tree, context, request)?;
             state
@@ -485,8 +485,8 @@ impl Runtime {
                     "this pane has no running program to attach to",
                 )
             })?;
-            let screen = handle.attach(stream).map_err(map_pane_error)?;
-            (pane, screen)
+            let (attachment_id, screen) = handle.attach(stream).map_err(map_pane_error)?;
+            (pane, attachment_id, screen)
         };
         let attached = steg_sdk::PaneAttached {
             stream,
@@ -500,7 +500,7 @@ impl Runtime {
         // already tearing down concurrently, and there is nothing more to
         // do about it here.
         let _ = outbound.enqueue_control(bytes);
-        Ok(pane)
+        Ok((pane, attachment_id))
     }
 
     /// Hands an already-registered attachment the `Outbound` it sends
@@ -511,12 +511,12 @@ impl Runtime {
     pub(crate) fn arm_attachment(
         &self,
         pane: PaneId,
-        stream: u32,
+        attachment_id: pane::AttachmentId,
         outbound: Arc<crate::outbound::Outbound>,
     ) {
         let state = self.lock();
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.arm(stream, outbound);
+            let _ = handle.arm(attachment_id, outbound);
         }
     }
 
@@ -524,11 +524,16 @@ impl Runtime {
     /// (`Tree::stop_viewing`), reapplying any `SizeChanged` it reports
     /// (decision-6: detaching can change who is latest), and tells the
     /// pane's own worker to drop the attachment. Takes an already-resolved
-    /// `pane` and the caller's own `stream` (`connection.rs` looks both up
-    /// from its own bookkeeping before calling this - see
+    /// `pane` and the caller's own `attachment_id` (`connection.rs` looks
+    /// both up from its own bookkeeping before calling this - see
     /// [`Runtime::resolve_pane_target`]) rather than a `Request`, since
     /// "is this connection even attached to this pane" is connection
-    /// -local state the kernel and this `Runtime` know nothing about.
+    /// -local state the kernel and this `Runtime` know nothing about. The
+    /// worker's own `AttachmentId` (TASK-1.114), not the connection's own
+    /// stream number, is what identifies the attachment to end - see
+    /// `crate::pane::AttachmentId`'s own doc for why the stream number
+    /// alone is not safe once a second connection can attach the same
+    /// pane.
     ///
     /// Best-effort on both halves: `stop_viewing` failing (the client
     /// already gone, or never really viewing this pane) and the pane
@@ -536,7 +541,12 @@ impl Runtime {
     /// already confirmed its own attachment was real before calling this,
     /// so either case only means the state this was meant to release is
     /// already gone.
-    pub(crate) fn detach_pane(&self, client: ClientId, pane: PaneId, stream: u32) {
+    pub(crate) fn detach_pane(
+        &self,
+        client: ClientId,
+        pane: PaneId,
+        attachment_id: pane::AttachmentId,
+    ) {
         let mut state = self.lock();
         if let Ok(changes) = state.tree.stop_viewing(client, pane) {
             for change in &changes {
@@ -544,7 +554,7 @@ impl Runtime {
             }
         }
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.detach(stream);
+            let _ = handle.detach(attachment_id);
         }
     }
 
@@ -558,11 +568,73 @@ impl Runtime {
     /// and at worst race whichever of the two cleanup calls runs first.
     /// Only the pane worker's own in-memory fan-out list, which the kernel
     /// knows nothing about, still needs telling.
-    pub(crate) fn forget_attachment(&self, pane: PaneId, stream: u32) {
+    pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
         let state = self.lock();
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.detach(stream);
+            let _ = handle.detach(attachment_id);
         }
+    }
+
+    /// Bytes `client` sent on an attachment's own stream (TASK-1.114, AC
+    /// #1): `Tree::note_input` makes `client` the new latest in `pane`'s
+    /// session (R91's other half of "latest" - decision-6) and reapplies
+    /// whatever size it last declared, if that now differs from the tab's
+    /// current size; then the bytes themselves are handed to the pane's
+    /// worker. Self-locking, the same shape as [`Runtime::arm_attachment`].
+    ///
+    /// Never blocks on the program: `PaneHandle::send_input` only enqueues
+    /// onto the pane's own unbounded command channel (a non-blocking
+    /// `mpsc::Sender::send`) - the pty write itself happens later, on that
+    /// pane's own worker thread, not this one. `Tree::note_input`'s `Err`
+    /// (`ClientNotFound`/`ClientNotViewingPane`) is never reached in
+    /// practice - `connection.rs`'s own `stream_panes` only ever names a
+    /// pane this connection's `client` is currently attached to - but is
+    /// tolerated the same way `detach_pane`/`forget_attachment` already
+    /// tolerate a stale pane: there is nothing sane to do about a state
+    /// inconsistency here except not fail the bytes over it.
+    pub(crate) fn send_input(&self, client: ClientId, pane: PaneId, bytes: Vec<u8>) {
+        let mut state = self.lock();
+        if let Ok(Some(change)) = state.tree.note_input(client, pane) {
+            apply_size_changed_locked(&mut state, &change);
+        }
+        if let Some(handle) = state.panes.get(&pane) {
+            let _ = handle.send_input(bytes);
+        }
+    }
+
+    /// `tab.declare-size` (TASK-1.114, AC #2): `client` declares its own
+    /// size for `tab`, in whole cells. `columns`/`rows` are already
+    /// range-checked by `connection.rs` (both `1..=u16::MAX`) before this
+    /// is ever called - the kernel's own `Tree::declare_size` applies
+    /// whatever size it is given with no floor of its own (R100's last
+    /// clause: a window may shrink a pane under R100's 20x4 floor, cropped
+    /// rather than refused), so a degenerate `0` has to be refused before
+    /// it ever reaches the kernel or the engine, not after.
+    ///
+    /// # Errors
+    ///
+    /// Whatever `validate`/`dispatch::target_tab`/`Tree::declare_size`
+    /// refuse with (`BadRequest`, `NoSuchTarget`, `AmbiguousTarget`, or -
+    /// `Tree::declare_size`'s own `ClientNotViewingTab` - `BadRequest`,
+    /// via [`dispatch::map_kernel_error`]).
+    pub(crate) fn declare_size(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+        client: ClientId,
+        columns: u16,
+        rows: u16,
+    ) -> Result<(), ApiError> {
+        validate(description, request)?;
+        let mut state = self.lock();
+        let tab = dispatch::target_tab(&state.tree, context, request)?;
+        let change = state
+            .tree
+            .declare_size(client, tab, Size::new(columns, rows))
+            .map_err(dispatch::map_kernel_error)?;
+        apply_size_changed_locked(&mut state, &change);
+        Ok(())
     }
 
     /// How many attachments `pane`'s own worker currently holds

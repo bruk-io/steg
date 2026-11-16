@@ -15,8 +15,8 @@ use ghostty_vt::style::{
 use ghostty_vt::terminal::{Options, Point, PointCoordinate};
 use ghostty_vt::{Event, Terminal as Engine};
 use steg_sdk::{
-    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, ScreenUpdate, Underline,
-    Wide,
+    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, ScreenUpdate, Size,
+    Underline, Wide,
 };
 
 use crate::error::Error;
@@ -209,7 +209,18 @@ impl Terminal {
         let palette = snapshot.colors().map_err(Error::Engine)?.palette;
         let rows = all_rows(&snapshot, &palette)?;
         let cursor = read_cursor(&snapshot)?;
-        Ok(Screen { rows, cursor })
+        let size = self.current_size()?;
+        Ok(Screen { rows, cursor, size })
+    }
+
+    /// The terminal's current size, read fresh from the engine (TASK-1.114;
+    /// decision-2 section 3, doc-14's size-on-the-wire requirement).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Engine`] if the engine could not report it.
+    fn current_size(&self) -> Result<Size, Error> {
+        Ok(Size::new(self.cols()?, self.rows()?))
     }
 
     /// The rows that changed since `seen`, or a whole screen when `seen`
@@ -278,7 +289,11 @@ impl Terminal {
             Some(Outcome::Full(rows)) => {
                 self.seq += 1;
                 ScreenUpdate::Full {
-                    screen: Screen { rows, cursor },
+                    screen: Screen {
+                        rows,
+                        cursor,
+                        size: self.current_size()?,
+                    },
                     seq: self.seq,
                 }
             }

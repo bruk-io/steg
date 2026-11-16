@@ -326,6 +326,35 @@ impl Connection {
         self.call("pane.detach", params)
     }
 
+    /// Declares the caller's own size for a tab (`tab.declare-size`,
+    /// TASK-1.114): the same shape [`Connection::call`] already has. `tab`
+    /// names the target, the same convention [`Connection::attach`] uses;
+    /// `columns`/`rows` are the declared size, in whole cells - the
+    /// terminal's actual size follows doc-15 R91/decision-6 (the latest
+    /// client wins), reported back on every attachment's own stream as
+    /// part of its `ScreenUpdate`, not in this call's own reply
+    /// (`Returns::Nothing`).
+    ///
+    /// # Errors
+    /// The same as [`Connection::call`].
+    ///
+    /// # Panics
+    /// Never in practice, the same as [`Connection::call`].
+    pub fn declare_size(
+        &mut self,
+        tab: Option<&str>,
+        columns: u16,
+        rows: u16,
+    ) -> Result<(u64, Vec<u8>), ApiError> {
+        let mut params = Map::new();
+        if let Some(tab) = tab {
+            params.insert("target".to_owned(), Value::String(tab.to_owned()));
+        }
+        params.insert("columns".to_owned(), Value::Number(columns.into()));
+        params.insert("rows".to_owned(), Value::Number(rows.into()));
+        self.call("tab.declare-size", params)
+    }
+
     // --- server-side output ---------------------------------------------
 
     /// Reads the client's first frame and answers it: `Accept` with the

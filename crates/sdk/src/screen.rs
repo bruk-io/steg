@@ -14,6 +14,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::layout::Size;
+
 /// A resolved 24-bit colour.
 ///
 /// Always resolved: the server resolves a cell's palette index, or its
@@ -141,13 +143,34 @@ pub struct Cursor {
     pub shape: CursorShape,
 }
 
-/// A terminal's screen: every row, and the cursor (AC #1).
+/// A terminal's screen: every row, the cursor, and the terminal's size (AC
+/// #1; decision-2 section 3: "Snapshot, as plain data... sequence number,
+/// size, the screen as rows... the cursor" - `size` closes a field
+/// decision-2 already specified that TASK-1.47 left out; TASK-1.114 is the
+/// one that reads and reports it, since no caller declared one before it).
+///
+/// A changed size reaches a client only through a `Screen`, never a bare
+/// field on [`ScreenUpdate::Delta`] (TASK-1.114; doc-14's own wording,
+/// "an update gains an optional `size`", was tried and dropped: see
+/// `crates/server/src/pane.rs`'s own `Attachment::last_told_size` for why.
+/// Whether a *given attachment* has already been told the current size
+/// is attachment-local state the kernel has no way to see, so the kernel
+/// cannot decide, call by call, whether this field would be `Some` or
+/// `None` for any one caller sharing this terminal's single `changes_
+/// since`). Attaching always reads a fresh `Screen` already, and the
+/// server treats an attachment whose own last-told size is stale exactly
+/// like one that needs a resync: a fresh `Full`, which already carries
+/// the current size by construction, no extra field needed on `Delta` at
+/// all.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Screen {
     /// The screen's rows, top to bottom.
     pub rows: Vec<Row>,
     /// The cursor.
     pub cursor: Cursor,
+    /// The terminal's size in whole cells, read fresh at the moment this
+    /// `Screen` was built (doc-14: "the snapshot already carries a size").
+    pub size: Size,
 }
 
 /// `pane.attach`'s own reply (decision-2 section 3; TASK-1.46's
@@ -258,6 +281,7 @@ mod tests {
         CellStyle, Cursor, CursorShape, PaneAttached, Rgb, Run, Screen, ScreenUpdate, Underline,
         Wide,
     };
+    use crate::layout::Size;
 
     fn round_trips<T>(value: &T)
     where
@@ -339,6 +363,7 @@ mod tests {
                 blinking: false,
                 shape: CursorShape::BlockHollow,
             },
+            size: Size::new(80, 24),
         }
     }
 

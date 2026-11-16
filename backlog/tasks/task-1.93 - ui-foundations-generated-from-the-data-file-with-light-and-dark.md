@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1553,6 +1554,15 @@ What I ran, in order:
 5. Pushed 23759ee; `gh pr checks 55 --watch` in the foreground (watched directly, not backgrounded) - CI green in ~4.3 minutes, every `just check` step confirmed in the run's own log.
 
 Plan section untouched.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T06:02:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.93: a same-machine review: it waited 8m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

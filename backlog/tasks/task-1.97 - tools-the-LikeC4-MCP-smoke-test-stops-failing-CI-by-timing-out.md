@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:23:00Z'
+updated_date: '2026-11-16T03:27:00Z'
 labels:
   - size-2
   - changes-requested
@@ -373,6 +373,20 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 78, 77 without the Asdlc-Worker trailer.
+
+REVIEW FINDINGS FIXED (@bruk.r2's review, same-machine), branch task-1.97-tools-the-likec4-mcp-smoke-test-stops, head 34311bf, CI green (run https://github.com/bruk-io/steg/actions/runs/43797888831, 3m35s):
+
+1. Important, corrected: the notes' P9 claim was wrong. P2's blocked-registry control only ever reaches the "to start" branch (`first` is only set False after a successful `lines.get()`); the "mid-exchange" branch (reached after the first reply, bound=timeout) was never exercised by anything recorded on the task. Fixed by extracting the process-spawning/phased-timeout body out of `read_project_summary` into a new `summary_from_command(argv, *, startup_timeout, timeout)`, with `read_project_summary` now a thin wrapper building the real `npx` argv and handing it over. Added `tools/tests/functional/test_likec4_mcp_phased_timeout.py`: two deterministic tests driving `summary_from_command` against a fake child (a bare `python -c` script - never a real likec4 server, that stays the adapter test's job) -
+   - `test_a_stall_before_any_reply_names_the_start_up_phase`: a child that never replies, `startup_timeout=0.2` - asserts the message names "to start".
+   - `test_a_stall_after_the_first_reply_names_the_mid_exchange_phase`: a child that replies once (a valid id=1 JSON-RPC line) then hangs, `timeout=0.2` - asserts the message names "mid-exchange". This is the branch P9's drop reason wrongly claimed was already covered; it is now, directly.
+   Negative control recorded: with the branch scratch-collapsed back to one bound and no phase name, both new tests fail for the expected reason (got "likec4 mcp did not answer within 5.0s" / "within 0.2s", no phase name, instead of the phase-naming messages); reverted immediately after, `git status --short` recorded showing the tree back to the fix state with no residue. Both tests pass again post-revert (recorded), and the full `just check` is green (recorded, and on CI).
+   P9 is no longer dropped - replaced by these two tests and their negative control. The task's earlier notes calling it dropped were wrong and are superseded by this entry.
+
+2. Nit fixed: `likec4_mcp.py`'s `summary_from_command` docstring now says the 70s unreachable-registry figure was measured *before* the `.npmrc` fix, and that the same scenario is under a second with `.npmrc` present (TASK-1.97's notes), so it no longer reads as a failure mode that can still occur alongside the 60s bound.
+
+3. Nit fixed: `ci.yml`'s step installing Zig via mise is renamed "Install the pinned Zig and Node (mise.toml)" and its comment now says it installs the Node pin too, at no extra step/cost.
+
+All proof items for these fixes recorded via `asdlc record-check`; none skipped or claimed without a run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

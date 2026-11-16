@@ -1,14 +1,13 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:07:00Z'
+updated_date: '2026-11-16T14:16:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -1318,6 +1317,23 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Review findings fixed: PR #60's CI had been cancelled in the hanging accept-backoff step before any code review happened. Merged TASK-1.98's fixed head (d2ab50c - every wait in accept_backoff.rs's own tests is now bounded, the real-binary descriptor limit is 180). listen.rs itself was not touched by this merge (the fix was entirely in test helpers and fixtures), so my one-effective-sender change (checker_tx.or(events), all three send sites reading it) carried through unmodified - confirmed by grep after the merge.
+
+Re-ran both suites and just check in the foreground, each through asdlc record-check:
+- cargo test -p steg-server --tests: exit 0 (160+76+13+5+5+8+22+29+8+1 passed)
+- cargo test -p steg --features fixtures: exit 0 (includes server_start.rs's new surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers, replacing the old file-descriptor test)
+- just check: exit 0, including test (steg-server, accept-backoff-fixture) in 24.4s with no stall
+
+No leftover processes from this worktree before or after (checked via ps aux).
+
+None of my five recorded negative controls touch the files TASK-1.98's fix changed (accept_backoff.rs, accept_backoff_attempt.rs, server_start.rs), so none needed re-running.
+
+Pushed, watched gh pr checks 60 --watch in the foreground: passed at 8m4s (run 43882468307), confirmed via gh pr view --json statusCheckRollup (conclusion SUCCESS).
+
+Checked before finishing, per the engineer's instructions: gh pr view 59 --json state,reviewDecision shows OPEN with no reviewDecision set; TASK-1.98's own board task carries no changes-requested label. No adverse finding reported yet.
+
+Earlier CI run (43875669315) on this same PR, before TASK-1.98's fix, was confirmed to hang at test (steg-server, accept-backoff-fixture) exactly as the engineer described (log stops after race-fixture's own "ok" line, cancelled ~7m44s later, orphan-process cleanup names a leftover accept-backoff- process) - reported in full on the task's own comment thread with the earlier build notes.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:22:00Z'
+updated_date: '2026-11-16T13:47:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -23,6 +23,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-17
 asdlc_branch: task-1.47-server-attach-to-a-pane-stream-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '9cff507ccc3f'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -674,6 +677,305 @@ Carried from finished tasks (2026-11-15), for this task's plan: (1) TASK-1.74 ga
 Plan (9891d485ef9c) checked against decision-2, doc-2, doc-8 R36, doc-9, doc-15 R91 and doc-16 R101 by @bruk.o, 2026-11-16: not yet ok. (1) For the engineer: the plan makes attach a new kind of control message outside the API description; decision-2 lists four control types (request, response, error, event) and speaks of the attach result, and R36, R42 and R75 say the app uses no surface a plugin cannot see, so whether attach is a described method (with a stated exception to R32 for the CLI) or protocol outside the description is the engineer's decision; the orchestrator recommends a described method sent as an ordinary request. (2) Must change: the worker loop wakes every tick for every pane for ever, attached or not, changed or not; it must block with no timeout when there is no attachment or nothing has changed since the last tick, and arm one deadline when output arrives. (3) Must be stated: the state a new attachment is registered in (caught up at the snapshot's sequence), so it is not sent a second snapshot on the next tick. (4) For the engineer: the tick as a published user setting or a server configuration value until the app measures it; the orchestrator recommends the latter. The split into three is taken (drafts created). Held for the engineer's answers, then one rewrite.
 
 Plan (9cff507ccc3f) checked against the three acceptance criteria as narrowed, decision-2 sections 3 and 6, doc-8 R36, doc-9, doc-16 R101, TASK-1.46's plan (4ee3881365b0) and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised to the engineer's decisions (attach and detach as described methods; the tick 8 ms in ServerConfig) and at the orchestrator's request (no wake-up for an idle or unattached pane, with a counted proof; a new attachment registered as caught up at its snapshot's sequence; the reply queued in the same step that registers the attachment, as Runtime::subscribe does). Uses TASK-1.46's vocabulary: returns Nested{of: PaneAttached}, follows Attachment{item: Nested{of: ScreenUpdate}, stream_id_field: stream}. Depends on TASK-1.46 merging first for that vocabulary; the worker loop, tick and back-pressure are built and proven below the method layer meanwhile. doc-2 section 8 gains two rows when the plan is approved.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T12:51:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41, last 40 of 68 lines:
+
+```text
+   Compiling native-tls v0.2.18
+   Compiling ureq v3.5.2
+   Compiling dirs-sys v0.5.0
+   Compiling serial2 v0.2.39
+   Compiling nix v0.28.0
+   Compiling flate2 v1.1.11
+   Compiling dirs v6.0.0
+   Compiling thiserror-impl v1.0.69
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling thiserror v1.0.69
+   Compiling filedescriptor v0.8.3
+   Compiling portable-pty v0.9.0
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+error[E0061]: this function takes 3 arguments but 4 arguments were supplied
+   --> crates/server/src/listen.rs:276:23
+    |
+276 |     let mut runtime = Runtime::new(
+    |                       ^^^^^^^^^^^^
+...
+280 |         config.attach_tick,
+    |         ------------------ unexpected argument #4 of type `Duration`
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:243:12
+    |
+243 |     pub fn new(
+    |            ^^^
+help: remove the extra argument
+    |
+279 -         crate::runtime::FORCE_GRACE_DEFAULT,
+280 -         config.attach_tick,
+279 +         crate::runtime::FORCE_GRACE_DEFAULT,
+    |
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib) due to 1 previous error
+full output: .quiet/build-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `sh -c 'cargo test -p steg-sdk -p steg-kernel -p steg-server --lib --tests'` exited 0 at 2026-11-16T13:15:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes, last 40 of 896 lines:
+
+```text
+kill: 15393: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+kill: 15355: No such process
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... ok
+kill: 15319: No such process
+kill: 15386: No such process
+kill: 15394: No such process
+kill: 15395: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 15329: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 15338: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: kill: 15341: 15364No such process
+: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.10s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T13:15:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes, last 40 of 64 lines:
+
+```text
+[31m-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+(B[m[32m+        let runtime = Runtime::new(
+(B[m[32m+            std::sync::Arc::new(RealLauncher),
+(B[m[32m+            login(),
+(B[m[32m+            TEST_GRACE,
+(B[m[32m+            TEST_TICK,
+(B[m[32m+        );
+(B[m         let description = steg_sdk::description();
+         let no_context = crate::dispatch::Context::none();
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server/tests/runtime.rs:638:
+     // proof, with its own recorded negative control; this one is kept as
+     // a realistic end-to-end regression only, named for exactly that.
+     let grace = Duration::from_secs(3);
+[31m-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace, TEST_TICK);
+(B[m[32m+    let runtime = Runtime::new(
+(B[m[32m+        Arc::new(RealLauncher),
+(B[m[32m+        login_for_force_tests(),
+(B[m[32m+        grace,
+(B[m[32m+        TEST_TICK,
+(B[m[32m+    );
+(B[m     let api = description();
+     // Floods a real backlog (20,000 lines through the pty, not a file -
+     // confirmed by hand to take well under a second for a shell's own
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server/tests/runtime.rs:704:
+     // enough to separate "one window" from "four windows" needs a
+     // window wide enough that scheduling noise cannot close the gap.
+     let grace = Duration::from_millis(500);
+[31m-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace, TEST_TICK);
+(B[m[32m+    let runtime = Runtime::new(
+(B[m[32m+        Arc::new(RealLauncher),
+(B[m[32m+        login_for_force_tests(),
+(B[m[32m+        grace,
+(B[m[32m+        TEST_TICK,
+(B[m[32m+    );
+(B[m     let api = description();
+ 
+     // The marker file's own content is the pid (`echo $$`, not a bare
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:16:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 5.1s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/steg)
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:1969:13
+     |
+1969 |             other => panic!("expected Full, got {other:?}"),
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Delta { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+     = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:1997:13
+     |
+1997 |             other => panic!(
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Full { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+
+error: wildcard match will also match any future added variants
+    --> crates/server/src/pane.rs:2030:13
+     |
+2030 |             other => panic!(
+     |             ^^^^^ help: try: `other @ ScreenUpdate::Unchanged | other @ ScreenUpdate::Delta { .. }`
+     |
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+
+error: could not compile `steg-server` (lib test) due to 3 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:19:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (63.6s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (2.3s)
+ok      build (steg-kernel) (31.0s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (30.5s)
+ok      test (steg-server) (14.2s)
+ok      test (steg-server, race-fixture) (14.8s)
+ok      build (steg) (2.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.7s)
+ok      build (steg-ui) (14.2s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.1s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `sh -c 'cargo test -p steg-sdk -p steg-kernel -p steg-server --lib --tests'` exited 0 at 2026-11-16T13:47:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 649539f36d12 with uncommitted changes, last 40 of 919 lines:
+
+```text
+kill: 53151: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+kill: 53148: No such process
+kill: 53234: No such process
+kill: 53235: No such process
+kill: 53236: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 53044: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 53046: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+kill: 53049: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 53053: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.51s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:47:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 649539f36d12 with uncommitted changes, last 40 of 65 lines:
+
+```text
+421 | |     next_stream: &RefCell<u32>,
+422 | | ) -> bool {
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: doc list item without indentation
+   --> crates/server/src/dispatch/mod.rs:165:5
+    |
+165 | /// own completeness test checks against `description()` directly.
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+165 | ///   own completeness test checks against `description()` directly.
+    |     ++
+
+error: this function has too many arguments (8/7)
+   --> crates/server/src/runtime.rs:452:5
+    |
+452 | /     pub(crate) fn attach_pane(
+453 | |         &self,
+454 | |         description: &Description,
+455 | |         context: &Context,
+...   |
+460 | |         stream: u32,
+461 | |     ) -> Result<PaneId, ApiError> {
+    | |_________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+
+error: could not compile `steg-server` (lib) due to 9 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (lib test) due to 9 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -692,6 +994,15 @@ created: 2026-11-16T12:05:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to match the split the engineer accepted (TASK-1.114 has input and the declared size; TASK-1.115 has scrollback pages, the restore proof and the spike's deletion). Depends on TASK-1.46, which decides how the API description states a reply that carries a nested record and a method that opens a stream.
+
+---
+
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (9cff507ccc3f, size-5): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

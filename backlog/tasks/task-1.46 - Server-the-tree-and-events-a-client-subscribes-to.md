@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:16:00Z'
+updated_date: '2026-11-16T13:35:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -17,6 +17,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-16
 asdlc_branch: task-1.46-server-the-tree-and-events-a-client
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '4ee3881365b0'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -577,6 +580,150 @@ DRAFT-1's, §6).
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (4ee3881365b0) checked against the four acceptance criteria, decision-2, doc-11 (R52 as corrected, R82, R83), doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised at the orchestrator's request: the reply carrying the tree is queued inside the locked step that registers the subscription, so no event can precede it on the wire (tested for order as well as exactly-once); the tree and the events are typed shapes in the sdk; the description gains Returns::Nested and Method.follows (Nothing, Events, Attachment), which TASK-1.47 uses; one rule for cascades on every path; a test for the filter by session. The event at a finished status's expiry is split into its own task (drafted): status.rs keeps timing off the wire by a merged decision, so the server reports the expiry from one armed deadline. For the engineer: the description's new vocabulary, and reading 'a subscription can be ended' as ended by disconnecting.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T12:51:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 27c15dbcef41, last 40 of 76 lines:
+
+```text
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1214:9
+     |
+1214 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1229:9
+     |
+1229 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1245:9
+     |
+1245 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1281:9
+     |
+1281 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1292:9
+     |
+1292 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1311:9
+     |
+1311 |         Method {
+     |         ^^^^^^ missing `follows`
+
+For more information about this error, try `rustc --explain E0063`.
+error: could not compile `steg-sdk` (lib) due to 42 previous errors
+full output: .quiet/test-steg-kernel.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:01:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 27c15dbcef41 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (11.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (11.0s)
+ok      test (steg-server, race-fixture) (11.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:08:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 8dc5ef484663 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (14.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (14.2s)
+ok      test (steg-server, race-fixture) (11.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:35:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 3a79c062eaef with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (11.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (11.2s)
+ok      test (steg-server, race-fixture) (11.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -595,6 +742,31 @@ created: 2026-11-16T11:54:00Z
 ---
 
 2026-11-16, @bruk.o: the engineer decided all four as recommended: the tree is the reply to event watch; the event names as proposed; a subscriber that does not read has its connection closed; status-change events are M1 (R52's label corrected in doc-11). The plan is being rewritten once for part A.
+
+---
+
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (4ee3881365b0, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T12:50:00Z
+
+---
+
+2026-11-16, @bruk.o: the task the plan calls DRAFT-1 (a status that expires is reported to subscribers at its deadline) was accepted as TASK-1.116. The plan's text is left as approved; cite TASK-1.116 in code comments and notes.
+
+---
+
+created: 2026-11-16T13:01:00Z
+
+---
+
+The first recorded check on this task (just check exited 101) raced my own in-progress edit to shapes.rs/methods.rs mid-run, not a real failure of the pre-existing codebase: the background process picked up a half-finished struct field addition while I was still editing. The next recorded check, after finishing that edit, is clean and is the true state at this step.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:15:00Z'
+updated_date: '2026-11-16T13:48:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '4592947e385d'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -27,9 +30,9 @@ Seen on 2026-11-16 (UTC) on main at d06ab92 (the merge of pull request 52, which
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 The cause of the failure seen in CI is established, not assumed: openpty returned 'Device not configured' (ENXIO) in many_threads_opening_a_real_pty_at_once_never_fails while the process-wide lock around openpty was held, so the race is not only between two openpty calls in one process. The plan finds what else it races with (the spawn that follows and opens the slave, a close of another pty's descriptors on another thread, another process on the machine, a limit) by experiment on macOS, and says which
-- [ ] #2 The fix addresses that cause: for example the lock covering what the experiment shows it must cover, or a bounded retry of the open on this one error if the cause is outside the process and cannot be excluded; a retry is stated with its bound and its evidence, and is not a blanket retry of any error
-- [ ] #3 A pane whose pseudo-terminal cannot be opened after that still fails cleanly with the error doc-2 gives, leaving no half-made pane, thread or child
-- [ ] #4 Shown by repeated runs: the test passes N times in a row locally under load and on CI (a temporary workflow that repeats it, removed before merge), with N justified against the failure rate seen; and a negative control: with the fix removed, the experiment that reproduces the failure does so
+- [ ] #2 A pane whose pseudo-terminal cannot be opened after that still fails cleanly with the error doc-2 gives, leaving no half-made pane, thread or child
+- [ ] #3 Shown by repeated runs: the test passes N times in a row locally under load and on CI (a temporary workflow that repeats it, removed before merge), with N justified against the failure rate seen; and a negative control: with the fix removed, the experiment that reproduces the failure does so
+- [ ] #4 The fix addresses that cause: a bounded retry of the open step alone (not of starting the program), on any failure of that step, because the library discards the structured error and the code was seen with both signs; the bound and its evidence are stated, each retry is counted and reported, and when every attempt fails the last error surfaces with the number of attempts (reworded on 2026-11-16 when the engineer approved the plan; it read: on this one error, not a blanket retry)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -193,4 +196,286 @@ The fixture calls a new, crate-visible function that is **only** the locked, ret
 A throwaway probe from this task's investigation (a Python `multiprocessing`-based cross-process `openpty()` hammer, run outside the worktree, never committed) was killed abruptly (`pkill`) while it still held open real ptys and real child processes, rather than being stopped by ending its own loop, closing its descriptors, and waiting on its children. One child (`sh -c true`, pid 4188 on this machine, reparented to pid 1) was left in uninterruptible kernel sleep - `kill -9` cannot reach a process in that state; it was not reaped by this investigation and may still be present on this machine. Nothing in the worktree or git state is affected by this. For the build phase: never end a probe abruptly while it holds ptys - stop the loop, close every descriptor, wait on every child, the same discipline `ReapOnDrop` already gives the real tests (`tests/race.rs`).
 
 Plan (4592947e385d) checked against the four acceptance criteria and the team's testing rules by @bruk.o, 2026-11-16: ok on the cause, the proof and the bound, with one departure the engineer must accept. Criterion 2 as written says the retry is on this one error and is not a blanket retry of any error. The plan retries any failure of the open step (the open alone, not the spawn), up to 5 attempts, counted and reported, because the library discards the structured error and the code was seen as both 6 and -6, so matching would rest on rendered text. The orchestrator asked for that change and recommends rewording criterion 2 to match; it was the orchestrator's own wording in the draft.
+
+Check passed: `just check` exited 0 at 2026-11-16T12:52:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2:
+
+```text
+ok      format check (0.3s)
+ok      lint (50.5s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.0s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (45.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (32.4s)
+ok      test (steg-server) (14.1s)
+ok      test (steg-server, race-fixture) (13.1s)
+ok      build (steg) (2.0s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (20.0s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.7s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.5s)
+ok      architecture (1.3s)
+ok      recipe names (0.2s)
+ok      ui levels (0.2s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --lib pty::tests` exited 101 at 2026-11-16T12:58:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 3 tests
+test pty::tests::succeeds_first_time_needs_no_retry ... ok
+test pty::tests::fails_once_then_succeeds_counts_one_retry ... FAILED
+test pty::tests::fails_every_time_surfaces_after_exactly_the_bound ... FAILED
+
+failures:
+
+---- pty::tests::fails_once_then_succeeds_counts_one_retry stdout ----
+
+thread 'pty::tests::fails_once_then_succeeds_counts_one_retry' (28019556) panicked at crates/server/src/pty.rs:334:9:
+assertion `left == right` failed
+  left: Err(("transient", 1))
+ right: Ok((42, 2))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pty::tests::fails_every_time_surfaces_after_exactly_the_bound stdout ----
+
+thread 'pty::tests::fails_every_time_surfaces_after_exactly_the_bound' (28019555) panicked at crates/server/src/pty.rs:345:9:
+assertion `left == right` failed
+  left: Err(("always fails", 1))
+ right: Err(("always fails", 3))
+
+
+failures:
+    pty::tests::fails_every_time_surfaces_after_exactly_the_bound
+    pty::tests::fails_once_then_succeeds_counts_one_retry
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib pty::tests` exited 0 at 2026-11-16T12:58:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 3 tests
+test pty::tests::fails_once_then_succeeds_counts_one_retry ... ok
+test pty::tests::succeeds_first_time_needs_no_retry ... ok
+test pty::tests::fails_every_time_surfaces_after_exactly_the_bound ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_at_the_shipped_default_never_fail` exited 0 at 2026-11-16T13:10:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.08s
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure` exited 0 at 2026-11-16T13:10:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.60s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime a_panes_pty_that_cannot_be_opened` exited 101 at 2026-11-16T13:12:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+warning: function `rollback_mint` is never used
+   --> crates/server/src/runtime.rs:805:4
+    |
+805 | fn rollback_mint(tree: &mut Tree, method: &str, new_pane: PaneId) {
+    |    ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind ... FAILED
+
+failures:
+
+---- a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind stdout ----
+
+thread 'a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind' (28305068) panicked at crates/server/tests/runtime.rs:311:5:
+assertion `left == right` failed: nothing should be left behind when the open step itself exhausts every attempt
+  left: (1, 1)
+ right: (0, 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `cargo test -p steg-server --test runtime a_panes_pty_that_cannot_be_opened` exited 0 at 2026-11-16T13:12:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:16:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes, last 40 of 80 lines:
+
+```text
+running 13 tests
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 2 tests
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+test cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure ... FAILED
+
+failures:
+
+---- cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure stdout ----
+
+thread 'cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure' (28421900) panicked at crates/server/tests/openpty_race.rs:191:5:
+expected at least one failure across 3200 real cross-process opens with retry forced off (max_open_attempts = 1) - zero means the race was not reproduced on this run; see the task's own notes before weakening or deleting this test
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.83s
+
+error: test failed, to rerun pass `-p steg-server --test openpty_race`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_at_the_shipped_default_never_fail` exited 0 at 2026-11-16T13:45:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.75s
+```
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:47:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      openpty race control (110.2s)
+```
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:47:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      openpty race control (0.8s)
+```
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:48:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      openpty race control (0.8s)
+```
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (4592947e385d, size-2): its worker may build it.
+
+---
+
+created: 2026-11-16T13:10:00Z
+
+---
+
+Finding before finishing (pausing per the build instructions - the permanent control not firing on a runner): at the plan's own stated density (16 processes x 200 opens = 3,200 total, through the real subprocess fixture, not the bare-libc probe used while planning), the permanent negative control (max_open_attempts=1) does not reliably show a failure even on this dev machine. Local sample, 20 independent runs of that one test: 17/20 showed at least one failure (passed), 3/20 showed zero (failed) - about a 15% miss rate, far above the <1-in-10,000 the plan's arithmetic assumed. The shipped/fixed test (5 attempts) stayed clean across a separate 15/15 runs - no false failures there.
+
+Likely cause: the plan's density numbers came from a bare ctypes/libc probe (tight loop, no subprocess exec, workers forked from an already-warm parent). This fixture instead execs a fresh Rust binary per worker; process startup/scheduling jitter plausibly spreads out the true instant of overlap, achieving a lower real contention density than the bare-libc measurement predicted (back-solving the observed ~15% miss rate across 3,200 opens suggests something nearer 0.05% per open here, versus the ~0.3-0.4% measured with the bare-libc probe).
+
+Raising density (tried 32 processes x 500 opens = 16,000 as a diagnostic, not committed) ran into the test's own 20s per-result timeout instead of resolving it cleanly - needs either a longer bound or a different way to drive more opens per wall-clock second, not just more processes.
+
+I have not changed CONCURRENT_PROCESSES/OPENS_PER_PROCESS from the plan's stated 16x200 in the committed code. Both tests pass right now (recorded via asdlc record-check), but the permanent control's own reliability is lower than planned. Options I see, for you to pick: (a) accept this miss rate and treat an occasional control failure as "re-run," the same as other cross-process tests this repo already tolerates under load; (b) raise the bound/opens-per-process and the timeout together; (c) a tighter release mechanism than the current stdin-byte handshake, if that's really what's diluting the overlap - not verified which of these it actually is. Holding the temporary CI loop and the independence-assumption measurement (order of work, step 5) until I hear back, since both are sized against the same density assumption.
+
+---
+
+created: 2026-11-16T13:38:00Z
+
+---
+
+Built the sequential design (long-lived warm workers, ready/release handshake, stop-at-first-failure, bounded by a total open count not wall clock) exactly as directed. New finding, before I pick a bound: the achieved rate is far less stable than a single number can capture on this machine.
+
+Numbers, all taken within the last 30 minutes, same machine, same code:
+- 9 runs of the new sequential control (16 workers, cap 1,250 each = 20,000 total): 5 reproduced (first failure at opens-until-first-failure of 1, 1, 1, 461, 946 on the worker that saw it - often near-instant), 4 reached the full 20,000 with zero.
+- Direct measurement bypassing the test's early-stop (16 workers x 3,000 opens each = 48,000, run twice back to back): 20 failures (0.042%), then 11 failures (0.023%) - roughly 2x apart, minutes apart, same code, same machine.
+- The original bare-libc probe (no Rust, no portable-pty, the one that first established the mechanism), re-run right now at the same density (16 x 200 x 3 trials): 3, 2, and 0 failures - a clean miss in one of three trials even there.
+- A run at a 5x larger bound (6,250 opens/worker, 100,000 total) did not complete in over two minutes and I stopped it rather than let it run unbounded while I didn't yet know if that was genuine progress or something degrading under this machine's own load.
+
+Reading this together: the rate looks bursty, not a stable per-open constant - several of the fast reproductions (opens-until-first-failure = 1) suggest something *else* on this shared machine was also hammering ptys at that exact moment, and the self-contained rate from this fixture's own 16 workers alone, with nothing else helping, may be considerably lower and is what the zero-failure runs and the newly re-measured ~0.02-0.05% (not the original ~0.3-0.4% from early in this investigation) are showing. I don't yet have a bound I'm confident in without more time on this, and a naive 5x-larger bound just cost over two minutes without finishing - possibly fine on a quieter machine, possibly a sign the approach needs a different shape (e.g. sized and tuned against CI's own numbers rather than this heavily-shared dev machine, since CI's contention profile is presumably more stable run to run).
+
+Not weakening the control to force a pass - holding here instead, same as before. The code for the sequential design (fixture + test) is in the worktree, not committed; CONCURRENT_WORKERS/TOTAL_OPEN_BOUND are still placeholders (16/20,000) pending direction.
+
+---
+<!-- COMMENTS:END -->

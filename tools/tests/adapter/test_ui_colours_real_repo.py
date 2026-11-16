@@ -1,10 +1,11 @@
 """`ui_colours.violations` against the real `crates/ui` tree, not a fixture.
 
-True but weak today, for the same reason as test_ui_levels_real_repo.py: foundations is
-empty and the gallery is exempt, so nothing under `crates/ui/src` has a real colour
-literal yet. This becomes the real regression gate once TASK-1.93 writes
-`foundations/generated.rs` (exempt by path) and later tasks add real atoms/molecules/
-organisms; the unit suite's fixtures are what exercises the refusal logic today.
+The real regression gate, not a weak placeholder: TASK-1.93 wrote `foundations/
+generated.rs` (exempt by path, R121) and made the gallery draw every colour it shows
+from `foundations` by name, so the gallery's own, now-ended exemption (`ui_colours.py`'s
+`EXEMPT_PREFIXES`) has nothing left to cover for it - this asserts that directly against
+the real tree. Still weak for atoms/molecules/organisms specifically, which stay empty
+placeholders until later tasks add real components.
 """
 
 from steg_tools import workspace

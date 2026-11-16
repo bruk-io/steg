@@ -1,11 +1,11 @@
 ---
 id: TASK-1.93
 title: 'ui: foundations generated from the data file, with light and dark'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T12:06:00Z'
+updated_date: '2026-11-16T12:48:00Z'
 labels:
   - size-3
   - review-passed

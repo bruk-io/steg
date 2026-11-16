@@ -1,13 +1,14 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:22:00Z'
+updated_date: '2026-11-16T13:50:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -22,8 +23,10 @@ asdlc_branch: task-1.98-server-the-accept-loop-survives-an-error
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -584,6 +587,87 @@ Checks recorded on the task: just check (full) green after every meaningful step
 The -n limits in both real-binary tests were picked empirically, not guessed: 128 for crates/steg's own test (needs headroom for a live session's pty and TASK-1.87's own login-shell capture, which merged into this branch mid-build), 48 for the in-process fixture (which starts no session).
 
 PR: https://github.com/bruk-io/steg/pull/59
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:46:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at fcfc798c6936 with uncommitted changes, last 40 of 81 lines:
+
+```text
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... FAILED
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+failures:
+
+---- an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason stdout ----
+
+thread 'an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason' (37470977) panicked at crates/steg/tests/server_start.rs:355:52:
+writing the plain file should succeed: Os { code: 102, kind: Unsupported, message: "Operation not supported on socket" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+full output: .quiet/test-steg-fixtures.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:50:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at fcfc798c6936 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (10.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (30.0s)
+ok      test (steg-server) (14.5s)
+ok      test (steg-server, race-fixture) (14.3s)
+ok      test (steg-server, accept-backoff-fixture) (11.0s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.8s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.5s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.5s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -604,6 +688,37 @@ created: 2026-11-16T12:22:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T13:12:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed head fcfc798c (PR's current head); code identical to 27b553db, the head the recorded `just check` ran against (fcfc798c only adds backlog/ board-metadata commits on top, confirmed by diff --stat).
+
+[Bugs, Important] crates/server/tests/accept_backoff.rs / tests/fixtures/accept_backoff_attempt.rs: the new accept-backoff-fixture test step hangs on the project's own CI runner (GitHub Actions, macos-26). Run 43866214322 (job 133295489732) printed `ok test (steg-server, race-fixture) (26.6s)` at 2026-11-16T12:28:08Z and then nothing further until the workflow's own 30-minute timeout cancelled the job at 12:54:36Z; the runner's own job cleanup reported "Terminate orphan process: pid (11304) (accept-backoff-)", confirming this task's own fixture binary was still alive when killed. Every wait in accept_backoff.rs is bounded at 5s, so 26 minutes of silence means whatever blocked sits outside those bounds. Locally (this machine), the same four tests passed 10/10, and both of the task's own documented negative controls (stop-check removed; ENOTSOCK made recoverable) reproduced exactly as described, reverted cleanly - so the mechanism is sound on at least one machine, but is not shown to terminate on the one environment this repository's own CI exists to check independently of what a worker records by hand. I triggered `gh run rerun 43866214322` myself to check reproducibility (a write to the PR, not the author's own push, noted here for transparency); as of this review it had been sitting in the same `just check` step for 8+ minutes, well past the ~2 minutes the first attempt needed to reach the same point, consistent with (though not conclusive proof of) the same hang recurring. Because CI never got past this step, crates/steg's own suite - including AC #3's new real-binary test - has not been confirmed green in CI at all in this review.
+
+[Compliance, Nit] crates/server/src/arbiter.rs (`ServerHandle::listener_raw_fd()`) and justfile (`check-packages`'s new accept-backoff-fixture run) are touched by this diff but neither is in the plan's own "Files that change" list, and neither is named among the implementation notes' "found and fixed during build" corrections (only the try_clone discovery is recorded there) - the board's own record is silent on both. The PR description does name and explain both clearly, so this was not hidden from a reader of the PR; it is a gap in the board's own implementation notes specifically, which is what the plan-matched judgement is read against. Worth noting that the justfile entry is the one that makes the worker's own recorded green `just check` actually exercise the new suite at all - a file the plan never named is load-bearing for the very evidence this task was closed on.
+
+[Bugs, Nit] listen.rs:433 `scope.spawn` for the per-connection thread is not covered by `classify_accept_error`: if the OS fails to create that thread (EAGAIN/resource pressure - a different limit than RLIMIT_NOFILE, so not the condition this task's own fixture exercises), `Scope::spawn` panics in the loop's own controlling thread, not a spawned worker, and that panic unwinds straight out of `run()` - skipping `runtime.stop()`, the socket removal and the lock release at listen.rs:480-483, rather than taking the classified fatal path's own cleanup. Out of this task's stated descriptor-exhaustion scope (a different resource dimension), worth a follow-up task rather than blocking this one.
+
+[Compliance, Nit] AC #3's descriptor limit (128, crates/steg/tests/server_start.rs) has a thin empirically-measured margin: the notes record "fails at 90," "always passes at 120," and the chosen value is only 8 above the always-pass point. It passed 10/10 on this machine, but per the Important finding above, it has not yet been confirmed to pass on CI's own runner at all.
+
+Checked myself, not just read: the full diff against origin/main; every changed file in full in a worktree; ran accept_backoff.rs 10x (clean) and the AC #3 real-binary test 10x (clean); ran the full steg-server and steg (incl. fixtures) suites 3x each (clean, no sighting of the TASK-1.82-recorded intermittent failures); reproduced both of the task's own scratch-edit negative controls myself (stop-check removed -> test fails on its bound; ENOTSOCK made recoverable -> test fails on its bound), reverting cleanly each time (confirmed via `git diff`); confirmed boundaries.toml is unchanged, no exhaustive match on ConnectionEvent exists anywhere, and crates/steg/src/main.rs still calls run(..., None) with no printing anywhere in crates/server/src, matching the plan's own claims. Noticed, not a finding on this task: several accept-backoff-attempt/accept_backoff test-binary processes left running under the author's own .worktrees/task-1.98 (not this review's worktree), apparently orphaned from earlier interactive runs - left alone as outside this review's scope.
+
+---
+
+created: 2026-11-16T13:14:00Z
+
+---
+
+2026-11-16, @bruk.o: follow-up noted from the first review, not for this task: the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created; the classification added here covers descriptors, not threads. To be drafted as its own small task once this one merges.
 
 ---
 <!-- COMMENTS:END -->

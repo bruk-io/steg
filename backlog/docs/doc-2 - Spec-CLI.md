@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-15T19:12:00Z'
+updated_date: '2026-11-16T13:50:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -20,7 +20,11 @@ These say what the CLI can do. Command names, flags, variable names and exit cod
 left to CLI design (section 7).
 
 - R32 (M1). The `steg` CLI exposes everything the API exposes. Its commands are generated
-  from the API description, so the two cannot drift.
+  from the API description, so the two cannot drift. One kind of method is the stated
+  exception: a method whose reply is followed by items on a stream of its own (`pane attach`;
+  the description marks it) is listed and described by the CLI, and reachable through
+  `api call`, but has no rendering of the stream as a command, because a terminal's screen
+  updates are for a program to consume (decided by Bruk on 2026-11-16 with TASK-1.47's plan).
 - R33 (M1). Inside a steg terminal the CLI acts on that session and pane by default,
   from context the terminal's environment provides. Anything else can be targeted
   explicitly.
@@ -48,7 +52,7 @@ Agents and scripts are the main users. A person at a prompt is served by the sam
 steg <noun> <verb> [target] [flags]
 ```
 
-- Every command has a noun and a verb. `steg <noun>` alone lists that noun's verbs, and `steg` alone lists the nouns.
+- Every command has a noun and a verb. `steg <noun>` alone lists that noun's verbs, and `steg` alone lists the nouns; both succeed, with status 0 (confirmed by Bruk on 2026-11-16 with TASK-1.49's plan: listing is what was asked for, so it is not a usage error).
 - The one positional is the target: the thing the verb acts on. No command has a second, with one exception: a program to run is given after `--`, as in `steg pane split -- htop -d 5`.
 - Everything else is a flag.
 - There are no aliases and no abbreviations: `steg pane list`, never `steg ls`.
@@ -111,6 +115,8 @@ A label, a colour and a zoomed state are properties, so they are `set` and `unse
 | `pane swap` | Exchange the target with the pane given by `--with` | Nothing |
 | `pane send` | Send text or keys to the program in the target | Nothing |
 | `pane capture` | Print the target's screen, and scrollback when asked | The text |
+| `pane attach` | Open a stream to the target pane's screen | The stream's identifier and the opening snapshot, as JSON |
+| `pane detach` | End this connection's attachment to the target pane | Nothing |
 | `config reload` | Apply the configuration | Nothing |
 | `action run` | Run the named action | What the action returns, if anything |
 | `api call` | Call the named API method with parameters from standard input | The method's result, as JSON |
@@ -272,6 +278,8 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `pane send` | pane | stdin, or `--text`, `--key` |
 | `pane capture` | pane | `--scrollback` |
 | `pane wait` | pane | `--for exit`, `--timeout` |
+| `pane attach` | pane | Opens a stream to the pane's screen: the reply carries the stream's identifier and a snapshot, and screen updates follow on that stream. The exception to R32 |
+| `pane detach` | pane | Ends this connection's attachment to the pane |
 | `server show` | none | Version, uptime, sessions, clients |
 | `server start` | none | Stays up with no clients. With `--on-demand` it is the kind a client starts when it finds no server: it stops itself after 30 seconds with no sessions and no clients (doc-8 R99). `steg server start --on-demand` is what the sdk's local-socket provider runs |
 | `server stop` | none | `--force` if sessions exist |
@@ -283,7 +291,7 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `setting set` | setting | `--value <text>`. The setting is named by the positional and its new value is the flag, since here the property is the thing addressed |
 | `setting unset` | setting | Clears the override, so the setting returns to its default |
 | `api list` | none | Every method, one per line |
-| `api show` | method | One method in full |
+| `api show` | method, or none | One method in full. With no target, the whole description |
 | `api call` | method | Parameters as JSON on standard input |
 | `version` | none | Not an API method; no server |
 | `completion` | shell | Not an API method; no server |

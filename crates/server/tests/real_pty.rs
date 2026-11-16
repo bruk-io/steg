@@ -42,6 +42,20 @@ fn screen_text(screen: &Screen) -> String {
         .join("\n")
 }
 
+/// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
+/// `.env_clear()` means an empty `env` cannot resolve a relative program
+/// name like `"sh"` - confirmed directly against `portable_pty`
+/// (`spawn_command` fails with "Unable to resolve the PATH"), not
+/// assumed. This test file's own ambient `PATH` is fine to read here (a
+/// test, not production code, which never reads it ambiently - the whole
+/// point of this task).
+fn test_path_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+    vec![(
+        std::ffi::OsString::from("PATH"),
+        std::env::var_os("PATH").unwrap_or_default(),
+    )]
+}
+
 fn spec(
     argv: Vec<&str>,
     cwd: &str,
@@ -71,7 +85,11 @@ fn a_real_program_runs_in_the_given_working_directory() {
     let pane = PaneId::from_raw(1);
 
     let handle = steg_server::start(
-        spec(vec!["sh", "-c", "pwd"], cwd.to_str().unwrap(), Vec::new()),
+        spec(
+            vec!["sh", "-c", "pwd"],
+            cwd.to_str().unwrap(),
+            test_path_env(),
+        ),
         pane,
         Arc::new(RealLauncher),
         events_tx,
@@ -146,6 +164,44 @@ fn a_real_programs_environment_carries_the_five_variables_and_path() {
     handle.shutdown();
 }
 
+/// `RealLauncher::spawn`'s own `.env_clear()` (TASK-1.87, doc-8 R99): a
+/// real pane's own process, given only `PATH` through `LaunchSpec.env`,
+/// never inherits this *test process's* own ambient environment -
+/// `CARGO_PKG_NAME` is set by `cargo test` itself (confirmed directly,
+/// not assumed), never seeded by this test's own `LaunchSpec`, and is
+/// the stand-in here for whatever a real client's own environment would
+/// otherwise leak through the *server* process that inherited it.
+#[test]
+fn a_real_programs_environment_never_leaks_this_processs_own_ambient_variables() {
+    let cwd = std::env::temp_dir();
+    let (events_tx, events_rx) = mpsc::channel();
+    let pane = PaneId::from_raw(1);
+
+    let handle = steg_server::start(
+        sized_spec(
+            vec!["sh", "-c", "env"],
+            cwd.to_str().unwrap(),
+            test_path_env(),
+            (200, 200),
+        ),
+        pane,
+        Arc::new(RealLauncher),
+        events_tx,
+    )
+    .unwrap();
+
+    recv_event(&events_rx);
+
+    let screen = handle.snapshot().unwrap();
+    let text = screen_text(&screen);
+    assert!(
+        !text.contains("CARGO_PKG_NAME"),
+        "a variable set only in this test process's own ambient environment must not reach \
+         the pane: {text}"
+    );
+    handle.shutdown();
+}
+
 #[test]
 fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     let cwd = std::env::temp_dir();
@@ -154,7 +210,7 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     let command_spec = spec(
         vec!["sh", "-c", "printf hi; exit 3"],
         cwd.to_str().unwrap(),
-        Vec::new(),
+        test_path_env(),
     );
 
     let handle = steg_server::start(
@@ -216,7 +272,7 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     let pane = PaneId::from_raw(1);
 
     let handle = steg_server::start(
-        spec(vec!["sh"], cwd.to_str().unwrap(), Vec::new()),
+        spec(vec!["sh"], cwd.to_str().unwrap(), test_path_env()),
         pane,
         Arc::new(RealLauncher),
         events_tx,
@@ -294,7 +350,7 @@ fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home()
         spec(
             vec!["sh", "-c", "pwd"],
             "/this/directory/does/not/exist/anywhere/at/all",
-            Vec::new(),
+            test_path_env(),
         ),
         pane,
         Arc::new(RealLauncher),
@@ -321,7 +377,7 @@ fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
         spec(
             vec!["steg-this-program-does-not-exist-anywhere-on-path"],
             cwd.to_str().unwrap(),
-            Vec::new(),
+            test_path_env(),
         ),
         PaneId::from_raw(1),
         Arc::new(RealLauncher),
@@ -377,7 +433,11 @@ fn many_threads_opening_a_real_pty_at_once_never_fails() {
                 let cwd = cwd.clone();
                 std::thread::spawn(move || {
                     let launcher = RealLauncher;
-                    let spec = spec(vec!["sh", "-c", "true"], cwd.to_str().unwrap(), Vec::new());
+                    let spec = spec(
+                        vec!["sh", "-c", "true"],
+                        cwd.to_str().unwrap(),
+                        test_path_env(),
+                    );
                     // Every thread opens at the same instant, not
                     // whenever it happens to get scheduled: the race
                     // this is proving against is concurrent calls, not

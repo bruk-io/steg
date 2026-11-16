@@ -30,13 +30,24 @@ use crate::pane::{self, DEFAULT_PANE_SIZE, PaneEvent, PaneHandle};
 use crate::program_param::program_from_request;
 use crate::pty::{LaunchSpec, ProgramLauncher};
 
-/// The login shell's resolved program and home directory - the one value
-/// [`Runtime`] is given rather than reading `SHELL`/`HOME` from the
-/// process environment itself in several places (TASK-1.76 §2).
-/// [`LoginShell::from_process_env`] is a named stand-in for TASK-1.77's
-/// own draft (start on demand, detach, the login shell resolved from the
-/// password database): when that lands, its own resolution replaces this
-/// one's call site, and nothing downstream of this struct changes.
+/// The login shell's resolved identity and captured environment - the one
+/// value [`Runtime`] is given rather than reading `SHELL`/`HOME` from the
+/// process's own (possibly client-inherited) environment in several
+/// places (TASK-1.76 §2; doc-8 R99).
+///
+/// Resolved in two steps, at two different points in the server's own
+/// start-up (TASK-1.87 §3): [`LoginShell::resolve_identity`] is cheap (a
+/// local passwd lookup, no child process) and runs *before* the socket is
+/// bound, at `crates/steg/src/main.rs`'s existing pre-`attempt` call
+/// site - its own `base_env` is always empty, since nothing has captured
+/// one yet. `base_env` itself is filled in afterward, once, inside
+/// [`crate::listen::run`] - after the socket is already bound and before
+/// its accept loop starts - by calling
+/// [`crate::login_env::capture_login_environment`] with this struct's own
+/// `argv0`/`home`/`user` and replacing `base_env` on the result. Neither
+/// step is a method on this struct: both are free functions in
+/// `crate::login_env`, since only the first one needs no identity to work
+/// from yet.
 #[derive(Debug, Clone)]
 pub struct LoginShell {
     /// What [`steg_sdk::Program::Shell`] resolves to when a pane actually
@@ -46,16 +57,53 @@ pub struct LoginShell {
     /// was given, and (rule B, §2) there is no pane to inherit one from,
     /// or it has not reported one yet.
     pub home: String,
+    /// The account's own login name, from the same password-database
+    /// lookup as `argv0`/`home` - carried here so
+    /// [`crate::login_env::capture_login_environment`] can seed `USER`/
+    /// `LOGNAME` in the capture it runs later, without a second lookup.
+    /// `None` only when the lookup itself found no identity at all
+    /// (TASK-1.87's own honest gap: unreproducible on a real account).
+    pub user: Option<String>,
+    /// The login shell's own exported environment, captured once at
+    /// server start (TASK-1.87) - empty until
+    /// [`crate::listen::run`] fills it in; never read before then, since
+    /// nothing starts a pane before the socket is even bound.
+    pub base_env: Vec<(std::ffi::OsString, std::ffi::OsString)>,
+}
+
+impl Default for LoginShell {
+    /// A fixed, zero-I/O value - deliberately *not* a real password
+    /// -database lookup: `ServerConfig::default()` (and every test that
+    /// builds one with `..ServerConfig::default()`) must stay free of
+    /// hidden syscalls, so the real resolution is
+    /// [`LoginShell::resolve_identity`], called explicitly, never this.
+    fn default() -> Self {
+        Self {
+            argv0: "/bin/zsh".to_string(),
+            home: "/".to_string(),
+            user: None,
+            base_env: Vec::new(),
+        }
+    }
 }
 
 impl LoginShell {
-    /// Reads `SHELL`/`HOME` from this process's own environment, falling
-    /// back to `/bin/zsh`/`/` if either is unset.
+    /// Resolves the login identity from the password database
+    /// (`crate::login_env::resolve_login_identity`, TASK-1.87) - never
+    /// from `$SHELL`/`$HOME`/`$USER` in this process's own environment,
+    /// which is exactly what R99 forbids. `base_env` is always empty on
+    /// the result: this step runs before the socket is bound, and
+    /// capturing the real environment is deliberately deferred past that
+    /// point (§3 of this task's own plan) so a slow shell never delays a
+    /// client's `connect()`, only its first request.
     #[must_use]
-    pub fn from_process_env() -> Self {
+    pub fn resolve_identity(timeout: std::time::Duration) -> Self {
+        let identity = crate::login_env::resolve_login_identity(timeout);
         Self {
-            argv0: std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string()),
-            home: std::env::var("HOME").unwrap_or_else(|_| "/".to_string()),
+            argv0: identity.shell.to_string_lossy().into_owned(),
+            home: identity.home.to_string_lossy().into_owned(),
+            user: identity.user,
+            base_env: Vec::new(),
         }
     }
 }
@@ -481,6 +529,19 @@ impl Runtime {
     /// reads from instead, the same gap `pane_environment`'s own doc
     /// already names), so this reads this process's own binary location
     /// and an empty server address rather than inventing either.
+    ///
+    /// **The environment composition (TASK-1.87, doc-8 R99/AC #3): the
+    /// captured login shell's own environment first, then
+    /// `pane_environment`'s five `STEG_*` variables and `PATH`, then
+    /// `TERM` - in that order, deliberately**, since
+    /// `crate::pty::RealLauncher::spawn`'s own `.env_clear()` plus a
+    /// later `.env()` call for an already-set key overwriting the
+    /// earlier one (verified directly against `portable_pty`'s own
+    /// `CommandBuilder`, not assumed) is what makes a later entry in this
+    /// `Vec` win - never `std::env::var_os("PATH")` (today's actual bug:
+    /// that reads *this server process's own* `PATH`, itself inherited
+    /// from whatever client happened to start it), always
+    /// `self.login.base_env`'s own captured `PATH`.
     fn launch_spec(&self, program: &Program, size: (u16, u16)) -> LaunchSpec {
         let argv = match program {
             Program::Shell { .. } => vec![self.login.argv0.clone()],
@@ -490,14 +551,28 @@ impl Runtime {
             .ok()
             .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf))
             .unwrap_or_else(|| std::path::PathBuf::from("/usr/local/bin"));
-        let env = pane_environment(
+        let current_path = self
+            .login
+            .base_env
+            .iter()
+            .find(|(key, _)| key == "PATH")
+            .map(|(_, value)| value.as_os_str());
+        let overrides = pane_environment(
             "",
             steg_sdk::SessionId::from_raw(0),
             steg_sdk::TabId::from_raw(0),
             steg_sdk::PaneId::from_raw(0),
             &bin_dir,
-            std::env::var_os("PATH").as_deref(),
+            current_path,
         );
+
+        let mut env = self.login.base_env.clone();
+        env.extend(overrides);
+        env.push((
+            std::ffi::OsString::from("TERM"),
+            std::ffi::OsString::from(PANE_TERM),
+        ));
+
         LaunchSpec {
             argv,
             cwd: program.cwd().to_string(),
@@ -506,6 +581,19 @@ impl Runtime {
         }
     }
 }
+
+/// `TERM` every pane gets, whatever the login shell's own profile says
+/// (AC #3) - matching this repository's own existing precedent
+/// (`spikes/task-1.2-wire-protocol/probe-server/src/pty.rs:49`), not
+/// invented here. Deliberately not `ghostty_vt::terminfo::TERM`
+/// (`"xterm-ghostty"`): that compiled terminfo entry is not installed on
+/// a user's own machine, and using it would need writing
+/// `ghostty_vt::terminfo::dir()`'s own cache directory somewhere
+/// persistent and setting `TERMINFO` to it too - a second piece of
+/// integration this task's own acceptance criteria do not ask for,
+/// flagged here for the engineer to schedule separately rather than
+/// silently dropped.
+const PANE_TERM: &str = "xterm-256color";
 
 /// Dropping a `Runtime` stops it (review finding 3) - the safer of the
 /// two choices named in the review (stop automatically, or refuse to
@@ -724,10 +812,27 @@ mod tests {
     /// for every real-process wait in this crate's tests.
     const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
 
+    /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s
+    /// own `.env_clear()` means a `LaunchSpec.env` with no `PATH` at all
+    /// cannot resolve a relative program name like `"sh"` (confirmed
+    /// directly with `portable_pty`, not assumed - `spawn_command` fails
+    /// with "Unable to resolve the PATH"). Reading this *test* process's
+    /// own ambient `PATH` is fine here - a test, allowed to, unlike
+    /// production code (this function's own doc on `ServerConfig`'s
+    /// `login_env` module says why production code never does).
+    fn test_base_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+        vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )]
+    }
+
     fn login() -> LoginShell {
         LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -820,7 +925,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 1".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             gone,
@@ -867,7 +972,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "exit 0".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -895,7 +1000,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 1".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -1000,14 +1105,126 @@ mod tests {
     }
 
     #[test]
-    fn login_shell_from_process_env_never_panics_and_is_never_empty() {
-        // A smoke test, not a claim about this machine's own `SHELL`/
-        // `HOME` - those are read once, by whichever binary builds the
-        // real `Runtime`, and this only proves the fallback path exists
-        // and is well-formed.
-        let login = LoginShell::from_process_env();
+    fn login_shell_default_is_a_fixed_zero_io_value() {
+        // `ServerConfig::default()` (and every test built from
+        // `..ServerConfig::default()`) must stay free of hidden syscalls
+        // (TASK-1.87) - this is the thing that proves it: not a claim
+        // about any real account, just that the literal fallback is
+        // well-formed.
+        let login = LoginShell::default();
         assert!(!login.argv0.is_empty());
         assert!(!login.home.is_empty());
+        assert_eq!(login.user, None);
+        assert!(login.base_env.is_empty());
+    }
+
+    #[test]
+    fn login_shell_resolve_identity_never_panics_and_is_never_empty() {
+        // A smoke test, not a claim about this machine's own account -
+        // every real account has a passwd entry, so the fallback path
+        // itself is proven by fabrication in `login_env`'s own tests.
+        // `base_env` stays empty here on purpose: identity resolution
+        // never captures an environment (TASK-1.87 §3 - that happens
+        // later, after the socket is bound).
+        let login = LoginShell::resolve_identity(Duration::from_secs(5));
+        assert!(!login.argv0.is_empty());
+        assert!(!login.home.is_empty());
+        assert!(login.base_env.is_empty());
+    }
+
+    /// AC #3: `STEG_*` and `TERM` always win, even when a captured login
+    /// shell's own profile happens to export a conflicting value for one
+    /// of those same keys - proven here with a fabricated `base_env`
+    /// standing in for exactly that (unlikely, but not impossible) case,
+    /// through `Runtime::handle`'s own public surface, a real pty and a
+    /// real `env` dump - not merely by reading `launch_spec`'s own source
+    /// and trusting the ordering.
+    #[test]
+    fn steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env() {
+        let login = LoginShell {
+            base_env: vec![
+                (
+                    std::ffi::OsString::from("PATH"),
+                    std::ffi::OsString::from("/usr/bin:/bin"),
+                ),
+                (
+                    std::ffi::OsString::from("TERM"),
+                    std::ffi::OsString::from("bogus-term-from-login-shell"),
+                ),
+                (
+                    std::ffi::OsString::from("STEG_SERVER"),
+                    std::ffi::OsString::from("bogus-server-from-login-shell"),
+                ),
+            ],
+            ..login()
+        };
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login);
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+
+        // Two short, targeted lines, never a full `env` dump: the real
+        // `PATH` this developer's own machine carries can run long enough
+        // to wrap `TERM=`/`STEG_SERVER=` off the default 80x24 pane
+        // before either line is even printed - found by running this
+        // test, not assumed, so it is written to need no particular pane
+        // size at all.
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({
+                    "program": ["sh", "-c", "echo TERM=$TERM; echo STEG_SERVER=$STEG_SERVER"]
+                })
+                .as_object()
+                .unwrap()
+                .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+
+        let pane = {
+            let state = runtime.state.lock().unwrap();
+            state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id()
+        };
+
+        let start = std::time::Instant::now();
+        let text = loop {
+            let state = runtime.state.lock().unwrap();
+            let screen = state.panes[&pane].snapshot().unwrap();
+            let text = screen
+                .rows
+                .iter()
+                .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
+                .collect::<Vec<_>>()
+                .join("\n");
+            drop(state);
+            if text.contains("STEG_SERVER=") {
+                break text;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(20),
+                "the real program's own two lines never landed within the bound; \
+                 last screen: {text:?}"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+
+        assert!(
+            text.contains("TERM=xterm-256color"),
+            "the server's own TERM must win over the login shell's own base_env: {text}"
+        );
+        assert!(
+            !text.contains("bogus-term-from-login-shell"),
+            "the login shell's own conflicting TERM must not survive: {text}"
+        );
+        assert!(
+            !text.contains("bogus-server-from-login-shell"),
+            "the login shell's own conflicting STEG_SERVER must not survive: {text}"
+        );
     }
 
     /// What a panic inside one connection's call to `Runtime::handle`
@@ -1649,7 +1866,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 100".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -1803,7 +2020,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: argv.into_iter().map(str::to_string).collect(),
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,
@@ -1819,6 +2036,8 @@ mod tests {
         LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -2002,7 +2221,7 @@ mod tests {
             crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 100".to_string()],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             gone,
@@ -2102,10 +2321,23 @@ mod stop_tests {
     /// real-process wait in this crate gives.
     const POLL_TIMEOUT: Duration = Duration::from_secs(10);
 
+    /// A working `PATH` is required (TASK-1.87): see `mod tests`'s own
+    /// `test_base_env` for why - duplicated here rather than shared
+    /// across modules, matching this file's own existing style of each
+    /// test module carrying its own small `login`-style helper.
+    fn test_base_env() -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
+        vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )]
+    }
+
     fn login() -> super::LoginShell {
         super::LoginShell {
             argv0: "/bin/sh".to_string(),
             home: "/tmp".to_string(),
+            user: None,
+            base_env: test_base_env(),
         }
     }
 
@@ -2184,7 +2416,7 @@ mod stop_tests {
                     format!("echo $$ > {} ; exec {then}", pid_file.display()),
                 ],
                 cwd: "/tmp".to_string(),
-                env: Vec::new(),
+                env: test_base_env(),
                 size: (80, 24),
             },
             pane,

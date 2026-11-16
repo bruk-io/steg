@@ -31,6 +31,16 @@ fn runtime() -> (Runtime, Description) {
             LoginShell {
                 argv0: "/bin/sh".to_string(),
                 home: "/tmp".to_string(),
+                user: None,
+                // A working `PATH` is required (TASK-1.87):
+                // `RealLauncher::spawn`'s own `.env_clear()` means a
+                // `base_env` with none cannot resolve a relative program
+                // name like `"sh"` - this test's own ambient `PATH` is
+                // fine to read here (a test, not production code).
+                base_env: vec![(
+                    std::ffi::OsString::from("PATH"),
+                    std::env::var_os("PATH").unwrap_or_default(),
+                )],
             },
         ),
         description(),

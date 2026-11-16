@@ -33,11 +33,18 @@ pub struct LaunchSpec {
     pub argv: Vec<String>,
     /// Its working directory.
     pub cwd: String,
-    /// Environment variables to set or override on top of whatever this
-    /// process already inherits - `portable_pty::CommandBuilder` seeds
-    /// from the current process's own environment on its own, so this is
-    /// only ever the overrides (the five `STEG_*` variables and the new
-    /// `PATH`), never the whole environment restated.
+    /// The pane's *whole* environment (TASK-1.87) - never "the overrides
+    /// on top of whatever this process inherits," as it was before this
+    /// task: [`RealLauncher::spawn`] clears `portable_pty::CommandBuilder`'s
+    /// own ambient seeding (`.env_clear()`) before applying this, which is
+    /// what makes "a pane's program starts with the login shell's own
+    /// environment, not the server's" (doc-8 R99) actually true rather
+    /// than only true for the five `STEG_*` keys. The caller is
+    /// responsible for the whole thing: the captured login shell's own
+    /// environment first, then the `STEG_*` overrides and `TERM`
+    /// (`crate::runtime::Runtime::launch_spec`) - a key given twice wins
+    /// on whichever entry is later in this `Vec`, by construction (later
+    /// `.env()` calls overwrite earlier ones for the same key).
     pub env: Vec<(OsString, OsString)>,
     /// The pseudo-terminal's size, in columns and rows.
     pub size: (u16, u16),
@@ -114,6 +121,14 @@ impl ProgramLauncher for RealLauncher {
         let mut command =
             portable_pty::CommandBuilder::from_argv(spec.argv.iter().map(OsString::from).collect());
         command.cwd(&spec.cwd);
+        // `.env_clear()` (TASK-1.87, doc-8 R99): without this, the ambient
+        // environment `CommandBuilder::from_argv` seeds from on its own
+        // (this *server* process's own environment, itself inherited from
+        // whatever client happened to start it) would still reach every
+        // pane underneath `spec.env`'s own entries - exactly the leak R99
+        // forbids. `spec.env` is now the pane's whole environment, not an
+        // overlay (this struct's own doc comment).
+        command.env_clear();
         for (key, value) in &spec.env {
             command.env(key, value);
         }

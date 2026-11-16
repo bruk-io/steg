@@ -1,13 +1,14 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:52:00Z'
+updated_date: '2026-11-16T03:06:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -21,6 +22,10 @@ asdlc_branch: task-1.96-tools-check-the-design-s-data-file
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -286,6 +291,47 @@ created: 2026-11-16T02:39:00Z
 ---
 
 2026-11-15, one more correction to the design, at the engineer's word (he took @bruk.o's recommendation): fill.quiet's description said 'Key caps, progress track, a button under the pointer', but every progress bar and ring in the design's pages is drawn with track and none with fill.quiet (checked across all the pages: 48 bars on track, none on fill.quiet), so 'progress track' was stale. The Tokens page now reads 'Key caps, a button under the pointer'. The artifact's version is now 1794796789-1b13, which supersedes 1794796322-6d8e from the comment above: the page to commit is /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794796789-1b13/Tokens.dc.html , artifact_version is 1794796789-1b13, and fill.quiet's use text in crates/ui/design/foundations.json changes to match. Colour values are unchanged; the data file's diff is the version line and that one description.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:00:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.96: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:06:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Reviewed PR #54 at its pushed head dcbeaf2 (matches the task's recorded `just check` and PR CI green, 4m20s). Verdict: changes requested.
+
+[Compliance, Important] dcbeaf2 does not contain any of the engineer's decisions recorded in task comments #2 and #3 (made after plan approval): (1) the three pixel corners (sizes.radius.surface/track/inner) are still in TIER_C_SKIPS as declared-unseen (tools/src/steg_tools/design_pages.py:388-390), not checked through the reviewed name map against the merged "radius" row's 14/10/8 as decided; (2) colours.track is still declared unseen (design_pages.py:363-368; EXPECTED_SHAPES colours minimum is still 17, not 18) - design/canvas/project/Tokens.dc.html was never re-exported with the track row; (3) crates/ui/design/foundations.json's artifact_version is still 1794791991-5d11 (not 1794796789-1b13) and fill.quiet.use still reads "Key caps, progress track, a button under the pointer" (not the corrected "Key caps, a button under the pointer"); no README was touched. `git diff --stat origin/main...HEAD` confirms the diff touches only justfile, tools/pyproject.toml and tools/*: never design/canvas/project/Tokens.dc.html, crates/ui/design/foundations.json, or any README. The task's own implementation notes and the PR description describe the 17-of-18/old-radius-Tier-C state and never mention comments #2/#3 existing. This confirms the orchestrator's reading: the pushed head predates those decisions. These are unmet requirements the engineer recorded on the task, so AC#1 (track, corners) and the task's carried re-export are not met by this head.
+
+[Bugs/Compliance, Important] Tier B's number check is field-blind (confirmed by a negative control I ran: swapping sizes.tab.width's usual=120 and min=72 in a scratch copy of foundations.json - a real field-meaning corruption, same number set - still exits 0 "ok"). The plan promises this caveat "stated plainly, in the plan and the README" (plan, Tier B section), but the diff touches no README anywhere, and the tool's own passing-run stdout never says this check is field-blind, only the module docstring does. A silent departure from a plan commitment.
+
+[Compliance, Important] focus_ring.width (2) and focus_ring.offset (2) are neither checked (Tier A/B) nor listed in TIER_C_SKIPS, though both numbers are drawn in prose on Details.dc.html's "Focus ring" section ("A 2px ring ... 2px clear of the control"). I enumerated every other file key against TIER_B_NAMES/TIER_C_SKIPS and they match exactly (type: 7=7, sizes: 9+9=18 excluding these two), so this is a real gap, not an artifact of my enumeration. AC#3 requires everything the tool cannot see to be named so passing isn't read as more than it is; these two numbers fall through silently.
+
+What I verified clean, with my own negative controls (via --data-file scratch copies and in-worktree page mutations, all reverted; worktree left clean):
+- Tier A: one colour's dark hex changed, one light hex changed, one ANSI colour in one theme changed - each refused, naming the value, both forms, and the page.
+- Tier B: one number in a size entry (nav.side.width) changed - refused.
+- Reverse direction: one colour removed from a scratch copy - reported missing against the real pages; REVERSE_ALLOW_LIST's one entry ("radius") is explained in the module docstring and TIER_C_SKIPS (the page's merged radius row, four file keys, no 1:1 match).
+- Parser: a renamed table header, and a large row-removal, both correctly reduce the row count and trigger the EXPECTED_SHAPES refusal rather than a silent pass; a colour name appearing only in the script block or in unlabelled prose (e.g. "track" used descriptively) is never read as a page row.
+- Declared-unseen list (TIER_C_SKIPS) is printed on every passing run, 24 entries; its content otherwise matches the file's remaining keys with the two focus_ring exceptions above.
+- Private reader (_read_data_file): marked for removal in its own docstring, swap to TASK-1.94's foundations.read() named as a follow-up in both the docstring and the PR body; TASK-1.94 had genuinely not merged to main at any point during this build (confirmed via the PR body and notes). It handles {"ref": ...} the same way TASK-1.94's hex_index would for this module's narrow usage (contributes no number in _numbers_in), though it does not resolve refs generally - not exercised today since no checked colour uses a ref.
+- Wiring: check-design is in just check's dependency list, ungated on rust (correct, since the data file and pages are committed regardless); CI green on PR #54 at head dcbeaf2 (gh pr checks: pass, 4m20s); the recipe routes through {{quiet}} per plugins/bruk-io-steg/rules/tools.md.
+- Size/approval: size-2, "Plan approved by @bruk (d2f87de12c3c, size-2)" present and digest matches the notes' "Built per the approved plan (digest d2f87de12c3c)".
+- Repeated both of the plan's own required negative controls myself (changed value refused naming both forms; removed value reported missing) - both reproduced.
+
+Unmet: AC#1 (track and the three corners, per the engineer's decisions), AC#3 (focus_ring.width/offset silently uncovered; the README caveat never added). AC#2's tests/negative-controls/CI wiring are all present and I reproduced them.
 
 ---
 <!-- COMMENTS:END -->

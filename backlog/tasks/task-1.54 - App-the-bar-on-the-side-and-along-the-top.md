@@ -4,13 +4,14 @@ title: 'App: the bar, on the side and along the top'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:35:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-4
 milestone: m-4
 dependencies:
   - TASK-1.53
   - TASK-1.89
+  - TASK-1.106
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -39,6 +40,14 @@ created: 2026-11-16T00:35:00Z
 ---
 
 Now depends on TASK-1.89 (tab list and show, and the status a tab shows over the API), accepted 2026-11-15: the bar needs both.
+
+---
+
+created: 2026-11-16T02:59:00Z
+
+---
+
+2026-11-15, @bruk.o: the components this task shows now have tasks of their own in steg-ui (doc-17, accepted today), built into the gallery without the server. This task becomes giving that component what the server reports and sending what the user does back as requests; it no longer draws the component itself. The bar organism is TASK-1.106.
 
 ---
 <!-- COMMENTS:END -->

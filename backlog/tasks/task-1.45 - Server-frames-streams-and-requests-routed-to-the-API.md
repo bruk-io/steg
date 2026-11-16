@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:54:00Z'
+updated_date: '2026-11-16T03:09:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1133,6 +1133,91 @@ origin/main brought in by merge (this branch was already pushed, so rebase was n
 Checks recorded, in order: the negative control for each of the three findings (failing), each restored and re-recorded passing; just check at the merged head (611fa8c, matching PR #50's own headRefOid) - green, all 22 steps (steg-ui and the steg fixtures suite now included, from the merged tasks); tests/routing.rs run 20 times at the merged head - 0 failures.
 
 PR: https://github.com/bruk-io/steg/pull/50 (unchanged). CI green (check, 3m28s) at the final head.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 5); do timeout 15 cargo test -p steg-server --test routing a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs; rc=$?; if [ "$rc" -ne 101 ]; then fail=$((fail+1)); fi; done; echo "non-101 exits: $fail of 5 (expect 0: every run must fail by its own bound)"'` exited 0 at 2026-11-16T03:01:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986 with uncommitted changes, last 40 of 176 lines:
+
+```text
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+warning: field `shutdown_handle` is never read
+   --> crates/server/src/connection.rs:263:5
+    |
+260 | struct ConnectionCleanup<'a> {
+    |        ----------------- field in this struct
+...
+263 |     shutdown_handle: UnixStream,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-b6f2d180ae7f55f5)
+
+running 1 test
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... FAILED
+
+failures:
+
+---- a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs stdout ----
+
+thread 'a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs' (20035898) panicked at crates/server/tests/routing.rs:954:5:
+assertion `left == right` failed: the connection must still be cleaned up (and reported) within a bound, even with its writer thread genuinely blocked inside write_all on a full send buffer when this connection's own close runs
+  left: Err(Timeout)
+ right: Ok(Disconnected)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+non-101 exits: 0 of 5 (expect 0: every run must fail by its own bound)
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 18 passed"; then fail=$((fail+1)); echo "iteration $i FAILED"; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 0 at 2026-11-16T03:02:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986 with uncommitted changes:
+
+```text
+failures: 0 of 20
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:09:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at ae9aeb6260fd:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (39.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.9s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (9.9s)
+ok      test (steg-server, race-fixture) (12.0s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 110, 109 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

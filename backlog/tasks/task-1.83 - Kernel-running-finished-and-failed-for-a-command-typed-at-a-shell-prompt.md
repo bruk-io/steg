@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:02:00Z'
+updated_date: '2026-11-16T00:07:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -21,8 +22,9 @@ asdlc_branch: task-1.83-kernel-running-finished-and-failed-for-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ca2675da38c4'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -720,6 +722,30 @@ created: 2026-11-16T00:02:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.83: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T00:07:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Reviewed at head 10ec5358359d (matches the task's last recorded `just check` and PR #43's CI, both green).
+
+No findings. Checked:
+- State table (plan section 4), row by row, against the diff's tests in crates/kernel/src/pane.rs and tree.rs: rows 1-2 (idle baseline) by a_freshly_started_shell_pane_has_no_status / a_shell_pane_stays_idle_with_no_marks_at_all_however_far_in_the_future; row 3 by note_command_output_started_on_a_shell_pane_sets_running; rows 4-6 by the three note_command_ended_* (code 0, nonzero, no code) tests; row 7 (end with no start, two ends in a row) by note_command_ended_with_no_preceding_start_is_ignored and note_command_ended_twice_in_a_row_the_second_is_ignored, both reaching the Tree level too; row 8 by note_command_output_started_twice_in_a_row_stays_running_with_a_fresh_tick; row 9 (shell's own exit while CommandRunning, R97 cascade) by record_exit_overwrites_a_running_typed_commands_status plus the pre-existing, unedited a_shell_panes_exit_closes_it_through_the_same_cascade_as_a_manual_close/_cascades_no_further_than_it_should (correctly unaffected, since record_exit's cascade logic never depended on status); row 10 by note_command_output_started_on_a_command_pane_is_ignored/note_command_ended_on_a_command_pane_is_ignored, each capturing program_status/status/next_status_deadline before and after; rows 11-12 by tab.rs's shown_status_is_none_when_every_pane_is_an_idle_shell and shown_status_prefers_a_running_command_pane_over_an_idle_shell, plus shown_status_ranks_a_running_typed_command_exactly_like_a_running_program and next_status_deadline_excludes_an_idle_shell_pane.
+- start_program's behaviour change: diffed pane.rs/tree.rs/tab.rs/lib.rs against origin/main and confirmed every removed line is a doc comment, the one conditional branch, or an import list extension - no existing test assertion was edited anywhere, all pass unedited. program_status stays an unconditional `Some(ProgramStatus::Running)` for every pane. Ran `git grep` for `.status(`/`steg_sdk::Status`/`Status::Running|Finished|Failed` in crates/server on this branch (which includes main's runtime.rs): the only hits are ProgramStatus (wire "running"/"ended") and two std::process::Command::status() calls (server/pane.rs:606, runtime.rs:1491) - confirmed by reading both, neither is the kernel's Pane::status(). Nothing in crates/server reads the display status this task changes.
+- Ending rules (TASK-1.41's, reused not duplicated): the 599/600/601s trio, note_input/acknowledge_pane ending Finished/Failed, note_input not ending a running typed command, and the idle-shell-plus-running-command variant of "opening a tab/focusing ends nothing" are all re-proven through note_command_ended/note_command_output_started with no second copy of the ten-minute or ranking machinery. Ranking maps CommandRunning to Status::Running in status_for_ranking's one arm, exactly as a program's Running.
+- Outcome enums (CommandOutputStarted, CommandEnded): computed inside Pane, before the same method's own mutation (a sound, disclosed departure from the plan's "Tree reads before mutating" sketch, since here the decision depends on exactly the field the method overwrites) - read the implementation and found no path where the returned outcome and the stored status disagree.
+- Negative controls: repeated both myself in the review worktree, reverted after each. (1) Removed the CommandRunning guard in note_command_ended: 320 passed, 3 failed - exactly note_command_ended_with_no_preceding_start_is_ignored, note_command_ended_twice_in_a_row_the_second_is_ignored, and tree::tests::note_command_ended_through_the_tree_with_no_preceding_start_is_ignored, matching the recorded run. (2) Reverted start_program's shell branch to always set Running: 318 passed, 5 failed - the plan's 2 named tests plus 3 more (shown_status_is_none_when_every_pane_is_an_idle_shell, a_shell_pane_stays_idle_with_no_marks_at_all_however_far_in_the_future, opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched), matching the recorded run exactly; traced all 5 to the single reverted line (every failure reads Some(Running) where None was expected, directly or via a pane it ranks), confirming the worker's "wider ripple, same one line" explanation.
+- "Nothing changes" tests (note_command_output_started_on_a_command_pane_is_ignored, note_command_ended_on_a_command_pane_is_ignored, opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched) capture program_status, status and next_status_deadline before and after, so they can fail.
+- No I/O, no clock read, no unsafe, no sdk change: confirmed by grep over the full diff (no SystemTime/Instant::now, no fs/net, no unsafe, no println/eprintln) and by reading lib.rs's only change (two new pub use entries).
+- doc-11 (R50, R82, R83) and decision-7 point 5 read directly from the board and checked against the code: Finished/Failed end rules, the ten-minute mark, and "opening a tab clears nothing" all match.
+- Plan approval: size-3, "Plan approved by @bruk (ca2675da38c4, size-3)" is on the task.
 
 ---
 <!-- COMMENTS:END -->

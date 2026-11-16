@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:38:00Z'
+updated_date: '2026-11-16T13:45:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -402,6 +402,18 @@ test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 error: test failed, to rerun pass `-p steg-server --test openpty_race`
 full output: .quiet/test-steg-server-pty-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_at_the_shipped_default_never_fail` exited 0 at 2026-11-16T13:45:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 6.75s
 ```
 <!-- SECTION:NOTES:END -->
 

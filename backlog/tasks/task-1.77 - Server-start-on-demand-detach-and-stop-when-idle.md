@@ -1,13 +1,14 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand and detach, from the steg entry point'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:00:00Z'
+updated_date: '2026-11-16T01:12:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -21,8 +22,10 @@ asdlc_branch: task-1.77-server-start-on-demand-detach-and-stop
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd29c62060a8b'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1124,6 +1127,27 @@ created: 2026-11-16T01:00:00Z
 PR #44's CI failed once, on run 43782519189 attempt 1 (head 3fbdf09, the same head it later passed on re-run). Read in full, not just the failure excerpt: `gh api repos/bruk-io/steg/actions/jobs/133022695848/logs --allow-escape-sequences`. Every one of this task's own steps passed in that attempt - `test (steg)`, `test (steg, fixtures)` (this task's own new tests), `test (steg-server, race-fixture)` all `ok`. The one failure was the `tool tests` step (exit 1), specifically `tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server`, with `TimeoutError: likec4 mcp did not answer within 30.0s`.
 
 This is not this task's: `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` shows nothing, and the failure is inside `tools/src/steg_tools/likec4_mcp.py`'s own MCP client, unrelated to anything `server start`/`detach` touches. It is also not new: TASK-1.82 (opened by @bruk.o, 2026-11-15) already names this exact test - "the LikeC4 MCP smoke test in tools/ has timed out in CI on two unrelated pull requests (TASK-1.40's and TASK-1.76's), green on re-run each time" - and asks for it to be bounded or fixed. This run is a third, independent occurrence of the same tracked flake, not a new finding: reran via `gh run rerun 43782519189 --failed`, green at the same head on the first re-run.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T01:12:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at head 3fbdf09f023c9d7707a407572f666aaf9e5ece3a (matches the task's final recorded `just check` and PR #44's green CI check run on the same head). `just check` reran independently here, green; the new `server_start.rs` suite reran 5 consecutive times plus the recorded negative-control pair, no flake. Repeated negative control #1 myself (disabling `detach()`'s call via `if false && on_demand` in a reverted scratch edit): `the_clients_process_group_being_sighupd_does_not_end_the_server` failed, `the_client_being_sigkilled_does_not_end_the_server` passed - matches the task's recorded run exactly. No `unsafe` anywhere in the diff (grepped); the `nix` `process` feature is declared with its reason in boundaries.toml; `listen.rs`/`connection.rs` have no steady-state print/eprint/stdin; nothing under tools/ or architecture/ is touched, so the unrelated CI flake named on the task does not count against this task. AC #3's main mechanism (the arbiter's convergence) has no negative control of its own on this task - it inherits TASK-1.44's proof; this task adds no new mechanism for AC #3 beyond composing `attempt`.
+
+[Bugs, Important] crates/steg/tests/server_start.rs:381-388 and :437 - `the_client_being_sigkilled_does_not_end_the_server` and `the_clients_process_group_being_sighupd_does_not_end_the_server` each cause a real, detached `steg server start --on-demand` process to be spawned (through the autostart_client fixture's call into the sdk's own spawn path) that nothing ever waits on, kills, or reaps. Confirmed directly: after one run of the SIGKILL test alone, `ps` shows exactly one `steg server start --on-demand` process still running from that single test, and it never exits. The comment at server_start.rs:381-388 says this is "left to the test's own eventual process exit plus the OS's own reparenting" - but reparenting only reaps an exited zombie, and by construction (plan section 9: "an on-demand server built by this piece never stops by itself") this server never exits, so nothing ever takes it over. This is a real, permanent process leak on whatever machine runs these tests (CI or a developer's), one per run of each of these two tests, accumulating indefinitely since nothing in this task or the current codebase can end an on-demand server with no clients. AC #6 asks that "every child this code spawns is waited on along every path or the notes say why not ... proven by test"; the "why not" given does not actually hold, so the accounting is incomplete.
+
+[Compliance/Evidence, Important] crates/steg/src/main.rs (run_server_start) / crates/steg/tests/server_start.rs - none of the 8 new tests reaches doc-2 section 6's exit status 4 (Arbitration::Refuse, or a genuine Err from attempt) or status 1 (run returns Err) through the real binary; every test only ever exercises status 0. The plan's own section-5 table lists all 8 outcome rows as proof for AC #5, but a table is not a run: AC #5 and the review brief both ask for "a test per row that can be reached," and the Refuse row is trivially reachable (point STEG_SOCKET_PATH at an existing non-socket file) but untested here.
+
+[Nit] crates/steg/src/main.rs - the fallthrough for an unrecognised command (e.g. `server start --bogus`) still prints "steg: not yet implemented" and returns 0; pre-existing, but `server start`'s own exit-status contract with doc-2 is now real for this command, so an unrecognised variant of it silently succeeding reads as a gap worth a line in the notes, not necessarily a fix.
+
+Evidence otherwise sound: the task's recorded `just check` and negative controls are real, reproduced one myself, and the head reviewed is the head that is green on the PR.
 
 ---
 <!-- COMMENTS:END -->

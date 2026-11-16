@@ -4,10 +4,12 @@ title: 'tools: checks that keep steg-ui''s levels and named values honest'
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-16T00:55:00Z'
 labels:
   - size-2
 milestone: m-4
-dependencies: []
+dependencies:
+  - TASK-1.91
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4

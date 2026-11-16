@@ -1,15 +1,18 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:32:00Z'
+updated_date: '2026-11-16T01:36:00Z'
 labels:
   - size-3
 milestone: m-4
 dependencies: []
+references:
+  - task-1.92-ui-the-design-s-named-values-as-one-data
+  - https://github.com/bruk-io/steg/pull/49
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -286,6 +289,25 @@ ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
+
+Built per the approved plan (digest b3ded099a9d8), with one build-phase departure the team lead directed: focus_ring.radius_formula (a string formula) replaced with focus_ring.corner_radius_addition: 4 (a plain number) — the plan's string-formula sketch was exactly what AC#2 rules out, something a program must parse out of prose.
+
+While restoring the plan to match the approved digest after an inadvertent post-approval wording edit, I found and fixed a real value error in my own draft before writing crates/ui/design/foundations.json: I had truncated the six ramp colours' names from the design's own 'ramp.1 violet' etc. to bare 'ramp.1', which AC#4 ('no value is changed') and AC#1 ('under the design's own names') both rule out. Fixed before committing; the committed file uses the design's exact names throughout.
+
+What was built, matching the plan:
+- crates/ui/design/foundations.json: 18 colours (the design's 17 plus track; off excluded per the engineer's decision, since nothing in the corrected artifact draws it), 3 colour aliases, 1 opacity (faint), 2 ramps plus caption_opacity and tint, 7 type entries, 17 size entries (10 plus radius split three ways plus 5 Layout-page-only entries), 1 motion entry, 2 themes with 16 named ANSI colours each and a session-colour reference for cursor, and the focus ring. artifact_version: 1794791991-5d11.
+- design/canvas/: the pre-correction working foundations.json, gen_system.py and its one dependency rebuild_main.py (copied unchanged from the 2026-11-15 backup), and the three foundations pages at the corrected artifact version (copied unchanged from design-artifact-pages-1794791991-5d11). README.md says what's current, what's history, and that the artifact is the source, per the plan.
+
+Checks recorded on this task (all exit 0):
+- just check, before any change (baseline)
+- checksum verification: all 6 copied files byte-identical to their sources in ~/.claude/projects/.../design-canvas-backup-2026-11-15 and .../design-artifact-pages-1794791991-5d11
+- ad hoc shape check (not TASK-1.96's tool): every colour has name/dark/light as 6-digit hex, every numeric value is a real number never a string with an embedded unit, both themes have exactly 16 named ANSI colours
+- ad hoc colour check (not TASK-1.96's tool): all 18 colours' names and both hex values found in the saved Tokens.dc.html
+- just check at the final head (dc9f98533d16), after rebasing onto origin/main (TASK-1.91's crates/ui work had not yet merged to main at rebase time, so there was nothing to reconcile; the rebase was clean)
+
+The tested tool that checks the data file against the saved pages by name and value, with a negative control, is TASK-1.96 (not this task) — noted in the plan and in the PR description, not built here.
+
+CI green on the final head (dc9f98533d16): gh pr checks 49 --watch, 'check' passed in 3m11s.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

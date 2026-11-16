@@ -1,15 +1,19 @@
 ---
-id: DRAFT-8
+id: TASK-1.105
 title: 'ui molecules: palette input, palette row and empty result'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-5
 milestone: m-0
-dependencies: []
+dependencies:
+  - TASK-1.99
+  - TASK-1.100
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-8
 ---
 
 ## Description

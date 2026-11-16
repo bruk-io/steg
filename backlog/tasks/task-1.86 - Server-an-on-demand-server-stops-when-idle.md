@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:36:00Z'
+updated_date: '2026-11-16T13:58:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -22,6 +22,8 @@ asdlc_branch: task-1.86-server-an-on-demand-server-stops-when
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1213,6 +1215,15 @@ None of these touch the `accept-backoff-fixture` feature at all (that is TASK-1.
 Checked the exact-wait test's own 300ms absence window (`idle.rs`'s `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`) for margin under machine load, as asked - what would make something arrive late into it or after it:
 
 Nothing legitimate can. The checker is in `Wait::Forever` for the whole window because `live_clients > 0` makes `wait()` return `Forever` unconditionally, regardless of how much time has elapsed - this does not depend on `idle_timeout` (50ms in this test) or on timing precision at all. The window's own boundaries are entirely test-controlled, not racing a background timer: it starts only after the test's own blocking (untimed) `.recv()` for the second observation has already returned, and the test does not send `Disconnected` - the only thing that could end the window - until after the window's own `recv_timeout` call has already returned. So there is no clock for machine load to make something arrive "late" into or after this window; the only way anything can appear inside it is a real implementation regression (a reverted periodic-poll design), which the committed negative control already confirmed bites, cleanly, at a bounded 300ms - about 3x the 100ms poll interval that regression used.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T13:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.86: a same-machine review: it waited 32m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

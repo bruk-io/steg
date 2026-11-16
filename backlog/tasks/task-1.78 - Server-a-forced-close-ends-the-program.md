@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:36:00Z'
+updated_date: '2026-11-16T02:43:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1940,6 +1940,26 @@ ALL_20_RUNS_CLEAN
 ```
 
 Commits since the review: 97, 85 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 143 at 2026-11-16T02:43:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      licences (1.0s)
+ok      tests (every crate) (14.0s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (2.2s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (34.7s)
+ok      test (steg-server) (13.8s)
+error: recipe `check-packages` failed with exit code 143
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

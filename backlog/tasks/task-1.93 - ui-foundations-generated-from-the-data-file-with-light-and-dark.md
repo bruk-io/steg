@@ -344,6 +344,14 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCmDGVI` does not 
 .......................................                                  [100%]
 39 passed in 0.04s
 ```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && cargo clippy -p steg-ui --all-targets -- -D warnings'` exited 0 at 2026-11-16T02:42:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T13:50:00Z'
+updated_date: '2026-11-16T13:52:00Z'
 labels:
   - size-2
   - changes-requested
@@ -668,6 +668,42 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:52:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at d2ab50c46927:
+
+```text
+ok      format check (0.2s)
+ok      lint (6.8s)
+ok      boundaries (0.3s)
+ok      foundations (0.3s)
+ok      foundations public surface (0.2s)
+ok      design pages (0.2s)
+ok      licences (1.5s)
+ok      tests (every crate) (18.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (9.8s)
+ok      test (steg-server, race-fixture) (10.0s)
+ok      test (steg-server, accept-backoff-fixture) (10.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (1.7s)
+ok      test (steg-ui) (1.5s)
+ok      build (steg-app) (0.7s)
+ok      test (steg-app) (1.5s)
+ok      tool tests (12.4s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 78, 68 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

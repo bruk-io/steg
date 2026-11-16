@@ -1791,9 +1791,11 @@ mod tests {
     fn a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic() {
         // Same shape as `apply_event_on_a_pane_the_tree_no_longer_holds_
         // removes_the_stale_handle_without_panicking`: the tree never
-        // gets this pane at all, standing in for a forced close that has
-        // already happened (that sibling test's own comment names the
-        // same gap, until TASK-1.78 lands) - but a real, still-running
+        // gets this pane at all, standing in for any pane whose own real
+        // program may still be running after its tree entry is already
+        // gone - whatever the real reason, today only a forced close
+        // that does not yet end the program (that sibling test's own
+        // comment names the gap) - but a real, still-running
         // `PaneHandle` for it is in `panes`.
         let tree = steg_kernel::Tree::new();
         let gone = steg_sdk::PaneId::from_raw(999);
@@ -1837,11 +1839,39 @@ mod tests {
         state.panes.remove(&gone).unwrap().stop();
     }
 
+    /// Review finding (same-machine review by `@bruk.r2`, 2026-11-16):
+    /// the first version of this test could not fail - its `D` mark and
+    /// its real exit both read as `Finished`, and the `D` landed outside
+    /// the one window this test ever looked at `Running` inside, so a
+    /// mark being wrongly applied and a mark never arriving at all both
+    /// left every assertion green. Fixed two ways at once, named here
+    /// since the finding asked which was picked and why:
+    ///
+    /// - The `D` mark's own exit code (3) now differs from the real exit
+    ///   this script ends with (0), so a wrongly-applied mark reads
+    ///   `Failed { exit_code: 3 }` - a value the real exit path alone
+    ///   can never produce - rather than a value indistinguishable from
+    ///   it.
+    /// - Before asserting anything about the command pane, this test
+    ///   proves the marks really had time to land by running the exact
+    ///   same script in a sibling *shell* pane and waiting for it to
+    ///   read `Failed { exit_code: 3 }` first - the shell pane does
+    ///   respond to its own marks, through the very same single drain
+    ///   thread `command_pane`'s own marks ride (`Runtime::new`'s one
+    ///   `events_rx`, shared by every pane this `Runtime` ever starts).
+    ///   Picked over an in-crate counter of applied events for one pane:
+    ///   this reuses the real channel and drain thread exactly as they
+    ///   already are, with no test-only instrumentation added to
+    ///   production types for a question this already answers on its
+    ///   own.
     #[test]
     fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
-        let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;0\\007'; exit 0";
-        let (_, _, pane) = start_real_pane(
+
+        let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
+                       sleep 0.3; exit 0";
+
+        let (_, _, command_pane) = start_real_pane(
             &runtime,
             Program::Command {
                 argv: vec!["sh".to_string(), "-c".to_string(), script.to_string()],
@@ -1849,25 +1879,45 @@ mod tests {
             },
             vec!["sh", "-c", script],
         );
+        // The observable stand-in for "the marks really arrived by now":
+        // the identical script, started within the same test at
+        // essentially the same wall-clock moment, in a pane kind that
+        // does respond to its own marks.
+        let (_, _, shell_pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec!["sh", "-c", script],
+        );
 
         // `start_program` already set this the moment the program did
         // (kernel `Pane::start_program`'s own doc) - independent of
-        // anything the real process has printed yet.
-        assert_eq!(pane_status(&runtime, pane), Some(Status::Running));
+        // anything either real process has printed yet.
+        assert_eq!(pane_status(&runtime, command_pane), Some(Status::Running));
 
-        // While the marks land, mid-run, nothing here may move it off
-        // `Running` - a command pane's own program always wins over a
-        // mark (R97; `CommandOutputStarted::NotAShellPane`/`CommandEnded
-        // ::Ignored`).
-        let start = Instant::now();
-        while start.elapsed() < Duration::from_millis(150) {
-            assert_eq!(pane_status(&runtime, pane), Some(Status::Running));
-            thread::sleep(Duration::from_millis(20));
-        }
+        wait_for_pane_status(&runtime, shell_pane, Some(Status::Failed { exit_code: 3 }));
+        // A small buffer past that point - not the real argument (the
+        // shared drain thread and the identical script are), only a
+        // margin against CI's own scheduling jitter between two
+        // separately scheduled real processes.
+        thread::sleep(Duration::from_millis(100));
 
-        // Only the program's own exit (`record_exit`), never `note_
-        // command_ended`, moves it from here.
-        wait_for_pane_status(&runtime, pane, Some(Status::Finished));
+        // The command pane's own identical marks have, by now, had every
+        // chance to be wrongly applied if the kernel's command-pane
+        // guard were broken - and were not: still `Running`, never
+        // `Failed { exit_code: 3 }` from the ignored `D` mark.
+        assert_eq!(pane_status(&runtime, command_pane), Some(Status::Running));
+        assert_eq!(
+            pane_program_status(&runtime, command_pane),
+            Some(ProgramStatus::Running)
+        );
+
+        // Only the program's own real exit (`record_exit`), never `note_
+        // command_ended`, moves it from here - and it reads `Finished`
+        // (the real exit's own code, 0), never `Failed` (the mark's own
+        // code, 3).
+        wait_for_pane_status(&runtime, command_pane, Some(Status::Finished));
     }
 }
 

@@ -1051,6 +1051,14 @@ error: recipe `check-foundations-public-surface` failed on line 174 with exit co
 ```
 
 Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 0 at 2026-11-16T04:11:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at e4f757c7a2d9 with uncommitted changes:
+
+```text
+ok      foundations public surface (0.0s)
+```
+
+Commits since the review: 30, 28 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T17:59:00Z'
+updated_date: '2026-11-16T18:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -768,6 +768,51 @@ help: indent this line
 error: could not compile `steg-sdk` (lib) due to 7 previous errors
 warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-sdk` (lib test) due to 7 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T18:00:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 42 lines:
+
+```text
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/sdk)
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/app)
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/steg)
+error: doc list item without indentation
+    --> crates/server/tests/attach.rs:1273:5
+     |
+1273 | /// wait on the worker thread past a stated timeout; only the final two
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+     = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+     |
+1273 | ///   wait on the worker thread past a stated timeout; only the final two
+     |     ++
+
+error: doc list item without indentation
+    --> crates/server/tests/attach.rs:1274:5
+     |
+1274 | /// (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+     |
+1274 | ///   (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
+     |     ++
+
+error: could not compile `steg-server` (test "attach") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
 ```

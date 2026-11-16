@@ -1,11 +1,11 @@
 ---
 id: TASK-1.83
 title: 'Kernel: running, finished and failed for a command typed at a shell prompt'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:07:00Z'
+updated_date: '2026-11-16T00:24:00Z'
 labels:
   - size-3
   - review-passed

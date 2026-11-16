@@ -767,6 +767,51 @@ test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T13:15:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41 with uncommitted changes, last 40 of 64 lines:
+
+```text
+[31m-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+(B[m[32m+        let runtime = Runtime::new(
+(B[m[32m+            std::sync::Arc::new(RealLauncher),
+(B[m[32m+            login(),
+(B[m[32m+            TEST_GRACE,
+(B[m[32m+            TEST_TICK,
+(B[m[32m+        );
+(B[m         let description = steg_sdk::description();
+         let no_context = crate::dispatch::Context::none();
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server/tests/runtime.rs:638:
+     // proof, with its own recorded negative control; this one is kept as
+     // a realistic end-to-end regression only, named for exactly that.
+     let grace = Duration::from_secs(3);
+[31m-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace, TEST_TICK);
+(B[m[32m+    let runtime = Runtime::new(
+(B[m[32m+        Arc::new(RealLauncher),
+(B[m[32m+        login_for_force_tests(),
+(B[m[32m+        grace,
+(B[m[32m+        TEST_TICK,
+(B[m[32m+    );
+(B[m     let api = description();
+     // Floods a real backlog (20,000 lines through the pty, not a file -
+     // confirmed by hand to take well under a second for a shell's own
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server/tests/runtime.rs:704:
+     // enough to separate "one window" from "four windows" needs a
+     // window wide enough that scheduling noise cannot close the gap.
+     let grace = Duration::from_millis(500);
+[31m-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace, TEST_TICK);
+(B[m[32m+    let runtime = Runtime::new(
+(B[m[32m+        Arc::new(RealLauncher),
+(B[m[32m+        login_for_force_tests(),
+(B[m[32m+        grace,
+(B[m[32m+        TEST_TICK,
+(B[m[32m+    );
+(B[m     let api = description();
+ 
+     // The marker file's own content is the pid (`echo $$`, not a bare
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

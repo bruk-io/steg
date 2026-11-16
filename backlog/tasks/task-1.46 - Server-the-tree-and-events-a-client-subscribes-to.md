@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:59:00Z'
+updated_date: '2026-11-16T14:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -832,6 +832,51 @@ failures:
     session_close_emits_the_whole_cascade_innermost_first
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events'` exited 101 at 2026-11-16T14:00:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes, last 40 of 47 lines:
+
+```text
+test a_filter_by_name_keeps_only_that_event ... FAILED
+test disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast ... ok
+test a_filter_by_session_excludes_another_sessions_events ... FAILED
+test session_close_emits_the_whole_cascade_innermost_first ... ok
+test tab_focus_emits_tab_focused_with_the_whole_path ... ok
+test a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37965593) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_filter_by_name_keeps_only_that_event stdout ----
+
+thread 'a_filter_by_name_keeps_only_that_event' (37965585) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "pane.created", body: Object {"id": String("00000006"), "label": Null, "tab": String("00000005")} }
+
+---- a_filter_by_session_excludes_another_sessions_events stdout ----
+
+thread 'a_filter_by_session_excludes_another_sessions_events' (37965586) panicked at crates/server/tests/events.rs:465:13:
+expected nothing, got 207 bytes decoding to Some(Event { name: "tab.created", body: Object {"id": String("00000009"), "label": Null, "session": String("00000004")} })
+
+---- a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event stdout ----
+
+thread 'a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event' (37965587) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+
+
+failures:
+    a_filter_by_name_keeps_only_that_event
+    a_filter_by_session_excludes_another_sessions_events
+    a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 5 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
 
 error: test failed, to rerun pass `-p steg-server --test events`
 ```

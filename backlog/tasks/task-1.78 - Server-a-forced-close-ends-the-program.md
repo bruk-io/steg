@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:26:00Z'
+updated_date: '2026-11-16T01:27:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1354,6 +1354,51 @@ kill: 35800: No such process
 test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.55s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T01:27:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at b7e872af7f6b with uncommitted changes, last 40 of 75 lines:
+
+```text
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... ok
+kill: 41772: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+kill: 41818: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+kill: 41817: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+kill: 41780: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 41821: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+kill: 41716: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server stdout ----
+
+thread 'arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server' (17098571) panicked at crates/server/src/arbiter.rs:416:17:
+expected Became, got something else: AlreadyRunning
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server
+
+test result: FAILED. 90 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T03:01:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -21,8 +22,10 @@ asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=3'
+asdlc_review_policies: ["review", "testing", "tools"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -701,6 +704,35 @@ created: 2026-11-16T02:46:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:01:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 3 nit. Cites: review, testing, tools. The diff does not match the plan.
+
+Reviewed at head 5abcaef9f944e6116b31a5f434e8c095cf7899a1 (matches PR #52's headRefOid; CI SUCCESS on that head; `just check` reproduced green by me locally in a fresh worktree of that commit).
+
+Important findings:
+
+[Bugs/Compliance, Important] tools/src/steg_tools/ui_colours.py:129-146: a colour literal written as a named-constructor call with a hex argument (`rgb(0x...)`, `rgba(0x...)`) is recorded as `Literal(line, text, hex_value=None)` - the hex is never extracted from the call's argument. `_inside_colour_constructor_call` (line 119) also suppresses the inner bare-hex literal that would otherwise have matched. Net effect: `violations()` can never report a name match for this form. Verified live: `fn a() -> u32 { 0x3d3b45 }` -> "This value matches outline (dark), track (dark)", but `rgb(0x3d3b45)` -> "No foundations value has this colour", same hex. `rgb(...)`/`rgba(...)` with a literal hex argument is exactly the plan's own canonical message example (`rgb(0x1c1b21) ... This value matches surface.raised (dark) - use that named value instead.`) and is the shape of the one real colour call already in the repo (gallery/main.rs's `rgb(...)`) - the implementation cannot produce the string the plan and AC#2 promise for this form. `hsla(...)` and `black()` genuinely carry no hex argument, so "no match" is correct for those - this finding is scoped to the hex-argument constructors only. The unit test `test_literal_colours_catches_a_named_constructor_call` (test_ui_colours.py:47) asserts `Literal(1, "rgb(0x1c1b21)", None)` as the expected, correct result - it encodes the defect rather than catching it.
+
+[Evidence, Important] tools/tests/unit/test_ui_colours.py: no test exercises `violations()` with a named-constructor-call literal against a matching index (every matching/no-matching test - lines 101-116 - uses a bare hex int or string, never a call). The hex-to-name match is AC#2's main mechanism ("naming the foundations value to use instead where one matches"), and the recorded negative controls (notes: "the colour check's literal detection, and the colour check's exemption") don't cover it either. A control on this specific clause would have failed exactly as my live run did, and caught the bug above before merge.
+
+Nits (3, at the cap):
+
+[Compliance, Nit] plugins/bruk-io-steg/rules/tools.md:17 ("The tools use only the standard library") is now contradicted by tools/pyproject.toml's ast-grep-py dependency. The plan named this explicitly, the engineer approved it in-task ("Plan approved by @bruk ... (1) It adds ast-grep-py ... the tools' first runtime dependency"), and the dependency itself (MIT licence, matches the repo's own default) is sound - not blocking this task on it. But the rule text still reads as an absolute, and an in-task approval doesn't amend a written policy; the rule needs its own PR to the tasks repo saying it now permits a vetted runtime dependency for a real parse, or scoping the exception.
+
+[Compliance, Nit] tools/src/steg_tools/rust_source.py is a new shared module not named in the plan's "New files" list (which named foundations.py, ui_levels.py, ui_colours.py and three test files only). A reasonable, small extraction shared by both checks exactly as planned to share the foundations reader - but undisclosed as a plan departure. Its test (test_rust_source.py) is named in the AC#3 summary, so its existence wasn't hidden, just the new-file decision.
+
+[Bugs, Nit] ui_levels.py's cross-level detection misses a cross-level path written as a literal argument inside an unrelated macro invocation (e.g. `some_macro!(crate::atoms::Thing)`) - confirmed live: tree-sitter-rust parses macro arguments as an opaque `token_tree`, so `find_all(kind="scoped_identifier")` never sees inside it. This is a different, more mundane gap than the one the plan names ("a path built by a macro that expands to a cross-level reference") and isn't disclosed under that name. Likely low real-world risk since gpui components aren't built with macro DSLs today.
+
+Verified as working, not just as claimed: plain/grouped/glob/aliased `use`, a fully-qualified expression path (counted once, not per nesting), the crate-root `pub use` re-export loophole (plain and aliased), a second `super::` hop staying a documented no-op, a `#[path]`-relocated file under a new top-level folder refused loudly as unplaced (not silently skipped), a nested submodule under a level still correctly attributed and checked (the disclosed limitation is narrowly the `super::super::` chain, not "nested files unchecked" generally), both exemptions (foundations permanent, gallery temporary with its TASK-1.93 end-condition comment) as one named line each, a colour literal inside `#[cfg(test)]` refused like any other, a comment and an ordinary string correctly passed, a 4-digit hex correctly passed, an arithmetic-built colour correctly and silently passed (as disclosed), and the two/one/zero-match message forms all correct for bare hex literals. `just check` passes on this head with both new recipes wired through `steg-quiet` into `check:`; no CI workflow edit was needed or made.
 
 ---
 <!-- COMMENTS:END -->

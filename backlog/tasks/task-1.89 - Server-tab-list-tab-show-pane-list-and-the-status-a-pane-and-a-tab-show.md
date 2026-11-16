@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:24:00Z'
+updated_date: '2026-11-16T05:38:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -22,8 +23,10 @@ asdlc_branch: task-1.89-server-tab-list-tab-show-pane-list-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'a99a69b5fa87'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["testing", "review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -797,6 +800,36 @@ created: 2026-11-16T05:24:00Z
 Small departure from the plan, per the team lead: the three split tasks (TASK-1.110 "Server: pane resize", TASK-1.111 "Kernel and server: move a tab to another session", TASK-1.109 the events task owning session.focus) now have real ids, accepted after this task's plan was written. Updated the three not_implemented_yet messages that cited them by title alone to cite the id instead (pane.send/capture/wait's TASK-1.90 citation was already an id and is unchanged).
 
 cargo test -p steg-server --test dispatch and just check both passed locally before pushing (commit c88bcc8, then merged with origin/main at ba83798 with no code conflict - only backlog/ files). Could not record these through `asdlc record-check`: it refuses while the task is In Review ("not In Progress, so @bruk.w5 can't record checks on it"). CI passed at the final head, ba83798: https://github.com/bruk-io/steg/actions/runs/43809715675
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T05:38:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: testing, review. The diff matches the plan.
+
+Reviewed at head ba83798 (PR #57's own headRefOid; the merge that brought in origin/main after the id-citation commit c88bcc8). CI's `check` workflow is green at ba83798. I independently ran `just check` at this exact head (clean worktree, no edits) and it passed; I also ran `cargo test -p steg-server` ten times at this head with no failures and no leaked processes (ps before/after unchanged, no stray `sleep 100`/OSC-133/`htop`/trap-marker processes).
+
+Repeated two of the five recorded mechanism controls myself, in scratch edits reverted before any other check: (1) made pane.rs's `status` field derive from `program_status` instead of `pane.status(now)` - `an_idle_shell_panes_program_status_and_status_disagree` failed as expected; (2) made tab.rs's `shown_status` return the tab's first pane instead of `tree.tab_shown_status(id, now)` - `tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order` failed as expected. Both confirm the mechanisms are real.
+
+Checked the clock (grepped crates/kernel and crates/server/src/dispatch for Instant::now/SystemTime::now: none outside runtime.rs's two new call sites, which match apply_event_locked's existing pattern), the records against doc-2 §8/doc-11/decision-7 (TabRecord's seven fields and PaneRecord's kind/size/program_status/status all present and matching the description, verified by matches_the_fields_* tests), size arithmetic (reuses Tree::tab_layout/Layout::leaf_sizes, not reimplemented), list order (pane.list through R112's existing tab.panes() order; tab.list through session.tabs() order), and that an empty tab/session cannot exist in this kernel (last-pane-closes-tab, last-tab-ends-session), so no test is owed for it.
+
+No Important findings.
+
+[Testing, Nit] The plan's proof said tab.list/tab.show/pane.list get negative controls "matching this file's existing per-method pattern (no such target, ambiguous target)"; only no-such-target tests were added, no ambiguous-target test for any of the three, and the notes don't name it as dropped. Not escalated to Important: all three resolve through the pre-existing target_tab/target_session helpers already shared with tab.close/tab.focus/session.show etc. (no new resolution code this task wrote), and AmbiguousTarget's own mapping is already covered generically by dispatch/kernel_error.rs's target_ambiguous_maps_to_ambiguous_target_with_the_candidates_ids. The plan's cited "existing per-method pattern" itself has no ambiguous-target case either for the methods it names, so this is a pre-existing gap in the file's own convention, not new risk from this task.
+
+[Review process, Nit] The plan's Risks/Order-of-work section committed to landing the ~79-line mechanical Moment-threading of tests/dispatch.rs as its own commit, separate from new behaviour, for reviewability. It shipped squashed into the one implementation commit (01a74fd) instead, and neither the implementation notes nor comment #3's disclosed departure mention this. I verified directly from the diff that no pre-existing assertion value changed (only moment(0) arguments added, plus the three not_implemented_yet string replacements AC #3 required) - the risk the separate commit was meant to guard against did not materialize, so I did not escalate this to Important.
+
+Overlap with PR #47 (TASK-1.78, about to merge), for whoever resolves it:
+- dispatch/mod.rs: the `pub(crate) use lookup::{...}` re-export list textually conflicts (this task adds tab_position; TASK-1.78 adds any_pane_running, panes_in_close_scope) - keep all three.
+- runtime.rs, conflicting in meaning without conflicting in text: (1) TASK-1.78 adds a third `force_grace: Duration` parameter to `Runtime::new`; this task's own two new tests in tests mod (a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle, a_command_panes_exit_reaches_pane_show_through_runtime_handle) call `Runtime::new(launcher, login_for_marks())` with only two arguments - whichever lands second must add a third argument (its own TEST_GRACE) to these two call sites or the build breaks. (2) TASK-1.78's new `close_and_dispatch` calls `dispatch::dispatch(&mut state.tree, &mut state.settings, description, context, request)` with five arguments, written against the pre-1.89 signature; this task makes `dispatch::dispatch` take a sixth `now: Moment` parameter - the resolution must compute `now` there the same way `start_and_dispatch`/the general-dispatch branch/`apply_event_locked` already do, and pass it.
+- TASK-1.46 nesting: `TabRecord.layout`'s leaves already name every pane's id, so embedding `Vec<PaneRecord>` alongside the embedded `TabRecord` repeats pane identity once in `layout` and once per `PaneRecord.id` - mildly awkward but not a defect.
+
+Posted the same findings on PR #57.
 
 ---
 <!-- COMMENTS:END -->

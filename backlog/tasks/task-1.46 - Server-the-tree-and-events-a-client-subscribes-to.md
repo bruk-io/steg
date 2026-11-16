@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:32:00Z'
+updated_date: '2026-11-16T15:38:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1399,6 +1399,41 @@ Full proof table (plan's §10, this revision plus earlier ones), proof item / te
 Checks: just check clean at head ffd6f32 (before this round's fix), and again at the final head after the origin/main merge; just test clean throughout. gh pr checks 63 --watch reports no checks configured on this repo's PRs (empty rollup) - nothing to wait on.
 
 TASK-1.86 (in review) adds its own SessionCountChanged notify inside the same apply_event_locked PaneEvent::Exited arm this task restructures, not only connection.rs/listen.rs as this task's own Risks section said - whoever merges second should fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping scope captured before record_exit.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events pane_move'` exited 101 at 2026-11-16T15:38:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 2 tests
+test pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session ... FAILED
+test pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab ... FAILED
+
+failures:
+
+---- pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session stdout ----
+
+thread 'pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session' (43364219) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab stdout ----
+
+thread 'pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab' (43364218) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab
+    pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

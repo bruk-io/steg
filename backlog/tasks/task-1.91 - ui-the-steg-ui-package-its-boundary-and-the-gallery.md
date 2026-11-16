@@ -1,11 +1,11 @@
 ---
 id: TASK-1.91
 title: 'ui: the steg-ui package, its boundary, and the gallery'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:59:00Z'
+updated_date: '2026-11-16T02:05:00Z'
 labels:
   - size-3
   - review-passed

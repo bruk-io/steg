@@ -194,6 +194,12 @@ Diffing the pre-correction backup against the `1794791991-5d11` pages (done for 
 Short note only, so the thinking isn't lost: a new entry point under `tools/src/steg_tools/` (e.g. `foundations_check.py`), on the `boundaries.py`/`affected.py` pattern already in the repo — pure comparison logic (data file's parsed colours vs. the saved pages' text) unit-tested with no I/O in `tools/tests/unit/`, a thin `main()` reading the real files in `design/canvas/project/` and `crates/ui/design/foundations.json`, adapter-tested in `tools/tests/adapter/` against the real repository files (mirrors `test_affected_real_workspace.py`'s shape), a `[project.scripts]` entry plus a new `check-foundations` justfile recipe added to `check:`'s dependency list (no change needed to `check-recipes`/`ALLOWED_VERBS`, since `check` is already an allowed verb), and — as the acceptance criteria for that task should require — a named negative control (mutate one colour in a copied data file, assert the tool fails) alongside the positive control that the unmutated pair passes. `team:testing` governs where that task records its check output; load it there, not here.
 <!-- SECTION:PLAN:END -->
 
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Rewritten plan checked against doc-17 (R121, R122) and decisions 10 and 11 by @bruk.o: ok. The data file is exported from the saved pages of the artifact's version 1794791991-5d11 and records that version; every sentence-shaped value gets a structured form; the engineer's seven decisions are carried in; off is not exported because nothing draws it after the correction; a colour that means the active session's colour is the one reference the schema allows in place of a value. The working data and scripts for the three foundations pages go under design/canvas with a README that says they are how the pages were first drawn and no longer reproduce the Tokens page exactly. The checking tool is TASK-1.96's. One point for the build, not the plan: the focus ring's radius is written as a formula in a string, which is the kind of thing a program must parse out of prose that criterion 2 rules out; give it a structured form (for example the amount added to the control's radius) and say so in the notes.
+<!-- SECTION:NOTES:END -->
+
 ## Comments
 
 <!-- COMMENTS:BEGIN -->

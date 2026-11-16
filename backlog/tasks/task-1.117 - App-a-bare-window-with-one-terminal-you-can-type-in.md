@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:22:00Z'
+updated_date: '2026-11-16T17:23:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -337,6 +337,37 @@ running 1 test
 test model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_blank_first_row_does_not_change_the_row_count'` exited 101 at 2026-11-16T17:23:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_blank_first_row_does_not_change_the_row_count ... FAILED
+
+failures:
+
+---- model::tests::a_blank_first_row_does_not_change_the_row_count stdout ----
+
+thread 'model::tests::a_blank_first_row_does_not_change_the_row_count' (44432639) panicked at crates/app/src/model.rs:216:9:
+assertion `left == right` failed
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_blank_first_row_does_not_change_the_row_count
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:58:00Z'
+updated_date: '2026-11-16T04:03:00Z'
 labels:
   - size-3
   - changes-requested
@@ -945,6 +945,34 @@ By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, 
   flag after I'd searched and not found it myself - the same way PR #48's worker got its
   `user-attachments` URLs), with both URLs read back from the comment and confirmed actually
   rendering in the PR body before this was called done.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/adapter/test_foundations_public_surface_real_files.py -s'` exited 1 at 2026-11-16T04:03:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpZ0Fub5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F
+=================================== FAILURES ===================================
+______ test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn ______
+
+    def test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn() -> None:
+        root = workspace.repo_root()
+        assert root is not None, "this test runs inside a git checkout"
+        found: list[object] = []
+        for relative_path in (REPO_ROOT_RELATIVE_MOD_FILE, REPO_ROOT_RELATIVE_GENERATED_FILE):
+            found.extend(bare_hsla_returning_functions(relative_path, (root / relative_path).read_text()))
+>       assert found == []
+E       AssertionError: assert [Violation(fi...ult_session')] == []
+E         
+E         Left contains one more item: Violation(file='crates/ui/src/foundations/mod.rs', name='default_session')
+E         Use -v to get more diff
+
+tools/tests/adapter/test_foundations_public_surface_real_files.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/adapter/test_foundations_public_surface_real_files.py::test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn
+1 failed in 0.02s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

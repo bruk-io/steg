@@ -329,6 +329,33 @@ OK: all 18 colours' names and both hex values found in design/canvas/project/Tok
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:54:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 91d4e877b240:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.5s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 30, 29 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

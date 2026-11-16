@@ -1,14 +1,13 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:17:00Z'
+updated_date: '2026-11-16T03:18:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -2295,6 +2294,21 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 0.
+
+Second round of review findings fixed.
+
+Important: two tests claimed in the earlier notes to have "a negative control run and reverted" that was never actually run - the reviewer showed both still pass with their mechanism removed. Both confirmed by hand and fixed:
+
+- restarting_then_forcing_ends_the_new_program_not_the_old_one, renamed to restarting_then_forcing_ends_the_new_program_as_a_plain_regression: its own synchronisation point (waiting for the first run's real exit event before restarting) is downstream of the relay thread's own mark-dead call - there is no ordering left at this level to race against, so it cannot exercise the generation guard, only the restart-then-force flow. A seam to hold the old reap back would be production code built only to make a test possible, with no other use - not attempted. Kept as a plain regression, renamed and documented to claim no more than it shows, recorded passing. The guard's own proof, with its own recorded negative control, remains tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run.
+- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler, renamed to ..._completes_promptly_as_a_regression: passes with await_exit routed back through the queue because the kernel's own pty buffer throttles the flood before the backlog this bug needs can build up - named in its own doc now, not hidden. Kept as a regression, recorded passing. The actual proof, with its own recorded negative control, remains pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue (a real 1,000,000-item backlog via send_input, not dependent on any OS buffering).
+
+Nit: added pane.split to the unreachable-while-forced sweep. Re-ran the whole test's negative control (reversed close-first) by hand with it included - pane.split is the probe caught first, confirmed, reverted.
+
+Nit: traced the mark's PaneNotFound arm (apply_event_locked) for reachability under close-first. It is reachable, by exactly one path: close_and_dispatch removes the pane from the tree and drops the lock before force_end has actually ended its program, so a still-running program can emit an OSC 133 mark during that same grace window. Reworded the production comment and the test's own doc to say this explicitly - no behaviour change.
+
+Engineer's own nit: the relay's reap poll was a fixed 5ms forever - would poll a terminal-detached-but-still-running program 200 times/sec for as long as it lives, one thread per pane. Backed off: doubles from 5ms to a 100ms cap (about five extra polls, ~155ms, over the common case where the first poll already finds a zombie), then holds - at most 100ms added before such a pane's real exit is noticed, once ramped. next_reap_poll_interval is a pure function with its own unit test and negative control.
+
+Checks recorded: each renamed/new test individually, with negative controls where claimed; cargo test -p steg-server (full suite, clean); just check (clean, twice - once pre-merge, once at the final pushed head); origin/main merged (no code overlap this round, only backlog/board markdown - merge commit, no conflicts); the server suite run 20 times at the final head (92fc50a) via one recorded command, with process counts taken before and after by pid/start-time (not only a raw count) - 0 leaked processes, the one survivor pre-dates the run and is unrelated to anything this task touches; CI green at 92fc50a via gh pr checks 47 --watch in the foreground. Review response posted to PR #47 as a comment.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T19:49:00Z'
+updated_date: '2026-11-16T19:50:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -543,6 +543,51 @@ Shipped-default test (5 attempts, 3,200 opens), 5 runs: all 5 passed, wall time 
 Ignored no-retry control (`max_open_attempts = 1`), 3 runs: all 3 reproduced the race. Opens until first failure on the worker that saw it: 1, 9, 1. Total opens across all workers before the control stopped them: 879, 793, 557. Wall time: 1.1s-1.4s per run.
 
 Reading this against the dev-machine table above: CI's runner reproduced faster and more consistently (3/3, each within under 1,000 total opens) than this shared dev machine did at the same bound (3/3 there too, but one run needed 60,491 opens and 110s) - consistent with this task's own finding that the rate depends on ambient pty activity elsewhere on the machine, which a dedicated CI runner has far less of than this heavily-shared dev machine. No miss recorded on either machine at the 100,000-open bound.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T19:50:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 96bbab0c5012, last 40 of 44 lines:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+error[E0423]: expected value, found struct `crate::pty::RealLauncher`
+   --> crates/server/src/listen.rs:752:33
+    |
+752 |               std::sync::Arc::new(crate::pty::RealLauncher),
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^ help: use struct literal syntax instead: `crate::pty::RealLauncher { max_open_attempts: val }`
+    |
+   ::: crates/server/src/pty.rs:193:1
+    |
+193 | / pub struct RealLauncher {
+194 | |     max_open_attempts: u32,
+195 | | }
+    | |_- `crate::pty::RealLauncher` defined here
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/steg)
+For more information about this error, try `rustc --explain E0423`.
+error: could not compile `steg-server` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0423]: expected value, found struct `steg_server::RealLauncher`
+   --> crates/server/tests/idle_stop.rs:307:18
+    |
+307 |         Arc::new(steg_server::RealLauncher),
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates/server/src/pty.rs:193:1
+    |
+193 | pub struct RealLauncher {
+    | ----------------------- `steg_server::RealLauncher` defined here
+
+error[E0063]: missing field `open_attempts` in initializer of `steg_server::SpawnedProgram`
+   --> crates/server/tests/idle_stop.rs:268:12
+    |
+268 |         Ok(SpawnedProgram {
+    |            ^^^^^^^^^^^^^^ missing `open_attempts`
+
+Some errors have detailed explanations: E0063, E0423.
+For more information about an error, try `rustc --explain E0063`.
+error: could not compile `steg-server` (test "idle_stop") due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

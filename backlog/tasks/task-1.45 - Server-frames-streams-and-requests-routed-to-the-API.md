@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:24:00Z'
+updated_date: '2026-11-16T02:25:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1031,6 +1031,53 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 104 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T02:25:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 3cada1b0b743 with uncommitted changes, last 40 of 310 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 
 Commits since the review: 0.

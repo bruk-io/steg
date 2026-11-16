@@ -900,7 +900,7 @@ mod tests {
 
     use steg_sdk::{Program, ProgramStatus, Size, Status};
 
-    use super::{LoginShell, Moment, Runtime, State, apply_event_locked};
+    use super::{LoginShell, Moment, Runtime, State, apply_event_locked, force_end};
     use crate::pane::{PaneEvent, PaneHandle};
     use crate::pty::RealLauncher;
 
@@ -908,12 +908,11 @@ mod tests {
     /// for every real-process wait in this crate's tests.
     const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
 
-    /// A tiny `force_grace` for every test in this module except the one
-    /// that specifically needs a real window to measure against (TASK-1.78
-    /// §3) - none of these tests exercise forcing at all, but `Runtime::
-    /// new` still needs a value, and the production default would cost
-    /// nothing here only because nothing in this module ever calls
-    /// `force_end`.
+    /// A tiny `force_grace` for every `Runtime::new` in this module - none
+    /// of these tests exercise forcing *through a `Runtime`* (the one
+    /// direct `force_end` call, cleaning up an orphaned handle this
+    /// module built by hand with no `Runtime` around it, is the
+    /// exception), so the value only has to be cheap, never realistic.
     const TEST_GRACE: Duration = Duration::from_millis(30);
 
     fn login() -> LoginShell {
@@ -2009,7 +2008,11 @@ mod tests {
     /// through the kernel, both reflect a typed command that succeeds.
     #[test]
     fn a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, tab_id, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -2037,7 +2040,11 @@ mod tests {
 
     #[test]
     fn a_typed_command_that_fails_is_failed_with_its_exit_code() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -2056,7 +2063,11 @@ mod tests {
 
     #[test]
     fn a_typed_command_still_running_stays_running_until_told_otherwise() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -2084,7 +2095,11 @@ mod tests {
 
     #[test]
     fn a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -2131,7 +2146,11 @@ mod tests {
 
     #[test]
     fn a_mark_then_the_shells_own_real_exit_cascades_with_no_panic() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
         let (session_id, _, pane) = start_real_pane(
             &runtime,
             Program::Shell {
@@ -2215,8 +2234,11 @@ mod tests {
         // sibling test's own `Exited`-driven removal) or from
         // `Runtime::stop` ending every pane when the whole server
         // stops; this test has neither a tree pane nor a `Runtime`
-        // around it to give it one automatically.
-        state.panes.remove(&gone).unwrap().stop();
+        // around it to give it one automatically. `force_end` (TASK-
+        // 1.78) is that same cleanup path's own real implementation now
+        // that `PaneHandle::stop` no longer exists.
+        let handle = state.panes.remove(&gone).unwrap();
+        force_end(vec![(gone, handle)], TEST_GRACE);
     }
 
     /// A command pane's own program printing OSC 133 (R97): both marks
@@ -2228,7 +2250,11 @@ mod tests {
     /// can never produce. Only the later, real exit drives `Finished`.
     #[test]
     fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
 
         let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
                        sleep 0.3; exit 0";

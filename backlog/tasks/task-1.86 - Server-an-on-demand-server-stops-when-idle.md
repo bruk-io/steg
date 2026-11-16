@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T11:40:00Z'
+updated_date: '2026-11-16T11:46:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -484,6 +484,51 @@ Check passed: `just test-all` exited 0 at 2026-11-16T11:40:42+00:00 in /Users/br
 
 ```text
 ok      tests (every crate) (58.2s)
+```
+
+Check passed: `cargo test -p steg-server --lib idle::` exited 0 at 2026-11-16T11:46:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 41 lines:
+
+```text
+  --> crates/server/src/config.rs:51:11
+   |
+51 | pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+   |           ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_checker` is never used
+  --> crates/server/src/idle.rs:95:15
+   |
+95 | pub(crate) fn run_checker(
+   |               ^^^^^^^^^^^
+
+warning: methods `session_counter` and `set_idle_notifier` are never used
+   --> crates/server/src/runtime.rs:421:19
+    |
+236 | impl Runtime {
+    | ------------ methods in this implementation
+...
+421 |     pub(crate) fn session_counter(&self) -> impl Fn() -> usize + Send + 'static {
+    |                   ^^^^^^^^^^^^^^^
+...
+442 |     pub(crate) fn set_idle_notifier(&self, notify: Sender<ConnectionEvent>) {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 8 tests
+test idle::tests::empty_from_construction_and_waiting_past_idle_timeout_expires ... ok
+test idle::tests::a_nonzero_session_count_never_fires_regardless_of_clients ... ok
+test idle::tests::a_connected_client_with_no_matching_disconnect_never_fires_no_matter_how_far_time_moves ... ok
+test idle::tests::a_client_reconnecting_every_29_seconds_never_fires ... ok
+test idle::tests::a_connect_then_disconnect_within_one_tick_restarts_the_full_period ... ok
+test idle::tests::wait_at_29_30_and_31_seconds_of_idleness ... ok
+test idle::tests::wait_until_is_exact_not_approximate ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.06s
 ```
 <!-- SECTION:NOTES:END -->
 

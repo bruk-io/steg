@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:47:00Z'
+updated_date: '2026-11-16T12:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -607,6 +607,14 @@ created: 2026-11-16T12:47:00Z
 ---
 
 Plan approved by @bruk (4ee3881365b0, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T12:50:00Z
+
+---
+
+2026-11-16, @bruk.o: the task the plan calls DRAFT-1 (a status that expires is reported to subscribers at its deadline) was accepted as TASK-1.116. The plan's text is left as approved; cite TASK-1.116 in code comments and notes.
 
 ---
 <!-- COMMENTS:END -->

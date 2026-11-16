@@ -3,7 +3,7 @@ id: doc-17
 title: 'Spec: UI components'
 type: specification
 created_date: '2026-11-16T00:50:00Z'
-updated_date: '2026-11-16T00:50:00Z'
+updated_date: '2026-11-16T00:52:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview. Requirement numbers are steg-wide and never reused.
@@ -73,7 +73,7 @@ Checked on 2026-11-15 against the artifact's version 1794702644-d50e:
 
 ## Built on GPUI
 
-decision-11: the components are built on GPUI directly, with no component library between. The examples in GPUI's own repository are the reference: https://github.com/zed-industries/zed/tree/main/crates/gpui/examples. Among them: `input.rs` for a text field with a cursor, selection and input methods; `uniform_list.rs` for a long list; `painting.rs` and `gradient.rs` for drawing the status ring; `animation.rs`; `a11y.rs`, `focus_visible.rs` and `tab_stop.rs` for accessibility and keyboard order; `testing.rs`. They follow GPUI's main branch and steg pins a published version, so an example may use something the pinned version lacks.
+decision-11: the components are built on GPUI directly, with no component library between. GPUI's own README is the introduction to read first: https://github.com/zed-industries/zed/blob/main/crates/gpui/README.md. The examples in GPUI's own repository are the reference: https://github.com/zed-industries/zed/tree/main/crates/gpui/examples. Among them: `input.rs` for a text field with a cursor, selection and input methods; `uniform_list.rs` for a long list; `painting.rs` and `gradient.rs` for drawing the status ring; `animation.rs`; `a11y.rs`, `focus_visible.rs` and `tab_stop.rs` for accessibility and keyboard order; `testing.rs`. They follow GPUI's main branch and steg pins a published version, so an example may use something the pinned version lacks.
 
 ## Areas of concern
 

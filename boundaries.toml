@@ -26,13 +26,17 @@ allow = ["steg-sdk", "ghostty-vt"]
 deny-features = { "steg-sdk" = ["local-socket"] }
 
 [steg-server]
-reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98); portable-pty is the pseudo-terminal and process-spawn dependency for running a pane's program (TASK-1.40), already exercised against this exact shape in-repo by spikes/task-1.2-wire-protocol (decision-3 section 9); serde_json is allowed for data and serialisation only - dispatch's Outcome::into_value builds the JSON payload Response::Ok carries, from the sdk's own typed results (TASK-1.75), the same reason the sdk itself depends on serde_json; nix is the arbiter's lock (fcntl::Flock) and the owner checks (unistd::geteuid) TASK-1.44 (part A) needs, and killpg/Signal (TASK-1.78) for ending a forced-close pane's whole process group with an escalating signal, none of which std exposes, pinned to the version already resolved in the workspace through portable-pty's own dependency on it"
+reason = "the server is the kernel plus sockets, pseudo-terminals, processes and the clock; no client's package depends on it (doc-16 R98); portable-pty is the pseudo-terminal and process-spawn dependency for running a pane's program (TASK-1.40), already exercised against this exact shape in-repo by spikes/task-1.2-wire-protocol (decision-3 section 9); serde_json is allowed for data and serialisation only - dispatch's Outcome::into_value builds the JSON payload Response::Ok carries, from the sdk's own typed results (TASK-1.75), the same reason the sdk itself depends on serde_json; nix is the arbiter's lock (fcntl::Flock), the owner checks (unistd::geteuid) TASK-1.44 (part A) needs, detaching an on-demand server from its controlling terminal and process group (unistd::setsid, TASK-1.77), and killpg/Signal (TASK-1.78) for ending a forced-close pane's whole process group with an escalating signal - all std does not expose, pinned to the version already resolved in the workspace through portable-pty's own dependency on it; its fs/user/process/signal features are exactly Flock/FlockArg, geteuid, setsid, and killpg/Signal in turn, nothing else"
 allow = ["steg-kernel", "steg-sdk", "portable-pty", "serde_json", "nix"]
 
 [steg]
 reason = "the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own"
 allow = ["steg-sdk", "steg-server"]
 
+[steg-ui]
+reason = "the ui package is the app's components and the design's named values, pure interface with nothing of steg's domain in it and no I/O of its own (doc-17 R117, R118); gpui is the one external dependency, since the components are built on it directly with no library between (decision-11)"
+allow = ["gpui"]
+
 [steg-app]
-reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)"
-allow = ["steg-sdk", "gpui"]
+reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101); steg-ui is where the server's records become what a component is given (doc-17)"
+allow = ["steg-sdk", "steg-ui", "gpui"]

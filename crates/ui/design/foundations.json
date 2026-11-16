@@ -1,0 +1,266 @@
+{
+  "artifact_version": "1794791991-5d11",
+  "artifact_url": "https://claude.ai/artifact/Ex9HHnDNY8C8fxV6BR4WVZ",
+  "session_colour": "session",
+  "colours": [
+    {
+      "name": "surface.ground",
+      "dark": "#0e0d10",
+      "light": "#f1efec",
+      "use": "The window, behind everything"
+    },
+    {
+      "name": "surface.pane",
+      "dark": "#141318",
+      "light": "#f8f6f4",
+      "use": "Panes that are not active; the tab track"
+    },
+    {
+      "name": "surface.raised",
+      "dark": "#1c1b21",
+      "light": "#ffffff",
+      "use": "The active pane, the selected tab, buttons"
+    },
+    {
+      "name": "surface.overlay",
+      "dark": "#201f26",
+      "light": "#ffffff",
+      "use": "Command palette"
+    },
+    {
+      "name": "fill.hover",
+      "dark": "#19181d",
+      "light": "#f7f5f3",
+      "use": "A tab or row under the pointer"
+    },
+    {
+      "name": "fill.quiet",
+      "dark": "#28272e",
+      "light": "#dfdcd7",
+      "use": "Key caps, progress track, a button under the pointer"
+    },
+    {
+      "name": "outline",
+      "dark": "#3d3b45",
+      "light": "#bfbbb5",
+      "use": "Outlines, only with Increase Contrast"
+    },
+    {
+      "name": "text",
+      "dark": "#ecebee",
+      "light": "#1b1a1f",
+      "use": "Primary text"
+    },
+    {
+      "name": "text.secondary",
+      "dark": "#b0aeb9",
+      "light": "#4f4d57",
+      "use": "Inactive tabs and captions"
+    },
+    {
+      "name": "text.muted",
+      "dark": "#8f8d99",
+      "light": "#63616b",
+      "use": "Labels and counts"
+    },
+    {
+      "name": "ramp.1 violet",
+      "dark": "#a98cff",
+      "light": "#7b5cf0",
+      "use": "Accent and focus ring; default session colour"
+    },
+    {
+      "name": "ramp.2 pink",
+      "dark": "#f277b5",
+      "light": "#d6408c",
+      "use": "Session colour"
+    },
+    {
+      "name": "ramp.3 red",
+      "dark": "#ff8a80",
+      "light": "#bf2c27",
+      "use": "Failed: red arc, exclamation mark"
+    },
+    {
+      "name": "ramp.4 orange",
+      "dark": "#ff9950",
+      "light": "#e0701a",
+      "use": "Session colour"
+    },
+    {
+      "name": "ramp.5 amber",
+      "dark": "#ffc25e",
+      "light": "#8f5300",
+      "use": "Waiting and the bell: amber arc"
+    },
+    {
+      "name": "ramp.6 green",
+      "dark": "#6fd3a0",
+      "light": "#14734a",
+      "use": "Finished: closed green ring; session colour"
+    },
+    {
+      "name": "session.blue",
+      "dark": "#6fb1ff",
+      "light": "#2463c9",
+      "use": "Session colour; the one colour not on the ramp"
+    },
+    {
+      "name": "track",
+      "dark": "#3d3b45",
+      "light": "#cfcbc5",
+      "use": "The grey track behind a progress ring or bar (status.ring, the pane header bar). Not an alias of outline: the dark values coincide but the light values differ (#cfcbc5 vs outline's #bfbbb5)"
+    }
+  ],
+  "colour_aliases": [
+    { "name": "blocked", "ref": { "ref": "ramp.5 amber" }, "use": "Waiting status" },
+    { "name": "done", "ref": { "ref": "ramp.6 green" }, "use": "Finished status" },
+    { "name": "error", "ref": { "ref": "ramp.3 red" }, "use": "Failed status" }
+  ],
+  "opacities": [
+    {
+      "name": "faint",
+      "dark": 0.30,
+      "light": 0.45,
+      "use": "The unfilled background of a working/progress ring, drawn over its own colour"
+    }
+  ],
+  "ramps": [
+    {
+      "name": "ramp",
+      "use": "Decoration: full strength in the app mark, half strength (see ramp.caption_opacity) across the active pane's caption. Never behind text",
+      "stops": [
+        { "colour": { "ref": "ramp.1 violet" }, "stop": 0 },
+        { "colour": { "ref": "ramp.2 pink" }, "stop": 50 },
+        { "colour": { "ref": "ramp.4 orange" }, "stop": 100 }
+      ],
+      "caption_opacity": { "dark": 0.50, "light": 0.40 }
+    },
+    {
+      "name": "ramp.extended",
+      "use": "Progress only: the sections of a running status ring, and the fill of a pane header's bar. Nowhere else",
+      "stops": [
+        { "colour": { "ref": "ramp.1 violet" }, "stop": 0 },
+        { "colour": { "ref": "ramp.2 pink" }, "stop": 20 },
+        { "colour": { "ref": "ramp.3 red" }, "stop": 40 },
+        { "colour": { "ref": "ramp.4 orange" }, "stop": 60 },
+        { "colour": { "ref": "ramp.5 amber" }, "stop": 80 },
+        { "colour": { "ref": "ramp.6 green" }, "stop": 100 }
+      ]
+    }
+  ],
+  "tint": {
+    "name": "tint",
+    "colour": "session",
+    "opacity": 0.18,
+    "use": "The open session's track fill in the top bar"
+  },
+  "type": {
+    "font.ui": { "family": "system", "role": "ui" },
+    "font.terminal": { "family": ["JetBrains Mono", "SF Mono", "Menlo"] },
+    "terminal": { "size": 13, "unit": "px", "line_height": 20, "weight": 400 },
+    "ui.body": { "size": 13, "unit": "px", "weight": 400, "weight_selected": 600 },
+    "ui.small": { "size": 12, "unit": "px", "use": "Counts, captions, key caps" },
+    "ui.label": {
+      "size": 11,
+      "unit": "px",
+      "weight": 600,
+      "text_transform": "uppercase",
+      "letter_spacing": 0.06,
+      "letter_spacing_unit": "em"
+    },
+    "palette.input": { "size": 15, "unit": "px" }
+  },
+  "sizes": {
+    "space": { "steps": [2, 4, 6, 8, 10, 12, 16], "unit": "px" },
+    "nav.side": { "width": 232, "row_height": 30, "tab_indent": 28, "unit": "px" },
+    "nav.top": { "height": 40, "tab_height": 30, "track_inset": 2, "unit": "px" },
+    "tab.width": { "usual": 120, "max": 240, "min": 72, "unit": "px" },
+    "pane.gap": { "resting": 6, "grabbed": 12, "unit": "px" },
+    "pane.caption": { "height": 30, "unit": "px" },
+    "palette": { "width": 640, "row_height": 40, "top_offset": 120, "unit": "px" },
+    "radius.surface": { "value": 14, "unit": "px", "use": "Panes and the palette" },
+    "radius.track": { "value": 10, "unit": "px", "use": "The tab track and session chips" },
+    "radius.inner": { "value": 8, "unit": "px", "use": "Anything inside a radius.track or radius.surface container" },
+    "radius.round": { "shape": "round", "use": "Colour chips and progress bars, fully round (Tokens.dc.html's radii card draws this as a fourth swatch, 999px - CSS's way of writing fully round, not a design-named value in px; this entry's name is the orchestrator's choice and the engineer may change it)" },
+    "status.ring": { "diameter": 16, "thickness": 2, "unit": "px", "track_colour": { "ref": "track" } },
+    "scrim": {
+      "dark": { "colour": "#050508", "opacity": 0.60 },
+      "light": { "colour": { "ref": "text" }, "opacity": 0.28 }
+    },
+    "row.gap": {
+      "unit": "px",
+      "tab": 6,
+      "caption_or_session_row": 8,
+      "palette_row": 12,
+      "use": "The Row layout primitive's gap, by what it holds (Layout.dc.html)"
+    },
+    "stack.gap": { "unit": "px", "rows": 2, "groups": 16, "use": "The Stack layout primitive's gap (Layout.dc.html)" },
+    "track.layout": {
+      "unit": "px",
+      "inset": 2,
+      "gap": 2,
+      "radius_outer": { "ref": "radius.track" },
+      "radius_inner": { "ref": "radius.inner" },
+      "fill": { "colour": { "ref": "tint" } },
+      "use": "The Track layout primitive: a rounded container holding items of one height (Layout.dc.html). radius_inner = radius_outer - inset, a function, not a separate literal"
+    },
+    "split.layout": {
+      "unit": "px",
+      "gap_drawn": 6,
+      "gap_grabbed": 12,
+      "use": "The Split layout primitive's gap, same values as pane.gap (Layout.dc.html)"
+    },
+    "overlay.layout": {
+      "unit": "px",
+      "width": 640,
+      "top_offset": 120,
+      "use": "The Overlay layout primitive, same width/top as palette (Layout.dc.html). Its max-height-as-percent-of-window and its 40px-clear-below-720px rule are both doc-10's not-yet-confirmed bullet (\"growing to at most 60% of the window's height\" is the same bullet as the 40px-clear rule, not a separate settled value) - carried forward as a question, not exported"
+    }
+  },
+  "motion": [
+    {
+      "name": "motion.status-fade",
+      "duration": 200,
+      "unit": "ms",
+      "use": "A change of status fades in on both the ring and the bar, so it reads as a change and not a jump"
+    }
+  ],
+  "themes": [
+    {
+      "name": "steg dark",
+      "bg": "#1c1b21",
+      "bg_inactive": { "ref": "surface.pane" },
+      "fg": "#ecebee",
+      "cursor": "session",
+      "selection": "#38354d",
+      "ansi": {
+        "black": "#2c2a33", "red": "#ff8a80", "green": "#6fd3a0", "yellow": "#ffc25e",
+        "blue": "#6fb1ff", "magenta": "#f277b5", "cyan": "#6fd0e0", "white": "#b0aeb9",
+        "bright_black": "#6f6d7a", "bright_red": "#ffb0a8", "bright_green": "#9be5bf", "bright_yellow": "#ffd78f",
+        "bright_blue": "#b6ceff", "bright_magenta": "#f8a5cf", "bright_cyan": "#a3e3ee", "bright_white": "#ecebee"
+      }
+    },
+    {
+      "name": "steg light",
+      "bg": "#ffffff",
+      "bg_inactive": { "ref": "surface.pane" },
+      "fg": "#1b1a1f",
+      "cursor": "session",
+      "selection": "#e2dcf7",
+      "ansi": {
+        "black": "#1b1a1f", "red": "#bf2c27", "green": "#14734a", "yellow": "#8f5300",
+        "blue": "#2463c9", "magenta": "#d6408c", "cyan": "#0f6f80", "white": "#63616b",
+        "bright_black": "#4f4d57", "bright_red": "#d9443e", "bright_green": "#1f8f5e", "bright_yellow": "#a86a10",
+        "bright_blue": "#3d6fe0", "bright_magenta": "#e0559c", "bright_cyan": "#1b8799", "bright_white": "#8b8993"
+      }
+    }
+  ],
+  "focus_ring": {
+    "width": 2,
+    "unit": "px",
+    "offset": 2,
+    "colour": "session",
+    "corner_radius_addition": 4
+  }
+}

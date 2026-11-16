@@ -9,4 +9,50 @@ workspace = true
 
 [dependencies]
 steg-server = { path = "../server" }
-steg-sdk = { path = "../sdk" }
+# `local-socket` (R103): this crate's own tests need the sdk's provider to
+# prove AC #1/#2/#3/#6 through a real client (`steg_sdk::local_socket::
+# connect`), not only through `steg_server`'s own `attempt`/`run` directly -
+# production code here never calls it itself, only composes `steg_server`'s
+# public functions. Off by default in the sdk itself (R103's own point);
+# turning it on here costs nothing production-side, since it only adds code
+# behind the feature, never changes what is already built.
+steg-sdk = { path = "../sdk", features = ["local-socket"] }
+
+[features]
+# Gates `server_start.rs`'s own two fixture binaries and the integration test
+# that drives them (below) - the same pattern `steg-server`'s `race-fixture`
+# already uses, for the same reason: off by default, so an ordinary `cargo
+# build -p steg`/`cargo test -p steg` with no features produces neither extra
+# binary; the justfile's own `check-packages` turns this on specifically to
+# run `server_start.rs`.
+fixtures = []
+
+# `already_a_group_leader` (AC #1/#5, §3 of the plan): makes itself a
+# process-group leader via `steg_server::detach()`, then `exec()`s into this
+# same binary's own `server start --on-demand` in place - the real
+# precondition section 3's test needs (typing `--on-demand` directly at an
+# interactive shell prompt), with no `unsafe` and no new dependency (reusing
+# `detach()` rather than calling `setsid` a second time).
+[[bin]]
+name = "already_a_group_leader"
+path = "tests/fixtures/already_a_group_leader.rs"
+required-features = ["fixtures"]
+
+# `autostart_client` (AC #2, §7): the whole of a "real client" for the
+# SIGKILL/SIGHUP tests - calls `steg_sdk::local_socket::connect` with
+# `autostart: true` against the socket path it is given, then parks, so the
+# test can signal *this* process (or its whole group) at a controlled moment
+# once the socket it spawned is confirmed up.
+[[bin]]
+name = "autostart_client"
+path = "tests/fixtures/autostart_client.rs"
+required-features = ["fixtures"]
+
+# Declared explicitly (autodiscovery alone cannot carry `required-features`)
+# so this one test file is skipped, not built, without `fixtures` - the same
+# reason the two binaries above are gated, and the same shape `steg-server`'s
+# own `[[test]] name = "race"` already uses.
+[[test]]
+name = "server_start"
+path = "tests/server_start.rs"
+required-features = ["fixtures"]

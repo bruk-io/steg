@@ -1,0 +1,310 @@
+{
+ "colours": [
+  {
+   "name": "surface.ground",
+   "dark": "#0e0d10",
+   "light": "#f1efec",
+   "use": "The window, behind everything"
+  },
+  {
+   "name": "surface.pane",
+   "dark": "#141318",
+   "light": "#f8f6f4",
+   "use": "Panes that are not active; the tab track"
+  },
+  {
+   "name": "surface.raised",
+   "dark": "#1c1b21",
+   "light": "#ffffff",
+   "use": "The active pane, the selected tab, buttons"
+  },
+  {
+   "name": "surface.overlay",
+   "dark": "#201f26",
+   "light": "#ffffff",
+   "use": "Command palette"
+  },
+  {
+   "name": "fill.hover",
+   "dark": "#19181d",
+   "light": "#f7f5f3",
+   "use": "A tab or row under the pointer"
+  },
+  {
+   "name": "fill.quiet",
+   "dark": "#28272e",
+   "light": "#dfdcd7",
+   "use": "Key caps, progress track, a button under the pointer"
+  },
+  {
+   "name": "outline",
+   "dark": "#3d3b45",
+   "light": "#bfbbb5",
+   "use": "Outlines, only with Increase Contrast"
+  },
+  {
+   "name": "text",
+   "dark": "#ecebee",
+   "light": "#1b1a1f",
+   "use": "Primary text"
+  },
+  {
+   "name": "text.secondary",
+   "dark": "#b0aeb9",
+   "light": "#4f4d57",
+   "use": "Inactive tabs and captions"
+  },
+  {
+   "name": "text.muted",
+   "dark": "#8f8d99",
+   "light": "#63616b",
+   "use": "Labels and counts"
+  },
+  {
+   "name": "ramp.1 violet",
+   "dark": "#a98cff",
+   "light": "#7b5cf0",
+   "use": "Accent and focus ring; default session colour"
+  },
+  {
+   "name": "ramp.2 pink",
+   "dark": "#f277b5",
+   "light": "#d6408c",
+   "use": "Session colour"
+  },
+  {
+   "name": "ramp.3 red",
+   "dark": "#ff8a80",
+   "light": "#bf2c27",
+   "use": "Failed: red arc, exclamation mark"
+  },
+  {
+   "name": "ramp.4 orange",
+   "dark": "#ff9950",
+   "light": "#e0701a",
+   "use": "Session colour"
+  },
+  {
+   "name": "ramp.5 amber",
+   "dark": "#ffc25e",
+   "light": "#8f5300",
+   "use": "Waiting and the bell: amber arc"
+  },
+  {
+   "name": "ramp.6 green",
+   "dark": "#6fd3a0",
+   "light": "#14734a",
+   "use": "Finished: closed green ring; session colour"
+  },
+  {
+   "name": "session.blue",
+   "dark": "#6fb1ff",
+   "light": "#2463c9",
+   "use": "Session colour; the one colour not on the ramp"
+  }
+ ],
+ "type": [
+  {
+   "name": "font.ui",
+   "value": "The system font (San Francisco)"
+  },
+  {
+   "name": "font.terminal",
+   "value": "JetBrains Mono, then SF Mono, then Menlo"
+  },
+  {
+   "name": "terminal",
+   "value": "13px on a 20px line, weight 400"
+  },
+  {
+   "name": "ui.body",
+   "value": "13px, weight 400; 600 when selected"
+  },
+  {
+   "name": "ui.small",
+   "value": "12px: counts, captions, key caps"
+  },
+  {
+   "name": "ui.label",
+   "value": "11px, weight 600, upper case, 0.06em"
+  },
+  {
+   "name": "palette.input",
+   "value": "15px"
+  }
+ ],
+ "sizes": [
+  {
+   "name": "space",
+   "value": "Steps of 2, 4, 6, 8, 10, 12, 16"
+  },
+  {
+   "name": "nav.side",
+   "value": "232px wide; rows 30px, tabs indented 28px"
+  },
+  {
+   "name": "nav.top",
+   "value": "40px high; tabs 30px in a track with a 2px inset"
+  },
+  {
+   "name": "tab.width",
+   "value": "120px usual, 240px at most, 72px at least"
+  },
+  {
+   "name": "pane.gap",
+   "value": "6px between panes and to the window edge; grabbed across 12px"
+  },
+  {
+   "name": "pane.caption",
+   "value": "30px"
+  },
+  {
+   "name": "palette",
+   "value": "640px wide, rows 40px, 120px from the top"
+  },
+  {
+   "name": "radius",
+   "value": "14px panes and palette; 10px tab track and session chips; 8px inside them"
+  },
+  {
+   "name": "status.ring",
+   "value": "16px across, 2px thick; grey track"
+  },
+  {
+   "name": "scrim",
+   "value": "Black at 60% in dark, ink at 28% in light"
+  }
+ ],
+ "intro": "A proposal until Bruk accepts it. Every colour is a solid fill or a linear gradient, which is all the app needs to draw: no lines, no blur, no materials, no stacked shadows.",
+ "ramp_text": "Six colours are defined once, as steps 1 to 6, and every accent, session and status colour is one of them. The ramp is steps 1, 2 and 4, left to right. The extended ramp is all six and is used only for progress: the sections of a running status ring and the fill of a pane header's bar. The ramp is at full strength in the app mark; 50% in dark and 40% in light across the active pane's caption. Being explored for the window's ground: the same three colours mixed in faintly (16% in dark, 24% in light, corner to corner), or the session's own colour fading out from the top left. Over a washed ground, panes are white at 4% and 10% in dark, and white at 50% and 100% in light, so the wash shows through them.",
+ "rules": [
+  {
+   "name": "Surfaces",
+   "rules": [
+    "Nothing is separated by a line. Surfaces are told apart by their fill and by the gap between them.",
+    "Surfaces step up in three fills: the window, a pane, the active pane. Whatever is selected takes the top step.",
+    "Three corner sizes: 14px on panes and the palette, 10px on the tab track and session chips, 8px on anything inside one of those. Colour chips and progress bars are fully round.",
+    "Hover is a change of fill, one step up. A part that cannot be used takes the muted text colour and is never faded.",
+    "Nothing is underlined. Selection is a filled shape; a match in the palette is bold."
+   ]
+  },
+  {
+   "name": "Colour",
+   "rules": [
+    "A session colour is a fill. It never colours text, so any colour a program sets stays readable. It appears as the tint on the open session in the bar, the cursor, and the ground when a session wash is on. Sessions have no dot of their own.",
+    "A colour set from the CLI is used as given in dark, and darkened until it reaches 3:1 on the light ground in light.",
+    "Six colours are defined once, as ramp steps 1 to 6: violet, pink, red, orange, amber, green. Status and session colours are those steps and have no values of their own; blue is the one session colour off the ramp.",
+    "The ramp (steps 1, 2 and 4) is decoration: full strength in the app mark, half strength across the active pane's caption, and never behind text. The extended ramp (all six) is progress: a running status ring and a pane header's bar, and nowhere else."
+   ]
+  },
+  {
+   "name": "Panes",
+   "rules": [
+    "The active pane is marked three ways: a lighter surface, the accent ramp across its caption, and a filled cursor in the session colour. Its caption also carries the pane's controls.",
+    "Other panes keep their text at full strength and show a hollow cursor.",
+    "A pane's header shows the same status as the ring rolled out flat: a 120px bar, 4px thick, with the same grey track, the same coloured fill and the same mark. The mark sits in the middle of the bar, as it does in the ring: the bar parts to leave a 20px gap for it, and progress skips the gap, so the two halves together are the whole of 0 to 100. A running bar has no mark and no gap; the gap opens as the status changes. Running fills with the accent ramp as a smooth blend. Waiting and failed stop where they were, in amber or red. Finished is full and green. The header strip itself is never tinted by status.",
+    "The ring and the flat bar are one thing in two shapes. When a pane comes into view, the ring on its tab unrolls into the bar in its header; when it leaves, the bar rolls back up. With Reduce Motion on, they swap without moving.",
+    "The gap between two panes is the handle for resizing them."
+   ]
+  },
+  {
+   "name": "Status",
+   "rules": [
+    "A status is one thin ring at the right end of a row in the bar or the palette: a grey track, a coloured arc for how far the task has got, and a mark in the middle when the state needs one. A row with nothing to report shows no ring.",
+    "Rings point at what is out of view. A pane is in view, so its header never shows one; it shows the ring rolled out flat.",
+    "Running, waiting, finished and failed are one task at four moments, so they are one ring. Running: the ring has six equal sections in the ramp's colours carried on round the wheel (the extended ramp), and the arc fills them in order, so a task that is nearly done is reaching green; with no progress reported, a short arc in the first three colours turns, and in a pane header a short segment in the same three colours travels along the bar. A pane header's bar runs through the same six colours left to right. Waiting for you: the arc stops and turns amber, with pause bars. Finished: the ring closes, green, with a tick. Failed: the arc stops and turns red, with an exclamation mark.",
+    "The bell is an event, not a stage of a task: a small bell inside an amber ring. In a pane header it is a full amber bar with the bell in the middle. As the bell swings on the ring, the bar draws the bell's sound running outward from the bell on both sides: a 750 Hz sine wave, about two and a half cycles a side, at full height at once and ringing down to a straight line in about a second. It is slowed so the eye can follow it; the tone itself would be a blur. Output arriving in a tab you are not looking at is not a status and shows nothing.",
+    "How loud each status is, most pressing first: waiting for you (first in the palette, notifies in the background), failed (shakes once, notifies in the background), bell (swings once), finished (quiet green ring, no motion), running (moves only as progress arrives).",
+    "Each status ends by its own rule. Running: when the program reports an end, or exits. Waiting for you: when you answer, or the program withdraws it; never on a timer. Failed: when you press a key or click in that pane; never on a timer. Finished: when you press a key or click in that pane, or after 10 minutes. Bell: when you press a key or click in that pane, or after 30 seconds. Opening the tab is not enough: looking does not clear a failure.",
+    "Outside the window, only blocked and error notify, only while steg is in the background, and not more than once per pane per state."
+   ]
+  },
+  {
+   "name": "Sessions and tabs",
+   "rules": [
+    "Sessions and tabs live in one bar, on the side or along the top, never both. A button in the bar moves it; the choice is also a setting and an action in the palette.",
+    "On the side, the bar lists sessions with the open one's tabs under it. Along the top, the open session is one track holding its name and its tabs, and every other session is a chip beside it.",
+    "A session shows no status of its own, open or closed: a ring on every session was noise. Status belongs to tabs. A tab shows one ring however many panes it holds: the most pressing of them, in the order waiting, failed, bell, finished, running. If several panes are running, the ring shows the one least far along, and unknown if any of them is unknown. Each pane's own status is on its header once the tab is open, and in the palette, which lists panes one by one. A tab is called what the person named it, otherwise the program in its active pane. What is waiting for a person in any session is listed first in the palette, and notifies when steg is in the background. Nothing in the bar counts it.",
+    "New things are made with a +. A new session is the + in the bar's header, always shown. A new tab is the + on the open session's row, or at the end of its track along the top. Neither is a row or a button of its own.",
+    "A session row ends in two fixed slots: + for a new tab, on the open session only, and x to end the session, shown under the pointer only. Ending a session always asks first.",
+    "The right end of every tab is one fixed slot. At rest it shows the status ring, or nothing; under the pointer or with keyboard focus it shows the close button in the same place, so nothing moves sideways. The selected tab shows no ring, because its panes are in view and their headers carry the status.",
+    "A tab that runs out of room shortens its title. Session chips shorten to two letters before any tab shrinks. The status ring is never dropped."
+   ]
+  },
+  {
+   "name": "Palette",
+   "rules": [
+    "One palette, several modes, chosen by the first character. Empty, it goes to a session, tab or pane; \">\" lists actions; \"?\" lists the modes.",
+    "Cmd+P opens it empty and Shift+Cmd+P opens it with \">\" already typed, so backspace always leads back to go to.",
+    "Go to, with nothing typed, lists the panes that need a person first, then recent ones. Enter goes there; Cmd+Enter opens it beside the current pane.",
+    "An action that needs an answer keeps the palette open for it, with the action shown as a chip in the input. There are no separate dialogs.",
+    "Each action is named by what it acts on, then what it does."
+   ]
+  },
+  {
+   "name": "Accessibility",
+   "rules": [
+    "Lines are drawn in three cases only: the keyboard focus ring, the hollow cursor of a pane that is not active, and Increase Contrast, where each surface gains a 1px outline and the active pane a 2px outline in the session colour.",
+    "A change of status fades in over 200ms on both the ring and the bar, so it reads as a change and not a jump. On finishing, the arc and the fill run out to the end first and then turn green.",
+    "A failure does not fade: ring and bar turn red at once. The ring shakes once. On the bar, 2px flakes spill off the leading edge, where the task stopped, for ten seconds. Each flake leaves with a little sideways speed, tumbles as it falls under gravity, bounces once if it lands hard (which reverses its spin), and settles flat on the bottom edge of the pane header. Flakes pile up like sand: one that lands on a column two or more taller than its neighbour slides down to the neighbour. Each flake lies for its own time, somewhere between two and six seconds, then fades; when one underneath goes, those above drop. The bar itself stays readable throughout. Its end, where the flakes came from, is left broken for as long as the failure shows: square, with the top row of pixels 2px shorter than the bottom, where every other bar ends in a round cap.",
+    "With Reduce Motion on, nothing moves: the arc shows its length without turning or shaking."
+   ]
+  }
+ ],
+ "themes": [
+  {
+   "name": "steg dark",
+   "base": "fg #ecebee  bg: the pane, #1c1b21 active, #141318 not  selection #38354d  cursor: session colour",
+   "ansi": [
+    "#2c2a33",
+    "#ff8a80",
+    "#6fd3a0",
+    "#ffc25e",
+    "#6fb1ff",
+    "#f277b5",
+    "#6fd0e0",
+    "#b0aeb9",
+    "#6f6d7a",
+    "#ffb0a8",
+    "#9be5bf",
+    "#ffd78f",
+    "#b6ceff",
+    "#f8a5cf",
+    "#a3e3ee",
+    "#ecebee"
+   ],
+   "bg": "#1c1b21",
+   "fg": "#ecebee",
+   "cursor": "#a98cff",
+   "selection": "#38354d"
+  },
+  {
+   "name": "steg light",
+   "base": "fg #1b1a1f  bg: the pane, #ffffff active, #f8f6f4 not  selection #e2dcf7  cursor: session colour",
+   "ansi": [
+    "#1b1a1f",
+    "#bf2c27",
+    "#14734a",
+    "#8f5300",
+    "#2463c9",
+    "#d6408c",
+    "#0f6f80",
+    "#63616b",
+    "#4f4d57",
+    "#d9443e",
+    "#1f8f5e",
+    "#a86a10",
+    "#3d6fe0",
+    "#e0559c",
+    "#1b8799",
+    "#8b8993"
+   ],
+   "bg": "#ffffff",
+   "fg": "#1b1a1f",
+   "cursor": "#7b5cf0",
+   "selection": "#e2dcf7"
+  }
+ ],
+ "details_intro": "The terminal's colours are kept apart from the window's, so a theme can be swapped without touching the chrome. Red, green, yellow and magenta are the ramp's red, green, amber and pink, and blue is the session blue; cyan is the one colour of its own. Programs choose among the sixteen, so steg cannot promise the contrast of every pair.",
+ "focus_text": "A 2px ring in the session colour, 2px clear of the control, shown only when focus arrives from the keyboard. It is the one line the design draws in normal use. Its 12px corner follows the control's 8px corner at that distance."
+}

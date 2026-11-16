@@ -63,17 +63,16 @@ pub struct Terminal {
     /// as a caller with no point at all.
     seq: u64,
     /// Every [`CommandMark`] queued since the last [`Terminal::
-    /// take_command_marks`] (doc-9 R14, OSC 133; TASK-1.79). Unbounded
-    /// until a caller exists - nothing in this task calls
-    /// `take_command_marks`, so in the repository's shipped state after
-    /// this task merges, this grows for the whole life of any pane whose
-    /// shell emits OSC 133: one `CommandMark` (a few bytes) per `C` or
-    /// `D`, bounded in practice by how fast a person can type commands,
-    /// not by anything this field enforces. Named deliberately rather
-    /// than capped: a cap would be dead code with nothing to exercise it
-    /// before the next draft (the kernel's status operations, or the
-    /// server's wiring) calls `take_command_marks` and actually drains
-    /// it.
+    /// take_command_marks`] (doc-9 R14, OSC 133; TASK-1.79). Drained by
+    /// `crates/server/src/pane.rs`'s own worker thread after every
+    /// [`write`](Terminal::write) (TASK-1.84): in practice this holds at
+    /// most the marks that one `write` call produced, for the short time
+    /// between that call and the next drain, never the whole life of a
+    /// pane. `resize` never adds to it - `Terminal::resize` only ever
+    /// queues `Event::PtyWrite` through `drain_events`, never `Event::
+    /// SemanticPrompt`, which only ever comes from parsing a program's
+    /// written bytes - so nothing outside `write` needs to drain this
+    /// list.
     command_marks: Vec<CommandMark>,
 }
 

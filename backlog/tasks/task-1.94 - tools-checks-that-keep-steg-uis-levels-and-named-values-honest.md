@@ -1,10 +1,11 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T00:55:00Z'
+updated_date: '2026-11-16T02:18:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -13,6 +14,10 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '43523b8d5452'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -27,3 +32,231 @@ doc-17 (R119, R120, R126: what a program can check is a check and not a rule). T
 - [ ] #2 just check refuses a colour literal in crates/ui outside foundations, with a message naming the foundations value to use instead where one matches (R120); the plan says what counts as a literal and what the check cannot see
 - [ ] #3 Each check has tests in tools/ with a case that must be refused and one that must pass, and is part of just check and of CI
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+One reviewable change: two checks, but they share one new foundations.json reader, one
+pyproject dependency decision, and one justfile wiring, so splitting would duplicate the
+reader across two PRs. Flagged as a judgment call, not re-decided mid-build.
+
+## Tool: ast-grep-py, not regex, not a shelled-out CLI
+
+Verified empirically (not from memory): `ast-grep-py` 0.51.2 publishes a
+`cp315-cp315-macosx_11_0_arm64` wheel on PyPI (checked its JSON API's file list) and
+installs cleanly under `uv run --python 3.15 --with ast-grep-py` with no build step,
+landing in a real cp315 site-packages, not falling back to an older interpreter. CI
+(`macos-26`, arm64, `uv` pinned to Python 3.15.2 via `setup-uv`) gets a pre-built wheel,
+cached the same way `uv sync` already caches every other dependency - no new mise pin,
+no new binary toolchain, no network fetch beyond the normal `uv sync`. Cost: ~5.5 MiB
+wheel, and it is the **first runtime dependency `tools/pyproject.toml` has ever taken**
+(`dependencies = []` today) - flagged to the engineer as the one call that isn't mine to
+finalise alone, since `boundaries.py`/`affected.py`/`recipes.py` all get structured input
+for free from a program already on the machine (`cargo metadata`, `just --dump`) and
+parse nothing themselves.
+
+Rejected: hand-written regex/tokenising over the raw source. Both checks are really
+"what does this token mean in this syntactic position", and Rust's comments
+(`//`, `/* nested */`), raw strings, and grouped/aliased `use {a, b as c}` lists make a
+correct hand-rolled scanner a small lexer in disguise - exactly what a real tree-sitter
+parse already gives for free, confirmed against: `use` declarations (plain, `super::`,
+grouped `use crate::{atoms::Button, molecules::Tab}`, glob `use crate::atoms::*`, `pub use`),
+`call_expression` (distinguishing the callee `rgb`/`hsla` from its arguments),
+`struct_expression` (`Hsla { .. }`), `integer_literal`, `string_literal` - each read back
+as a real AST node, not a text match that could land inside a comment or an unrelated
+string.
+
+## New files
+
+- `tools/src/steg_tools/foundations.py` - shared reader for `crates/ui/design/foundations.json`.
+  `read(path) -> Foundations` (a frozen dataclass); `hex_index(foundations) -> dict[str, tuple[NamedColour, ...]]`
+  mapping a normalised 6-hex-digit value (lowercase, no `#`/`0x` prefix) to every
+  `(name, "dark"|"light")` pair that has it - two names can share a hex in one form and
+  differ in the other (`outline`/`track` coincide in dark, differ in light; noted in the
+  data file's own `use` field). Resolves one level of `{"ref": ...}`, including the
+  double-wrapped form on `colour_aliases[].ref` (`design/README.md`'s own documented
+  shape) - aliases resolve to the same hex as what they reference, so the index itself
+  doesn't need a separate alias entry; a match message below names the base colour only,
+  not its alias, called out as a scoping cut, not an oversight. **TASK-1.96 should import
+  this module instead of writing its own JSON reader** - said to the engineer so that
+  task's plan doesn't duplicate it; if TASK-1.96 lands first, this task imports its module
+  instead, whichever order the board picks.
+- `tools/src/steg_tools/ui_levels.py` - the R119 check. Console script `steg-ui-levels`.
+- `tools/src/steg_tools/ui_colours.py` - the R120 check, colour literals only (sizes,
+  radii, durations and fonts are also named in R120 but not in this task's AC#2 - out of
+  scope here, a follow-up task if wanted, not silently grown into this one). Console
+  script `steg-ui-colours`.
+- `tools/tests/unit/test_foundations.py`, `test_ui_levels.py`, `test_ui_colours.py`.
+- `tools/pyproject.toml`: `dependencies = ["ast-grep-py>=0.51,<0.52"]`, plus the two new
+  `[project.scripts]` entries.
+- `justfile`: two new recipes, `check-ui-levels` and `check-ui-colours` (both already
+  legal under `recipes.py`'s `ALLOWED_VERBS` - "check" is already on the list, no edit
+  there), added to the `check:` recipe's dependency chain beside `check-boundaries`. No
+  CI edit: `.github/workflows/ci.yml` only ever calls `just check`, so both run there for
+  free once wired into it.
+- Likely textual conflict with TASK-1.93 in `tools/pyproject.toml`'s `[project.scripts]`
+  table and the justfile's `check:` line (it adds its own generator entrypoint and recipe)
+  - a plain rebase resolves it, named here so neither worker is surprised.
+
+## Check 1 (R119, AC#1): which import crosses levels the wrong way
+
+**What the check sees.** Every `.rs` file under `crates/ui/src/**`, read with
+`SgRoot(text, "rust")`. `crates/ui/gallery/**` is out of scope for this check entirely -
+it is not one of the four levels (doc-17's own table) and CLAUDE.md already says so; this
+task does not re-decide that, only encodes it as a path exclusion.
+
+**Level of a file**: the first path segment under `src/` - `foundations`, `atoms`,
+`molecules`, `organisms`, ranked 0-3 in that order. A `.rs` file directly under `src/`
+that isn't one of those four (none exist today) is refused with its own message ("not
+one of the four levels doc-17 names"), mirroring `boundaries.py`'s `unknown_rules` - a
+silent skip would be worse than a loud refusal of a case nobody's hit yet.
+
+**Resolving an import's target level**, from each `use_declaration` (recursing into a
+`use_list` for the grouped form) and the first `scoped_identifier` of any multi-segment
+path elsewhere in the file:
+- `crate::<seg>::...` - target level is `<seg>` when it's one of the four names.
+- `super::<seg>::...` - resolved against the *file's* own level, since every real file
+  today is a level's own `mod.rs` directly under `src/<level>/` (one hop from crate
+  root). **Known limitation, stated plainly, not solved here**: once a level gains its
+  own submodules (TASK-1.95 or later), a `super::super::` chain's resolution depends on
+  the importing file's nesting depth under its level directory, which this check does not
+  attempt to derive generally - revisit when a level first grows a submodule.
+- `crate::<name>` where `<name>` isn't one of the four level names directly: looked up
+  against a one-time table built from `lib.rs`'s own `pub use <level>::<path>;` /
+  `pub use <level>::<path> as <alias>;` lines (the crate-root re-export surface) - this
+  is what closes the re-export loophole a per-file check would otherwise miss entirely:
+  without it, `foundations` could reach `atoms::Button` through `use crate::Button;` if
+  `lib.rs` ever re-exports it, and the per-file text would never say "atoms" anywhere.
+  **What this cannot see**: a glob re-export at crate root (`pub use atoms::*;`) isn't
+  expanded - expanding it needs to know every item `atoms` exports, which needs the
+  compiler. Named as a real, deliberate gap; `lib.rs` has no `pub use` today at all (only
+  `pub mod`), so it costs nothing to build this table now and pays off the moment the app
+  needs its first real component re-exported.
+- A glob `use crate::atoms::*` is itself a violation check the same as any other import
+  of `atoms` - the `*` doesn't change which level is being reached into.
+- Intra-level imports (`foundations::colours` importing `foundations::sizes`) are never a
+  violation - R119 is about crossing levels, not organising within one.
+
+**What this cannot see, named outright**: a colour/behaviour reached through a trait
+object or a generic bound rather than a concrete path (doc-17's levels are unlikely to
+need either, but if one appears, it's invisible here); a path built by a macro that
+expands to a cross-level reference.
+
+**Message** (mirrors `boundaries.py`'s `format_violation`): names the file and line, the
+importing level, the level it reaches into, and R119's own text ("a level uses only the
+levels before it"), e.g. `crates/ui/src/foundations/mod.rs:3: use crate::atoms::Icon;
+reaches into atoms from foundations, which doc-17 R119 refuses (a level uses only the
+levels before it).`
+
+## Check 2 (R120, AC#2): colour literals
+
+**What counts as a colour literal, concretely, grounded in the one real example in the
+repo today** (`gallery/main.rs`'s `rgb(self.theme.placeholder_colour())` and the bare
+`0x1c1b21` it returns) **and in what doc-17 points at as GPUI's own surface**
+(`painting.rs`/`gradient.rs`, which build `Hsla`/`Rgba` values):
+1. An `integer_literal` whose text matches `0x` followed by 6 or 8 hex digits (RGB or
+   RGBA) - catches a bare hex constant even with no call wrapped around it (the
+   `placeholder_colour` shape). A 1-4 digit hex (a bitmask, a size) is not flagged - a
+   known, accepted under-reach in exchange for not flagging ordinary non-colour hex use;
+   said plainly, not left implicit.
+2. A `string_literal` matching `"#" + 6 or 8 hex digits"` exactly.
+3. A `call_expression` whose callee's last path segment is one of a fixed name set -
+   **verified against the pinned `gpui = 0.2.2`'s own public API at build time, not
+   guessed now** (this session has no vendored gpui source to read; the names `rgb`,
+   `rgba`, `hsla` are grounded in the one call already in this repo plus doc-17's own
+   citations, and must be confirmed against `gpui` 0.2.2's actual exports before the
+   pattern list is written - correcting a wrong guess here is one line, so this is cheap
+   to get right at build time and risky to finalise from memory).
+4. A `struct_expression` whose type name's last segment is `Hsla` or `Rgba` (qualified or
+   bare) - this is the case (1)-(3) all miss: a colour built entirely from plain floats,
+   with no hex and no named constructor call (e.g. `Hsla { h: 0.5, s: 0.5, l: 0.5, a: 1.0 }`).
+
+**Where literals are allowed**: `crates/ui/src/foundations/**` only (TASK-1.93 writes
+`generated.rs` there, which will be full of exactly these literal forms - this check's
+exemption is that path, by construction, so 1.93 needs no exception added to this check).
+`crates/ui/gallery/**` is excluded from this check too, same reasoning as check 1 - it's
+the gallery's own chrome, already named exempt in CLAUDE.md and `gallery/main.rs`'s own
+doc comments; this task encodes that existing decision as a path exclusion, it doesn't
+make it.
+
+**Judgment call flagged to the engineer**: a `#[cfg(test)]` module inside e.g.
+`src/atoms/button.rs` is *not* exempt - a test asserting against a literal hex should name
+the foundations value it expects too, same discipline as the component it's testing.
+Not settled anywhere in doc-17; stated here so it's a visible choice, not a silent default.
+
+**What this cannot see, named outright**: a hex value assembled by arithmetic
+(`(0x1c << 16) | 0x1b21`, or similar) rather than written as one literal; a colour passed
+as an opaque float triple with no distinguishing call or struct name. A named constant
+defined outside foundations (e.g. `const BRAND: u32 = 0x1c1b21;` in `atoms/button.rs`,
+used elsewhere as `button::BRAND`) is **not** a blind spot - the literal is caught at its
+definition site, which is already outside foundations, so the use site needs no separate
+check.
+
+**Message, naming the foundations value where one matches** (via `foundations.hex_index`):
+`crates/ui/src/atoms/button.rs:12: rgb(0x1c1b21) is a colour literal, which doc-17 R120
+refuses outside foundations. This value matches surface.raised (dark) - use that named
+value instead.` When the hex matches more than one name (the `outline`/`track` dark
+coincidence), both are listed, sorted by name. When nothing matches: `...; no foundations
+value has this colour - confirm it belongs in foundations and export it there, or that
+this literal is wrong.`
+
+## Proof (only what gets built; nothing here is cited without a test reaching it)
+
+Pure-function unit tests, no I/O, mirroring `boundaries.py`'s style of plain dataclasses
+over real files:
+- `test_foundations.py`: `hex_index` - a hex with one name+form match; a hex with two
+  matches (the outline/track case, built from the real coincidence in the data file); a
+  hex with none; resolving the double-wrapped `colour_aliases[].ref` without raising.
+- `test_ui_levels.py`: `level_of_file` for each of the four level paths, the gallery path
+  (exempt/`None`), and an unplaced file (refused as unknown). One case per direction that
+  must be refused: foundations→atoms, atoms→molecules, molecules→organisms (each R119's
+  own ordering, not every pairwise combination - the ordering is transitive by
+  construction, so these three adjacent crossings are what a negative control actually
+  exercises). One case per level that must pass: an organism using a molecule, an atom and
+  foundations together (the "uses everything before it" case). The crate-root re-export
+  table: a name resolved through `pub use atoms::Button;`, and a glob entry
+  (`pub use atoms::*;`) asserted as *not* resolvable (returns `None`, doesn't crash) -
+  the deliberate gap, proven inert rather than merely described. `format_violation` names
+  both levels and "R119".
+- `test_ui_colours.py`: one refused case per literal form (hex int, hex string, named
+  call, `Hsla`/`Rgba` struct) and its passing twin (the same file with the literal
+  replaced by an unrelated non-colour value, so the test is proving the specific form is
+  caught, not that any change trips it). The foundations-path and gallery-path exemptions,
+  each with a would-be-violating literal that passes only because of the path. A match
+  with one name, a match with two, and no match, each reflected in the message text.
+  `format_violation` names "R120".
+- One test per check against the real repository tree today (`workspace.repo_root()`),
+  asserting zero violations - true but weak right now, since every real file is an empty
+  doc-comment module; said plainly rather than oversold, and it becomes the real
+  regression gate once TASK-1.93 and later tasks add real code.
+
+Each test cited above gets a negative control at build time (per the team's testing
+skill): disable the one line of logic it exercises, run it, record the failure with
+`asdlc record-check`, restore, record the pass. Not run now - this is the plan, not the
+build.
+
+Not built, named as dropped rather than silently dropped: a check for the other R120
+literal kinds (size, radius, duration, font) - AC#2 names colours only; pairwise testing
+of every non-adjacent level crossing (foundations→organisms directly) - R119's ordering
+makes the three adjacent crossings the only ones a negative control can meaningfully
+distinguish from "the ordering rule is broken" generally.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-17 (R119, R120, R126) by @bruk.o: ok, with two things that are the engineer's in approving it. (1) It adds ast-grep-py to tools/pyproject.toml, the tools' first runtime dependency: a real parse of Rust (so comments, strings and grouped or aliased use lists are read correctly) in place of regular expressions; the worker confirmed a prebuilt wheel exists for CI's runner and Python and installs with no build step. (2) A colour literal inside a cfg(test) block is refused like any other. The level check follows re-exports through lib.rs and names what it cannot see (a glob re-export, a path built by a macro, a colour behind a trait); the colour check names what it cannot see (a value built by arithmetic, a constant defined outside foundations). Both leave crates/ui/gallery out: right for the level check, since the gallery uses every level; for the colour check it is right only while the gallery's colours are a placeholder, so the exemption is to end when TASK-1.93 makes the gallery draw from foundations (noted on TASK-1.93). Every case in the proof has a test tied to a negative control.
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T02:18:00Z
+
+---
+
+Plan approved by @bruk (43523b8d5452, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

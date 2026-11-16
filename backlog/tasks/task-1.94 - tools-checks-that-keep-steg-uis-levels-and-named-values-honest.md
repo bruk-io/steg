@@ -1,13 +1,14 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:14:00Z'
+updated_date: '2026-11-16T03:22:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=3'
-asdlc_review_policies: ["review", "testing", "tools"]
+asdlc_review_findings: 'important=2,nit=0'
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -906,6 +906,33 @@ created: 2026-11-16T03:14:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:22:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed at head 4cb9adafe6911bd30d96977a1e1edb5c6d424b69 (matches PR #52's headRefOid; CI SUCCESS on that head, 4m23s; `just check` reproduced green by me independently in a fresh detached worktree of that commit, all 23 steps ok, including `ui colours`/`ui levels`).
+
+The first review's two Important findings are fixed and verified: `rgb(0x...)`/`rgba(0x...)` now reads its hex argument back out (`_hex_argument`) and matches it against foundations the same way a bare hex does, and the test suite now reaches that path (one name, two names, no match, rgba-alpha, non-literal argument). I ran the negative control myself: forcing `_hex_argument` to always return `None` fails exactly the five matching-through-a-call tests (`test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument`, `test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha`, `test_violations_matches_one_name_through_an_rgb_call`, `test_violations_matches_two_names_through_an_rgb_call`, `test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits`); restored, 144 passed.
+
+Live verification of every case asked for: `rgb(0x1c1b21)` -> surface.raised (dark); `rgb(0x3d3b45)` -> outline (dark), track (dark) both listed; `rgb(0x123456)` -> no match; `gpui::rgb(0x1c1b21)` -> surface.raised (dark), reported once not twice; `rgb(v)` and `rgb(0x1c1b21 + 1)` (non-literal argument) -> refused, no name to suggest, as documented; `hsla(...)` and `Hsla { .. }` -> refused, no name suggested, message reads sensibly; comment, string, grouped+aliased import, and a 4-digit hex all still pass/resolve correctly (no regression). `rgb(0X1C1B21)` (uppercase 0X prefix) isn't valid Rust and produces a parser ERROR node either way, not a real case; `rgb(0x1C1B21)` (valid, uppercase digits) matches correctly.
+
+New Important finding, found live, not in the prior round: for `rgba(0x1c1b21ff)` (alpha = ff, fully opaque) the match and message are correct. But for `rgba(0x1c1b2180)` (alpha = 0x80, ~50%) and for the 8-digit string form `"#1c1b2180"`, `_rgb_hex` drops the alpha before matching the same way, and `format_violation` still says "This value matches surface.raised (dark) - use that named value instead." That is wrong guidance: 0x1c1b2180 is a translucent colour, surface.raised is opaque (foundations' `colours[]` carries no alpha dimension at all - opacity is a separate, unconnected table in the same JSON), and swapping in the named value would silently remove the transparency. AC#2 promises the message names "the foundations value to use instead where one matches" - for a non-ff alpha, no foundations value actually matches what gets drawn, only its RGB does, so naming one here is incorrect guidance. Scoped narrowly: only alpha != 0xff, for both the `rgba(...)` call form and the `"#rrggbbaa"` string form (confirmed both live).
+
+[Compliance/Bugs, Important] tools/src/steg_tools/ui_colours.py:136-162 (`_rgb_hex`), 209-215 (`format_violation`): alpha is dropped before matching with no condition on its value, so a translucent `rgba`/`"#rrggbbaa"` literal with alpha != 0xff is reported as matching an opaque foundations colour, and the message tells a developer to "use that named value instead" - incorrect guidance that would change what gets drawn if followed. ff-alpha and alpha-less forms are correct and unaffected.
+
+[Evidence, Important] tools/tests/unit/test_ui_colours.py: no test reaches `format_violation`'s message, or asserts a "no match"/different-colour outcome, for a non-ff alpha. The one rgba-alpha test (`test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits`, alpha=ff) only covers the case that happens to be correct; every `format_violation` test uses an alpha-less bare hex. The branch this bug lives in - alpha dropped silently before naming a match - has no test and no negative control reaching it.
+
+Nits: none at the cap; plugins/bruk-io-steg/rules/tools.md (ast-grep-py vs "standard library only") remains correctly untouched here (plugin changes aren't a worker's to make); rust_source.py remains an undisclosed-in-the-plan file, now explicitly disclosed in the notes (addressed as a nit already, not re-raised as one here, but recorded as --plan-matched no per policy: "no for any departure, even one the notes explain").
+
+Verified as working, not just as claimed (unchanged from the first review, re-confirmed): plain/grouped/glob/aliased use, fully-qualified expression path counted once, crate-root pub use re-export loophole, super:: as documented no-op beyond one hop, unplaced-file refusal, nested submodule attribution, both path exemptions, cfg(test) literal refused, comment/string/short-hex correctly passed, arithmetic-built colour silently passed as disclosed. New this round: the macro-argument blind spot is now named in ui_levels.py's own docstring and backed by test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments (confirmed empirically: zero scoped_identifier nodes found inside a macro's token_tree).
 
 ---
 <!-- COMMENTS:END -->

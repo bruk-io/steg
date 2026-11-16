@@ -30,6 +30,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1175,6 +1176,15 @@ Reviewed at head 3cada1b0b743da0a4cf728940d85c1e289d092a3 (matches the task's ow
 No findings on: the reader/writer shape and thread joining on every path I checked (ordinary close, every hostile-input case, a stop() mid-request, a panic in Runtime::handle - confirmed via the existing tests and via runtime.rs's own poison-recovery test); the Runtime's lifetime and thread::scope ordering on both the happy path and the listener-accept-error path; Context::none() and the BadRequest refusal (both the no-target and partial-target cases are tested, including the real-NoSuchTarget negative case); AC#1-4 each have a real test and (except AC#4, proven by the diff itself as the plan says) a negative control I could verify at least one of (writer priority, reproduced failing then reverted). No unsafe, boundaries.toml untouched, ServerConfig's two new fields default to the real launcher/login. Hostile-input coverage (malformed frame, reply-shaped frame, second hello, oversized frame, frame on an unopened stream) each has its own test; none missing from the plan's own list.
 
 Overlap (none merged as of this head): TASK-1.77 (PR 44) touches only listen.rs's resolve_socket_path, unrelated to this task's own changes to run()'s body - trivial, no real conflict. TASK-1.78 (PR 47) rewrites Runtime::stop() immediately adjacent to where this task inserts connect_client/disconnect_client, and both edit runtime.rs's import list - a real textual merge conflict is likely for whichever merges second, but the two sets of changes are logically independent (client-tracking vs. forced-close) and TASK-1.78's own dispatch/lookup.rs additions (panes_in_close_scope, any_pane_running) call target_session/tab/pane and inherit this task's Option-based refusal automatically, with no adaptation needed - I see no conflict in meaning, only in text. TASK-1.84 (PR 46) touches runtime.rs's State struct and adds free functions/tests in regions that don't obviously overlap this task's own edit points, beyond the shared import list - lower risk, not fully traced line by line. Section 4's lock-serialization claim (two connections' mutating calls fully serialize on Runtime's one Mutex<State>) is explicitly named in the plan as inherited and unmeasured, not this task's to fix; I confirmed from TASK-1.78's own diff that its forced-close grace-period wait is deliberately released lock-free before force_end runs (drop(state) before force_end), so that specific future case does NOT block other clients - the plan's narrower, still-true claim is about ordinary synchronous dispatch (e.g. a pty open+fork under session.new), which this task did not change.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T02:37:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,0 +1,10 @@
+// Component: ui, built into Steg.app only (doc-16, doc-17, Level 3). No #shared tag -
+// unlike sdk, this package is built into exactly one container.
+model {
+  extend steg.app {
+    ui = component 'ui' {
+      technology 'Rust library'
+      description "The app's components and the design's named values. Pure interface: it knows nothing of sessions, tabs, panes or the server (doc-17)."
+    }
+  }
+}

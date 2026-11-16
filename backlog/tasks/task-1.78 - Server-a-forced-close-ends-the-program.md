@@ -1091,6 +1091,33 @@ test pane_close_with_force_actually_ends_a_silent_program ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
 ```
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_with_force_ends_a_program_that_traps_the_polite_signal` exited 101 at 2026-11-16T01:11:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... FAILED
+
+failures:
+
+---- pane_close_with_force_ends_a_program_that_traps_the_polite_signal stdout ----
+
+thread 'pane_close_with_force_ends_a_program_that_traps_the_polite_signal' (16688429) panicked at crates/server/tests/runtime.rs:592:5:
+a program trapping the polite signal must still be ended, by escalating
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_ends_a_program_that_traps_the_polite_signal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 6.08s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

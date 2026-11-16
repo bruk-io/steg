@@ -596,7 +596,7 @@ fn pane_close_with_force_ends_a_program_that_traps_the_polite_signal() {
 }
 
 #[test]
-fn a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler() {
+fn a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_regression() {
     // TASK-1.78's review, finding 1: a flooding program's own real exit,
     // arriving naturally during the grace window, must not be
     // misclassified as "still running" purely because its own backlog
@@ -604,9 +604,20 @@ fn a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_s
     // which would otherwise cause a pointless `SIGKILL` and an extra
     // `ESCALATE_CONFIRM_TIMEOUT` wait (2s) on top of the grace period
     // itself. A deliberately long grace (3s) is what makes "it returned
-    // promptly" a meaningful assertion rather than noise: if this were
-    // misclassified, the call would take close to `grace +
-    // ESCALATE_CONFIRM_TIMEOUT` (~5s), not a fraction of a second.
+    // promptly" a meaningful assertion rather than noise under the
+    // *fixed* mechanism - but the review's second round found this is
+    // not a proof: it still passes with `await_exit` routed back through
+    // the worker's own queue, because the kernel's own pty buffer
+    // throttles the writing shell well before a 20,000-line flood builds
+    // the backlog this bug actually needs (confirmed by hand, recorded as
+    // a check at the time, not hidden). A real, deterministic proof needs
+    // a backlog this task does not depend on any OS buffering to build,
+    // which is what `pane::ending_tests::await_exit_is_not_delayed_by_a_
+    // backlog_on_the_workers_own_queue` (two separate handles, a real
+    // 1,000,000-item backlog built directly through the handle's own
+    // `send_input`) does instead - *that* test is this mechanism's actual
+    // proof, with its own recorded negative control; this one is kept as
+    // a realistic end-to-end regression only, named for exactly that.
     let grace = Duration::from_secs(3);
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
@@ -1007,11 +1018,12 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
 /// guarantee was claimed for every method but tested only for
 /// `pane.show` and a second `--force` - this covers every other method
 /// that can name a pane: a plain `pane.close` (no `--force`), `pane.
-/// swap`, `pane.move`, `pane.set`, `pane.unset`, `pane.focus`. `pane.
-/// resize`/`pane.send`/`pane.capture`/`pane.wait` are left out - not
-/// implemented yet (`dispatch/pane.rs`'s own `not_implemented_yet`
-/// arms), so there is nothing here to prove unreachable. One
-/// parameterised test, not six separate ones, so a failure names the
+/// split` (names an existing pane as its own source - the review's own
+/// nit), `pane.swap`, `pane.move`, `pane.set`, `pane.unset`, `pane.
+/// focus`. `pane.resize`/`pane.send`/`pane.capture`/`pane.wait` are left
+/// out - not implemented yet (`dispatch/pane.rs`'s own `not_implemented_
+/// yet` arms), so there is nothing here to prove unreachable. One
+/// parameterised test, not seven separate ones, so a failure names the
 /// method that let the forced pane through.
 #[test]
 fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
@@ -1055,6 +1067,10 @@ fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
 
     let probes: Vec<(&str, Vec<(&str, Value)>)> = vec![
         ("pane.close", vec![("target", json!("1"))]),
+        (
+            "pane.split",
+            vec![("target", json!("1")), ("direction", json!("right"))],
+        ),
         (
             "pane.swap",
             vec![("target", json!("1")), ("with", json!("2"))],

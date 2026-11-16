@@ -95,7 +95,30 @@ const RELAY_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
 /// a zombie - the kernel has almost always finished tearing it down well
 /// before or by the moment its pty slave side closes - so this interval
 /// is rarely slept even once in practice.
-const REAP_POLL_INTERVAL: Duration = Duration::from_millis(5);
+const REAP_POLL_INITIAL_INTERVAL: Duration = Duration::from_millis(5);
+
+/// Where [`REAP_POLL_INITIAL_INTERVAL`]'s own doubling (TASK-1.78's
+/// review, a nit of the engineer's own) stops: a program that detaches
+/// from its terminal while it keeps running (closes its own pty slave
+/// side, which is what produces the end-of-file `spawn_relay` reacts to,
+/// without the process itself ever exiting - a daemonising script is the
+/// ordinary example) would otherwise be polled at `REAP_POLL_INITIAL_
+/// INTERVAL`'s own cadence for as long as it lives, one thread per pane.
+/// Doubling from 5ms up to this cap costs five extra polls (5, 10, 20,
+/// 40, 80ms - about 155ms total) over the overwhelmingly common case
+/// where the first poll already finds a zombie, then settles here: at
+/// most 100ms added before such a pane's own eventual, real exit is
+/// noticed, once the ramp is past - the residual this backoff leaves
+/// deliberately, not removed, since reaping at all still only needs to
+/// happen once, however late.
+const REAP_POLL_MAX_INTERVAL: Duration = Duration::from_millis(100);
+
+/// The doubling itself, pulled out as a pure function so it has its own
+/// test independent of a real sleeping thread: `current`'s next interval,
+/// doubled and capped at [`REAP_POLL_MAX_INTERVAL`].
+fn next_reap_poll_interval(current: Duration) -> Duration {
+    (current * 2).min(REAP_POLL_MAX_INTERVAL)
+}
 
 /// The run-ending synchronisation TASK-1.78's review (finding 1) asked
 /// for, closing a real race rather than narrowing it: a signal sent to a
@@ -800,6 +823,7 @@ fn spawn_relay(
         // target_os = "haiku", all(target_os = "linux", ...)))]` on
         // `pub fn waitid`) - not on this project's own macOS target
         // (decision-4, R4) at all, so it was not an option here.
+        let mut poll_interval = REAP_POLL_INITIAL_INTERVAL;
         let exit_code = loop {
             let mut state = gate.lock();
             match child.try_wait() {
@@ -811,7 +835,8 @@ fn spawn_relay(
                 }
                 Ok(None) => {
                     drop(state);
-                    thread::sleep(REAP_POLL_INTERVAL);
+                    thread::sleep(poll_interval);
+                    poll_interval = next_reap_poll_interval(poll_interval);
                 }
                 // Deliberately silent, not a bug: this can only happen if
                 // the OS has nothing left to report (the process was
@@ -844,7 +869,7 @@ mod tests {
 
     use crate::pty::{LaunchSpec, ProgramLauncher, RealLauncher};
 
-    use super::{PaneCommand, spawn_relay};
+    use super::{PaneCommand, next_reap_poll_interval, spawn_relay};
 
     fn real_spec(argv: Vec<&str>) -> LaunchSpec {
         LaunchSpec {
@@ -986,6 +1011,37 @@ mod tests {
             Some(200),
             "a stale generation's own mark-dead must never clobber a \
              newer run's live pid"
+        );
+    }
+
+    /// TASK-1.78's review (a nit of the engineer's own): the reap poll's
+    /// own backoff, proven as the pure doubling-and-cap it actually is,
+    /// not only by trusting `spawn_relay`'s own real-process tests above
+    /// to happen to exercise enough iterations.
+    #[test]
+    fn the_reap_poll_interval_doubles_then_holds_at_its_cap() {
+        let mut interval = super::REAP_POLL_INITIAL_INTERVAL;
+        let mut seen = vec![interval];
+        for _ in 0..8 {
+            interval = next_reap_poll_interval(interval);
+            seen.push(interval);
+        }
+
+        assert_eq!(
+            seen,
+            vec![
+                Duration::from_millis(5),
+                Duration::from_millis(10),
+                Duration::from_millis(20),
+                Duration::from_millis(40),
+                Duration::from_millis(80),
+                super::REAP_POLL_MAX_INTERVAL,
+                super::REAP_POLL_MAX_INTERVAL,
+                super::REAP_POLL_MAX_INTERVAL,
+                super::REAP_POLL_MAX_INTERVAL,
+            ],
+            "the interval must double each time until it reaches the cap, \
+             then hold there - never exceed it, never reset"
         );
     }
 }
@@ -1208,16 +1264,26 @@ mod ending_tests {
 
     /// The reviewer's own ask (TASK-1.78's review, finding 1's nit):
     /// restart a command pane, then force it - the *new* program must be
-    /// the one that ends. This proves the restart-then-force flow works;
-    /// it does not, on its own, prove the generation guard specifically
-    /// earns its place (DRAFT-1) - nothing on this path can currently
-    /// make the *old* run's relay thread still be executing once
-    /// `restart` has returned (see `PaneHandle::restart`'s own doc), so
-    /// this would pass the same way with or without that guard. The
-    /// guard itself is exercised directly, by constructing the race, in
-    /// `tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run`.
+    /// the one that ends. A plain regression test, named for exactly
+    /// that outcome and no more - the review's second round confirmed
+    /// it is not a proof of the generation guard, and a reviewer who
+    /// disabled the guard entirely found it still passes here, because
+    /// nothing on this path can currently make the *old* run's relay
+    /// thread still be executing (and so still able to call `clear_if_
+    /// current` for a stale generation) once `restart` has returned (see
+    /// `PaneHandle::restart`'s own doc) - this test's own synchronisation
+    /// point (waiting for the first run's real exit event before
+    /// restarting) is downstream of that relay thread's own mark-dead
+    /// call, by construction, so there is no ordering left for a test at
+    /// this level to race against. A seam that could hold that call back
+    /// deliberately would need production code built only to make a test
+    /// possible, with no other use - not attempted. The guard itself is
+    /// exercised directly, by constructing the out-of-order race by
+    /// hand, in `tests::a_stale_generations_own_mark_dead_never_clobbers_
+    /// a_newer_run` - *that* is this guard's actual proof, with its own
+    /// recorded negative control; this test is not.
     #[test]
-    fn restarting_then_forcing_ends_the_new_program_not_the_old_one() {
+    fn restarting_then_forcing_ends_the_new_program_as_a_plain_regression() {
         let (events_tx, events_rx) = mpsc::channel();
         let handle = start(
             real_spec(vec!["sh", "-c", "exit 0"]),
@@ -1258,15 +1324,17 @@ mod ending_tests {
     /// finding 1's own point, demonstrated directly and deterministically
     /// rather than by flooding a real program's output through a real
     /// pty: a real end-to-end attempt at that (`tests/runtime.rs`'s own
-    /// `a_flooding_program_that_exits_by_itself_mid_grace_is_not_
-    /// misclassified_as_a_straggler`) could not be made to show a
-    /// measurable difference between the fixed and the reverted
-    /// mechanism in this environment, because the pty's own kernel
-    /// buffer throttles the writing program well before the backlog this
-    /// bug needs can build up - a real limit on that test's own power to
-    /// discriminate, named rather than hidden. Flooding the *handle's*
-    /// own queue directly, with real `send_input` calls (not relying on
-    /// any OS buffering at all), has no such limit.
+    /// `a_flooding_program_that_exits_by_itself_mid_grace_completes_
+    /// promptly_as_a_regression`, renamed for exactly that in TASK-1.78's
+    /// review's second round) could not be made to show a measurable
+    /// difference between the fixed and the reverted mechanism in this
+    /// environment, because the pty's own kernel buffer throttles the
+    /// writing program well before the backlog this bug needs can build
+    /// up - a real limit on that test's own power to discriminate, named
+    /// rather than hidden (and that test is kept only as an end-to-end
+    /// regression now, not as this mechanism's proof). Flooding the
+    /// *handle's* own queue directly, with real `send_input` calls (not
+    /// relying on any OS buffering at all), has no such limit.
     #[test]
     fn await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue() {
         // Two separate handles, each flooded the same way, each measured

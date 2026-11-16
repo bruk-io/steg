@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T05:02:00Z'
+updated_date: '2026-11-16T05:16:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -927,6 +926,40 @@ created: 2026-11-16T05:02:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T05:16:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Sixth review of TASK-1.96 (my fourth). Verdict: clean. Reviewed PR #54 at head c5b48cb (matches the task's recorded `just check` and PR CI SUCCESS at the same headRefOid, run time 4m - confirmed via `gh pr view 54 --json headRefOid,statusCheckRollup`). I also reran `just check` myself fresh in a review worktree at this head: clean, 24 steps all ok.
+
+This is the round after my round-4 finding (the fixed six-name exclusion list applied everywhere regardless of whether its own reason held there). The fix replaces every prior mechanism (a field tuple, a string-prefix rule, an exclusion list) with SCHEMA: a closed, declarative description of the whole document's shape (Fields/NamedEntries/Checked/DeclaredUnseen/Descriptive), walked by validate(). TIER_B_NAMES/RADIUS_MAP/the printed "not checked" list are all derived from SCHEMA, never duplicated beside it (confirmed: no second hand-written list of names exists in the module - grepped for it).
+
+A. Claims vs. the tool, read sentence by sentence against real runs:
+- The worker's one declared residual - a non-numeric field added inside a Checked(recurses=True) group (e.g. sizes["nav.side"]["use"]) passes silently - is real and is stated exactly where a reader relying on the guarantee would see it: the README's "Checked" bullet (crates/ui/design/README.md:108-113), the module docstring, and the Checked dataclass's own docstring. I reproduced it on scratch copies for six JSON types added inside sizes.nav.side (string/bool/null silently pass; nested object/list/number get caught, but only incidentally - because _numbers_in recurses into them and finds a number absent from the page, not because the shape itself is inspected). I confirmed the edge the README's claim depends on: a nested object/list with no numbers at all also passes silently, and a brand-new number whose value happens to coincide with one already in the page's sentence (e.g. adding nav.side.extra_num_coincidence=30) also passes silently - both consistent with, and no broader than, the already-disclosed "checked only as a set of numbers by default" caveat the tool prints on every run. The same residual inside a DeclaredUnseen group (I used tint) also passes silently for all six types, which is simply what "declared unseen" already promises (the whole subtree is out of reach, not just the named value) - not a second, undisclosed gap.
+- I ran the required mechanism-removal control myself: patched validate()'s Fields branch to stop flagging an unknown key as "not described by the schema" (the closed-schema mechanism, disabled), on a reverted scratch edit. 18 tests failed (test_every_named_position_s_mutation_is_refused_naming_its_path, every one of the per-position adapter reproductions - focus_ring.ansi, colours[0].unit/artifact_version, every dotted-collision case, the stray-field case, the session_colour removal case). Reverted (`git checkout tools/src/steg_tools/design_pages.py`); reran the suite after reverting: 82 passed, worktree clean.
+- leaf_classification_counts()'s arithmetic (the independence check) balances on the real file (138 checked + 72 declared_unseen + 56 descriptive = 266 = an exhaustive, no-exclusions leaf count I wrote independently) and still balances with a stray field added inside a DeclaredUnseen list entry (ramps[0].stops[0].weight) - it's absorbed into that position's own leaf count, not lost, which is what "declared unseen" already discloses for that position.
+
+B. Closedness, beyond round 4's five mutations: I reproduced an unknown key at the top level, in every section (colours, colour_aliases, opacities, ramps, a ramp's stops entry doesn't recurse but is wholly DeclaredUnseen so that's consistent, themes, a theme's ansi - a new ansi colour is refused via ansi_mismatches, not validate, correctly), a descriptive name (name/use) used where focus_ring's schema doesn't have it, a dotted-name collision extending a known key three ways (sizes.palette.footer, type.terminal.bold, a new ramp named "ramp.secondary" - the last of which is legitimately open per NamedEntries' design and its own "stops" is correctly, distinctly declared unseen under its own new path, not swallowed), and the three malformed-entry cases (no name, dark replaced by an object, colours replaced by a dict) - every one refused by name and path, never a crash. The test suite's own independent leaf enumeration (a separate recursive function in the test file, not SCHEMA's walk) matches this.
+
+Sample of earlier-rounds-sound behaviour, reproduced myself: one colour's dark hex changed - refused, naming both forms; tab.width's usual/min swapped - refused via FIELD_WORD_MAPS, naming both tied fields; a colour removed - reported missing via the reverse direction; a radius corner changed - refused via RADIUS_MAP/RADIUS_WORD_MAP.
+
+Other checks: the data file's diff against main is exactly the version line and fill.quiet.use (6 diff lines); Tokens.dc.html's checksum matches the saved artifact page byte-for-byte (765c9e4e...); `just check` is green at c5b48cb (reran myself); PR CI is SUCCESS at the same head; size-2 with "Plan approved by @bruk (d2f87de12c3c, size-2)" present. One nit-level loose end, not raised as a finding: the plan's proof list includes "a Layout-only name -> never considered at all (not even constructed from Layout.dc.html's fragment)" and round 1's notes claim "every proof item from the plan is in the test files above, none dropped" - I grepped both test files and found no direct test of this, only a comment referencing it. main() does hardcode only Tokens.dc.html/Details.dc.html, which is structurally stronger than a test, so this isn't a gap in the tool, but the "none dropped" claim is very slightly inaccurate. Too minor to count as a finding (five rounds in, on a task whose substance is sound).
+
+Plan-matched: no, same basis as every round since round 2 - the plan's file list never named Tokens.dc.html/foundations.json/the READMEs, and the SCHEMA redesign itself was the orchestrator's explicit direction mid-task, not the original plan. Fully explained by task comments #2/#3 and the review history, so not itself a finding, consistent with every prior round's reading.
+
+No Important or Nit findings. No policy cited, since there is nothing to cite one against - omitted from --policy accordingly.
+
+Step 5 (repeated mistake): with zero findings this round, there is nothing to pair with an earlier round's finding, so I filed no rule-change draft. (If a future task wants one anyway: the pattern across rounds 2-5 - "a mechanism documented as exhaustive, tested only against its own output" - recurred three times before the schema redesign fixed its root cause; worth a rule if it recurs on a different task.)
+
+Follow-up worth naming, not a blocker: closing the one declared residual (a non-numeric field inside a Checked(recurses=True) group) means replacing each such position with its own Fields description (~19 type/sizes groups plus a theme's ansi), duplicating the recursive walk _numbers_in/ansi_mismatches already do. Mechanical and bounded, not needed for this task's AC#3, which only requires the gap to be named, which it is.
 
 ---
 <!-- COMMENTS:END -->

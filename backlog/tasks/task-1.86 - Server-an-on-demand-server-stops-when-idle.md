@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:03:00Z'
+updated_date: '2026-11-16T14:07:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1279,6 +1279,42 @@ test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 test the_client_being_sigkilled_does_not_end_the_server ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:07:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (53.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.1s)
+ok      test (steg-server) (20.8s)
+ok      test (steg-server, race-fixture) (23.3s)
+ok      test (steg-server, accept-backoff-fixture) (24.4s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 23, 22 without the Asdlc-Worker trailer.

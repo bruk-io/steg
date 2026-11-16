@@ -1707,6 +1707,48 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 101 at 2026-11-16T02:19:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+
+failures:
+
+---- a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812146) panicked at crates/server/tests/runtime.rs:1074:9:
+pane.set must find the pane being forced unreachable, not act on it as if nothing were happening
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812148) panicked at crates/server/tests/runtime.rs:1145:9:
+tab.set must find the tab being forced unreachable, not act on it as if nothing were happening
+
+---- a_session_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_session_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812147) panicked at crates/server/tests/runtime.rs:1217:9:
+session.show must find the session being forced unreachable, not act on it as if nothing were happening
+
+
+failures:
+    a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it
+    a_session_being_forced_is_unreachable_by_every_method_that_can_name_it
+    a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:57:00Z'
+updated_date: '2026-11-16T14:00:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -29,6 +29,8 @@ asdlc_branch: task-1.47-server-attach-to-a-pane-stream-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '9cff507ccc3f'
 asdlc_plan_approved_size: size-5
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1074,6 +1076,15 @@ created: 2026-11-16T12:47:00Z
 ---
 
 Plan approved by @bruk (9cff507ccc3f, size-5): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:00:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.47: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:34:00Z'
+updated_date: '2026-11-16T11:47:00Z'
 labels:
   - size-3
   - review-passed
@@ -1818,6 +1818,28 @@ No findings. What I checked:
 5. Nothing else moved: `git diff ed80ab8 040c5f0 --stat` is exactly the 4 files/151+/44- the notes describe. Ran `cargo test -p steg-server` and `cargo test -p steg --features fixtures` 5x each at 040c5f0: all green, real-process count 0 before and after, no flake sighted this round.
 
 Plan-matched: no, consistent with the earlier reviews of this task - the diff against main still carries the plan departures those reviews already found and accepted; this round's own diff (ed80ab8->040c5f0) is itself a pure review-remediation fix, not new plan work.
+
+---
+
+created: 2026-11-16T11:47:00Z
+
+---
+
+Merged main (after PR #47/TASK-1.78 landed) into this branch, as asked.
+
+git fetch origin, then git merge origin/main - completed with no conflict
+and no hand edit (confirmed: git diff 040c5f0 HEAD --stat -- crates tools
+justfile is empty; the merge only brought in backlog/ changes).
+
+New head: 79b7ef1 (was 040c5f0).
+
+Ran once each: cargo test -p steg-server (all binaries, all passed - the
+force-close suite in tests/runtime.rs, shutdown.rs, and every other file
+clean); cargo test -p steg --features fixtures (all passed, including
+login_environment.rs's end-to-end test); just check (clean). Pushed
+(no force). gh pr checks 56 --watch: CI green within the ten-minute
+window. gh pr view 56 --json mergeable,mergeStateStatus: MERGEABLE/CLEAN
+at 79b7ef1.
 
 ---
 <!-- COMMENTS:END -->

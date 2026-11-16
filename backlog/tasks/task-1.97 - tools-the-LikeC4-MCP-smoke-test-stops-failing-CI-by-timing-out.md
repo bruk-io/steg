@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:12:00Z'
+updated_date: '2026-11-16T03:17:00Z'
 labels:
   - size-2
   - changes-requested
@@ -114,6 +114,23 @@ COVERAGE AGAINST THE FOUR ACCEPTANCE CRITERIA
 OPEN NOTE CARRIED FROM THE PLAN: two more CI runs retried in the days before this task (task-1.37's PR, 1 retry; task-1.42's PR, 6 retries) are not in TASK-1.82's tracked list of four and their logs had already expired by the time I checked (gh api returned BlobNotFound) - cause unconfirmed, not folded into the failure-rate arithmetic above either way.
 
 Built per the approved plan: a root .npmrc (prefer-offline=true), a CI cache-restore + warm step before just check, a node pin in mise.toml (AC #4), and a split of the smoke test's timeout into a startup bound and an exchange bound. Proof: deterministic blocked-registry negative/positive control (P2/P3), the ordinary cold-cache path unchanged (P4), check-architecture unaffected (P5), 10 local runs under simulated load (P6), 8-way concurrent on genuinely cold CI runners via a now-removed temporary workflow (P7, run 43794226923, all passed), the Node pin confirmed in CI (P8). just check green at the final head (1e63d7b) both locally and on CI (run 43794899362). Full writeup and coverage against all four acceptance criteria is in the task's notes.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp.py -v'` exited 0 at 2026-11-16T03:17:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpl05YxY` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp.py ..                             [100%]
+
+============================== 2 passed in 10.44s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

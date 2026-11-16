@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1083,6 +1084,15 @@ Proof table addendum:
 All 15 pre-existing server_start tests (the --on-demand test, an_unrecognised_server_start_variant_exits_2, the four simultaneous starts, SIGKILL/SIGHUP, etc.) still pass unchanged, and the sdk's own local_socket tests (which run `steg server start --on-demand` for real via connect()) still pass unchanged. just check recorded green on the final head.
 
 Nit: steg --help lists nouns with no text beside them, since the description has no per-noun summary field - doc-2 section 3's own Nouns table does give each noun a one-line "What it is" (session: "A named, long-lived workspace on one host"; tab: "An ordered page within a session"; etc.), so per your second option: the description should carry that line, not this crate hand-writing it. Leaving it as this gap, not implementing a workaround here, since you said you'd draft it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:54:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

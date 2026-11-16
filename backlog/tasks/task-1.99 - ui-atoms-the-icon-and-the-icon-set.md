@@ -1,10 +1,11 @@
 ---
 id: TASK-1.99
 title: 'ui atoms: the icon, and the icon set'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w7'
 created_date: '2026-11-16T02:45:00Z'
-updated_date: '2026-11-16T02:59:00Z'
+updated_date: '2026-11-16T12:48:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.99-ui-atoms-the-icon-and-the-icon-set
 ---
 
 ## Description

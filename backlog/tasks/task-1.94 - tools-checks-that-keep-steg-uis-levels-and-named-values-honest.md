@@ -21,6 +21,8 @@ asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -690,6 +692,15 @@ created: 2026-11-16T02:18:00Z
 ---
 
 Plan approved by @bruk (43523b8d5452, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T02:46:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

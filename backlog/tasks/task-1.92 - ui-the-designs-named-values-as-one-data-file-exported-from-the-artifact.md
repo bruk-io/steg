@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:36:00Z'
+updated_date: '2026-11-16T01:37:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -20,6 +20,8 @@ asdlc_branch: task-1.92-ui-the-design-s-named-values-as-one-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b3ded099a9d8'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -351,6 +353,15 @@ created: 2026-11-16T01:25:00Z
 ---
 
 Departure from the approved plan's wording, not its substance (restored the plan's exact approved text after accidentally re-saving it with these three clarifications past the approval; the plan itself is unchanged from digest b3ded099a9d8): (1) the off colour section notes it is still defined as an unused colour token in each page's own inline theme data, not just absent from drawing; (2) the generator-scripts README guidance says plainly they are how the pages were first drawn, not a way to regenerate them without losing the hand edit Bruk made to Tokens.dc.html since; (3) same point restated in the design/canvas/README.md bullet list. None of these change what is exported, what is excluded, the schema, or the file layout - they only make the README's wording match what the plan already decided.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T01:37:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.92: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

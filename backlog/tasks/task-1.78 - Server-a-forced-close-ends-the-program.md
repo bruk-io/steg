@@ -1,13 +1,14 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=3'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -2078,6 +2078,36 @@ created: 2026-11-16T02:46:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.78: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T02:59:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review, testing. The diff does not match the plan.
+
+Second review (same-machine) at PR #47 head a4fb5d0b6a6d45024da43fad01d9413e537de316 (matches gh pr view 47; just check clean at this head per the task's own recorded run at 2026-11-16T02:44:29Z; PR CI green on the same head via gh pr checks 47).
+
+All five of the first review's findings were genuinely fixed: the reaped-pid race is closed by construction (RunGate: Mutex<GateState>+Condvar, generation-tracked; spawn_relay polls child.try_wait() while holding the lock, so the reap and the pid-clear happen in the same critical section a signaller must also hold before it can read/send - traced in pane.rs and confirmed no unsafe is introduced, grep clean); the AC #4 unreachability sweep now covers pane.close(plain)/swap/move/set/unset/focus, tab.close(plain)/move/set/unset/focus and session.close(plain)/show/move/set/unset, closing the swap/plain-close gap the first review found; the stale-check-timestamp nit is moot (checks now recorded at the final head); the duplicated panes_in_close_scope call is accepted with posted reasoning, unchanged.
+
+[Evidence/Compliance, Important] crates/server/src/pane.rs, crates/server/tests/runtime.rs - two of the four tests the notes list under "Tests added for finding 1, each with a negative control run and reverted" do not actually discriminate the mechanism they are cited as proof of, and I confirmed this myself by repeating each control in a scratch edit (reverted):
+- pane::ending_tests::restarting_then_forcing_ends_the_new_program_not_the_old_one: cited as proof of the fix for review 1's "Exited-arm pid-clear" nit (GateState::clear_if_current's generation guard). No check for this test is recorded on the task at all (I searched the full history - only bundled runs). I removed the generation check (clear_if_current unconditionally clearing pid) and reran: the test still passes. It cannot reach the race - it restarts only after observing the first run's own real exit, by which point that run's relay thread has already cleared generation 1 under RunGate's lock, leaving nothing stale to clobber generation 2.
+- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler (tests/runtime.rs): recorded passing, no recorded failing run. I routed PaneHandle::await_exit back through the queue-based settle_worker (the pre-fix, finding-1 mechanism) and reran: the test still passes, because the pty's own kernel buffer throttles the shell's echo loop before the program exits, so the worker's backlog has typically already drained by the time pane.close --force runs - exactly what the notes' own later paragraph concedes ("did not reliably show a measurable delay... because the kernel's own pty buffer throttles the writer"), which sits uneasily with the blanket claim just above it that this test had an effective negative control.
+Both underlying mechanisms ARE proven correctly elsewhere, with real recorded negative controls I also reproduced myself: pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run (fails when I remove the generation guard) and pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue (recorded FAILED then fixed). This is an evidence-claim defect, not a broken fix - but per policy a test that still passes with its mechanism removed, confirmed by the reviewer, is Important, and the notes' claim that every listed test had an effective control is false for two of the four.
+
+Negative controls I repeated myself, all reverted: (1) force_end pass 3 (signal_kill) disabled -> pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails by its bound, as recorded - escalation still holds. (2) GateState::clear_if_current's generation guard removed -> a_stale_generations_own_mark_dead_never_clobbers_a_newer_run fails as recorded (mechanism real); restarting_then_forcing_ends_the_new_program_not_the_old_one still passes (the finding above). (3) PaneHandle::await_exit routed through settle_worker instead of RunGate -> a_flooding_program_...straggler still passes (the finding above) - the queue-routed wait this would reintroduce is not what that test actually catches.
+
+[Compliance, Nit] crates/server/src/runtime.rs (apply_event_locked, CommandOutputStarted/CommandEnded arms) + their own test. TASK-1.84's "handle stays" comment/test, merged into this branch, argues a mark's PaneNotFound must not remove the handle because "the program it owns may still be running" - exactly the scenario the first review's own "Overlap" note flagged as about to become moot once close_and_dispatch (this task) pops every scope pane's handle out of state.panes synchronously, under the same lock as the close, before any such event can arrive. After the merge, this scenario no longer appears reachable via any real production path. The notes for the merge only say TASK-1.84's tests were "fixed... to compile" against the new 3-arg Runtime::new/no PaneHandle::stop - the comment and test were not revisited against the new reality, even though the resulting no-op is harmless. A decision forced by a merge that the notes don't mention is a finding per policy even when the result is not wrong.
+
+[Bugs, Nit] tests/runtime.rs's new "every method that can name it" sweep is otherwise thorough (pane.close/swap/move/set/unset/focus; tab.close/move/set/unset/focus; session.close/show/move/set/unset; pane.show covered separately by the stall test) but omits pane.split, which also takes an existing pane as its target to split from and is fully implemented (dispatch/pane.rs). The same lock-and-tree-lookup mechanism that protects the tested methods likely protects this one too, but it is unverified.
+
+Checked and sound, not repeated as controls beyond the above: shared N-pane deadline (tab_close_with_force_ends_every_program_in_scope_within_one_grace_window, with its own recorded negative control); the idle-handle fix (recorded negative control); no unsafe anywhere in the diff (grep confirmed); a restart gives the new run its own generation (traced in pane::start/restart and RunGate::begin_run); TASK-1.77's api.call entry point and TASK-1.45's constructor signature are both reached correctly from the merge. Process leak check: ran cargo test -p steg-server 5 times myself (ps count for sleep/steg processes before and after: 2 -> 1, no growth) - consistent with, though fewer runs than, the task's own recorded 20/20-clean, no-leaked-process run at this head; this machine runs many concurrent agents, so ps counts alone are noisy corroboration, not independent proof.
+
+plan-matched: no, as review 1 also recorded - RunGate replaces the plan's own Arc<AtomicU64>, force_end gained passes 5/6, and join_worker was split into settle_worker+join_worker, all explained in the notes as the review 1 fix, not findings on their own, but a real departure from the plan's own §1/§2 text.
 
 ---
 <!-- COMMENTS:END -->

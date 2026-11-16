@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:47:00Z'
+updated_date: '2026-11-16T12:52:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -196,6 +196,39 @@ The fixture calls a new, crate-visible function that is **only** the locked, ret
 A throwaway probe from this task's investigation (a Python `multiprocessing`-based cross-process `openpty()` hammer, run outside the worktree, never committed) was killed abruptly (`pkill`) while it still held open real ptys and real child processes, rather than being stopped by ending its own loop, closing its descriptors, and waiting on its children. One child (`sh -c true`, pid 4188 on this machine, reparented to pid 1) was left in uninterruptible kernel sleep - `kill -9` cannot reach a process in that state; it was not reaped by this investigation and may still be present on this machine. Nothing in the worktree or git state is affected by this. For the build phase: never end a probe abruptly while it holds ptys - stop the loop, close every descriptor, wait on every child, the same discipline `ReapOnDrop` already gives the real tests (`tests/race.rs`).
 
 Plan (4592947e385d) checked against the four acceptance criteria and the team's testing rules by @bruk.o, 2026-11-16: ok on the cause, the proof and the bound, with one departure the engineer must accept. Criterion 2 as written says the retry is on this one error and is not a blanket retry of any error. The plan retries any failure of the open step (the open alone, not the spawn), up to 5 attempts, counted and reported, because the library discards the structured error and the code was seen as both 6 and -6, so matching would rest on rendered text. The orchestrator asked for that change and recommends rewording criterion 2 to match; it was the orchestrator's own wording in the draft.
+
+Check passed: `just check` exited 0 at 2026-11-16T12:52:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2:
+
+```text
+ok      format check (0.3s)
+ok      lint (50.5s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.0s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (45.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (32.4s)
+ok      test (steg-server) (14.1s)
+ok      test (steg-server, race-fixture) (13.1s)
+ok      build (steg) (2.0s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (20.0s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.7s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.5s)
+ok      architecture (1.3s)
+ok      recipe names (0.2s)
+ok      ui levels (0.2s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

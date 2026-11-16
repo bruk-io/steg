@@ -3,9 +3,11 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
+updated_date: '2026-11-16T03:31:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -14,6 +16,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.87-server-a-pane-s-environment-comes-from-a
 ---
 
 ## Description

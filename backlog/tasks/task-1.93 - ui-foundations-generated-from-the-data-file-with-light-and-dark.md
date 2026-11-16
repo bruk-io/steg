@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:17:00Z'
+updated_date: '2026-11-16T03:42:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -22,8 +22,11 @@ asdlc_branch: task-1.93-ui-foundations-generated-from-the-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6a1e03383d92'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=6,nit=1'
+asdlc_review_policies: ["review", "app"]
+asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -736,6 +739,212 @@ By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, 
   `gh`/REST path found to the `github.com/user-attachments/...` URLs PR #48's images carry under
   the same team rule. Both images are captured, pass their own check, and sit at
   `target/gallery/{light,dark}.png` in the worktree; asked the lead how #48 got its URLs.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T03:39:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (7.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.6s)
+ok      test (steg-server, race-fixture) (4.7s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 0.
+
+Built the generator, the Theme type and the gallery; PR #55, CI green at the final head.
+`just check` recorded clean throughout, including after @bruk.r2's review #4 (changes
+requested, 6 Important + 1 nit) - addressed finding by finding below, then re-verified against
+the real gallery images, not just the code.
+
+## Response to review #4 (@bruk.r2)
+
+1. `gallery_theme()`'s `rgb(0x000000)` bootstrap literal, flagged by running TASK-1.94's own
+   checker with the gallery exemption removed. Fixed: new `foundations::default_session(
+   appearance)` reaches `ramp.1 violet` through a `Theme`, using `gpui::black()` (a `const fn`,
+   not a literal) only to build that one bootstrap `Theme`. `gallery_theme()` now has no
+   literal at all. The two `hex_of` test literals remain (see "Departures" below) - flagged in
+   `crates/ui/CLAUDE.md`, not hidden.
+2. Ramps drawn as hard bands, not gradients. Fixed: `ramp_gradient` draws each adjacent pair of
+   stops as its own two-stop `gpui::linear_gradient` (gpui 0.2.2 takes exactly two stops at a
+   time - `color.rs`'s `LinearColorStop`, a fixed `[_; 2]`), sized to its own share of the bar,
+   with a percentage legend beneath marking every stop.
+3. The third "Other named values" column clipped by the window's edge. Fixed: every column now
+   has a fixed width (`other_column_width`), so a long value wraps onto a second line within
+   its own column instead of running past the window - reproduced the clipping myself first
+   (same as the reviewer), then fixed it, then re-captured and visually confirmed every column
+   fully inside the window in both images.
+4. Colour-bearing "other" values printed as `{:?}` debug tuples (`tint`, `scrim`,
+   `status.ring`'s `track_colour`, `track.layout`'s `fill`). Fixed: `tint` and `scrim` moved
+   into the main colour swatches (`colour_entries`), each with its own hex via a new
+   `hex_of(Hsla) -> String`; `status.ring`/`track.layout`/`focus_ring`'s one themed colour field
+   each now names the already-shown colour it equals ("track colour = track") instead of
+   printing a debug tuple. Every other plain group's `{:?}` dump replaced by a generated
+   `_DESCRIPTION` const in the design's own words ("width 232px, row_height 30px, ...").
+5. "steg dark"/"steg light" never appearing as literal text. Fixed: `terminal_theme_row` labels
+   each row with its own design name directly above its swatches.
+6. No image on the PR at all. The reviewer was right: I had searched and not found an upload
+   path via `gh`/REST, said so in the PR body and in two messages asking the engineer, and only
+   learned of `gh pr comment --attach` from the engineer's reply (which named the exact flag).
+   Used it (see "Images" below); both `user-attachments` URLs read back and confirmed rendering
+   in the PR body before this was called done.
+
+Nit (base colours generated but not shown): also fixed, not just noted - `terminal_theme_row`
+shows `bg`/`bg_inactive`/`fg`/`cursor (session)`/`selection` alongside each theme's 16 ANSI
+swatches, 21 per row.
+
+The reviewer also independently confirmed, by direct testing rather than reading the notes: the
+generator's determinism (byte-identical `generated.rs` regenerated against HEAD's own data
+file, sha256 match), R123 as a compile error (a scratch edit calling a private `*_dark`/`*_light`
+fn from outside `generated` produced E0425, reverted), the hex->Hsla->rgb round trip on four
+sample hexes including a near-black and a saturated colour, the 54/54 name count by hand and via
+`grep -c`, and that TASK-1.94's own `ui_levels.py` import-direction check finds nothing wrong in
+this tree.
+
+## AC#1 (generator + staleness)
+`tools/src/steg_tools/foundations_generate.py` writes `crates/ui/src/foundations/generated.rs`
+deterministically from `crates/ui/design/foundations.json`, carrying the design's names through
+as `/// Design name: "..."` doc comments. `just generate-foundations` writes it; `just
+check-foundations` (now in `just check`) regenerates into a temp file, runs it through `rustfmt
+--edition 2024`, and compares bytes - failing with a message naming `just generate-foundations`
+on a mismatch. Tests: 45 unit/adapter tests (identifiers incl. collision, the three-way colour
+discrimination, the alias double-wrap, the two-hop `track.layout.fill.colour -> tint -> session`
+chain and scrim's directional light->text resolution - all proven on the renderer's own output
+rather than a separate resolver, since the renderer ended up delegating by name through `Theme`
+methods at each single hop rather than pre-resolving multi-hop chains in Python; determinism;
+the generated `_DESCRIPTION` strings being plain words, not Rust syntax; AC#4's count) plus the
+adapter test against the real file. Negative control: one value edited in
+`crates/ui/design/foundations.json` in an uncommitted scratch change, `just check-foundations`
+failed naming the fix (recorded, exit 1), reverted, passed again (recorded, exit 0).
+
+Note for whoever touches this next: `check-foundations` compares against a fresh `rustfmt
+--edition 2024` run, so the committed `generated.rs` is tied to a rustfmt *version*, not only to
+the data file. CI's rustfmt matched this machine's (1.9.0-stable) on every run recorded here -
+first empirical evidence either way. If that ever differs, this step fails with a message that
+reads like the data file drifted when it didn't; the fix is regenerating under CI's rustfmt, not
+loosening the byte comparison.
+
+## AC#2 (Theme-gated pairs, plain consts, radius.round)
+Every light/dark-paired value (colours, the 3 aliases, `faint`, both ramps, `tint`, `scrim`, and
+the two "excluded colour field" cases in `status.ring`/`track.layout`) is reached only through a
+`Theme` method; there's no public free function anywhere in the crate returning a bare form
+(R123) - a compile error, not a convention. `"session"` never appears as a generated constant;
+it enters only through `Theme::new`'s `session` parameter and the two terminal-theme
+constructors (`steg_dark`/`steg_light(session: Hsla)`), the same way. A new
+`foundations::default_session(appearance)` (added during the gallery review below) removed the
+one colour literal the gallery's own bootstrap still had - it reaches `ramp.1 violet` through a
+`Theme`, using `gpui::black()` (a `const fn`, not a literal) only to construct that bootstrap
+`Theme` in the first place.
+
+Doc-17's open question (the form of a pairless value): settled as a plain `pub const`/struct in
+`foundations::generated` (type, most of sizes, motion, focus_ring's geometry), never routed
+through `Theme` - R123 only binds a value that *has* a pair, and routing a pairless one through
+`Theme` would claim a distinction the data doesn't draw. Each such group also generates a
+`pub const <IDENT>_DESCRIPTION: &str` in the design's own words ("width 232px, row_height 30px,
+tab_indent 28px") - added during the gallery review below, after the first capture's debug-struct
+text ("NavSide { width: 232px, ... }") proved unreadable against the design's own page.
+
+`radius.round`: checked gpui 0.2.2's own source first, not assumed - `corner_radii` takes
+`Corners<AbsoluteLength>`, and `AbsoluteLength` is `Pixels` or `Rems` only, no "fully round"
+primitive. Built as the *same* `Pixels` type as `radius.surface`/`.track`/`.inner`, at a
+conventional 999px (the data file's own comment already names the CSS trick) - one type for all
+four corners, applied by a component the same way, rather than a marker type claiming a
+distinction GPUI itself doesn't draw. Recorded as a comment on the task already; restating here
+since it's the plan's one real departure in shape (the plan proposed a `FullyRound` marker type).
+
+## AC#3 (gallery image)
+Both `target/gallery/{light,dark}.png` captured via `just capture-gallery`, no person at the
+screen, no leftover `gallery` process after (`ps` confirmed clean, recorded). Window: 1240x1050
+(widened from the first capture's 1040x1050 width-wise; height is this machine's own hard
+ceiling - `WindowBounds::centered` clamps to it regardless of what's requested, confirmed
+empirically by asking for 1078px and getting back exactly 1050px). What each of review #4's six
+findings changed in the image is itemised above, under "Response to review #4"; no automated,
+pixel-level check for column overflow was built for finding 3 - the fixed-width columns are the
+structural mitigation, not a test, said plainly rather than claimed as one.
+
+Net result: 36 of the 54 names now draw as a swatch/bar/sample (23 colours incl. `tint`/`scrim`,
+2 ramps, `space`, 4 radii, 4 type samples, 2 terminal theme row labels), the other 18 as a
+`name: value` row in "Other named values", five columns (not the first capture's three) given
+the widened window.
+
+`capture-gallery`'s own image check is at `(8, 60)`, not a swatch's own position: x=8 stays
+inside the root's own padding for any row; y=60 clears the OS titlebar the captured window
+image includes above GPUI's content - y=8 landed inside that titlebar chrome instead (observed
+directly while building this, before the review). Checked against `surface.ground`'s own
+resolved hex per appearance.
+
+New tests from the review: `hex_of_round_trips_a_named_colours_own_hex` and, specifically
+because the first capture's tiny hex text looked ambiguous by eye,
+`hex_of_round_trips_a_near_neutral_colour` (`#f1efec`, the case the original plan flagged as a
+real risk for this conversion - hue is ill-conditioned at low saturation) - both pass, so the
+capture's apparent "#1efec" was a 9px-font legibility artefact, not a bug, checked rather than
+assumed. Also `default_session_matches_ramp_1_violets_own_form` in `foundations::mod`'s own
+tests.
+
+## AC#4 (names, counted)
+`design_entries()` on the real data file: 54 names. `generated.rs`: 54 `Design name:` markers
+(one per entry, on its primary generated item - asserted equal by the adapter test, every run).
+Gallery image: all 54 findable by name - 36 as a swatch/bar/sample, 18 in "Other named values".
+By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, sizes 18, motion
+1, themes 2, focus_ring 1 = 54 (full per-section name list is in the PR body's table).
+
+## Departures from the plan
+- `resolve_for_appearance`, the multi-hop resolver the plan named, isn't in the generator: the
+  renderer ended up delegating by name through `Theme` methods at each single hop instead (e.g.
+  `track_layout_fill` calls `self.tint()`, whose own body is `(self.session, 0.18)` - the "second
+  hop" lives in `tint`'s own method, not in Python). Simpler, and avoids baking a hex Rust could
+  otherwise reach by a direct method call. The two named proof cases (the two-hop chain, scrim's
+  directional resolution) are still covered - on the renderer's real output, not a resolver it
+  doesn't call.
+- TASK-1.94 (its own `foundations.py` reader) hadn't merged at any point in this task's build, so
+  this task's JSON parsing stays private to `foundations_generate.py`. Whichever lands second
+  reconciles. The lead's point about TASK-1.94's gallery colour-literal exemption line is a
+  no-op this round - that exclusion isn't on `main` yet either. Separately, flagged in
+  `crates/ui/CLAUDE.md`: this gallery's own non-test code now has zero colour literals
+  (`default_session` closed the last one), but its two `hex_of` round-trip tests still carry one
+  literal each by necessity (asserting what hex a known colour converts to needs a literal hex
+  somewhere) - whoever removes this crate's path-wide exemption for TASK-1.94's colour check
+  needs a `#[cfg(test)]` carve-out for just those two, or to rehome them; TASK-1.94's own plan
+  says a `#[cfg(test)]` block is not otherwise exempt.
+- The radius.round marker-type proposal in the plan became a plain `Pixels` const instead (see
+  AC#2 above) - the one shape departure, reasoned from gpui's own source.
+- The generated `_DESCRIPTION` consts and the gallery's `hex_of`/swatch-for-colours approach
+  weren't in the original plan - both came out of review #4's findings 3 and 4, not anticipated
+  in advance.
+
+## Other notes
+- One recorded check on the task, `bash -c 'cat /tmp/just-check-final.out'`, is superseded by the
+  real `just check` recorded immediately after it with the same result (exit 0) - an artifact of
+  waiting on a backgrounded run, not a second check.
+- A `steg-sdk` `local_socket` test failed once with `AddrInUse` inside one recorded `just check`
+  run - unrelated crate, transient (passed clean in isolation immediately after, and on every
+  other `just check` run this task recorded, including all three after the gallery review).
+- The capture-check's own wrong-colour negative control is TASK-1.91's
+  (`test_a_capture_of_the_wrong_thing_fails_and_names_screen_recording`, already committed), not
+  something re-run here.
+- The pull request's images: attached via `gh pr comment 55 --attach` (the engineer named the
+  flag after I'd searched and not found it myself - the same way PR #48's worker got its
+  `user-attachments` URLs), with both URLs read back from the comment and confirmed actually
+  rendering in the PR body before this was called done.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -766,6 +975,54 @@ created: 2026-11-16T03:17:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:27:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 6 Important, 1 nit. Cites: review, app. The diff does not match the plan.
+
+Reviewed at PR #55 head d919cf45905c (matches the task's final recorded `just check`); CI's `check` job is SUCCESS at that same head.
+
+[Compliance, Important] crates/ui/gallery/main.rs:50 `gallery_theme()` calls `gpui::rgb(0x000000)` as a bootstrap placeholder colour before deriving the real session colour. The notes claim "no literal colour anywhere in the gallery's own drawing code ... this task should not hand [TASK-1.94] something to immediately flag" - false as built. I ran TASK-1.94's own colour-literal checker (its PR #52 branch) against this task's tree with the gallery's temporary exemption removed, and it flags exactly this literal (`crates/ui/gallery/main.rs:50`, confirmed empirically, not theoretical).
+
+[Compliance, Important] crates/ui/gallery/main.rs's `ramp`/`ramp_extended` bars are drawn as hard-edged, equal-width solid colour blocks (one per stop via `flex_1` divs), not a gradient between the named stops - confirmed visually in both captures and from the code (no use of gpui's `linear_gradient`/`linear_color_stop`, which the pinned gpui 0.2.2 provides and which doc-17 names `gradient.rs` as this crate's own reference example). This misrepresents the design's ramp in the AC#3/R124 gallery image.
+
+[Compliance, Important] Captured `target/gallery/{light,dark}.png` (reproduced myself via `just capture-gallery`, 0 leftover gallery processes both times): the third "Other named values" column (`stack.gap`, `track.layout`, `split.layout`, `overlay.layout`, `motion.status-fade`, `focus_ring`) is clipped by the window's right edge in both images - several values' text ends mid-word (e.g. `TrackLayout { inset: 2px, gap: 2px, ra` cut off). The notes describe a narrower, already-accepted problem ("3 of 20 rows... only part of one value's text is cut"); the real images show the whole third column affected, including `focus_ring`'s colour field. AC#4 ("find by the same name ... in the gallery image") is not met for these names.
+
+[Compliance, Important] The same section renders every colour-bearing "other" value via Rust's `{:?}` (e.g. `tint`: `(Hsla { h: 0.70175653, s: 0.83146065, l: 0.6509804, a: 1.0 }, 0.18)`; `scrim`, `status.ring`'s `track_colour`, `track.layout`'s `fill` likewise). A reviewer cannot match the design's hex (e.g. `text`'s `#1b1a1f`) against an `Hsla{h,s,l,a}` debug tuple without doing the conversion by hand, so AC#4 is not met for these names' colour fields.
+
+[Compliance, Important] "steg dark"/"steg light" (2 of the 54 design names) never appear as literal text anywhere in the gallery image - only the section heading "Terminal themes (dark, light)" and row order let a viewer infer which row is which. The notes' own AC#4 evidence paragraph counts these 2 as "findable by name" among the 34 shown as swatch/bar/sample; they aren't, by the same name, in the actual image.
+
+[Evidence, Important] PR #55 carries no image at all (confirmed: PR body says both PNGs are captured locally but not attached, no comment attaches them). review.md's Evidence pass and crates/app's own rule (app.md) both require an image for a change to what the app draws; this proof step is explicitly listed in the task's own plan ("both target/gallery/{light,dark}.png attached to the pull request") and wasn't done. The worker's stated reason ("no gh/REST path found to attach") doesn't hold: `gh pr comment --attach <file>#<alt text>` exists in this session's gh (v2.102.0, confirmed via `gh pr comment --help`).
+
+[Nit] The terminal themes' base colours (bg, bg_inactive, fg, cursor, selection) are generated but never shown in the gallery, only the 16 ANSI colours - AC#3's literal wording only requires the 16 colours, so this isn't a criterion miss, just an incompleteness worth a follow-up.
+
+What I confirmed matches the notes (value-by-value, and by direct testing, not just reading): every colour/alias/opacity/ramp/tint/type/size/motion/theme/focus_ring value in generated.rs matches crates/ui/design/foundations.json exactly; AC#4's 54/54 name count (recounted the data file by hand and via `grep -c 'Design name:'`); R123 is a compile error, not a convention (scratch-edited a call to a private `*_dark`/`*_light` fn from outside `generated`, confirmed E0425, reverted); the hex->Hsla->rgb round trip is bit-exact for 4 sample hexes including a near-black surface and a saturated amber (scratch `#[test]`, reverted) - captured-pixel deviations from the hex (up to ~11/255 on saturated swatches) are screencapture colour management, consistent with this repo's own documented tolerance mechanism (`gallery.py`'s `shows_marker` tolerance=8), not a conversion bug; the staleness negative control (mutated one colour in a scratch copy of the data file, `just check-foundations` failed naming the fix, reverted, passed again, one-line diff); the generator is deterministic (`just generate-foundations` run against HEAD's own data file reproduced byte-identical `generated.rs`, sha256 match); 42 Python tests and 10 Rust tests pass as recorded; `just check` passes clean at this head; TASK-1.94's import-direction check (`ui_levels.py`) finds nothing wrong in this tree; `recipes.py`'s new "generate" verb and `check-foundations`'s new recipe are already covered by the existing real-justfile adapter test (no new test needed, the plan's risk didn't materialize); no boundaries/licence/security findings.
+
+plan-matched: no - explained departures (the module is `foundations_generate.py`, not the plan's `foundations.py`; `radius.round` became a plain `Pixels` const instead of the plan's marker type, reasoned from gpui's own source and recorded per the approval comment's request; the plan's named `resolve_for_appearance` multi-hop resolver doesn't exist, delegation happens one hop at a time through `Theme` methods instead) are all stated in the notes with reasons, but policy's --plan-matched is literal about any departure, explained or not.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:39:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+created: 2026-11-16T03:42:00Z
+
+---
+
+On review #4's plan-matched: no, one of the three departures listed needs attribution I left out: the generator module being tools/src/steg_tools/foundations_generate.py rather than the plan's own foundations.py wasn't my call - it's what the engineer's phase-2 brief directed outright (avoiding a name collision with TASK-1.94's own foundations.py reader, which the plan was approved before that collision was known), not an unexplained rename. The other two departures (resolve_for_appearance not existing; radius.round as a plain Pixels const) are mine, reasoned and recorded in the notes and in comment #2 respectively.
 
 ---
 <!-- COMMENTS:END -->

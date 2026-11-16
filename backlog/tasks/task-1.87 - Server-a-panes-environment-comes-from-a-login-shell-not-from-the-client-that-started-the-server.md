@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:22:00Z'
+updated_date: '2026-11-16T07:34:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -24,10 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '03e926f72daf'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1792,6 +1791,33 @@ created: 2026-11-16T07:22:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T07:34:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Reviewed head 040c5f0 (PR #56). Confirmed: task's own recorded `just check` at 040c5f0-equivalent (ed80ab8 + the uncommitted fix diff, which is exactly what became 040c5f0 - stat matches) passed; my own `just check` run at 040c5f0 also passes; PR #56 CI ("check") is green at 040c5f0.
+
+No findings. What I checked:
+
+1. The leak-absence half of AC #1's end-to-end test now proves something. Repeated both negative controls myself as scratch edits (reverted, no secret-shaped content in any log): (a) removing RealLauncher::spawn's env_clear() in pty.rs - login_environment.rs's test fails at the leak-absence assertion (line 363, assert_var_absent on STEG_TEST_LEAK_MARKER); reverted, passes again. (b) forcing capture_login_environment to return early with Capture::Fallback - the marker-present assertion (line 337, MARK_ZPROFILE) fails as expected; reverted, passes again. The marker is set on env_leak_client's own Command (its ambient environment), which steg_sdk::local_socket::connect's autostart Command::spawn inherits with no env_clear (confirmed by reading it) - this is the real path AC #1 is about, not a path the pane could never reach regardless of the bug. Coverage is by named absence only (STEG_TEST_LEAK_MARKER plus six fixture-plumbing variable names), not an allow-list of everything a pane's environment should contain; an allow-list isn't practical here since a real login shell's profile can legitimately export an open-ended set of names, and the implementation's env_clear()-then-reapply structure is all-or-nothing, so a named marker that could never come from a real profile is sufficient to catch the failure mode this mechanism guards against.
+
+2. No test of this task's own files prints a raw environment/dump on failure. Read every assertion over an environment in login_environment.rs, env_leak_client.rs, fixture_server.rs, real_pty.rs, login_env.rs's test module, and the two runtime.rs tests touching base_env (steg_vars_and_term_always_win, a_shell_pane_not_only_a_command_pane...): assert_var_absent/assert_var_equals in login_environment.rs withhold the value on an absence check and only print a value the test itself chose on an equality check; real_pty.rs's two leak tests (fixed this round) no longer interpolate the screen text; login_env.rs's own leak test uses assert_eq! on one named key, never prints the full captured Vec; the prints-noise-before-marker test does print `env:?` on failure, but that capture always runs through capture_login_environment's own unconditional env_clear() + two seeded vars, so it can never carry a real ambient secret; runtime.rs's two env-composition tests only ever print a two-line shell echo (TERM=.../STEG_SERVER=...) built from an entirely fabricated base_env, except the shell-pane test's base_env is test_base_env() (ambient PATH only, no other real ambient vars) - acceptable, PATH paths are not credential-shaped.
+
+3. The worker's audit of the two assertions it judged already sound: confirmed both independently by reading - login_env.rs's own leak test (named-key assert_eq!, never the whole dump) and runtime.rs's override-ordering test (base_env is entirely fabricated by the test). Both are sound, as claimed.
+
+4. The nit (module doc should state what's left running on the success path and why) is addressed: capture_login_environment's doc now has the "success path kills nothing, on purpose" paragraph.
+
+5. Nothing else moved: `git diff ed80ab8 040c5f0 --stat` is exactly the 4 files/151+/44- the notes describe. Ran `cargo test -p steg-server` and `cargo test -p steg --features fixtures` 5x each at 040c5f0: all green, real-process count 0 before and after, no flake sighted this round.
+
+Plan-matched: no, consistent with the earlier reviews of this task - the diff against main still carries the plan departures those reviews already found and accepted; this round's own diff (ed80ab8->040c5f0) is itself a pure review-remediation fix, not new plan work.
 
 ---
 <!-- COMMENTS:END -->

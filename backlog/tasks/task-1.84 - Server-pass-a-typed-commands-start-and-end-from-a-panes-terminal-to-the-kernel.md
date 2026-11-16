@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:22:00Z'
+updated_date: '2026-11-16T01:24:00Z'
 labels:
   - size-2
   - changes-requested
@@ -564,6 +564,33 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:24:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7cbed63ed702 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-kernel -p steg-server) (36.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (7.0s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 48, 48 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

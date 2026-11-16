@@ -348,4 +348,58 @@ mod tests {
 
         checker.join().expect("the checker thread should not panic");
     }
+
+    /// TASK-1.98's own addition to this shared channel (section 5 of this
+    /// task's plan, "coordination") - an accept retried after a
+    /// recoverable error is not a client arriving, and this catch-all's
+    /// own reasoning (section 5) says it should be treated the same as
+    /// any other event it does not specifically care about: wake the
+    /// loop, update nothing on the predicate, let `session_count()` be
+    /// re-read fresh on the next `wait()`. Checked directly, not assumed.
+    #[test]
+    fn a_recoverable_accept_retry_does_not_count_as_a_client_arriving() {
+        let idle_timeout = Duration::from_millis(50);
+        let (signal_tx, signal_rx) = mpsc::channel::<ConnectionEvent>();
+        let (observed_tx, observed_rx) = mpsc::channel::<Wait>();
+        let stop = Stopper::new();
+
+        let checker = std::thread::spawn({
+            let stop = stop.clone();
+            move || {
+                run_checker_with_observer(signal_rx, stop, || 0, idle_timeout, move |wait| {
+                    let _ = observed_tx.send(*wait);
+                });
+            }
+        });
+
+        assert_eq!(
+            observed_rx.recv().expect("the first observation"),
+            Wait::Until(idle_timeout)
+        );
+        signal_tx
+            .send(ConnectionEvent::AcceptRetried(
+                crate::listen::RecoverableAcceptError::DescriptorsExhausted,
+            ))
+            .expect("the checker is still running");
+        // Woken, but still eligible, with the *same* clock still running -
+        // the catch-all this event falls into (`run_checker_with_observer`'s
+        // own `Ok(_) => {}` arm) updates nothing on the predicate at all, so
+        // this is `Wait::Until` with a little *less* remaining than before
+        // (time has passed, nothing reset it), never `Wait::Forever` (what a
+        // real client arriving would have produced instead, test 2's own
+        // shape) and never a fresh full period either (what `Connected`
+        // then `Disconnected` produces, test 4's own shape) - a retry is
+        // neither.
+        match observed_rx.recv().expect("the second observation") {
+            Wait::Until(remaining) => assert!(
+                remaining < idle_timeout,
+                "the clock should have kept running, not reset: {remaining:?} should be \
+                 less than {idle_timeout:?}"
+            ),
+            other => panic!("expected Wait::Until with some time still left, got {other:?}"),
+        }
+
+        drop(signal_tx);
+        checker.join().expect("the checker thread should not panic");
+    }
 }

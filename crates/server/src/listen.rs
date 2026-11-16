@@ -415,6 +415,27 @@ pub fn run(
         Ok(())
     } else {
         let runtime_ref = &runtime;
+        // Computed once, outside the loop: every send site in this loop -
+        // TASK-1.98's own two retry arms below, and this task's own
+        // per-connection clone - needs the same answer to "who gets a
+        // `ConnectionEvent`," so there is exactly one place that decides
+        // it. When idle-checking is on, the checker's own sender wins
+        // (`AcceptRetried` must reach it too - a retry is not a client
+        // arriving, which the idle checker's own catch-all already
+        // handles identically to any other event it does not specifically
+        // care about, `idle.rs`'s own test proves); when it's off
+        // (`checker_tx` is `None`, an explicit start), this is
+        // `events.clone()`, byte for byte what ran here before TASK-1.86.
+        // `.or()`, not `.clone().or_else()`: computed exactly once, so
+        // there is nothing to keep cheap by deferring - and, just as
+        // importantly, this *fully consumes* both `checker_tx` and
+        // `events` rather than leaving a clone of either alive in this
+        // function's own outer scope. A leftover clone of `checker_tx`
+        // here, never moved into the scope below, would still be a live
+        // sender into the checker's channel after `thread::scope`
+        // returns - exactly the kind of extra sender the join bound
+        // below is derived *against never existing*.
+        let checker_or_events = checker_tx.or(events);
         thread::scope(move |scope| {
             let mut connections: Vec<(UnixStream, thread::ScopedJoinHandle<'_, ()>)> = Vec::new();
             let accept_result = loop {
@@ -437,7 +458,7 @@ pub fn run(
                         }
                         match classify_accept_error(&err) {
                             Some(kind) => {
-                                if let Some(tx) = &events {
+                                if let Some(tx) = &checker_or_events {
                                     let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
                                 }
                                 // Opportunistic: a connection that finished
@@ -467,7 +488,7 @@ pub fn run(
                         }
                         match classify_accept_error(&err) {
                             Some(kind) => {
-                                if let Some(tx) = &events {
+                                if let Some(tx) = &checker_or_events {
                                     let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
                                 }
                                 reap_finished(&mut connections);
@@ -479,12 +500,7 @@ pub fn run(
                     }
                 };
                 let handshake_timeout = config.handshake_timeout;
-                // When idle-checking is on, every connection's own
-                // `Connected`/`Disconnected` has to reach the checker, so
-                // its sender wins; when it's off (`checker_tx` is `None`,
-                // an explicit start), this is `events.clone()`, byte for
-                // byte what ran here before TASK-1.86.
-                let events = checker_tx.clone().or_else(|| events.clone());
+                let events = checker_or_events.clone();
                 let join = scope.spawn(move || {
                     connection::handle(stream, handshake_timeout, events, runtime_ref);
                 });

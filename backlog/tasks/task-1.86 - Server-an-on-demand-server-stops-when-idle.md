@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T12:26:00Z'
+updated_date: '2026-11-16T13:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -985,6 +985,51 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T13:16:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6, last 40 of 61 lines:
+
+```text
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-3e9d6d82b6885ce6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:18:00Z'
+updated_date: '2026-11-16T05:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -23,6 +23,8 @@ asdlc_branch: task-1.87-server-a-pane-s-environment-comes-from-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '03e926f72daf'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1033,6 +1035,15 @@ created: 2026-11-16T04:22:00Z
 ---
 
 Plan approved by @bruk (03e926f72daf, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T05:19:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

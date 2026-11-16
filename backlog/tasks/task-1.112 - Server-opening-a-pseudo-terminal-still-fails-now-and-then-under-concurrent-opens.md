@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:52:00Z'
+updated_date: '2026-11-16T12:58:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -228,6 +228,45 @@ ok      architecture (1.3s)
 ok      recipe names (0.2s)
 ok      ui levels (0.2s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --lib pty::tests` exited 101 at 2026-11-16T12:58:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 3 tests
+test pty::tests::succeeds_first_time_needs_no_retry ... ok
+test pty::tests::fails_once_then_succeeds_counts_one_retry ... FAILED
+test pty::tests::fails_every_time_surfaces_after_exactly_the_bound ... FAILED
+
+failures:
+
+---- pty::tests::fails_once_then_succeeds_counts_one_retry stdout ----
+
+thread 'pty::tests::fails_once_then_succeeds_counts_one_retry' (28019556) panicked at crates/server/src/pty.rs:334:9:
+assertion `left == right` failed
+  left: Err(("transient", 1))
+ right: Ok((42, 2))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pty::tests::fails_every_time_surfaces_after_exactly_the_bound stdout ----
+
+thread 'pty::tests::fails_every_time_surfaces_after_exactly_the_bound' (28019555) panicked at crates/server/src/pty.rs:345:9:
+assertion `left == right` failed
+  left: Err(("always fails", 1))
+ right: Err(("always fails", 3))
+
+
+failures:
+    pty::tests::fails_every_time_surfaces_after_exactly_the_bound
+    pty::tests::fails_once_then_succeeds_counts_one_retry
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

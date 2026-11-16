@@ -1,9 +1,11 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
+updated_date: '2026-11-16T02:12:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.96-tools-check-the-design-s-data-file
 ---
 
 ## Description

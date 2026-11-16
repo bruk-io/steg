@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:55:00Z'
+updated_date: '2026-11-16T03:58:00Z'
 labels:
   - size-2
   - review-passed
@@ -1171,6 +1171,14 @@ dc5a28d; `gh pr checks 52 --watch` green (3m31s). Diff since the reviewed 66dc63
 files changed, 134 insertions(+), 23 deletions(-) (tools/src/steg_tools/foundations.py,
 ui_colours.py; tools/tests/unit/test_foundations.py, test_ui_colours.py;
 tools/tests/adapter/test_foundations_real_repo.py).
+
+---
+
+created: 2026-11-16T03:58:00Z
+
+---
+
+2026-11-15, @bruk.o: the change made after the clean review (66dc63b to dc5a28d: the translucent message's opacity names read from the data file through foundations.opacity_names_from_document; 5 files, +134 -23) was more than a nit's worth, and the board does not start a review of a task that has passed, so a separate agent with no part in the work read it independently and reported: confined to what was asked (one new function, one new parameter with its one caller, one interpolated phrase; no change to detection or matching); correct against the real data file (faint, tint, ramp, scrim; ramp.extended, which has no caption opacity, contributes nothing); the messages read right for a translucent literal matching one name, two and none, and the opaque message is unchanged (run through just check-ui-colours on scratch files); the added tests would fail against the old fixed names; 161 tool tests pass. One thing noted and accepted: a malformed data file (a shape present with the wrong type, or an entry with no name) raises, as the colours' reader above it already does; the file is generated and never edited by hand (R121). Nothing to change before merge.
 
 ---
 <!-- COMMENTS:END -->

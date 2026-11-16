@@ -72,11 +72,14 @@ jobs:
           cargo fmt --version
           cargo clippy --version
 
-      - name: Install the pinned Zig (mise.toml)
+      - name: Install the pinned Zig and Node (mise.toml)
         # ghostty-vt-sys needs Zig 0.17.x to build ghostty's VT engine (TASK-1.34;
         # third_party/README.md). mise.toml pins the exact version; this action installs it
         # and puts it on PATH, so `zig` resolves to the pin directly and `justfile`'s own
         # `mise which zig` fallback is only needed for a developer's machine, not CI.
+        # mise.toml also pins `node` (TASK-1.97, TASK-1.82) - not the cause of the LikeC4
+        # smoke test's CI timeouts, but previously unpinned, and installed the same way
+        # by this one action and step, at no extra cost.
         uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # v5.2.8
         with:
           install: true

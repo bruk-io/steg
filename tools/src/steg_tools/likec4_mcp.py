@@ -1,8 +1,9 @@
 """Query LikeC4's MCP server over stdio, the same way `.mcp.json` runs it (doc-16 R108).
 
 A thin client: just enough of the Model Context Protocol to call `read-project-summary`
-and read back the project's title, view ids and element ids. `read_project_summary` is
-the only function that touches a process or a pipe; parsing its response is pure.
+and read back the project's title, view ids and element ids. `summary_from_command` is
+the only function that touches a process or a pipe (`read_project_summary` builds the
+real `npx` command and hands it to that); parsing a response is pure.
 """
 
 import json
@@ -104,28 +105,57 @@ def read_project_summary(
     """Start `likec4 mcp --stdio` on `likec4_path` and read back its project summary.
 
     This runs the exact command `.mcp.json` configures (`npx --yes likec4@<version> mcp
-    --stdio <path>`), speaks the stdio JSON-RPC transport directly, and tears the
-    process down again - it is the real gateway, not a stand-in for it.
+    --stdio <path>`) through `summary_from_command`, which speaks the stdio JSON-RPC
+    transport directly and tears the process down again - it is the real gateway, not a
+    stand-in for it.
+
+    Raises:
+        TimeoutError: see `summary_from_command`.
+        LookupError: see `parse_project_summary`.
+    """
+    return summary_from_command(
+        ["npx", "--yes", f"likec4@{likec4_version}", "mcp", "--stdio", str(likec4_path)],
+        startup_timeout=startup_timeout,
+        timeout=timeout,
+    )
+
+
+def summary_from_command(
+    argv: Sequence[str],
+    *,
+    startup_timeout: float = 60.0,
+    timeout: float = 5.0,
+) -> ProjectSummary:
+    """Start `argv` as a child process speaking the stdio JSON-RPC transport, and read
+    back its project summary.
+
+    `read_project_summary` is the real caller, with the exact `npx` command `.mcp.json`
+    configures; `tests/functional/test_likec4_mcp.py` is the other one, with a fake
+    child in place of a real likec4 server, to drive the two bounds below
+    deterministically (`tests/adapter/test_likec4_mcp_smoke.py` is the one test that
+    runs a real likec4 server, and proves this function against it).
 
     The wait for the *first* line out of the process is bounded by `startup_timeout`,
-    not `timeout`: that line is the only one that can be delayed by `npx` resolving
-    `likec4@<version>` against the npm registry, which the root `.npmrc`
-    (`prefer-offline=true`) and CI's own warmed cache (TASK-1.97) keep off the network
-    in the common case, but which still has to tolerate a genuine cache miss - measured
-    at 9.7-13.4s cold, locally, and up to 70s when the registry itself is unreachable
-    and npm's own retry ladder runs out (TASK-1.97's notes). Every line after the first
-    is the actual JSON-RPC exchange with a server already running, measured well under
-    a second even under load, so `timeout` stays tight and a stall there is reported as
+    not `timeout`: for the real `npx` command, that line is the only one that can be
+    delayed by `npx` resolving `likec4@<version>` against the npm registry, which the
+    root `.npmrc` (`prefer-offline=true`) and CI's own warmed cache (TASK-1.97) keep
+    off the network in the common case, but which still has to tolerate a genuine cache
+    miss - measured, before that fix, at 9.7-13.4s cold, locally, and up to 70s when
+    the registry itself was unreachable and npm's own retry ladder ran out (that 70s
+    case is the one the fix actually removes: the same scenario with `.npmrc` present
+    takes well under a second, TASK-1.97's notes). Every line after the first is the
+    actual JSON-RPC exchange with a server already running, measured well under a
+    second even under load, so `timeout` stays tight and a stall there is reported as
     what it is - the server, not npm - rather than folded into one generic "did not
     answer" that could mean either.
 
     Raises:
-        TimeoutError: the server didn't answer its first message within
+        TimeoutError: the child didn't answer its first message within
             `startup_timeout` seconds, or a later one within `timeout` seconds.
         LookupError: see `parse_project_summary`.
     """
     process = subprocess.Popen(
-        ["npx", "--yes", f"likec4@{likec4_version}", "mcp", "--stdio", str(likec4_path)],
+        argv,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

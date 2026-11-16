@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:29:00Z'
+updated_date: '2026-11-16T06:30:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=4'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1486,6 +1487,15 @@ committed, pushed head (ed80ab8) for the record below.
 
 Did not run `asdlc record-check`/`asdlc finish` - the task is not held by
 this worker for that purpose any more, per the brief for this step.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T06:30:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 21m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

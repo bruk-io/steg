@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:15:00Z'
+updated_date: '2026-11-16T03:17:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2262,6 +2262,36 @@ ALL_20_RUNS_CLEAN
        1
 === of those, any that STARTED during this run and are still alive (a real leak) ===
 brukhabtu        64031   0.0  0.0 488782768   1488 s007  Ss+  10:06PM   0:00.01 sleep 1000
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:17:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (9.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.0s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
 ```
 
 Commits since the review: 0.

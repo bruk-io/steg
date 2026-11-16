@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:14:00Z'
+updated_date: '2026-11-16T14:15:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1502,6 +1502,44 @@ running 1 test
 test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.58s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 101 at 2026-11-16T14:15:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused import: `bad_request`
+  --> crates/server/src/connection.rs:23:32
+   |
+23 | use crate::dispatch::{Context, bad_request, resolve_api_call};
+   |                                ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... FAILED
+
+failures:
+
+---- detaching_a_pane_this_connection_never_attached_to_is_a_bad_request stdout ----
+
+thread 'detaching_a_pane_this_connection_never_attached_to_is_a_bad_request' (40186548) panicked at crates/server/tests/attach.rs:501:28:
+detaching a pane never attached to must not succeed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_this_connection_never_attached_to_is_a_bad_request
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.

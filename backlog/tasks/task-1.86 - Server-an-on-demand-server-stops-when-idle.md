@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:45:00Z'
+updated_date: '2026-11-16T14:55:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1335,6 +1335,38 @@ Pushed, watched gh pr checks 60 --watch in the foreground: passed at 8m4s (run 4
 Checked before finishing, per the engineer's instructions: gh pr view 59 --json state,reviewDecision shows OPEN with no reviewDecision set; TASK-1.98's own board task carries no changes-requested label. No adverse finding reported yet.
 
 Earlier CI run (43875669315) on this same PR, before TASK-1.98's fix, was confirmed to hang at test (steg-server, accept-backoff-fixture) exactly as the engineer described (log stops after race-fixture's own "ok" line, cancelled ~7m44s later, orphan-process cleanup names a leftover accept-backoff- process) - reported in full on the task's own comment thread with the earlier build notes.
+
+Check FAILED: `cargo test -p steg-server --test idle_stop a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out` exited 101 at 2026-11-16T14:55:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out ... FAILED
+
+failures:
+
+---- a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out stdout ----
+
+thread '<unnamed>' (41870885) panicked at crates/server/tests/idle_stop.rs:496:9:
+deliberate test panic (TASK-1.86 review finding 1): a request handler panicking after the handshake must still report ConnectionEvent::Disconnected
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out' (41870880) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+
+
+failures:
+    a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

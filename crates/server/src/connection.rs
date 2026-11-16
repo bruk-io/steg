@@ -308,27 +308,35 @@ fn run_post_handshake(
     runtime: &Runtime,
     client_id: ClientId,
 ) {
-    // Three independent handles to the one underlying socket: `stream`
+    // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
-    // writer thread), and `shutdown_handle` (kept by the cleanup guard
-    // solely to force a stuck writer to fail promptly - see its own doc).
-    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
-        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
-        _ => {
-            // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so there is nothing to join; the client this
-            // function was given still has to be disconnected.
-            runtime.disconnect_client(client_id);
-            return;
-        }
-    };
+    // writer thread), `shutdown_handle` (kept by the cleanup guard solely
+    // to force a stuck writer to fail promptly - see its own doc), and
+    // `subscriber_shutdown` (kept by `Runtime`'s own subscriber registry,
+    // TASK-1.46 §3/§7 - a slow subscriber is closed, not resynced: a
+    // broadcast that cannot be queued shuts this connection's socket down
+    // directly, from whichever thread is broadcasting, since nothing else
+    // can make this connection's own blocked read return without one).
+    let (write_half, shutdown_handle, subscriber_shutdown) =
+        match (stream.try_clone(), stream.try_clone(), stream.try_clone()) {
+            (Ok(write_half), Ok(shutdown_handle), Ok(subscriber_shutdown)) => {
+                (write_half, shutdown_handle, subscriber_shutdown)
+            }
+            _ => {
+                // No write half to hand a writer thread at all - nothing was
+                // ever spawned, so there is nothing to join; the client this
+                // function was given still has to be disconnected.
+                runtime.disconnect_client(client_id);
+                return;
+            }
+        };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
     // Registered the moment this connection is usable at all - before the
     // request loop below can bring in `event.watch` (TASK-1.46 §7): a
     // connection must never be asked to subscribe before it is
     // registered (`Runtime::subscribe`'s own invariant rests on this).
-    runtime.register_subscriber(client_id, Arc::clone(&outbound));
+    runtime.register_subscriber(client_id, Arc::clone(&outbound), subscriber_shutdown);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),

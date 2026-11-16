@@ -195,6 +195,13 @@ struct Subscriber {
     outbound: Arc<Outbound>,
     /// `None` until `event.watch` runs on this connection.
     filter: Option<Filter>,
+    /// A clone of this connection's own socket, held only to shut it down
+    /// from `broadcast` (AC #3: a slow subscriber is closed, not
+    /// resynced). `Outbound::close()` alone stops the writer thread but
+    /// does not touch the socket, and this connection's own reader is
+    /// blocked in a plain `read()` with no idle timeout (TASK-1.45 §4) -
+    /// nothing else can make that read return from another thread.
+    shutdown: std::os::unix::net::UnixStream,
 }
 
 /// Owns the kernel's tree and every pane's real runtime, and is the one
@@ -430,12 +437,18 @@ impl Runtime {
     /// (`subscribe`'s own `.expect` relies on this). `filter: None` until
     /// `event.watch` runs: a registered-but-unfiltered connection receives
     /// nothing from `broadcast`, never everything.
-    pub(crate) fn register_subscriber(&self, client_id: ClientId, outbound: Arc<Outbound>) {
+    pub(crate) fn register_subscriber(
+        &self,
+        client_id: ClientId,
+        outbound: Arc<Outbound>,
+        shutdown: std::os::unix::net::UnixStream,
+    ) {
         self.lock().subscribers.insert(
             client_id,
             Subscriber {
                 outbound,
                 filter: None,
+                shutdown,
             },
         );
     }
@@ -1570,7 +1583,18 @@ fn broadcast(state: &State, event: &steg_sdk::TreeEvent, scope: SessionId) {
             continue;
         }
         let bytes = Connection::emit_event(&name, body.clone());
-        let _ = subscriber.outbound.enqueue_control(bytes);
+        if subscriber.outbound.enqueue_control(bytes).is_err() {
+            // AC #3: a subscriber that falls behind is closed, not
+            // resynced. Shutting its own socket down (not just its
+            // `Outbound`) is what actually ends the connection: it
+            // unblocks a writer stuck mid-write on a full OS buffer *and*
+            // this connection's own reader thread, parked in a plain
+            // `read()` with no idle timeout (TASK-1.45 §4) - nothing else
+            // reaches that thread from here. `ConnectionCleanup::drop`
+            // runs once the reader notices and returns, which is what
+            // removes this entry from `subscribers` in turn.
+            let _ = subscriber.shutdown.shutdown(std::net::Shutdown::Both);
+        }
     }
 }
 
@@ -1587,7 +1611,8 @@ mod tests {
     use steg_sdk::{ClientId, Program, ProgramStatus, Size, Status, TreeEvent};
 
     use super::{
-        Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, force_end,
+        Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, broadcast,
+        force_end,
     };
     use crate::outbound::{Outbound, spawn_writer};
     use crate::pane::{PaneEvent, PaneHandle};
@@ -1607,15 +1632,37 @@ mod tests {
     ) -> (UnixStream, Arc<Outbound>, thread::JoinHandle<()>) {
         let (read_end, write_end) = UnixStream::pair().unwrap();
         let outbound = Arc::new(Outbound::new());
-        let writer = spawn_writer(Arc::clone(&outbound), write_end);
+        let writer = spawn_writer(Arc::clone(&outbound), write_end.try_clone().unwrap());
         state.subscribers.insert(
             ClientId::from_raw(1),
             Subscriber {
                 outbound: Arc::clone(&outbound),
                 filter,
+                shutdown: write_end,
             },
         );
         (read_end, outbound, writer)
+    }
+
+    /// Registers a subscriber with *no* writer thread at all - nothing
+    /// ever drains its `Outbound`, so `CONTROL_CAP` overflows
+    /// deterministically at a known call count, with no dependence on a
+    /// real OS socket buffer's own size or a real writer thread's own
+    /// scheduling (the real-socket version of this proof, tried first in
+    /// `tests/events.rs`, was flaky for exactly that reason - named
+    /// there, not hidden).
+    fn register_slow_subscriber(state: &mut State, filter: Option<Filter>) -> UnixStream {
+        let (read_end, write_end) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        state.subscribers.insert(
+            ClientId::from_raw(1),
+            Subscriber {
+                outbound,
+                filter,
+                shutdown: write_end,
+            },
+        );
+        read_end
     }
 
     /// Reads exactly one event off `stream` as a `TreeEvent`, bounded -
@@ -1931,6 +1978,78 @@ mod tests {
 
         outbound.close();
         writer.join().unwrap();
+    }
+
+    /// AC #3: a subscriber whose own queue is full is closed, not
+    /// resynced and not blocked on. With no writer thread draining it at
+    /// all, `broadcast`'s own `enqueue_control` calls must eventually
+    /// return `Full` - once they do, this test's own read end must see
+    /// the connection close (a clean `Ok(0)`, since `shutdown(Both)` on
+    /// the paired end is exactly what `UnixStream::pair` makes visible
+    /// that way), not keep accepting data forever. Negative control:
+    /// remove `broadcast`'s own `if ... is_err() { shutdown }` arm,
+    /// replacing it with the silent `let _ = ...` it used to be - this
+    /// test then fails, reading bytes indefinitely instead of a close,
+    /// since nothing ever tells this connection's own (nonexistent, in
+    /// this test) reader to stop.
+    #[test]
+    fn a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full() {
+        let (mut state, _pane) = fresh_state_with_one_pane();
+        let mut stream = register_slow_subscriber(
+            &mut state,
+            Some(Filter {
+                name: None,
+                session: None,
+            }),
+        );
+
+        // Every `session.new`'s own three creation events, repeated well
+        // past `CONTROL_CAP` (256) - nothing drains this subscriber's own
+        // queue at all, so this is guaranteed to overflow, not merely
+        // likely to.
+        for _ in 0..200 {
+            let session = state.tree.new_session(None).unwrap();
+            let tab = state.tree.session(session).unwrap().tabs()[0].id();
+            let pane = state.tree.session(session).unwrap().tabs()[0].panes()[0].id();
+            broadcast(
+                &state,
+                &TreeEvent::SessionCreated {
+                    id: session,
+                    label: None,
+                },
+                session,
+            );
+            broadcast(
+                &state,
+                &TreeEvent::TabCreated {
+                    id: tab,
+                    session,
+                    label: None,
+                },
+                session,
+            );
+            broadcast(
+                &state,
+                &TreeEvent::PaneCreated {
+                    id: pane,
+                    tab,
+                    label: None,
+                },
+                session,
+            );
+        }
+
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut buf = [0_u8; 65536];
+        loop {
+            match stream.read(&mut buf) {
+                Ok(0) => break, // the connection closed, as expected
+                Ok(_) => {}     // still draining what was queued before the shutdown
+                Err(err) => panic!("expected a clean close, got {err:?}"),
+            }
+        }
     }
 
     #[test]

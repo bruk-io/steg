@@ -27,10 +27,10 @@ Pulled out of TASK-1.82 (housekeeping, m-0) on 2026-11-15 because it is costing 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The cause of the timeouts is established from the failed runs' logs and a reproduction, not assumed: what the 30 seconds were spent on (downloading or starting the pinned likec4 through npx, the server indexing the model, a reply lost), on CI's runner and locally under load; the notes say which
-- [ ] #2 The fix addresses that cause: for example the tool is installed or cached before the test so no download happens inside the timed wait, or the test waits on the server's own readiness and not a fixed time. Raising the timeout alone is not a fix unless the cause is shown to be plain slowness with a bound, and then the bound is stated with its evidence. The test is not skipped, marked flaky or retried silently
-- [ ] #3 Shown by repeated runs: the test passes N times in a row on CI (a workflow run that repeats it, linked in the notes) and locally under load, with N chosen and justified against the failure rate seen so far (four failures on pull requests 40's, 76's task's, and 44 twice)
-- [ ] #4 If Node is not pinned in CI and that is part of the cause, pinning it is done here and removed from TASK-1.82's list
+- [x] #1 The cause of the timeouts is established from the failed runs' logs and a reproduction, not assumed: what the 30 seconds were spent on (downloading or starting the pinned likec4 through npx, the server indexing the model, a reply lost), on CI's runner and locally under load; the notes say which
+- [x] #2 The fix addresses that cause: for example the tool is installed or cached before the test so no download happens inside the timed wait, or the test waits on the server's own readiness and not a fixed time. Raising the timeout alone is not a fix unless the cause is shown to be plain slowness with a bound, and then the bound is stated with its evidence. The test is not skipped, marked flaky or retried silently
+- [x] #3 Shown by repeated runs: the test passes N times in a row on CI (a workflow run that repeats it, linked in the notes) and locally under load, with N chosen and justified against the failure rate seen so far (four failures on pull requests 40's, 76's task's, and 44 twice)
+- [x] #4 If Node is not pinned in CI and that is part of the cause, pinning it is done here and removed from TASK-1.82's list
 <!-- AC:END -->
 
 ## Implementation Plan

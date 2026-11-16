@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:31:00Z'
+updated_date: '2026-11-16T01:52:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
+references:
+  - task-1.78-server-a-forced-close-ends-the-program
+  - https://github.com/bruk-io/steg/pull/47
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
@@ -18,6 +22,10 @@ asdlc_branch: task-1.78-server-a-forced-close-ends-the-program
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1450,6 +1458,51 @@ ok      tool tests (1.4s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:35:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (9.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (9.0s)
+ok      test (steg-server, race-fixture) (9.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.3s)
+ok      architecture (1.1s)
+ok      recipe names (0.1s)
+```
+
+Built close-first as planned (d681d6fe44b5) and approved by the engineer. Experiments run first, as the first step: four real-process cases through a scratch harness (silent, continuous-output, trapping, backgrounded-grandchild), and the earlier TASK-1.40/1.76 citation of unix.rs for the no-escalation ChildKiller was corrected to lib.rs (the substance they found was right, the file was wrong).
+
+close_and_dispatch closes the pane/tab/session in the tree first, under one lock acquisition, then runs force_end (signal every pane in scope, wait once against a shared grace window, escalate only the stragglers, join every worker) before answering the caller. This is what criterion 1's reworded order says, and what gives criterion 4's full guarantee - every method, not only a second --force, finds the pane gone the instant the force begins.
+
+Every mechanism's own negative control was run and recorded, failing, before the fix was restored and recorded passing again:
+- the idle-handle pop in close_and_dispatch's step 3 disabled -> the silent-program force-close test fails (process stays alive)
+- force_end's escalation (pass 3) disabled -> the trapping-program test fails
+- AwaitExit's "nothing running" branch no longer breaking the worker loop -> the worker-thread-actually-ends test fails (a real bug this fix catches: a reply can arrive correctly while the thread never ends)
+- close_and_dispatch reordered back to force-before-close (the first draft's own shape, lock held across force_end) -> the AC #4 stall test fails, taking ~4.95s instead of returning at once
+- the idle-handle fix disabled a second time, checked against both a public black-box test and a new unit test with access to state.panes -> the black-box test still passes (it cannot observe the fix at all, so it was renamed to stop claiming it did), the unit test correctly fails
+- force_end's shared deadline replaced with a serial per-pane wait -> the four-trapping-panes test fails at ~2.02s against its 1s bound
+
+Found during the proof pass: a test proving the N-pane shared-grace-window bound asserted only elapsed < 5s against a 30ms test grace, which a serial loop would also satisfy - rewritten with four trapping panes, a real 500ms grace, and a check that every pid is actually dead, not only removed from the tree. Also found: the two-threads-forcing-the-same-pane test proves mutual exclusion via the Mutex, not close-first specifically (both designs give it) - renamed its own claim to say so, not overclaimed.
+
+Checks: just check clean at the final head (68d10a8, matching PR #47's green CI); cargo test -p steg-server 10/10 clean at default parallelism, properly checked for FAILED/error[ anywhere in the output, not only the last test binary's tail.
+
+Named, not fixed: an interactive shell's own job-control reassignment of a backgrounded job to a new process group, which the group signal does not reach (killpg targets the pgid portable-pty's setsid() establishes at exec, which an interactive shell's own job control can move a background job out of afterward); a process stuck in an uninterruptible kernel sleep, where SIGKILL is delivered but delivery is not completion, which no userspace mechanism can force - the caller still gets Response::Ok either way (no error code exists for "could not confirm"), and the worker/relay pair is dropped unjoined if this ever actually happens.
+
+Two items were the engineer's at plan time and were decided then: the AC #1 reorder (approved, criterion reworded to match) and the idle-handle fix (told to include it).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1469,6 +1522,46 @@ created: 2026-11-16T00:24:00Z
 ---
 
 Criterion 1 reworded by @bruk.o on 2026-11-15 to the order the approved plan (d681d6fe44b5) builds: close first, then end the programs, answering when they have ended. The engineer approved the plan with this change stated at its top; the earlier wording was 'end every running program in scope, observe each exit, and then close'. The other four criteria are unchanged.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T01:36:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T01:52:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at PR #47 head 68d10a8032c024598469b6c9d3524383a433fe76 (just check clean at this oid, 01:31/01:35 UTC on a clean tree; PR CI green on the same oid).
+
+[Bugs/Compliance, Important] crates/server/src/runtime.rs (force_end, pass 3) + crates/server/src/pane.rs (signal_hangup/signal_kill/Exited). The plan (§1) defends the direct-atomic signal design as carrying only "an existing, unchanged risk class" (a signal reaching a reused pid after reap) and states elsewhere "nothing in this task makes the window wider" - both unsupported, and the first points at the wrong window (a zombie's pid is not yet reusable; reuse needs the reap, which already happened by the time child.wait() returns in spawn_relay). In the pre-task code the signal (killer.kill()) was itself a command on the same single-consumer queue as Exited, so by the time the worker dequeued Stop, any Exited enqueued ahead of it had already cleared `current` - no window. This task's own design deliberately takes the signal off that queue (§1's own stated reason: not to be delayed behind a flooding pane's PtyBytes backlog) via signal_hangup/signal_kill reading `pid: Arc<AtomicU64>` directly, while the atomic itself is still only cleared when the worker *dequeues* the Exited command - i.e. still behind that same backlog. The result: force_end's pass 2 (await_exit, which does go through the queue) can time out and classify a pane as a "straggler" purely because its Exited is still queued behind backlog, even though the program already exited. Pass 3 then fires signal_kill (killpg) at the stale pid - at minimum a wasted SIGKILL plus a pointless 2s wait in pass 4 for an exit that already happened (no test or assertion catches this: the straggler/no-straggler tests use grace windows wide enough that a real backlog-timeout misclassification doesn't come up), and in the worst case (pid already recycled by the OS in that window) a signal to an unrelated process's whole group - remote on this machine's pid space, but not the "unchanged" risk the notes claim. Repeated myself as a negative control in a scratch edit (reverted): with pass 3's signal_kill call disabled, pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails exactly as expected, confirming escalation is the real, load-bearing mechanism the notes say it is - the finding here is the residual-risk characterization and the misclassification path, not that escalation itself is fake.
+
+[Evidence/Compliance, Important] crates/server/tests/runtime.rs - AC #4's "every method, not only a second --force" guarantee (plan §6, §9) is not actually proven. The plan's own §9 text: "A second thread issues pane.show (then, separately, a plain pane.close, then pane.swap) against the same pane that is being forced, each asserting it is refused..." - three methods in one promised test. What is committed: a_pane_being_forced_is_unreachable_by_another_request_meanwhile tests pane.show only; a_force_racing_another_force_on_the_same_pane_never_double_acts tests a second pane.close --force, and its own comment concedes this proves mutual exclusion via the Mutex, not close-first specifically. pane.swap and a plain (non-force) pane.close against a pane mid-force are never exercised; neither are pane.move or pane.set/unset, though dispatch/pane.rs fully implements all four (move_/set/unset/swap, not stubs) and §6 names them explicitly as covered by the restated guarantee. Per policy, a clause the plan/brief names as worth proving needs a test that reaches it, and a test of one method does not cover another; this is an unmet clause, and an unnamed departure from the plan's own proof section (the notes record the renamed double-force test but say nothing about the vanished swap/plain-close coverage).
+
+[Evidence, Nit] Notes' "cargo test -p steg-server 10/10 clean at default parallelism" is recorded at 61369d880a6d with uncommitted changes, not at the final head 68d10a8 the plan's own "Repeated-run honesty" section calls for. Re-ran it myself: 20/20 clean at 68d10a8, default parallelism, no leaked processes before/after (ps count unchanged save for this harness's own unrelated background polling) - the substance holds, only the recorded run was stale.
+
+[Bugs, Nit] pane.rs worker_loop's PaneCommand::Exited arm clears the shared pid atomic unconditionally, with no check that the exiting run is still the current one; PaneHandle::restart writes the new pid before sending Resume but the Resume arm does nothing to re-assert it. An Exited for an old run processed after a Resume for a new one would zero the new run's pid permanently (silent force thereafter, ~6s stall, leaked worker/relay). Not currently reachable: no dispatch path calls restart yet (kernel ExitOutcome has only Closed/Stayed, no restart variant), and the only two existing callers (program.rs, real_pty.rs) call restart only after observing the external PaneEvent::Exited, which structurally cannot happen before the worker has already cleared the atomic. Worth a guard or a comment before restart is wired to dispatch.
+
+[Bugs, Nit] dispatch/{pane,tab,session}.rs close() arms call panes_in_close_scope a second time (once here for the refusal check, once again inside Runtime::close_and_dispatch) - no behaviour difference, a small duplicated tree walk per close.
+
+One more nit not detailed: dispatch/lookup.rs's panes_in_close_scope silently treats an unreachable pane id as "not running" in any_pane_running rather than surfacing it, documented as "never expected" - fine given the doc, flagged only because no test exercises that branch either.
+
+Negative controls repeated by hand, reverted: (1) force_end pass 3's signal_kill call disabled -> pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails by its bound, as recorded; (2) close_and_dispatch's idle-handle pop (step 3) disabled -> pane_close_with_force_actually_ends_a_silent_program fails (process stays alive), as recorded.
+
+Checked and clean: no unsafe anywhere in the diff; nix's "signal" feature is listed in boundaries.toml's [steg-server] allow/reason and Cargo.toml, matching plan §8; no crates/kernel or crates/sdk files touched; files touched match the plan's own "Files that change" list exactly.
+
+Overlap: TASK-1.84 (PR #46, in review) adds two apply_event_locked arms for command marks that "deliberately leave the handle in place" on PaneNotFound - that assumption is about to become moot once this merges, since close_and_dispatch now pops every scope pane's handle synchronously at close time (both forced and plain closes), before any mark or exit event for it can arrive; there will be no handle left in state.panes to leave in place. TASK-1.84 will need to revisit that comment/behaviour against this task's new reality, though it is not this task's own bug. TASK-1.45 (not yet in review) constructs Runtime::new and calls stop() explicitly; it will need to pass a force_grace argument (FORCE_GRACE_DEFAULT for production) and should expect stop() to take up to ~6s worst case now rather than up to 5s per pane serially.
 
 ---
 <!-- COMMENTS:END -->

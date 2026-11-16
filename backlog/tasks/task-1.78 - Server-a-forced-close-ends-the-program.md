@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:17:00Z'
+updated_date: '2026-11-16T01:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1225,6 +1225,22 @@ ok      recipe names (0.0s)
 ```
 
 Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do echo "=== run $i ==="; if ! cargo test -p steg-server 2>&1 | tail -3 | grep -q "test result: ok"; then fail=$((fail+1)); echo "RUN $i FAILED"; fi; done; echo "TOTAL FAILURES: $fail / 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:17:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+=== run 1 ===
+=== run 2 ===
+=== run 3 ===
+=== run 4 ===
+=== run 5 ===
+=== run 6 ===
+=== run 7 ===
+=== run 8 ===
+=== run 9 ===
+=== run 10 ===
+TOTAL FAILURES: 0 / 10
+```
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do echo "=== run $i ==="; out=$(cargo test -p steg-server 2>&1); if echo "$out" | grep -qE "FAILED|error\["; then fail=$((fail+1)); echo "RUN $i FAILED"; echo "$out" | grep -E "FAILED|error\[" ; fi; done; echo "TOTAL FAILURES: $fail / 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:19:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
 
 ```text
 === run 1 ===

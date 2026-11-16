@@ -12,11 +12,12 @@ labels:
   - size-5
 milestone: m-3
 dependencies:
-  - TASK-1.45
-  - TASK-1.42
   - TASK-1.40
+  - TASK-1.42
+  - TASK-1.45
   - TASK-1.74
   - TASK-1.76
+  - TASK-1.46
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -33,12 +34,8 @@ doc-8 R2, doc-9 R15, doc-15 R91. decision-2, sections 3, 5 and 6, including its 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Attaching returns a snapshot, and updates follow it in order with none lost and none sent for a stream the client has not been told about
-- [ ] #2 Scrollback is fetched in pages by absolute row identity
-- [ ] #3 A client that falls behind gets one fresh screen-sized snapshot, without scrollback; the program is never blocked
-- [ ] #4 Input arrives on the stream the client attached with; each attachment declares a size, and an update reports the terminal's size when it changes
-- [ ] #5 A client killed mid-output and a new one attaching afterwards ends up with the server's screen and scrollback byte for byte, as an automated test
-- [ ] #6 `spikes/task-1.2-wire-protocol/` is deleted
-- [ ] #7 Attaching, input, scrollback pages and declaring a size are offered by the steg library, and this task's tests go through it (R101)
+- [ ] #2 A client that falls behind gets one fresh screen-sized snapshot, without scrollback; the program is never blocked
+- [ ] #3 Attaching is offered by the steg library, and this task's tests go through it over a real socket with a real pty (R101)
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -576,6 +573,14 @@ created: 2026-11-16T11:54:00Z
 ---
 
 2026-11-16, @bruk.o: the engineer decided as recommended: attach is a described API method sent as an ordinary request and marked as opening a stream (an exception to R32 for the generated CLI); the tick is 8 ms as a server configuration value, not a published setting. The plan is being rewritten once; doc-2 gains a line when the plan is approved.
+
+---
+
+created: 2026-11-16T12:05:00Z
+
+---
+
+2026-11-16, @bruk.o: criteria narrowed to match the split the engineer accepted (TASK-1.114 has input and the declared size; TASK-1.115 has scrollback pages, the restore proof and the spike's deletion). Depends on TASK-1.46, which decides how the API description states a reply that carries a nested record and a method that opens a stream.
 
 ---
 <!-- COMMENTS:END -->

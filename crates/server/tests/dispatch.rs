@@ -126,7 +126,7 @@ type NotYetCase = (&'static str, Vec<(&'static str, Value)>, &'static str);
 #[test]
 fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
     let cases: Vec<NotYetCase> = vec![
-        ("session.focus", vec![], "TASK-1.46"),
+        ("session.focus", vec![], "TASK-1.109"),
         (
             "tab.move",
             vec![("to", json!("placeholder"))],

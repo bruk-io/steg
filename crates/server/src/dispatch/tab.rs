@@ -188,12 +188,11 @@ fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
         // `tab.move --to` moves a tab between sessions; `Tree` has no
         // operation for that today. Checked first, before `position`, so
         // a request that gives both never silently does only half of
-        // what it asked for. Named by title, not id (TASK-1.89's own
-        // split): the task accepted from this one, "Kernel and server:
-        // move a tab to another session", has none yet.
+        // what it asked for. TASK-1.111, "Kernel and server: move a tab
+        // to another session", split from this task and since accepted.
         return Err(not_implemented_yet(
-            "the task accepted from TASK-1.89's split, \"Kernel and server: move a tab to \
-             another session\" - Tree has no operation to move a tab between sessions",
+            "TASK-1.111, \"Kernel and server: move a tab to another session\" - Tree has no \
+             operation to move a tab between sessions",
         ));
     }
 

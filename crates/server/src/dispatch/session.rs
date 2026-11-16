@@ -37,9 +37,9 @@ pub(super) fn dispatch(
         "set" => set(tree, context, request),
         "unset" => unset(tree, context, request),
         "focus" => Err(not_implemented_yet(
-            "the events task split from TASK-1.46, \"Server: events for layout, for a \
-             session or tab changing, for clients, and the one addressed to a single \
-             client\" - a client to address, which needs an event (decision-5, R87)",
+            "TASK-1.109, \"Server: events for layout, for a session or tab changing, for \
+             clients, and the one addressed to a single client\" - a client to address, \
+             which needs an event (decision-5, R87)",
         )),
         _ => unreachable!("HANDLED names every verb this match covers"),
     }

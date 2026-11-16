@@ -44,9 +44,8 @@ pub(super) fn dispatch(
         "unset" => unset(tree, context, request),
         "focus" => focus(tree, context, request),
         "resize" => Err(not_implemented_yet(
-            "the task accepted from TASK-1.89's split, \"Server: pane resize\" - \
-             Tree::resize_pane takes a ratio, not a cell delta, and Tab::size() can be \
-             unknown",
+            "TASK-1.110, \"Server: pane resize\" - Tree::resize_pane takes a ratio, not a \
+             cell delta, and Tab::size() can be unknown",
         )),
         "swap" => swap(tree, context, request),
         "send" | "capture" | "wait" => Err(not_implemented_yet(

@@ -4,7 +4,7 @@ title: 'CLI: send input to a pane, capture its screen, wait, and watch events'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:35:00Z'
+updated_date: '2026-11-16T13:51:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +13,8 @@ dependencies:
   - TASK-1.47
   - TASK-1.46
   - TASK-1.90
+  - TASK-1.119
+  - TASK-1.120
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

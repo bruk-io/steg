@@ -1,14 +1,14 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T14:47:00Z'
+updated_date: '2026-11-16T16:47:00Z'
 labels:
   - size-2
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -24,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
 ---
 
@@ -836,6 +835,24 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 74, 73 without the Asdlc-Worker trailer.
+
+Second review round fixed, head 25696d1, CI green (run 43889556289, check passed in 5m58s - the ~16 minute wall time before that was macOS arm64 runner queueing, confirmed by the run's own "capacity constraints" annotation, not a hang: it was stuck at step 4 of 16, before just check even started, for most of that time).
+
+1. Important, fixed: surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers (crates/steg/tests/server_start.rs) asserted survival without ever confirming exhaustion was reached - the reviewer's own 20-run reproduction found 18/20 false passes with the recoverable arms disabled. Added wait_for_descriptor_exhaustion: polls the real server's own open-fd count (lsof -p pid, the same technique the reviewer used) until it reaches the configured RLIMIT_NOFILE, failing with a clear message if it never does within the bound - the same bounded-poll-on-an-external-fact shape wait_for_socket already uses in this file. The chosen -n (180) no longer has to be the proof itself, only low enough to reach within the bound; rewrote the doc comment to say so instead of resting on arithmetic.
+
+Re-recorded the control against the test as it now stands, per the team's rule: with the recoverable arms disabled (scratch edit, listen.rs), 20 of 20 runs now fail, each with the clear message ("exhaustion was never established... last observed 0" - the server dies before its fd count can be observed at the limit). Restored, 100 of 100 pass. Also ran 20 full-suite (all 11 tests) repetitions with the fix in place, clean.
+
+Checked the other four tests this task added (accept_backoff.rs) for the same shape, as asked: all four already wait for the fixture's own first AcceptRetried event before measuring or acting - tests 1/2 directly via CountReader::wait_for_first before max_within; tests 3/4 indirectly, since STOP_AFTER_RETRIES/DUP2_AFTER_RETRIES are themselves gated inside the fixture's own reporter thread on having seen one real retry before firing. None shared this gap. 20 full-suite repetitions of accept_backoff.rs also run, clean.
+
+2. Nit taken: wait_until_accepting (accept_backoff.rs) now uses connect_bounded instead of a bare connect(), matching the file's own stated rule that every wait is bounded.
+
+3. Nit answered, record corrected: ran a direct probe (bind a listener that never calls accept() at all - the most adversarial case - then connect() to it 300 times in a row). Every attempt either succeeded immediately or failed immediately with ECONNREFUSED; none blocked, matching the reviewer's own independent finding exactly. My earlier stated root cause (a full backlog makes connect() block) is retracted as unconfirmed and apparently wrong on this platform. What IS confirmed, by both my own reproduction and the reviewer's/team-lead's own sampling of the original hang: CountReader's own thread.join() had no bound, and hung whenever the fixture's stdout never closed (the fixture not exiting, for whatever reason - the condition ending quietly was the actual, confirmed reason it happened in practice). The fix (bound every wait) does not depend on which theory is right, so no code changed - only the module doc's own explanation, which now states what is confirmed, what was retracted, and that what causes a real blocking connect() on this platform, if anything does, remains unestablished.
+
+4. Nothing to do (already satisfied): the two files outside the plan's list are named in the first round's notes.
+
+Every run in this round was foreground, bounded (timeout per invocation), and ps-checked before being called clean - including working through one case where a loop I ran actually did get auto-backgrounded by the harness's own 120s default (my own timeout parameter was too short for a 20-run loop); I did not treat that as license to move on - I located it, confirmed it was still genuinely running (not stuck), and waited for its own completion notification before proceeding, same as if it had stayed in the foreground.
+
+PR: https://github.com/bruk-io/steg/pull/59
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -921,6 +938,46 @@ Reproduced myself (30x sequential, 30x default-parallel, 15x under background CP
 [Compliance, Nit] arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture line in check-packages remain outside the plan's own "Files that change" list in the diff against main (unchanged since fcfc798c). This round's notes now name and explain both (addressing round 1's nit about the board being silent on them), but per policy plan-matched stays "no": these are still touched files the plan never named, even though the notes now explain them.
 
 Not re-litigated (unchanged since the first review, per the brief): the classification, both guarded points, and the stop check's own correctness as code, all judged sound in round 1.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:27:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Reviewed d2ab50c..25696d1 only, as scoped. Production code (classification, both guarded points, the stop check, the fatal path, the event) stood through two prior rounds and is not re-litigated.
+
+1. wait_for_descriptor_exhaustion is a sound fix for the vacuous-pass finding from the second review. Verified myself, not just read:
+   - just check: clean, foreground, in my own review worktree at 25696d1 (5m28s).
+   - CI confirmed independently (not just the worker's claim): gh pr checks 59 shows run 43889556289 passed in 5m58s; pulled its log directly and confirmed both `ok test (steg-server, accept-backoff-fixture) (31.7s)` and `ok test (steg, fixtures) (6.0s)` lines are present and finished, not skipped.
+   - Control, run myself in a scratch edit (classify_accept_error forced to drop the descriptor-exhaustion arm), reverted after (git diff --stat clean): 20/20 runs of surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers FAIL, every one on "last observed 0 - exhaustion was never established" (the server dies before the poll ever samples a nonzero count) - matching the task's own recorded control and this review's own expectation for this form of the test.
+   - Restored: 20/20 pass individually, plus 3/3 full-suite runs of both accept_backoff.rs (4 tests) and server_start.rs (11 tests), all clean, all sub-3s. ps checked before/after every batch; no process left from this review's own worktree at any point.
+   - Checked the margin/overcount question directly: a one-off scratch print showed wait_for_descriptor_exhaustion returning 183 against a configured limit of 180 (lsof's -p output counts cwd/txt rows beyond true fds, inflating the count slightly) - harmless in practice, confirmed by the control above: with the fix absent the real server saturates and dies well before the poll's 20ms granularity or 5-wide margin ever matter, so the overcount does not produce an early, vacuous pass.
+   - EINTR/ECONNABORTED untouched by this round's diff; not re-examined.
+
+2. Read accept_backoff.rs and its fixture myself: accept_errors_back_off_instead_of_spinning and its negative control both call CountReader::wait_for_first before max_within; a_stop_asked_mid_exhaustion_ends_the_server_promptly and a_fatal_accept_error_ends_the_server_and_cleans_up rely on the fixture's own STOP_AFTER_RETRIES/DUP2_AFTER_RETRIES, confirmed in accept_backoff_attempt.rs to be gated on `if let ConnectionEvent::AcceptRetried(_) = event` having fired first. None of the four measures or acts before that.
+
+3. Nits confirmed by reading: wait_until_accepting now uses connect_bounded; the module doc states what is confirmed (CountReader::drop's unbounded join; the fixture's stdout only closing on exit) versus what is retracted (the full-backlog-blocks-connect theory, with its own retraction probe described); the two files outside the plan's list (arbiter.rs::listener_raw_fd, the justfile line) are named in the first round's notes, unchanged this round.
+
+[Bugs, Nit] crates/steg/tests/server_start.rs, open_fd_count: Command::new("lsof").output() is unbounded - the bound in wait_for_descriptor_exhaustion only applies between invocations, so one hung lsof call blocks inside it with no timeout, in a test file whose sibling (accept_backoff.rs) was rewritten this same task specifically because an unbounded wait caused a 26-minute CI hang. Not reachable in any of my own runs (lsof returned promptly every time, including process-exited and still-running cases), and CI confirms this head is green - so not blocking, but it is the literal answer to "is lsof's use bounded."
+
+plan-matched stays "no", unchanged from both prior rounds: arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture check-packages line remain outside the plan's own "Files that change" list in the diff against main. The notes explain both; a departure the notes explain is still a departure under policy, and a clean verdict on this round's own fix does not revisit that judgement.
+
+No Important findings this round. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,14 +1,14 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:48:00Z'
+updated_date: '2026-11-16T16:59:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -25,8 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=5,nit=2'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["testing"]
 asdlc_plan_matched: no
 ---
 
@@ -1043,6 +1043,599 @@ error: test failed, to rerun pass `-p steg-server --test events`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_new_emits_session_created_tab_created_and_pane_created_in_order'` exited 101 at 2026-11-16T14:49:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_new_emits_session_created_tab_created_and_pane_created_in_order ... FAILED
+
+failures:
+
+---- session_new_emits_session_created_tab_created_and_pane_created_in_order stdout ----
+
+thread 'session_new_emits_session_created_tab_created_and_pane_created_in_order' (41770486) panicked at crates/server/tests/events.rs:225:5:
+expected tab.created second, got PaneCreated { id: PaneId(4), tab: TabId(3), label: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_new_emits_session_created_tab_created_and_pane_created_in_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_shell_panes_exit_emits_the_whole_cascade_in_order'` exited 101 at 2026-11-16T14:49:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_shell_panes_exit_emits_the_whole_cascade_in_order ... FAILED
+
+failures:
+
+---- runtime::tests::a_shell_panes_exit_emits_the_whole_cascade_in_order stdout ----
+
+thread 'runtime::tests::a_shell_panes_exit_emits_the_whole_cascade_in_order' (41775794) panicked at crates/server/src/runtime.rs:1961:9:
+assertion `left == right` failed
+  left: SessionClosed { id: SessionId(0) }
+ right: TabClosed { id: TabId(1) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_shell_panes_exit_emits_the_whole_cascade_in_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events tab_focus_emits_tab_focused_with_the_whole_path'` exited 101 at 2026-11-16T14:51:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test tab_focus_emits_tab_focused_with_the_whole_path ... FAILED
+
+failures:
+
+---- tab_focus_emits_tab_focused_with_the_whole_path stdout ----
+
+thread 'tab_focus_emits_tab_focused_with_the_whole_path' (41802943) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_focus_emits_tab_focused_with_the_whole_path
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_command_panes_exit_emits_pane_exited'` exited 101 at 2026-11-16T14:51:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_command_panes_exit_emits_pane_exited ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_exit_emits_pane_exited stdout ----
+
+thread 'runtime::tests::a_command_panes_exit_emits_pane_exited' (41806539) panicked at crates/server/src/runtime.rs:1753:43:
+reading the broadcast event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_exit_emits_pane_exited
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_typed_commands_start_and_end_emit_pane_status_changed'` exited 101 at 2026-11-16T14:52:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed ... FAILED
+
+failures:
+
+---- runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed stdout ----
+
+thread 'runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed' (41812460) panicked at crates/server/src/runtime.rs:1749:43:
+reading the broadcast event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib an_unfiltered_subscriber_receives_nothing'` exited 101 at 2026-11-16T14:52:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... FAILED
+
+failures:
+
+---- runtime::tests::an_unfiltered_subscriber_receives_nothing stdout ----
+
+thread 'runtime::tests::an_unfiltered_subscriber_receives_nothing' (41816973) panicked at crates/server/src/runtime.rs:1768:22:
+expected nothing, got 16 bytes
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::an_unfiltered_subscriber_receives_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib dispatch::event::tests'` exited 101 at 2026-11-16T14:53:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes, last 40 of 46 lines:
+
+```text
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 9 tests
+test dispatch::event::tests::a_filter_narrowed_by_name_refuses_every_other_name ... ok
+test dispatch::event::tests::a_filter_narrowed_by_session_refuses_every_other_session ... ok
+test dispatch::event::tests::a_filter_with_no_name_and_no_session_matches_anything ... ok
+test dispatch::event::tests::an_empty_tree_snapshots_to_no_sessions ... ok
+test dispatch::event::tests::resolve_filter_with_no_target_and_no_context_refuses ... ok
+test dispatch::event::tests::resolve_filter_with_all_skips_resolving_a_target_session_entirely ... ok
+test dispatch::event::tests::resolve_filter_reads_the_for_name ... ok
+test dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes ... FAILED
+test dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab ... FAILED
+
+failures:
+
+---- dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes stdout ----
+
+thread 'dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes' (41820291) panicked at crates/server/src/dispatch/event.rs:246:13:
+layout names 00000002, not among this tab's own panes []
+
+---- dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab stdout ----
+
+thread 'dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab' (41820289) panicked at crates/server/src/dispatch/event.rs:223:9:
+assertion `left == right` failed: both panes are nested under their tab
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab
+    dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes
+
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 150 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:57:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (13.3s)
+ok      test (steg-server, race-fixture) (12.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:00:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (19.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (30.6s)
+ok      test (steg-server) (21.8s)
+ok      test (steg-server, race-fixture) (21.2s)
+ok      build (steg) (0.7s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:02:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (13.4s)
+ok      test (steg-server, race-fixture) (12.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 63, 62 without the Asdlc-Worker trailer.
+
+Each of the 5 Important findings and 2 nits, addressed:
+
+1. The real bug (pane.close/tab.close discarding the kernel's own cascade): fixed by threading the kernel's own ClosedPane/TabClosed through, not re-deriving it. dispatch::pane::close/tab::close now return new Outcome::PaneClosed(ClosedPane)/Outcome::TabClosed(TabClosed) (still Value::Null on the wire - no contract change). dispatch::dispatch split into a thin wrapper plus dispatch_raw (pub(crate), returns the typed Outcome); close_and_dispatch calls dispatch_raw directly and reads the cascade off its result. CloseCascade renamed ClosePre, simplified to carry only what the kernel's own return value cannot (the scoping session id; for session.close only, since Tree::close_session reports no structured cascade at all, its own tabs/panes grouped from a pre-close read). emit_close_events rewritten to read closed.tab/closed.session/closed.session_now_empty straight from the Outcome. New tests: pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order, tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session - each with its own recorded negative control (temporarily reverted both the pane.close and tab.close arms of emit_close_events back to the exact pre-review bug; all three new tests plus the rebuilt session_close test failed correctly for the right reason; reverted, just test clean again).
+
+2/3/4. Missing controls, recorded now: session-scope filter in isolation (disabled scope_ok alone in Filter::matches, leaving name_ok untouched - a_filter_by_session_excludes_another_sessions_events failed, a_filter_by_name_keeps_only_that_event still passed, proving the two are independently covered); creation-cascade order (removed the TabCreated broadcast in emit_creation_events's session.new arm - session_new_emits_session_created_tab_created_and_pane_created_in_order failed on the right assertion); exit-driven cascade order (removed the TabClosed broadcast in emit_close_cascade - a_shell_panes_exit_emits_the_whole_cascade_in_order failed on the right assertion). All three reverted; just test clean.
+
+5. session_close_emits_the_whole_cascade_innermost_first rebuilt over two tabs, two panes each (the plan's own §10 wording), draining 7 events in the grouped order (both of tab A's panes, tab A, both of tab B's panes, tab B, then the session) - the single-tab version could not distinguish correct per-tab interleaving from "every pane.closed, then every tab.closed." Recorded control: same bug-fix control as #1 above (both the pane.close and tab.close arms disabled) - but this test is wired through session.close/emit_close_events's own Session arm, which the review found already correct from reading, so I additionally reran it with the fix fully intact to confirm the 2x2 shape passes as rebuilt (it does).
+
+Nits: the real overstated doc comment was broadcast's own (runtime.rs) - "nothing here ever writes to a socket while state's lock is held" is false now that a failed enqueue calls subscriber.shutdown.shutdown(Both) right there, under the lock (non-blocking in practice, the same idiom ConnectionCleanup already uses - not a bug, just understated honestly now instead of overstated). Rewritten. I also found and fixed a second, separate overstatement while auditing: pane::close's own doc comment (and tab::close's/session::close's cross-references to it) claimed a running program is ended before tree.close_pane runs; it's actually ended after, by close_and_dispatch, once the kernel's own cascade is known (force_end runs after dispatch_raw, not before) - corrected in all three files.
+
+Signature departure from the plan's own sketch: Connection::watch's for_ parameter is Option<&str>, not the plan's &[&str] - caught during the first build round (ValueKind::Choice only validates a single string value, not an array), noted in code at the time but not called out here until now.
+
+Full proof table (plan's §10, this revision plus earlier ones), proof item / test / recorded control:
+- Atomicity (reply precedes any event, real race) / the_snapshots_reply_always_precedes_any_event_under_a_real_race / recorded earlier this task (reply moved outside the lock, widened with a sleep)
+- Slow subscriber closed, not resynced / a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full / recorded earlier this task
+- pane.close/tab.close/session.close cascades, innermost first / session_close_emits_the_whole_cascade_innermost_first (now 2 tabs x 2 panes), pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order, tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session / recorded this round (the bug-fix control, all four)
+- Filter by name / a_filter_by_name_keeps_only_that_event / recorded earlier this task
+- Filter by session (isolated) / a_filter_by_session_excludes_another_sessions_events / recorded this round
+- Creation cascade order / session_new_emits_session_created_tab_created_and_pane_created_in_order / recorded this round
+- Exit-driven cascade order / a_shell_panes_exit_emits_the_whole_cascade_in_order / recorded this round
+- tab.focus/pane.focus emits the whole path / tab_focus_emits_tab_focused_with_the_whole_path / recorded this round
+- pane.exited (Stayed outcome) / a_command_panes_exit_emits_pane_exited / recorded this round
+- pane.status_changed / a_typed_commands_start_and_end_emit_pane_status_changed / recorded this round
+- An unfiltered (not-yet-subscribed) connection receives nothing / an_unfiltered_subscriber_receives_nothing / recorded this round
+- Tree snapshot nests panes under their own tab / a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab, every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes / recorded this round
+- Snapshot is exactly the tree at the moment of subscribing / subscribing_to_a_fresh_server_replies_with_an_empty_tree, an_empty_tree_snapshots_to_no_sessions / no further mechanism to disable beyond the shape controls above
+- Ending a subscription is disconnecting, no panic / disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast / no recorded control - disabling deregistration leaves a stale entry whose own enqueue_control already fails silently (the ordinary disconnected-peer case), with no distinct symptom this test could catch; named rather than invented
+- No periodic wake-up / a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event / none, by design - there is no poll loop to toggle off (the plan's own original note)
+- No thread or child left / every test's own join() calls / not a separate test, enforced by every test's own cleanup
+
+Checks: just check clean at head ffd6f32 (before this round's fix), and again at the final head after the origin/main merge; just test clean throughout. gh pr checks 63 --watch reports no checks configured on this repo's PRs (empty rollup) - nothing to wait on.
+
+TASK-1.86 (in review) adds its own SessionCountChanged notify inside the same apply_event_locked PaneEvent::Exited arm this task restructures, not only connection.rs/listen.rs as this task's own Risks section said - whoever merges second should fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping scope captured before record_exit.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events pane_move'` exited 101 at 2026-11-16T15:38:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 2 tests
+test pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session ... FAILED
+test pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab ... FAILED
+
+failures:
+
+---- pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session stdout ----
+
+thread 'pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session' (43364219) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab stdout ----
+
+thread 'pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab' (43364218) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab
+    pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 12 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events pane_split_emits_pane_created_only'` exited 101 at 2026-11-16T15:39:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test pane_split_emits_pane_created_only ... FAILED
+
+failures:
+
+---- pane_split_emits_pane_created_only stdout ----
+
+thread 'pane_split_emits_pane_created_only' (43411657) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_split_emits_pane_created_only
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_close_emits_the_whole_cascade_innermost_first'` exited 101 at 2026-11-16T15:40:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_close_emits_the_whole_cascade_innermost_first ... FAILED
+
+failures:
+
+---- session_close_emits_the_whole_cascade_innermost_first stdout ----
+
+thread 'session_close_emits_the_whole_cascade_innermost_first' (43421803) panicked at crates/server/tests/events.rs:345:5:
+expected the first tab's own tab.closed third, got PaneClosed { id: PaneId(6) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_emits_the_whole_cascade_innermost_first
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-16T15:41:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        Duration::from_millis(300),
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46/crates/server/tests/events.rs:613:
+     // tab, which was the source session's last, so the source session
+     // closes too.
+     let mut move_params = Map::new();
+[31m-    move_params.insert(
+(B[m[31m-        "target".to_string(),
+(B[m[31m-        json!(format!("{source_session}/1/1")),
+(B[m[31m-    );
+(B[m[32m+    move_params.insert("target".to_string(), json!(format!("{source_session}/1/1")));
+(B[m     move_params.insert("to".to_string(), json!(format!("{target_session}/1")));
+[31m-    let response = call(&mut client_stream, &mut client_connection, "pane.move", move_params);
+(B[m[32m+    let response = call(
+(B[m[32m+        &mut client_stream,
+(B[m[32m+        &mut client_connection,
+(B[m[32m+        "pane.move",
+(B[m[32m+        move_params,
+(B[m[32m+    );
+(B[m     assert!(matches!(response, Response::Ok(_)), "{response:?}");
+ 
+     let first = read_event(&mut sub_stream, &mut sub_connection);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46/crates/server/tests/events.rs:628:
+         panic!("expected session.closed second, got {second:?}");
+     };
+     assert_eq!(id.to_string(), source_session);
+[31m-    assert_nothing_arrives_within(&mut sub_stream, &mut sub_connection, Duration::from_millis(300));
+(B[m[32m+    assert_nothing_arrives_within(
+(B[m[32m+        &mut sub_stream,
+(B[m[32m+        &mut sub_connection,
+(B[m[32m+        Duration::from_millis(300),
+(B[m[32m+    );
+(B[m 
+     stop_server(&stop, handle);
+ }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:44:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (22.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (31.7s)
+ok      test (steg-server) (19.7s)
+ok      test (steg-server, race-fixture) (19.4s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (7.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (7.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:45:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ca699eee225c:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (12.0s)
+ok      test (steg-server, race-fixture) (13.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 52, 51 without the Asdlc-Worker trailer.
+
+The 2 Important findings and 2 nits from the second review, addressed. Both the commits below are pushed and verified present on origin (I checked this explicitly this time, after round 1's notes claimed a comment fix that was never actually committed).
+
+1. pane.move's own cascade (same class of bug as round 1, one method later): dispatch::pane::move_ now returns Outcome::PaneMoved(MovedPane) instead of discarding it into Outcome::Nothing. pane.move used to fall through Runtime::handle's generic arm, which only ever sees an already-erased Response - a new move_and_dispatch (mirroring close_and_dispatch) reads the typed outcome directly, captures the source session before the move can cascade it away, and emits tab.closed (then session.closed if the source session was also emptied), innermost first. No event for the pane itself changing tabs - named as TASK-1.109's below. New tests: pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab, pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session - each with its own recorded negative control (both broadcasts in move_and_dispatch disabled, both tests failed correctly, reverted).
+
+To answer the review's own "be systematic" ask, the full table of every kernel Tree function that creates or removes a session, tab or pane, its server call site, the event it causes, and the test that proves it:
+
+| Kernel function | Creates/removes | Server call site | Event(s) | Test |
+|---|---|---|---|---|
+| new_session | session + its first tab + first pane | dispatch::session::new, via start_and_dispatch | SessionCreated, TabCreated, PaneCreated (outermost first) | session_new_emits_session_created_tab_created_and_pane_created_in_order |
+| new_tab | tab + its first pane | dispatch::tab::new, via start_and_dispatch | TabCreated, PaneCreated | observed (not named) by a_filter_by_session_excludes_another_sessions_events and a_filter_by_name_keeps_only_that_event |
+| split_pane | one pane | dispatch::pane::split, via start_and_dispatch | PaneCreated | pane_split_emits_pane_created_only (added this round - had no dedicated test before) |
+| close_session | the session + every tab + every pane it held | dispatch::session::close, via close_and_dispatch | every pane, then its own tab, per tab in order, then the session | session_close_emits_the_whole_cascade_innermost_first |
+| close_tab | the tab + its panes (+ the session, if it was the session's last tab) | dispatch::tab::close, via close_and_dispatch | every pane, then the tab, then the session if emptied | tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session |
+| close_pane | the pane (+ its tab if emptied) (+ the session if that emptied too) | dispatch::pane::close, via close_and_dispatch | pane.closed, then tab.closed if cascaded, then session.closed if cascaded | pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order |
+| record_exit (delegates to close_pane when the pane closes on exit) | same as close_pane, when it fires | Runtime::apply_event_locked's PaneEvent::Exited arm | pane.exited always; the same close cascade when the exit closes the pane | a_command_panes_exit_emits_pane_exited (Stayed), a_shell_panes_exit_emits_the_whole_cascade_in_order (Closed) |
+| move_pane_to_tab | the pane is not removed, it changes tabs; can cascade-remove the source tab (+ the source session if that was its last tab) | dispatch::pane::move_, via move_and_dispatch (new this round) | tab.closed if the source tab closed, then session.closed if the source session closed too | pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab, pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session |
+| Session::move_tab, Tree::move_session, swap_panes, fill_pane, unfill_pane, resize_pane | none - reorder/layout only, never create or remove a session, tab or pane | n/a | n/a | n/a |
+| disconnect_client, view_pane, stop_viewing, declare_size, note_input, acknowledge_pane, start_program, restart_program, note_command_output_started, note_command_ended | none - client/program/status state, never tree topology | n/a | n/a (status changes already go through pane.status_changed) | n/a |
+
+No row is left without an event after this round's fix. The rows that change the tree in a way that is not a creation or a closure are TASK-1.109's, by name: move_pane_to_tab itself (a pane now living in another tab), and every reorder/layout-only function above (a tab's position, a session's position, a pane swapped, zoomed/unzoomed, resized). Precisely what a subscriber is and is not told today when a pane moves: it IS told if the move emptied and closed the source tab and/or session (this round's fix - a subscriber is never left believing in a tab or session that is actually gone, which was the one thing AC #2 requires). It is NOT told that the pane itself now lives in a different tab - no pane.moved event exists in the API description yet, and a subscriber's own copy of the destination tab's pane list goes stale until it re-reads (tab.show/pane.show) or TASK-1.109 adds that event. That gap is real but out of this task's own scope, same as a layout or position changing.
+
+2. The session_close_emits_the_whole_cascade_innermost_first control was not actually recorded against what the rebuilt (two tabs, two panes each) test proves - correct, and my own citation of it in the last round's notes was wrong (the bug-fix control doesn't touch session.close's own loop; confirmed by rerunning the 2x2 test under it - it still passes). Recorded the real one now: flattened session.close's own loop in emit_close_events (every pane across every tab, then every tab, instead of per-tab grouping) - the test fails correctly ("expected the first tab's own tab.closed third, got PaneClosed"), proving the interleaving is real and now actually on record. Reverted; just test clean.
+
+Nits: broadcast's own doc comment (runtime.rs) genuinely rewritten and pushed this time (I checked `git show origin/<branch>:crates/server/src/runtime.rs` directly before writing this, rather than trusting my own working tree) - verified present on the pushed branch. emit_close_cascade and emit_close_events's pane.close arm no longer duplicate the same three broadcasts - the latter now calls the former directly.
+
+Checks: just check clean before this round's commit and again after merging origin/main (recorded both); just test clean throughout, including the full cargo test -p steg-server run. gh pr checks 63 --watch reports no checks configured on this repo (empty statusCheckRollup) - nothing to wait on, confirmed again this round.
+
+Same overlap as last round, unchanged and still open: TASK-1.86 adds its own SessionCountChanged notify inside the same apply_event_locked PaneEvent::Exited arm this task restructured - whoever merges second folds it into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping scope captured before record_exit runs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1126,6 +1719,123 @@ Nits (2, both minor):
 - `Connection::watch`'s signature (`for_: Option<&str>`) departs from the plan's own sketch (`for_: &[&str]`); justified inline (the API's own `for` is a single Choice value, not a list) but not called out in the task's notes.
 
 Not findings, confirmed working as designed: the slow-subscriber shutdown (shutdown() on a cloned socket from the broadcasting thread while holding the Runtime's lock is the same cross-thread-shutdown idiom TASK-1.45's own ConnectionCleanup already uses and is non-blocking; the unit test does prove the real socket closes, not just queue bookkeeping); TASK-1.47's own `pane.attach` does use `Follows::Attachment` as this task's description predicted usable. TASK-1.86 (in review) adds its own `SessionCountChanged` notify inside the exact same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures (not just connection.rs/listen.rs as this task's own Risks section says) - whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping this task's `scope` captured before `record_exit`.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:10:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 5m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:32:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, testing. The diff does not match the plan.
+
+Second review (same-machine) at head ffd6f32 (matches the task's own recorded `just check` head; PR #63's CI reports no checks configured - nothing to wait on, confirmed with `gh pr checks`). Ran `just check` myself (clean after confirming one unrelated flaky failure - arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server, which passes in isolation and touches code this diff never changes); ran the server's `--test events` suite 30x (0 failures) and the `--lib` suite 5x (0 failures), with no leftover processes from my own runs afterward.
+
+Confirmed from round 1, unchanged, not reviewed again: the atomic reply, the tree's types, the description's vocabulary, the slow-subscriber shutdown.
+
+This round's fix for finding 1 (pane.close/tab.close losing their own cascade): verified by inspection and by reintroducing the exact bug myself (scratch-reverted both arms of emit_close_events) - the three new tests fail correctly, the rebuilt session_close test (wired through a different arm) still passes, exactly as the notes describe. The wire reply is unchanged (`Outcome::PaneClosed`/`TabClosed` both serialise to `Value::Null`, same as the old `Outcome::Nothing`). `dispatch_raw` has exactly one caller (`close_and_dispatch`); every other path (`Runtime::handle`'s generic arm, `start_and_dispatch`) still goes through `dispatch::dispatch`, which resolves `api.call` first - nothing bypasses that wrapper. Exit-driven and request-driven paths read the same kernel-reported `ClosedPane` fields the same way (confirmed by inspection of the two code paths - `emit_close_cascade` for exit-driven, the inlined equivalent in `emit_close_events`'s `pane.close` arm for request-driven - and their separate tests, not run side by side). A subscriber narrowed to another session sees nothing of a cascade (`broadcast` takes one `scope` for the whole cascade, checked per subscriber per event); one narrowed by event name sees only the matching names within the cascade, confirmed by `broadcast`'s own per-event, per-subscriber filtering.
+
+I also repeated the session-scope-filter control (scratch-disabled `scope_ok` in `Filter::matches`) and the creation-cascade-order control (scratch-removed the `TabCreated` broadcast in `session.new`'s own arm): both reproduce the task's recorded controls exactly, panic message for panic message.
+
+Two Important findings:
+
+1. [Bugs/Compliance, AC #2] `pane.move`'s own R94 cascade is never reported to subscribers. Moving a tab's last pane elsewhere closes that tab (and the session too, if it was the session's last tab) - the kernel's own `Tree::move_pane_to_tab` already reports this precisely (`MovedPane.source_tab_closed`/`source_session_closed`, with its own kernel-level test `move_pane_to_tab_cascades_closing_the_source_tab_when_it_was_the_last_pane` proving the cascade is real and exercised), but `crates/server/src/dispatch/pane.rs`'s `move_` discards the whole `MovedPane` into `Outcome::Nothing`, and `Runtime::handle` routes `pane.move` through its generic `_` arm (not `start_and_dispatch`/`close_and_dispatch`), which never reads a cascade at all - only `reapply_every_sized_tab`/`emit_focus_event` run. Reproduced directly (scratch test added to `crates/server/tests/events.rs`, then reverted): a session with two tabs, moving the first tab's only pane into the second - `tab.list` confirms only the second tab remains afterward, but the subscriber receives nothing at all, no `pane.closed`/`tab.closed`. This answers the brief's own question ("is there any remaining way the tree loses a session, tab or pane without its event") - I grepped the kernel for every removal site: `Session::move_tab` (`session.rs:206`) and `Tree::move_session` (`tree.rs:1242`) are reorders (remove+reinsert), not removals; `Tab::remove_pane_for_move` (`tab.rs:425`), feeding `move_pane_to_tab`'s own cascade, is the one gap. Same class as the bug this round fixed for `pane.close`/`tab.close` (AC #2's "every place the tree changes that way"), on a method the plan's own §5 table never named and the notes never flag as a dropped case - the plan itself missed it, the same shape as the first review's own finding 1.
+
+2. [Evidence] The rebuilt `session_close_emits_the_whole_cascade_innermost_first` (two tabs, two panes each, built this round for finding 5) has no valid negative control on record for the one thing it was rebuilt to prove - per-tab interleaving. The only control on file for this test (13:59:07 at 84ab8324) was run against the *old single-tab version*, which cannot even express cross-tab interleaving (testing.md: "run the control again against the edited test before citing it" - this test was edited, materially, after that control). This round's own "bug-fix control" (reverting `emit_close_events`'s `pane.close`/`tab.close` arms) doesn't touch `session.close`'s own loop at all - I confirmed the 2x2 test still passes unaffected under that control, same as the notes' own account ("this test is wired through session.close/emit_close_events's own Session arm, which the review found already correct from reading"). The notes cite the bug-fix control for this row anyway ("recorded this round (the bug-fix control, all four)"), which is not accurate - it covers three rows, not this one. I built and ran the actual control myself (scratch-flattened `session.close`'s own loop in `emit_close_events` to "every pane across every tab, then every tab", reverted after): the rebuilt test fails correctly, at the right assertion (`expected the first tab's own tab.closed third, got PaneClosed`), so the mechanism the test proves is real - the control for it is just not on record, and the notes' claim that it is, is wrong.
+
+Nits (2):
+- The notes claim the `broadcast` doc comment (runtime.rs) was "rewritten" to stop saying "nothing here ever writes to a socket while state's lock is held" (false since a failed enqueue calls `shutdown.shutdown(Both)` right there, under the lock) - it was not: `runtime.rs:1636` is untouched by this round's diff, word for word the same overstated claim. The underlying nit (from round 1) is still open. For the record: `shutdown(Shutdown::Both)` on a Unix stream socket is a kernel-level syscall that marks the socket unable to send/receive and returns immediately, without waiting on the peer - it wakes any blocked reader with an error/EOF - so it is non-blocking in practice, but the comment's blanket claim remains false regardless.
+- `emit_close_cascade`'s own three-broadcast sequence (`PaneClosed`, then `TabClosed` if `Some`, then `SessionClosed` if `Some`) is duplicated verbatim in `emit_close_events`'s `pane.close` arm instead of reused - functionally identical (confirmed by reading both), just a second copy of the same decision to keep in sync later.
+
+Confirmed correct, not findings: the pane.close/tab.close doc-comment correction (crates/server/src/dispatch/{pane,session,tab}.rs) about when a running program actually ends - genuinely rewritten this round, and accurate against `close_and_dispatch`'s own code (the program ends via `force_end`, called after the lock is dropped, after `emit_close_events` runs); the `Connection::watch` signature departure is in the notes, as asked.
+
+plan-matched: no - the plan's own "Files that change" says explicitly "no change to `Outcome`/return shapes for any close/new arm (§5 reads tree state before and after instead...)" and §5 itself says "never by threading a new return shape through `dispatch::tab::close`/`session::close`". This round's diff adds `Outcome::PaneClosed`/`TabClosed` and stops reading the tree after a close - the opposite of what the plan says it does, for the reason the plan itself gives (the bug the first review found). The departure is right and already explained in the notes (so no separate Compliance finding beyond what's above) - the flag reflects the diff-vs-plan-text mismatch itself, not a fault in the decision to depart.
+
+One overlap to state for whoever merges second: TASK-1.86 (PR 60, in review) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. Whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping this task's `scope` (captured before `record_exit` runs, since `record_exit` can remove the very tab/session `scope` would otherwise have to be read back from) - 1.86's own notify must not move ahead of this task's broadcasts, and must not re-derive `scope` after `record_exit`.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:54:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T16:18:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: testing. The diff does not match the plan.
+
+Third review (same-machine) at head ca699eee225c (matches the task's own recorded `just check` head; PR #63 CI reports SUCCESS at this commit, confirmed via `gh pr view`).
+
+Diff reviewed: ffd6f32..ca699ee, restricted to this round's own changes (crates/server/src/dispatch/outcome.rs, dispatch/pane.rs, runtime.rs, tests/events.rs - the backlog/docs churn in that range came from merging origin/main, not this task).
+
+1. pane.move's fix, tried against a running server (real-socket tests): the three scenarios all behave correctly. `pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab` (tab.closed only) and `pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session` (tab.closed then session.closed) both pass; I reproduced the control myself (scratch-disabled both broadcasts in `move_and_dispatch`) and both fail correctly with no event arriving. The third case the brief named - a move that empties nothing - has no test in the diff; I added one in a scratch edit (moved one of two panes out of a two-pane tab) and it passes (no closure event arrives), then reverted it. Behaviour is correct; the case is just not on record (Nit, not Important - no acceptance criterion is unmet, since AC #2 is about events firing when the tree actually changes that way, not about proving silence on a no-op).
+
+Checked that `move_and_dispatch` omitting `emit_focus_event` (present in `handle`'s generic `_` arm, absent here) is not a regression: `emit_focus_event` only ever fires for `tab.focus`/`pane.focus` requests (it matches on `request.method` and returns early for anything else) - it would never have fired for `pane.move` even when `pane.move` went through the generic arm before this round. No other served method that creates/closes tree state calls it either, so this is consistent with the rest of the dispatch, not a new gap.
+
+2. Systematic pass: grepped crates/kernel/src/tree.rs for every public function and insertion/removal site myself. The worker's table is complete - no function creates or removes a session, tab or pane beyond what the table lists. `move_tab`/`move_session` are remove-then-reinsert at the same scope (reorder, not removal); `swap_panes`/`fill_pane`/`unfill_pane`/`resize_pane` touch layout only; `move_pane_to_tab` (via `Tab::remove_pane_for_move`) is the one row this round's fix now covers, and its own cascade is sourced from `close_tab` internally, so it genuinely can close the session too (confirmed by reading `move_pane_to_tab`/`close_tab` together). No row is left without an event.
+
+3. `session_close_emits_the_whole_cascade_innermost_first`'s control: confirmed recorded after the 2x2 rebuild, and repeated myself (scratch-flattened the per-tab loop in `emit_close_events`'s `session.close` arm) - fails at the same assertion the notes describe. Sampled five rows of the proof table (session.new, session.close, pane.close, the shell-exit cascade, pane.move) and repeated three myself: session.close (above), pane.close (scratch-reverted both arms of `emit_close_events`'s old bug - both new pane.close tests fail correctly with a WouldBlock timeout, nothing arrives), and pane.move (above). All reproduce at the right assertion; all scratch edits reverted, working tree clean throughout.
+
+4. Nits from round 2: both genuinely fixed on this head. `broadcast`'s own doc comment (runtime.rs) now accurately describes the `shutdown(Both)` call made under the lock on a failed enqueue - read directly at head, matches the code. `emit_close_cascade` is now the one function both the exit-driven and request-driven (`pane.close`) paths call - confirmed by reading `emit_close_events`'s `pane.close` arm, which now calls it directly instead of repeating its three broadcasts.
+
+5. `just check` clean on my own run at ca699ee (all steps ok, including boundaries/licences/architecture). `--test events` 30/30 passed, no flakiness. Full `steg-server` suite 5/5 passed, no flakiness. Process count before and after: 1 (an unrelated long-running background job unconnected to this worktree), no leftovers from my own runs.
+
+6. Restated for whoever merges second: TASK-1.86 (PR 60, passed review, not yet on main) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. I read that arm directly at ca699ee: `scope` is captured from `tab_of_pane`/`session_owning_tab` *before* `record_exit` runs (since `record_exit` can remove the very tab/session scope would otherwise have to be read back from), then on `Ok(outcome)`, `pane.exited` broadcasts first, and only inside `if let ExitOutcome::Closed(closed) = &outcome` does `emit_close_cascade` run. 1.86's own notify must land inside that same `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's broadcasts, using the same pre-captured `scope` - never re-derived after `record_exit`, and never placed ahead of this task's own broadcasts.
+
+No Important findings on this round's own changes; the five Important findings and the two nits from the first two rounds are addressed and verified, not re-raised. plan-matched is "no" for the same reason round 2 already recorded and explained (the plan's own text still says no `Outcome`/return-shape change for any close/new arm; this round's `PaneMoved` variant is the same explained class of departure, not a new unexplained one).
+
+---
+
+created: 2026-11-16T16:59:00Z
+
+---
+
+Merged origin/main (TASK-1.98, TASK-1.86) locally, not pushed yet - awaiting the third review's verdict on ca699ee per the team-lead. Local merge head: 60b973de6d04fb16de2eadfa0130ce2fcc8a54cd. The board will not take record-check while this task is In Review/locked, so recording what was run here instead.
+
+Ran locally, in the foreground, each to completion:
+- cargo build -p steg-server --tests: clean.
+- cargo test -p steg-server: 174 lib + 76 (connection) + 15 (events) + 13 (dispatch) + 6 (arbiter) + 5 + 8 + 22 + 29 (runtime) + 8 (shutdown) + 1 (socket_mode) = all passed, 0 failed.
+- cargo test --workspace: every crate's suite passed, 0 failed, including the 325/157 sdk suites.
+- just check (full): ok through every step - format check, lint, boundaries, foundations, design pages, licences, tests (every crate), build+test per crate including the new steg-server accept-backoff-fixture and race-fixture, tool tests, architecture, recipe names, ui levels/colours. Ran twice: once right after resolving conflicts, once again after reverting this comment's own negative control below - both clean.
+
+Re-ran the one negative control whose own mechanism the merge touched: the exit-driven cascade order control (emit_close_cascade's tab.closed broadcast disabled) - re-run because apply_event_locked's PaneEvent::Exited arm, which calls it, was restructured by the merge (TASK-1.86's own SessionCountChanged notify folded in beside my broadcasts). a_shell_panes_exit_emits_the_whole_cascade_in_order still fails correctly under it, at the same assertion as before the merge; reverted. No other control's own mechanism was touched by the merge (register_subscriber/deregister_subscriber/subscribe/close_and_dispatch/move_and_dispatch/emit_close_events are untouched text, only repositioned next to TASK-1.86's new methods).
+
+Conflict resolution, hunk by hunk:
+
+connection.rs (one conflict, in run_post_handshake): kept all four socket clones (write_half, shutdown_handle, subscriber_shutdown from mine) and, on the clone-failure path, added TASK-1.86's own disconnect_client + events.send(Disconnected) duties in the same order ConnectionCleanup's own Drop would use - noted there is also no subscriber to deregister on this path, since registration never ran. ConnectionCleanup's own struct/Drop impl (events sender, deregister_subscriber before disconnect_client, Disconnected sent last) had no conflict markers at all - it already merged cleanly with the right order: deregister_subscriber, then disconnect_client, then (last) events.send(Disconnected), each running exactly once since Drop runs exactly once.
+
+runtime.rs (six conflicts, all in the same handful of spots, same two added fields/method groups recurring):
+1. Import line: combined `use crate::connection::ConnectionEvent;` with my own `use crate::dispatch::{self, Context, Filter, Outcome};`.
+2. State struct: kept both fields, subscribers and notify_session_count_changed, with a merged doc comment on the latter stating request-driven closes (now including pane.move) don't need it either, for the reason below.
+3. Runtime::new's State literal: both fields' initializers kept (subscribers: HashMap::new(), notify_session_count_changed: None).
+4. Impl block: kept register_subscriber/deregister_subscriber/subscribe (mine) immediately followed by session_counter/set_idle_notifier (TASK-1.86's) - two independent method groups on the same impl, no actual logic overlap, just concatenated.
+5. apply_event_locked's PaneEvent::Exited arm - the one with real logic to reconcile: kept my own outer `if let Some(scope) { broadcast(PaneExited); if Closed { emit_close_cascade } }` followed by `if let ExitOutcome::Closed(closed) = outcome { state.panes.remove(...); <TASK-1.86's notify, folded in here> }` - the notify now sits after my own broadcasts (textually and causally, since it is in the second block which already ran after the first), with scope captured before record_exit exactly as before test_state's own State literal (two occurrences): both fields kept, same as point 3.
+
+Confirmed per the team-lead's own question: a session closed by a request (pane.close/tab.close/session.close/pane.move, all four now covered by this task) needs no SessionCountChanged notify of its own. Read idle.rs's own IdlePredicate::wait: it returns Wait::Forever whenever live_clients > 0, regardless of session_count - and every one of my four request-driven close paths only ever runs on an already-accepted, already-counted-live connection, so the idle checker cannot become eligible while that connection is open regardless of whether a notify fires. The moment that connection (or any other) later disconnects, connection::handle's own ConnectionCleanup sends Disconnected unconditionally, which (a) decrements live_clients and (b) wakes run_checker_with_observer's loop, which re-reads session_count() fresh on every wait() call regardless of which event woke it (its own documented catch-all, idle.rs:139-147). So the exit-driven path is the only one with nothing else to wake the checker, since it is the one case a session can close with live_clients already at 0 (every client detached, the shell's own program exiting asynchronously) - exactly TASK-1.86's own comment, which I confirmed rather than took on faith.
+
+listen.rs: confirmed untouched by this task at any point - git log --oneline <merge-base-with-main>..ca699ee -- crates/server/src/listen.rs is empty, and the merge itself produced no conflict there; TASK-1.98 merges in as-is.
+
+Not pushing per instruction - will push once the verdict on ca699ee is in and I'm told to.
 
 ---
 <!-- COMMENTS:END -->

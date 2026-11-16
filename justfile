@@ -110,6 +110,10 @@ test-tools:
 # binary should not build for an ordinary `cargo build`), so without this second run the
 # race test (AC #2) would never execute under `just check` either.
 #
+# steg-server alone is tested a third time, with `--features accept-backoff-fixture`
+# (TASK-1.98) - same reason again: without this run, the accept-loop backoff/stop/fatal
+# tests (`tests/accept_backoff.rs`) would never execute under `just check`.
+#
 # steg alone, the same way again, with `--features fixtures` (TASK-1.77): off by default for
 # the identical reason - its two fixture binaries (the process-group-leader and autostart
 # -client cases) should not build for an ordinary `cargo build -p steg`, so without this run
@@ -127,6 +131,7 @@ check-packages: zig-deps-seeded
         fi
         if [ "$pkg" = steg-server ]; then
             {{quiet}} "test (steg-server, race-fixture)" -- cargo test -p steg-server --features race-fixture
+            {{quiet}} "test (steg-server, accept-backoff-fixture)" -- cargo test -p steg-server --features accept-backoff-fixture
         fi
         if [ "$pkg" = steg ]; then
             {{quiet}} "test (steg, fixtures)" -- cargo test -p steg --features fixtures

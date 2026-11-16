@@ -79,6 +79,15 @@ fn run_server_start(on_demand: bool) -> i32 {
                 );
             }
 
+            // R99's idle stop (TASK-1.86): only an on-demand start ever gets
+            // one, and explicitly, never as `ServerConfig::default()`'s own
+            // default - that default is shared between this branch and an
+            // explicit start, and R99 forbids an explicit one from ever
+            // idle-stopping.
+            if on_demand {
+                config.idle_timeout = Some(steg_server::DEFAULT_IDLE_TIMEOUT);
+            }
+
             // The login shell's own environment (doc-8 R99, TASK-1.87) -
             // captured here, deliberately: the socket is already bound
             // (so a client's `connect()` already succeeds, racing

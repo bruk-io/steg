@@ -24,6 +24,7 @@ use steg_sdk::{
     Size, validate,
 };
 
+use crate::connection::ConnectionEvent;
 use crate::dispatch::{self, Context};
 use crate::env::pane_environment;
 use crate::pane::{self, DEFAULT_PANE_SIZE, PaneEvent, PaneHandle};
@@ -167,6 +168,14 @@ struct State {
     // converted at the one place `apply_event_locked` calls
     // `record_exit`, never read by the kernel itself).
     clock_origin: Instant,
+    /// Told once, by `listen::run`, only when idle-checking is on
+    /// (TASK-1.86) - every pane-exit cascade that closes a session (R94)
+    /// sends on this afterward, so the idle checker, blocked with no
+    /// timeout while a session exists, learns the instant that stops
+    /// being true even with nobody connected. `None` until `listen::run`
+    /// calls `Runtime::set_idle_notifier`; always `None` for an explicit
+    /// start, which has no idle checker to tell.
+    notify_session_count_changed: Option<Sender<ConnectionEvent>>,
     /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
     /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
     /// test-only, since nothing outside a test needs it. A mark the
@@ -269,6 +278,7 @@ impl Runtime {
             panes: HashMap::new(),
             settings: Settings::new(),
             clock_origin: Instant::now(),
+            notify_session_count_changed: None,
             #[cfg(test)]
             applied_marks: HashMap::new(),
         }));
@@ -652,6 +662,36 @@ impl Runtime {
             .map_or(0, PaneHandle::attachment_count)
     }
 
+    /// A cheap, repeatable way to read the live session count, usable
+    /// from a thread that outlives any borrow of `self` (`listen::run`'s
+    /// idle checker, TASK-1.86, which must outlive the `&Runtime` every
+    /// connection thread borrows inside `thread::scope`). `pub(crate)`:
+    /// nothing outside this crate needs it.
+    pub(crate) fn session_counter(&self) -> impl Fn() -> usize + Send + 'static {
+        let state = Arc::clone(&self.state);
+        move || {
+            state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tree
+                .sessions()
+                .len()
+        }
+    }
+
+    /// Told once, by `listen::run`, only when idle-checking is on
+    /// (TASK-1.86) - every pane-exit cascade that closes a session (R94)
+    /// sends `ConnectionEvent::SessionCountChanged` on this afterward
+    /// (`apply_event_locked`'s own `PaneEvent::Exited` arm, below). Safe
+    /// to call before any pane can possibly exist: `listen::run` calls
+    /// this immediately after constructing the `Runtime`, before its
+    /// accept loop starts accepting anything, and a pane is only ever
+    /// minted by a request on an already-accepted, already-handshaken
+    /// connection.
+    pub(crate) fn set_idle_notifier(&self, notify: Sender<ConnectionEvent>) {
+        self.lock().notify_session_count_changed = Some(notify);
+    }
+
     /// Stops this `Runtime`: ends every running program, reaps each one,
     /// joins every worker thread, then joins the one drain thread too
     /// (review finding 3; rewritten for TASK-1.78 §4 to reuse [`force_end`],
@@ -679,6 +719,15 @@ impl Runtime {
     pub fn stop(&mut self) {
         let panes = {
             let mut state = self.lock();
+            // Drops this `Runtime`'s own clone of the idle checker's
+            // notifier (TASK-1.86), if any - one of the senders
+            // `listen::run`'s own join bound (section 6 of this task's
+            // plan) is derived against: a checker blocked with no
+            // timeout at all (a session still open when something other
+            // than its own decision calls `stop`) can only be woken by
+            // its channel disconnecting, which needs every sender into
+            // it gone, this one included.
+            state.notify_session_count_changed = None;
             std::mem::take(&mut state.panes)
         };
         force_end(panes.into_iter().collect(), self.force_grace);
@@ -1129,6 +1178,23 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
             match state.tree.record_exit(pane, exit_code, now) {
                 Ok(ExitOutcome::Closed(closed)) => {
                     state.panes.remove(&closed.pane);
+                    // TASK-1.86: this cascade (R94) can close a session
+                    // with nobody connected at all - a shell pane whose
+                    // program just exited, in a session no client is
+                    // viewing. A request-driven close (`session.close`
+                    // over the wire) needs no notify of its own: it only
+                    // ever runs on an already-accepted connection, and
+                    // `connection::handle` sends `Disconnected` on every
+                    // path out of itself, which already wakes the
+                    // checker. This path has no connection behind it at
+                    // all, so it is the one case with nothing else to
+                    // wake the checker if a session was all that was
+                    // keeping it ineligible.
+                    if closed.session.is_some()
+                        && let Some(notify) = &state.notify_session_count_changed
+                    {
+                        let _ = notify.send(ConnectionEvent::SessionCountChanged);
+                    }
                 }
                 Ok(ExitOutcome::Stayed) => {}
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
@@ -1406,6 +1472,7 @@ mod tests {
             panes,
             settings: steg_kernel::Settings::new(),
             clock_origin: Instant::now(),
+            notify_session_count_changed: None,
             applied_marks: HashMap::new(),
         }
     }

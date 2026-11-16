@@ -361,6 +361,12 @@ crates/ui/src/foundations/generated.rs does not match crates/ui/design/foundatio
 full output: .quiet/foundations.log
 error: recipe `check-foundations` failed on line 162 with exit code 1
 ```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations'` exited 0 at 2026-11-16T02:43:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+ok      foundations (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

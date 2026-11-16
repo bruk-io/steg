@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T15:04:00Z'
+updated_date: '2026-11-16T15:11:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -938,6 +939,15 @@ Reproduced myself (30x sequential, 30x default-parallel, 15x under background CP
 [Compliance, Nit] arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture line in check-packages remain outside the plan's own "Files that change" list in the diff against main (unchanged since fcfc798c). This round's notes now name and explain both (addressing round 1's nit about the board being silent on them), but per policy plan-matched stays "no": these are still touched files the plan never named, even though the notes now explain them.
 
 Not re-litigated (unchanged since the first review, per the brief): the classification, both guarded points, and the stop check's own correctness as code, all judged sound in round 1.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

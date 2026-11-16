@@ -1031,6 +1031,44 @@ test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T13:16:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/idle.rs:334:
+         // periodic-poll design would show up here as an early, spurious
+         // `Wait::Forever` observation instead of a timeout.
+         assert!(
+[31m-            observed_rx.recv_timeout(Duration::from_millis(300)).is_err(),
+(B[m[32m+            observed_rx
+(B[m[32m+                .recv_timeout(Duration::from_millis(300))
+(B[m[32m+                .is_err(),
+(B[m             "no observation should arrive while the checker is blocked with no timeout"
+         );
+         // Now disconnect - the checker wakes from its untimed `recv()`,
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/idle.rs:379:
+         let checker = std::thread::spawn({
+             let stop = stop.clone();
+             move || {
+[31m-                run_checker_with_observer(signal_rx, stop, || 0, idle_timeout, move |wait| {
+(B[m[31m-                    let _ = observed_tx.send(*wait);
+(B[m[31m-                });
+(B[m[32m+                run_checker_with_observer(
+(B[m[32m+                    signal_rx,
+(B[m[32m+                    stop,
+(B[m[32m+                    || 0,
+(B[m[32m+                    idle_timeout,
+(B[m[32m+                    move |wait| {
+(B[m[32m+                        let _ = observed_tx.send(*wait);
+(B[m[32m+                    },
+(B[m[32m+                );
+(B[m             }
+         });
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

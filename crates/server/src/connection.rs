@@ -1,19 +1,26 @@
-//! The per-connection thread: the handshake, with a real timeout (AC #4),
-//! reusing `steg_sdk::wire::Connection` exactly as TASK-1.70 built it -
-//! nothing here adds a line to the sdk. Once accepted, this task holds a
-//! connection open only to report its liveness; routing a request past
-//! the hello is TASK-1.45's named scope, not this one's.
+//! The per-connection thread: the handshake, with a real timeout (AC #4,
+//! TASK-1.44), then the reader/writer shape that routes a request to the
+//! API (TASK-1.45 §1) - reusing `steg_sdk::wire::Connection` exactly as
+//! TASK-1.70 built it, and `crate::outbound::Outbound` exactly as this
+//! task's own earlier commit built it. Nothing here adds a line to the
+//! sdk: the one `match` in `run_post_handshake` leans entirely on the
+//! sdk's own `Incoming` classification.
 
 use std::io::Read;
 use std::os::unix::net::UnixStream;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::sync::mpsc::Sender;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{
     ClientId, Connection, Frame, Handshake, Incoming, PROTOCOL_VERSION, Refusal, WireRole as Role,
-    description, encode_frame,
+    check_hello, description, encode_frame,
 };
+
+use crate::dispatch::Context;
+use crate::outbound::{Outbound, spawn_writer};
+use crate::runtime::Runtime;
 
 /// A connection's liveness, from `run`'s accept loop (the seam part B's
 /// idle checker will consume - this task has no idle rule of its own to
@@ -44,19 +51,6 @@ use steg_sdk::{
 pub enum ConnectionEvent {
     Connected,
     Disconnected,
-}
-
-/// A client id local to this one server's lifetime, minted sequentially
-/// as connections are accepted. Not the kernel's own client model
-/// (`steg_kernel`'s `Ids::next_client` is private to that crate, and in
-/// any case there is no `Tree` here to mint one through - wiring a real
-/// session/client model to this connection is TASK-1.45's job): this is
-/// only ever used for the handshake's own `ServerHello.client` field,
-/// which the sdk's wire protocol requires but this task does not
-/// otherwise interpret.
-fn next_local_client_id() -> ClientId {
-    static NEXT: AtomicU64 = AtomicU64::new(1);
-    ClientId::from_raw(NEXT.fetch_add(1, Ordering::Relaxed))
 }
 
 /// How long is left before `deadline`, as of `now` - `None` once `now`
@@ -200,10 +194,22 @@ fn describe_non_hello(incoming: &Incoming) -> String {
 /// read once, here, at the moment this connection starts its handshake -
 /// not re-read per read the way the timeout alone used to be), reads
 /// the first frame, and classifies it.
-fn first_frame(stream: &mut UnixStream, handshake_timeout: Duration) -> FirstFrame {
+///
+/// `connection` is the caller's own, carried through the whole
+/// connection's life (TASK-1.45 §1), not a local, throwaway one: a client
+/// that pipelines its first request right behind its hello, in the same
+/// `read()`, would otherwise have those bytes decoded into a `Connection`
+/// that is discarded the moment this function returns, losing a frame
+/// that already fully arrived. Using the same `Connection` for the
+/// handshake and everything after it means nothing already buffered is
+/// ever lost at that boundary.
+fn first_frame(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    handshake_timeout: Duration,
+) -> FirstFrame {
     let deadline = Instant::now() + handshake_timeout;
-    let mut connection = Connection::new(Role::Server, description());
-    match read_one(stream, &mut connection, deadline) {
+    match read_one(stream, connection, deadline) {
         None => FirstFrame::NoCompleteFrame,
         Some(Incoming::Hello(payload)) => FirstFrame::Hello(payload),
         Some(other) => FirstFrame::NotAHello(describe_non_hello(&other)),
@@ -229,21 +235,132 @@ fn malformed_hello_reply(reason: String) -> Vec<u8> {
     encode_frame(&Frame::hello(payload)).expect("a refusal fits under the frame cap")
 }
 
-/// The per-connection thread body: the handshake, then holding the
-/// connection open - reporting only that it is alive - until it closes.
-/// Takes ownership of `stream` and runs until that connection ends, on
-/// whichever thread calls it (`listen::run` spawns one per accepted
-/// connection).
+/// Joins the writer thread and disconnects the minted client on every
+/// path out of [`run_post_handshake`] - an ordinary close, a hostile
+/// input closing the connection, or a panic unwinding through a call to
+/// [`Runtime::handle`] (a bug in a request handler). Rust runs a local's
+/// `Drop` on unwind the same as on an ordinary return, so building this
+/// once, right after the writer is spawned and the client is minted, and
+/// holding it for the rest of the function, is what makes every exit
+/// path still clean up - even one this function's own code never
+/// explicitly names - rather than leaving the writer thread blocked on
+/// its condvar forever and the client stuck in the tree.
+struct ConnectionCleanup<'a> {
+    outbound: Arc<Outbound>,
+    writer: Option<JoinHandle<()>>,
+    runtime: &'a Runtime,
+    client_id: ClientId,
+}
+
+impl Drop for ConnectionCleanup<'_> {
+    fn drop(&mut self) {
+        self.outbound.close();
+        if let Some(writer) = self.writer.take() {
+            let _ = writer.join();
+        }
+        self.runtime.disconnect_client(self.client_id);
+    }
+}
+
+/// The reader loop a connection that completed its handshake runs for the
+/// rest of its life (TASK-1.45 §1): drains whatever `connection` already
+/// has buffered (possibly a request pipelined right behind the hello,
+/// in the same read as `first_frame`'s own), then reads more. One
+/// `match`, leaning entirely on the sdk's own `Incoming` classification -
+/// a `Request` is answered through `runtime`; every other variant,
+/// spelled out rather than a wildcard arm (so a new one the sdk adds
+/// someday fails this build until it is decided, not silently swallowed),
+/// is a protocol violation post-handshake and closes the connection
+/// (TASK-1.45 §3 - there is no id to answer most of them with, so closing
+/// is the only coherent, uniform response).
+///
+/// No per-frame deadline exists here, and none is added: AC #4's own
+/// second clause already promises a completed handshake is never closed
+/// for being idle, and a client stalled mid-frame is, at this level,
+/// indistinguishable from one that is legitimately idle - both leave
+/// `connection.poll()` saying "need more bytes" forever. This is this
+/// task's own chosen design (TASK-1.45 §3), not a gap handed to another
+/// task.
+fn run_post_handshake(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    runtime: &Runtime,
+    client_id: ClientId,
+) {
+    let write_half = match stream.try_clone() {
+        Ok(cloned) => cloned,
+        Err(_) => {
+            // No write half to hand a writer thread at all - nothing was
+            // ever spawned, so there is nothing to join; the client this
+            // function was given still has to be disconnected.
+            runtime.disconnect_client(client_id);
+            return;
+        }
+    };
+    let outbound = Arc::new(Outbound::new());
+    let writer = spawn_writer(Arc::clone(&outbound), write_half);
+    let _cleanup = ConnectionCleanup {
+        outbound: Arc::clone(&outbound),
+        writer: Some(writer),
+        runtime,
+        client_id,
+    };
+
+    let context = Context::none();
+    let description = description();
+
+    loop {
+        loop {
+            match connection.poll() {
+                Some(Incoming::Request { id, request }) => {
+                    let response = runtime.handle(&description, &context, &request);
+                    let bytes = Connection::reply(id, response);
+                    if outbound.enqueue_control(bytes).is_err() {
+                        // The queue is closed or full (TASK-1.45 §3: a
+                        // client that floods requests and never reads any
+                        // reply) - `_cleanup`'s `Drop` runs the rest.
+                        return;
+                    }
+                }
+                Some(
+                    Incoming::Hello(_)
+                    | Incoming::Reply { .. }
+                    | Incoming::Event { .. }
+                    | Incoming::UnknownEvent { .. }
+                    | Incoming::StreamControl { .. }
+                    | Incoming::Data { .. }
+                    | Incoming::UnknownStream { .. }
+                    | Incoming::Malformed(_),
+                ) => return,
+                None => break, // need more bytes; read some, below
+            }
+        }
+        let mut buf = [0_u8; 4096];
+        match stream.read(&mut buf) {
+            Ok(0) | Err(_) => return,
+            Ok(n) => connection.receive(&buf[..n]),
+        }
+    }
+}
+
+/// The per-connection thread body: the handshake, then (once accepted)
+/// routing every request to `runtime` until the connection ends
+/// (TASK-1.45 §1). Takes ownership of `stream` and runs until that
+/// connection ends, on whichever thread calls it (`listen::run` spawns
+/// one per accepted connection).
 pub fn handle(
     mut stream: UnixStream,
     handshake_timeout: Duration,
     events: Option<Sender<ConnectionEvent>>,
+    runtime: &Runtime,
 ) {
     if let Some(sender) = events.as_ref() {
         let _ = sender.send(ConnectionEvent::Connected);
     }
 
-    match first_frame(&mut stream, handshake_timeout) {
+    let mut connection = Connection::new(Role::Server, description());
+
+    match first_frame(&mut stream, &mut connection, handshake_timeout) {
         FirstFrame::NoCompleteFrame => {
             // AC #4's first clause: closed with no reply - there is
             // nothing decoded to answer.
@@ -252,12 +369,22 @@ pub fn handle(
             let server_version = concat!("steg/", env!("CARGO_PKG_VERSION"));
             let api_version = description().api_version;
             let api = format!("{}.{}", api_version.major, api_version.minor);
-            let (handshake, reply) = Connection::accept_or_refuse(
-                &hello_payload,
-                server_version,
-                &api,
-                next_local_client_id(),
-            );
+
+            // Classified here, with the sdk's own pure `check_hello`,
+            // before `Connection::accept_or_refuse` makes the same
+            // decision again internally to build the reply (harmless -
+            // deterministic, no I/O, no second definition of anything):
+            // a real, tree-tracked client (TASK-1.45 §1) is minted only
+            // for a handshake that will actually be accepted, never for
+            // one about to be refused. The id for the refused case is
+            // never read: `accept_or_refuse` only ever embeds it in the
+            // `Accept` branch of its own reply.
+            let client_id = match check_hello(&hello_payload, PROTOCOL_VERSION) {
+                Handshake::Accept { kind, label, .. } => runtime.connect_client(kind, label),
+                Handshake::Refuse(_) => ClientId::from_raw(0),
+            };
+            let (handshake, reply) =
+                Connection::accept_or_refuse(&hello_payload, server_version, &api, client_id);
             use std::io::Write;
             let _ = stream.write_all(&reply);
             if matches!(handshake, Handshake::Accept { .. }) {
@@ -265,12 +392,7 @@ pub fn handle(
                 // client that has finished it and then sits idle is
                 // never closed for that (AC #4's second clause).
                 let _ = stream.set_read_timeout(None);
-                let mut sink = [0_u8; 4096];
-                // This task reads nothing past the hello: routing a
-                // further request is TASK-1.45's. Reading to
-                // end-of-file (or an error) is only ever this
-                // connection closing, which is all this task reports.
-                while matches!(stream.read(&mut sink), Ok(n) if n > 0) {}
+                run_post_handshake(&mut stream, &mut connection, runtime, client_id);
             }
         }
         FirstFrame::NotAHello(reason) => {

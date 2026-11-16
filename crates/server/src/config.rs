@@ -45,6 +45,11 @@ pub const DEFAULT_LOGIN_IDENTITY_TIMEOUT: Duration = Duration::from_secs(2);
 /// starts, so it delays a client's first request, never its `connect()`.
 pub const DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// How long an on-demand server waits with no sessions and no clients
+/// before stopping itself (doc-8 R99, TASK-1.86). Never read by an
+/// explicit start - see [`ServerConfig::idle_timeout`]'s own doc.
+pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Everything this task's server-starting path needs that would otherwise
 /// be read from the environment or the clock, so every test overrides it
 /// instead of waiting a production-length duration.
@@ -88,6 +93,16 @@ pub struct ServerConfig {
     /// may take before falling back to a fixed, minimal one - see
     /// [`DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT`].
     pub login_environment_timeout: Duration,
+    /// `None` means never idle-stop (R99: "a server started explicitly
+    /// stops only when told to") - an explicit start's default, never
+    /// overridden. `Some(duration)` is the period with no sessions and no
+    /// clients before an on-demand server stops itself (TASK-1.86).
+    /// `crates/steg`'s own entry point sets this explicitly to
+    /// `Some(DEFAULT_IDLE_TIMEOUT)` for an on-demand start - deliberately
+    /// not this struct's own default, since `ServerConfig::default()` is
+    /// shared between an explicit and an on-demand start, and defaulting
+    /// to `Some` here would make an explicit start idle-stop too.
+    pub idle_timeout: Option<Duration>,
 }
 
 impl Default for ServerConfig {
@@ -100,6 +115,7 @@ impl Default for ServerConfig {
             login: LoginShell::default(),
             login_identity_timeout: DEFAULT_LOGIN_IDENTITY_TIMEOUT,
             login_environment_timeout: DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT,
+            idle_timeout: None,
         }
     }
 }
@@ -116,6 +132,7 @@ impl std::fmt::Debug for ServerConfig {
             .field("arbitration_timeout", &self.arbitration_timeout)
             .field("launcher", &"<dyn ProgramLauncher>")
             .field("login", &self.login)
+            .field("idle_timeout", &self.idle_timeout)
             .finish()
     }
 }

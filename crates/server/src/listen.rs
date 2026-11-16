@@ -9,14 +9,16 @@ use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
 
 use crate::arbiter::{self, Arbitration};
 use crate::config::ServerConfig;
 use crate::connection::{self, ConnectionEvent};
 use crate::error::Error;
+use crate::idle;
 use crate::runtime::Runtime;
 
 /// What [`serve`] reports once it has a final answer.
@@ -198,6 +200,43 @@ fn reap_finished<J: Joinable>(connections: &mut Vec<(UnixStream, J)>) {
     }
 }
 
+/// What [`build_idle_wiring`] hands back when idle-checking is on: the
+/// sender every connection should clone from, and the one checker
+/// thread's own handle to join once it is safe to (`run`'s own shutdown
+/// sequence, below `run`'s own body).
+struct IdleWiring {
+    checker_tx: Sender<ConnectionEvent>,
+    checker_handle: thread::JoinHandle<()>,
+}
+
+/// Builds the one checker thread and its channel, only when `idle_timeout`
+/// is `Some` (TASK-1.86, doc-8 R99) - an explicit start's `idle_timeout`
+/// is `None`, and this function's own first line is the whole of why
+/// that spawns nothing at all, checked directly rather than inferred from
+/// a timing bound (this module's own test, below).
+fn build_idle_wiring(
+    idle_timeout: Option<Duration>,
+    runtime: &Runtime,
+    stop: &Stopper,
+) -> Option<IdleWiring> {
+    let idle_timeout = idle_timeout?;
+
+    let (checker_tx, checker_rx) = mpsc::channel();
+    runtime.set_idle_notifier(checker_tx.clone());
+
+    let stop = stop.clone();
+    let session_count = runtime.session_counter();
+    let checker_handle = thread::Builder::new()
+        .name("steg-idle-checker".to_string())
+        .spawn(move || idle::run_checker(checker_rx, stop, session_count, idle_timeout))
+        .expect("spawning the idle checker thread");
+
+    Some(IdleWiring {
+        checker_tx,
+        checker_handle,
+    })
+}
+
 /// The accept loop: spawns a thread per accepted connection
 /// (`connection::handle`) until [`stop`] says to stop, then closes the
 /// listener, shuts down and joins every connection still open, removes
@@ -279,6 +318,15 @@ pub fn run(
         crate::runtime::FORCE_GRACE_DEFAULT,
     );
 
+    // Built before the loop, same reasoning as `runtime` above - only
+    // `Some` when `config.idle_timeout` is (TASK-1.86); `None` for an
+    // explicit start spawns nothing and costs nothing.
+    let (checker_tx, checker_handle) = match build_idle_wiring(config.idle_timeout, &runtime, stop)
+    {
+        Some(wiring) => (Some(wiring.checker_tx), Some(wiring.checker_handle)),
+        None => (None, None),
+    };
+
     // Split apart before the loop, not destructured after it as before:
     // `listener` has to be owned *inside* the `thread::scope` below (so
     // it can be dropped there, closing it before the final join loop -
@@ -323,7 +371,12 @@ pub fn run(
                     }
                 };
                 let handshake_timeout = config.handshake_timeout;
-                let events = events.clone();
+                // When idle-checking is on, every connection's own
+                // `Connected`/`Disconnected` has to reach the checker, so
+                // its sender wins; when it's off (`checker_tx` is `None`,
+                // an explicit start), this is `events.clone()`, byte for
+                // byte what ran here before TASK-1.86.
+                let events = checker_tx.clone().or_else(|| events.clone());
                 let join = scope.spawn(move || {
                     connection::handle(stream, handshake_timeout, events, runtime_ref);
                 });
@@ -372,6 +425,20 @@ pub fn run(
     // this point, which this line itself proves: it would not compile
     // otherwise.
     runtime.stop();
+
+    // The checker's channel is, by this line, fully disconnected: the
+    // `move |scope| { ... }` closure above returned (dropping its own
+    // `checker_tx`), every per-connection clone was joined above (its own
+    // thread's local destructors run even on a panic the `let _ =
+    // join.join()` discards), and `runtime.stop()` just above dropped
+    // `Runtime`'s own clone (`State.notify_session_count_changed`). So
+    // whichever `Wait` the checker was in - blocked with no timeout, or
+    // mid-bounded-wait - its blocking call now sees the channel
+    // disconnect and returns; this join's bound comes from that, never
+    // from a poll interval.
+    if let Some(checker_handle) = checker_handle {
+        let _ = checker_handle.join();
+    }
 
     let _ = std::fs::remove_file(socket_path);
     drop(lock);
@@ -491,5 +558,29 @@ mod tests {
         let mut connections: Vec<(UnixStream, std::thread::JoinHandle<()>)> = Vec::new();
         reap_finished(&mut connections);
         assert!(connections.is_empty());
+    }
+
+    /// TASK-1.86 (idle stop): the structural proof that an explicit start
+    /// (`idle_timeout: None`) never idle-stops, because it never even
+    /// builds the thread that could - not a timing-bounded test, which
+    /// could only ever show "didn't stop within however long we waited,"
+    /// never "never." `build_idle_wiring` is private, so this test lives
+    /// here rather than in a separate integration-test file, which could
+    /// not reach it.
+    #[test]
+    fn build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none() {
+        let runtime = crate::runtime::Runtime::new(
+            std::sync::Arc::new(crate::pty::RealLauncher),
+            crate::runtime::LoginShell::default(),
+            Duration::from_millis(1),
+        );
+        let stop = super::Stopper::new();
+
+        let wiring = super::build_idle_wiring(None, &runtime, &stop);
+
+        assert!(
+            wiring.is_none(),
+            "idle_timeout: None must build neither a channel nor a thread"
+        );
     }
 }

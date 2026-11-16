@@ -22,17 +22,29 @@ use crate::dispatch::Context;
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
-/// A connection's liveness, from `run`'s accept loop (the seam part B's
-/// idle checker will consume - this task has no idle rule of its own to
-/// feed it to). Sent `Connected` the instant `accept()` returns the
-/// connection, before any byte of it is read - counting from handshake
-/// -acceptance instead would let a real client mid-handshake go
-/// uncounted at the exact moment an idle rule might otherwise decide
-/// there is no one there (part B's problem to get right, not this task's
-/// to create by counting too late).
+/// A connection's liveness, from `run`'s accept loop - and, as of
+/// TASK-1.86, one thing that is not about any one connection at all
+/// (`SessionCountChanged`, below). Kept as one enum rather than each
+/// consumer inventing its own wrapper around it: this channel is the
+/// server's own internal "something the idle checker should re-evaluate"
+/// stream, not strictly a per-connection one, and TASK-1.98's own planned
+/// addition (an accept retried after a recoverable error) is the same
+/// kind of thing - naming the enum after its first, narrower use rather
+/// than widening the name too is the cheaper trade: `ConnectionEvent`
+/// reads oddly for a variant like `SessionCountChanged`, but renaming it
+/// would touch every existing sender and receiver across this crate for
+/// a cosmetic gain, which isn't worth it against two variants that
+/// genuinely aren't about one connection. Said here, and in this task's
+/// own notes, rather than silently renamed or silently left unexplained.
 ///
-/// **A caveat for part B's idle rule, not this task's to fix (a review
-/// of this task found it, named here rather than hidden):**
+/// `Connected` is sent the instant `accept()` returns the connection,
+/// before any byte of it is read - counting from handshake-acceptance
+/// instead would let a real client mid-handshake go uncounted at the
+/// exact moment an idle rule might otherwise decide there is no one
+/// there.
+///
+/// **A caveat for the idle checker (TASK-1.86), found by an earlier
+/// review and still true, named here rather than hidden:**
 /// `arbiter::probe`'s own liveness check - a plain `UnixStream::connect`
 /// against a running server, used only to tell "a live server of ours"
 /// apart from "a stale file" during arbitration - is indistinguishable
@@ -42,15 +54,26 @@ use crate::runtime::Runtime;
 /// closes its side right after connecting, never sending a hello) the
 /// same as it would for any client that connected and left before
 /// completing a handshake. A caller counting this seam to decide
-/// "is anyone here" - as TASK-1.77's idle checker will - would see a
-/// probe exactly like a very short-lived real client. The server
-/// cannot currently tell the two apart at all: a probe's connection
-/// carries nothing that marks it as one (no hello, no special byte),
-/// so there is no signal here to filter on even if `run` wanted to.
+/// "is anyone here" would see a probe exactly like a very short-lived
+/// real client. The server cannot currently tell the two apart at all:
+/// a probe's connection carries nothing that marks it as one (no hello,
+/// no special byte), so there is no signal here to filter on even if
+/// `run` wanted to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionEvent {
     Connected,
     Disconnected,
+    /// A pane's exit just closed a session with no client connected to
+    /// it at all (doc-15 R94/R97's own cascade: a plain shell pane
+    /// closes when its program exits, and that can close its tab and
+    /// its session in turn) - carries no id, since a caller that cares
+    /// always re-reads the live count (`Runtime::session_counter`),
+    /// never caches one against this event. Sent by `Runtime`, from the
+    /// drain thread that already applies a pane's exit to the tree -
+    /// never by `connection::handle`, which has no connection to send
+    /// it from in this one case (TASK-1.86's own plan, "Why only the
+    /// `PaneEvent::Exited` arm").
+    SessionCountChanged,
 }
 
 /// How long is left before `deadline`, as of `now` - `None` once `now`

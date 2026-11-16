@@ -24,6 +24,7 @@ mod detach;
 mod dispatch;
 mod env;
 mod error;
+mod idle;
 mod listen;
 mod login_env;
 mod outbound;
@@ -35,7 +36,9 @@ mod runtime;
 mod signal;
 
 pub use arbiter::{Arbitration, Reason as ArbitrationReason, ServerHandle, attempt};
-pub use config::{DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT, ServerConfig};
+pub use config::{
+    DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT, DEFAULT_IDLE_TIMEOUT, ServerConfig,
+};
 pub use connection::ConnectionEvent;
 pub use detach::detach;
 pub use dispatch::{Context, Outcome, dispatch};

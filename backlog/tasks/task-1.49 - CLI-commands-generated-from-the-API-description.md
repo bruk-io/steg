@@ -488,6 +488,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; fini
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 101 at 2026-11-16T15:13:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... FAILED
+
+failures:
+
+---- every_described_method_has_a_generated_command_and_nothing_else stdout ----
+
+thread 'every_described_method_has_a_generated_command_and_nothing_else' (42154611) panicked at crates/steg/tests/cli_drift.rs:63:5:
+methods with no generated command: [("pane", "split")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_described_method_has_a_generated_command_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --test cli_drift`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

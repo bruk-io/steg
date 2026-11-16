@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:47:00Z'
+updated_date: '2026-11-16T04:41:00Z'
 labels:
   - size-3
   - review-passed
@@ -2460,6 +2460,37 @@ Not run through asdlc record-check/finish, since the board won't take either aft
 - Pushed to e7cc551; gh pr checks 47 --watch green at that exact head (watched in the foreground, run 43799786237).
 
 Waiting on your word for item 2 (TASK-1.45/PR 50 merging first).
+
+---
+
+created: 2026-11-16T04:41:00Z
+
+---
+
+Item 2 done: merged origin/main (TASK-1.45/PR 50) into this branch by hand, resolved, pushed. New head: 3e4594e.
+
+**Conflicting hunks and how each was resolved:**
+
+1. `crates/server/src/runtime.rs` - one conflict region, around `Runtime::stop`'s own doc comment. HEAD had my rewritten doc for `stop()` (force_end, the behaviour-change note about serial-vs-shared cost); origin/main had added `connect_client`/`disconnect_client` (TASK-1.45 §1) plus its own now-stale doc for `stop()` describing the old `PaneHandle::stop` mechanism. Resolved by keeping both real methods: `connect_client`/`disconnect_client` verbatim from origin/main, placed before `stop()`; my own doc for `stop()` kept (dropping origin/main's stale one, since my `stop()` implementation below it is what actually exists now); added one line to that doc naming `listen::run` as the real caller, since that's genuinely new information this merge makes true. No logic in this region, doc and ordering only.
+
+2. `crates/server/src/dispatch/lookup.rs` - one conflict region, purely in the `#[cfg(test)] mod tests` block at the end. HEAD had my `a_pane_id_that_cannot_be_found_counts_as_not_running` test; origin/main had its whole `Context::none()` test suite (TASK-1.45 §1's own missing-context refusal tests). Everything *above* the test module (`target_session`/`target_tab`/`target_pane`'s own `Option`-based bodies, `panes_in_close_scope`, `any_pane_running`, `resolve_tab_str`/`resolve_pane_str`'s own sentinel-id logic) auto-merged cleanly with no conflict at all - my functions already called `target_pane`/`target_tab`/`target_session`, which origin/main had already made `Option`-aware, so nothing there needed hand resolution. Resolved the test-module conflict by keeping both test sets, back to back - no test from either side dropped or changed.
+
+**Changed outside the conflicts, and why** (not flagged by git, found by building):
+
+- `crates/server/src/listen.rs:268` - `Runtime::new(launcher, login)` (2 args, origin/main's own new call site in `listen::run`, never touched by my own commits) no longer compiled once my branch's 3-arg `Runtime::new(launcher, login, force_grace)` landed via the merge. Fixed by passing `crate::runtime::FORCE_GRACE_DEFAULT` - the exact real call site `FORCE_GRACE_DEFAULT`'s own doc comment already named as "not yet read by any real call site (TASK-1.44/1.45's socket, not built yet, is the one that will)". Updated that doc comment to say it is now read there, rather than leaving the forward-reference stale.
+- `crates/server/src/runtime.rs` (test module) - two more `Runtime::new(launcher, login())` 2-arg calls (`disconnect_client_reapplies_the_next_latest_declared_size`, `a_panic_while_holding_the_lock_does_not_poison_a_later_call` - both origin/main's own tests, never touched by my commits) needed the same third argument; passed `TEST_GRACE` (already in scope in that module). Also two `Context { default_session: ..., ... }` literals (my own tests, `a_plain_close_of_an_already_ended_pane_removes_its_idle_handle`) built before `Context`'s fields became `Option`-typed: one replaced with `Context::none()` (it only ever drove `session.new`, which needs no default at all - cleaner than wrapping three `from_raw(0)` sentinels in `Some`), the other's three real ids wrapped in `Some(...)`.
+- `crates/server/tests/runtime.rs` - 11 occurrences of the same `Context { default_session: session_id, default_tab: tab_id, default_pane: PaneId::from_raw(0), }` literal (across tests I added across this task's several rounds, all after origin/main's own diff, so git's line-based merge had nothing on the other side to merge against) needed the same three fields wrapped in `Some(...)`. No test's own assertions or behaviour changed - purely the type each literal needed under the new `Context` shape.
+
+None of this changes refusal behaviour, target resolution, or the close-first/force_end mechanism itself - every fix is either a doc update or threading an already-existing value (`TEST_GRACE`, `FORCE_GRACE_DEFAULT`, `Some(...)`) through a call site the type system now requires it at.
+
+**Checked, each run clean at the final head (3e4594e) unless noted:**
+- `cargo build --workspace --tests`: clean.
+- `cargo test -p steg-server`: 125 lib + 61 dispatch + 13 handshake + 5 program + 7 real_pty + 21 routing + 29 runtime + 8 shutdown + 1 socket_mode, all ok, 0 failed. Specifically ran `tests/routing.rs::stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket` on its own first: it passes, and now genuinely exercises my rewritten `Runtime::stop()` (force_end-based) through `listen::run`'s real shutdown order - a real pane's real program is ended, the socket file is removed, the arbiter lock is released, and a second `serve()` can bind, all through a real connection, not `Runtime::stop()` called directly.
+- `cargo test -p steg --features fixtures`: already_a_group_leader + autostart_client fixtures + main + 11 server_start tests, all ok, 0 failed.
+- `just check`: every recipe ok, including the two new `ui levels`/`ui colours` checks origin/main added.
+- Server suite run 20 times at the final head in one shell loop, all clean (every iteration's own per-file `test result: ok`, 0 FAILED anywhere). Process count by pattern (`sleep 1000`/`sleep 10[0-9]`/`trap .. HUP` - this task's own fixture shapes) taken immediately before starting the loop and immediately after it finished: 0 before, 0 after - no leaked process attributable to the run.
+- `cargo fmt --all -- --check`: clean.
+- CI green at 3e4594e (`gh pr checks 47 --watch`, watched in the foreground, run 43804770647) - the LikeC4 smoke test did not time out this run.
 
 ---
 <!-- COMMENTS:END -->

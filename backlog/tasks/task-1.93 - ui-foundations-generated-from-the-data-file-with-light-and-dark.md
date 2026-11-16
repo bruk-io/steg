@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:57:00Z'
+updated_date: '2026-11-16T03:03:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -512,6 +512,15 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (1.2s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py tools/tests/adapter/test_foundations_generate_real_data.py -s'` exited 0 at 2026-11-16T03:03:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpaY6dx1` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.........................................AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
+.
+42 passed in 0.04s
 ```
 <!-- SECTION:NOTES:END -->
 

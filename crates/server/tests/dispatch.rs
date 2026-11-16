@@ -12,10 +12,23 @@
     reason = "this whole file is a test; see the comment above"
 )]
 
+use std::time::Duration;
+
 use serde_json::{Value, json};
-use steg_kernel::{Settings, Tree};
+use steg_kernel::{Moment, Settings, Tree};
 use steg_sdk::{Description, ErrorCode, Request, Response, SessionId, TabId, description};
 use steg_server::{Context, dispatch};
+
+/// A `Moment` this many seconds after an arbitrary origin - the same
+/// pattern `steg_kernel`'s own test modules use (`crates/kernel/src/
+/// pane.rs`'s `moment` helper): plain data, no clock, so every call to
+/// `dispatch` below can pick whichever moment its own assertion needs
+/// without a real wait. Most of this file's calls pass `moment(0)`: they
+/// are not about *when*, only about *what* - the few that are (the
+/// ten-minute expiry test) say so in their own name.
+fn moment(secs: u64) -> Moment {
+    Moment::new(Duration::from_secs(secs))
+}
 
 fn request(method: &str, pairs: Vec<(&str, Value)>) -> Request {
     Request {
@@ -84,6 +97,7 @@ fn every_described_method_gets_a_response_with_no_panic() {
             &api,
             &context,
             &request(&dotted, params),
+            moment(0),
         );
     }
 }
@@ -112,9 +126,7 @@ type NotYetCase = (&'static str, Vec<(&'static str, Value)>, &'static str);
 #[test]
 fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
     let cases: Vec<NotYetCase> = vec![
-        ("session.focus", vec![], "a client/window"),
-        ("tab.list", vec![], "title"),
-        ("tab.show", vec![], "title"),
+        ("session.focus", vec![], "TASK-1.109"),
         (
             "tab.move",
             vec![("to", json!("placeholder"))],
@@ -125,10 +137,9 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             vec![("direction", json!("right")), ("by", json!(1))],
             "Tab::size",
         ),
-        ("pane.list", vec![], "pane.show"),
-        ("pane.send", vec![], "start_program"),
-        ("pane.capture", vec![], "start_program"),
-        ("pane.wait", vec![("for", json!("exit"))], "start_program"),
+        ("pane.send", vec![], "TASK-1.90"),
+        ("pane.capture", vec![], "TASK-1.90"),
+        ("pane.wait", vec![("for", json!("exit"))], "TASK-1.90"),
         ("server.show", vec![], "socket and lifecycle"),
         ("server.start", vec![], "socket and lifecycle"),
         ("server.stop", vec![], "socket and lifecycle"),
@@ -151,6 +162,7 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
             &api,
             &context,
             &request(method, extra),
+            moment(0),
         ));
 
         assert_eq!(error.code, ErrorCode::NotImplementedYet, "{method}");
@@ -180,6 +192,7 @@ fn session_new_creates_a_plain_shell_session() {
         &api,
         &context,
         &request("session.new", vec![]),
+        moment(0),
     ));
 
     assert_eq!(tree.sessions().len(), before + 1);
@@ -196,6 +209,7 @@ fn session_show_matches_exactly_the_fields_the_description_declares() {
         &api,
         &context,
         &request("session.show", vec![]),
+        moment(0),
     ));
 
     let declared = declared_fields(&api, "session.show");
@@ -220,6 +234,7 @@ fn session_list_matches_exactly_the_fields_the_description_declares_per_record()
         &api,
         &context,
         &request("session.list", vec![]),
+        moment(0),
     ));
 
     let records = value.as_array().expect("session.list returns an array");
@@ -261,6 +276,7 @@ fn session_close_removes_it() {
         &api,
         &context,
         &request("session.close", vec![]),
+        moment(0),
     ));
 
     assert!(tree.session(context.default_session.unwrap()).is_none());
@@ -283,6 +299,7 @@ fn session_move_converts_the_wire_position_before_calling_the_kernel() {
                 ("position", json!(1)),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(tree.sessions()[0].id(), second);
@@ -310,6 +327,7 @@ fn session_move_rejects_a_zero_position_without_touching_the_tree() {
                 ("position", json!(0)),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -331,6 +349,7 @@ fn session_set_and_unset_change_and_clear_the_label() {
         &api,
         &context,
         &request("session.set", vec![("label", json!("work"))]),
+        moment(0),
     ));
     assert_eq!(
         tree.session(context.default_session.unwrap())
@@ -345,6 +364,7 @@ fn session_set_and_unset_change_and_clear_the_label() {
         &api,
         &context,
         &request("session.unset", vec![("label", json!(""))]),
+        moment(0),
     ));
     assert_eq!(
         tree.session(context.default_session.unwrap())
@@ -365,6 +385,7 @@ fn session_show_with_an_unknown_target_is_no_such_target() {
         &api,
         &context,
         &request("session.show", vec![("target", json!(unknown.to_string()))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
@@ -382,6 +403,7 @@ fn tab_new_makes_the_new_tab_current_by_default() {
         &api,
         &context,
         &request("tab.new", vec![]),
+        moment(0),
     ));
 
     let id: TabId = value["id"].as_str().unwrap().parse().unwrap();
@@ -407,6 +429,7 @@ fn tab_new_with_no_focus_restores_the_previous_current_tab() {
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
+        moment(0),
     ));
 
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
@@ -456,6 +479,7 @@ fn tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first() {
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
+        moment(0),
     ));
 
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
@@ -476,6 +500,7 @@ fn tab_new_with_position_one_places_the_new_tab_first() {
         &api,
         &context,
         &request("tab.new", vec![("position", json!(1))]),
+        moment(0),
     ));
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
 
@@ -504,6 +529,7 @@ fn tab_new_with_a_middle_position_places_the_new_tab_there() {
         &api,
         &context,
         &request("tab.new", vec![("position", json!(2))]),
+        moment(0),
     ));
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
 
@@ -533,6 +559,7 @@ fn tab_new_with_no_position_appends_at_the_end_as_before() {
         &api,
         &context,
         &request("tab.new", vec![]),
+        moment(0),
     ));
     let new_tab: TabId = value["id"].as_str().unwrap().parse().unwrap();
 
@@ -563,6 +590,7 @@ fn tab_new_with_position_zero_is_refused_and_creates_nothing() {
         &api,
         &context,
         &request("tab.new", vec![("position", json!(0))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -594,6 +622,7 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
         &api,
         &new_context,
         &request("tab.new", vec![("position", json!(99))]),
+        moment(0),
     ));
 
     assert_eq!(new_error.code, ErrorCode::PositionOutOfRange);
@@ -620,6 +649,7 @@ fn tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothin
                 ("position", json!(99)),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(new_error.code, move_error.code);
@@ -642,6 +672,7 @@ fn tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restore
             "tab.new",
             vec![("position", json!(99)), ("focus", json!(false))],
         ),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::PositionOutOfRange);
@@ -670,6 +701,7 @@ fn tab_move_with_position_reorders() {
                 ("position", json!(1)),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(
@@ -694,6 +726,7 @@ fn tab_close_removes_it() {
         &api,
         &context,
         &request("tab.close", vec![("target", json!(second_tab.to_string()))]),
+        moment(0),
     ));
 
     assert!(
@@ -721,6 +754,7 @@ fn tab_focus_makes_it_current() {
             "tab.focus",
             vec![("target", json!(context.default_tab.unwrap().to_string()))],
         ),
+        moment(0),
     ));
 
     assert_eq!(
@@ -731,7 +765,474 @@ fn tab_focus_makes_it_current() {
     );
 }
 
+// --- tab.list / tab.show (AC #1; TASK-1.89) ----------------------------------
+
+#[test]
+fn tab_show_returns_the_tabs_record() {
+    let (mut tree, context, api) = fresh();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request(
+            "tab.show",
+            vec![("target", json!(context.default_tab.unwrap().to_string()))],
+        ),
+        moment(0),
+    ));
+
+    assert_eq!(value["id"], json!(context.default_tab.unwrap().to_string()));
+    assert_eq!(value["position"], json!(1));
+    assert_eq!(
+        value["current_pane"],
+        json!(context.default_pane.unwrap().to_string())
+    );
+    assert_eq!(value["title"], Value::Null);
+    assert_eq!(value["shown_status"], Value::Null);
+}
+
+#[test]
+fn tab_show_with_an_unknown_target_is_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let unknown = steg_sdk::TabId::from_raw(999);
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.show", vec![("target", json!(unknown.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+/// Mechanism: `tab.list`'s order is the session's own tab order (R10),
+/// not creation order or any other incidental order - two tabs, read
+/// back, must come in the order the session holds them.
+#[test]
+fn tab_list_returns_every_tab_of_the_session_in_order() {
+    let (mut tree, context, api) = fresh();
+    let session_id = context.default_session.unwrap();
+    let second_tab = tree.new_tab(session_id, None).unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.list", vec![("target", json!(session_id.to_string()))]),
+        moment(0),
+    ));
+
+    let records = value.as_array().unwrap();
+    assert_eq!(records.len(), 2);
+    assert_eq!(
+        records[0]["id"],
+        json!(context.default_tab.unwrap().to_string())
+    );
+    assert_eq!(records[0]["position"], json!(1));
+    assert_eq!(records[1]["id"], json!(second_tab.to_string()));
+    assert_eq!(records[1]["position"], json!(2));
+}
+
+#[test]
+fn tab_list_with_an_unknown_session_is_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let unknown = SessionId::from_raw(999);
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.list", vec![("target", json!(unknown.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+/// doc-15 R10: a target that matches more than one thing is an error,
+/// never a guess - `tab.list`'s own target is a session, so this needs
+/// two *sessions* sharing a label (labels are never required to be
+/// unique, `crates/kernel/src/label.rs`'s own doc).
+#[test]
+fn tab_list_with_an_ambiguous_session_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    tree.session_mut(context.default_session.unwrap())
+        .unwrap()
+        .set_label(Some("work".to_string()))
+        .unwrap();
+    tree.new_session(Some("work".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.list", vec![("target", json!("work"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// The same mechanism as the test above, for `tab.show`'s own target (a
+/// tab): two tabs of the *same* session sharing a label.
+#[test]
+fn tab_show_with_an_ambiguous_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    let session_id = context.default_session.unwrap();
+    tab_mut_for_test(&mut tree, context.default_tab.unwrap())
+        .set_label(Some("logs".to_string()))
+        .unwrap();
+    tree.new_tab(session_id, Some("logs".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.show", vec![("target", json!("logs"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// The same mechanism again, for `pane.list`'s own target (also a tab).
+#[test]
+fn pane_list_with_an_ambiguous_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    let session_id = context.default_session.unwrap();
+    tab_mut_for_test(&mut tree, context.default_tab.unwrap())
+        .set_label(Some("logs".to_string()))
+        .unwrap();
+    tree.new_tab(session_id, Some("logs".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.list", vec![("target", json!("logs"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// A tab's owning session, by walking every session (the same shape
+/// `crates/server/src/dispatch/lookup.rs`'s own private
+/// `session_owning_tab` uses internally) - this file has no direct
+/// access to that private helper, so the three ambiguous-target tests
+/// above build their own, minimal stand-in rather than reaching for it.
+fn tab_mut_for_test(tree: &mut Tree, tab: TabId) -> &mut steg_kernel::Tab {
+    let session_id = tree
+        .sessions()
+        .iter()
+        .find(|session| session.tab(tab).is_some())
+        .map(steg_kernel::Session::id)
+        .expect("the tab given to this test helper is in the tree");
+    tree.session_mut(session_id).unwrap().tab_mut(tab).unwrap()
+}
+
+/// Mechanism: `shown_status` comes from the kernel's own ranking
+/// (decision-7: waiting, failed, bell, finished, running), not from
+/// whichever pane happens to come first in the tab's own order. Built so
+/// the higher-ranked pane (`Failed`) is placed *second*, after the
+/// lower-ranked one (`Running`) - "return the first pane" would pick the
+/// wrong one here.
+#[test]
+fn tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order() {
+    let (mut tree, context, api) = fresh();
+    let tab_id = context.default_tab.unwrap();
+    let first = context.default_pane.unwrap();
+    let second = tree
+        .split_pane(
+            first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+    // `first` (R112's first pane) is merely Running; `second` (R112's
+    // second, so not simply "whichever is first") outranks it by
+    // actually failing - the kernel's own `rank()` must be what decides,
+    // not position.
+    tree.start_program(
+        first,
+        steg_sdk::Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
+    tree.start_program(
+        second,
+        steg_sdk::Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
+    tree.record_exit(second, 3, moment(0)).unwrap();
+
+    let shown = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.show", vec![("target", json!(tab_id.to_string()))]),
+        moment(0),
+    ));
+    assert_eq!(shown["shown_status"], json!(second.to_string()));
+
+    let listed = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request(
+            "tab.list",
+            vec![(
+                "target",
+                json!(context.default_session.unwrap().to_string()),
+            )],
+        ),
+        moment(0),
+    ));
+    assert_eq!(listed[0]["shown_status"], json!(second.to_string()));
+}
+
 // --- pane --------------------------------------------------------------------
+
+#[test]
+fn pane_show_returns_the_panes_record() {
+    let (mut tree, context, api) = fresh();
+    let pane_id = context.default_pane.unwrap();
+    tree.start_program(
+        pane_id,
+        steg_sdk::Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(value["id"], json!(pane_id.to_string()));
+    assert_eq!(value["kind"], json!("terminal"));
+    assert_eq!(value["cwd"], json!("/tmp"));
+    assert_eq!(value["program"], json!("htop"));
+    assert_eq!(value["exit_code"], Value::Null);
+    assert_eq!(value["program_status"], json!("running"));
+    assert_eq!(value["status"], json!("running"));
+    assert_eq!(value["title"], Value::Null);
+}
+
+/// Mechanism: `status` and `program_status` are two separate fields, each
+/// read from its own place on the kernel's `Pane` - not one derived from
+/// the other. A shell pane idling at its own prompt is the case that
+/// proves it: `program_status` is `"running"` (the shell process really
+/// is), but `status` is `None` (R97/TASK-1.83: idle, no typed command).
+/// If `status` were derived from `program_status` instead of the
+/// kernel's own `Pane::status`, this would read `"running"` for both.
+#[test]
+fn an_idle_shell_panes_program_status_and_status_disagree() {
+    let (mut tree, context, api) = fresh();
+    let pane_id = context.default_pane.unwrap();
+    tree.start_program(
+        pane_id,
+        steg_sdk::Program::Shell {
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(value["program_status"], json!("running"));
+    assert_eq!(value["status"], Value::Null);
+}
+
+/// Mechanism: a pane's `size` comes from its tab's declared size and
+/// layout, and is `None` whenever the tab has no declared size at all
+/// (R91, "where known") - never a guess.
+#[test]
+fn pane_show_size_is_none_when_the_tab_has_no_declared_size() {
+    let (mut tree, context, api) = fresh();
+    let pane_id = context.default_pane.unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(value["size"], Value::Null);
+}
+
+/// The other half of the mechanism above: once the tab has a declared
+/// size, `pane.show`'s `size` reflects this pane's own leaf size within
+/// it (`Tree::tab_layout`'s `Layout::leaf_sizes`), not the tab's whole
+/// size.
+#[test]
+fn pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf() {
+    let (mut tree, context, api) = fresh();
+    let tab_id = context.default_tab.unwrap();
+    let pane_id = context.default_pane.unwrap();
+    let client = tree.connect_client(steg_sdk::ClientKind::Cli, None);
+    tree.view_pane(client, pane_id).unwrap();
+    tree.declare_size(client, tab_id, steg_sdk::Size::new(100, 20))
+        .unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(
+        value["size"],
+        json!({"columns": 100, "rows": 20}),
+        "this tab's only pane fills the whole declared size"
+    );
+}
+
+/// Mechanism: `pane.list`'s order is R112's layout order (the layout
+/// tree's own leaves, first child before second), not creation order or
+/// a reversal of it - built so the newest-created pane (`second`) sits
+/// on the *left* (R112's first), the opposite of creation order, so
+/// "reverse the order" or "return in creation order" would both answer
+/// wrong here.
+#[test]
+fn pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order() {
+    let (mut tree, context, api) = fresh();
+    let tab_id = context.default_tab.unwrap();
+    let first = context.default_pane.unwrap();
+    let second = tree
+        .split_pane(
+            first,
+            steg_sdk::Direction::Left,
+            steg_sdk::PaneKind::Terminal,
+        )
+        .unwrap();
+
+    let value = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.list", vec![("target", json!(tab_id.to_string()))]),
+        moment(0),
+    ));
+
+    let records = value.as_array().unwrap();
+    assert_eq!(records.len(), 2);
+    assert_eq!(
+        records[0]["id"],
+        json!(second.to_string()),
+        "second was split to the Left of first, so it reads first in R112's order"
+    );
+    assert_eq!(records[1]["id"], json!(first.to_string()));
+}
+
+#[test]
+fn pane_list_with_an_unknown_tab_is_no_such_target() {
+    let (mut tree, context, api) = fresh();
+    let unknown = TabId::from_raw(999);
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.list", vec![("target", json!(unknown.to_string()))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::NoSuchTarget);
+}
+
+// --- the ten-minute mark (doc-11 R83; decision-7) ----------------------------
+
+/// The keystone test: AC #2's clock reaches `dispatch` as a `Moment`
+/// parameter, and `status`'s ten-minute expiry (R83) is provable straight
+/// through the function whose signature just changed for exactly this -
+/// no real clock, no wait. `program_status` is read at the same two
+/// moments as a negative control: it is a different, clock-free fact
+/// (doc-15 R97) and must not move just because `status` did.
+#[test]
+fn a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not()
+{
+    let (mut tree, context, api) = fresh();
+    let pane_id = context.default_pane.unwrap();
+    tree.start_program(
+        pane_id,
+        steg_sdk::Program::Command {
+            argv: vec!["htop".to_string()],
+            cwd: "/tmp".to_string(),
+        },
+    )
+    .unwrap();
+    tree.record_exit(pane_id, 0, moment(0)).unwrap();
+
+    let still_shown = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(599),
+    ));
+    assert_eq!(still_shown["status"], json!("finished"));
+    assert_eq!(still_shown["program_status"], json!("ended"));
+
+    let gone = ok(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!(pane_id.to_string()))]),
+        moment(600),
+    ));
+    assert_eq!(
+        gone["status"],
+        Value::Null,
+        "R83: finished ends after ten minutes"
+    );
+    assert_eq!(
+        gone["program_status"],
+        json!("ended"),
+        "program_status is clock-free (doc-15 R97) - it must not expire with status"
+    );
+}
 
 #[test]
 fn pane_split_makes_the_new_pane_current_by_default() {
@@ -743,6 +1244,7 @@ fn pane_split_makes_the_new_pane_current_by_default() {
         &api,
         &context,
         &request("pane.split", vec![("direction", json!("right"))]),
+        moment(0),
     ));
 
     let new_pane: steg_sdk::PaneId = value["id"].as_str().unwrap().parse().unwrap();
@@ -775,6 +1277,7 @@ fn pane_split_with_no_focus_restores_the_previous_current_pane() {
             "pane.split",
             vec![("direction", json!("right")), ("focus", json!(false))],
         ),
+        moment(0),
     ));
 
     let new_pane: steg_sdk::PaneId = value["id"].as_str().unwrap().parse().unwrap();
@@ -836,6 +1339,7 @@ fn pane_split_with_no_focus_restores_a_current_pane_that_is_not_the_target() {
                 ("focus", json!(false)),
             ],
         ),
+        moment(0),
     ));
 
     let new_pane: steg_sdk::PaneId = value["id"].as_str().unwrap().parse().unwrap();
@@ -868,6 +1372,7 @@ fn pane_split_with_an_invalid_label_leaves_the_tree_exactly_as_it_was() {
             "pane.split",
             vec![("direction", json!("right")), ("label", json!("a/b"))],
         ),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -914,6 +1419,7 @@ fn pane_split_with_a_program_mints_a_pane_but_does_not_start_it() {
             "pane.split",
             vec![("direction", json!("right")), ("program", json!(["htop"]))],
         ),
+        moment(0),
     ));
 
     let new_pane: steg_sdk::PaneId = outcome["id"].as_str().unwrap().parse().unwrap();
@@ -945,6 +1451,7 @@ fn pane_close_removes_the_pane() {
         &api,
         &context,
         &request("pane.close", vec![("target", json!(second.to_string()))]),
+        moment(0),
     ));
 
     assert_eq!(
@@ -984,6 +1491,7 @@ fn pane_move_moves_it_to_another_tab() {
                 ("to", json!(second_tab.to_string())),
             ],
         ),
+        moment(0),
     ));
 
     let target_tab = tree
@@ -1004,6 +1512,7 @@ fn pane_set_zoomed_fills_and_unset_zoomed_unfills() {
         &api,
         &context,
         &request("pane.set", vec![("zoomed", json!(true))]),
+        moment(0),
     ));
     assert_eq!(
         tree.session(context.default_session.unwrap())
@@ -1020,6 +1529,7 @@ fn pane_set_zoomed_fills_and_unset_zoomed_unfills() {
         &api,
         &context,
         &request("pane.unset", vec![("zoomed", json!(false))]),
+        moment(0),
     ));
     assert_eq!(
         tree.session(context.default_session.unwrap())
@@ -1055,6 +1565,7 @@ fn pane_focus_moves_to_the_neighbour() {
                 ("direction", json!("right")),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(
@@ -1090,6 +1601,7 @@ fn pane_swap_exchanges_two_panes() {
                 ("with", json!(second.to_string())),
             ],
         ),
+        moment(0),
     ));
 
     let panes = tree
@@ -1116,6 +1628,7 @@ fn api_list_returns_every_method() {
         &api,
         &context,
         &request("api.list", vec![]),
+        moment(0),
     ));
 
     assert_eq!(value.as_array().unwrap().len(), api.methods.len());
@@ -1131,6 +1644,7 @@ fn api_show_with_a_target_returns_one_method() {
         &api,
         &context,
         &request("api.show", vec![("target", json!("pane.split"))]),
+        moment(0),
     ));
 
     assert_eq!(value["name"]["verb"], "split");
@@ -1146,6 +1660,7 @@ fn api_show_with_no_target_returns_the_whole_description() {
         &api,
         &context,
         &request("api.show", vec![]),
+        moment(0),
     ));
 
     assert_eq!(
@@ -1166,6 +1681,7 @@ fn api_show_an_unknown_method_is_no_such_target() {
         &api,
         &context,
         &request("api.show", vec![("target", json!("pane.nonexistent"))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
@@ -1181,6 +1697,7 @@ fn api_call_with_no_method_is_a_bad_request() {
         &api,
         &context,
         &request("api.call", vec![]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -1202,6 +1719,7 @@ fn api_call_with_a_non_text_method_is_a_bad_request() {
             &api,
             &context,
             &request("api.call", vec![("method", value.clone())]),
+            moment(0),
         ));
 
         assert_eq!(error.code, ErrorCode::BadRequest, "{value}");
@@ -1226,6 +1744,7 @@ fn api_call_refuses_to_call_itself() {
         &api,
         &context,
         &request("api.call", vec![("method", json!("api.call"))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -1246,6 +1765,7 @@ fn api_call_of_pane_split_gives_the_same_response_a_direct_call_would() {
         &direct_api,
         &direct_context,
         &request("pane.split", vec![("direction", json!("right"))]),
+        moment(0),
     );
     let via_call = dispatch(
         &mut via_call_tree,
@@ -1259,6 +1779,7 @@ fn api_call_of_pane_split_gives_the_same_response_a_direct_call_would() {
                 ("direction", json!("right")),
             ],
         ),
+        moment(0),
     );
 
     match (direct, via_call) {
@@ -1281,6 +1802,7 @@ fn api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be(
         &direct_api,
         &direct_context,
         &request("pane.nonexistent", vec![]),
+        moment(0),
     ));
     let via_call_error = err(dispatch(
         &mut via_call_tree,
@@ -1288,6 +1810,7 @@ fn api_call_of_an_unknown_method_is_refused_the_same_way_a_direct_call_would_be(
         &via_call_api,
         &via_call_context,
         &request("api.call", vec![("method", json!("pane.nonexistent"))]),
+        moment(0),
     ));
 
     assert_eq!(direct_error.code, ErrorCode::BadRequest);
@@ -1309,6 +1832,7 @@ fn api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_cal
         &direct_api,
         &direct_context,
         &request("pane.split", vec![]),
+        moment(0),
     ));
     let via_call_error = err(dispatch(
         &mut via_call_tree,
@@ -1316,6 +1840,7 @@ fn api_call_of_a_request_that_fails_validation_gives_the_same_error_a_direct_cal
         &via_call_api,
         &via_call_context,
         &request("api.call", vec![("method", json!("pane.split"))]),
+        moment(0),
     ));
 
     assert_eq!(direct_error.code, ErrorCode::BadRequest);
@@ -1341,6 +1866,7 @@ fn api_call_reaches_setting_show_with_its_required_target() {
         &direct_api,
         &direct_context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
     let via_call = ok(dispatch(
         &mut via_call_tree,
@@ -1354,6 +1880,7 @@ fn api_call_reaches_setting_show_with_its_required_target() {
                 ("target", json!("appearance")),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(direct, via_call);
@@ -1373,6 +1900,7 @@ fn api_call_reaches_setting_set_with_its_required_target() {
             "setting.set",
             vec![("target", json!("appearance")), ("value", json!("light"))],
         ),
+        moment(0),
     ));
     let via_call = ok(dispatch(
         &mut via_call_tree,
@@ -1387,6 +1915,7 @@ fn api_call_reaches_setting_set_with_its_required_target() {
                 ("value", json!("light")),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(direct, via_call);
@@ -1403,6 +1932,7 @@ fn api_call_reaches_setting_unset_with_its_required_target() {
         &direct_api,
         &direct_context,
         &request("setting.unset", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
     let via_call = ok(dispatch(
         &mut via_call_tree,
@@ -1416,6 +1946,7 @@ fn api_call_reaches_setting_unset_with_its_required_target() {
                 ("target", json!("appearance")),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(direct, via_call);
@@ -1453,6 +1984,7 @@ fn api_call_of_pane_set_names_the_target_pane_not_the_context_default() {
                 ("label", json!("logs")),
             ],
         ),
+        moment(0),
     ));
 
     let tab = tree
@@ -1487,6 +2019,7 @@ fn api_call_of_tab_set_names_the_target_tab_not_the_context_default() {
                 ("label", json!("work")),
             ],
         ),
+        moment(0),
     ));
 
     let session = tree.session(context.default_session.unwrap()).unwrap();
@@ -1516,6 +2049,7 @@ fn api_call_of_session_set_names_the_target_session_not_the_context_default() {
                 ("label", json!("scratch")),
             ],
         ),
+        moment(0),
     ));
 
     assert_eq!(tree.session(named).unwrap().label(), Some("scratch"));
@@ -1790,6 +2324,7 @@ fn api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_gi
             &direct_api,
             &direct_context,
             &request(&dotted, extra_direct),
+            moment(0),
         );
 
         let mut via_params = vec![("method", json!(dotted.clone()))];
@@ -1800,6 +2335,7 @@ fn api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_gi
             &via_call_api,
             &via_call_context,
             &request("api.call", via_params),
+            moment(0),
         );
 
         assert_eq!(
@@ -1904,6 +2440,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 &api,
                 &context,
                 &request(&dotted, params),
+                moment(0),
             ));
             assert_eq!(error.code, ErrorCode::NotImplementedYet, "{dotted}");
             continue;
@@ -1954,6 +2491,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
             &api,
             &context,
             &request(&dotted, extra),
+            moment(0),
         );
         match (&method.returns, response) {
             (steg_sdk::Returns::Nothing, Response::Ok(value)) => {
@@ -2005,6 +2543,7 @@ fn split_set_label_then_close_the_session() {
         &api,
         &context,
         &request("pane.split", vec![("direction", json!("right"))]),
+        moment(0),
     ));
     let new_pane = split_value["id"].as_str().unwrap().to_string();
 
@@ -2017,6 +2556,7 @@ fn split_set_label_then_close_the_session() {
             "pane.set",
             vec![("target", json!(new_pane)), ("label", json!("logs"))],
         ),
+        moment(0),
     ));
     let pane_id: steg_sdk::PaneId = new_pane.parse().unwrap();
     assert_eq!(
@@ -2036,6 +2576,7 @@ fn split_set_label_then_close_the_session() {
         &api,
         &context,
         &request("session.close", vec![]),
+        moment(0),
     ));
     assert!(tree.session(context.default_session.unwrap()).is_none());
 }
@@ -2051,6 +2592,7 @@ fn tab_new_with_no_focus_leaves_the_original_tab_current() {
         &api,
         &context,
         &request("tab.new", vec![("focus", json!(false))]),
+        moment(0),
     ));
 
     assert_eq!(
@@ -2074,6 +2616,7 @@ fn setting_list_returns_every_registered_setting_with_its_current_value() {
         &api,
         &context,
         &request("setting.list", vec![]),
+        moment(0),
     ));
 
     let records = value.as_array().unwrap();
@@ -2098,6 +2641,7 @@ fn setting_show_returns_one_setting_in_full() {
         &api,
         &context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
 
     assert_eq!(
@@ -2117,6 +2661,7 @@ fn setting_show_an_unknown_name_is_no_such_target() {
         &api,
         &context,
         &request("setting.show", vec![("target", json!("nonsense"))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
@@ -2139,6 +2684,7 @@ fn setting_set_changes_the_value_the_next_read_sees() {
             "setting.set",
             vec![("target", json!("appearance")), ("value", json!("light"))],
         ),
+        moment(0),
     ));
 
     let value = ok(dispatch(
@@ -2147,6 +2693,7 @@ fn setting_set_changes_the_value_the_next_read_sees() {
         &api,
         &context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
 
     assert_eq!(value["value"], json!("light"));
@@ -2167,6 +2714,7 @@ fn setting_set_rejects_an_unknown_name_with_no_such_target() {
             "setting.set",
             vec![("target", json!("nonsense")), ("value", json!("anything"))],
         ),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
@@ -2186,6 +2734,7 @@ fn setting_set_rejects_a_value_outside_the_closed_set_with_bad_request() {
             "setting.set",
             vec![("target", json!("appearance")), ("value", json!("neon"))],
         ),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::BadRequest);
@@ -2199,6 +2748,7 @@ fn setting_set_rejects_a_value_outside_the_closed_set_with_bad_request() {
         &api,
         &context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
     assert_eq!(value["value"], json!("system"));
 }
@@ -2217,6 +2767,7 @@ fn setting_unset_reverts_to_the_default() {
             "setting.set",
             vec![("target", json!("appearance")), ("value", json!("dark"))],
         ),
+        moment(0),
     ));
     ok(dispatch(
         &mut tree,
@@ -2224,6 +2775,7 @@ fn setting_unset_reverts_to_the_default() {
         &api,
         &context,
         &request("setting.unset", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
 
     let value = ok(dispatch(
@@ -2232,6 +2784,7 @@ fn setting_unset_reverts_to_the_default() {
         &api,
         &context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
     assert_eq!(value["value"], json!("system"));
 }
@@ -2247,6 +2800,7 @@ fn setting_unset_an_unknown_name_is_no_such_target() {
         &api,
         &context,
         &request("setting.unset", vec![("target", json!("nonsense"))]),
+        moment(0),
     ));
 
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
@@ -2273,6 +2827,7 @@ fn an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_setting
             "setting.set",
             vec![("target", json!("appearance")), ("value", json!("dark"))],
         ),
+        moment(0),
     ));
 
     // A different Tree and Context, as if a new client connected - the
@@ -2284,6 +2839,7 @@ fn an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_setting
         &other_api,
         &other_context,
         &request("setting.show", vec![("target", json!("appearance"))]),
+        moment(0),
     ));
 
     assert_eq!(value["value"], json!("dark"));

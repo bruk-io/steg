@@ -257,12 +257,14 @@ impl Runtime {
                 // up front turns this into plain struct field access,
                 // which it can split-borrow normally.
                 let state: &mut State = &mut guard;
+                let now = Moment::new(Instant::now().duration_since(state.clock_origin));
                 let response = dispatch::dispatch(
                     &mut state.tree,
                     &mut state.settings,
                     description,
                     context,
                     &resolved,
+                    now,
                 );
                 if matches!(response, Response::Ok(_)) {
                     reapply_every_sized_tab(state);
@@ -416,12 +418,14 @@ impl Runtime {
             // plain `&mut State`, not two overlapping `DerefMut` calls on
             // `state` (the `MutexGuard`) itself.
             let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
             dispatch::dispatch(
                 &mut state.tree,
                 &mut state.settings,
                 description,
                 context,
                 request,
+                now,
             )
         };
         let Response::Ok(value) = response else {
@@ -517,12 +521,14 @@ impl Runtime {
             // so the two `&mut` arguments below project to disjoint
             // fields of a plain `&mut State`.
             let state: &mut State = &mut state;
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
             dispatch::dispatch(
                 &mut state.tree,
                 &mut state.settings,
                 description,
                 context,
                 request,
+                now,
             )
         };
         if !matches!(response, Response::Ok(_)) {
@@ -2453,6 +2459,127 @@ mod tests {
         // (the real exit's own code, 0), never `Failed` (the mark's own
         // code, 3).
         wait_for_pane_status(&runtime, pane, Some(Status::Finished));
+    }
+
+    /// A pane.show/tab.show request for `pane`'s own context, over the
+    /// public `Runtime::handle` - the same entry point a real connection
+    /// reaches (`connection.rs`). Panics with the response's own error on
+    /// anything but `Response::Ok`, since every call site below already
+    /// knows the method it names must succeed.
+    fn show_pane_and_tab(
+        runtime: &Runtime,
+        session: steg_sdk::SessionId,
+        tab: steg_sdk::TabId,
+        pane: steg_sdk::PaneId,
+    ) -> (serde_json::Value, serde_json::Value) {
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context {
+            default_session: Some(session),
+            default_tab: Some(tab),
+            default_pane: Some(pane),
+        };
+        let pane_record = match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "pane.show".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("pane.show failed: {error:?}"),
+        };
+        let tab_record = match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "tab.show".to_string(),
+                params: serde_json::Map::new(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("tab.show failed: {error:?}"),
+        };
+        (pane_record, tab_record)
+    }
+
+    /// AC #4's "a typed command's status reaching pane show and tab show
+    /// through a real pty" (TASK-1.84's own marks), proven through the
+    /// public `Runtime::handle` - not just the kernel's own `Pane::status`
+    /// the way this module's sibling tests above already do (criterion 1
+    /// of TASK-1.84's own plan). The kernel-level wait
+    /// (`wait_for_pane_status`) is what makes the one `Runtime::handle`
+    /// call below deterministic: by the time it returns, the drain thread
+    /// has already applied both marks under the same lock `dispatch`
+    /// itself takes.
+    #[test]
+    fn a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle() {
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
+        let (session, tab_id, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "printf '\\033]133;C\\007'; sleep 0.5; printf '\\033]133;D;3\\007'; sleep 100",
+            ],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+        let (pane_record, tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(pane_record["status"], serde_json::json!("running"));
+        assert_eq!(
+            tab_record["shown_status"],
+            serde_json::json!(pane.to_string())
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Failed { exit_code: 3 }));
+        let (pane_record, tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(
+            pane_record["status"],
+            serde_json::json!({"failed": {"exit_code": 3}})
+        );
+        assert_eq!(
+            tab_record["shown_status"],
+            serde_json::json!(pane.to_string())
+        );
+    }
+
+    /// AC #4's "a command pane's status from its exit", through
+    /// `Runtime::handle` - `program_status` and `status` agree here (both
+    /// move the instant the real program exits), unlike the typed-command
+    /// case above, where only `status` is driven by a mark.
+    #[test]
+    fn a_command_panes_exit_reaches_pane_show_through_runtime_handle() {
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login_for_marks(),
+            TEST_GRACE,
+        );
+        let (session, tab_id, pane) = start_real_pane(
+            &runtime,
+            Program::Command {
+                argv: vec!["sh".to_string(), "-c".to_string(), "exit 7".to_string()],
+                cwd: "/tmp".to_string(),
+            },
+            vec!["sh", "-c", "exit 7"],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Failed { exit_code: 7 }));
+
+        let (pane_record, _tab_record) = show_pane_and_tab(&runtime, session, tab_id, pane);
+        assert_eq!(
+            pane_record["status"],
+            serde_json::json!({"failed": {"exit_code": 7}})
+        );
+        assert_eq!(pane_record["program_status"], serde_json::json!("ended"));
+        assert_eq!(pane_record["exit_code"], serde_json::json!(7));
     }
 }
 

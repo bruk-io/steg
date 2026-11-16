@@ -259,6 +259,24 @@ pub(crate) fn find_tab(tree: &Tree, tab: TabId) -> Option<&Tab> {
     tree.sessions().iter().find_map(|session| session.tab(tab))
 }
 
+/// `tab`'s one-based position among its own session's tabs (doc-15 R10;
+/// `TabRecord.position`, TASK-1.89) - found the same way
+/// [`session_owning_tab`] already does for [`tab_mut`], then the index of
+/// `tab` within that session's own `tabs()` order.
+pub(crate) fn tab_position(tree: &Tree, tab: TabId) -> Result<usize, ApiError> {
+    let session_id = session_owning_tab(tree, tab)
+        .ok_or_else(|| map_kernel_error(steg_kernel::Error::TabNotFound(tab)))?;
+    let session = tree
+        .session(session_id)
+        .expect("session_owning_tab just found this tab in this session");
+    let index = session
+        .tabs()
+        .iter()
+        .position(|t| t.id() == tab)
+        .expect("session_owning_tab just confirmed this session holds this tab");
+    Ok(index + 1)
+}
+
 /// A mutable reference to the tab with this id, by way of its owning
 /// session.
 pub(crate) fn tab_mut(tree: &mut Tree, tab: TabId) -> Result<&mut Tab, ApiError> {

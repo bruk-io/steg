@@ -186,10 +186,10 @@ fn session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_en
             &context,
             &request("pane.show", vec![("target", json!("1"))]),
         ));
-        (record["status"] == json!("ended")).then_some(record)
+        (record["program_status"] == json!("ended")).then_some(record)
     });
 
-    assert_eq!(record["status"], json!("ended"));
+    assert_eq!(record["program_status"], json!("ended"));
     assert_eq!(record["exit_code"], json!(7));
     assert_eq!(record["program"], json!("sh -c exit 7"));
 }
@@ -218,7 +218,7 @@ fn pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home() {
     ));
     assert_eq!(record["program"], json!("shell"));
     assert_eq!(record["cwd"], json!("/tmp"));
-    assert_eq!(record["status"], json!("running"));
+    assert_eq!(record["program_status"], json!("running"));
 }
 
 #[test]
@@ -360,7 +360,7 @@ fn pane_close_refuses_while_its_program_is_running_and_touches_nothing() {
         &context,
         &request("pane.show", vec![("target", json!("1"))]),
     ));
-    assert_eq!(shown["status"], json!("running"));
+    assert_eq!(shown["program_status"], json!("running"));
 }
 
 #[test]
@@ -919,7 +919,10 @@ fn pane_close_on_an_already_ended_pane_succeeds_without_force() {
             &context,
             &request("pane.show", vec![("target", json!("1"))]),
         ));
-        (shown["status"] == json!("ended")).then_some(())
+        // TASK-1.89 renamed the clock-free fact this polls for to
+        // `program_status` (`status` is now doc-11's richer value,
+        // typed `Status`, which has no `"ended"` word at all).
+        (shown["program_status"] == json!("ended")).then_some(())
     });
 
     // No `--force` needed - nothing is running, so this is the *plain*
@@ -1359,7 +1362,7 @@ fn session_new_through_api_call_starts_a_real_program() {
             &context,
             &request("pane.show", vec![("target", json!("1"))]),
         ));
-        (record["status"] == json!("ended")).then_some(record)
+        (record["program_status"] == json!("ended")).then_some(record)
     });
     assert_eq!(record["exit_code"], json!(9));
 }
@@ -1388,7 +1391,7 @@ fn session_new_through_api_call_with_no_program_runs_the_login_shell() {
         &request("pane.show", vec![("target", json!("1"))]),
     ));
     assert_eq!(record["program"], json!("shell"));
-    assert_eq!(record["status"], json!("running"));
+    assert_eq!(record["program_status"], json!("running"));
 }
 
 #[test]
@@ -1427,7 +1430,7 @@ fn tab_new_through_api_call_starts_a_real_program() {
             &tab_context,
             &request("pane.show", vec![("target", json!("1"))]),
         ));
-        (record["status"] == json!("ended")).then_some(record)
+        (record["program_status"] == json!("ended")).then_some(record)
     });
     assert_eq!(record["exit_code"], json!(4));
 }
@@ -1487,7 +1490,7 @@ fn pane_split_through_api_call_starts_a_real_program() {
 
     let record = poll(|| {
         let record = ok(runtime.handle(&api, &new_pane_context, &request("pane.show", vec![])));
-        (record["status"] == json!("ended")).then_some(record)
+        (record["program_status"] == json!("ended")).then_some(record)
     });
     assert_eq!(record["exit_code"], json!(2));
 }

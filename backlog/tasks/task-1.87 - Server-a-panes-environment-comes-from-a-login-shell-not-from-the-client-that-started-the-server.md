@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:35:00Z'
+updated_date: '2026-11-16T05:44:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1027,6 +1027,32 @@ the pushed, CI-green head (cc3e1f0).
 PR #56, CI green at the final head. `crates/steg/tests/server_start.rs`'s own
 suite (the leftover-process discipline) still passes unchanged - no new
 leftover server or output file across repeated runs.
+
+Check passed: `cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-16T05:44:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at cc3e1f0503a2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 12 tests
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 72252: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 115 filtered out; finished in 0.31s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

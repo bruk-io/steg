@@ -1,13 +1,14 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:22:00Z'
+updated_date: '2026-11-16T13:12:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -22,8 +23,10 @@ asdlc_branch: task-1.98-server-the-accept-loop-survives-an-error
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -604,6 +607,29 @@ created: 2026-11-16T12:22:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T13:12:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed head fcfc798c (PR's current head); code identical to 27b553db, the head the recorded `just check` ran against (fcfc798c only adds backlog/ board-metadata commits on top, confirmed by diff --stat).
+
+[Bugs, Important] crates/server/tests/accept_backoff.rs / tests/fixtures/accept_backoff_attempt.rs: the new accept-backoff-fixture test step hangs on the project's own CI runner (GitHub Actions, macos-26). Run 43866214322 (job 133295489732) printed `ok test (steg-server, race-fixture) (26.6s)` at 2026-11-16T12:28:08Z and then nothing further until the workflow's own 30-minute timeout cancelled the job at 12:54:36Z; the runner's own job cleanup reported "Terminate orphan process: pid (11304) (accept-backoff-)", confirming this task's own fixture binary was still alive when killed. Every wait in accept_backoff.rs is bounded at 5s, so 26 minutes of silence means whatever blocked sits outside those bounds. Locally (this machine), the same four tests passed 10/10, and both of the task's own documented negative controls (stop-check removed; ENOTSOCK made recoverable) reproduced exactly as described, reverted cleanly - so the mechanism is sound on at least one machine, but is not shown to terminate on the one environment this repository's own CI exists to check independently of what a worker records by hand. I triggered `gh run rerun 43866214322` myself to check reproducibility (a write to the PR, not the author's own push, noted here for transparency); as of this review it had been sitting in the same `just check` step for 8+ minutes, well past the ~2 minutes the first attempt needed to reach the same point, consistent with (though not conclusive proof of) the same hang recurring. Because CI never got past this step, crates/steg's own suite - including AC #3's new real-binary test - has not been confirmed green in CI at all in this review.
+
+[Compliance, Nit] crates/server/src/arbiter.rs (`ServerHandle::listener_raw_fd()`) and justfile (`check-packages`'s new accept-backoff-fixture run) are touched by this diff but neither is in the plan's own "Files that change" list, and neither is named among the implementation notes' "found and fixed during build" corrections (only the try_clone discovery is recorded there) - the board's own record is silent on both. The PR description does name and explain both clearly, so this was not hidden from a reader of the PR; it is a gap in the board's own implementation notes specifically, which is what the plan-matched judgement is read against. Worth noting that the justfile entry is the one that makes the worker's own recorded green `just check` actually exercise the new suite at all - a file the plan never named is load-bearing for the very evidence this task was closed on.
+
+[Bugs, Nit] listen.rs:433 `scope.spawn` for the per-connection thread is not covered by `classify_accept_error`: if the OS fails to create that thread (EAGAIN/resource pressure - a different limit than RLIMIT_NOFILE, so not the condition this task's own fixture exercises), `Scope::spawn` panics in the loop's own controlling thread, not a spawned worker, and that panic unwinds straight out of `run()` - skipping `runtime.stop()`, the socket removal and the lock release at listen.rs:480-483, rather than taking the classified fatal path's own cleanup. Out of this task's stated descriptor-exhaustion scope (a different resource dimension), worth a follow-up task rather than blocking this one.
+
+[Compliance, Nit] AC #3's descriptor limit (128, crates/steg/tests/server_start.rs) has a thin empirically-measured margin: the notes record "fails at 90," "always passes at 120," and the chosen value is only 8 above the always-pass point. It passed 10/10 on this machine, but per the Important finding above, it has not yet been confirmed to pass on CI's own runner at all.
+
+Checked myself, not just read: the full diff against origin/main; every changed file in full in a worktree; ran accept_backoff.rs 10x (clean) and the AC #3 real-binary test 10x (clean); ran the full steg-server and steg (incl. fixtures) suites 3x each (clean, no sighting of the TASK-1.82-recorded intermittent failures); reproduced both of the task's own scratch-edit negative controls myself (stop-check removed -> test fails on its bound; ENOTSOCK made recoverable -> test fails on its bound), reverting cleanly each time (confirmed via `git diff`); confirmed boundaries.toml is unchanged, no exhaustive match on ConnectionEvent exists anywhere, and crates/steg/src/main.rs still calls run(..., None) with no printing anywhere in crates/server/src, matching the plan's own claims. Noticed, not a finding on this task: several accept-backoff-attempt/accept_backoff test-binary processes left running under the author's own .worktrees/task-1.98 (not this review's worktree), apparently orphaned from earlier interactive runs - left alone as outside this review's scope.
 
 ---
 <!-- COMMENTS:END -->

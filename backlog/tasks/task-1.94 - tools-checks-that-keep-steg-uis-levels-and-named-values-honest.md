@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:45:00Z'
+updated_date: '2026-11-16T03:58:00Z'
 labels:
   - size-2
   - review-passed
@@ -1136,6 +1136,49 @@ Nits (2):
 No rule-change draft filed: neither nit repeats a mistake an earlier review on this task found (round one: the rgb(0x...) extraction bug; round two: wrong "use instead" advice for a non-ff alpha) - the hard-coded-opacity-names observation is new, not a repeat.
 
 plugins/bruk-io-steg/rules/tools.md ("standard library only" vs ast-grep-py) and rust_source.py's plan departure remain exactly as both prior reviews left them - not re-raised as findings here, --plan-matched recorded no per policy ("no for any departure, even one the notes explain") since rust_source.py is still a new file not in the plan's list, now explained in notes.
+
+---
+
+created: 2026-11-16T03:55:00Z
+
+---
+
+Nit from the third review taken: the translucent-literal message's opacity names
+(previously four literal words typed in ui_colours.py - faint, tint, caption_opacity,
+scrim) are now read from crates/ui/design/foundations.json through a new
+foundations.opacity_names_from_document, so the message can't name an opacity the
+design no longer has. Decided and documented in that function's own docstring: not a
+generic walk (no field is common to all four shapes in the file), but the fixed list
+of the specific places design/README.md itself describes as carrying opacity -
+opacities[].name, tint.name (carries its own opacity field), any ramps[].name with a
+caption_opacity field, and the literal key scrim under sizes. Against the real file
+this reads ("faint", "tint", "ramp", "scrim") - "ramp" rather than "the ramp's
+caption_opacity", the one minimal wording change the dynamic source required.
+format_violation now takes opacity_names as a parameter; main() passes
+foundations.read()'s new field through.
+
+No board command this round, as asked: ran `uv run --project tools pytest -q
+tools/tests` (161 passed, up from 151 - 10 new: 8 unit tests for
+opacity_names_from_document against small dict fixtures, including one proving
+removing a key from the fixture removes its name from the output; one adapter test
+against the real data file (asserts the real four names); one format_violation test
+passing nonsense names ("fictional-alpha"/"fictional-beta") and confirming removing
+one from what's passed in removes it from the message, the literal case the review
+asked for) and `just check` (all green, including check-ui-levels/check-ui-colours),
+both in the foreground, on 1d7c515 before merging and again on dc5a28d after merging
+origin/main (23 commits, all board/backlog, no code overlap, clean merge). Pushed
+dc5a28d; `gh pr checks 52 --watch` green (3m31s). Diff since the reviewed 66dc63b: 5
+files changed, 134 insertions(+), 23 deletions(-) (tools/src/steg_tools/foundations.py,
+ui_colours.py; tools/tests/unit/test_foundations.py, test_ui_colours.py;
+tools/tests/adapter/test_foundations_real_repo.py).
+
+---
+
+created: 2026-11-16T03:58:00Z
+
+---
+
+2026-11-15, @bruk.o: the change made after the clean review (66dc63b to dc5a28d: the translucent message's opacity names read from the data file through foundations.opacity_names_from_document; 5 files, +134 -23) was more than a nit's worth, and the board does not start a review of a task that has passed, so a separate agent with no part in the work read it independently and reported: confined to what was asked (one new function, one new parameter with its one caller, one interpolated phrase; no change to detection or matching); correct against the real data file (faint, tint, ramp, scrim; ramp.extended, which has no caption opacity, contributes nothing); the messages read right for a translucent literal matching one name, two and none, and the opaque message is unchanged (run through just check-ui-colours on scratch files); the added tests would fail against the old fixed names; 161 tool tests pass. One thing noted and accepted: a malformed data file (a shape present with the wrong type, or an entry with no name) raises, as the colours' reader above it already does; the file is generated and never edited by hand (R121). Nothing to change before merge.
 
 ---
 <!-- COMMENTS:END -->

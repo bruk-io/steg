@@ -1,13 +1,14 @@
 ---
 id: TASK-1.93
 title: 'ui: foundations generated from the data file, with light and dark'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:42:00Z'
+updated_date: '2026-11-16T04:13:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6a1e03383d92'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=6,nit=1'
-asdlc_review_policies: ["review", "app"]
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -945,6 +945,141 @@ By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, 
   flag after I'd searched and not found it myself - the same way PR #48's worker got its
   `user-attachments` URLs), with both URLs read back from the comment and confirmed actually
   rendering in the PR body before this was called done.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/adapter/test_foundations_public_surface_real_files.py -s'` exited 1 at 2026-11-16T04:03:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpZ0Fub5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F
+=================================== FAILURES ===================================
+______ test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn ______
+
+    def test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn() -> None:
+        root = workspace.repo_root()
+        assert root is not None, "this test runs inside a git checkout"
+        found: list[object] = []
+        for relative_path in (REPO_ROOT_RELATIVE_MOD_FILE, REPO_ROOT_RELATIVE_GENERATED_FILE):
+            found.extend(bare_hsla_returning_functions(relative_path, (root / relative_path).read_text()))
+>       assert found == []
+E       AssertionError: assert [Violation(fi...ult_session')] == []
+E         
+E         Left contains one more item: Violation(file='crates/ui/src/foundations/mod.rs', name='default_session')
+E         Use -v to get more diff
+
+tools/tests/adapter/test_foundations_public_surface_real_files.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/adapter/test_foundations_public_surface_real_files.py::test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn
+1 failed in 0.02s
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_public_surface.py tools/tests/adapter/test_foundations_public_surface_real_files.py -s'` exited 0 at 2026-11-16T04:04:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpmHwwXo` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+........
+8 passed in 0.01s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 1 at 2026-11-16T04:05:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+FAILED  foundations public surface (exit 1, 0.0s)
+crates/ui/src/foundations/mod.rs: pub fn default_session(...) -> Hsla is outside impl Theme - doc-17 R123 refuses a public function that hands out a bare light-or-dark colour; give it through a Theme method instead.
+full output: .quiet/foundations-public-surface.log
+error: recipe `check-foundations-public-surface` failed on line 174 with exit code 1
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 0 at 2026-11-16T04:05:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+ok      foundations public surface (0.0s)
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T04:06:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+ok      build (gallery) (0.3s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.94-check-worktree'"'"' && uv run --project tools steg-ui-colours'` exited 0 at 2026-11-16T04:07:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCFDk5U` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+```
+
+Commits since the review: 0.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 1 at 2026-11-16T04:10:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 8b91a2de2376 with uncommitted changes:
+
+```text
+FAILED  foundations public surface (exit 1, 0.0s)
+crates/ui/gallery/main.rs: pub fn stray_bare_colour(...) -> Hsla is outside impl Theme - doc-17 R123 refuses a public function that hands out a bare light-or-dark colour; give it through a Theme method instead.
+full output: .quiet/foundations-public-surface.log
+error: recipe `check-foundations-public-surface` failed on line 174 with exit code 1
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 0 at 2026-11-16T04:10:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 8b91a2de2376 with uncommitted changes:
+
+```text
+ok      foundations public surface (0.0s)
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 1 at 2026-11-16T04:11:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at e4f757c7a2d9 with uncommitted changes:
+
+```text
+FAILED  foundations public surface (exit 1, 0.0s)
+crates/ui/gallery/main.rs: pub fn stray_bare_colour(...) -> Hsla is outside impl Theme - doc-17 R123 refuses a public function that hands out a bare light-or-dark colour; give it through a Theme method instead.
+full output: .quiet/foundations-public-surface.log
+error: recipe `check-foundations-public-surface` failed on line 174 with exit code 1
+```
+
+Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 0 at 2026-11-16T04:11:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at e4f757c7a2d9 with uncommitted changes:
+
+```text
+ok      foundations public surface (0.0s)
+```
+
+Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_public_surface.py tools/tests/adapter/test_foundations_public_surface_real_files.py'` exited 0 at 2026-11-16T04:11:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at e4f757c7a2d9 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpgdhMbZ` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.........                                                                [100%]
+9 passed in 0.01s
+```
+
+Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T04:13:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 51c165974ac8:
+
+```text
+ok      build (gallery) (0.3s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
+```
+
+Commits since the review: 37, 33 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1023,6 +1158,31 @@ created: 2026-11-16T03:42:00Z
 ---
 
 On review #4's plan-matched: no, one of the three departures listed needs attribution I left out: the generator module being tools/src/steg_tools/foundations_generate.py rather than the plan's own foundations.py wasn't my call - it's what the engineer's phase-2 brief directed outright (avoiding a name collision with TASK-1.94's own foundations.py reader, which the plan was approved before that collision was known), not an unexplained rename. The other two departures (resolve_for_appearance not existing; radius.round as a plain Pixels const) are mine, reasoned and recorded in the notes and in comment #2 respectively.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:58:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+Second review (same-machine, re-claim): reviewed PR #55's diff since the first review (d919cf45905c) against the current head, 701fc4acd8f4, which matches the task's own final recorded `just check` and is the same head CI is green on (`gh run list`: completed success at 701fc4a).
+
+[Compliance, Important] crates/ui/src/foundations/mod.rs:75 `pub fn default_session(appearance: Appearance) -> Hsla` is a public free function that hands back a bare light/dark colour form (ramp.1 violet's own form) to any caller holding no `Theme` at all - confirmed empirically: a scratch test (`foundations::default_session(Appearance::Dark)` called directly, no `Theme` ever constructed by the caller) compiles and passes; a second scratch test confirms a genuinely private colour fn (`ramp_1_violet_dark`) is still unreachable from outside foundations (E0425, as before), so this is a new, narrow escape hatch, not a general regression. This directly contradicts the crate's own stated invariant, restated three times this round - mod.rs's own doc comment ("there is no public free function anywhere in this crate that returns a bare light-or-dark form... reaching one not through Theme is a compile error, not a convention"), the task notes' AC#2 ("there's no public free function anywhere in the crate returning a bare form (R123) - a compile error, not a convention"), and the PR body (same sentence) - all three are now literally false for this one value. The function was added this round specifically to close review #4's finding 1 (a `rgb(0x000000)` literal in `gallery_theme`'s bootstrap); the fix traded one literal for a different, more fundamental hole in the same guarantee. A `Theme`-returning bootstrap (`fn default_theme(appearance) -> Theme` built the same way internally, with `gallery_theme` just calling `Theme::new`-equivalent through it) would close this without reintroducing the literal.
+
+[Compliance, Nit] `tint`/`scrim`'s own opacity (0.18; 0.28 light/0.6 dark) is no longer visible anywhere in the gallery image. Review #4's fix for the `{:?}` debug-tuple finding moved `tint`/`scrim` into `colour_entries` as a plain swatch + hex (gallery/main.rs:83-84, `theme.tint().0`, `theme.scrim().colour`) - correct for the colour, but it drops the opacity number the old (admittedly unreadable) debug tuple at least carried. `faint`, the data file's other opacity value, is still shown as a bare number in "Other named values", so tint/scrim are now the inconsistent ones, and a viewer can no longer tell from the image that either is drawn at less than full strength. AC#3/AC#4's literal wording (a named, findable swatch) is still met, so this doesn't block.
+
+[Evidence, Nit] No `just capture-gallery` run is recorded on the task after the final review-fix commit (7b1999b) - the task's last recorded capture is at 9dd6c15aee49, before that commit and two merge commits. I reproduced the capture myself at the actual head under review (701fc4a, 0 leftover gallery processes before and after) and it is byte-identical (sha256 match) to both PR #55's attached images, so the substance is established, but the task's own evidence trail has this gap at the final head.
+
+Independently confirmed this round, by direct testing rather than reading the notes: `just capture-gallery` reproduces both PNGs byte-identical to the PR's attached images at 701fc4a; all six of review #4's findings are genuinely fixed in both the code and the captured images - ramps are real two-stop-per-segment linear gradients with a correct, smooth colour progression sampled across the bar (not hard bands), the "Other named values" section's five fixed-width columns are not clipped at the window's right edge in either image, `tint`/`scrim`/`status.ring`/`track.layout`/`focus_ring` no longer print `{:?}` debug tuples, "steg dark"/"steg light" are shown as literal text labelling their rows, and both images are attached to PR #55 and render; at least 8 hexes checked against crates/ui/design/foundations.json across both appearances including a near-white (surface.raised/overlay light #ffffff) and a near-black (surface.ground dark #0e0d10, scrim dark #050508), plus tint (resolves to session/ramp.1 violet, both forms) and scrim (dark literal #050508, light resolves to text's own light form #1b1a1f, confirming the directional resolution) - all match; 6 terminal-theme colours (steg_dark/steg_light's bg, bg_inactive via the surface.pane ref, fg, and one ANSI colour each) checked against generated.rs and the data file - all match; the new `_DESCRIPTION` consts are derived from the same `_plain_field` rendering path that produces the Rust initialiser (not a second, hand-maintained source), so they can't drift, and are covered by three new unit tests (multi-field, single-field, whole-number formatting) plus the unchanged `--check` byte-diff mechanism, which still catches staleness (repeated the negative control myself: edited one colour in a scratch, uncommitted copy of foundations.json, `check-foundations` failed naming the fix, reverted, passed again); the capture's own pixel check at (8,60) against surface.ground is a meaningful control, not a tautology - repeated it with a deliberately wrong expected colour and it failed loudly naming the real cause; ran TASK-1.94's actual colour-literal checker (its own tree) against this tree with the gallery's temporary exemption line removed - the gallery's non-test code is fully clean, the only 2 flagged lines are exactly the 2 `hex_of` test literals the notes and crates/ui/CLAUDE.md already name, confirming CLAUDE.md's claim that the checker does not specially exempt `#[cfg(test)]` is accurate; AC#4's 54/54 name count reproduced independently (45 Python tests passed); `just check`, `cargo clippy -p steg-ui --all-targets -- -D warnings`, and `cargo test -p steg-ui` are all clean at 701fc4a, matching the task's own recorded run and CI.
+
+Not a finding, left as information for whoever lands second: TASK-1.96 (PR #54, still In Progress/changes-requested, not merged) changes `foundations.json`'s `artifact_version` and one `use` text (fill.quiet). Whichever of TASK-1.93/TASK-1.96 merges second must run `just generate-foundations` and commit the result as part of landing its own change to the data file - a plain merge of foundations.json without regenerating leaves `check-foundations` red, which is the staleness mechanism working as designed, not a gap either task needs to pre-empt.
+
+plan-matched: no - same explained departures as review #4 (module named `foundations_generate.py` not the plan's `foundations.py`; `radius.round` built as a plain `Pixels` const, not the plan's marker type; the plan's `resolve_for_appearance` multi-hop resolver doesn't exist, delegation happens one hop at a time through `Theme` methods) plus this round's own new, explained additions (`default_session`, the `_DESCRIPTION` consts, the five-column layout) - policy's --plan-matched is literal about any departure, explained or not.
 
 ---
 <!-- COMMENTS:END -->

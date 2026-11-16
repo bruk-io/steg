@@ -81,6 +81,17 @@ struct State {
     // converted at the one place `apply_event_locked` calls
     // `record_exit`, never read by the kernel itself).
     clock_origin: Instant,
+    /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
+    /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
+    /// test-only, since nothing outside a test needs it. A mark the
+    /// kernel correctly ignores has no other outside effect by design,
+    /// so a test proving that has nothing else to wait on - this is the
+    /// one fact that is true exactly when this pane's own marks have
+    /// been applied, whatever the kernel then did with them, read under
+    /// the same lock `apply_event_locked` updates it under, never
+    /// inferred from a sleep or from a different pane's own marks.
+    #[cfg(test)]
+    applied_marks: HashMap<PaneId, u64>,
 }
 
 /// Owns the kernel's tree and every pane's real runtime, and is the one
@@ -119,6 +130,8 @@ impl Runtime {
             panes: HashMap::new(),
             settings: Settings::new(),
             clock_origin: Instant::now(),
+            #[cfg(test)]
+            applied_marks: HashMap::new(),
         }));
 
         let drain_state = Arc::clone(&state);
@@ -533,6 +546,19 @@ fn rollback_mint(tree: &mut Tree, method: &str, new_pane: PaneId) {
     }
 }
 
+/// Records that `apply_event_locked` has applied one of `pane`'s own
+/// `CommandOutputStarted`/`CommandEnded` events (TASK-1.84 review): a
+/// no-op in production, so the item-level `#[cfg(test)]` split, rather
+/// than one on this call's own statement (unstable on expressions), is
+/// what keeps `State::applied_marks` itself test-only.
+#[cfg(test)]
+fn note_mark_applied(state: &mut State, pane: PaneId) {
+    *state.applied_marks.entry(pane).or_insert(0) += 1;
+}
+
+#[cfg(not(test))]
+fn note_mark_applied(_state: &mut State, _pane: PaneId) {}
+
 /// Applies one [`PaneEvent`] to the tree (§1), taking an already-locked
 /// `State` - what the real drain thread calls in a loop, and what a test
 /// can call directly with a hand-built [`PaneEvent`] for a deterministic,
@@ -572,6 +598,7 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
             }
         }
         PaneEvent::CommandOutputStarted { pane } => {
+            note_mark_applied(state, pane);
             match state.tree.note_command_output_started(pane) {
                 Ok(CommandOutputStarted::Started | CommandOutputStarted::NotAShellPane) => {
                     // No client event stream exists yet to forward either
@@ -597,6 +624,7 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
             }
         }
         PaneEvent::CommandEnded { pane, exit_code } => {
+            note_mark_applied(state, pane);
             let now = Moment::new(Instant::now().duration_since(state.clock_origin));
             match state.tree.note_command_ended(pane, exit_code, now) {
                 Ok(
@@ -676,6 +704,7 @@ mod tests {
             panes,
             settings: steg_kernel::Settings::new(),
             clock_origin: Instant::now(),
+            applied_marks: HashMap::new(),
         }
     }
 
@@ -1567,6 +1596,30 @@ mod tests {
         }
     }
 
+    /// Bounded, polling the one fact (TASK-1.84 review) that is true
+    /// exactly when `apply_event_locked` has applied `expected` of this
+    /// pane's own `CommandOutputStarted`/`CommandEnded` events - read
+    /// under the same lock `apply_event_locked` itself holds while
+    /// updating it, so observing `expected` here means that call has
+    /// already fully returned, not merely that a sleep has elapsed.
+    fn wait_for_applied_mark_count(runtime: &Runtime, pane: steg_sdk::PaneId, expected: u64) {
+        let start = Instant::now();
+        loop {
+            let found = {
+                let state = runtime.state.lock().unwrap();
+                state.applied_marks.get(&pane).copied().unwrap_or(0)
+            };
+            if found >= expected {
+                return;
+            }
+            assert!(
+                start.elapsed() < MARK_TIMEOUT,
+                "pane {pane} never reached {expected} applied marks; last seen {found}"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
+
     fn send_input(runtime: &Runtime, pane: steg_sdk::PaneId, bytes: &[u8]) {
         let state = runtime.state.lock().unwrap();
         state.panes[&pane].send_input(bytes.to_vec()).unwrap();
@@ -1839,39 +1892,20 @@ mod tests {
         state.panes.remove(&gone).unwrap().stop();
     }
 
-    /// Review finding (same-machine review by `@bruk.r2`, 2026-11-16):
-    /// the first version of this test could not fail - its `D` mark and
-    /// its real exit both read as `Finished`, and the `D` landed outside
-    /// the one window this test ever looked at `Running` inside, so a
-    /// mark being wrongly applied and a mark never arriving at all both
-    /// left every assertion green. Fixed two ways at once, named here
-    /// since the finding asked which was picked and why:
-    ///
-    /// - The `D` mark's own exit code (3) now differs from the real exit
-    ///   this script ends with (0), so a wrongly-applied mark reads
-    ///   `Failed { exit_code: 3 }` - a value the real exit path alone
-    ///   can never produce - rather than a value indistinguishable from
-    ///   it.
-    /// - Before asserting anything about the command pane, this test
-    ///   proves the marks really had time to land by running the exact
-    ///   same script in a sibling *shell* pane and waiting for it to
-    ///   read `Failed { exit_code: 3 }` first - the shell pane does
-    ///   respond to its own marks, through the very same single drain
-    ///   thread `command_pane`'s own marks ride (`Runtime::new`'s one
-    ///   `events_rx`, shared by every pane this `Runtime` ever starts).
-    ///   Picked over an in-crate counter of applied events for one pane:
-    ///   this reuses the real channel and drain thread exactly as they
-    ///   already are, with no test-only instrumentation added to
-    ///   production types for a question this already answers on its
-    ///   own.
+    /// A command pane's own program printing OSC 133 (R97): both marks
+    /// are applied by the runtime - waited on through `applied_marks`,
+    /// never a sleep or a different pane's own marks - and change
+    /// nothing, since the `D` mark's own exit code (3) differs from the
+    /// real exit this script ends with (0): a wrongly-applied mark would
+    /// read `Failed { exit_code: 3 }`, a value the real exit path alone
+    /// can never produce. Only the later, real exit drives `Finished`.
     #[test]
     fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
 
         let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
                        sleep 0.3; exit 0";
-
-        let (_, _, command_pane) = start_real_pane(
+        let (_, _, pane) = start_real_pane(
             &runtime,
             Program::Command {
                 argv: vec!["sh".to_string(), "-c".to_string(), script.to_string()],
@@ -1879,37 +1913,23 @@ mod tests {
             },
             vec!["sh", "-c", script],
         );
-        // The observable stand-in for "the marks really arrived by now":
-        // the identical script, started within the same test at
-        // essentially the same wall-clock moment, in a pane kind that
-        // does respond to its own marks.
-        let (_, _, shell_pane) = start_real_pane(
-            &runtime,
-            Program::Shell {
-                cwd: "/tmp".to_string(),
-            },
-            vec!["sh", "-c", script],
-        );
 
         // `start_program` already set this the moment the program did
         // (kernel `Pane::start_program`'s own doc) - independent of
-        // anything either real process has printed yet.
-        assert_eq!(pane_status(&runtime, command_pane), Some(Status::Running));
+        // anything the real process has printed yet.
+        assert_eq!(pane_status(&runtime, pane), Some(Status::Running));
 
-        wait_for_pane_status(&runtime, shell_pane, Some(Status::Failed { exit_code: 3 }));
-        // A small buffer past that point - not the real argument (the
-        // shared drain thread and the identical script are), only a
-        // margin against CI's own scheduling jitter between two
-        // separately scheduled real processes.
-        thread::sleep(Duration::from_millis(100));
+        // Both of this pane's own marks (`C`, then `D;3`) have now been
+        // applied by the runtime's drain thread.
+        wait_for_applied_mark_count(&runtime, pane, 2);
 
-        // The command pane's own identical marks have, by now, had every
-        // chance to be wrongly applied if the kernel's command-pane
-        // guard were broken - and were not: still `Running`, never
-        // `Failed { exit_code: 3 }` from the ignored `D` mark.
-        assert_eq!(pane_status(&runtime, command_pane), Some(Status::Running));
         assert_eq!(
-            pane_program_status(&runtime, command_pane),
+            pane_status(&runtime, pane),
+            Some(Status::Running),
+            "a command pane's own program always wins over a mark (R97)"
+        );
+        assert_eq!(
+            pane_program_status(&runtime, pane),
             Some(ProgramStatus::Running)
         );
 
@@ -1917,7 +1937,7 @@ mod tests {
         // command_ended`, moves it from here - and it reads `Finished`
         // (the real exit's own code, 0), never `Failed` (the mark's own
         // code, 3).
-        wait_for_pane_status(&runtime, command_pane, Some(Status::Finished));
+        wait_for_pane_status(&runtime, pane, Some(Status::Finished));
     }
 }
 

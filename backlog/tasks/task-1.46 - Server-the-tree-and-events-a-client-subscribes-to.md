@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:50:00Z'
+updated_date: '2026-11-16T12:51:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -580,6 +580,51 @@ DRAFT-1's, §6).
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (4ee3881365b0) checked against the four acceptance criteria, decision-2, doc-11 (R52 as corrected, R82, R83), doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised at the orchestrator's request: the reply carrying the tree is queued inside the locked step that registers the subscription, so no event can precede it on the wire (tested for order as well as exactly-once); the tree and the events are typed shapes in the sdk; the description gains Returns::Nested and Method.follows (Nothing, Events, Attachment), which TASK-1.47 uses; one rule for cascades on every path; a test for the filter by session. The event at a finished status's expiry is split into its own task (drafted): status.rs keeps timing off the wire by a merged decision, so the server reports the expiry from one armed deadline. For the engineer: the description's new vocabulary, and reading 'a subscription can be ended' as ended by disconnecting.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T12:51:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 27c15dbcef41, last 40 of 76 lines:
+
+```text
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1214:9
+     |
+1214 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1229:9
+     |
+1229 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1245:9
+     |
+1245 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1281:9
+     |
+1281 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1292:9
+     |
+1292 |         Method {
+     |         ^^^^^^ missing `follows`
+
+error[E0063]: missing field `follows` in initializer of `Method`
+    --> crates/sdk/src/description/methods.rs:1311:9
+     |
+1311 |         Method {
+     |         ^^^^^^ missing `follows`
+
+For more information about this error, try `rustc --explain E0063`.
+error: could not compile `steg-sdk` (lib) due to 42 previous errors
+full output: .quiet/test-steg-kernel.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

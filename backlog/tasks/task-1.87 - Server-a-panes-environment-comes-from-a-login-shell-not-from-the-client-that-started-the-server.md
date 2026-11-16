@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:42:00Z'
+updated_date: '2026-11-16T04:46:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -550,6 +550,51 @@ test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 test the_client_being_sigkilled_does_not_end_the_server ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+```
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-16T04:46:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 323 lines:
+
+```text
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-28715a1c11dd3b93)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-7da8aa152f6f03c1)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

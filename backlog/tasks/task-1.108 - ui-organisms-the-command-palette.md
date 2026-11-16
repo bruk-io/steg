@@ -4,10 +4,12 @@ title: 'ui organisms: the command palette'
 status: To Do
 assignee: []
 created_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-3
 milestone: m-0
-dependencies: []
+dependencies:
+  - TASK-1.105
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-11

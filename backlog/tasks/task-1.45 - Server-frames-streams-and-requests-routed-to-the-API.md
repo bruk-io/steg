@@ -1,14 +1,14 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:09:00Z'
+updated_date: '2026-11-16T03:29:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -28,9 +28,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1007366d16d6'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "testing-rust"]
-asdlc_plan_matched: no
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1218,6 +1217,75 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 110, 109 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 23 passed"; then fail=$((fail+1)); echo "iteration $i FAILED:"; echo "$out" | tail -15; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 1 at 2026-11-16T03:10:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at ae9aeb6260fd, last 40 of 321 lines:
+
+```text
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+kill: 92592: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+iteration 19 FAILED:
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+kill: 92665: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+iteration 20 FAILED:
+test a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+kill: 92841: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+failures: 20 of 20
+```
+
+Commits since the review: 110, 109 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 21 passed; 0 failed"; then fail=$((fail+1)); echo "iteration $i FAILED:"; echo "$out" | tail -20; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 0 at 2026-11-16T03:11:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at ae9aeb6260fd:
+
+```text
+failures: 0 of 20
+```
+
+Commits since the review: 110, 109 without the Asdlc-Worker trailer.
+
+Second review round addressed. Leading with what the headline test now waits on: it establishes, as a bounded fact rather than a sleep, that bytes already delivered to the client have stopped growing at a value above zero across two consecutive FIONREAD polls (wait_until_bytes_available_plateaus) - the one fact that can only hold once the server's writer has genuinely written something and then stopped, which on a full send buffer means blocked. The flood sent before that wait is sized from this connection's own real SO_SNDBUF/SO_RCVBUF, read with getsockopt, exceeded with a wide margin, so no OS-dependent constant is guessed. The retrospective check now requires received > 0 (the writer did write) and < total_sent (it was cut off), closing the "writer never started" gap the sleep-based version could not rule out. Negative control re-recorded: shutdown_handle.shutdown removed, 5/5 runs failed by their own ~5-6s bound (Err(Timeout), not a hang); restored, 20/20 passing, and the full tests/routing.rs suite (21 tests) run 20 times at the final head with 0 failures.
+
+Nit (a): built, not dropped. stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket starts a real program through session.new (writes its own pid to a file, then sleeps), confirms it alive via kill -0, calls stop() through listen::run's own serve(), then asserts in order: the real process is gone, the socket file is removed, and a second serve() can bind at the same path (proving the arbiter lock was actually released, not merely leaked and eventually reclaimed).
+
+Nit (b): built. a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method sends session.show, tab.focus and pane.show with no target over a real connection with Context::none(), and asserts BadRequest with a missing-context message for each - target is optional at validate() for all three, so this can only be dispatch's own refusal.
+
+Nit (c): took the "or justify why the unit test is sufficient" option, with a reason grounded in a direct measurement, not a guess: I wrote a standalone repro (UnixStream::pair(), one side shutdown(Shutdown::Read), the other side does 2000 writes of 1KB) and every write succeeded - a half-closed read side does not make the peer's writes fail or block on this platform. The only reliable way left to make a real connection's write fail is the client fully disconnecting, but that also trips the reader's own, pre-existing EOF handling in run_post_handshake independently of this fix, so a routing-level test built that way would pass identically with the fix removed and prove nothing about this specific mechanism. Documented this reasoning directly on the existing outbound.rs unit test (which isolates run_writer with no reader or connection in the way, specifically because the routing level cannot). Also added a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly for the real, provable end-to-end claim: a client gone with several replies queued still gets a prompt, clean Disconnected.
+
+Checks recorded via asdlc record-check: the 5x negative control (fail 5/5 by bound), the 20x routing.rs repetition at the final head (0/20 failures, 21 tests each), and `just check` (all green: format, lint, boundaries, licences, every crate's build/tests, tool tests, architecture, recipe names).
+
+Merge: fetched origin/main - nothing touched crates/ or any build file since the last merge (diff from merge-base to origin/main on crates/justfile/Cargo.toml/Cargo.lock is empty); the merge brought in only backlog/ board and doc commits (new UI-crate tasks, review records, other tasks' check records), no conflicts.
+
+Pushed; gh run watch on the triggered CI run passed (check job, 2m38s); gh pr checks 50 confirms pass.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1301,6 +1369,45 @@ Merge of main: `crates/steg/src/main.rs` builds `ServerConfig::default()` and ca
 [Compliance, Nit] Review #1's third finding (closing the queue on a broken write) has only a unit-level test (`outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`); no integration test in `routing.rs` confirms a real connection's reader actually sees its next `enqueue_control` fail and the connection close with both threads joined when the peer has dropped its read side. I confirmed this by reading the code (connection.rs's `match` arm already returns on that error), not by a recorded run - this is the same "two parts" gap the plan's own AC #3 convention names for `Outbound`-level claims but does not apply here.
 
 No findings on: the segment-count/sentinel removal itself (verified against the kernel's own `resolve_tab_path`/`resolve_pane_path`); the broken-write production wiring; the merge's handling of TASK-1.77/1.84; AC #1/#2/#4 (unchanged since review #1, still sound); boundaries, licences, unsafe (none touched).
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:15:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:29:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+No findings. Reviewed at head ae9aeb6260fd9b16784bd05ed9d0c5fc40e794e5, matching the task's recorded `just check` (2026-11-16T03:09:10Z, 23 steps green) and PR #50's own headRefOid with CI `check` SUCCESS (2026-11-16T03:13:58Z) at the same head. Since the round-2 review (611fa8c) only crates/server/src/outbound.rs (27 lines, doc comments only) and crates/server/tests/routing.rs (407 lines) changed; confirmed via diff --stat against 611fa8c and read every changed line.
+
+Round 2's Important (the blocked-writer test slept 300ms and assumed the writer had blocked; its after-the-fact check (received < total) was also true if nothing was ever written): fixed. The test now reads this connection's own real SO_SNDBUF/SO_RCVBUF via getsockopt, sizes its flood at 3x their sum (via a measured, documented per-reply floor, not a live measurement), then waits bounded on wait_until_bytes_available_plateaus (FIONREAD polled every 20ms, returns once two consecutive non-zero readings are equal) before triggering this connection's own close.
+
+Reasoned through whether the plateau could be satisfied while the writer is not blocked (e.g. between replies while the reader is slow to enqueue the next one): the full flood is written by the client before the plateau wait begins, and because total reply volume is sized to 3x the combined OS buffer capacity, the only not-genuinely-stuck state that could produce a plateau is the writer having already drained the whole queue and gone back to the condvar - excluded by the later assertion received < total_sent (if it had drained everything, the client would eventually have read all of it, not less). A transient scheduling pause (writer briefly off-CPU, not OS-blocked) could in principle produce a premature two-poll-equal reading, but since the data volume forces a real OS-level block almost immediately regardless of exact timing, this does not produce a false pass. The test does not check the plateau is near the buffers' capacity or that the queue still holds replies - not needed, since received>0 and received<total_sent already bound both ends.
+
+Verified empirically rather than only reasoned: scratch-reverted the fix (removed shutdown_handle.shutdown(Both) from ConnectionCleanup::drop in connection.rs), ran the new test 10x at this head - failed 10/10, each by its own ~5s bound (Err(Timeout), not a hang, consistent exit 101 and ~5.06s). Restored the edit (worktree clean after, confirmed by git status); ran the full routing.rs suite (21 tests) 20x at default parallelism - 0 failures, internal times 0.71-2.03s, none over 10s.
+
+The three nits from round 2, each checked:
+(a) stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket - built. Its own doc comment is explicit that it proves only the end-to-end claim (a real process really ends, the socket is really freed, the lock really released, through the real stack) and that the shutdown *order* itself rests on reading run()'s sequential body, not on this test - correctly scoped, not overclaimed. Ran it 10x (ps count for "sleep 100" processes: 7 before, 7 after across all 10 runs - unchanged; the 7 are pre-existing, unrelated "sleep 1000" shells on this machine, not leaks from this test). No process left behind on the passing path; did not force a failing path (killing the test mid-assertion), since the brief asked for a 10x ps count, which is clean.
+(b) a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method - built. Confirmed from crates/sdk/src/description/methods.rs that target is declared optional (not required) for session.show, tab.focus and pane.show, so the BadRequest this test observes can only come from dispatch's own missing-context refusal, not client- or server-side validate.
+(c) the broken-write unit test's justification - sound. Confirmed crates/server/src/connection.rs:359 (`Ok(0) | Err(_) => return`) is the reader's own, pre-existing EOF/error handling, independent of Outbound's broken-write-closes-queue fix - a full client disconnect closes the connection through that path regardless, so a routing-level test built that way would pass identically with the fix removed, as the comment says. The new a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly test is not offered as proof of this specific mechanism (consistent with its own doc comment) - it proves the separate, real end-to-end property that a vanished client with queued replies still gets a prompt, clean close; it is not named in the plan's own §9 list and makes no "never changes" claim, so no additional control is owed for it.
+
+Two things worth a human's attention on the task, named here so nobody trips over them, neither a finding: the round-1-era "Check FAILED ... 23 passed" grep-pattern block at 2026-11-16T03:10:18Z was a harness artifact (looking for a stale expected count of 23 against the real, correct count of 21) - every underlying run in that block actually passed; superseded by the 03:11:05Z block (0/20 failures). And the worker's own 5x negative control for this round's fix is recorded against uncommitted changes at 611fa8c (before the final plateau-based test was committed) rather than at ae9aeb6 - superseded by my own 10x negative control at the actual reviewed head, above.
+
+No findings on anything round 1 or round 2 already passed: AC #1-#4, Context/BadRequest refusal, thread joining on every path, boundaries, licences, unsafe, size/approval (Plan approved by @bruk, 1007366d16d6, size-3).
+
+No rule-change draft filed: no open finding, so no repeated mistake to record (asdlc board draft list is empty).
 
 ---
 <!-- COMMENTS:END -->

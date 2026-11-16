@@ -1,9 +1,11 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
+updated_date: '2026-11-16T15:05:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -13,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.117-app-a-bare-window-with-one-terminal-you
 ---
 
 ## Description

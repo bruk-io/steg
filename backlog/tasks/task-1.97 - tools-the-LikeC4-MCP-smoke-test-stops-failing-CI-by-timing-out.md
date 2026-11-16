@@ -1,13 +1,14 @@
 ---
 id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:02:00Z'
+updated_date: '2026-11-16T03:12:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.97-tools-the-likec4-mcp-smoke-test-stops
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1b39eee49ff0'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -131,6 +134,27 @@ created: 2026-11-16T03:02:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.97: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:12:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review, testing. The diff matches the plan.
+
+Reviewed at head 1e63d7b907f04794bf93bd759058e4af6d59e1eb (matches PR 53's head and its green CI run 43794899362; the task's own recorded `just check` is also at this head).
+
+[Evidence, Important] tools/src/steg_tools/likec4_mcp.py:161-171, task notes PROOF item P9 - Item 5's timeout split adds a distinct "mid-exchange" branch (reached only after the first line is read, bound=timeout=5.0s), separate from the "to start" branch (bound=startup_timeout=60.0s). The notes drop P9 ("negative control showing the old single-timeout message carries no phase information vs. the new message naming the phase") saying "P2 above already exercises it directly - the negative control's actual failure message ('did not answer (to start) within 60.0s') is the P9 demonstration." That's wrong: `first` is only set False after a successful `lines.get()`, so P2 (registry blocked, .npmrc removed) can only ever hit the "to start" branch - I reran P2 myself and got exactly "did not answer (to start) within 60.0s", matching commit b3dd24f. I then called `read_project_summary(..., timeout=0.0001)` directly (uncommitted, nothing changed on disk) and got a materially different message - "likec4 mcp did not answer (mid-exchange) within 0.0001s" - proving the mid-exchange branch exists and is reachable, but also that nothing recorded on this task has ever reached it. Per review.md ("one direction of a pair... needs a test that reaches that branch") and testing.md ("named as dropped and say why" / "citing the plan's list is not covering it"), P9's drop reason is false and the branch is unproven. This is the same mistake shape as the open draft DRAFT-1 ("record every negative control's failing run, don't just claim it") - not filing a new draft, this one already covers it.
+
+[Evidence, Nit] tools/src/steg_tools/likec4_mcp.py:110-120 - the docstring cites "up to 70s when the registry itself is unreachable and npm's own retry ladder runs out" immediately next to the new startup_timeout=60.0, without noting that 70s figure was measured with .npmrc/prefer-offline absent; post-fix the same scenario is 0.43s per the plan. As written it reads as if the bound is smaller than a failure mode that can still occur, which isn't the case once .npmrc is always present. Worth a clarifying word.
+
+[Compliance, Nit] .github/workflows/ci.yml:75-85 - "Install the pinned Zig (mise.toml)" (and its comment) now also installs the new `node` pin via the same jdx/mise-action step, but the name/comment weren't updated to mention it.
+
+Verified myself, no findings: the cause (read failed-run log job 133035963248: "FAILED tool tests (exit 1, 34.2s)", "TimeoutError: ... within 30.0s", "1 failed, 51 passed in 33.17s"; passing-run log job 133045320293: "tool tests (21.4s)" / "architecture (1.7s)" - both match the notes verbatim); the deterministic blocked-registry pair myself in a fresh review worktree (warm cache, HTTP(S)_PROXY to a closed port, .npmrc moved aside: failed at "did not answer (to start) within 60.0s", 65.04s wall; .npmrc restored: passed in 0.60s); .npmrc's blast radius (grepped, only .mcp.json/justfile/likec4_mcp.py use npx, confirmed covered); the actions/cache pin (55cc8345863c7cc4c66a329aec7e433d2d1c52a9 is really v6.1.0); the CI step ordering (Node confirm -> cache restore -> warm step -> just check, nothing removed); the 5.0s exchange bound's safety margin (direct call with timeout=0.5 against the full response - 7 views, 18 elements - passed, ~10x headroom); the merge commit 1e63d7b (only pulls in unrelated backlog/ files, no code the plan hadn't seen); and the Node pin in CI logs (v24.22.0 printed). Cleaned up: git status clean in the review worktree, no stray npx/likec4 processes, proxy env vars unset.
 
 ---
 <!-- COMMENTS:END -->

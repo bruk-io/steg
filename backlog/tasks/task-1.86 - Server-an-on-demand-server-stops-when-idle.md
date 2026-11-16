@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:01:00Z'
+updated_date: '2026-11-16T14:03:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1188,6 +1188,53 @@ Checks recorded on the task throughout, including:
 AC #4's exact-instant race (a client connecting in the same accept-loop iteration the stop flag becomes true) is proven for the ordinary-timing case only, through the real binary and the sdk's own unmodified autostart - the engineer approved this reading and is adding the exact-instant case as a criterion on TASK-1.49 instead, per the plan's own "For the engineer" section.
 
 Reviewer: please check PR #60 includes the merges of origin/main and TASK-1.98's branch cleanly (no leftover conflict markers), and that the one-effective-sender change to listen.rs (TASK-1.98's own file) reads correctly in context.
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T14:03:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc, last 40 of 409 lines:
+
+```text
+kill: 74638: No such process
+kill: 74703: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+kill: 74691: No such process
+kill: 74704: No such process
+kill: 74726: No such process
+kill: 74747: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 74639: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74641: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74690: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74696: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.09s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

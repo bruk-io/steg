@@ -856,6 +856,91 @@ fn tab_list_with_an_unknown_session_is_no_such_target() {
     assert_eq!(error.code, ErrorCode::NoSuchTarget);
 }
 
+/// doc-15 R10: a target that matches more than one thing is an error,
+/// never a guess - `tab.list`'s own target is a session, so this needs
+/// two *sessions* sharing a label (labels are never required to be
+/// unique, `crates/kernel/src/label.rs`'s own doc).
+#[test]
+fn tab_list_with_an_ambiguous_session_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    tree.session_mut(context.default_session.unwrap())
+        .unwrap()
+        .set_label(Some("work".to_string()))
+        .unwrap();
+    tree.new_session(Some("work".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.list", vec![("target", json!("work"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// The same mechanism as the test above, for `tab.show`'s own target (a
+/// tab): two tabs of the *same* session sharing a label.
+#[test]
+fn tab_show_with_an_ambiguous_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    let session_id = context.default_session.unwrap();
+    tab_mut_for_test(&mut tree, context.default_tab.unwrap())
+        .set_label(Some("logs".to_string()))
+        .unwrap();
+    tree.new_tab(session_id, Some("logs".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("tab.show", vec![("target", json!("logs"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// The same mechanism again, for `pane.list`'s own target (also a tab).
+#[test]
+fn pane_list_with_an_ambiguous_target_is_ambiguous_target() {
+    let (mut tree, context, api) = fresh();
+    let session_id = context.default_session.unwrap();
+    tab_mut_for_test(&mut tree, context.default_tab.unwrap())
+        .set_label(Some("logs".to_string()))
+        .unwrap();
+    tree.new_tab(session_id, Some("logs".to_string())).unwrap();
+
+    let error = err(dispatch(
+        &mut tree,
+        &mut Settings::new(),
+        &api,
+        &context,
+        &request("pane.list", vec![("target", json!("logs"))]),
+        moment(0),
+    ));
+
+    assert_eq!(error.code, ErrorCode::AmbiguousTarget);
+}
+
+/// A tab's owning session, by walking every session (the same shape
+/// `crates/server/src/dispatch/lookup.rs`'s own private
+/// `session_owning_tab` uses internally) - this file has no direct
+/// access to that private helper, so the three ambiguous-target tests
+/// above build their own, minimal stand-in rather than reaching for it.
+fn tab_mut_for_test(tree: &mut Tree, tab: TabId) -> &mut steg_kernel::Tab {
+    let session_id = tree
+        .sessions()
+        .iter()
+        .find(|session| session.tab(tab).is_some())
+        .map(steg_kernel::Session::id)
+        .expect("the tab given to this test helper is in the tree");
+    tree.session_mut(session_id).unwrap().tab_mut(tab).unwrap()
+}
+
 /// Mechanism: `shown_status` comes from the kernel's own ranking
 /// (decision-7: waiting, failed, bell, finished, running), not from
 /// whichever pane happens to come first in the tab's own order. Built so

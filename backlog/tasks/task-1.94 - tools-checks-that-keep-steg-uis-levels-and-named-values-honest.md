@@ -1,10 +1,11 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T00:55:00Z'
+updated_date: '2026-11-16T02:06:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
 ---
 
 ## Description

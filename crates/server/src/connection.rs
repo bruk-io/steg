@@ -6,6 +6,8 @@
 //! sdk: the one `match` in `run_post_handshake` leans entirely on the
 //! sdk's own `Incoming` classification.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::sync::Arc;
@@ -14,11 +16,11 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{
-    ClientId, Connection, Frame, Handshake, Incoming, PROTOCOL_VERSION, Refusal, WireRole as Role,
-    check_hello, description, encode_frame,
+    ClientId, Connection, Description, Frame, Handshake, Incoming, PROTOCOL_VERSION, PaneId,
+    Refusal, Request, Response, WireRole as Role, check_hello, description, encode_frame,
 };
 
-use crate::dispatch::Context;
+use crate::dispatch::{Context, bad_request, resolve_api_call};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
@@ -263,6 +265,15 @@ struct ConnectionCleanup<'a> {
     shutdown_handle: UnixStream,
     runtime: &'a Runtime,
     client_id: ClientId,
+    /// Every pane this connection still attaches to, by stream
+    /// (TASK-1.47), swept below so a connection that ends without calling
+    /// `pane.detach` for all of them does not leak a dead attachment in a
+    /// pane's own fan-out list forever. `Tree::disconnect_client` (below)
+    /// already removes this connection's whole kernel-level `Client` row
+    /// in one step, viewing list included - there is nothing left to
+    /// release there; only each pane's own worker thread, which the
+    /// kernel knows nothing about, still needs telling.
+    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
 }
 
 impl Drop for ConnectionCleanup<'_> {
@@ -271,6 +282,9 @@ impl Drop for ConnectionCleanup<'_> {
         let _ = self.shutdown_handle.shutdown(std::net::Shutdown::Both);
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
+        }
+        for (&pane, &stream) in self.pane_streams.borrow().iter() {
+            self.runtime.forget_attachment(pane, stream);
         }
         self.runtime.disconnect_client(self.client_id);
     }
@@ -317,24 +331,38 @@ fn run_post_handshake(
     };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
+    // TASK-1.47: this connection's own attachment bookkeeping - which
+    // pane each of its streams belongs to, and the next stream id to
+    // hand out. Shared (via `RefCell`) between the read loop below, which
+    // mutates it on every `pane.attach`/`pane.detach`, and the cleanup
+    // guard, which only ever reads it, once, on the way out.
+    let pane_streams: RefCell<HashMap<PaneId, u32>> = RefCell::new(HashMap::new());
+    let next_stream = RefCell::new(0_u32);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
         shutdown_handle,
         runtime,
         client_id,
+        pane_streams: &pane_streams,
     };
 
-    let context = Context::none();
-    let description = description();
+    let state = ConnectionState {
+        runtime,
+        description: description(),
+        context: Context::none(),
+        outbound: &outbound,
+        client_id,
+        pane_streams: &pane_streams,
+        next_stream: &next_stream,
+    };
 
     loop {
         loop {
             match connection.poll() {
                 Some(Incoming::Request { id, request }) => {
-                    let response = runtime.handle(&description, &context, &request);
-                    let bytes = Connection::reply(id, response);
-                    if outbound.enqueue_control(bytes).is_err() {
+                    let keep_going = handle_request(&state, connection, id, request);
+                    if !keep_going {
                         // The queue is closed or full (TASK-1.45 §3: a
                         // client that floods requests and never reads any
                         // reply) - `_cleanup`'s `Drop` runs the rest.
@@ -358,6 +386,127 @@ fn run_post_handshake(
         match stream.read(&mut buf) {
             Ok(0) | Err(_) => return,
             Ok(n) => connection.receive(&buf[..n]),
+        }
+    }
+}
+
+/// Everything one connection's read loop needs that stays the same for
+/// its whole life, bundled only so [`handle_request`] stays under
+/// clippy's own argument-count lint - `pane_streams`/`next_stream` are
+/// the one part of this that is actually mutated, through their own
+/// `RefCell`s.
+struct ConnectionState<'a> {
+    runtime: &'a Runtime,
+    description: Description,
+    context: Context,
+    outbound: &'a Arc<Outbound>,
+    client_id: ClientId,
+    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    next_stream: &'a RefCell<u32>,
+}
+
+/// Handles one decoded request, replying on `state.outbound` - `false`
+/// means the connection should end (the reply queue is closed or full),
+/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) are
+/// intercepted here, *before* falling through to `runtime.handle`'s own,
+/// unchanged generic path, for the same structural reason TASK-1.46
+/// intercepts `event.watch` the same way: neither `dispatch::dispatch` nor
+/// `Runtime::handle` can reach a connection's own `Arc<Outbound>` or its
+/// own attachment bookkeeping, both created here, after the handshake.
+///
+/// A client reaching either method *through* `api.call` is still routed
+/// here, resolved first - the same cheap, harmless second resolution
+/// `Runtime::handle` already does for its own generic path (TASK-1.46 §4's
+/// own reasoning): `runtime.handle`'s branch below is still given the
+/// *original*, unresolved `request`, which it resolves again itself.
+fn handle_request(
+    state: &ConnectionState<'_>,
+    connection: &mut Connection,
+    id: u64,
+    request: Request,
+) -> bool {
+    let runtime = state.runtime;
+    let description = &state.description;
+    let context = &state.context;
+    let outbound = state.outbound;
+    let client_id = state.client_id;
+    let pane_streams = state.pane_streams;
+    let next_stream = state.next_stream;
+
+    let resolved = if request.method == "api.call" {
+        match resolve_api_call(&request) {
+            Ok(inner) => inner,
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
+                return outbound.enqueue_control(bytes).is_ok();
+            }
+        }
+    } else {
+        request.clone()
+    };
+
+    match resolved.method.as_str() {
+        "pane.attach" => {
+            let stream = {
+                let mut next = next_stream.borrow_mut();
+                *next += 1;
+                *next
+            };
+            match runtime.attach_pane(
+                description,
+                context,
+                crate::runtime::Attaching {
+                    client: client_id,
+                    id,
+                    stream,
+                },
+                &resolved,
+                outbound,
+            ) {
+                Ok(pane) => {
+                    // decision-2 section 3's ordering rule: the reply is
+                    // already queued (inside `attach_pane`, under its own
+                    // lock) before either of these two run - the writer
+                    // may only now pull data frames for this stream, and
+                    // the worker is only now handed something to send to.
+                    outbound.open_stream(stream);
+                    runtime.arm_attachment(pane, stream, Arc::clone(outbound));
+                    connection.open_stream(stream);
+                    pane_streams.borrow_mut().insert(pane, stream);
+                    true
+                }
+                Err(error) => {
+                    let bytes = Connection::reply(id, Response::Error(error));
+                    outbound.enqueue_control(bytes).is_ok()
+                }
+            }
+        }
+        "pane.detach" => match runtime.resolve_pane_target(description, context, &resolved) {
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
+                outbound.enqueue_control(bytes).is_ok()
+            }
+            Ok(pane) => {
+                let stream = pane_streams.borrow_mut().remove(&pane);
+                let response = match stream {
+                    None => Response::Error(bad_request(
+                        "this connection has no attachment to this pane",
+                    )),
+                    Some(stream) => {
+                        runtime.detach_pane(client_id, pane, stream);
+                        outbound.close_stream(stream);
+                        connection.close_stream(stream);
+                        Response::Ok(serde_json::Value::Null)
+                    }
+                };
+                let bytes = Connection::reply(id, response);
+                outbound.enqueue_control(bytes).is_ok()
+            }
+        },
+        _ => {
+            let response = runtime.handle(description, context, &request);
+            let bytes = Connection::reply(id, response);
+            outbound.enqueue_control(bytes).is_ok()
         }
     }
 }
@@ -447,6 +596,178 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::time_remaining;
+    use super::{Arc, ConnectionCleanup, HashMap, Outbound, RefCell, Runtime, UnixStream};
+    use crate::dispatch::Context;
+    use crate::outbound::spawn_writer;
+    use crate::pty::RealLauncher;
+    use crate::runtime::{Attaching, LoginShell};
+    use steg_sdk::{ClientKind, Request, Response};
+
+    const TEST_GRACE: Duration = Duration::from_millis(30);
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
+    fn login() -> LoginShell {
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: std::env::temp_dir().to_str().unwrap().to_string(),
+            user: None,
+            base_env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
+        }
+    }
+
+    /// Builds a session, its one tab and its one pane through `Runtime::
+    /// handle` itself (no real socket), and returns the full `session/tab/
+    /// pane` path - the one shape `pane.attach`'s own target resolves with
+    /// no session context (R10, the same gap `attach.rs`'s own integration
+    /// tests already name).
+    fn new_pane_path(
+        runtime: &Runtime,
+        description: &steg_sdk::Description,
+        context: &Context,
+    ) -> String {
+        let session = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id = session["id"].as_str().unwrap().to_string();
+
+        let tabs = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "tab.list".to_string(),
+                params: serde_json::json!({"target": session_id})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("tab.list failed: {error:?}"),
+        };
+        let tab_id = tabs.as_array().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        let panes = match runtime.handle(
+            description,
+            context,
+            &Request {
+                method: "pane.list".to_string(),
+                params: serde_json::json!({"target": format!("{session_id}/{tab_id}")})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            Response::Ok(value) => value,
+            Response::Error(error) => panic!("pane.list failed: {error:?}"),
+        };
+        let pane_id = panes.as_array().unwrap()[0]["id"]
+            .as_str()
+            .unwrap()
+            .to_string();
+
+        format!("{session_id}/{tab_id}/{pane_id}")
+    }
+
+    /// Bounded, polling the one fact that is true exactly once the
+    /// worker has actually applied an `Attach`/`Detach` (or the sweep
+    /// `ConnectionCleanup::Drop` sends in its place) - never a sleep
+    /// assumed long enough.
+    fn wait_for_attachment_count(runtime: &Runtime, pane: steg_sdk::PaneId, expected: usize) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let found = runtime.attachment_count_for_test(pane);
+            if found == expected {
+                return;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "pane {pane} never reached {expected} attachments; last saw {found}"
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    /// TASK-1.47 review: a connection that ends without ever calling
+    /// `pane.detach` must not leave a dead attachment in a pane's own
+    /// fan-out list forever - proven here by actually counting it
+    /// (`Runtime::attachment_count_for_test`), not merely by a later
+    /// `pane.attach` not hanging (`attach.rs`'s own integration test's
+    /// own, weaker proof). `ConnectionCleanup`'s `Drop` is exercised
+    /// directly - not `Runtime::forget_attachment` called by hand, which
+    /// would only prove that method works, never that `Drop` actually
+    /// calls it - built in-process with a real pane and a real `Outbound`/
+    /// writer pair over a real `UnixStream::pair()`, but no real socket
+    /// listener.
+    #[test]
+    fn connection_cleanups_drop_sweeps_every_attachment_it_still_holds() {
+        let runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+        let description = steg_sdk::description();
+        let context = Context::none();
+        let path = new_pane_path(&runtime, &description, &context);
+
+        let (client_writer, _server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let writer = spawn_writer(Arc::clone(&outbound), client_writer);
+
+        let stream = 1_u32;
+        let client_id = runtime.connect_client(ClientKind::App, None);
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(path));
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params,
+        };
+        let pane = runtime
+            .attach_pane(
+                &description,
+                &context,
+                Attaching {
+                    client: client_id,
+                    id: 1,
+                    stream,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("attach_pane succeeds");
+        outbound.open_stream(stream);
+        runtime.arm_attachment(pane, stream, Arc::clone(&outbound));
+        wait_for_attachment_count(&runtime, pane, 1);
+
+        let pane_streams = RefCell::new(HashMap::from([(pane, stream)]));
+        let (_shutdown_a, shutdown_b) = UnixStream::pair().unwrap();
+        {
+            let _cleanup = ConnectionCleanup {
+                outbound,
+                writer: Some(writer),
+                shutdown_handle: shutdown_b,
+                runtime: &runtime,
+                client_id,
+                pane_streams: &pane_streams,
+            };
+            // `_cleanup` drops here, running its sweep - the one thing
+            // this test is about.
+        }
+
+        wait_for_attachment_count(&runtime, pane, 0);
+    }
 
     /// `Instant::now()` is read exactly once here, as a base - every
     /// instant compared against it below is that base plus a literal

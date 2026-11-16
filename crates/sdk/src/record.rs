@@ -136,6 +136,48 @@ pub struct SettingRecord {
     pub default: String,
 }
 
+/// One tab with its panes embedded (TASK-1.46, AC #1) — `TabRecord`'s own
+/// fields, flattened, plus the panes `TabRecord.layout`'s own leaves name by
+/// id. `layout` says *where* each pane sits (a structural reference, the
+/// same role `current_pane`/`current_tab` already play elsewhere: naming a
+/// sibling by id, not embedding its data); `panes` is the one place that
+/// pane's actual data lives. A client resolves a `layout` leaf's id against
+/// this same `panes` array — nothing is stated twice, the two answer
+/// different questions ("what shape" and "what is each one").
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TabTree {
+    /// The tab's own fields.
+    #[serde(flatten)]
+    pub tab: TabRecord,
+    /// Its panes, in the tab's own order.
+    pub panes: Vec<PaneRecord>,
+}
+
+/// One session with its tabs embedded (TASK-1.46, AC #1) — `SessionRecord`'s
+/// own fields, flattened, plus its tabs, each with its own panes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionTree {
+    /// The session's own fields.
+    #[serde(flatten)]
+    pub session: SessionRecord,
+    /// Its tabs, in the session's own order.
+    pub tabs: Vec<TabTree>,
+}
+
+/// The whole tree: every session, each with its tabs, each with its panes,
+/// as of one coherent moment (TASK-1.46, AC #1) — `event.watch`'s own
+/// reply (a `Returns::Nested` in the description, since there is no flat
+/// fields table for a nested value).
+///
+/// Named `TreeSnapshot`, not `Tree`: `steg_kernel::Tree` already owns that
+/// name for the live, mutable structure this is a wire photograph of — a
+/// different thing, in a different crate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TreeSnapshot {
+    /// Every session on the host, in the server's own order.
+    pub sessions: Vec<SessionTree>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::SessionRecord;
@@ -209,7 +251,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -311,7 +354,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -392,7 +436,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -447,7 +492,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -457,5 +503,83 @@ mod tests {
                 "{dotted}'s declared fields and SettingRecord's own keys must match"
             );
         }
+    }
+
+    use super::{SessionTree, TabTree, TreeSnapshot};
+
+    fn tab_tree_example() -> TabTree {
+        TabTree {
+            tab: tab_example(),
+            panes: vec![pane_example()],
+        }
+    }
+
+    fn session_tree_example() -> SessionTree {
+        SessionTree {
+            session: example(),
+            tabs: vec![tab_tree_example()],
+        }
+    }
+
+    fn tree_snapshot_example() -> TreeSnapshot {
+        TreeSnapshot {
+            sessions: vec![session_tree_example()],
+        }
+    }
+
+    #[test]
+    fn tree_snapshot_serde_round_trips() {
+        let snapshot = tree_snapshot_example();
+        let json = serde_json::to_string(&snapshot).unwrap();
+        assert_eq!(
+            serde_json::from_str::<TreeSnapshot>(&json).unwrap(),
+            snapshot
+        );
+    }
+
+    /// `TabTree`'s own fields are `TabRecord`'s, flattened, plus `panes` -
+    /// not a second, nested `tab` key: a client reads a tab's `id`/
+    /// `label`/`layout`/... directly, the same shape every other record
+    /// already has, with `panes` as the one addition.
+    #[test]
+    fn tab_tree_flattens_the_tab_record_and_adds_panes_beside_it() {
+        let value = serde_json::to_value(tab_tree_example()).unwrap();
+        let object = value.as_object().unwrap();
+        assert_eq!(
+            object["id"],
+            serde_json::json!(tab_example().id.to_string())
+        );
+        assert!(object.get("tab").is_none(), "{object:?}");
+        assert_eq!(object["panes"].as_array().unwrap().len(), 1);
+    }
+
+    /// Same as above, one level up: a session's own fields are flattened
+    /// beside `tabs`, not nested under a second `session` key.
+    #[test]
+    fn session_tree_flattens_the_session_record_and_adds_tabs_beside_it() {
+        let value = serde_json::to_value(session_tree_example()).unwrap();
+        let object = value.as_object().unwrap();
+        assert_eq!(object["id"], serde_json::json!(example().id.to_string()));
+        assert!(object.get("session").is_none(), "{object:?}");
+        assert_eq!(object["tabs"].as_array().unwrap().len(), 1);
+    }
+
+    /// The pane-identity question (TASK-1.46's own plan, section 2):
+    /// a tab's `layout` names a pane by id (a structural reference), and
+    /// that same id is one of `panes`' own entries (the data) - proven
+    /// directly, not just argued, so a future change that lets them
+    /// drift apart fails this test.
+    #[test]
+    fn a_layout_leaf_names_a_pane_that_is_actually_in_the_tabs_own_panes() {
+        use crate::layout::Layout;
+
+        let tree = tab_tree_example();
+        let Layout::Pane(leaf_id) = tree.tab.layout else {
+            panic!("tab_example's layout is a single pane leaf");
+        };
+        assert!(
+            tree.panes.iter().any(|pane| pane.id == leaf_id),
+            "the layout names pane {leaf_id}, which is not among this tab's own panes"
+        );
     }
 }

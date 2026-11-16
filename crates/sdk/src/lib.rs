@@ -29,24 +29,29 @@ mod record;
 mod screen;
 mod setting;
 mod status;
+mod tree_event;
 mod wire;
 
 pub use client_kind::ClientKind;
 pub use colour::Colour;
 pub use description::{
-    ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param,
-    Request, Response, Returns, Role, ValueKind, Version, description, validate,
+    ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Follows, Method, MethodName,
+    Param, Request, Response, Returns, Role, ValueKind, Version, description, validate,
 };
 pub use ids::{ClientId, PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
-pub use record::{PaneRecord, SessionRecord, SettingRecord, TabRecord};
+pub use record::{
+    PaneRecord, SessionRecord, SessionTree, SettingRecord, TabRecord, TabTree, TreeSnapshot,
+};
 pub use screen::{
-    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+    CellStyle, Cursor, CursorShape, Page, PaneAttached, Rgb, Row, RowId, Run, Screen, ScreenUpdate,
+    Underline, Wide,
 };
 pub use setting::{Setting, settings};
 pub use status::Status;
+pub use tree_event::TreeEvent;
 pub use wire::{
     CONTROL_STREAM, ClientHello, Connection, Control, Decoder, Frame, FrameError, Handshake,
     Incoming, Kind, MAX_FRAME, MAX_PAYLOAD, PROTOCOL_VERSION, Refusal, Refused, Role as WireRole,

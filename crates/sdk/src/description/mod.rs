@@ -8,6 +8,6 @@ mod shapes;
 pub use methods::description;
 pub use request::{ApiError, Request, Response, validate};
 pub use shapes::{
-    Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param, Returns, Role,
-    ValueKind, Version,
+    Description, ErrorCode, ErrorRecord, Event, Field, Follows, Method, MethodName, Param, Returns,
+    Role, ValueKind, Version,
 };

@@ -27,10 +27,11 @@ use crate::runtime::Runtime;
 /// (`SessionCountChanged`, below). Kept as one enum rather than each
 /// consumer inventing its own wrapper around it: this channel is the
 /// server's own internal "something the idle checker should re-evaluate"
-/// stream, not strictly a per-connection one, and TASK-1.98's own planned
-/// addition (an accept retried after a recoverable error) is the same
-/// kind of thing - naming the enum after its first, narrower use rather
-/// than widening the name too is the cheaper trade: `ConnectionEvent`
+/// stream, not strictly a per-connection one, and TASK-1.98's own
+/// addition (`AcceptRetried`, below - an accept retried after a
+/// recoverable error) is the same kind of thing - naming the enum after
+/// its first, narrower use rather than widening the name too is the
+/// cheaper trade: `ConnectionEvent`
 /// reads oddly for a variant like `SessionCountChanged`, but renaming it
 /// would touch every existing sender and receiver across this crate for
 /// a cosmetic gain, which isn't worth it against two variants that

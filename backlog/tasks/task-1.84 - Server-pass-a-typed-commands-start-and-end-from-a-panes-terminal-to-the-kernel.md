@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:50:00Z'
+updated_date: '2026-11-16T00:52:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -280,6 +280,46 @@ failures:
     runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it
 
 test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 87 filtered out; finished in 20.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `cargo test -p steg-server --lib a_typed_command` exited 101 at 2026-11-16T00:52:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 3 tests
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... FAILED
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... FAILED
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... FAILED
+
+failures:
+
+---- runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it stdout ----
+
+thread 'runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it' (16275770) panicked at crates/server/src/runtime.rs:1565:13:
+pane 00000002 never reached status Some(Finished); last seen Some(Running)
+
+---- runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code stdout ----
+
+thread 'runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code' (16275769) panicked at crates/server/src/runtime.rs:1565:13:
+pane 00000002 never reached status Some(Failed { exit_code: 3 }); last seen Some(Running)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise stdout ----
+
+thread 'runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise' (16275768) panicked at crates/server/src/runtime.rs:1565:13:
+pane 00000002 never reached status Some(Finished); last seen Some(Running)
+
+
+failures:
+    runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise
+    runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code
+    runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 87 filtered out; finished in 20.05s
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```

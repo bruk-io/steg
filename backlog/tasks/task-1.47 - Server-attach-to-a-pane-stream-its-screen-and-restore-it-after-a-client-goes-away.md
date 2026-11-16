@@ -1195,6 +1195,53 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-sdk --lib screen::tests` exited 101 at 2026-11-16T14:11:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes, last 40 of 212 lines:
+
+```text
+    |            ^^^^^^^^^^^^^^^^ required by this bound in `round_trips`
+
+error[E0277]: the trait bound `CellStyle: serde::Deserialize<'de>` is not satisfied
+   --> crates/sdk/src/screen.rs:322:25
+    |
+322 |             round_trips(&style);
+    |             ----------- ^^^^^^ unsatisfied trait bound
+    |             |
+    |             required by a bound introduced by this call
+    |
+help: the trait `for<'de> Deserialize<'de>` is not implemented for `CellStyle`
+   --> crates/sdk/src/screen.rs:69:1
+    |
+ 69 | pub struct CellStyle {
+    | ^^^^^^^^^^^^^^^^^^^^
+    = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `CellStyle` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `Deserialize<'de>`:
+              &'a Path
+              &'a [u8]
+              &'a str
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+            and 203 others
+note: required by a bound in `round_trips`
+   --> crates/sdk/src/screen.rs:266:31
+    |
+264 |     fn round_trips<T>(value: &T)
+    |        ----------- required by a bound in this function
+265 |     where
+266 |         T: serde::Serialize + for<'de> serde::Deserialize<'de> + PartialEq + std::fmt::Debug,
+    |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `round_trips`
+    = note: the full name for the type has been written to '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/target/debug/deps/steg_sdk-0bbf186f1ea8fef3.long-type-13099131082304145360.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `steg-sdk` (lib test) due to 6 previous errors
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

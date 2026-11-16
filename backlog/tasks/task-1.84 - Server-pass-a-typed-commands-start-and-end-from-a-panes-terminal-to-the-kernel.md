@@ -3,14 +3,13 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:24:00Z'
+updated_date: '2026-11-16T01:27:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -591,6 +590,16 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 48, 48 without the Asdlc-Worker trailer.
+
+Review findings fixed (review by @bruk.r2, 2026-11-16):
+
+Important: a_command_panes_own_program_printing_marks_does_not_change_its_status could not fail - its D mark and its real exit both read as Finished, and the D landed outside the one window the test ever checked Running inside, so a wrongly-applied mark and a mark that never arrived were both invisible to it. Fixed as the finding's own second option: the D mark now carries exit code 3, differing from the real exit's own 0, so a wrongly-applied mark is observable as Failed{exit_code:3} - a value the real exit path alone can never produce. Before asserting anything about the command pane, the test now proves the marks had time to land by running the identical script in a sibling shell pane and waiting for it to read that same Failed{exit_code:3} first, over the one drain thread every pane's marks share (picked over an in-crate applied-event counter: this reuses the real channel and drain thread as they already are, with no test-only instrumentation added to production types). Two negative controls run, confirmed failing, and restored, each recorded with asdlc record-check: the kernel's command-pane guard bypassed in both Pane::note_command_output_started and note_command_ended (crates/kernel/src/pane.rs) - the test fails, reading Failed{exit_code:3} where it must read Running; and the mark drain removed again in crates/server/src/pane.rs - the test fails, the shell-pane control itself timing out waiting for Failed, so the test no longer passes when nothing arrives either.
+
+Nit: reworded the mark-for-a-pane-already-gone test's own comment (crates/server/src/runtime.rs) to describe what the test stands for - a pane whose own real program may still be running after its tree entry is gone - rather than naming TASK-1.78 as the task whose merge would make the wording stale.
+
+Checks recorded on this task since the review: a passing run of the fixed test alone (exit 0), five repeats with no flakiness; the bypass-the-guard control (exit 101, confirmed failing, restored); the drain-removed control (exit 101, confirmed failing, restored); the full runtime::tests suite (18 tests, exit 0) after restoring both; a full `just check` (exit 0) at the merged head.
+
+origin/main moved while this was in flight - fetched and merged (git merge --no-edit, branch already pushed): every incoming commit was board-only (backlog/ task and draft updates, review and check records); no crates/ file touched. TASK-1.78 (forced close) was still In Progress at merge time and remains so - the reworded comment on the gone-pane test no longer names it, so nothing here depends on when it lands. `just check` was re-recorded clean at the merged, pushed head, and CI is green on that same head (c495468).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1605,6 +1605,21 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds` exited 0 at 2026-11-16T14:15:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.01s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

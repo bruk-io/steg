@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:12:00Z'
+updated_date: '2026-11-16T02:14:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -31,3 +31,9 @@ doc-17 (R120, R121, R123, R124), decision-11. Depends on the package and on the 
 - [ ] #3 The gallery shows the foundations: every colour as a swatch with its name in light and in dark, the ramps, the type sizes and the spacing steps, and both terminal themes' 16 colours, and the pull request carries that image (R124)
 - [ ] #4 A reviewer can pick any value in the design's foundations page and find it by the same name in the gallery image and in the generated code; the notes list the names and count them against the data file
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-1.94's plan check (2026-11-15, @bruk.o): TASK-1.94's colour-literal check leaves crates/ui/gallery out because the gallery's colours are a placeholder today. This task makes the gallery draw everything from foundations, so whichever of the two merges second ends that exemption: the colour check then covers the gallery too, with the one known colour the capture's image check looks for taken from foundations by name.
+<!-- SECTION:NOTES:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:32:00Z'
+updated_date: '2026-11-16T02:35:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -134,6 +134,34 @@ Negative controls (via `tmp_path` copies of the real file, per team:testing - th
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-17 (R121, R122) by @bruk.o: ok, with the decisions listed at its end for the engineer. The tool reads the rendered body of the saved Tokens and Details pages (not their script blocks, and not the Layout page, whose own text says it names no values) and sorts every entry of the data file into three tiers that the tool itself prints: exact name and value (17 colours, the 32 terminal colours), name present with its numbers checked within the row (type, most sizes), and declared unseen with a reason. The reverse direction lists the named rows of the same tables and reports any with no entry in the file. It reads the data file through TASK-1.94's shared reader. Named so it does not clash with TASK-1.93 or TASK-1.94: design_pages.py, steg-design-check, check-design. Orchestrator's recommendation on the corners: a small reviewed name map (four entries) so the three pixel corners are checked against the merged row's numbers, since a missed corner is the very error TASK-1.92's review caught by hand; the engineer decides.
+
+Check passed: `just check` exited 0 at 2026-11-16T02:35:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at f99466903b08:
+
+```text
+ok      format check (0.2s)
+ok      lint (89.2s)
+ok      boundaries (0.2s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (3.7s)
+ok      build (steg-kernel) (46.6s)
+ok      test (steg-kernel) (1.7s)
+ok      build (steg-server) (50.9s)
+ok      test (steg-server) (7.8s)
+ok      test (steg-server, race-fixture) (6.8s)
+ok      build (steg) (1.9s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (3.4s)
+ok      build (steg-ui) (20.0s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.6s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (1.6s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

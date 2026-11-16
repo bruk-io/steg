@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:20:00Z'
+updated_date: '2026-11-16T01:21:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -575,6 +575,141 @@ warning: `steg-server` (lib) generated 4 warnings
 
 running 1 test
 exit code: 124
+```
+
+Check passed: `cargo test -p steg-server --test routing` exited 0 at 2026-11-16T01:20:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 53 lines:
+
+```text
+
+warning: methods `open_stream`, `close_stream`, and `enqueue_data` are never used
+   --> crates/server/src/outbound.rs:162:19
+    |
+127 | impl Outbound {
+    | ------------- methods in this implementation
+...
+162 |     pub(crate) fn open_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^
+...
+175 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+...
+191 |     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 17 tests
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... ok
+test an_event_from_the_client_closes_the_connection ... ok
+test a_second_hello_after_the_handshake_closes_the_connection ... ok
+test an_unknown_kind_tag_post_handshake_closes_the_connection ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitly_closed ... ok
+test a_reply_shaped_frame_from_the_client_closes_the_connection ... ok
+test a_hostile_post_handshake_close_still_reports_disconnected ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+```
+
+Check FAILED: `cargo test -p steg-server --test routing an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection` exited 101 at 2026-11-16T01:21:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 53 lines:
+
+```text
+
+warning: methods `open_stream`, `close_stream`, and `enqueue_data` are never used
+   --> crates/server/src/outbound.rs:162:19
+    |
+127 | impl Outbound {
+    | ------------- methods in this implementation
+...
+162 |     pub(crate) fn open_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^
+...
+175 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+...
+191 |     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 1 test
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... FAILED
+
+failures:
+
+---- an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection stdout ----
+
+thread 'an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection' (16941942) panicked at crates/server/tests/routing.rs:138:21:
+assertion `left != right` failed: the connection should have closed within 2s
+  left: WouldBlock
+ right: WouldBlock
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+```
+
+Check passed: `cargo test -p steg-server --lib --tests --features race-fixture` exited 0 at 2026-11-16T01:21:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 337 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ca9d92c4050c47bd)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-8de5a5ad1bf57de9)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

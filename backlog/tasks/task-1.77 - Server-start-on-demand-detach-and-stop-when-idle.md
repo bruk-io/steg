@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:12:00Z'
+updated_date: '2026-11-16T01:29:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1069,6 +1069,188 @@ ok      recipe names (0.1s)
 ```
 
 Built per the approved plan (digest d29c62060a8b): steg_server::detach() (safe setsid wrapper) wired into crates/steg's entry point alongside attempt/run, both acceptance-criteria-named negative controls recorded matching the plan's own predictions, just check green at the final head, PR #44 CI green (one unrelated flake, reran). Full coverage writeup and the one build-time decision (process_group(0) for the SIGHUP test) are in the task's comments.
+
+Check passed: `sh -c 'cargo test -p steg --features fixtures --test server_start && count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " ") && echo "lingering steg processes from this worktree: $count" && test "$count" -eq 0'` exited 0 at 2026-11-16T01:20:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+lingering steg processes from this worktree: 0
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg --features fixtures --test server_start -- the_client_being_sigkilled_does_not_end_the_server the_clients_process_group_being_sighupd_does_not_end_the_server && count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " ") && echo "lingering steg processes from this worktree: $count" && test "$count" -eq 0'` exited 1 at 2026-11-16T01:21:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/crates/steg)
+warning: function `find_server_pid` is never used
+  --> crates/steg/tests/server_start.rs:69:4
+   |
+69 | fn find_server_pid(socket_path: &std::path::Path) -> Option<u32> {
+   |    ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `0` is never read
+   --> crates/steg/tests/server_start.rs:107:23
+    |
+107 | struct ServerAtSocket(PathBuf);
+    |        -------------- ^^^^^^^
+    |        |
+    |        field in this struct
+    |
+    = help: consider removing this field
+
+warning: `steg` (test "server_start") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 2 tests
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.13s
+
+lingering steg processes from this worktree: 2
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in $(seq 1 10); do cargo test -p steg --features fixtures --test server_start || exit 1; count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " "); echo "run $i: lingering steg processes: $count"; if [ "$count" -ne 0 ]; then exit 1; fi; done'` exited 0 at 2026-11-16T01:21:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes, last 40 of 160 lines:
+
+```text
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.23s
+
+run 8: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+run 9: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+
+run 10: lingering steg processes: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'for i in $(seq 1 10); do cargo test -p steg --features fixtures --test server_start || exit 1; count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " "); echo "run $i: lingering steg processes: $count"; if [ "$count" -ne 0 ]; then exit 1; fi; done'` exited 0 at 2026-11-16T01:27:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes, last 40 of 190 lines:
+
+```text
+
+run 8: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.29s
+
+run 9: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
+
+run 10: lingering steg processes: 0
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:29:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+ok      format check (0.4s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (4.7s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.1s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

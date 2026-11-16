@@ -3,14 +3,13 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:16:00Z'
+updated_date: '2026-11-16T01:28:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -30,6 +29,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -497,6 +497,110 @@ Coverage, clause by clause:
 Checks recorded on this task: a baseline `just check` (exit 0) before any change; a failing `cargo check -p steg-server --tests` (exit 101, non-exhaustive match) before apply_event_locked's new arms existed; a passing `cargo test -p steg-server --lib runtime::tests` (exit 0, 18 tests) once they did; three negative controls, each applied, confirmed failing, and restored - (a) the drain call after terminal.write removed (the three mark tests fail, exit 101), (b) the CommandEnded arm made a no-op (succeeds/fails fail, and still-running's own second half - sending the end mark itself and watching the status move - fails too, while its first half still passes; this is what makes that one test able to tell CommandOutputStarted's own arm from CommandEnded's), (c) the no-marks test's own built-in control (feeding one real mark at the end) also fails under (a)'s removed drain, confirmed separately; a final `just check` (exit 0) at the merged, pushed head.
 
 TASK-1.78 (forced close) was still In Progress, not merged, at every check above and again just before pushing - the mark-for-a-pane-already-gone test's own comment ("until TASK-1.78 lands") still matches the repository's current state; nothing to re-read against a merge that hasn't happened yet. origin/main moved twice while this was in flight (once before the first push - rebased cleanly, no code touched; once after - merged, board-only files, no code touched); `just check` was re-run and recorded clean at the final head before the final push, and CI is green on that same head (7f6ab3a).
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:21:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7f6ab3ae5a6e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (16955249) panicked at crates/server/src/runtime.rs:1910:9:
+assertion `left == right` failed
+  left: Some(Failed { exit_code: 3 })
+ right: Some(Running)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:22:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7f6ab3ae5a6e with uncommitted changes:
+
+```text
+warning: function `drain_command_marks` is never used
+   --> crates/server/src/pane.rs:509:4
+    |
+509 | fn drain_command_marks(terminal: &mut Terminal, pane: PaneId, events: &Sender<PaneEvent>) {
+    |    ^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (16973480) panicked at crates/server/src/runtime.rs:1562:13:
+pane 00000005 never reached status Some(Failed { exit_code: 3 }); last seen None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 20.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:24:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7cbed63ed702 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.2s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-kernel -p steg-server) (36.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (7.0s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 48, 48 without the Asdlc-Worker trailer.
+
+Review findings fixed (review by @bruk.r2, 2026-11-16):
+
+Important: a_command_panes_own_program_printing_marks_does_not_change_its_status could not fail - its D mark and its real exit both read as Finished, and the D landed outside the one window the test ever checked Running inside, so a wrongly-applied mark and a mark that never arrived were both invisible to it. Fixed as the finding's own second option: the D mark now carries exit code 3, differing from the real exit's own 0, so a wrongly-applied mark is observable as Failed{exit_code:3} - a value the real exit path alone can never produce. Before asserting anything about the command pane, the test now proves the marks had time to land by running the identical script in a sibling shell pane and waiting for it to read that same Failed{exit_code:3} first, over the one drain thread every pane's marks share (picked over an in-crate applied-event counter: this reuses the real channel and drain thread as they already are, with no test-only instrumentation added to production types). Two negative controls run, confirmed failing, and restored, each recorded with asdlc record-check: the kernel's command-pane guard bypassed in both Pane::note_command_output_started and note_command_ended (crates/kernel/src/pane.rs) - the test fails, reading Failed{exit_code:3} where it must read Running; and the mark drain removed again in crates/server/src/pane.rs - the test fails, the shell-pane control itself timing out waiting for Failed, so the test no longer passes when nothing arrives either.
+
+Nit: reworded the mark-for-a-pane-already-gone test's own comment (crates/server/src/runtime.rs) to describe what the test stands for - a pane whose own real program may still be running after its tree entry is gone - rather than naming TASK-1.78 as the task whose merge would make the wording stale.
+
+Checks recorded on this task since the review: a passing run of the fixed test alone (exit 0), five repeats with no flakiness; the bypass-the-guard control (exit 101, confirmed failing, restored); the drain-removed control (exit 101, confirmed failing, restored); the full runtime::tests suite (18 tests, exit 0) after restoring both; a full `just check` (exit 0) at the merged head.
+
+origin/main moved while this was in flight - fetched and merged (git merge --no-edit, branch already pushed): every incoming commit was board-only (backlog/ task and draft updates, review and check records); no crates/ file touched. TASK-1.78 (forced close) was still In Progress at merge time and remains so - the reworded comment on the gone-pane test no longer names it, so nothing here depends on when it lands. `just check` was re-recorded clean at the merged, pushed head, and CI is green on that same head (c495468).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -544,6 +648,15 @@ Head reviewed: 7f6ab3ae5a6e9b8766f2eab12dd457284dcb1ac7 (matches the task's fina
 [Compliance, Nit] crates/server/src/runtime.rs, `a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic`'s own comment ("standing in for a forced close that has already happened ... until TASK-1.78 lands") will read as stale once TASK-1.78 merges, since the scenario becomes real rather than synthetic; the `PaneNotFound` arm's behaviour itself is generic (keyed only on whether the tree still holds the pane) and I found nothing in TASK-1.78's planned files that would change its meaning.
 
 Other brief items checked clean: `events.send` appears only twice in pane.rs, both inside `worker_loop` (the `Exited` arm and `drain_command_marks`, called only from the `PtyBytes` arm) - the worker is the sole sender of every `PaneEvent` for a pane on every path; a restart only ever targets a command pane (R97: a shell pane closes rather than restarting), and the kernel already treats marks on a command pane as `NotAShellPane`/`Ignored`, so no old-run mark can be misapplied to a new run even putting the channel-ordering argument aside. `apply_event_locked`'s two new arms match the plan exactly, including `now` computed once per event the same way the `Exited` arm already does, and the `Err(other) => unreachable!` arms are genuinely unreachable - `Tree::note_command_output_started`/`note_command_ended` only ever construct `Err(Error::PaneNotFound(id))`, confirmed by reading `tree.rs`. Kernel diff is confined to the one doc comment on `terminal.rs`; no other kernel file touched, no `unsafe`, no new dependency. The one departure from the plan (no drain after `Terminal::resize`) was already named and accepted at plan-check by @bruk.o, so `--plan-matched no` reflects that departure as data, not a new finding.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:28:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

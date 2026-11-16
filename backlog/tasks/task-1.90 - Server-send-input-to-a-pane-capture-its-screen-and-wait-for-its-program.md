@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:34:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.78
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

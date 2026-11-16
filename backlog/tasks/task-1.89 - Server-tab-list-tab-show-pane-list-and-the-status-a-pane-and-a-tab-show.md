@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.89
 title: 'Server: tab list, tab show, pane list, and the status a pane and a tab show'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T00:33:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.84
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

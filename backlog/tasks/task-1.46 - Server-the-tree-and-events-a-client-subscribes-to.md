@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:36:00Z'
+updated_date: '2026-11-16T14:47:00Z'
 labels:
   - size-3
   - changes-requested
@@ -968,6 +968,53 @@ New sdk vocabulary for a reply followed by a stream (Returns::Nested, Method.fol
 Checks recorded on the task: just check clean at each milestone (sdk vocabulary, the snapshot and subscribing, the slow-subscriber fix, after each origin/main merge) and again at the final head. Four negative controls recorded as deliberate failing runs, each then reverted: the atomicity fix (reply built/enqueued after the lock was dropped, with a brief sleep to widen the window - reproduced the exact race, then reverted), the slow-subscriber shutdown (disabled, the unit test then timed out instead of seeing a clean close), the closure cascade order (one broadcast call removed, the real-socket test then saw the wrong event second), and the name filter (disabled, four tests then saw events they should not have - this also surfaced and fixed a real bug in my own test helper, assert_nothing_arrives_within, which checked only the raw socket for new bytes and missed a frame already sitting in the Connection's own decoder buffer from an earlier over-read; fixing that in turn surfaced a second, genuine bug in two of my own tests, which assumed session.new produces exactly one event when it legitimately produces three - both rewritten).
 
 Proof: crates/server/tests/events.rs (real socket, sdk's own Connection: the snapshot, creation/closure cascades in order, a whole-path focus event, filtering by name and by session, ending a subscription by disconnecting, a quiet window producing nothing, and the atomicity race at 20 repetitions) and runtime.rs's own unit tests (apply_event_locked's event production, an unfiltered subscriber, and the slow-subscriber overflow, deterministic with no writer thread draining it - the real-socket version of that last one was tried first and was flaky against a real writer thread and an unknown OS socket buffer size, named in the test file rather than kept).
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events'` exited 101 at 2026-11-16T14:47:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes, last 40 of 44 lines:
+
+```text
+test subscribing_to_a_fresh_server_replies_with_an_empty_tree ... ok
+test session_new_emits_session_created_tab_created_and_pane_created_in_order ... ok
+test disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast ... ok
+test tab_focus_emits_tab_focused_with_the_whole_path ... ok
+test a_filter_by_name_keeps_only_that_event ... ok
+test a_filter_by_session_excludes_another_sessions_events ... ok
+test session_close_emits_the_whole_cascade_innermost_first ... ok
+test a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event ... ok
+test the_snapshots_reply_always_precedes_any_event_under_a_real_race ... ok
+test pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order ... FAILED
+test pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too ... FAILED
+test tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session ... FAILED
+
+failures:
+
+---- pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order stdout ----
+
+thread 'pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order' (41744316) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too stdout ----
+
+thread 'pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too' (41744315) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session stdout ----
+
+thread 'tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session' (41744324) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too
+    pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order
+    tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session
+
+test result: FAILED. 9 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.12s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

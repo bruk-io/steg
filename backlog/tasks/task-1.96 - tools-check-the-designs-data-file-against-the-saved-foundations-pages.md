@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:24:00Z'
+updated_date: '2026-11-16T02:30:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.96-tools-check-the-design-s-data-file
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd2f87de12c3c'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -132,3 +135,16 @@ Negative controls (via `tmp_path` copies of the real file, per team:testing - th
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-17 (R121, R122) by @bruk.o: ok, with the decisions listed at its end for the engineer. The tool reads the rendered body of the saved Tokens and Details pages (not their script blocks, and not the Layout page, whose own text says it names no values) and sorts every entry of the data file into three tiers that the tool itself prints: exact name and value (17 colours, the 32 terminal colours), name present with its numbers checked within the row (type, most sizes), and declared unseen with a reason. The reverse direction lists the named rows of the same tables and reports any with no entry in the file. It reads the data file through TASK-1.94's shared reader. Named so it does not clash with TASK-1.93 or TASK-1.94: design_pages.py, steg-design-check, check-design. Orchestrator's recommendation on the corners: a small reviewed name map (four entries) so the three pixel corners are checked against the merged row's numbers, since a missed corner is the very error TASK-1.92's review caught by hand; the engineer decides.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T02:30:00Z
+
+---
+
+Plan approved by @bruk (d2f87de12c3c, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:13:00Z'
+updated_date: '2026-11-16T15:14:00Z'
 labels:
   - size-4
   - changes-requested
@@ -558,6 +558,21 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg --test cli_drift`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 0 at 2026-11-16T15:14:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.

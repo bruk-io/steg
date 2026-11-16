@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:23:00Z'
+updated_date: '2026-11-16T03:03:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -262,6 +262,266 @@ real images before calling this done.
 From TASK-1.94's plan check (2026-11-15, @bruk.o): TASK-1.94's colour-literal check leaves crates/ui/gallery out because the gallery's colours are a placeholder today. This task makes the gallery draw everything from foundations, so whichever of the two merges second ends that exemption: the colour check then covers the gallery too, with the one known colour the capture's image check looks for taken from foundations by name.
 
 Plan checked against doc-17 (R120, R121, R123, R124) and decision-11 by @bruk.o: ok, with two decisions that are the engineer's in approving it. (1) doc-17's open question: a value with no light and dark pair (type, sizes, the duration, the focus ring's measurements) is a plain constant and does not go through the theme; R123 binds only values that have a pair. (2) radius.round, which has no pixel value, is proposed as a marker type. A tool in tools/ writes src/foundations/generated.rs from the data file and formats it; just check regenerates and compares, failing with how to regenerate. Every paired colour is reached only through the Theme, which holds the appearance and the session colour, so a component cannot take one form directly: R123 is enforced by what is public, not by convention. The session colour is never a generated constant. The gallery draws only from foundations and shows every colour by name, the ramps, type, spacing, corners and both terminal themes; the capture's own image check moves to the window's ground colour for the appearance in force. One point for the build, not the plan: weigh a single Radius type for all four corners (three pixel sizes and fully round) against a separate marker type for the round one, so a component applies any corner the same way; say in the notes which was built and why.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py'` exited 2 at 2026-11-16T02:31:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp4rzWts` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/unit/test_foundations_generate.py ___________
+ImportError while importing test module '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93/tools/tests/unit/test_foundations_generate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../../../.local/share/mise/installs/python/3.15.0/lib/python3.15/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools/tests/unit/test_foundations_generate.py:10: in <module>
+    from steg_tools.foundations_generate import (
+E   ModuleNotFoundError: No module named 'steg_tools.foundations_generate'
+=========================== short test summary info ============================
+ERROR tools/tests/unit/test_foundations_generate.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.04s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py'` exited 0 at 2026-11-16T02:39:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnSO5gM` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.................................                                        [100%]
+33 passed in 0.01s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/adapter/test_foundations_generate_real_data.py -s'` exited 0 at 2026-11-16T02:39:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpO2FZgV` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
+.
+3 passed in 0.03s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && cargo test -p steg-ui'` exited 0 at 2026-11-16T02:41:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/steg_ui-c8f1b2ea3c1c1c78)
+
+running 5 tests
+test foundations::tests::a_plain_value_with_no_light_dark_pair_needs_no_theme ... ok
+test foundations::tests::a_colour_alias_matches_the_colour_it_names ... ok
+test foundations::tests::appearance_toggles_to_its_own_inverse ... ok
+test foundations::tests::the_session_colour_is_whatever_new_was_given ... ok
+test foundations::tests::dark_and_light_pick_the_right_form_of_a_colour ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests gallery/main.rs (target/debug/deps/gallery-e19e5295ab444e60)
+
+running 5 tests
+test tests::an_unrecognised_value_falls_back_to_light_rather_than_failing ... ok
+test tests::dark_is_recognised_in_any_case ... ok
+test tests::light_is_explicit_too ... ok
+test tests::toggling_is_its_own_inverse ... ok
+test tests::unset_is_light ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py tools/tests/adapter/test_foundations_generate_real_data.py'` exited 0 at 2026-11-16T02:42:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCmDGVI` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.......................................                                  [100%]
+39 passed in 0.04s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && cargo clippy -p steg-ui --all-targets -- -D warnings'` exited 0 at 2026-11-16T02:42:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+```
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations'` exited 1 at 2026-11-16T02:43:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+FAILED  foundations (exit 1, 0.1s)
+crates/ui/src/foundations/generated.rs does not match crates/ui/design/foundations.json - run `just generate-foundations` and commit the result.
+full output: .quiet/foundations.log
+error: recipe `check-foundations` failed on line 162 with exit code 1
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations'` exited 0 at 2026-11-16T02:43:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+ok      foundations (0.1s)
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER_CAPTURE: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T02:50:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+ok      build (gallery) (0.4s)
+ok      gallery image (light) (0.4s)
+ok      gallery image (dark) (0.4s)
+GALLERY_PROCESSES_AFTER_CAPTURE: 0
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && cargo test -p steg-ui'` exited 0 at 2026-11-16T02:50:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/lib.rs (target/debug/deps/steg_ui-c8f1b2ea3c1c1c78)
+
+running 5 tests
+test foundations::tests::a_colour_alias_matches_the_colour_it_names ... ok
+test foundations::tests::a_plain_value_with_no_light_dark_pair_needs_no_theme ... ok
+test foundations::tests::appearance_toggles_to_its_own_inverse ... ok
+test foundations::tests::the_session_colour_is_whatever_new_was_given ... ok
+test foundations::tests::dark_and_light_pick_the_right_form_of_a_colour ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests gallery/main.rs (target/debug/deps/gallery-e19e5295ab444e60)
+
+running 5 tests
+test tests::an_unrecognised_value_falls_back_to_light_rather_than_failing ... ok
+test tests::dark_is_recognised_in_any_case ... ok
+test tests::light_is_explicit_too ... ok
+test tests::unset_is_light ... ok
+test tests::the_gallery_theme_carries_the_appearance_asked_for ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T02:55:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (3.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 101 at 2026-11-16T02:56:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49, last 40 of 72 lines:
+
+```text
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-1079895324ddf99e)
+
+running 6 tests
+test refuses_to_start_one_when_autostart_is_false ... ok
+test spawn_fails_promptly_when_the_binarys_path_does_not_exist ... ok
+test connects_without_spawning_when_a_listener_is_already_bound ... FAILED
+test spawn_fails_when_the_binary_exists_but_is_not_executable ... ok
+test gives_up_with_a_timeout_when_nothing_ever_binds ... ok
+test starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true ... FAILED
+
+failures:
+
+---- connects_without_spawning_when_a_listener_is_already_bound stdout ----
+
+thread 'connects_without_spawning_when_a_listener_is_already_bound' (19939747) panicked at crates/sdk/tests/local_socket.rs:91:54:
+called `Result::unwrap()` on an `Err` value: Os { code: 48, kind: AddrInUse, message: "Address already in use" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true stdout ----
+
+thread 'starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true' (19939752) panicked at crates/sdk/tests/local_socket.rs:124:5:
+assertion failed: connect(&options).is_ok()
+
+
+failures:
+    connects_without_spawning_when_a_listener_is_already_bound
+    starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-sdk --test local_socket`
+full output: .quiet/test-steg-sdk-local-socket.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T02:57:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py tools/tests/adapter/test_foundations_generate_real_data.py -s'` exited 0 at 2026-11-16T03:03:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpaY6dx1` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.........................................AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
+.
+42 passed in 0.04s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -273,6 +533,16 @@ created: 2026-11-16T02:23:00Z
 ---
 
 Plan approved by @bruk (6a1e03383d92, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T02:44:00Z
+
+---
+
+Point 2 (fully round corner): built one Radius type for all four corners, not a separate marker type. Checked gpui 0.2.2's own source first: `corner_radii` takes `Corners<AbsoluteLength>`, and `AbsoluteLength` is only `Pixels` or `Rems` - no percentage/fraction variant exists for a corner radius in this pinned version (unlike width/height, which do have `DefiniteLength::Fraction`). GPUI has no "fully round" primitive at all; the idiomatic way (and the one the data file's own comment already points at - the CSS 999px convention) is a conventionally large `Pixels` value, which paints fully round once it reaches half of whatever it rings, regardless of the exact number. So `radius.round` generates as `pub const RADIUS_ROUND: Pixels = px(999.0);` - same type as `radius.surface`/`radius.track`/`radius.inner`, applied by a component the same way as any other radius, with a doc comment explaining the convention. A marker type would have claimed a distinction GPUI itself doesn't draw.
+
+Also recorded: TASK-1.94's own plan (see its notes) already named the same gallery-colour-literal-exemption overlap I flagged in the plan - its check's gallery exclusion is scoped to stay until this task lands.
 
 ---
 <!-- COMMENTS:END -->

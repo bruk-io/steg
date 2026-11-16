@@ -1,9 +1,9 @@
 ---
-id: DRAFT-1
+id: TASK-1.109
 title: >-
   Server: events for layout, for a session or tab changing, for clients, and the
   one addressed to a single client
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T04:32:00Z'
 labels:
@@ -14,6 +14,7 @@ dependencies:
   - TASK-1.89
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.110
 title: 'Server: pane resize'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T04:33:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.89
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

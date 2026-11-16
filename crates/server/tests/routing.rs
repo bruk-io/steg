@@ -751,3 +751,115 @@ fn a_reply_delivered_one_byte_at_a_time_still_decodes_correctly() {
 
     stop_server(&stop, handle);
 }
+
+/// The headline bug this task found and fixed (`connection.rs`'s
+/// `ConnectionCleanup`): a writer thread blocked inside `write_all` on a
+/// full OS send buffer never sees `Outbound::close()`'s own condvar
+/// notify - only `shutdown(Both)` forces a blocked write to fail.
+///
+/// Makes the writer genuinely block, not merely slow: `api.list`'s own
+/// reply is ~30KB (measured directly), comfortably over this platform's
+/// own default send buffer for a Unix-domain socket (confirmed ~8KB
+/// during this task's own earlier work), so even the *first* of ten such
+/// calls cannot be written in full before anything is read - no socket
+/// option needs tuning for this to be reliable. This connection's own
+/// close is then triggered from the inside (a hostile frame), not a
+/// server-wide `stop()` - `listen.rs`'s own, separate shutdown mechanism
+/// would also unblock a stuck writer and could mask this exact bug, so
+/// this test must never call `stop()` before the assertion below.
+#[test]
+fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs() {
+    let socket_path = unique_socket_path();
+    let config = ServerConfig {
+        socket_path: Some(socket_path.clone()),
+        handshake_timeout: Duration::from_secs(5),
+        ..ServerConfig::default()
+    };
+    let stop = Stopper::new();
+    let (tx, rx) = mpsc::channel::<ConnectionEvent>();
+    let handle = {
+        let config = config.clone();
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            let _ = serve(&config, &stop, Some(tx));
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if UnixStream::connect(&socket_path).is_ok() {
+            break;
+        }
+        assert!(Instant::now() < deadline, "server never started accepting");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    // Drains the readiness probe's own Connected/Disconnected pair (same
+    // technique as a_hostile_post_handshake_close_still_reports_disconnected).
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Connected
+    );
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Disconnected
+    );
+
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Connected
+    );
+
+    // Ten ~30KB replies (~300KB) is a wide margin over any plausible
+    // buffer size without needing to tune one - sent, never read.
+    const LARGE_CALLS: usize = 10;
+    const REPLY_BYTES_FLOOR: usize = 20_000; // conservative: the real reply measured ~30KB
+    for _ in 0..LARGE_CALLS {
+        let (_, bytes) = connection.call("api.list", Map::new()).unwrap();
+        stream.write_all(&bytes).unwrap();
+    }
+
+    // Gives the server's own reader and writer threads time to reach
+    // the state this test needs: every call enqueued, and the writer
+    // genuinely stuck partway through writing the first large reply -
+    // nothing on this side has read anything at all yet.
+    std::thread::sleep(Duration::from_millis(300));
+
+    stream
+        .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, b"garbage".to_vec())).unwrap())
+        .unwrap();
+
+    let disconnected = rx.recv_timeout(Duration::from_secs(5));
+    assert_eq!(
+        disconnected,
+        Ok(ConnectionEvent::Disconnected),
+        "the connection must still be cleaned up (and reported) within a bound, even with its \
+         writer thread genuinely blocked inside write_all on a full send buffer when this \
+         connection's own close runs"
+    );
+
+    // Confirms the writer really was cut off mid-delivery, not merely
+    // unobserved: drains whatever did arrive and checks it is less than
+    // the full amount every call's own reply would have sent had
+    // nothing ever blocked - the actual evidence that this test
+    // exercised a genuinely stuck write, not a fast one that finished
+    // on its own before the close ever reached it.
+    stream
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
+    let mut received = 0_usize;
+    let mut buf = [0_u8; 65536];
+    loop {
+        match stream.read(&mut buf) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => received += n,
+        }
+    }
+    assert!(
+        received < LARGE_CALLS * REPLY_BYTES_FLOOR,
+        "the writer must have been cut off mid-delivery (received {received} bytes of at least \
+         {}); if every reply fully arrived, this test never actually exercised a blocked write",
+        LARGE_CALLS * REPLY_BYTES_FLOOR
+    );
+
+    stop_server(&stop, handle);
+}

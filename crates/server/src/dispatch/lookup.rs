@@ -100,66 +100,74 @@ fn resolve_session_str(tree: &Tree, part: &str) -> Result<SessionId, ApiError> {
     tree.resolve_session(part).map_err(map_kernel_error)
 }
 
-/// A session/tab id that can never be real (TASK-1.45 §1): the kernel
-/// mints every id, of every kind, from one shared, ever-increasing counter
-/// per tree (`crates/kernel/src/ids.rs`), so no real server ever mints
-/// `u64::MAX`. Passed to the kernel's own `resolve_tab_path`/
-/// `resolve_pane_path` below only when this connection has no
-/// `default_session`/`default_tab` of its own - purely so those functions
-/// (which require a concrete id by signature, and only ever read it when
-/// the caller's own path omitted that part) have something to call with.
-/// The one error either can produce from it is caught right below and
-/// remapped to [`missing_context`] - never returned to a client as an
-/// answer about a session or tab nobody named. A target that gives every
-/// part explicitly never reaches this value at all: the kernel's own
-/// `match` on the path's parts skips the default entirely in that case.
-const NO_DEFAULT_SESSION: SessionId = SessionId::from_raw(u64::MAX);
-const NO_DEFAULT_TAB: TabId = TabId::from_raw(u64::MAX);
-
-/// Remaps the one error [`NO_DEFAULT_SESSION`]/[`NO_DEFAULT_TAB`] can ever
-/// produce - the kernel falling back to a default this connection does not
-/// have - to [`missing_context`]; anything else is a real kernel error
-/// about a real id the caller named, mapped as usual. Written as plain
-/// `if`s rather than a `match` on [`steg_kernel::Error`] itself: that type
-/// has no wildcard arm anywhere else in this crate (`rust.md`), and a
-/// third arm here would need one, for a case (any error but these two) that
-/// is not a closed set this function is deciding over - it is "everything
-/// [`map_kernel_error`] already handles".
-fn remap_missing_default(context: &Context, error: steg_kernel::Error) -> ApiError {
-    if context.default_session.is_none()
-        && matches!(error, steg_kernel::Error::SessionNotFound(id) if id == NO_DEFAULT_SESSION)
-    {
-        return missing_context("session");
-    }
-    if context.default_tab.is_none()
-        && matches!(error, steg_kernel::Error::TabNotFound(id) if id == NO_DEFAULT_TAB)
-    {
-        return missing_context("tab");
-    }
-    map_kernel_error(error)
+/// Whether `part` splits (on `/`) into exactly `n` segments, none of them
+/// empty - doc-2 section 4's own target grammar, structural only (never
+/// which *kind* of match a segment is: a full identifier, a label, a
+/// position, or an identifier suffix, which stays entirely the kernel's
+/// own job in `Tree::resolve_session`/`Session::resolve_tab`/
+/// `Tab::resolve_pane`). Used only to decide, before any kernel call,
+/// whether a default this connection might lack would actually be read -
+/// a review of this task's plan preferred deciding the missing part
+/// before the kernel is called, over passing a placeholder id and
+/// remapping its error, and this is knowable from the path's own shape
+/// and the context alone, with no kernel call needed to know it.
+fn segments_exactly(part: &str, n: usize) -> bool {
+    let parts: Vec<&str> = part.split('/').collect();
+    parts.len() == n && parts.iter().all(|segment| !segment.is_empty())
 }
 
-/// Resolves a tab from a target path given as a bare string.
+/// Resolves a tab from a target path given as a bare string. doc-2
+/// section 4's own grammar, `"[session/]tab"`: the session part is
+/// omitted only at exactly one well-formed segment, which is the only
+/// shape that ever reads `context.default_session` at all - confirmed by
+/// reading `Tree::resolve_tab_path`'s own `match` on the parsed path.
+/// Anything else (two well-formed segments, so the session is given
+/// explicitly; or a malformed path the kernel's own `split_path` refuses
+/// before ever touching the default) passes a value that is never read,
+/// so its absence never matters there - `SessionId::from_raw(0)` is as
+/// good a value as any for a branch proven not to read it.
 pub(crate) fn resolve_tab_str(
     tree: &Tree,
     context: &Context,
     part: &str,
 ) -> Result<TabId, ApiError> {
-    let default_session = context.default_session.unwrap_or(NO_DEFAULT_SESSION);
+    let default_session = if segments_exactly(part, 1) {
+        context
+            .default_session
+            .ok_or_else(|| missing_context("session"))?
+    } else {
+        context.default_session.unwrap_or(SessionId::from_raw(0))
+    };
     tree.resolve_tab_path(part, default_session)
-        .map_err(|error| remap_missing_default(context, error))
+        .map_err(map_kernel_error)
 }
 
-/// Resolves a pane from a target path given as a bare string.
+/// Resolves a pane from a target path given as a bare string. doc-2
+/// section 4's own grammar, `"[session/][tab/]pane"`: the session part is
+/// given only at exactly three well-formed segments (so `default_session`
+/// is read at one or two segments), and the tab part only at two or three
+/// (so `default_tab` is read only at exactly one) - the same reasoning
+/// [`resolve_tab_str`] already gives, confirmed the same way by reading
+/// `Tree::resolve_pane_path`'s own `match`.
 pub(crate) fn resolve_pane_str(
     tree: &Tree,
     context: &Context,
     part: &str,
 ) -> Result<PaneId, ApiError> {
-    let default_session = context.default_session.unwrap_or(NO_DEFAULT_SESSION);
-    let default_tab = context.default_tab.unwrap_or(NO_DEFAULT_TAB);
+    let default_session = if segments_exactly(part, 1) || segments_exactly(part, 2) {
+        context
+            .default_session
+            .ok_or_else(|| missing_context("session"))?
+    } else {
+        context.default_session.unwrap_or(SessionId::from_raw(0))
+    };
+    let default_tab = if segments_exactly(part, 1) {
+        context.default_tab.ok_or_else(|| missing_context("tab"))?
+    } else {
+        context.default_tab.unwrap_or(TabId::from_raw(0))
+    };
     tree.resolve_pane_path(part, default_session, default_tab)
-        .map_err(|error| remap_missing_default(context, error))
+        .map_err(map_kernel_error)
 }
 
 /// The session that holds this tab, found by searching every session's
@@ -350,10 +358,32 @@ mod tests {
 
         let error = resolve_tab_str(&tree, &context, &tab.to_string()).unwrap_err();
         assert_eq!(error.code, ErrorCode::BadRequest);
-        assert!(
-            !error.message.contains("ffffffff"),
-            "the sentinel must never leak into the message a client sees: {}",
-            error.message
+    }
+
+    /// The decision is made from the path's own shape before the kernel
+    /// is ever called (no sentinel id exists to leak, by construction -
+    /// confirmed here rather than only argued): a path with too many
+    /// segments for a tab (three) is refused by the kernel's own
+    /// `InvalidTargetPath`, never `missing_context`'s `BadRequest` about
+    /// an absent default - even from a `Context::none()` connection,
+    /// where naively treating "no default" as the reason for any failure
+    /// would have given the wrong answer.
+    #[test]
+    fn a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context() {
+        let (tree, session, tab, pane) = tree_with_one_of_each();
+        let context = Context::none();
+
+        let path = format!("{session}/{tab}/{pane}");
+        let error = resolve_tab_str(&tree, &context, &path).unwrap_err();
+        // InvalidTargetPath also maps to BadRequest (kernel_error.rs), the
+        // same code missing_context uses - the code alone cannot tell
+        // these apart, so the message is what actually proves this is
+        // the kernel's own too-many-segments refusal (its own exact
+        // Display text, `error.rs`), not missing_context's.
+        assert_eq!(error.code, ErrorCode::BadRequest);
+        assert_eq!(
+            error.message,
+            format!("{path:?} is not a valid target path")
         );
     }
 

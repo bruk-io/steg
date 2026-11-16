@@ -283,6 +283,15 @@ pub(crate) fn run_writer<W: Write>(outbound: &Outbound, mut sink: W) {
         };
         let Some(bytes) = item else { return };
         if sink.write_all(&bytes).is_err() {
+            // The socket itself is broken (not the "client never reads"
+            // case `Outbound::close` already covers from the reader's
+            // own side) - a review of this task found that, left
+            // unmarked, the reader could keep computing and queueing
+            // replies nobody will ever send, up to `CONTROL_CAP`, before
+            // anything notices. Closing here means the reader's own next
+            // `enqueue_control` fails and the connection ends promptly
+            // instead.
+            outbound.close();
             return;
         }
     }
@@ -425,6 +434,31 @@ mod tests {
         assert_eq!(
             outbound.enqueue_data(1, b"too-late".to_vec()),
             Err(EnqueueDataError::Closed)
+        );
+    }
+
+    /// A review of this task found: if the writer thread ends because
+    /// the write itself fails (a broken socket, not the "client never
+    /// reads" case `Outbound::close` already covers from the reader's
+    /// own side), nothing used to mark the queue closed or notify the
+    /// reader - it could keep computing and queueing replies nobody
+    /// will ever send, up to `CONTROL_CAP`, before anything noticed. A
+    /// peer that has dropped its own end makes the very next write fail
+    /// immediately, with no thread or wait needed to prove it.
+    #[test]
+    fn a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails() {
+        let outbound = Outbound::new();
+        let (client, server) = UnixStream::pair().unwrap();
+        drop(client); // the peer is gone: the next write on `server` fails
+
+        outbound.enqueue_control(b"first".to_vec()).unwrap();
+        run_writer(&outbound, server); // returns once write_all fails
+
+        assert_eq!(
+            outbound.enqueue_control(b"second".to_vec()),
+            Err(EnqueueControlError::Closed),
+            "the writer's own broken-write exit must close the queue, the same as an explicit \
+             Outbound::close() would"
         );
     }
 

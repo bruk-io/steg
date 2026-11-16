@@ -3,10 +3,11 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:23:00Z'
+updated_date: '2026-11-16T08:24:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -20,6 +21,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-17
+asdlc_branch: task-1.47-server-attach-to-a-pane-stream-its
 ---
 
 ## Description

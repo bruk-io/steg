@@ -221,7 +221,12 @@ capture-gallery: zig-deps-seeded
         pids+=("$pid")
         local window_id=""
         for _ in $(seq 1 40); do
-            window_id="$(swift crates/ui/gallery/window_id.swift "$pid" 2>/dev/null | head -1 | cut -d' ' -f1)"
+            # `|| window_id=""`: a lookup attempt that fails (the window isn't on screen
+            # yet) must be retried, not abort the recipe - under `set -e`, an unguarded
+            # `var="$(pipeline)"` assignment is a plain top-level command, so a non-zero
+            # pipeline exit (pipefail) would exit the whole script right here, skipping
+            # every remaining attempt and this function's own "never opened" message.
+            window_id="$(swift crates/ui/gallery/window_id.swift "$pid" 2>/dev/null | head -1 | cut -d' ' -f1)" || window_id=""
             [ -n "$window_id" ] && break
             sleep 0.25
         done

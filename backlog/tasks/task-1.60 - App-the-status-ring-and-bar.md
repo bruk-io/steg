@@ -4,7 +4,7 @@ title: 'App: the status ring and bar'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-3
 milestone: m-0
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.54
   - TASK-1.55
   - TASK-1.41
+  - TASK-1.102
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -31,3 +32,15 @@ doc-11 R50; doc-15 R90; doc-10 R79. decision-7. In the first release the states 
 - [ ] #3 A click in a pane tells the server the person has dealt with it
 - [ ] #4 With Reduce Motion on, every state shows its still form
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T02:59:00Z
+
+---
+
+2026-11-15, @bruk.o: the components this task shows now have tasks of their own in steg-ui (doc-17, accepted today), built into the gallery without the server. This task becomes giving that component what the server reports and sending what the user does back as requests; it no longer draws the component itself. The status ring and bar atoms are TASK-1.102, which also answers doc-10's question about drawing the ring within budget.
+
+---
+<!-- COMMENTS:END -->

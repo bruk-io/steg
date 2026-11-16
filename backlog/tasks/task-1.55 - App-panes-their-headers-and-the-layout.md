@@ -4,12 +4,13 @@ title: 'App: panes, their headers, and the layout'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-4
 milestone: m-4
 dependencies:
   - TASK-1.53
+  - TASK-1.107
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -29,3 +30,15 @@ doc-10 R20; doc-15 R78, R95, R96. The app's look and behaviour is the design art
 - [ ] #3 Dragging the gap between two panes resizes them; split, fill and close work from the header
 - [ ] #4 A split the layout would refuse shows its control as unusable
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T02:59:00Z
+
+---
+
+2026-11-15, @bruk.o: the components this task shows now have tasks of their own in steg-ui (doc-17, accepted today), built into the gallery without the server. This task becomes giving that component what the server reports and sending what the user does back as requests; it no longer draws the component itself. The pane, pane layout and window organisms are TASK-1.107.
+
+---
+<!-- COMMENTS:END -->

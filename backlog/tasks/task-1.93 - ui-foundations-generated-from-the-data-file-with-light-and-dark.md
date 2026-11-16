@@ -1,17 +1,20 @@
 ---
 id: TASK-1.93
 title: 'ui: foundations generated from the data file, with light and dark'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:50:00Z'
+updated_date: '2026-11-16T03:17:00Z'
 labels:
   - size-3
 milestone: m-4
 dependencies:
   - TASK-1.91
   - TASK-1.92
+references:
+  - task-1.93-ui-foundations-generated-from-the-data
+  - https://github.com/bruk-io/steg/pull/55
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -19,6 +22,8 @@ asdlc_branch: task-1.93-ui-foundations-generated-from-the-data
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6a1e03383d92'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -411,6 +416,326 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T02:55:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (3.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 101 at 2026-11-16T02:56:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49, last 40 of 72 lines:
+
+```text
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-1079895324ddf99e)
+
+running 6 tests
+test refuses_to_start_one_when_autostart_is_false ... ok
+test spawn_fails_promptly_when_the_binarys_path_does_not_exist ... ok
+test connects_without_spawning_when_a_listener_is_already_bound ... FAILED
+test spawn_fails_when_the_binary_exists_but_is_not_executable ... ok
+test gives_up_with_a_timeout_when_nothing_ever_binds ... ok
+test starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true ... FAILED
+
+failures:
+
+---- connects_without_spawning_when_a_listener_is_already_bound stdout ----
+
+thread 'connects_without_spawning_when_a_listener_is_already_bound' (19939747) panicked at crates/sdk/tests/local_socket.rs:91:54:
+called `Result::unwrap()` on an `Err` value: Os { code: 48, kind: AddrInUse, message: "Address already in use" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true stdout ----
+
+thread 'starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true' (19939752) panicked at crates/sdk/tests/local_socket.rs:124:5:
+assertion failed: connect(&options).is_ok()
+
+
+failures:
+    connects_without_spawning_when_a_listener_is_already_bound
+    starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-sdk --test local_socket`
+full output: .quiet/test-steg-sdk-local-socket.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T02:57:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py tools/tests/adapter/test_foundations_generate_real_data.py -s'` exited 0 at 2026-11-16T03:03:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpaY6dx1` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.........................................AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
+.
+42 passed in 0.04s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T03:07:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+ok      build (gallery) (0.4s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
+```
+
+Check passed: `bash -c 'cat /tmp/just-check-final.out'` exited 0 at 2026-11-16T03:09:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (5.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.4s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
+JUSTCHECK_EXIT:0
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T03:10:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T03:16:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at d919cf45905c:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Built the generator, the Theme type and the gallery; PR #55, CI green at the final head
+(d919cf4): one `check` job, `pass`, 3m39s (`gh run list` reports `completed success`). CI's
+`rustfmt` matches this machine's (1.9.0-stable) - `check-foundations` is the version-sensitive
+step named below, and it passed on CI, which is the first empirical evidence either way.
+
+## AC#1 (generator + staleness)
+`tools/src/steg_tools/foundations_generate.py` writes `crates/ui/src/foundations/generated.rs`
+deterministically from `crates/ui/design/foundations.json`, carrying the design's names through
+as `/// Design name: "..."` doc comments. `just generate-foundations` writes it; `just
+check-foundations` (now in `just check`) regenerates into a temp file, runs it through `rustfmt
+--edition 2024`, and compares bytes - failing with a message naming `just generate-foundations`
+on a mismatch. Tests: 42 unit/adapter tests (identifiers incl. collision, the three-way colour
+discrimination, the alias double-wrap, the two-hop `track.layout.fill.colour -> tint -> session`
+chain and scrim's directional light->text resolution - all proven on the renderer's own output
+rather than a separate resolver, since the renderer ended up delegating by name through `Theme`
+methods at each single hop rather than pre-resolving multi-hop chains in Python; determinism;
+AC#4's count) plus the adapter test against the real file. Negative control: one value edited in
+`crates/ui/design/foundations.json` in an uncommitted scratch change, `just check-foundations`
+failed naming the fix (recorded, exit 1), reverted, passed again (recorded, exit 0).
+
+Note for whoever touches this next: `check-foundations` compares against a fresh `rustfmt
+--edition 2024` run, so the committed `generated.rs` is tied to a rustfmt *version*, not only to
+the data file. If CI's rustfmt ever differs from this machine's (1.9.0-stable), this step fails
+with a message that reads like the data file drifted when it didn't - the fix is regenerating
+under CI's rustfmt, not loosening the byte comparison.
+
+## AC#2 (Theme-gated pairs, plain consts, radius.round)
+Every light/dark-paired value (colours, the 3 aliases, `faint`, both ramps, `tint`, `scrim`, and
+the two "excluded colour field" cases in `status.ring`/`track.layout`) is reached only through a
+`Theme` method; there's no public free function anywhere in the crate returning a bare form
+(R123) - a compile error, not a convention. `"session"` never appears as a generated constant;
+it enters only through `Theme::new`'s `session` parameter and the two terminal-theme
+constructors (`steg_dark`/`steg_light(session: Hsla)`), the same way.
+
+Doc-17's open question (the form of a pairless value): settled as a plain `pub const`/struct in
+`foundations::generated` (type, most of sizes, motion, focus_ring's geometry), never routed
+through `Theme` - R123 only binds a value that *has* a pair, and routing a pairless one through
+`Theme` would claim a distinction the data doesn't draw.
+
+`radius.round`: checked gpui 0.2.2's own source first, not assumed - `corner_radii` takes
+`Corners<AbsoluteLength>`, and `AbsoluteLength` is `Pixels` or `Rems` only, no "fully round"
+primitive. Built as the *same* `Pixels` type as `radius.surface`/`.track`/`.inner`, at a
+conventional 999px (the data file's own comment already names the CSS trick) - one type for all
+four corners, applied by a component the same way, rather than a marker type claiming a
+distinction GPUI itself doesn't draw. Recorded as a comment on the task already; restating here
+since it's the plan's one real departure in shape (the plan proposed a `FullyRound` marker type).
+
+## AC#3 (gallery image)
+Both `target/gallery/{light,dark}.png` captured via `just capture-gallery`, no person at the
+screen, no leftover `gallery` process after (`ps` confirmed clean, recorded). Shows: every
+colour/alias as a named swatch (both appearances, one capture per appearance); both ramps as
+gradient bars; the type samples; the spacing steps; the four corners; both terminal themes' 16
+ANSI colours each (one row of 16 per theme, not wrapped 15+1 as the first draft did); and, as a
+3-column "Other named values" text section, every one of the 20 names that isn't naturally a
+swatch/bar/sample (`faint`, `tint`, the rest of `type` and `sizes`, `motion.status-fade`,
+`focus_ring`).
+
+This machine's display is 1080px tall; `WindowBounds::centered` clamps a requested window height
+to the screen regardless of what's asked for (found empirically - 1400px and 1720px requests
+produced identically-cropped captures). Answers the team's point about the window/fallback: one
+capture per appearance was enough once the layout was compacted (smaller swatches, one row per
+terminal theme, 3 columns for "Other named values") to fit under that ceiling - no sectioned
+fallback was needed.
+
+`capture-gallery`'s own image check moved from `(20, 50)` (the placeholder's own background) to
+`(8, 60)`: x=8 stays inside the root's own padding for any row; y=60 clears the OS titlebar the
+captured window image includes above GPUI's content - y=8 landed inside that titlebar chrome
+instead (observed directly while building this). Checked against `surface.ground`'s own
+resolved hex per appearance, not a swatch - a swatch's position would move with any layout
+change, this corner never does.
+
+Known, accepted: 3 of the 20 "Other named values" rows (`status.ring`, `track.layout`, `scrim`)
+truncate their debug-formatted value at the column's width - every *name* is legible (what AC#4
+asks for), only part of one value's text is cut.
+
+## AC#4 (names, counted)
+`design_entries()` on the real data file: 54 names. `generated.rs`: 54 `Design name:` markers
+(one per entry, on its primary generated item - asserted equal by the adapter test, every run).
+Gallery image: all 54 findable by name - 34 as a swatch/bar/sample, 20 in "Other named values".
+By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, sizes 18, motion
+1, themes 2, focus_ring 1 = 54 (full per-section name list is in the PR body's table).
+
+## Departures from the plan
+- `resolve_for_appearance`, the multi-hop resolver the plan named, isn't in the generator: the
+  renderer ended up delegating by name through `Theme` methods at each single hop instead (e.g.
+  `track_layout_fill` calls `self.tint()`, whose own body is `(self.session, 0.18)` - the "second
+  hop" lives in `tint`'s own method, not in Python). Simpler, and avoids baking a hex Rust could
+  otherwise reach by a direct method call. The two named proof cases (the two-hop chain, scrim's
+  directional resolution) are still covered - on the renderer's real output, not a resolver it
+  doesn't call.
+- TASK-1.94 (its own `foundations.py` reader) hadn't merged at any point in this task's build, so
+  this task's JSON parsing stays private to `foundations_generate.py`. Whichever lands second
+  reconciles. The lead's point about TASK-1.94's gallery colour-literal exemption line is a
+  no-op this round - that exclusion isn't on `main` yet either.
+- The radius.round marker-type proposal in the plan became a plain `Pixels` const instead (see
+  AC#2 above) - the one shape departure, reasoned from gpui's own source.
+
+## Other notes
+- One recorded check on the task, `bash -c 'cat /tmp/just-check-final.out'`, is superseded by the
+  real `just check` recorded immediately after it with the same result (exit 0) - an artifact of
+  waiting on a backgrounded run, not a second check.
+- A `steg-sdk` `local_socket` test failed once with `AddrInUse` inside one recorded `just check`
+  run - unrelated crate, transient (passed clean in isolation immediately after, and on every
+  other `just check` run this task recorded).
+- The capture-check's own wrong-colour negative control is TASK-1.91's
+  (`test_a_capture_of_the_wrong_thing_fails_and_names_screen_recording`, already committed), not
+  something re-run here.
+- The pull request's images aren't attached inline yet - no browser tool in this session, and no
+  `gh`/REST path found to the `github.com/user-attachments/...` URLs PR #48's images carry under
+  the same team rule. Both images are captured, pass their own check, and sit at
+  `target/gallery/{light,dark}.png` in the worktree; asked the lead how #48 got its URLs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -432,6 +757,15 @@ created: 2026-11-16T02:44:00Z
 Point 2 (fully round corner): built one Radius type for all four corners, not a separate marker type. Checked gpui 0.2.2's own source first: `corner_radii` takes `Corners<AbsoluteLength>`, and `AbsoluteLength` is only `Pixels` or `Rems` - no percentage/fraction variant exists for a corner radius in this pinned version (unlike width/height, which do have `DefiniteLength::Fraction`). GPUI has no "fully round" primitive at all; the idiomatic way (and the one the data file's own comment already points at - the CSS 999px convention) is a conventionally large `Pixels` value, which paints fully round once it reaches half of whatever it rings, regardless of the exact number. So `radius.round` generates as `pub const RADIUS_ROUND: Pixels = px(999.0);` - same type as `radius.surface`/`radius.track`/`radius.inner`, applied by a component the same way as any other radius, with a doc comment explaining the convention. A marker type would have claimed a distinction GPUI itself doesn't draw.
 
 Also recorded: TASK-1.94's own plan (see its notes) already named the same gallery-colour-literal-exemption overlap I flagged in the plan - its check's gallery exclusion is scoped to stay until this task lands.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:17:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

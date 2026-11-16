@@ -1,17 +1,20 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:08:00Z'
+updated_date: '2026-11-16T14:09:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.89
+references:
+  - task-1.46-server-the-tree-and-events-a-client
+  - https://github.com/bruk-io/steg/pull/63
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -946,6 +949,20 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built part A of TASK-1.46 (the tree, subscribing, atomicity, back-pressure, and the events with an existing producer); the remaining events are TASK-1.109.
+
+event.watch replies with the tree (TreeSnapshot, embedding SessionRecord/TabRecord/PaneRecord as they are) and registers the connection's own subscription filter atomically inside one lock acquisition, bypassing the generic reply-after-the-fact path entirely (Runtime::subscribe, called directly from connection.rs, which resolves api.call wrapping first so that path reaches it too). Every connection is registered for broadcast the moment it is usable, independent of whether it ever subscribes.
+
+Creation, closure (including the exit-driven cascade), focus, and a typed command's status changing all broadcast through one fn broadcast, under the lock the site already holds - creation outermost-first, closure innermost-first, built from what the kernel already returns (ClosedPane) plus reading tree state before and after a close, no kernel change needed.
+
+A subscriber whose queue is full is closed, not resynced: a structural gap found while building this (Outbound::close() alone never touches the socket, and the reader has no idle timeout) - each registered subscriber now also carries a clone of its own connection's socket, shut down on a failed enqueue.
+
+New sdk vocabulary for a reply followed by a stream (Returns::Nested, Method.follows: Follows) was pushed early (commit 3a79c06) for TASK-1.47's own attach to build against.
+
+Checks recorded on the task: just check clean at each milestone (sdk vocabulary, the snapshot and subscribing, the slow-subscriber fix, after each origin/main merge) and again at the final head. Four negative controls recorded as deliberate failing runs, each then reverted: the atomicity fix (reply built/enqueued after the lock was dropped, with a brief sleep to widen the window - reproduced the exact race, then reverted), the slow-subscriber shutdown (disabled, the unit test then timed out instead of seeing a clean close), the closure cascade order (one broadcast call removed, the real-socket test then saw the wrong event second), and the name filter (disabled, four tests then saw events they should not have - this also surfaced and fixed a real bug in my own test helper, assert_nothing_arrives_within, which checked only the raw socket for new bytes and missed a frame already sitting in the Connection's own decoder buffer from an earlier over-read; fixing that in turn surfaced a second, genuine bug in two of my own tests, which assumed session.new produces exactly one event when it legitimately produces three - both rewritten).
+
+Proof: crates/server/tests/events.rs (real socket, sdk's own Connection: the snapshot, creation/closure cascades in order, a whole-path focus event, filtering by name and by session, ending a subscription by disconnecting, a quiet window producing nothing, and the atomicity race at 20 repetitions) and runtime.rs's own unit tests (apply_event_locked's event production, an unfiltered subscriber, and the slow-subscriber overflow, deterministic with no writer thread draining it - the real-socket version of that last one was tried first and was flaky against a real writer thread and an unknown OS socket buffer size, named in the test file rather than kept).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

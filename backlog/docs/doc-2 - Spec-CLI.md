@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-16T15:42:00Z'
+updated_date: '2026-11-16T16:43:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -113,6 +113,7 @@ A label, a colour and a zoomed state are properties, so they are `set` and `unse
 | `pane split` | Split the target pane and run a program in the new one | The new pane's identifier |
 | `pane resize` | Move the border of the target pane | Nothing |
 | `pane swap` | Exchange the target with the pane given by `--with` | Nothing |
+| `tab declare-size` | Declare the caller's own size for the target tab, in columns and rows | Nothing |
 | `pane send` | Send text or keys to the program in the target | Nothing |
 | `pane capture` | Print the target's screen, and scrollback when asked | The text |
 | `pane attach` | Open a stream to the target pane's screen | The stream's identifier and the opening snapshot, as JSON |
@@ -267,6 +268,7 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `tab move` | tab | `--position`, `--to` another session |
 | `tab set`, `tab unset` | tab | `--label` |
 | `tab focus` | tab | Makes it the current tab of its session |
+| `tab declare-size` | tab | `--columns`, `--rows`, both required and above zero. The size is the calling client's for that tab; the terminal's size follows the rule of doc-15 R91, and each attached client is told the size in force (decided by Bruk on 2026-11-16 with TASK-1.114's plan) |
 | `pane list` | tab | The panes of that tab |
 | `pane show` | pane | Kind, size, working directory, title, running program, and its exit code once it has ended |
 | `pane split` | pane | `--direction`, `--cwd`, `--label`, `--focus`, and a program after `--` |

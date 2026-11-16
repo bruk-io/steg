@@ -232,6 +232,50 @@ impl Connection {
         Ok((id, bytes))
     }
 
+    /// Subscribes (`event.watch`, TASK-1.46): the same shape [`Connection::
+    /// call`] already has - the id to match against the eventual
+    /// [`Incoming::Reply`], and the bytes to write. That reply's own
+    /// `Response::Ok` is the tree (`serde_json::from_value::<
+    /// crate::TreeSnapshot>`); every [`Incoming::Event`] on this connection
+    /// afterward, with no further request, is one of this subscription's
+    /// own events (`crate::TreeEvent::parse`) - no id ever matches them,
+    /// since an event carries none (decision-2 section 3).
+    ///
+    /// `target` names the session to watch (`None` for the current
+    /// session's own default); `for_` narrows to these event names only
+    /// (empty for every event); `all` watches every session on the host.
+    ///
+    /// # Errors
+    /// The same as [`Connection::call`].
+    ///
+    /// # Panics
+    /// Never in practice, the same as [`Connection::call`].
+    pub fn watch(
+        &mut self,
+        target: Option<&str>,
+        for_: &[&str],
+        all: bool,
+    ) -> Result<(u64, Vec<u8>), ApiError> {
+        let mut params = Map::new();
+        if let Some(target) = target {
+            params.insert("target".to_owned(), Value::String(target.to_owned()));
+        }
+        if !for_.is_empty() {
+            params.insert(
+                "for".to_owned(),
+                Value::Array(
+                    for_.iter()
+                        .map(|name| Value::String((*name).to_owned()))
+                        .collect(),
+                ),
+            );
+        }
+        if all {
+            params.insert("all".to_owned(), Value::Bool(true));
+        }
+        self.call("event.watch", params)
+    }
+
     // --- server-side output ---------------------------------------------
 
     /// Reads the client's first frame and answers it: `Accept` with the

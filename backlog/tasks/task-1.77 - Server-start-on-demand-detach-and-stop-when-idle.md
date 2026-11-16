@@ -1129,6 +1129,53 @@ lingering steg processes from this worktree: 2
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'for i in $(seq 1 10); do cargo test -p steg --features fixtures --test server_start || exit 1; count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " "); echo "run $i: lingering steg processes: $count"; if [ "$count" -ne 0 ]; then exit 1; fi; done'` exited 0 at 2026-11-16T01:21:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes, last 40 of 160 lines:
+
+```text
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.23s
+
+run 8: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+run 9: lingering steg processes: 0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s
+
+run 10: lingering steg processes: 0
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

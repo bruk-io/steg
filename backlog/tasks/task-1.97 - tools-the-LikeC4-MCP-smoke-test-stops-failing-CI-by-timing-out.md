@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T02:40:00Z'
+updated_date: '2026-11-16T02:43:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -155,6 +155,32 @@ Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/
 
 ```text
 ok      architecture (0.7s)
+```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.97-p6-repeat-under-load.sh` exited 0 at 2026-11-16T02:43:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 108747d79566 with uncommitted changes:
+
+```text
+ok      tool tests (24.9s)
+run 1: just test-tools passed in 25s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (17.8s)
+run 2: just test-tools passed in 17s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (19.7s)
+run 3: just test-tools passed in 20s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (18.0s)
+run 4: just test-tools passed in 18s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (17.2s)
+run 5: just test-tools passed in 18s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (17.0s)
+run 6: just test-tools passed in 17s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (18.3s)
+run 7: just test-tools passed in 19s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (13.0s)
+run 8: just test-tools passed in 13s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (20.3s)
+run 9: just test-tools passed in 20s wall (cold cache, 3-way concurrent contention)
+ok      tool tests (13.4s)
+run 10: just test-tools passed in 14s wall (cold cache, 3-way concurrent contention)
+all 10 runs passed
 ```
 <!-- SECTION:NOTES:END -->
 

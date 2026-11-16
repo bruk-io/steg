@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:48:00Z'
+updated_date: '2026-11-16T00:49:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -208,6 +208,35 @@ For more information about this error, try `rustc --explain E0004`.
 error: could not compile `steg-server` (lib) due to 1 previous error
 warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-server` (lib test) due to 1 previous error
+```
+
+Check passed: `cargo test -p steg-server --lib runtime::tests` exited 0 at 2026-11-16T00:49:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 18 tests
+test runtime::tests::apply_event_records_an_exit_and_leaves_a_command_pane_in_place ... ok
+test runtime::tests::apply_event_closes_a_shell_pane_through_the_same_cascade_as_a_manual_close ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.55s
 ```
 <!-- SECTION:NOTES:END -->
 

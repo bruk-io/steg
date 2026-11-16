@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:48:00Z'
+updated_date: '2026-11-16T13:56:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -432,6 +432,106 @@ Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:48:03+0
 
 ```text
 ok      openpty race control (0.8s)
+```
+
+## DEPARTURE FROM THE APPROVED PLAN - READ BEFORE REVIEWING THE TESTS
+
+The approved plan's own words were "a permanent second test" in `just check` for the no-retry control. That changed during the build, on the engineer's own direction, after the data below. This is not a weakening of the control - it is moved out of `just check`, kept as real code, and run on demand.
+
+**What the plan said:** a fixed-batch cross-process test, `max_open_attempts = 1`, asserting at least one failure across a stated number of opens, gating `just check` the same way the shipped-default test does.
+
+**What was measured, in order, each a real finding, not a guess:**
+- First measurement (reported earlier in these notes): a fixed batch of 16 processes x 200 opens (3,200 total, the original short-lived-process fixture) missed the race (showed zero failures) in 3 of 20 local runs (~15%).
+- After redesigning to long-lived, warm workers (ready/release handshake, no process-exec dilution) with a 20,000-open sequential bound: 9 runs, 5 reproduced (often almost instantly: opens-until-first-failure of 1, 1, 1, 461, 946 on the worker that saw it), 4 reached the full 20,000 with zero.
+- A direct measurement of the same warm fixture, bypassing the test's own early-stop, 48,000 opens, twice within minutes: 0.042% failing, then 0.023% - a factor of two apart.
+- The original bare-libc probe that first established this mechanism (no Rust, no portable-pty), re-run at the same density that first found it: 3, 2, and 0 failures across three trials - a clean miss even there, in the same few minutes.
+
+**Reading this together:** the rate is not a stable property of this crate's own code. It depends on what else this specific shared machine is doing with ptys at that moment - this is the cause, seen from the test-design side, not a new finding about the cause itself. A control whose own pass/fail depends on ambient conditions this crate does not control cannot gate `just check`: no bound makes a test like that both fast and reliable, and a control that only sometimes fires is exactly the kind of flaky test this task exists to remove.
+
+**What changed:** the no-retry control is `#[ignore]`d (`crates/server/tests/openpty_race.rs`, `cross_process_opens_with_no_retry_the_permanent_control_eventually_fails`), with the reason in the attribute itself. It is run on demand - `just test-openpty-race-control` - sequential as built (stops at the first failure any of 16 long-lived workers reports), bound by a count (100,000 opens total, 6,250 per worker) with a wall-clock safety net (600s) only as a net, never the real bound. The shipped-default test (`cross_process_opens_at_the_shipped_default_never_fail`, 5 attempts, a fixed 3,200 opens) stays in `just check`: it can only fail if every one of those opens exhausts all 5 attempts, which every rate measured above puts at a negligible chance (even the highest rate seen, ~0.05% per attempt, gives roughly `0.0005^5 ≈ 3x10^-17` for one open to exhaust all 5 - no credible rate this task measured changes that conclusion). Its own cost: ~4.3-4.8s per run, measured over 6 local runs.
+
+**The ignored control's own recorded runs** (the negative control for the shipped-default test, under the team's testing rule - a recorded failing... here, a recorded *succeeding* run against the code as it stands, since this test's claim is "reproduces", not "never fails" - read together with the shipped test's own clean runs as the pair that proves the retry closes something real):
+
+| run | result | opens until first failure | total opens before stopping | wall time |
+|---|---|---|---|---|
+| 1 | reproduced | 3,790 | 60,491 | 110.1s |
+| 2 | reproduced | 1 | 503 | 0.7s |
+| 3 | reproduced | 1 | 475 | 0.7s |
+
+3 of 3 runs reproduced at this bound (100,000/6,250 per worker) - no miss recorded at this size, in contrast to the 44% miss rate seen at the earlier, smaller 20,000-open bound. Not claimed as proof this bound is foolproof against this machine's own worst moments (the measurements above show the rate can still be very low at times) - only that it is markedly more reliable than the bound the plan first proposed, and every run (a miss or a hit) would be recorded here the same way.
+
+## THE INDEPENDENCE MEASUREMENT (order of work step 5)
+
+From two aggregate runs of the warm fixture at `max_open_attempts = 5` (16 workers, 2,000 opens each, bypassing the test's own early-stop so every worker runs to completion): 64,000 opens total, 0 opens ever exhausted all 5 attempts. Of those 64,000, 23 needed more than one attempt (all 23 succeeded on the second attempt; none needed a third, fourth, or fifth).
+
+Honestly: the volume here (23 observed retries) is too low to rigorously test whether a third attempt fails disproportionately often, because zero third-attempts were ever needed to observe in this sample - there is nothing to compare a "third-attempt rate" against. What the sample does say: of 23 opens that needed a retry, the very next attempt recovered every single time, which is consistent with the shipped bound's own independence assumption (an independent model would predict close to zero third-attempts needed at this per-attempt rate and this sample size too) - it does not contradict it, but it is not a strong confirmation either, only a failure to find the correlation the engineer asked to check for, at a volume too small to rule a modest one out.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:54:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.1s)
+ok      tests (every crate) (15.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (34.3s)
+ok      test (steg-server) (13.5s)
+ok      test (steg-server, race-fixture) (16.4s)
+ok      test (steg-server, pty-race-fixture) (21.2s)
+ok      build (steg) (1.5s)
+ok      test (steg) (0.7s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:56:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 577ed2a6ae69:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.3s)
+ok      tests (every crate) (16.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (13.0s)
+ok      test (steg-server, race-fixture) (15.6s)
+ok      test (steg-server, pty-race-fixture) (20.9s)
+ok      build (steg) (0.6s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

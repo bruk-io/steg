@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:50:00Z'
+updated_date: '2026-11-16T14:24:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -31,12 +31,9 @@ doc-2, sections 2 to 6 and 8: R32, R34. decision-4. Nothing in the CLI names a m
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Every API method has a command and every command an API method, checked by a test that fails when they drift
-- [ ] #2 The grammar, the flags every command has, `--json`, and `-q` printing identifiers only each behave as doc-2 says
-- [ ] #3 Each exit status in doc-2 section 6 is produced by a test
-- [ ] #4 `steg version`, `steg completion <shell>` and `--help` work with no server running; `--no-autostart` exits 4 without starting one
-- [ ] #5 A list is tab-separated with full identifiers, no header and no alignment, the same piped or not
-- [ ] #6 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
-- [ ] #7 A client whose connection is accepted and then closed before a hello arrives treats that the same as no server being there, and arbitrates again once; shown with real processes against a server stopping as the client connects (moved from TASK-1.86's fourth criterion, whose plan the engineer approved on 2026-11-16: nothing built before this task reads a hello)
+- [ ] #2 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
+- [ ] #3 steg version, steg completion <shell> and --help at every level work with no server running and without starting one
+- [ ] #4 A command that parses and validates but cannot yet connect exits 1 with a message naming the method, until TASK-1.119 replaces that; an invalid one exits 2
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -152,6 +149,249 @@ TASK-1.89 (tab list, tab show, pane list) and TASK-1.88 (server and client metho
 Plan (fdbb9acfc676) checked against doc-2, decision-1, decision-4, doc-16 and the seven criteria by @bruk.o, 2026-11-16: sound; the split into three is taken (two drafts created: connecting, calling and exit statuses; output formats). This task keeps the generated command tree, help, version and completion. The orchestrator asked for one change to the split: the connecting task prints the server's reply with --json, so the CLI is usable by hand when it lands, before the output formats. For the engineer: the plan's five small decisions, all recommended as the worker does (steg and steg <noun> alone list and exit 0, as doc-2 says; doc-2 gains a line for api show with no target; unset --label becomes a switch in the description; pane move's missing direction is left; a nested value prints whole with --json and as its scalar fields in plain text).
 
 Plan (37c4dd0b7f74) as rewritten for the command tree alone, checked by @bruk.o, 2026-11-16: ok. Covers criterion 1 (the drift test in both directions), the no-server half of criterion 4, and criterion 6; criteria 2, 3, 5, 7 and the rest of 4 are the two split-off tasks'. Includes, as a marked step, the description change making unset --label a switch (description only; dispatch already acts on presence). A command that parses and validates but cannot yet connect exits 1 with a named message until the connecting task replaces that. clap pinned at 4.6.7, builder only.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:55:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 0fde255eb1c0:
+
+```text
+ok      format check (0.2s)
+ok      lint (90.8s)
+ok      boundaries (0.2s)
+ok      foundations (0.3s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.1s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.6s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (46.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.0s)
+ok      test (steg-server) (12.3s)
+ok      test (steg-server, race-fixture) (13.2s)
+ok      build (steg) (1.9s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (19.8s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (12.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T14:00:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 0fde255eb1c0 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk/src/description/methods.rs:1810:
+     fn unset_s_label_is_a_switch_not_a_value_taking_flag() {
+         let api = description();
+         for dotted in ["session.unset", "tab.unset", "pane.unset"] {
+[31m-            let method = api.method(dotted).unwrap_or_else(|| panic!("{dotted} is not described"));
+(B[m[32m+            let method = api
+(B[m[32m+                .method(dotted)
+(B[m[32m+                .unwrap_or_else(|| panic!("{dotted} is not described"));
+(B[m             let label = method
+                 .params
+                 .iter()
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:03:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 0fde255eb1c0 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (58.2s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.6s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (30.6s)
+ok      test (steg-server) (12.5s)
+ok      test (steg-server, race-fixture) (13.4s)
+ok      build (steg) (1.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.7s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:07:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 34bdc124ced1 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (12.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (31.2s)
+ok      test (steg-server) (11.0s)
+ok      test (steg-server, race-fixture) (11.2s)
+ok      build (steg) (0.8s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (4.6s)
+ok      build (steg-ui) (0.7s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T14:17:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 1f528db67cb1 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 1.3s)
+    Checking clap_builder v4.6.7
+    Checking clap v4.6.7
+    Checking clap_complete v4.6.11
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+error: useless conversion to the same type: `clap::builder::ValueParser`
+  --> crates/steg/src/cli/values.rs:16:31
+   |
+16 |         ValueKind::Boolean => clap::value_parser!(bool).into(),
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `clap::value_parser!(bool)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#useless_conversion
+   = note: `-D clippy::useless-conversion` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::useless_conversion)]`
+
+error: could not compile `steg` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg` (lib test) due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:19:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 1f528db67cb1 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (15.6s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (32.2s)
+ok      test (steg-server) (11.3s)
+ok      test (steg-server, race-fixture) (11.7s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.2s)
+ok      test (steg, fixtures) (6.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:23:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 645a8d57280a with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (14.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.6s)
+ok      test (steg-server) (11.1s)
+ok      test (steg-server, race-fixture) (9.9s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.3s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:24:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 7541f71b0be8:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (12.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (9.7s)
+ok      test (steg-server, race-fixture) (9.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (3.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -163,6 +403,14 @@ created: 2026-11-16T13:50:00Z
 ---
 
 Plan approved by @bruk (37c4dd0b7f74, size-4): its worker may build it.
+
+---
+
+created: 2026-11-16T13:51:00Z
+
+---
+
+2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted. TASK-1.119 has connecting, calling, the exit statuses and the connection closed before a hello; TASK-1.120 has the output formats. The approved plan calls them parts 2 and 3 (and TASK-1.49b in one message): cite TASK-1.119 and TASK-1.120 in code and notes.
 
 ---
 <!-- COMMENTS:END -->

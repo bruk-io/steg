@@ -22,8 +22,20 @@ const FINISHED_LIFETIME: Duration = Duration::from_secs(10 * 60);
 /// sometimes valid (`.claude/rules/rust.md`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum StatusKind {
-    /// The program is running.
+    /// A command pane's program is running (R82).
     Running,
+    /// A shell pane's typed command is producing output, from its own
+    /// start mark to its own end mark (TASK-1.83; doc-11/decision-7).
+    /// Reads as [`Status::Running`] exactly like `Running` does
+    /// (`Pane::status_for_ranking`'s one arm covers both) - the two are
+    /// kept as separate variants, not folded into one, only so a shell
+    /// pane's idle baseline (no variant at all) and a running typed
+    /// command (this variant) stay distinguishable from each other
+    /// *and* from a command pane's own `Running` for the guards in
+    /// `Pane::note_command_ended` (end-with-no-start, two ends in a
+    /// row) and `Pane::note_command_output_started`/`note_command_
+    /// ended` (ignored on a command pane).
+    CommandRunning,
     /// The program exited with code 0, at `since`.
     Finished {
         /// When this status began - R83's ten-minute clock starts here.
@@ -36,6 +48,50 @@ enum StatusKind {
         /// The exit code the program ended with.
         exit_code: i32,
     },
+}
+
+/// What `Pane::note_command_output_started` did (TASK-1.83; doc-11
+/// R82/R83) - named so a caller can decide whether to raise an event with
+/// no further lookup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandOutputStarted {
+    /// The pane's status is now [`Status::Running`], for this typed
+    /// command.
+    Started,
+    /// Nothing changed: this is not a shell pane (R97) - a command
+    /// pane's own program governs its status, never a mark.
+    NotAShellPane,
+}
+
+/// What `Pane::note_command_ended` did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommandEnded {
+    /// The pane's status is now this.
+    Ended(Status),
+    /// The shell reported no exit code (a bare mark, or one the
+    /// engine's own parser could not read): the status is cleared, back
+    /// to idle - not replaced with anything (R83: nothing is guessed).
+    EndedWithNoExitCode,
+    /// Nothing changed: either this is not a shell pane, or there was
+    /// no matching `note_command_output_started` first - an end with no
+    /// start, or a second end in a row, is ignored, never guessed.
+    Ignored,
+}
+
+/// Both the [`Status`] and the [`StatusKind`] a command's `exit_code`
+/// means (R82: "0 means finished, anything else means failed") - the one
+/// place either `Pane::record_exit` or `Pane::note_command_ended` reads
+/// that rule, so it is read only once per call, not duplicated for each
+/// of the two facts it decides.
+fn status_from_exit_code(exit_code: i32, now: Moment) -> (Status, StatusKind) {
+    if exit_code == 0 {
+        (Status::Finished, StatusKind::Finished { since: now })
+    } else {
+        (
+            Status::Failed { exit_code },
+            StatusKind::Failed { exit_code },
+        )
+    }
 }
 
 /// One pane's current status record: the status itself, and when it began
@@ -73,6 +129,17 @@ struct StatusRecord {
 /// renamed and added for exactly this reason: a single field once called
 /// `status`, typed `ProgramStatus`, would be the wrong name for either
 /// meaning now that both exist.
+///
+/// For a command pane `status` starts at `Running` the moment `program`
+/// does (`start_program`) and nothing here distinguishes the two. For a
+/// shell pane the two diverge from the start (TASK-1.83): `program_status`
+/// is `Running` the instant the shell process is, but `status` starts at
+/// `None` - a shell idling at its own prompt is not running anything
+/// steg can name - and only becomes `Running` between a typed command's
+/// own start mark and its own end mark
+/// ([`Pane::note_command_output_started`]/[`Pane::note_command_ended`]),
+/// going back to `None`, not to `Running`, once that command's `Finished`/
+/// `Failed` status itself ends.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pane {
     id: PaneId,
@@ -160,7 +227,7 @@ impl Pane {
     pub(crate) fn status_for_ranking(&self, now: Moment) -> Option<(Status, u64)> {
         let record = self.status?;
         let status = match record.kind {
-            StatusKind::Running => Status::Running,
+            StatusKind::Running | StatusKind::CommandRunning => Status::Running,
             StatusKind::Finished { since } => {
                 if since.plus(FINISHED_LIFETIME) > now {
                     Status::Finished
@@ -176,12 +243,13 @@ impl Pane {
     /// When this pane's `Finished` status will end on its own, with no
     /// input or acknowledgement - the moment [`Pane::status`] would start
     /// returning `None` for it unprompted. `None` for `Running` or
-    /// `Failed` (R83: "never on a timer"), for no status at all, or for a
-    /// `Finished` deadline that has already passed as of `now` - at that
-    /// point `status` already reports it as gone, so there is nothing
-    /// left to schedule for it. Lets a caller with a real clock (the
-    /// server) ask "when is the next thing due" across many panes without
-    /// polling any of them.
+    /// `CommandRunning` or `Failed` (R83: "never on a timer"), for no
+    /// status at all (including a shell pane idling at its prompt), or
+    /// for a `Finished` deadline that has already passed as of `now` -
+    /// at that point `status` already reports it as gone, so there is
+    /// nothing left to schedule for it. Lets a caller with a real clock
+    /// (the server) ask "when is the next thing due" across many panes
+    /// without polling any of them.
     pub(crate) fn next_status_deadline(&self, now: Moment) -> Option<Moment> {
         let StatusKind::Finished { since } = self.status?.kind else {
             return None;
@@ -193,11 +261,15 @@ impl Pane {
     /// Ends this pane's `Finished` or `Failed` status, if it has one -
     /// the one mutating operation, shared by "ends on input" and "ends on
     /// being told the person has dealt with it" (R83; decision-7 point
-    /// 5). A no-op, not an error, when there is nothing to end: either no
-    /// status at all, or `Running` - R83 gives `Running` no ending rule of
-    /// its own (it ends only by the program itself exiting, through
-    /// `Pane::record_exit`), so this leaves it exactly as it was rather
-    /// than erasing it.
+    /// 5). A no-op, not an error, when there is nothing to end: no status
+    /// at all (including a shell pane idling at its prompt), `Running`,
+    /// or `CommandRunning` - R83 gives neither `Running` kind an ending
+    /// rule of its own (a command pane's ends only by its program
+    /// exiting, through `Pane::record_exit`; a typed command's running
+    /// status ends only by its own end mark, through `Pane::note_
+    /// command_ended`), so this leaves either exactly as it was rather
+    /// than erasing it - a running typed command is not ended by input,
+    /// the same as a running program isn't.
     pub(crate) fn clear_status(&mut self) {
         if matches!(
             self.status,
@@ -219,11 +291,15 @@ impl Pane {
         matches!(self.program, Some(Program::Shell { .. }))
     }
 
-    /// Records what this pane runs, for the first time (doc-9 R13), and
-    /// sets its status to `Running` (doc-11), stamped with `tick` -
+    /// Records what this pane runs, for the first time (doc-9 R13). Sets
+    /// its status (doc-11) to `Running`, stamped with `tick` -
     /// `crate::Tree::start_program`'s own current tick (decision-6/R91's
-    /// non-clock activity counter), reused here purely for decision-7's
-    /// "newest" tie-break between panes, never compared to a duration.
+    /// non-clock activity counter) - for a command pane only. A shell pane
+    /// gets no status at all: it is idle at its own prompt (R97's "the
+    /// shell program is running" fact still lives in `program_status`,
+    /// set unconditionally just below), and shows `Running` only once a
+    /// typed command's own start mark arrives
+    /// ([`Pane::note_command_output_started`], TASK-1.83).
     ///
     /// # Errors
     ///
@@ -236,17 +312,26 @@ impl Pane {
         }
         self.program = Some(program);
         self.program_status = Some(ProgramStatus::Running);
-        self.status = Some(StatusRecord {
-            kind: StatusKind::Running,
-            tick,
-        });
+        // `closes_on_exit` reads `self.program`, just set above - order
+        // is load-bearing.
+        self.status = if self.closes_on_exit() {
+            None
+        } else {
+            Some(StatusRecord {
+                kind: StatusKind::Running,
+                tick,
+            })
+        };
         Ok(())
     }
 
     /// Records that this pane's program ended with `exit_code` at `now`,
     /// and updates its status (doc-11 R82) to `Finished` (code 0) or
     /// `Failed` (otherwise), stamped with `tick` the same way
-    /// [`Pane::start_program`] is. Does not decide whether the pane closes
+    /// [`Pane::start_program`] is - unconditionally, overwriting whatever
+    /// status was there (R97: a shell pane's own real exit always wins
+    /// over any typed command's status it was showing, as its pane is
+    /// about to close anyway). Does not decide whether the pane closes
     /// — a `Pane` cannot run the tab/session cascade R94 closing a pane
     /// may need; [`crate::Tree::record_exit`] does, using
     /// [`Pane::closes_on_exit`] right after calling this.
@@ -264,13 +349,66 @@ impl Pane {
             return Err(Error::ProgramNotStarted(self.id));
         }
         self.program_status = Some(ProgramStatus::Ended { exit_code });
-        let kind = if exit_code == 0 {
-            StatusKind::Finished { since: now }
-        } else {
-            StatusKind::Failed { exit_code }
-        };
+        let (_, kind) = status_from_exit_code(exit_code, now);
         self.status = Some(StatusRecord { kind, tick });
         Ok(())
+    }
+
+    /// A typed command started producing output in this pane (OSC 133
+    /// `C`; TASK-1.79's `CommandMark::OutputStarted`), stamped with
+    /// `tick` the same way [`Pane::start_program`]/[`Pane::record_exit`]
+    /// are. A no-op on a command pane (`!self.closes_on_exit()`): its
+    /// status comes only from its own exit code, never from a mark - a
+    /// mark arriving there (its own program printing OSC 133 itself) is
+    /// ignored, not an error, since the program's own status always
+    /// wins.
+    pub(crate) fn note_command_output_started(&mut self, tick: u64) -> CommandOutputStarted {
+        if self.closes_on_exit() {
+            self.status = Some(StatusRecord {
+                kind: StatusKind::CommandRunning,
+                tick,
+            });
+            CommandOutputStarted::Started
+        } else {
+            CommandOutputStarted::NotAShellPane
+        }
+    }
+
+    /// A typed command ended in this pane (OSC 133 `D`;
+    /// `CommandMark::Ended`), with `exit_code` exactly as the mark
+    /// carried it (`None` for a bare `D`, or one the engine's own parser
+    /// could not read - TASK-1.79 already made those two report the
+    /// same way). A no-op on a command pane, same reason as
+    /// [`Pane::note_command_output_started`]. Also a no-op, reported as
+    /// [`CommandEnded::Ignored`], if this pane's status is not currently
+    /// [`StatusKind::CommandRunning`] - an end with no matching start,
+    /// or a second end in a row, proves nothing, so R83's "never guess"
+    /// rule leaves it alone rather than inventing a status for it.
+    pub(crate) fn note_command_ended(
+        &mut self,
+        exit_code: Option<i32>,
+        now: Moment,
+        tick: u64,
+    ) -> CommandEnded {
+        if !self.closes_on_exit() {
+            return CommandEnded::Ignored;
+        }
+        if !matches!(
+            self.status,
+            Some(StatusRecord {
+                kind: StatusKind::CommandRunning,
+                ..
+            })
+        ) {
+            return CommandEnded::Ignored;
+        }
+        let Some(exit_code) = exit_code else {
+            self.status = None; // nothing guessed; back to idle.
+            return CommandEnded::EndedWithNoExitCode;
+        };
+        let (status, kind) = status_from_exit_code(exit_code, now);
+        self.status = Some(StatusRecord { kind, tick });
+        CommandEnded::Ended(status)
     }
 
     /// Runs this pane's program again, in the same directory, with the same
@@ -314,7 +452,7 @@ impl Pane {
 
 #[cfg(test)]
 mod tests {
-    use super::{FINISHED_LIFETIME, Pane};
+    use super::{CommandEnded, CommandOutputStarted, FINISHED_LIFETIME, Pane};
     use crate::error::Error;
     use crate::moment::Moment;
     use std::time::Duration;
@@ -676,5 +814,238 @@ mod tests {
         pane.record_exit(0, moment(0), 1).unwrap();
 
         assert_eq!(pane.status_for_ranking(moment(600)), None);
+    }
+
+    // --- a typed command at a shell prompt (doc-11, decision-7; TASK-1.83) -
+
+    /// Starts a shell pane and immediately marks a typed command's output
+    /// as started - the only way a shell pane's own `status` ever becomes
+    /// `Running` (section 1 of the task's plan).
+    fn command_running(pane: &mut Pane, tick: u64) {
+        pane.start_program(shell(), tick).unwrap();
+        pane.note_command_output_started(tick);
+    }
+
+    #[test]
+    fn a_freshly_started_shell_pane_has_no_status() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+
+        pane.start_program(shell(), 0).unwrap();
+
+        assert_eq!(pane.program_status(), Some(ProgramStatus::Running));
+        assert_eq!(pane.status(moment(0)), None);
+        assert_eq!(pane.next_status_deadline(moment(0)), None);
+    }
+
+    #[test]
+    fn a_shell_pane_stays_idle_with_no_marks_at_all_however_far_in_the_future() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(shell(), 0).unwrap();
+
+        assert_eq!(pane.status(moment(60 * 60 * 24 * 365)), None);
+        assert_eq!(pane.next_status_deadline(moment(60 * 60 * 24 * 365)), None);
+    }
+
+    #[test]
+    fn note_command_output_started_on_a_shell_pane_sets_running() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(shell(), 0).unwrap();
+
+        let outcome = pane.note_command_output_started(1);
+
+        assert_eq!(outcome, CommandOutputStarted::Started);
+        assert_eq!(pane.status(moment(0)), Some(Status::Running));
+    }
+
+    #[test]
+    fn note_command_output_started_twice_in_a_row_stays_running_with_a_fresh_tick() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(shell(), 0).unwrap();
+        pane.note_command_output_started(1);
+
+        let outcome = pane.note_command_output_started(2);
+
+        assert_eq!(outcome, CommandOutputStarted::Started);
+        assert_eq!(pane.status(moment(0)), Some(Status::Running));
+        assert_eq!(
+            pane.status_for_ranking(moment(0)),
+            Some((Status::Running, 2))
+        );
+    }
+
+    #[test]
+    fn note_command_output_started_on_a_command_pane_is_ignored() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(command(), 0).unwrap();
+        let program_status_before = pane.program_status();
+        let status_before = pane.status(moment(0));
+        let deadline_before = pane.next_status_deadline(moment(0));
+
+        let outcome = pane.note_command_output_started(1);
+
+        assert_eq!(outcome, CommandOutputStarted::NotAShellPane);
+        assert_eq!(pane.program_status(), program_status_before);
+        assert_eq!(pane.status(moment(0)), status_before);
+        assert_eq!(pane.next_status_deadline(moment(0)), deadline_before);
+    }
+
+    #[test]
+    fn note_command_ended_with_code_zero_is_finished() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        let outcome = pane.note_command_ended(Some(0), moment(100), 1);
+
+        assert_eq!(outcome, CommandEnded::Ended(Status::Finished));
+        assert_eq!(pane.status(moment(100)), Some(Status::Finished));
+    }
+
+    #[test]
+    fn note_command_ended_with_a_nonzero_code_is_failed() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        let outcome = pane.note_command_ended(Some(3), moment(100), 1);
+
+        assert_eq!(
+            outcome,
+            CommandEnded::Ended(Status::Failed { exit_code: 3 })
+        );
+        assert_eq!(
+            pane.status(moment(100)),
+            Some(Status::Failed { exit_code: 3 })
+        );
+    }
+
+    #[test]
+    fn note_command_ended_with_no_exit_code_clears_the_status_and_guesses_nothing() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        let outcome = pane.note_command_ended(None, moment(0), 1);
+
+        assert_eq!(outcome, CommandEnded::EndedWithNoExitCode);
+        assert_eq!(pane.status(moment(0)), None);
+        assert_eq!(pane.next_status_deadline(moment(0)), None);
+    }
+
+    #[test]
+    fn note_command_ended_with_no_preceding_start_is_ignored() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(shell(), 0).unwrap();
+
+        let outcome = pane.note_command_ended(Some(5), moment(0), 1);
+
+        assert_eq!(outcome, CommandEnded::Ignored);
+        assert_eq!(pane.status(moment(0)), None);
+    }
+
+    #[test]
+    fn note_command_ended_twice_in_a_row_the_second_is_ignored() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+        pane.note_command_ended(Some(0), moment(0), 1);
+
+        let outcome = pane.note_command_ended(Some(7), moment(0), 2);
+
+        assert_eq!(outcome, CommandEnded::Ignored);
+        assert_eq!(pane.status(moment(0)), Some(Status::Finished));
+    }
+
+    #[test]
+    fn note_command_ended_on_a_command_pane_is_ignored() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        pane.start_program(command(), 0).unwrap();
+        let program_status_before = pane.program_status();
+        let status_before = pane.status(moment(0));
+        let deadline_before = pane.next_status_deadline(moment(0));
+
+        let outcome = pane.note_command_ended(Some(0), moment(0), 1);
+
+        assert_eq!(outcome, CommandEnded::Ignored);
+        assert_eq!(pane.program_status(), program_status_before);
+        assert_eq!(pane.status(moment(0)), status_before);
+        assert_eq!(pane.next_status_deadline(moment(0)), deadline_before);
+    }
+
+    #[test]
+    fn record_exit_overwrites_a_running_typed_commands_status() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        pane.record_exit(9, moment(0), 1).unwrap();
+
+        assert_eq!(
+            pane.status(moment(0)),
+            Some(Status::Failed { exit_code: 9 })
+        );
+    }
+
+    #[test]
+    fn clear_status_does_not_touch_a_command_running_status() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        pane.clear_status();
+
+        assert_eq!(pane.status(moment(0)), Some(Status::Running));
+    }
+
+    #[test]
+    fn next_status_deadline_is_none_while_a_typed_command_is_running() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+
+        assert_eq!(pane.next_status_deadline(moment(0)), None);
+    }
+
+    #[test]
+    fn status_for_ranking_maps_command_running_to_running() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 7);
+
+        assert_eq!(
+            pane.status_for_ranking(moment(0)),
+            Some((Status::Running, 7))
+        );
+    }
+
+    #[test]
+    fn a_typed_commands_finished_status_is_still_shown_599_seconds_after_it_began() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+        pane.note_command_ended(Some(0), moment(0), 1);
+
+        assert_eq!(pane.status(moment(599)), Some(Status::Finished));
+    }
+
+    #[test]
+    fn a_typed_commands_finished_status_is_gone_exactly_600_seconds_after_it_began() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+        pane.note_command_ended(Some(0), moment(0), 1);
+
+        assert_eq!(pane.status(moment(600)), None);
+    }
+
+    #[test]
+    fn a_typed_commands_finished_status_is_gone_601_seconds_after_it_began() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+        pane.note_command_ended(Some(0), moment(0), 1);
+
+        assert_eq!(pane.status(moment(601)), None);
+    }
+
+    #[test]
+    fn a_typed_commands_failed_status_never_expires_however_far_past_ten_minutes() {
+        let mut pane = Pane::new(PaneId::from_raw(1), PaneKind::Terminal);
+        command_running(&mut pane, 0);
+        pane.note_command_ended(Some(3), moment(0), 1);
+
+        assert_eq!(
+            pane.status(moment(60 * 60 * 24 * 365)),
+            Some(Status::Failed { exit_code: 3 })
+        );
     }
 }

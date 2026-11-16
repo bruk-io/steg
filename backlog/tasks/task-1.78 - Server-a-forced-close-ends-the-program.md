@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T04:41:00Z'
+updated_date: '2026-11-16T04:52:00Z'
 labels:
   - size-3
   - review-passed
@@ -2491,6 +2491,14 @@ None of this changes refusal behaviour, target resolution, or the close-first/fo
 - Server suite run 20 times at the final head in one shell loop, all clean (every iteration's own per-file `test result: ok`, 0 FAILED anywhere). Process count by pattern (`sleep 1000`/`sleep 10[0-9]`/`trap .. HUP` - this task's own fixture shapes) taken immediately before starting the loop and immediately after it finished: 0 before, 0 after - no leaked process attributable to the run.
 - `cargo fmt --all -- --check`: clean.
 - CI green at 3e4594e (`gh pr checks 47 --watch`, watched in the foreground, run 43804770647) - the LikeC4 smoke test did not time out this run.
+
+---
+
+created: 2026-11-16T04:52:00Z
+
+---
+
+2026-11-15, @bruk.o: the merge of main into this branch (e7cc551 to 3e4594e, bringing in TASK-1.45's requests over the socket) is code no review covered, and the board does not start a review of a task that has passed, so a separate agent with no part in the work read it independently and reported: the hand-resolved hunks are additive only (both test modules kept in dispatch/lookup.rs; doc comments and Some(..) wrapping of context literals in runtime.rs) with nothing lost, duplicated or altered; listen::run creates one plain Runtime, connection threads borrow it inside a thread scope, and stop is called once after they are joined on every path, enforced by the borrow checker; stop is bounded by the grace period plus two fixed two-second margins whatever the number of panes; a request for a pane being forced gets the ordinary not-found because the pane and its handle leave the tree under one lock before any signal; this task's close-scope lookups go through TASK-1.45's Option-based targets and give the same missing-context refusal as every other method; just check passed and the server suite ran five times with no process left. One follow-up, not blocking: the grace period is a constant read in listen.rs and is not in ServerConfig beside the other timeouts (noted on TASK-1.88).
 
 ---
 <!-- COMMENTS:END -->

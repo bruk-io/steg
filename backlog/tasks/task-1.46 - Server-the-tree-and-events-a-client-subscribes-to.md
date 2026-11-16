@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:10:00Z'
+updated_date: '2026-11-16T12:14:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -47,21 +47,62 @@ question is answered in §2, not reopened.
 Three more things, found while fixing the five points raised, need your
 confirmation before I build against them:
 
-1. **The description's vocabulary for a reply-then-stream method (§2).** `Returns`
-   gains one variant, `Snapshot { of: String }` — a nested value too shaped to
-   flatten into fields, named in prose (the same honesty `ValueKind::Text`
-   already has for `layout`/`status`, one level up). `Method` gains
-   `stream_item: Option<Returns>` — when `Some`, this method's single,
-   id-matched reply is followed by further items with no id, shaped as the
-   given `Returns`. `event.watch`'s own `returns` becomes `Snapshot{of: "the
-   tree..."}`,  `stream_item` becomes `Some(Records{fields:[event,data]})` (what
-   it used to declare as `returns`, since that described the stream, not the
-   reply). TASK-1.47 has been told to follow this for attach (`returns:
-   Snapshot{of: "a pane's screen"}`, `stream_item: Some(Snapshot{of: "a screen
-   update"})`, since a delta is nested too). This breaks the existing
-   exhaustive `match` over `Returns` in `record.rs`'s own tests (by design —
-   `rust.md`'s own reason for refusing a `_` arm) — named in Files below, not
-   hidden.
+1. **The description's vocabulary, named precisely for TASK-1.47 to cite (§2).**
+   Two separate things, not one, because a method's own reply and what
+   follows it are two different questions:
+   - **A nested reply.** `Returns` gains one variant, naming the reply's own
+     sdk type rather than describing nothing: `Nested { of: String, summary:
+     String }` — `of` is the type's name (`"TreeSnapshot"`), the same role
+     `Identifier{of}` already plays for naming what kind of id a reply is,
+     applied here to naming what kind of value it is instead of a fields
+     table (the same honesty `ValueKind::Text` already has for `layout`/
+     `status`, one level up, but naming the real type instead of falling
+     back to prose alone). `api show` prints "a nested value of type `<of>`
+     — `<summary>`" in place of a fields table. A generated CLI's `--json`
+     prints the server's own JSON unchanged — already well-formed, needing
+     no reshaping, and its field names are the named sdk type's own serde
+     names, the single real definition (decision-1), not re-declared here a
+     second time. Plain-text rendering has no flat default for this case
+     (the same shape of exception doc-2 §6 already allows for `Text`
+     returns, e.g. `pane.capture`) — left to TASK-1.50 to decide, not
+     settled here. `event.watch`'s own `returns` becomes `Nested{of:
+     "TreeSnapshot", summary: "every session, with its tabs, each with its
+     panes, as of the moment this subscription began"}`.
+   - **A reply followed by a stream — a bare `opens_stream: bool` describes
+     too little: it cannot say whether what follows is id-less events on
+     this same control stream (decision-2 §3: "an event carries no id") or
+     a brand-new stream whose id a generated client has to read out of the
+     reply first (decision-2 §3: "every other stream id belongs to one
+     attachment, and the server hands it out in the attach result") — and a
+     generated client behaves differently in the two cases.** `Method`
+     gains one field, `follows: Follows`, a closed enum:
+     ```rust
+     pub enum Follows {
+         /// This reply is the end of it — every method but the two below.
+         Nothing,
+         /// Further items with no id, on the control stream this reply
+         /// itself travelled on. `event.watch`'s own case.
+         Events(Returns),
+         /// Further items with no id, on a new stream, whose id is named
+         /// by `stream_id_field` — one field of *this* reply. TASK-1.47's
+         /// attach.
+         Attachment { item: Returns, stream_id_field: String },
+     }
+     ```
+     `event.watch`: `follows: Follows::Events(Returns::Records{fields:
+     [event, data]})` — unchanged from what `returns` used to carry, moved
+     to where it actually belongs, since it described the stream, not the
+     reply. `Method` has no `Default`, so every one of the 41 other methods
+     gains one mechanical line, `follows: Follows::Nothing,` — the same
+     size of change TASK-1.47's own `opens_stream: bool` already costs,
+     for a type that says enough to act on. Both additions break the
+     existing exhaustive `match` over `Returns` in `record.rs`'s own tests
+     (by design — `rust.md`'s own reason for refusing a `_` arm) — named in
+     Files below, not hidden. TASK-1.47's own `pane.attach` is expected to
+     use `Nested{of: "PaneScreen", ...}` and `Follows::Attachment{item:
+     Nested{of: "ScreenUpdate", ...}, stream_id_field: "stream"}` (naming
+     its own reply's field that carries the new stream's id) — its plan to
+     confirm exactly, not this one's to invent for it.
 2. **"A subscription... can be ended" (AC #3) reads as "ended by disconnecting,"
    with no separate end-subscription method.** The alternative: an explicit
    `event.unwatch`-shaped method that ends a subscription on a connection that
@@ -132,9 +173,12 @@ for the live, mutable structure; this is its wire photograph, a different
 thing, in a different crate, and a reviewer should never have to ask "which
 Tree." Each gets the round-trip test the other records have; the
 fields-versus-description cross-check the others have does **not** apply here
-(§1's "For the engineer": a `Snapshot`-returning method is named in prose, the
-same exemption `api.show`'s own `Method`/`Description` values already get, for
-the same reason — there is no flat field list to check against).
+(§1's "For the engineer": a `Nested`-returning method names its own type by
+`of`, the same exemption `api.show`'s own `Method`/`Description` values
+already get, for the same reason — there is no flat field list to check
+against; a completeness test instead confirms `of` names a real sdk type by
+checking it against a small, explicit allow-list this task adds to, so a typo
+in `of` fails the build rather than silently describing nothing).
 
 **The pane-identity question, answered, not left open:** `TabRecord.layout`
 (`crates/sdk/src/layout.rs`) is a tree of splits whose leaves are `PaneId` — it
@@ -456,24 +500,31 @@ status changing — TASK-1.109's, §6).
   `register_subscriber`, resolves `api.call` to check for `event.watch` and
   routes to `Runtime::subscribe` when it matches (§4); `ConnectionCleanup::
   drop` calls `deregister_subscriber`.
-- `crates/sdk/src/description/shapes.rs` — `Returns::Snapshot{of}`;
-  `Method.stream_item: Option<Returns>` (§1 item 1).
-- `crates/sdk/src/description/methods.rs` — `event.watch`'s own `returns`/
-  `stream_item` (§2).
+- `crates/sdk/src/description/shapes.rs` — `Returns::Nested{of, summary}`;
+  `Follows` (`Nothing`/`Events`/`Attachment`); `Method.follows: Follows` (§1
+  item 1).
+- `crates/sdk/src/description/methods.rs` — every one of the 41 other
+  methods gains `follows: Follows::Nothing,`; `event.watch`'s own `returns`
+  becomes `Nested{..}` and gains `follows: Follows::Events(..)` (what
+  `returns` used to carry) (§2).
 - `crates/sdk/src/record.rs` (or a new `crates/sdk/src/tree.rs`,
   re-exported) — `TreeSnapshot`, `SessionTree`, `TabTree`; `crates/sdk/src/
   wire/connection.rs` — `Connection::watch`; a new small module or an
   addition to an existing one for `TreeEvent` and its `parse`.
 - `crates/sdk/src/record.rs`'s own test module — every exhaustive match over
-  `Returns` gains a `Snapshot{..}` arm (compiler-enforced by `rust.md`'s own
-  no-wildcard rule, named here so it is expected, not a surprise diff).
+  `Returns` gains a `Nested{..}` arm (compiler-enforced by `rust.md`'s own
+  no-wildcard rule, named here so it is expected, not a surprise diff); one
+  new completeness test, that every `Nested{of, ..}` in the description
+  names a real sdk type, against a small explicit allow-list this task adds
+  `"TreeSnapshot"` to (§2).
 - Test-only: new integration tests under `crates/server/tests/`.
 
 ## Order of work
 
-1. `Returns::Snapshot`/`Method.stream_item` in the sdk, with the exhaustive
-   -match fallout fixed at each of its own existing call sites; `event.watch`'s
-   own description entry updated. `just check` clean before anything else.
+1. `Returns::Nested`/`Follows`/`Method.follows` in the sdk, with the
+   exhaustive-match fallout fixed at each of its own existing call sites and
+   the one mechanical line added to every other method; `event.watch`'s own
+   description entry updated. `just check` clean before anything else.
 2. `TreeSnapshot`/`SessionTree`/`TabTree` in the sdk, with their round-trip
    tests; record builders made `pub(super)`; `dispatch/event.rs`'s
    `tree_snapshot` function, proven against a hand-built nested tree (no

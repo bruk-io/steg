@@ -292,6 +292,15 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnSO5gM` does not 
 .................................                                        [100%]
 33 passed in 0.01s
 ```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/adapter/test_foundations_generate_real_data.py -s'` exited 0 at 2026-11-16T02:39:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpO2FZgV` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..AC#4: 54 names in crates/ui/design/foundations.json, 54 in generated.rs
+.
+3 passed in 0.03s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

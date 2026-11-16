@@ -481,7 +481,13 @@ pub fn handle(
                 // path out of it including a panic - `handle`'s own final
                 // check below finds `None` here and sends nothing a
                 // second time.
-                run_post_handshake(&mut stream, &mut connection, runtime, client_id, events.take());
+                run_post_handshake(
+                    &mut stream,
+                    &mut connection,
+                    runtime,
+                    client_id,
+                    events.take(),
+                );
             }
         }
         FirstFrame::NotAHello(reason) => {

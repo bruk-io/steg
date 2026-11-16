@@ -1059,6 +1059,16 @@ ok      foundations public surface (0.0s)
 ```
 
 Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_public_surface.py tools/tests/adapter/test_foundations_public_surface_real_files.py'` exited 0 at 2026-11-16T04:11:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at e4f757c7a2d9 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpgdhMbZ` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.........                                                                [100%]
+9 passed in 0.01s
+```
+
+Commits since the review: 30, 28 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

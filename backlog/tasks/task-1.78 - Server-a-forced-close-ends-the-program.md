@@ -1,13 +1,14 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:36:00Z'
+updated_date: '2026-11-16T01:52:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -21,8 +22,10 @@ asdlc_branch: task-1.78-server-a-forced-close-ends-the-program
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1528,6 +1531,37 @@ created: 2026-11-16T01:36:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T01:52:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Reviewed at PR #47 head 68d10a8032c024598469b6c9d3524383a433fe76 (just check clean at this oid, 01:31/01:35 UTC on a clean tree; PR CI green on the same oid).
+
+[Bugs/Compliance, Important] crates/server/src/runtime.rs (force_end, pass 3) + crates/server/src/pane.rs (signal_hangup/signal_kill/Exited). The plan (§1) defends the direct-atomic signal design as carrying only "an existing, unchanged risk class" (a signal reaching a reused pid after reap) and states elsewhere "nothing in this task makes the window wider" - both unsupported, and the first points at the wrong window (a zombie's pid is not yet reusable; reuse needs the reap, which already happened by the time child.wait() returns in spawn_relay). In the pre-task code the signal (killer.kill()) was itself a command on the same single-consumer queue as Exited, so by the time the worker dequeued Stop, any Exited enqueued ahead of it had already cleared `current` - no window. This task's own design deliberately takes the signal off that queue (§1's own stated reason: not to be delayed behind a flooding pane's PtyBytes backlog) via signal_hangup/signal_kill reading `pid: Arc<AtomicU64>` directly, while the atomic itself is still only cleared when the worker *dequeues* the Exited command - i.e. still behind that same backlog. The result: force_end's pass 2 (await_exit, which does go through the queue) can time out and classify a pane as a "straggler" purely because its Exited is still queued behind backlog, even though the program already exited. Pass 3 then fires signal_kill (killpg) at the stale pid - at minimum a wasted SIGKILL plus a pointless 2s wait in pass 4 for an exit that already happened (no test or assertion catches this: the straggler/no-straggler tests use grace windows wide enough that a real backlog-timeout misclassification doesn't come up), and in the worst case (pid already recycled by the OS in that window) a signal to an unrelated process's whole group - remote on this machine's pid space, but not the "unchanged" risk the notes claim. Repeated myself as a negative control in a scratch edit (reverted): with pass 3's signal_kill call disabled, pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails exactly as expected, confirming escalation is the real, load-bearing mechanism the notes say it is - the finding here is the residual-risk characterization and the misclassification path, not that escalation itself is fake.
+
+[Evidence/Compliance, Important] crates/server/tests/runtime.rs - AC #4's "every method, not only a second --force" guarantee (plan §6, §9) is not actually proven. The plan's own §9 text: "A second thread issues pane.show (then, separately, a plain pane.close, then pane.swap) against the same pane that is being forced, each asserting it is refused..." - three methods in one promised test. What is committed: a_pane_being_forced_is_unreachable_by_another_request_meanwhile tests pane.show only; a_force_racing_another_force_on_the_same_pane_never_double_acts tests a second pane.close --force, and its own comment concedes this proves mutual exclusion via the Mutex, not close-first specifically. pane.swap and a plain (non-force) pane.close against a pane mid-force are never exercised; neither are pane.move or pane.set/unset, though dispatch/pane.rs fully implements all four (move_/set/unset/swap, not stubs) and §6 names them explicitly as covered by the restated guarantee. Per policy, a clause the plan/brief names as worth proving needs a test that reaches it, and a test of one method does not cover another; this is an unmet clause, and an unnamed departure from the plan's own proof section (the notes record the renamed double-force test but say nothing about the vanished swap/plain-close coverage).
+
+[Evidence, Nit] Notes' "cargo test -p steg-server 10/10 clean at default parallelism" is recorded at 61369d880a6d with uncommitted changes, not at the final head 68d10a8 the plan's own "Repeated-run honesty" section calls for. Re-ran it myself: 20/20 clean at 68d10a8, default parallelism, no leaked processes before/after (ps count unchanged save for this harness's own unrelated background polling) - the substance holds, only the recorded run was stale.
+
+[Bugs, Nit] pane.rs worker_loop's PaneCommand::Exited arm clears the shared pid atomic unconditionally, with no check that the exiting run is still the current one; PaneHandle::restart writes the new pid before sending Resume but the Resume arm does nothing to re-assert it. An Exited for an old run processed after a Resume for a new one would zero the new run's pid permanently (silent force thereafter, ~6s stall, leaked worker/relay). Not currently reachable: no dispatch path calls restart yet (kernel ExitOutcome has only Closed/Stayed, no restart variant), and the only two existing callers (program.rs, real_pty.rs) call restart only after observing the external PaneEvent::Exited, which structurally cannot happen before the worker has already cleared the atomic. Worth a guard or a comment before restart is wired to dispatch.
+
+[Bugs, Nit] dispatch/{pane,tab,session}.rs close() arms call panes_in_close_scope a second time (once here for the refusal check, once again inside Runtime::close_and_dispatch) - no behaviour difference, a small duplicated tree walk per close.
+
+One more nit not detailed: dispatch/lookup.rs's panes_in_close_scope silently treats an unreachable pane id as "not running" in any_pane_running rather than surfacing it, documented as "never expected" - fine given the doc, flagged only because no test exercises that branch either.
+
+Negative controls repeated by hand, reverted: (1) force_end pass 3's signal_kill call disabled -> pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails by its bound, as recorded; (2) close_and_dispatch's idle-handle pop (step 3) disabled -> pane_close_with_force_actually_ends_a_silent_program fails (process stays alive), as recorded.
+
+Checked and clean: no unsafe anywhere in the diff; nix's "signal" feature is listed in boundaries.toml's [steg-server] allow/reason and Cargo.toml, matching plan §8; no crates/kernel or crates/sdk files touched; files touched match the plan's own "Files that change" list exactly.
+
+Overlap: TASK-1.84 (PR #46, in review) adds two apply_event_locked arms for command marks that "deliberately leave the handle in place" on PaneNotFound - that assumption is about to become moot once this merges, since close_and_dispatch now pops every scope pane's handle synchronously at close time (both forced and plain closes), before any mark or exit event for it can arrive; there will be no handle left in state.panes to leave in place. TASK-1.84 will need to revisit that comment/behaviour against this task's new reality, though it is not this task's own bug. TASK-1.45 (not yet in review) constructs Runtime::new and calls stop() explicitly; it will need to pass a force_grace argument (FORCE_GRACE_DEFAULT for production) and should expect stop() to take up to ~6s worst case now rather than up to 5s per pane serially.
 
 ---
 <!-- COMMENTS:END -->

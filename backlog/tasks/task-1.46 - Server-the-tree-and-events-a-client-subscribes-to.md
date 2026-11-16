@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:39:00Z'
+updated_date: '2026-11-16T15:40:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1457,6 +1457,34 @@ failures:
     pane_split_emits_pane_created_only
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_close_emits_the_whole_cascade_innermost_first'` exited 101 at 2026-11-16T15:40:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ffd6f32a509c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_close_emits_the_whole_cascade_innermost_first ... FAILED
+
+failures:
+
+---- session_close_emits_the_whole_cascade_innermost_first stdout ----
+
+thread 'session_close_emits_the_whole_cascade_innermost_first' (43421803) panicked at crates/server/tests/events.rs:345:5:
+expected the first tab's own tab.closed third, got PaneClosed { id: PaneId(6) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_emits_the_whole_cascade_innermost_first
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.03s
 
 error: test failed, to rerun pass `-p steg-server --test events`
 ```

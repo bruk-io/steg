@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:24:00Z'
+updated_date: '2026-11-16T00:28:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -731,6 +731,31 @@ stale one, the exact thing TASK-1.76's second review was dinged for).
 
 <!-- SECTION:NOTES:BEGIN -->
 Rewritten plan checked against doc-2 sections 8 and 9, doc-8 R97, doc-15 and doc-16 by @bruk.o: ok, with one item that is the engineer's. The forced close is done close-first: under one lock acquisition the refusals are checked, the handles taken and the pane, tab or session closed in the tree; the lock is dropped; then every program in scope is ended outside it (the process group signalled, one shared deadline, the stragglers killed, each exit observed, every thread joined) and the caller answered. From the instant the lock is released nothing can name a pane being forced, which meets the fourth criterion for every method and needs no extra state; the program's own exit event finding no pane is what apply_event already tolerates. This reverses the order the first criterion's wording gives (end, observe, then close): approving the plan confirms the change, and the orchestrator then rewords that criterion. Runtime::stop is rebuilt on the same primitive, so its bound no longer grows with the number of panes and a program ignoring a hangup no longer survives it. Folded in, found in TASK-1.76's code: a plain close of a pane whose program had ended left its handle and worker thread behind. Stated residuals: a process in an uninterruptible kernel sleep may outlive the kill for a time, with its thread pair left until it clears; an interactive shell's job control moving a background job to its own process group is not reached by the group signal. No kernel or sdk change, no new dependency (one feature on nix), no unsafe.
+
+Check passed: `just check` exited 0 at 2026-11-16T00:28:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at ab290648a7b0:
+
+```text
+ok      format check (0.2s)
+ok      lint (92.9s)
+ok      boundaries (0.2s)
+ok      licences (0.9s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (45.2s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.8s)
+ok      test (steg-server) (6.3s)
+ok      test (steg-server, race-fixture) (6.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (19.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (2.4s)
+ok      architecture (2.0s)
+ok      recipe names (0.2s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

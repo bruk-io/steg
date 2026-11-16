@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:14:00Z'
+updated_date: '2026-11-16T15:15:00Z'
 labels:
   - size-4
   - changes-requested
@@ -663,6 +663,48 @@ running 1 test
 test description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 142 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` exited 101 at 2026-11-16T15:15:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+warning: unused import: `param_present`
+ --> crates/server/src/dispatch/session.rs:9:5
+  |
+9 |     param_present, param_str, target_session, wire_position_to_index,
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.34s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given ... FAILED
+
+failures:
+
+---- unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given stdout ----
+
+thread 'unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given' (42188830) panicked at crates/server/tests/dispatch.rs:467:9:
+assertion `left == right` failed: session: --no-label should also clear
+  left: Some("y")
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.

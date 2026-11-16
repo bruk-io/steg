@@ -421,6 +421,12 @@ Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:47:30+0
 ```text
 ok      openpty race control (110.2s)
 ```
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-16T13:47:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+ok      openpty race control (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

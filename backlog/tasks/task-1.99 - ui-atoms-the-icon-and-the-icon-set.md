@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T02:45:00Z'
-updated_date: '2026-11-16T13:07:00Z'
+updated_date: '2026-11-16T13:08:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -161,3 +161,9 @@ Each test above is run and recorded against the code as it stands at the end of 
 - `IconAssets`/`with_assets` wiring in the gallery is this crate's first contact with GPUI's asset system at all - needs confirming empirically in the build phase by actually running the gallery once (`just run-gallery`), not just reading source, in case `usvg`/`resvg` reject something about the generated markup's shape (an unexpected attribute, a missing root `xmlns`) that a read of the source alone can't rule out.
 - The split proposal (section "For the engineer") is mine to raise, not mine to decide; if the engineer keeps one task, the order of work above is unchanged, only the task boundary.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (7845702ae4ea) checked against doc-17 (R117 to R125), decision-10, decision-11 and the four acceptance criteria by @bruk.o, 2026-11-16: sound in design; not yet ok for approval. (1) The split is taken: the shapes and names generated from the page are drafted as their own task; this task keeps the Icon atom and the gallery. (2) Not ok as written: the plan adds sizes.icon to foundations.json by hand. R121 says every named value comes from the design artifact and the data file is exported from it, never edited by hand. Either the design's Tokens page gains an icon size row (the orchestrator edits the artifact and exports, as on 2026-11-15), or the sizes stay on the Icon card of the Atoms page and are generated from there. For the engineer. (3) Prefer the page's markup unchanged: the plan rewrites currentColor to a literal black; keep currentColor if a run shows the pinned renderer draws it, so the tool changes nothing and no colour literal appears. (4) For the engineer to know: GPUI 0.2.2 has no accessibility API at all, so R125 (role, name and state for assistive technology) cannot be met at this pin by any component.
+<!-- SECTION:NOTES:END -->

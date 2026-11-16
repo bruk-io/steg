@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:07:00Z'
+updated_date: '2026-11-16T04:10:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1021,6 +1021,17 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpCFDk5U` does not 
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 1 at 2026-11-16T04:10:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 8b91a2de2376 with uncommitted changes:
+
+```text
+FAILED  foundations public surface (exit 1, 0.0s)
+crates/ui/gallery/main.rs: pub fn stray_bare_colour(...) -> Hsla is outside impl Theme - doc-17 R123 refuses a public function that hands out a bare light-or-dark colour; give it through a Theme method instead.
+full output: .quiet/foundations-public-surface.log
+error: recipe `check-foundations-public-surface` failed on line 174 with exit code 1
+```
+
+Commits since the review: 29, 28 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

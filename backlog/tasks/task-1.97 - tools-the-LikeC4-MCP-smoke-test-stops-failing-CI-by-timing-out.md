@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:40:00Z'
+updated_date: '2026-11-16T03:47:00Z'
 labels:
   - size-2
   - review-passed
@@ -480,6 +480,16 @@ Every proof item P2-P9 has a recorded run or a named-and-sound drop reason (P5, 
 No drafts filed: `asdlc board draft list --plain` shows no open drafts, and this review's one finding (the stale docstring path) isn't a repeat of a mistake an earlier review cited - it's new.
 
 Cleanup: worktree left clean (`git status --short` empty), no likec4/npx processes left, no proxy env vars left set.
+
+---
+
+created: 2026-11-16T03:47:00Z
+
+---
+
+Post-review nit fixed: tools/src/steg_tools/likec4_mcp.py's docstring pointed at tests/functional/test_likec4_mcp.py, which doesn't exist; corrected to test_likec4_mcp_phased_timeout.py (its real name, renamed earlier to avoid a basename collision). Nothing else changed.
+
+Ran: `just check` in the foreground at the merged head (9bee526) - all green (format check, lint, boundaries, licences, every crate's build/test, tool tests 11.3s, architecture 0.7s, recipe names). Pushed to the same branch (34311bf..9bee526) and watched `gh pr checks 53 --watch` to green on the new head (run https://github.com/bruk-io/steg/actions/runs/43799855944, 3m48s). No record-check or finish run, per instruction that the board doesn't take those after a clean review.
 
 ---
 <!-- COMMENTS:END -->

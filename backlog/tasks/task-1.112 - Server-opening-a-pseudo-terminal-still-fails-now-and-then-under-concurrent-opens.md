@@ -3,9 +3,11 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
+updated_date: '2026-11-16T11:36:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -13,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
 ---
 
 ## Description

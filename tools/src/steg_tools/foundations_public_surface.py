@@ -6,12 +6,14 @@ instead: review #5 of TASK-1.93 found exactly this claim false once (a public
 `default_session(Appearance) -> Hsla`, found by calling it from outside `foundations`) and
 asked for the check the claim deserves.
 
-What this checks, precisely: every `pub fn ... -> Hsla` found by regex over the raw source
-text of every `.rs` file under `crates/ui/src/**` and `crates/ui/gallery/**` (the crate's
-whole public surface, not just `foundations` - the claim is about the crate, and the one
-violation found so far was in `gallery/main.rs`, not `foundations` itself), that falls
-outside every brace-matched `impl Theme { ... }` block in that same file. A violation names
-the file and the function.
+What this checks, precisely: every `pub fn ... -> Hsla` (qualified as `gpui::Hsla` or bare
+- found that way, not reasoned about in advance, when an early draft of this check's own
+negative control used the qualified spelling and passed silently) found by regex over the
+raw source text of every `.rs` file under `crates/ui/src/**` and `crates/ui/gallery/**`
+(the crate's whole public surface, not just `foundations` - the claim is about the crate;
+review #5's actual finding was `default_session` in `foundations/mod.rs` itself), that
+falls outside every brace-matched `impl Theme { ... }` block in that same file. A
+violation names the file and the function.
 
 What this cannot see, named outright: a function returning `Hsla` wrapped in another type
 (a tuple, `Option<Hsla>`, a struct with an `Hsla` field) - `hex_of`, `tint()` and `scrim()`
@@ -37,7 +39,7 @@ from steg_tools import workspace
 REPO_ROOT_RELATIVE_SRC_DIR = "crates/ui/src"
 REPO_ROOT_RELATIVE_GALLERY_DIR = "crates/ui/gallery"
 
-_PUB_FN_RETURNING_HSLA = re.compile(r"pub fn (\w+)\([^)]*\)(?:\s*->\s*Hsla)\b")
+_PUB_FN_RETURNING_HSLA = re.compile(r"pub fn (\w+)\([^)]*\)(?:\s*->\s*(?:gpui::)?Hsla)\b")
 _IMPL_THEME_OPEN = re.compile(r"impl\s+Theme\s*\{")
 
 

@@ -15,6 +15,13 @@ def test_a_bare_hsla_returning_pub_fn_outside_impl_theme_is_a_violation() -> Non
     assert found == (Violation("mod.rs", "default_session"),)
 
 
+def test_a_fully_qualified_gpui_hsla_return_type_is_also_caught() -> None:
+    # Found by accident, not reasoned about in advance: an early negative control
+    # written with this spelling passed silently before the regex covered it.
+    source = "pub fn stray() -> gpui::Hsla {\n    gpui::black()\n}\n"
+    assert bare_hsla_returning_functions("main.rs", source) == (Violation("main.rs", "stray"),)
+
+
 def test_a_pub_fn_returning_hsla_inside_impl_theme_is_not_a_violation() -> None:
     source = "impl Theme {\n    pub fn text(&self) -> Hsla {\n        hsla_from_hex(0x000000)\n    }\n}\n"
     assert bare_hsla_returning_functions("generated.rs", source) == ()

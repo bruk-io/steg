@@ -380,7 +380,11 @@ fn a_filter_by_name_keeps_only_that_event() {
         matches!(event, TreeEvent::TabCreated { .. }),
         "expected only tab.created, got {event:?}"
     );
-    assert_nothing_arrives_within(&mut sub_stream, Duration::from_millis(300));
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
+    );
 
     stop_server(&stop, handle);
 }
@@ -424,7 +428,11 @@ fn a_filter_by_session_excludes_another_sessions_events() {
 
     // The narrowly-subscribed connection must see nothing from the other
     // session; the `--all` one must see both of its creation events.
-    assert_nothing_arrives_within(&mut narrow_stream, Duration::from_millis(300));
+    assert_nothing_arrives_within(
+        &mut narrow_stream,
+        &mut narrow_connection,
+        Duration::from_millis(300),
+    );
     let first = read_event(&mut wide_stream, &mut wide_connection);
     assert!(matches!(first, TreeEvent::TabCreated { .. }), "{first:?}");
     let second = read_event(&mut wide_stream, &mut wide_connection);
@@ -436,12 +444,30 @@ fn a_filter_by_session_excludes_another_sessions_events() {
     stop_server(&stop, handle);
 }
 
-fn assert_nothing_arrives_within(stream: &mut UnixStream, bound: Duration) {
+/// Asserts nothing further arrives on `stream` within `bound` - checking
+/// `connection`'s own already-decoded buffer *first*, not just whether
+/// new bytes land on the raw socket: a single `read()` can (and does)
+/// pull the bytes of more than one queued frame in one call, so a frame
+/// already fully received and sitting inside `connection`'s own decoder,
+/// never drained by an earlier `poll()` call, would otherwise go
+/// unnoticed here - found exactly that way while building this test.
+fn assert_nothing_arrives_within(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    bound: Duration,
+) {
+    if let Some(incoming) = connection.poll() {
+        panic!("expected nothing, but connection already had this buffered: {incoming:?}");
+    }
     stream.set_read_timeout(Some(bound)).unwrap();
-    let mut buf = [0_u8; 16];
+    let mut buf = [0_u8; 65536];
     match stream.read(&mut buf) {
         Ok(0) => {}
-        Ok(n) => panic!("expected nothing, got {n} bytes"),
+        Ok(n) => {
+            connection.receive(&buf[..n]);
+            let incoming = connection.poll();
+            panic!("expected nothing, got {n} bytes decoding to {incoming:?}");
+        }
         Err(err) => assert_eq!(
             err.kind(),
             std::io::ErrorKind::WouldBlock,
@@ -559,22 +585,32 @@ fn the_snapshots_reply_always_precedes_any_event_under_a_real_race() {
 
         let new_session_id = ok_id(mutator.join().unwrap());
 
-        // Exactly once: either the race's own session is already in the
-        // snapshot (it won the race to the lock), or it arrives as
-        // exactly one `session.created` event right after (never zero,
-        // never two).
+        // Exactly once: either the race's own session (with its own tab
+        // and pane - `session.new` mints all three atomically, so either
+        // the whole triple is in the snapshot or none of it is) is
+        // already in the snapshot (it won the race to the lock), or its
+        // own three creation events arrive right after (never zero,
+        // never duplicated).
         let in_snapshot = snapshot
             .sessions
             .iter()
             .any(|session: &SessionTree| session.session.id.to_string() == new_session_id);
         if !in_snapshot {
-            let event = read_event(&mut sub_stream, &mut sub_connection);
-            let TreeEvent::SessionCreated { id, .. } = event else {
-                panic!("expected session.created, got {event:?}");
+            let first = read_event(&mut sub_stream, &mut sub_connection);
+            let TreeEvent::SessionCreated { id, .. } = first else {
+                panic!("expected session.created, got {first:?}");
             };
             assert_eq!(id.to_string(), new_session_id);
+            let second = read_event(&mut sub_stream, &mut sub_connection);
+            assert!(matches!(second, TreeEvent::TabCreated { .. }), "{second:?}");
+            let third = read_event(&mut sub_stream, &mut sub_connection);
+            assert!(matches!(third, TreeEvent::PaneCreated { .. }), "{third:?}");
         }
-        assert_nothing_arrives_within(&mut sub_stream, Duration::from_millis(100));
+        assert_nothing_arrives_within(
+            &mut sub_stream,
+            &mut sub_connection,
+            Duration::from_millis(100),
+        );
     }
 
     stop_server(&stop, handle);
@@ -585,24 +621,54 @@ fn the_snapshots_reply_always_precedes_any_event_under_a_real_race() {
 #[test]
 fn a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event() {
     let (socket_path, stop, handle) = start_server();
-    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
-    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
-
-    assert_nothing_arrives_within(&mut sub_stream, Duration::from_millis(500));
-
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
-    call(
+    let session_id = ok_id(call(
         &mut client_stream,
         &mut client_connection,
         "session.new",
         Map::new(),
+    ));
+    let mut tab_params = Map::new();
+    tab_params.insert("target".to_string(), json!(session_id.clone()));
+    let other_tab = ok_id(call(
+        &mut client_stream,
+        &mut client_connection,
+        "tab.new",
+        tab_params,
+    ));
+
+    // Subscribed only after every creation event above has already
+    // happened - `tab.focus` below is the one, single event this test
+    // is actually about; `session.new`/`tab.new` legitimately produce
+    // three and two events respectively (proven by their own tests), so
+    // neither belongs in a test asserting "exactly one".
+    let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
+    subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
+
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(500),
+    );
+
+    let mut focus_params = Map::new();
+    focus_params.insert(
+        "target".to_string(),
+        json!(format!("{session_id}/{other_tab}")),
+    );
+    call(
+        &mut client_stream,
+        &mut client_connection,
+        "tab.focus",
+        focus_params,
     );
     let event = read_event(&mut sub_stream, &mut sub_connection);
-    assert!(
-        matches!(event, TreeEvent::SessionCreated { .. }),
-        "{event:?}"
+    assert!(matches!(event, TreeEvent::TabFocused { .. }), "{event:?}");
+    assert_nothing_arrives_within(
+        &mut sub_stream,
+        &mut sub_connection,
+        Duration::from_millis(300),
     );
-    assert_nothing_arrives_within(&mut sub_stream, Duration::from_millis(300));
 
     stop_server(&stop, handle);
 }

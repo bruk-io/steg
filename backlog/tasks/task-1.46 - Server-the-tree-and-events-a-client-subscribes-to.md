@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:49:00Z'
+updated_date: '2026-11-16T14:51:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1098,6 +1098,34 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events tab_focus_emits_tab_focused_with_the_whole_path'` exited 101 at 2026-11-16T14:51:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test tab_focus_emits_tab_focused_with_the_whole_path ... FAILED
+
+failures:
+
+---- tab_focus_emits_tab_focused_with_the_whole_path stdout ----
+
+thread 'tab_focus_emits_tab_focused_with_the_whole_path' (41802943) panicked at crates/server/tests/events.rs:148:39:
+reading the event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tab_focus_emits_tab_focused_with_the_whole_path
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
 ```
 
 Commits since the review: 0.

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:03:00Z'
+updated_date: '2026-11-16T04:04:00Z'
 labels:
   - size-3
   - changes-requested
@@ -970,6 +970,16 @@ tools/tests/adapter/test_foundations_public_surface_real_files.py:18: AssertionE
 =========================== short test summary info ============================
 FAILED tools/tests/adapter/test_foundations_public_surface_real_files.py::test_the_real_foundations_module_has_no_bare_hsla_returning_pub_fn
 1 failed in 0.02s
+```
+
+Commits since the review: 0.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_public_surface.py tools/tests/adapter/test_foundations_public_surface_real_files.py -s'` exited 0 at 2026-11-16T04:04:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpmHwwXo` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+........
+8 passed in 0.01s
 ```
 
 Commits since the review: 0.

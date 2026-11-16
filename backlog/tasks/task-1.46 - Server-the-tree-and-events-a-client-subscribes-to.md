@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:08:00Z'
+updated_date: '2026-11-16T14:05:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -690,6 +690,228 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:35:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 3a79c062eaef with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (11.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (11.2s)
+ok      test (steg-server, race-fixture) (11.4s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:54:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 1e060c7a8116 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.3s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (13.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (13.4s)
+ok      test (steg-server, race-fixture) (12.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events the_snapshots_reply_always_precedes_any_event_under_a_real_race'` exited 101 at 2026-11-16T13:57:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test the_snapshots_reply_always_precedes_any_event_under_a_real_race ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37919283) panicked at crates/server/tests/events.rs:556:17:
+expected the reply first, got Event { name: "session.created", body: Object {"id": String("0000002f"), "label": Null} } instead
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full'` exited 101 at 2026-11-16T13:58:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full ... FAILED
+
+failures:
+
+---- runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full stdout ----
+
+thread 'runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full' (37931197) panicked at crates/server/src/runtime.rs:2046:29:
+expected a clean close, got Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_close_emits_the_whole_cascade_innermost_first'` exited 101 at 2026-11-16T13:59:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_close_emits_the_whole_cascade_innermost_first ... FAILED
+
+failures:
+
+---- session_close_emits_the_whole_cascade_innermost_first stdout ----
+
+thread 'session_close_emits_the_whole_cascade_innermost_first' (37937938) panicked at crates/server/tests/events.rs:280:5:
+expected tab.closed second, got SessionClosed { id: SessionId(2) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_emits_the_whole_cascade_innermost_first
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events'` exited 101 at 2026-11-16T14:00:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes, last 40 of 47 lines:
+
+```text
+test a_filter_by_name_keeps_only_that_event ... FAILED
+test disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast ... ok
+test a_filter_by_session_excludes_another_sessions_events ... FAILED
+test session_close_emits_the_whole_cascade_innermost_first ... ok
+test tab_focus_emits_tab_focused_with_the_whole_path ... ok
+test a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37965593) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_filter_by_name_keeps_only_that_event stdout ----
+
+thread 'a_filter_by_name_keeps_only_that_event' (37965585) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "pane.created", body: Object {"id": String("00000006"), "label": Null, "tab": String("00000005")} }
+
+---- a_filter_by_session_excludes_another_sessions_events stdout ----
+
+thread 'a_filter_by_session_excludes_another_sessions_events' (37965586) panicked at crates/server/tests/events.rs:465:13:
+expected nothing, got 207 bytes decoding to Some(Event { name: "tab.created", body: Object {"id": String("00000009"), "label": Null, "session": String("00000004")} })
+
+---- a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event stdout ----
+
+thread 'a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event' (37965587) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+
+
+failures:
+    a_filter_by_name_keeps_only_that_event
+    a_filter_by_session_excludes_another_sessions_events
+    a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 5 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:05:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (2.3s)
+ok      test (steg-server) (12.0s)
+ok      test (steg-server, race-fixture) (13.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

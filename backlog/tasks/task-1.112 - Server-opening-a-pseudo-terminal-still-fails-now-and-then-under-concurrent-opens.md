@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:12:00Z'
+updated_date: '2026-11-16T13:16:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -357,6 +357,51 @@ running 1 test
 test a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:16:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes, last 40 of 80 lines:
+
+```text
+running 13 tests
+test an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly ... ok
+test a_control_frame_arriving_first_gets_a_malformed_hello_refusal ... ok
+test a_connection_is_reported_connected_before_it_sends_its_hello ... ok
+test undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal ... ok
+test a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal ... ok
+test a_version_mismatch_names_both_versions_over_a_real_connection ... ok
+test a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal ... ok
+test a_connection_that_never_sends_a_hello_is_closed_after_the_timeout ... ok
+test a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply ... ok
+test a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted ... ok
+test a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout ... ok
+test a_hello_completing_well_after_the_deadline_is_closed_with_no_reply ... ok
+test a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 2 tests
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+test cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure ... FAILED
+
+failures:
+
+---- cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure stdout ----
+
+thread 'cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure' (28421900) panicked at crates/server/tests/openpty_race.rs:191:5:
+expected at least one failure across 3200 real cross-process opens with retry forced off (max_open_attempts = 1) - zero means the race was not reproduced on this run; see the task's own notes before weakening or deleting this test
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cross_process_opens_with_no_retry_the_permanent_control_shows_at_least_one_failure
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.83s
+
+error: test failed, to rerun pass `-p steg-server --test openpty_race`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

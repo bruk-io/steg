@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:01:00Z'
+updated_date: '2026-11-16T00:02:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -21,6 +21,8 @@ asdlc_branch: task-1.83-kernel-running-finished-and-failed-for-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ca2675da38c4'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -709,6 +711,15 @@ created: 2026-11-15T23:38:00Z
 ---
 
 Plan approved by @bruk (ca2675da38c4, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T00:02:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.83: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

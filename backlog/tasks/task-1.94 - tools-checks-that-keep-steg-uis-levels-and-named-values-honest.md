@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:30:00Z'
+updated_date: '2026-11-16T02:31:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -387,6 +387,39 @@ tests/unit/test_ui_levels.py:197: AssertionError
 FAILED tests/unit/test_ui_levels.py::test_violations_passes_an_organism_using_a_molecule_an_atom_and_foundations
 FAILED tests/unit/test_ui_levels.py::test_violations_passes_an_organism_using_foundations_directly
 2 failed, 35 deselected in 0.02s
+```
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_levels.py -k '"'"'crate_root_exports or reexport'"'"''` exited 1 at 2026-11-16T02:31:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+FF.......                                                                [100%]
+=================================== FAILURES ===================================
+_______________ test_crate_root_exports_resolves_a_plain_pub_use _______________
+
+    def test_crate_root_exports_resolves_a_plain_pub_use() -> None:
+>       assert crate_root_exports("pub use crate::atoms::Button;\n") == {"Button": "atoms"}
+E       AssertionError: assert {} == {'Button': 'atoms'}
+E         
+E         Right contains 1 more item:
+E         {'Button': 'atoms'}
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:80: AssertionError
+_____________ test_crate_root_exports_resolves_an_aliased_pub_use ______________
+
+    def test_crate_root_exports_resolves_an_aliased_pub_use() -> None:
+>       assert crate_root_exports("pub use crate::atoms::Button as Btn;\n") == {"Btn": "atoms"}
+E       AssertionError: assert {} == {'Btn': 'atoms'}
+E         
+E         Right contains 1 more item:
+E         {'Btn': 'atoms'}
+E         Use -v to get more diff
+
+tests/unit/test_ui_levels.py:84: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_levels.py::test_crate_root_exports_resolves_a_plain_pub_use
+FAILED tests/unit/test_ui_levels.py::test_crate_root_exports_resolves_an_aliased_pub_use
+2 failed, 7 passed, 28 deselected in 0.02s
 ```
 <!-- SECTION:NOTES:END -->
 

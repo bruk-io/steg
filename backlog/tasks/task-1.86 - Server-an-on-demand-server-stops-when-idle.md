@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T12:22:00Z'
+updated_date: '2026-11-16T12:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -807,6 +807,33 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 failures:
     a_genuinely_idle_server_stops_itself_within_a_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` exited 101 at 2026-11-16T12:23:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker ... FAILED
+
+failures:
+
+---- closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker stdout ----
+
+thread 'closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker' (27625538) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
 

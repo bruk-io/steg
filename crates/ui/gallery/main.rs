@@ -19,14 +19,18 @@
 //! window, and nothing in `cargo build`/`cargo test` executes this file's `main`.
 
 use gpui::{
-    App, Application, Context, FocusHandle, Focusable, Hsla, KeyDownEvent, Render, TitlebarOptions,
-    Window, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    App, Application, Context, FocusHandle, Focusable, Hsla, KeyDownEvent, Pixels, Render,
+    TitlebarOptions, Window, WindowBounds, WindowOptions, div, linear_color_stop, linear_gradient,
+    prelude::*, px, size,
 };
 use steg_ui::foundations::{
-    self, Appearance, FOCUS_RING, FONT_TERMINAL, FONT_UI, MOTION_STATUS_FADE, NAV_SIDE, NAV_TOP,
-    OVERLAY_LAYOUT, PALETTE, PALETTE_INPUT, PANE_CAPTION, PANE_GAP, RADIUS_INNER, RADIUS_ROUND,
-    RADIUS_SURFACE, RADIUS_TRACK, ROW_GAP, SPACE, SPLIT_LAYOUT, STACK_GAP, STATUS_RING, TAB_WIDTH,
-    TERMINAL, TRACK_LAYOUT, Theme, UI_BODY, UI_LABEL, UI_SMALL,
+    self, Appearance, FOCUS_RING_DESCRIPTION, FONT_TERMINAL_DESCRIPTION, FONT_UI_DESCRIPTION,
+    MOTION_STATUS_FADE_DESCRIPTION, NAV_SIDE_DESCRIPTION, NAV_TOP_DESCRIPTION,
+    OVERLAY_LAYOUT_DESCRIPTION, PALETTE_DESCRIPTION, PALETTE_INPUT, PANE_CAPTION_DESCRIPTION,
+    PANE_GAP_DESCRIPTION, RADIUS_INNER, RADIUS_ROUND, RADIUS_SURFACE, RADIUS_TRACK,
+    ROW_GAP_DESCRIPTION, SPACE, SPLIT_LAYOUT_DESCRIPTION, STACK_GAP_DESCRIPTION,
+    STATUS_RING_DESCRIPTION, TAB_WIDTH_DESCRIPTION, TERMINAL_DESCRIPTION, TRACK_LAYOUT_DESCRIPTION,
+    Theme, UI_BODY, UI_LABEL, UI_SMALL,
 };
 
 /// Read the gallery's initial appearance from `STEG_GALLERY_THEME` ("light" or "dark",
@@ -41,19 +45,18 @@ fn appearance_from_env(value: Option<&str>) -> Appearance {
     }
 }
 
-/// Build the theme for `appearance`, with the default session colour `ramp.1 violet`'s
-/// own form - the data file's own `use` text names it "default session colour"
-/// (crates/ui/design/foundations.json). `Theme::new` needs a session colour before any
-/// of its other methods can be called, so this reaches `ramp_1_violet` through one
-/// short-lived bootstrap `Theme` rather than a literal.
+/// Build the theme for `appearance`, with `foundations::default_session` as the
+/// session colour - no component of this crate, this gallery included, writes its
+/// own colour literal (R120 binds a real component; this gallery holds itself to the
+/// same rule anyway, since TASK-1.94's check will too).
 fn gallery_theme(appearance: Appearance) -> Theme {
-    let bootstrap = Theme::new(appearance, gpui::rgb(0x000000).into());
-    let session = bootstrap.ramp_1_violet();
-    Theme::new(appearance, session)
+    Theme::new(appearance, foundations::default_session(appearance))
 }
 
 /// Every named colour this gallery shows, paired with its own `Theme` method
-/// (crates/ui/design/foundations.json's `colours` and `colour_aliases`).
+/// (crates/ui/design/foundations.json's `colours` and `colour_aliases`) - plus `tint`
+/// and `scrim`'s own colour component, which belong here rather than in "Other named
+/// values" (team lead's review: a colour wants a swatch and its hex, not debug text).
 fn colour_entries(theme: &Theme) -> Vec<(&'static str, Hsla)> {
     vec![
         ("surface.ground", theme.surface_ground()),
@@ -77,7 +80,30 @@ fn colour_entries(theme: &Theme) -> Vec<(&'static str, Hsla)> {
         ("blocked", theme.blocked()),
         ("done", theme.done()),
         ("error", theme.error()),
+        ("tint", theme.tint().0),
+        ("scrim", theme.scrim().colour),
     ]
+}
+
+/// `Hsla` -> `"#rrggbb"`, for display only - the standard HSL-to-RGB conversion, run
+/// backwards from whatever colour the theme already resolved. Not a second source of
+/// truth and not a colour literal: nothing here names a colour, it's arithmetic on
+/// one `Theme` already handed us, same as any other read of a value it returns.
+fn hex_of(colour: Hsla) -> String {
+    let h = colour.h * 6.0;
+    let c = (1.0 - (2.0 * colour.l - 1.0).abs()) * colour.s;
+    let x = c * (1.0 - (h.rem_euclid(2.0) - 1.0).abs());
+    let m = colour.l - c / 2.0;
+    let (r1, g1, b1) = match h as i32 {
+        0 => (c, x, 0.0),
+        1 => (x, c, 0.0),
+        2 => (0.0, c, x),
+        3 => (0.0, x, c),
+        4 => (x, 0.0, c),
+        _ => (c, 0.0, x),
+    };
+    let to_byte = |v: f32| ((v + m) * 255.0).round().clamp(0.0, 255.0) as u8;
+    format!("#{:02x}{:02x}{:02x}", to_byte(r1), to_byte(g1), to_byte(b1))
 }
 
 /// The 16 ANSI colours of one terminal theme, named the way `AnsiColours` lists them.
@@ -104,50 +130,60 @@ fn ansi_entries(ansi: &foundations::AnsiColours) -> Vec<(&'static str, Hsla)> {
 
 /// Every design name not already shown as a swatch, bar or sample elsewhere in this
 /// gallery (AC#4: every one of the 54 names findable somewhere in the image) - `faint`,
-/// `tint`, the rest of `type` and `sizes`, `motion.status-fade` and `focus_ring` - each
-/// as its own plain Rust value, read back with `{:?}` (every generated plain group
-/// derives `Debug`), resolved against `theme` wherever a value has a light/dark form.
+/// the rest of `type` and `sizes`, `motion.status-fade` and `focus_ring` (`tint` and
+/// `scrim` moved to `colour_entries` - a colour gets a swatch, not text). Each value
+/// reads its generated `*_DESCRIPTION` - the design's own words ("width 232px, ..."),
+/// never a Rust debug dump of struct/field syntax (team lead's review of the first
+/// capture). The three groups whose one colour field is excluded from their own
+/// `_DESCRIPTION` (`status.ring`, `track.layout`, `focus_ring`) name the already-shown
+/// colour their field equals, rather than drawing it a second time.
 fn other_named_values(theme: &Theme) -> Vec<(&'static str, String)> {
     vec![
-        ("faint", format!("{:?}", theme.faint())),
-        ("tint", format!("{:?}", theme.tint())),
-        ("font.ui", format!("{FONT_UI:?}")),
-        ("font.terminal", format!("{FONT_TERMINAL:?}")),
-        ("terminal", format!("{TERMINAL:?}")),
-        ("nav.side", format!("{NAV_SIDE:?}")),
-        ("nav.top", format!("{NAV_TOP:?}")),
-        ("tab.width", format!("{TAB_WIDTH:?}")),
-        ("pane.gap", format!("{PANE_GAP:?}")),
-        ("pane.caption", format!("{PANE_CAPTION:?}")),
-        ("palette", format!("{PALETTE:?}")),
+        ("faint", format!("{}", theme.faint())),
+        ("font.ui", FONT_UI_DESCRIPTION.to_string()),
+        ("font.terminal", FONT_TERMINAL_DESCRIPTION.to_string()),
+        ("terminal", TERMINAL_DESCRIPTION.to_string()),
+        ("nav.side", NAV_SIDE_DESCRIPTION.to_string()),
+        ("nav.top", NAV_TOP_DESCRIPTION.to_string()),
+        ("tab.width", TAB_WIDTH_DESCRIPTION.to_string()),
+        ("pane.gap", PANE_GAP_DESCRIPTION.to_string()),
+        ("pane.caption", PANE_CAPTION_DESCRIPTION.to_string()),
+        ("palette", PALETTE_DESCRIPTION.to_string()),
         (
             "status.ring",
-            format!("{STATUS_RING:?}, track {:?}", theme.status_ring_track()),
+            format!("{STATUS_RING_DESCRIPTION}, track colour = track"),
         ),
-        ("scrim", format!("{:?}", theme.scrim())),
-        ("row.gap", format!("{ROW_GAP:?}")),
-        ("stack.gap", format!("{STACK_GAP:?}")),
+        ("row.gap", ROW_GAP_DESCRIPTION.to_string()),
+        ("stack.gap", STACK_GAP_DESCRIPTION.to_string()),
         (
             "track.layout",
-            format!("{TRACK_LAYOUT:?}, fill {:?}", theme.track_layout_fill()),
+            format!("{TRACK_LAYOUT_DESCRIPTION}, fill colour = tint"),
         ),
-        ("split.layout", format!("{SPLIT_LAYOUT:?}")),
-        ("overlay.layout", format!("{OVERLAY_LAYOUT:?}")),
-        ("motion.status-fade", format!("{MOTION_STATUS_FADE:?}")),
+        ("split.layout", SPLIT_LAYOUT_DESCRIPTION.to_string()),
+        ("overlay.layout", OVERLAY_LAYOUT_DESCRIPTION.to_string()),
+        (
+            "motion.status-fade",
+            MOTION_STATUS_FADE_DESCRIPTION.to_string(),
+        ),
         (
             "focus_ring",
-            format!("{FOCUS_RING:?}, colour {:?}", theme.focus_ring_colour()),
+            format!("{FOCUS_RING_DESCRIPTION}, colour = session"),
         ),
     ]
 }
 
-/// One colour, its design name beneath it, and a border so a colour close to the
-/// window's own background still reads as its own swatch.
+/// One colour: a border so a colour close to the window's own background still reads
+/// as its own swatch, and its design name beneath it. `with_hex` also shows the
+/// colour's own hex (team lead's review: a colour wants a swatch *and* its hex, not
+/// just a name) - skipped for the 21-wide terminal theme rows, where this screen's
+/// own height is the binding constraint (every row already named, every hex still
+/// one `hex_of` call away from any of them).
 fn colour_swatch(
     name: &'static str,
     colour: Hsla,
     label_colour: Hsla,
     border: Hsla,
+    with_hex: bool,
 ) -> impl IntoElement {
     div()
         .flex()
@@ -156,8 +192,8 @@ fn colour_swatch(
         .gap(px(2.0))
         .child(
             div()
-                .w(px(40.0))
-                .h(px(26.0))
+                .w(px(44.0))
+                .h(px(28.0))
                 .rounded(RADIUS_INNER)
                 .border_1()
                 .border_color(border)
@@ -165,10 +201,18 @@ fn colour_swatch(
         )
         .child(
             div()
-                .text_size(px(10.0))
+                .text_size(px(9.0))
                 .text_color(label_colour)
                 .child(name),
         )
+        .when(with_hex, |swatch| {
+            swatch.child(
+                div()
+                    .text_size(px(9.0))
+                    .text_color(label_colour)
+                    .child(hex_of(colour)),
+            )
+        })
 }
 
 /// A titled section: a heading in the design's label style, then its own content.
@@ -184,6 +228,84 @@ fn section(title: &'static str, label_colour: Hsla, content: impl IntoElement) -
                 .child(title.to_uppercase()),
         )
         .child(content)
+}
+
+/// A ramp's stops, drawn as gradients and marked by percentage - not hard bands
+/// (team lead's review: "the design's ramps are gradients between named stops").
+/// gpui 0.2.2's own `linear_gradient` takes exactly two stops at a time
+/// (`color.rs`'s `LinearColorStop`, a fixed `[_; 2]`), so an N-stop ramp is N-1
+/// adjacent two-stop gradients, each sized to its own share of the bar's width.
+fn ramp_gradient(
+    stops: &[(f32, Hsla)],
+    width: Pixels,
+    height: Pixels,
+    muted: Hsla,
+) -> impl IntoElement {
+    let bar = div()
+        .flex()
+        .h(height)
+        .w(width)
+        .rounded(RADIUS_INNER)
+        .children(stops.windows(2).map(|pair| {
+            let (from_pct, from_colour) = pair[0];
+            let (to_pct, to_colour) = pair[1];
+            div()
+                .w(width * ((to_pct - from_pct) / 100.0))
+                .h_full()
+                .bg(linear_gradient(
+                    90.0,
+                    linear_color_stop(from_colour, 0.0),
+                    linear_color_stop(to_colour, 1.0),
+                ))
+        }));
+    let legend = div()
+        .flex()
+        .justify_between()
+        .w(width)
+        .children(stops.iter().map(|(pct, _)| {
+            div()
+                .text_size(px(9.0))
+                .text_color(muted)
+                .child(format!("{pct:.0}%"))
+        }));
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(2.0))
+        .child(bar)
+        .child(legend)
+}
+
+/// One terminal theme, labelled by its own design name, its base colours (background,
+/// the inactive background, foreground, the cursor - always the session colour - and
+/// selection) and its 16 ANSI colours, each a swatch with its own hex (team lead's
+/// review: "label the rows and add the base colours").
+fn terminal_theme_row(
+    label: &'static str,
+    theme: &foundations::TerminalTheme,
+    muted: Hsla,
+    border: Hsla,
+) -> impl IntoElement {
+    let mut entries = vec![
+        ("bg", theme.bg),
+        ("bg_inactive", theme.bg_inactive),
+        ("fg", theme.fg),
+        ("cursor (session)", theme.cursor),
+        ("selection", theme.selection),
+    ];
+    entries.extend(ansi_entries(&theme.ansi));
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(4.0))
+        .child(div().text_size(px(10.0)).text_color(muted).child(label))
+        .child(
+            div().flex().flex_wrap().gap(px(4.0)).children(
+                entries
+                    .into_iter()
+                    .map(|(name, colour)| colour_swatch(name, colour, muted, border, false)),
+            ),
+        )
 }
 
 struct Gallery {
@@ -233,37 +355,17 @@ impl Render for Gallery {
         let colours = div().flex().flex_wrap().gap(px(10.0)).children(
             colour_entries(theme)
                 .into_iter()
-                .map(|(name, colour)| colour_swatch(name, colour, text, border)),
+                .map(|(name, colour)| colour_swatch(name, colour, text, border, true)),
         );
 
         let ramp = theme.ramp();
-        let ramp_bar = div()
-            .flex()
-            .h(px(20.0))
-            .w(px(320.0))
-            .rounded(RADIUS_INNER)
-            .children(
-                ramp.stops
-                    .iter()
-                    .map(|(_, colour)| div().flex_1().h_full().bg(*colour)),
-            );
-        let ramp_extended_bar = div()
-            .flex()
-            .h(px(20.0))
-            .w(px(320.0))
-            .rounded(RADIUS_INNER)
-            .children(
-                theme
-                    .ramp_extended()
-                    .iter()
-                    .map(|(_, colour)| div().flex_1().h_full().bg(*colour)),
-            );
+        let ramp_extended = theme.ramp_extended();
         let ramps = div()
             .flex()
             .flex_col()
-            .gap(px(8.0))
-            .child(ramp_bar)
-            .child(ramp_extended_bar);
+            .gap(px(12.0))
+            .child(ramp_gradient(&ramp.stops, px(320.0), px(20.0), muted))
+            .child(ramp_gradient(&ramp_extended, px(320.0), px(20.0), muted));
 
         let spacing = div().flex().items_end().gap(px(6.0)).children(
             SPACE
@@ -319,34 +421,36 @@ impl Render for Gallery {
             }),
         );
 
-        let dark_ansi = foundations::steg_dark(theme.ramp_1_violet());
-        let light_ansi = foundations::steg_light(theme.ramp_1_violet());
+        let dark_terminal = foundations::steg_dark(theme.ramp_1_violet());
+        let light_terminal = foundations::steg_light(theme.ramp_1_violet());
         let terminal_themes = div()
             .flex()
             .flex_col()
-            .gap(px(8.0))
-            .child(
-                div().flex().flex_wrap().gap(px(4.0)).children(
-                    ansi_entries(&dark_ansi.ansi)
-                        .into_iter()
-                        .map(|(name, colour)| colour_swatch(name, colour, muted, border)),
-                ),
-            )
-            .child(
-                div().flex().flex_wrap().gap(px(4.0)).children(
-                    ansi_entries(&light_ansi.ansi)
-                        .into_iter()
-                        .map(|(name, colour)| colour_swatch(name, colour, muted, border)),
-                ),
-            );
+            .gap(px(12.0))
+            .child(terminal_theme_row(
+                "steg dark",
+                &dark_terminal,
+                muted,
+                border,
+            ))
+            .child(terminal_theme_row(
+                "steg light",
+                &light_terminal,
+                muted,
+                border,
+            ));
 
-        // Three columns, not one: this screen's own height is the binding constraint
+        // Five columns, not one: this screen's own height is the binding constraint
         // on the gallery window (observed clamped well short of the room a single
-        // column of this section's 20 rows would need), and this section has spare
-        // width to spend instead - three is what the window's own width actually
-        // fits (observed; a fourth ran off the right edge with no wrap).
+        // column of this section's rows would need), and this section has spare width
+        // to spend instead. Each column has its own fixed width, so a long value
+        // wraps onto a second line within its column rather than running off the
+        // window's edge (team lead's review of the first capture found exactly that,
+        // with three unconstrained columns) - this makes it a layout invariant, not
+        // something only re-checked by eye each time.
         let other_values = other_named_values(theme);
-        let column_size = other_values.len().div_ceil(3);
+        let column_size = other_values.len().div_ceil(5);
+        let other_column_width = px(220.0);
         let other = div()
             .flex()
             .gap(px(16.0))
@@ -355,6 +459,7 @@ impl Render for Gallery {
                     .flex()
                     .flex_col()
                     .gap(px(2.0))
+                    .w(other_column_width)
                     .children(rows.iter().map(|(name, value)| {
                         div()
                             .flex()
@@ -405,7 +510,7 @@ impl Render for Gallery {
 fn main() {
     let appearance = appearance_from_env(std::env::var("STEG_GALLERY_THEME").ok().as_deref());
     Application::new().run(move |cx: &mut App| {
-        let bounds = WindowBounds::centered(size(px(1040.0), px(1050.0)), cx);
+        let bounds = WindowBounds::centered(size(px(1240.0), px(1078.0)), cx);
         let result = cx.open_window(
             WindowOptions {
                 window_bounds: Some(bounds),
@@ -429,6 +534,20 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hex_of_round_trips_a_named_colours_own_hex() {
+        // ramp.1 violet, dark: #a98cff (crates/ui/design/foundations.json).
+        assert_eq!(hex_of(gpui::rgb(0xa98cff).into()), "#a98cff");
+    }
+
+    #[test]
+    fn hex_of_round_trips_a_near_neutral_colour() {
+        // surface.ground, light: #f1efec - near-grey (low saturation), the case the
+        // plan flagged as a real risk for this conversion (hue is ill-conditioned at
+        // low saturation) - checked directly rather than assumed fine.
+        assert_eq!(hex_of(gpui::rgb(0xf1efec).into()), "#f1efec");
+    }
 
     #[test]
     fn unset_is_light() {

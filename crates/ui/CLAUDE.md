@@ -16,7 +16,14 @@ request shows.
   foundations, never a literal (R120). The gallery is not a component of the four levels,
   but since TASK-1.93 it draws everything it shows - every swatch, ramp, type sample,
   spacing bar and corner - from `foundations` by name as well, the same as any real
-  component would; it has no literal of its own left to be exempt for.
+  component would. Its own non-test code has no colour literal left: `gallery_theme`
+  reaches the default session colour through `foundations::default_session`, not a hex.
+  Two literals remain, both inside `#[cfg(test)]` in `gallery/main.rs` - `hex_of`'s own
+  round-trip tests, which need a literal hex to assert against by the nature of what
+  they prove. TASK-1.94's colour-literal check (once it lands) treats a `#[cfg(test)]`
+  block the same as any other code, so whoever removes this crate's gallery-wide
+  exemption for that check needs either a narrower carve-out for these two tests or to
+  rehome them - flagged here rather than left for that task to discover.
 - Tests: `just test` runs this crate's tests when a change touches it; `just check-packages`
   builds and tests every package alone, including this one (both its `src/` lib and its
   `gallery` binary - compiling the binary is cheap and proves nothing opens a window by

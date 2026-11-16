@@ -392,8 +392,19 @@ def render_scrim(scrim: dict[str, object]) -> str:
     )
 
 
-def _plain_field(group: dict[str, object], key: str, value: object, index: dict[str, object]) -> tuple[str, str]:
-    """Render one non-colour field of an otherwise-plain group to (rust_type, initialiser).
+def _format_number(number: float) -> str:
+    """Render a number the way a person reading the design would write it - no
+    trailing `.0` on a whole number."""
+    return str(int(number)) if number == int(number) else str(number)
+
+
+def _plain_field(
+    group: dict[str, object], key: str, value: object, index: dict[str, object]
+) -> tuple[str, str, str]:
+    """Render one non-colour field of an otherwise-plain group to (rust_type,
+    initialiser, display) - `display` is the field's value in the design's own words
+    (`"232px"`, `"system"`), never Rust syntax; it's what `_DESCRIPTION` reads back,
+    not `{:?}` on the generated struct (a reviewer matches the design's page, not Rust).
 
     Raises:
         ValueError: `value` is a shape with no sensible plain Rust rendering.
@@ -401,27 +412,34 @@ def _plain_field(group: dict[str, object], key: str, value: object, index: dict[
     unit = group.get("unit")
     match value:
         case list() as items if items and isinstance(items[0], str):
-            return "&'static [&'static str]", "&[" + ", ".join(f'"{item}"' for item in items) + "]"
+            display = ", ".join(items)
+            return "&'static [&'static str]", "&[" + ", ".join(f'"{item}"' for item in items) + "]", display
         case list() as items:
             resolved = [resolve_size_ref(item, index) for item in items]
+            display = ", ".join(f"{_format_number(n)}{unit or ''}" for n in resolved)
             if unit == "px":
-                return f"[Pixels; {len(items)}]", "[" + ", ".join(f"px({float(n)})" for n in resolved) + "]"
-            return f"[f32; {len(items)}]", "[" + ", ".join(str(float(n)) for n in resolved) + "]"
+                return f"[Pixels; {len(items)}]", "[" + ", ".join(f"px({float(n)})" for n in resolved) + "]", display
+            return f"[f32; {len(items)}]", "[" + ", ".join(str(float(n)) for n in resolved) + "]", display
         case str() as text:
-            return "&'static str", f'"{text}"'
+            return "&'static str", f'"{text}"', text
         case {"ref": str()}:
             number = resolve_size_ref(value, index)
+            display = f"{_format_number(number)}{unit or ''}"
             if unit == "px":
-                return "Pixels", f"px({float(number)})"
-            return "f32", str(float(number))
+                return "Pixels", f"px({float(number)})", display
+            return "f32", str(float(number)), display
         case int() | float() as number:
             if key in _DIMENSIONLESS_FIELDS:
-                return "f32", str(float(number))
+                return "f32", str(float(number)), _format_number(number)
             if unit == "ms":
-                return "std::time::Duration", f"std::time::Duration::from_millis({int(number)})"
+                return (
+                    "std::time::Duration",
+                    f"std::time::Duration::from_millis({int(number)})",
+                    f"{_format_number(number)}ms",
+                )
             if unit == "px":
-                return "Pixels", f"px({float(number)})"
-            return "f32", str(float(number))
+                return "Pixels", f"px({float(number)})", f"{_format_number(number)}px"
+            return "f32", str(float(number)), _format_number(number)
         case _:
             raise ValueError(f"unexpected plain field {key!r}: {value!r}")
 
@@ -430,7 +448,11 @@ def render_plain_group(name: str, group: dict[str, object], index: dict[str, obj
     """Render one `type`/`sizes`/`motion`/`focus_ring` entry with no colour of its own
     (or whose one colour field `_EXCLUDED_FIELD` names, rendered separately by the
     caller) as a `pub struct` + `pub const`, or - with exactly one field left - a bare
-    `pub const` of that field's own type.
+    `pub const` of that field's own type; either way, also a `pub const
+    <IDENT>_DESCRIPTION: &str` in the design's own words (the gallery's "Other named
+    values" section reads this, not `{:?}` on the struct, since a Rust debug dump of
+    nested braces and field names isn't what a reviewer matches against the design's
+    own page - team lead's review of this task's first gallery capture).
 
     Raises:
         ValueError: nothing is left to render once metadata and the excluded field are
@@ -442,30 +464,30 @@ def render_plain_group(name: str, group: dict[str, object], index: dict[str, obj
     for key, value in group.items():
         if key in ("name", "use") or key == "unit" or key.endswith("_unit") or key == excluded:
             continue
-        rust_type, initialiser = _plain_field(group, key, value, index)
-        fields.append((key, rust_type, initialiser))
+        rust_type, initialiser, display = _plain_field(group, key, value, index)
+        fields.append((key, rust_type, initialiser, display))
     if not fields:
         raise ValueError(f"group {name!r} has no plain fields to render")
     marker = _marker(name, group.get("use"))
     if len(fields) == 1:
-        _, rust_type, initialiser = fields[0]
+        _, rust_type, initialiser, display = fields[0]
         # A `const`'s own type gets an implicit `'static` on every reference in it
         # (unlike a struct field's, which needs it spelled out) - clippy's
         # `redundant_static_lifetimes` refuses writing it anyway, so this is the one
         # place `_plain_field`'s otherwise-reusable `&'static ...` type isn't reused
         # verbatim.
         const_type = rust_type.replace("'static ", "")
-        return f"{marker}\npub const {ident.upper()}: {const_type} = {initialiser};"
+        description = f'pub const {ident.upper()}_DESCRIPTION: &str = "{display}";'
+        return f"{marker}\npub const {ident.upper()}: {const_type} = {initialiser};\n\n{description}"
     struct_name = pascal_case(ident)
-    struct_fields = "\n".join(f"    pub {field_name}: {rust_type}," for field_name, rust_type, _ in fields)
-    const_fields = "\n".join(f"    {field_name}: {initialiser}," for field_name, _, initialiser in fields)
-    # Debug (the gallery's own "every other named value" section reads every one of
-    # these back with `{:?}`) and Clone/Copy (every field a plain group can have -
-    # Pixels, f32, Duration, &str, [Pixels; N] - is itself Copy, so the struct can be
-    # too, for free).
+    struct_fields = "\n".join(f"    pub {field_name}: {rust_type}," for field_name, rust_type, _, _ in fields)
+    const_fields = "\n".join(f"    {field_name}: {initialiser}," for field_name, _, initialiser, _ in fields)
+    display_text = ", ".join(f"{field_name} {display}" for field_name, _, _, display in fields)
+    description = f'pub const {ident.upper()}_DESCRIPTION: &str = "{display_text}";'
     return (
         f"#[derive(Debug, Clone, Copy)]\npub struct {struct_name} {{\n{struct_fields}\n}}\n\n"
-        f"{marker}\npub const {ident.upper()}: {struct_name} = {struct_name} {{\n{const_fields}\n}};"
+        f"{marker}\npub const {ident.upper()}: {struct_name} = {struct_name} {{\n{const_fields}\n}};\n\n"
+        f"{description}"
     )
 
 

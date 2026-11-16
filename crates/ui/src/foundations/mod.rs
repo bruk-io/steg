@@ -64,6 +64,18 @@ impl Theme {
 
 impl Global for Theme {}
 
+/// The design's own default session colour: `ramp.1 violet`'s own form for
+/// `appearance` - the data file's own `use` text names it "default session colour"
+/// (crates/ui/design/foundations.json). For bootstrapping a `Theme` before any real
+/// session is known (the gallery; later, the app before its first session connects) -
+/// reached through a `Theme`, never a literal, since `ramp_1_violet` is a `Theme`
+/// method like every other colour (R123); `gpui::black()` (a `const fn`, not a
+/// literal) is this function's own one-time placeholder to get that bootstrap `Theme`
+/// built at all.
+pub fn default_session(appearance: Appearance) -> Hsla {
+    Theme::new(appearance, gpui::black()).ramp_1_violet()
+}
+
 /// `cx.theme()` - the one spelling a component uses to reach the theme in force (R123),
 /// never `cx.global::<Theme>()` directly (both work; this is the crate's own
 /// convention, documented once here rather than repeated at every call site).
@@ -125,5 +137,13 @@ mod tests {
     fn a_plain_value_with_no_light_dark_pair_needs_no_theme() {
         assert_eq!(RADIUS_ROUND, gpui::px(999.0));
         assert_eq!(NAV_SIDE.width, gpui::px(232.0));
+    }
+
+    #[test]
+    fn default_session_matches_ramp_1_violets_own_form() {
+        let dark = Theme::new(Appearance::Dark, default_session(Appearance::Dark));
+        let light = Theme::new(Appearance::Light, default_session(Appearance::Light));
+        assert_eq!(default_session(Appearance::Dark), dark.ramp_1_violet());
+        assert_eq!(default_session(Appearance::Light), light.ramp_1_violet());
     }
 }

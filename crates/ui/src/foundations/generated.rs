@@ -406,8 +406,12 @@ pub const FONT_UI: FontUi = FontUi {
     role: "ui",
 };
 
+pub const FONT_UI_DESCRIPTION: &str = "family system, role ui";
+
 /// Design name: "font.terminal".
 pub const FONT_TERMINAL: &[&str] = &["JetBrains Mono", "SF Mono", "Menlo"];
+
+pub const FONT_TERMINAL_DESCRIPTION: &str = "JetBrains Mono, SF Mono, Menlo";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Terminal {
@@ -423,6 +427,8 @@ pub const TERMINAL: Terminal = Terminal {
     weight: 400.0,
 };
 
+pub const TERMINAL_DESCRIPTION: &str = "size 13px, line_height 20px, weight 400";
+
 #[derive(Debug, Clone, Copy)]
 pub struct UiBody {
     pub size: Pixels,
@@ -437,8 +443,12 @@ pub const UI_BODY: UiBody = UiBody {
     weight_selected: 600.0,
 };
 
+pub const UI_BODY_DESCRIPTION: &str = "size 13px, weight 400, weight_selected 600";
+
 /// Design name: "ui.small". Counts, captions, key caps
 pub const UI_SMALL: Pixels = px(12.0);
+
+pub const UI_SMALL_DESCRIPTION: &str = "12px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct UiLabel {
@@ -456,8 +466,13 @@ pub const UI_LABEL: UiLabel = UiLabel {
     letter_spacing: 0.06,
 };
 
+pub const UI_LABEL_DESCRIPTION: &str =
+    "size 11px, weight 600, text_transform uppercase, letter_spacing 0.06";
+
 /// Design name: "palette.input".
 pub const PALETTE_INPUT: Pixels = px(15.0);
+
+pub const PALETTE_INPUT_DESCRIPTION: &str = "15px";
 
 /// Design name: "space".
 pub const SPACE: [Pixels; 7] = [
@@ -469,6 +484,8 @@ pub const SPACE: [Pixels; 7] = [
     px(12.0),
     px(16.0),
 ];
+
+pub const SPACE_DESCRIPTION: &str = "2px, 4px, 6px, 8px, 10px, 12px, 16px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct NavSide {
@@ -484,6 +501,8 @@ pub const NAV_SIDE: NavSide = NavSide {
     tab_indent: px(28.0),
 };
 
+pub const NAV_SIDE_DESCRIPTION: &str = "width 232px, row_height 30px, tab_indent 28px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct NavTop {
     pub height: Pixels,
@@ -497,6 +516,8 @@ pub const NAV_TOP: NavTop = NavTop {
     tab_height: px(30.0),
     track_inset: px(2.0),
 };
+
+pub const NAV_TOP_DESCRIPTION: &str = "height 40px, tab_height 30px, track_inset 2px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct TabWidth {
@@ -512,6 +533,8 @@ pub const TAB_WIDTH: TabWidth = TabWidth {
     min: px(72.0),
 };
 
+pub const TAB_WIDTH_DESCRIPTION: &str = "usual 120px, max 240px, min 72px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct PaneGap {
     pub resting: Pixels,
@@ -524,8 +547,12 @@ pub const PANE_GAP: PaneGap = PaneGap {
     grabbed: px(12.0),
 };
 
+pub const PANE_GAP_DESCRIPTION: &str = "resting 6px, grabbed 12px";
+
 /// Design name: "pane.caption".
 pub const PANE_CAPTION: Pixels = px(30.0);
+
+pub const PANE_CAPTION_DESCRIPTION: &str = "30px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {
@@ -541,14 +568,22 @@ pub const PALETTE: Palette = Palette {
     top_offset: px(120.0),
 };
 
+pub const PALETTE_DESCRIPTION: &str = "width 640px, row_height 40px, top_offset 120px";
+
 /// Design name: "radius.surface". Panes and the palette
 pub const RADIUS_SURFACE: Pixels = px(14.0);
+
+pub const RADIUS_SURFACE_DESCRIPTION: &str = "14px";
 
 /// Design name: "radius.track". The tab track and session chips
 pub const RADIUS_TRACK: Pixels = px(10.0);
 
+pub const RADIUS_TRACK_DESCRIPTION: &str = "10px";
+
 /// Design name: "radius.inner". Anything inside a radius.track or radius.surface container
 pub const RADIUS_INNER: Pixels = px(8.0);
+
+pub const RADIUS_INNER_DESCRIPTION: &str = "8px";
 
 /// Design name: "radius.round". Colour chips and progress bars, fully round (Tokens.dc.html's radii card draws this as a fourth swatch, 999px - CSS's way of writing fully round, not a design-named value in px; this entry's name is the orchestrator's choice and the engineer may change it)
 pub const RADIUS_ROUND: Pixels = px(999.0);
@@ -565,6 +600,8 @@ pub const STATUS_RING: StatusRing = StatusRing {
     thickness: px(2.0),
 };
 
+pub const STATUS_RING_DESCRIPTION: &str = "diameter 16px, thickness 2px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct RowGap {
     pub tab: Pixels,
@@ -579,6 +616,8 @@ pub const ROW_GAP: RowGap = RowGap {
     palette_row: px(12.0),
 };
 
+pub const ROW_GAP_DESCRIPTION: &str = "tab 6px, caption_or_session_row 8px, palette_row 12px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct StackGap {
     pub rows: Pixels,
@@ -590,6 +629,8 @@ pub const STACK_GAP: StackGap = StackGap {
     rows: px(2.0),
     groups: px(16.0),
 };
+
+pub const STACK_GAP_DESCRIPTION: &str = "rows 2px, groups 16px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct TrackLayout {
@@ -607,6 +648,9 @@ pub const TRACK_LAYOUT: TrackLayout = TrackLayout {
     radius_inner: px(8.0),
 };
 
+pub const TRACK_LAYOUT_DESCRIPTION: &str =
+    "inset 2px, gap 2px, radius_outer 10px, radius_inner 8px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct SplitLayout {
     pub gap_drawn: Pixels,
@@ -619,6 +663,8 @@ pub const SPLIT_LAYOUT: SplitLayout = SplitLayout {
     gap_grabbed: px(12.0),
 };
 
+pub const SPLIT_LAYOUT_DESCRIPTION: &str = "gap_drawn 6px, gap_grabbed 12px";
+
 #[derive(Debug, Clone, Copy)]
 pub struct OverlayLayout {
     pub width: Pixels,
@@ -630,6 +676,8 @@ pub const OVERLAY_LAYOUT: OverlayLayout = OverlayLayout {
     width: px(640.0),
     top_offset: px(120.0),
 };
+
+pub const OVERLAY_LAYOUT_DESCRIPTION: &str = "width 640px, top_offset 120px";
 
 #[derive(Debug, Clone, Copy)]
 pub struct FocusRing {
@@ -645,8 +693,12 @@ pub const FOCUS_RING: FocusRing = FocusRing {
     corner_radius_addition: px(4.0),
 };
 
+pub const FOCUS_RING_DESCRIPTION: &str = "width 2px, offset 2px, corner_radius_addition 4px";
+
 /// Design name: "motion.status-fade". A change of status fades in on both the ring and the bar, so it reads as a change and not a jump
 pub const MOTION_STATUS_FADE: std::time::Duration = std::time::Duration::from_millis(200);
+
+pub const MOTION_STATUS_FADE_DESCRIPTION: &str = "200ms";
 
 #[derive(Debug, Clone, Copy)]
 pub struct AnsiColours {

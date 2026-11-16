@@ -256,7 +256,7 @@ def test_a_single_string_field_consts_type_has_no_redundant_static() -> None:
 def test_a_single_list_of_strings_fields_const_has_no_redundant_static() -> None:
     rust = render_plain_group("font.terminal", {"family": ["JetBrains Mono", "Menlo"]}, {})
     assert "'static" not in rust
-    assert rust.count("pub const") == 1
+    assert 'pub const FONT_TERMINAL_DESCRIPTION: &str = "JetBrains Mono, Menlo";' in rust
 
 
 def test_a_multi_field_structs_own_fields_keep_their_static() -> None:
@@ -291,15 +291,34 @@ def test_render_produces_text_for_every_required_section() -> None:
 
 
 # ---------------------------------------------------------------------------
-# a generated struct derives Debug (and Copy where every field allows it) - the
-# gallery's "every other named value" section reads every plain group back with
-# `{:?}`, so this is load-bearing, not decoration
+# a generated struct derives Debug/Clone/Copy (handy for anyone constructing a test
+# fixture against it) and, separately, a `_DESCRIPTION` const in the design's own
+# words - the gallery's "Other named values" section reads *that*, not `{:?}` on the
+# struct: a Rust debug dump of nested braces and field names isn't what a reviewer
+# matches against the design's own page (team lead's review of the first capture)
 # ---------------------------------------------------------------------------
 
 
 def test_a_multi_field_groups_struct_derives_debug_clone_copy() -> None:
     rust = render_plain_group("font.ui", {"family": "system", "role": "ui"}, {})
     assert "#[derive(Debug, Clone, Copy)]\npub struct FontUi" in rust
+
+
+def test_a_multi_field_groups_description_is_the_designs_own_words_not_rust_syntax() -> None:
+    rust = render_plain_group("nav.side", {"width": 232, "row_height": 30, "tab_indent": 28, "unit": "px"}, {})
+    assert 'pub const NAV_SIDE_DESCRIPTION: &str = "width 232px, row_height 30px, tab_indent 28px";' in rust
+    assert "{" not in rust.split("NAV_SIDE_DESCRIPTION")[1]
+
+
+def test_a_single_field_groups_description_is_just_its_own_value() -> None:
+    rust = render_plain_group("pane.caption", {"height": 30, "unit": "px"}, {})
+    assert 'pub const PANE_CAPTION_DESCRIPTION: &str = "30px";' in rust
+
+
+def test_a_whole_number_description_has_no_trailing_zero() -> None:
+    rust = render_plain_group("pane.caption", {"height": 30, "unit": "px"}, {})
+    assert "30.0px" not in rust
+    assert "30px" in rust
 
 
 # ---------------------------------------------------------------------------

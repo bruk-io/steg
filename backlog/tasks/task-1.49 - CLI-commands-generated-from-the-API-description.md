@@ -1,17 +1,20 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:24:00Z'
+updated_date: '2026-11-16T14:48:00Z'
 labels:
   - size-4
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.77
+references:
+  - task-1.49-cli-commands-generated-from-the-api
+  - https://github.com/bruk-io/steg/pull/64
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -392,6 +395,24 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built part 1 of the split (TASK-1.49): the CLI's whole command tree generated at run time from steg_sdk::description(), nothing names a method/flag/value kind by hand (R32).
+
+What was built:
+- clap builder API (never derive) walks description().methods(): one subcommand per noun, one sub-subcommand per verb, params mapped by Role (Target -> positional, Flag -> --name <value>, Switch -> --name/--no-name pair with overrides_with so the last given wins, Program -> trailing .last(true) arg after --). version/completion added once by name (doc-2's two non-method commands).
+- steg/steg <noun> alone list and exit 0 (engineer decision 1, taken), not the spike's status-2 choice.
+- main.rs keeps server start/server start --on-demand as the one hand-written case; every other command, including other server-start variants, goes through the generated tree and clap's own usage handling (replacing the old catch-all arm; its own existing test still passes).
+- A parsed, locally-valid command with nowhere to connect yet (TASK-1.119's) hits a named placeholder: exit 1 with a message naming the method, never 0 or 2.
+- session.unset/tab.unset/pane.unset's label param is now role: Switch (engineer decision 3, taken) - confirmed before building that dispatch needs no change at all (param_present already discards the value, matching pane.unset's own zoomed switch and its own comment anticipating exactly this).
+- clap 4.6.7 + clap_complete 4.6.11 added (versions decision-1's own licence table measured), boundaries.toml's [steg] updated with a deny-features guard against clap's derive feature.
+
+One correction to the approved plan, recorded here rather than by re-saving the plan section: clap::builder::Str/Id's From<String> impls are gated behind clap's own "string" feature (checked against clap_builder's own Cargo.toml directly, not docs.rs's always-every-feature build, which is what misled the plan's own claim) - off by default, no extra dependency, turned on explicitly. No leaking to 'static anywhere in the generator either way, as the plan intended.
+
+Checks recorded on the task via asdlc record-check: just check green at every step (baseline before any edit; after the unset --label switch; after adding clap/clap_complete; after the generator and its tests; after a task-id reference correction; after merging origin/main). Two negative controls performed by hand and reverted before committing: (1) dispatch/session.rs's unset temporarily changed from param_present to param_bool(...) == Some(true) - the new --no-label-also-clears test failed as expected, confirming it; (2) cli::run temporarily changed to return 0 unconditionally - the placeholder test failed as expected, confirming it. Both reverted before the relevant commit.
+
+Tests, all through the real binary or the built tree directly, never this machine's own server: tests/cli_drift.rs (criterion #1, a set comparison never a method count, both directions, with negative controls proving it catches a missing/extra command), tests/cli_no_server.rs (criterion #3, with a real listener bound at STEG_SOCKET_PATH proving these commands never attempt a connection, not merely that they happen to succeed anyway), tests/cli_run_placeholder.rs (criterion #4, every described method - server.start excluded as the hand-written exception already proved by tests/server_start.rs). All pre-existing tests (server_start.rs, login_environment.rs, dispatch.rs, runtime.rs, the sdk's own description tests) still pass unchanged.
+
+CI on the PR is green (just check, ~6m30s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

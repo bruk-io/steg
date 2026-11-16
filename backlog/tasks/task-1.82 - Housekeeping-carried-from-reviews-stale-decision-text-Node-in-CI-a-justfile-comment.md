@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T01:00:00Z'
+updated_date: '2026-11-16T01:34:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -44,6 +44,14 @@ created: 2026-11-16T01:00:00Z
 ---
 
 2026-11-15: third occurrence of the LikeC4 MCP smoke test timing out in CI (30s, tools/tests/adapter/test_likec4_mcp_smoke.py), on pull request 44 (TASK-1.77), whose diff touches nothing under tools/ or architecture/; green on a re-run of the same head. Earlier: TASK-1.40's and TASK-1.76's pull requests. Each occurrence costs a re-run and a check that the failure was not the change's own.
+
+---
+
+created: 2026-11-16T01:34:00Z
+
+---
+
+2026-11-15: fourth occurrence of the LikeC4 MCP smoke test timing out in CI, again on pull request 44 (TASK-1.77), on a different head (b5e2aa6). Four CI runs were queued at once. A draft pulls this one item out to be done now.
 
 ---
 <!-- COMMENTS:END -->

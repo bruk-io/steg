@@ -1136,6 +1136,21 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change` exited 0 at 2026-11-16T14:10:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

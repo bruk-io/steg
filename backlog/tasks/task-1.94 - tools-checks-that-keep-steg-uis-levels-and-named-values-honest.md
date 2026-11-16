@@ -500,6 +500,14 @@ FAILED tests/unit/test_ui_colours.py::test_is_exempt_for_a_foundations_path
 FAILED tests/unit/test_ui_colours.py::test_is_exempt_for_the_gallery_path - A...
 2 failed, 2 passed, 19 deselected in 0.02s
 ```
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2026-11-16T02:32:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+........................................................................ [ 53%]
+...............................................................          [100%]
+135 passed in 1.19s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

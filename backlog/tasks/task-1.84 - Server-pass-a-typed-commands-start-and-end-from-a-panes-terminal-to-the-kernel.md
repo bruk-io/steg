@@ -358,6 +358,48 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T00:53:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84/crates/server/src/runtime.rs:16:
+ use std::thread::{self, JoinHandle};
+ use std::time::Instant;
+ 
+[31m-use steg_kernel::{CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree};
+(B[m[32m+use steg_kernel::{
+(B[m[32m+    CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree,
+(B[m[32m+};
+(B[m use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
+ 
+ use crate::dispatch::{self, Context};
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84/crates/server/src/runtime.rs:1708:
+             Program::Shell {
+                 cwd: "/tmp".to_string(),
+             },
+[31m-            vec!["sh", "-c", "read line; printf '\\033]133;C\\007'; sleep 100"],
+(B[m[32m+            vec![
+(B[m[32m+                "sh",
+(B[m[32m+                "-c",
+(B[m[32m+                "read line; printf '\\033]133;C\\007'; sleep 100",
+(B[m[32m+            ],
+(B[m         );
+ 
+         // Bounded, not a race against nothing: every field R82/R83 govern
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84/crates/server/src/runtime.rs:1834:
+     #[test]
+     fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
+         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+[31m-        let script =
+(B[m[31m-            "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;0\\007'; exit 0";
+(B[m[32m+        let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;0\\007'; exit 0";
+(B[m         let (_, _, pane) = start_real_pane(
+             &runtime,
+             Program::Command {
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 134 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

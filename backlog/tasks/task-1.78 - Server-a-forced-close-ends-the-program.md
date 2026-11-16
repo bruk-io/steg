@@ -1,14 +1,13 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:11:00Z'
+updated_date: '2026-11-16T03:18:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -26,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -2207,6 +2207,109 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 124, 123 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c '
+echo "=== process count before (sleep 1000/sleep 100 and trap-HUP fixtures) ===";
+ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep | wc -l;
+START_EPOCH=$(date +%s);
+for i in $(seq 1 20); do cargo test -p steg-server 2>&1 | grep -E "test result|FAILED" || exit 1; done;
+echo ALL_20_RUNS_CLEAN;
+echo "=== process count after (same patterns) ===";
+AFTER=$(ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep);
+echo "$AFTER" | wc -l;
+echo "=== of those, any that STARTED during this run and are still alive (a real leak) ===";
+echo "$AFTER" | awk -v start="$START_EPOCH" "{print}"
+'` exited 0 at 2026-11-16T03:15:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a, last 40 of 187 lines:
+
+```text
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ALL_20_RUNS_CLEAN
+=== process count after (same patterns) ===
+       1
+=== of those, any that STARTED during this run and are still alive (a real leak) ===
+brukhabtu        64031   0.0  0.0 488782768   1488 s007  Ss+  10:06PM   0:00.01 sleep 1000
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:17:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (9.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.0s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
+
+Second round of review findings fixed.
+
+Important: two tests claimed in the earlier notes to have "a negative control run and reverted" that was never actually run - the reviewer showed both still pass with their mechanism removed. Both confirmed by hand and fixed:
+
+- restarting_then_forcing_ends_the_new_program_not_the_old_one, renamed to restarting_then_forcing_ends_the_new_program_as_a_plain_regression: its own synchronisation point (waiting for the first run's real exit event before restarting) is downstream of the relay thread's own mark-dead call - there is no ordering left at this level to race against, so it cannot exercise the generation guard, only the restart-then-force flow. A seam to hold the old reap back would be production code built only to make a test possible, with no other use - not attempted. Kept as a plain regression, renamed and documented to claim no more than it shows, recorded passing. The guard's own proof, with its own recorded negative control, remains tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run.
+- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler, renamed to ..._completes_promptly_as_a_regression: passes with await_exit routed back through the queue because the kernel's own pty buffer throttles the flood before the backlog this bug needs can build up - named in its own doc now, not hidden. Kept as a regression, recorded passing. The actual proof, with its own recorded negative control, remains pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue (a real 1,000,000-item backlog via send_input, not dependent on any OS buffering).
+
+Nit: added pane.split to the unreachable-while-forced sweep. Re-ran the whole test's negative control (reversed close-first) by hand with it included - pane.split is the probe caught first, confirmed, reverted.
+
+Nit: traced the mark's PaneNotFound arm (apply_event_locked) for reachability under close-first. It is reachable, by exactly one path: close_and_dispatch removes the pane from the tree and drops the lock before force_end has actually ended its program, so a still-running program can emit an OSC 133 mark during that same grace window. Reworded the production comment and the test's own doc to say this explicitly - no behaviour change.
+
+Engineer's own nit: the relay's reap poll was a fixed 5ms forever - would poll a terminal-detached-but-still-running program 200 times/sec for as long as it lives, one thread per pane. Backed off: doubles from 5ms to a 100ms cap (about five extra polls, ~155ms, over the common case where the first poll already finds a zombie), then holds - at most 100ms added before such a pane's real exit is noticed, once ramped. next_reap_poll_interval is a pure function with its own unit test and negative control.
+
+Checks recorded: each renamed/new test individually, with negative controls where claimed; cargo test -p steg-server (full suite, clean); just check (clean, twice - once pre-merge, once at the final pushed head); origin/main merged (no code overlap this round, only backlog/board markdown - merge commit, no conflicts); the server suite run 20 times at the final head (92fc50a) via one recorded command, with process counts taken before and after by pid/start-time (not only a raw count) - 0 leaked processes, the one survivor pre-dates the run and is unrelated to anything this task touches; CI green at 92fc50a via gh pr checks 47 --watch in the foreground. Review response posted to PR #47 as a comment.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2305,6 +2408,15 @@ Negative controls I repeated myself, all reverted: (1) force_end pass 3 (signal_
 Checked and sound, not repeated as controls beyond the above: shared N-pane deadline (tab_close_with_force_ends_every_program_in_scope_within_one_grace_window, with its own recorded negative control); the idle-handle fix (recorded negative control); no unsafe anywhere in the diff (grep confirmed); a restart gives the new run its own generation (traced in pane::start/restart and RunGate::begin_run); TASK-1.77's api.call entry point and TASK-1.45's constructor signature are both reached correctly from the merge. Process leak check: ran cargo test -p steg-server 5 times myself (ps count for sleep/steg processes before and after: 2 -> 1, no growth) - consistent with, though fewer runs than, the task's own recorded 20/20-clean, no-leaked-process run at this head; this machine runs many concurrent agents, so ps counts alone are noisy corroboration, not independent proof.
 
 plan-matched: no, as review 1 also recorded - RunGate replaces the plan's own Arc<AtomicU64>, force_end gained passes 5/6, and join_worker was split into settle_worker+join_worker, all explained in the notes as the review 1 fix, not findings on their own, but a real departure from the plan's own §1/§2 text.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T03:18:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

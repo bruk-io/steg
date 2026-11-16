@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:23:00Z'
+updated_date: '2026-11-16T02:31:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -262,6 +262,28 @@ real images before calling this done.
 From TASK-1.94's plan check (2026-11-15, @bruk.o): TASK-1.94's colour-literal check leaves crates/ui/gallery out because the gallery's colours are a placeholder today. This task makes the gallery draw everything from foundations, so whichever of the two merges second ends that exemption: the colour check then covers the gallery too, with the one known colour the capture's image check looks for taken from foundations by name.
 
 Plan checked against doc-17 (R120, R121, R123, R124) and decision-11 by @bruk.o: ok, with two decisions that are the engineer's in approving it. (1) doc-17's open question: a value with no light and dark pair (type, sizes, the duration, the focus ring's measurements) is a plain constant and does not go through the theme; R123 binds only values that have a pair. (2) radius.round, which has no pixel value, is proposed as a marker type. A tool in tools/ writes src/foundations/generated.rs from the data file and formats it; just check regenerates and compares, failing with how to regenerate. Every paired colour is reached only through the Theme, which holds the appearance and the session colour, so a component cannot take one form directly: R123 is enforced by what is public, not by convention. The session colour is never a generated constant. The gallery draws only from foundations and shows every colour by name, the ramps, type, spacing, corners and both terminal themes; the capture's own image check moves to the window's ground colour for the appearance in force. One point for the build, not the plan: weigh a single Radius type for all four corners (three pixel sizes and fully round) against a separate marker type for the round one, so a component applies any corner the same way; say in the notes which was built and why.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py'` exited 2 at 2026-11-16T02:31:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp4rzWts` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/unit/test_foundations_generate.py ___________
+ImportError while importing test module '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93/tools/tests/unit/test_foundations_generate.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../../../.local/share/mise/installs/python/3.15.0/lib/python3.15/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools/tests/unit/test_foundations_generate.py:10: in <module>
+    from steg_tools.foundations_generate import (
+E   ModuleNotFoundError: No module named 'steg_tools.foundations_generate'
+=========================== short test summary info ============================
+ERROR tools/tests/unit/test_foundations_generate.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.04s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

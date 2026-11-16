@@ -1,16 +1,19 @@
 ---
 id: TASK-1.83
 title: 'Kernel: running, finished and failed for a command typed at a shell prompt'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:57:00Z'
+updated_date: '2026-11-16T00:01:00Z'
 labels:
   - size-3
 milestone: m-4
 dependencies:
   - TASK-1.79
+references:
+  - task-1.83-kernel-running-finished-and-failed-for-a
+  - https://github.com/bruk-io/steg/pull/43
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -677,6 +680,24 @@ ok      tool tests (1.0s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Built per the revised, approved plan, in its order.
+
+Settled the outcome's read-before-mutate question the plan left open: `Pane` owns the classification, not `Tree`. `Pane::note_command_output_started`/`note_command_ended` return the outcome enum (`CommandOutputStarted`/`CommandEnded`) directly, computed as part of the same method that mutates `self.status`, since `Pane` already holds every branch (`closes_on_exit`, the `CommandRunning` match) needed to decide it. This differs from `ExitOutcome` (where `Tree` reads `pane.closes_on_exit()` after calling `pane.record_exit`, because that fact depends on `program`, which the mutation never touches) - here the outcome depends on exactly the field (`status`) the method itself overwrites, so computing it inside `Pane`, before overwriting, is correct by construction and needs no separate "read the old state" step at the `Tree` level at all. `Tree::note_command_output_started`/`note_command_ended` just thread the pane lookup and tick through and forward `Pane`'s return value.
+
+One new `StatusKind::CommandRunning` variant (not a new field), mapping to the existing `Status::Running` in `status_for_ranking`'s one exhaustive match arm - `clear_status`/`next_status_deadline`/`Tab::rank` needed no change at all, since they already treat anything but their own target the same way. `status_from_exit_code` (a small departure from the plan's `status_kind_for_exit_code`: it returns both the `Status` and the `StatusKind` the exit code means, in one function, so `note_command_ended` doesn't duplicate the `exit_code == 0` check to report its own outcome) is the one thing `record_exit` and `note_command_ended` share.
+
+Coverage, clause by clause:
+- AC #1 ("shows running from when a prompt-marked command starts... while the shell's own program keeps running; a command pane's status... unchanged"): `note_command_output_started_on_a_shell_pane_sets_running`, the four `note_command_ended_*` tests (code 0, nonzero, no code, no preceding start), `note_command_output_started_on_a_command_pane_is_ignored`/`note_command_ended_on_a_command_pane_is_ignored` (capturing program_status/status/next_status_deadline before and after, per the testing skill's rule for a "nothing changes" claim), and the Tree-level mirrors of each.
+- AC #2 ("ending rules... apply unchanged... time arrives as a Moment"): `a_typed_commands_finished_status_is_still_shown_599_seconds_after_it_began`/`_gone_exactly_600_/`_gone_601_` (the same `FINISHED_LIFETIME` constant, reached through `note_command_ended` instead of `record_exit`); `a_typed_commands_failed_status_never_expires_however_far_past_ten_minutes`; `note_input_does_not_end_a_running_typed_command`/`note_input_ends_a_typed_commands_finished_status`/`_failed_status`; `acknowledge_pane_ends_a_typed_commands_finished_status`/`_failed_status`; `opening_a_tab_or_focusing_a_pane_also_leaves_an_idle_shell_and_a_running_typed_command_untouched` (extends the existing proof with two more pane states, the existing test itself untouched).
+- AC #3 ("no marks -> no finished/failed, nothing guessed; end with no code, end with no start, start then start each have a stated result and a test"): `a_freshly_started_shell_pane_has_no_status`, `a_shell_pane_stays_idle_with_no_marks_at_all_however_far_in_the_future`, `note_command_ended_with_no_exit_code_clears_the_status_and_guesses_nothing`, `note_command_ended_with_no_preceding_start_is_ignored`, `note_command_ended_twice_in_a_row_the_second_is_ignored`, `note_command_output_started_twice_in_a_row_stays_running_with_a_fresh_tick`.
+- Ranking, by direct test, not just construction: `shown_status_is_none_when_every_pane_is_an_idle_shell`, `shown_status_prefers_a_running_command_pane_over_an_idle_shell`, `shown_status_ranks_a_running_typed_command_exactly_like_a_running_program`, `next_status_deadline_excludes_an_idle_shell_pane`.
+
+Checks recorded (asdlc record-check), in order: `just test` baseline before any change (0 - no crate touched yet); `just test` with the new tests landed and the implementation absent (101 - 22 compile errors, the new API not yet existing); `just test` passing once the implementation was added; negative control 1 (the `CommandRunning` guard dropped in `note_command_ended` - 101, exactly the 3 tests it protects failing for the stated reason) then restored (0); negative control 2 (`start_program` reverted to always set `Running` - 101, the 2 idle-baseline tests plus 3 more that depend on it failing for the stated reason, a wider ripple than the plan named but for the same one line) then restored (0); `just check` passing in full, twice (once before the final rebase onto `origin/main`, once after - the second rebase brought in only board-only commits, confirmed by `git log --oneline HEAD..origin/main -- crates/kernel/` returning nothing, so no further re-verification of the plan's two greps was needed).
+
+Every existing test named in the plan as needing to pass untouched does: the 599/600/601 trio, `note_input_has_nothing_to_end_on_a_running_pane`, `note_input_ends_a_finished_status_on_the_pane_it_was_sent_to`/`_failed_status_...`, `acknowledge_pane_ends_a_finished_status`/`_failed_status`, `opening_a_tab_or_focusing_a_pane_ends_nothing`, `tab_shown_status_delegates_to_the_tabs_own_ranking`, every `shown_status_prefers_*`/`shown_status_breaks_a_tie_*` test - none edited, all still passing.
+
+No departures from the approved plan beyond the one named above (`status_from_exit_code`'s shape).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

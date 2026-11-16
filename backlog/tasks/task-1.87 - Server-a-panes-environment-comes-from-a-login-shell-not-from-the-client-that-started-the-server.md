@@ -596,6 +596,51 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-server --test real_pty a_real_programs_environment_never_leaks_this_processs_own_ambient_variables` exited 101 at 2026-11-16T04:46:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 221 lines:
+
+```text
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_real_programs_environment_never_leaks_this_processs_own_ambient_variables
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

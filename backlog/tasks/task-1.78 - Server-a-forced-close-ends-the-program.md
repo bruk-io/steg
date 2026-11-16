@@ -1,7 +1,7 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
@@ -11,6 +11,9 @@ labels:
 milestone: m-3
 dependencies:
   - TASK-1.76
+references:
+  - task-1.78-server-a-forced-close-ends-the-program
+  - https://github.com/bruk-io/steg/pull/47
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
@@ -1475,6 +1478,26 @@ ok      tool tests (1.3s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
+
+Built close-first as planned (d681d6fe44b5) and approved by the engineer. Experiments run first, as the first step: four real-process cases through a scratch harness (silent, continuous-output, trapping, backgrounded-grandchild), and the earlier TASK-1.40/1.76 citation of unix.rs for the no-escalation ChildKiller was corrected to lib.rs (the substance they found was right, the file was wrong).
+
+close_and_dispatch closes the pane/tab/session in the tree first, under one lock acquisition, then runs force_end (signal every pane in scope, wait once against a shared grace window, escalate only the stragglers, join every worker) before answering the caller. This is what criterion 1's reworded order says, and what gives criterion 4's full guarantee - every method, not only a second --force, finds the pane gone the instant the force begins.
+
+Every mechanism's own negative control was run and recorded, failing, before the fix was restored and recorded passing again:
+- the idle-handle pop in close_and_dispatch's step 3 disabled -> the silent-program force-close test fails (process stays alive)
+- force_end's escalation (pass 3) disabled -> the trapping-program test fails
+- AwaitExit's "nothing running" branch no longer breaking the worker loop -> the worker-thread-actually-ends test fails (a real bug this fix catches: a reply can arrive correctly while the thread never ends)
+- close_and_dispatch reordered back to force-before-close (the first draft's own shape, lock held across force_end) -> the AC #4 stall test fails, taking ~4.95s instead of returning at once
+- the idle-handle fix disabled a second time, checked against both a public black-box test and a new unit test with access to state.panes -> the black-box test still passes (it cannot observe the fix at all, so it was renamed to stop claiming it did), the unit test correctly fails
+- force_end's shared deadline replaced with a serial per-pane wait -> the four-trapping-panes test fails at ~2.02s against its 1s bound
+
+Found during the proof pass: a test proving the N-pane shared-grace-window bound asserted only elapsed < 5s against a 30ms test grace, which a serial loop would also satisfy - rewritten with four trapping panes, a real 500ms grace, and a check that every pid is actually dead, not only removed from the tree. Also found: the two-threads-forcing-the-same-pane test proves mutual exclusion via the Mutex, not close-first specifically (both designs give it) - renamed its own claim to say so, not overclaimed.
+
+Checks: just check clean at the final head (68d10a8, matching PR #47's green CI); cargo test -p steg-server 10/10 clean at default parallelism, properly checked for FAILED/error[ anywhere in the output, not only the last test binary's tail.
+
+Named, not fixed: an interactive shell's own job-control reassignment of a backgrounded job to a new process group, which the group signal does not reach (killpg targets the pgid portable-pty's setsid() establishes at exec, which an interactive shell's own job control can move a background job out of afterward); a process stuck in an uninterruptible kernel sleep, where SIGKILL is delivered but delivery is not completion, which no userspace mechanism can force - the caller still gets Response::Ok either way (no error code exists for "could not confirm"), and the worker/relay pair is dropped unjoined if this ever actually happens.
+
+Two items were the engineer's at plan time and were decided then: the AC #1 reorder (approved, criterion reworded to match) and the idle-handle fix (told to include it).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

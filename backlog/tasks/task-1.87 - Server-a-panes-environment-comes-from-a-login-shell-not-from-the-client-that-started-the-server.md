@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:00:00Z'
+updated_date: '2026-11-16T06:07:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1176,6 +1176,38 @@ steg run 9 ok
 steg run 10 ok
 process count after:
        0
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T06:07:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at 6e1082ef7c7f:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (8.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.9s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (6.0s)
+ok      test (steg-server, race-fixture) (6.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (3.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

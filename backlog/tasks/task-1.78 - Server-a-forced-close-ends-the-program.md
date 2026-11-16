@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:15:00Z'
+updated_date: '2026-11-16T02:19:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1685,6 +1685,25 @@ running 1 test
 test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.16s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 0 at 2026-11-16T02:19:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+kill: 81580: No such process
+kill: 81578: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 81579: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 5.05s
 ```
 
 Commits since the review: 0.

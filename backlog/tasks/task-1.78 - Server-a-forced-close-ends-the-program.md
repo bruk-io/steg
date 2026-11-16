@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-15T23:57:00Z'
+updated_date: '2026-11-16T00:05:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -39,11 +39,23 @@ Part two of the split of TASK-1.76 (2026-11-15). doc-2 section 9 (--force on the
 
 One reviewable change. It touches `crates/server/src/{pane,pty,runtime}.rs` and
 `crates/server/src/dispatch/{mod,pane,tab,session,lookup}.rs`; no kernel or sdk
-file changes, no new crate dependency (one new *feature* on an existing one, §8).
-It also retires `Runtime::stop`'s own unescalated mechanism in favour of the one
-this task builds, and fixes one adjacent gap §5 found while reading the code
-(handle below) - both named as departures from literal AC wording, for the
-engineer to confirm or cut.
+file changes beyond one doc comment, no new crate dependency (one new *feature*
+on an existing one, §8). It also retires `Runtime::stop`'s own unescalated
+mechanism in favour of the one this task builds, and fixes one adjacent gap §5
+found while reading the code (below) - both named as departures from literal
+AC wording, for the engineer to confirm or cut.
+
+**For the engineer, stated at the top rather than buried: AC #1's own stated
+order changes.** AC #1 reads "end every running program in scope, observe each
+exit, and then close." §5 below closes the pane, tab or session **first**
+(under one lock acquisition, the instant the force begins) and ends the
+program **after**, replying to the caller only once that is done - the
+reverse of the criterion's own words. This is not an oversight; §5 explains
+why the order the criterion states cannot also give AC #4's full guarantee
+(every other method unreachable, not only a second close), and §6 is the
+check of what that reordering costs before committing to it. If the engineer
+wants the literal order instead, §6's own "what this would cost" section says
+what AC #4 gives up to get it.
 
 ## 0. Experiments (first step of the build, AC #2)
 
@@ -75,7 +87,7 @@ crate's own pty code). Four real-process cases, plus one inferred limitation:
    pgid = the main pid, per setsid) kills both. This is my own primary evidence
    for signalling the group, not the pid, at every stage (polite and escalated).
 
-**Inferred, not tested, and named as a real limitation (§11)**: an *interactive*
+**Inferred, not tested, and named as a real limitation (Risks, below)**: an *interactive*
 login shell with job control on (the default for an interactive `zsh`/`bash`,
 which is what a shell pane actually runs) calls `setpgid` on each backgrounded
 job, moving it to a *new* process group distinct from the one `killpg` reaches.
@@ -341,131 +353,183 @@ mechanism, not left pointed at deleted code; one new test,
 1000`, same shape as §0's own probe), is added - the one real behaviour change
 this rewrite buys, proven rather than only argued.
 
-## 5. The force-close dispatch wrapper (AC #1, #3, #4)
+## 5. The close-first dispatch wrapper (AC #1, #3, #4)
 
-**Shared scope lookup, `dispatch/lookup.rs`** (new, used by both the existing
-refusal checks and the new wrapper, replacing three copies of "which panes does
-this close touch" with one - `pane::close` has one pane, `tab::close` a tab's
-panes, `session::close` a session's tabs' panes, today duplicated verbatim in
-each of the three files):
+**Close the pane, tab or session in the tree first, under one lock
+acquisition, before ending any program - not after.** This is a design change
+from this plan's own first draft (which forced the program first and closed
+the tree last, behind a new `forcing` set guarding only a second close on the
+same pane), made after the engineer's own review of that draft found it did
+not actually give AC #4's second clause: a *plain* close arriving during the
+grace period would see an already-ended program and succeed, racing the
+forcing caller's own later close of the same, by-then-already-gone pane; a
+`pane.move` could relocate the pane to another tab while it was being forced.
+Closing first removes the entire class of race rather than guarding one
+member of it: the instant the lock that performs the close is released, the
+pane (or every pane of the tab/session) no longer exists in `state.tree` at
+all, so **every** method - not only a second `--force` - gets the ordinary,
+already-existing `PaneNotFound`/`NoSuchTarget` any stale target gets, with no
+new state and nothing threaded through `dispatch/lookup.rs`'s shared
+resolution helpers. §6 is the check of what this costs before committing to
+it; read that first if the reordering it requires (above) is in question.
+
+**Shared scope lookup, `dispatch/lookup.rs`** (new): before the close,
+`Runtime` needs every pane id the request's target covers, because after a
+successful close the tree can no longer be asked:
 ```rust
 pub(crate) fn panes_in_close_scope(tree: &Tree, context: &Context, request: &Request)
     -> Result<Vec<PaneId>, ApiError>
 ```
-`pane::close`/`tab::close`/`session::close`'s own `any_running` checks are
-rewritten to call this and keep their existing refusal behaviour exactly
-(`ErrorCode::ProgramRunning`, nothing touched) - a small, low-risk
-deduplication, not a behaviour change, named so a reviewer does not read it as
-scope creep.
+`pane::close` → one pane; `tab::close` → a tab's panes; `session::close` → a
+session's tabs' panes - the same three lookups `pane::close`/`tab::close`/
+`session::close`'s own `any_running` checks already duplicate verbatim; their
+own refusal checks are rewritten to call this (`.any(|p| p.program_status() ==
+Running)`) instead, no behaviour change, a small deduplication motivated
+primarily by `Runtime`'s own new need.
 
 **`Runtime::handle`** gains a fourth intercepted group, alongside the three
-starting methods:
+starting methods - unconditionally, force or not (needed below for the
+idle-handle fix, item 2):
 ```rust
 "pane.close" | "tab.close" | "session.close" => self.close_and_dispatch(description, context, &resolved),
 ```
-(always intercepted, force or not - see below for why force=false costs
-nothing extra.)
 
 `Runtime::close_and_dispatch`:
-1. Lock. Compute `scope = dispatch::panes_in_close_scope(&state.tree, context,
-   request)` - propagate its error unchanged (`PaneNotFound`/`TabNotFound`/
-   `SessionNotFound`, exactly what the unintercepted path would have returned).
-2. **If any pane in `scope` is already in `state.forcing`**: refuse at once,
-   touching nothing - `super::program_running()`, reworded (§7) - this is AC #4's
-   second clause, scoped explicitly (§6) to a second force-close racing the
-   first, not to every other method.
-3. `force = param_bool(request, "force").unwrap_or(false)`. If `!force` **or**
-   no pane in `scope` has both `program_status() == Running` and a live entry in
-   `state.panes`: nothing to force. Fall straight through to step 6 with an
-   empty `to_force` - this is the ordinary refusal-or-plain-close path,
-   unchanged in behaviour from today (the refusal check inside `dispatch`'s own
-   arms still runs and still wins when `!force` and something is running).
-4. Otherwise: pop every `(pane, handle)` in `scope` that has one from
-   `state.panes` into `to_force`, and insert each of those pane ids into
-   `state.forcing`. Unlock.
-5. `force_end(to_force, self.force_grace)` (§2) - lock-free, so other panes'
-   requests are never stalled by this (AC #4's first clause).
-6. Lock again. Remove every pane just forced from `state.forcing`. Call the
-   existing, unchanged `dispatch::dispatch(&mut state.tree, &mut state.settings,
-   description, context, request)` - its own close arm's refusal check is a
-   no-op when `force` is true (as today) and performs the real
-   `tree.close_pane`/`close_tab`/`close_session` (R94/R95's cascade, untouched -
-   zero kernel changes anywhere in this task). **New, and the fix for §5's own
-   found gap**: for every pane id in the original `scope` that `state.tree`
-   no longer resolves after this call, remove its entry from `state.panes` too,
-   if present - not only the ones just forced. This also closes an adjacent gap
-   this task's own reading found, not named by any of the five criteria: a
-   *plain*, non-force close of a pane whose program had already ended on its
-   own left that pane's idle `PaneHandle` (and its now-pointless worker thread)
-   in `state.panes` forever, because nothing before this task ever removed a
-   handle on the ordinary close path (only the three *starting* methods and the
-   drain thread's own cascade ever touched `state.panes`). Proposed here because
-   it is a one-line consequence of code this task is already adding and
-   directly serves AC #3's own "no thread left running" in spirit, even though
-   it is not the literal subject of any of the five criteria - **for the
-   engineer**: cut if it should be its own task instead.
-7. On success, apply the existing general resize step (`reapply_every_sized_tab`),
-   exactly as the `_` arm already does. Return the response.
+1. Lock. `scope = dispatch::panes_in_close_scope(&state.tree, context,
+   request)?` - propagate a lookup error (`PaneNotFound`/`TabNotFound`/
+   `SessionNotFound`) unchanged, before anything else runs.
+2. Call the existing, unchanged `dispatch::dispatch(&mut state.tree, &mut
+   state.settings, description, context, request)`. Its own close arm's
+   refusal check (`ProgramRunning`, untouched) still runs and still wins when
+   `!force` and something in scope is running - on that error, return it
+   immediately; nothing has changed, so there is nothing to clean up. On
+   success (either `force` was true, or nothing was running - the same two
+   cases dispatch's own arm already treats as "proceed," unchanged), the real
+   `tree.close_pane`/`close_tab`/`close_session` has already run (R94/R95's
+   cascade, zero kernel changes) - the entire `scope` is gone from `state.tree`
+   from this point on, atomically, under the lock still held.
+3. For every pane id in `scope` (all of them, unconditionally - a successful
+   close removes the whole scope at once, never partially, so there is no
+   "did this one actually close" check to make): pop its entry from
+   `state.panes` if present, into `to_force`. **This is the fix for the
+   adjacent gap found while reading, included per the engineer's own
+   instruction (item 2)**: a pane whose program had already ended before this
+   call (an idle, non-running handle) is popped here exactly the same as a
+   genuinely running one - nothing before this task ever removed a handle on
+   the ordinary, non-force close path, so that handle and its now-pointless
+   worker thread lived forever. `force_end` (§2, unchanged) already treats an
+   idle handle correctly and cheaply: `signal_hangup`/`signal_kill` read a
+   `0` pid and no-op, `await_exit` sees no run and replies (and breaks, §1)
+   at once - so folding this fix into the same pass costs nothing extra for
+   the already-ended case and is not a second mechanism to maintain.
+4. Apply the existing general resize step (`reapply_every_sized_tab`) now,
+   under the same lock, exactly as the `_` arm already does - the siblings
+   that gained the closed pane's space (R95) resize **immediately**, not
+   after the grace period, which §6 names as a genuine improvement over the
+   literal AC #1 ordering, not only a cost.
+5. Unlock.
+6. `force_end(to_force, self.force_grace)` (§2) - lock-free, so no other
+   pane's request is ever stalled by this (AC #4's first clause; see §6 for
+   why this is now true for *every* method, not only close).
+7. Return the response `dispatch` gave in step 2 - only now, once `force_end`
+   has finished, so the caller's reply still means "the program has ended (as
+   far as this mechanism can make it) and the pane is gone," even though the
+   tree update itself happened earlier in this same call.
 
-**Who removes the pane (brief item 2), stated precisely**: `apply_event_locked`
-(the drain thread, unchanged trigger - every run's own natural `Exited` still
-reaches the shared `events` channel regardless of whether it is being forced,
-since `Hangup`/`Escalate` are fire-and-forget, not a different exit path) gains
-one new first check in its `PaneEvent::Exited` arm: `if state.forcing.contains
-(&pane) { return; }` - this is the "suppress the normal exit event for a forced
-run" step the task's own description already names. While a pane is in
-`forcing`, its handle is not in `state.panes` (popped at step 4) and the drain
-thread does nothing with the event at all; the *forcing caller itself* (step 6,
-under the same lock, right after removing `pane` from `forcing`) is the only
-code that ever calls `tree.close_pane`/`close_tab`/`close_session` for it. The
-two paths cannot both act: the drain thread's own check and the forcing
-caller's lock-held step 6 are mutually exclusive by construction (one reads
-`forcing` and bails, the other removes from `forcing` under the same lock
-acquisition it then uses to close) - no interleaving exists where both call
-`tree.close_*` for the same pane, which is what the existing `Err
-(PaneNotFound) => state.panes.remove(&pane)` arm in `apply_event_locked` was
-guarding against for the *old*, now-closed, `--force`-orphan gap. That arm is
-now provably unreachable by any path this task's own design permits (every
-force-close this task builds drains through `forcing`, properly) - kept,
-commented as such, rather than deleted or turned into an `unreachable!()`: a
-wrong "impossible" assumption panicking a live drain thread is worse than one
-dead, documented, defensive branch.
+**Who removes the pane (brief item 2), now trivially**: `apply_event_locked`
+needs **no new check at all**. The pane's own eventual, real `PaneEvent::
+Exited` (sent unconditionally by the worker, whether the program died from
+this task's own signal or on its own during the grace window - the brief's
+own named race, directly) reaches the drain thread exactly as it always has.
+By then `state.tree` no longer has the pane (closed in step 2, before
+`force_end` ever runs) and `state.panes` no longer has its handle (popped in
+step 3, into `force_end`'s own local `to_force`, never put back) - so `tree.
+record_exit` returns `Err(PaneNotFound)`, and the **existing, already-built**
+`Err(PaneNotFound) => { state.panes.remove(&pane); }` arm (TASK-1.76's own
+answer to the old `--force` orphan gap) handles it precisely, as a no-op
+(removing a key no longer there). What was a named gap in TASK-1.76 - the tree
+losing a pane while its handle lingered - is, under this design, exactly what
+every forced close now deliberately does, every time, for the whole grace
+window; the code that already existed to tolerate it is the right home for
+this, not a new check beside it.
 
-## 6. What AC #4's "cannot be reached" covers, stated rather than left silent
+## 6. What close-first costs, checked before committing to it
 
-**In scope**: a second force-close request naming a pane (or a tab/session
-containing one) already in `state.forcing` - refused immediately (§5 step 2),
-the one genuinely dangerous race (two callers both trying to be "the forcing
-caller" for the same pane, §5's own single-remover invariant). Also: no request
-for *any other* pane stalls for the length of this one's grace window (§5 step
-5 is lock-free).
+The engineer asked four things to check; each is answered directly, not
+asserted.
 
-**Explicitly not guarded, named rather than silently left**: while a pane is
-being forced, it is still present in the tree (status `Running`) until step 6,
-so `pane.show`, `pane.swap`, `pane.move`, `pane.set`/`unset`, and a plain
-(non-force) `pane.close` on it all still resolve and run exactly as if nothing
-were happening - none of them touch `state.panes` or the launcher, so none can
-race the actual ending of the program or double-signal it; the only visible
-effect is a structural change (a swap, a relabel) landing on a pane that is
-about to disappear anyway, or a non-force close correctly refusing (status
-still `Running`). Guarding these too would mean threading `Runtime`'s private
-`forcing` set through `dispatch/lookup.rs`'s shared target-resolution helpers,
-used by every method in the module - breaking the deliberate `dispatch`/
-`Runtime` boundary TASK-1.76 documented and built (`dispatch` never sees
-`Runtime`'s own state) for a race with no correctness consequence, not a
-proportionate change for a size-3 task. **For the engineer**: confirm this
-scoping, or ask for the broader guard.
+**Can "a kill that cannot be ignored" fail, and what is left behind if it
+does?** `SIGKILL` cannot be trapped or blocked, but it is still only
+*delivered*, not instantaneous: a process stuck in an uninterruptible kernel
+sleep (classically, certain blocked I/O - a wedged network filesystem is the
+textbook case) does not act on any pending signal, including `SIGKILL`, until
+it leaves that state, which userspace has no way to force and, in the
+pathological case, may never happen. Nothing in this plan, or in
+`Runtime::stop`'s own pre-existing mechanism, can do better than this - it is
+not a new risk this task introduces. What is left if it happens: the pane is
+already gone from the tree (step 2, before this can even be observed) - the
+caller still gets `Response::Ok` (there is no error code for "we could not
+confirm the program actually died," and inventing one is not asked for by any
+of the five criteria); `force_end`'s own bounded `join_worker` times out and
+its `JoinHandle` is dropped unjoined - the worker (and the relay thread still
+blocked in `child.wait()` underneath it) keeps running, detached, until the
+process eventually does exit (possibly on server shutdown, possibly never, in
+the fully pathological case) - the same residual risk `Runtime::stop` already
+accepted, named rather than newly discovered.
 
-## 7. Error code (AC #4, #5)
+**Is anything a client could want between the force and the death lost?**
+Yes, and it matters for a later task, not this one: the pane disappears from
+the tree the moment the force begins, not when the program actually dies - up
+to one grace period earlier than the literal AC #1 ordering would give. No
+method exists today to observe a pane's output once it is gone (`pane.
+capture`/attach are both `not_implemented_yet`), so this is not observable by
+anything this task's own tests can exercise - but TASK-1.47 (attach) should
+read this plainly when it is built: a forced close does not promise a
+client watching the pane sees whatever the program printed between the
+signal and its actual death. Named here so that task does not have to
+rediscover it.
 
-No new `ErrorCode`. `program_running()`'s existing `ErrorCode::ProgramRunning`
-is reused for §5 step 2's refusal; its doc comment (`crates/sdk/src/
-description/shapes.rs`) is reworded from "A program is still running and
-`--force` was not given" to "A program is still running: either `--force` was
-not given, or an earlier `--force` on it is still ending it" - still one error
-code, still already listed on all three methods' `errors` (no sdk/description
-surface change beyond the doc string), following the exact precedent TASK-1.40/
-1.76 already set for reusing an existing bucket rather than growing the set.
+**Does a future tree-change event (TASK-1.46) fire before the program is
+dead?** Yes, by construction - the close happens in step 2, before `force_end`
+runs. This is not a new problem for TASK-1.46 to solve: such an event would
+correctly describe tree state ("this pane no longer exists"), not process
+lifecycle ("this program's exit code is N") - the two are already different
+facts in this codebase (`PaneRecord`/`ProgramStatus` versus the tree's own
+shape), and nothing in today's design claims a close event would mean the
+program had finished first. Nothing to build here; named for whoever writes
+TASK-1.46.
+
+**Can a `--force` race a pane whose program is still starting?** No - checked
+against the existing code, not assumed. `Runtime::start_and_dispatch` (TASK-
+1.76 §1) holds `Runtime`'s one lock continuously across minting, the real
+spawn, and inserting the `PaneHandle` - its own stated invariant is exactly
+"nothing else runs between those steps." `close_and_dispatch` needs the same
+lock to do anything at all, so it cannot observe a pane that exists in the
+tree without a handle in `state.panes`, or vice versa, at any point - by the
+time either call site even acquires the lock, the pane is either fully
+started (handle present, status `Running`) or does not exist (rolled back on
+a failed start). There is no third state for a force to race.
+
+**What AC #4's "cannot be reached" now covers, restated**: *every* method, not
+only a second `--force` - a `pane.show`, `pane.swap`, `pane.move`, `pane.set`/
+`unset`, or a plain close naming a pane mid-force all get the tree's own
+ordinary "this target does not exist" the instant the force begins, by
+construction, with nothing new threaded through `dispatch/lookup.rs`. This is
+the full guarantee the first draft's `forcing` set only gave for one method
+against itself - resolved by removing the race's precondition (the pane
+existing at all) rather than guarding each place that could reach it.
+
+## 7. Error codes (AC #4, #5)
+
+None changed, and none added. The existing `ErrorCode::ProgramRunning` (used
+by the three close arms' own, unmoved refusal check) needs no reword this
+time - unlike the first draft, there is no second, forcing-specific refusal to
+name, because §5's close-first design makes a racing request fail with the
+tree's own ordinary `PaneNotFound`/`TabNotFound`/`SessionNotFound`
+(`ErrorCode::NoSuchTarget`), the same code any stale target already gets
+(doc-2 section 6: "closing something already closed is status 3, like any
+target that matches nothing" - this is exactly that case, reached naturally,
+not specially coded for).
 
 ## 8. Dependency (AC #5)
 
@@ -483,24 +547,29 @@ of `steg-sdk`'s `local-socket` feature - checked, not assumed).
 
 ## Files that change
 
-- `crates/server/src/pane.rs` - `Running.pid` replaces `.killer`; `PaneCommand::
-  {Hangup,Escalate,AwaitExit}` replace `Stop`; `PaneHandle::{signal_hangup,
-  signal_kill,await_exit,join_worker}` replace `stop`; `STOP_TIMEOUT` deleted;
-  module doc and `spawn_relay`'s own long comment corrected (the gap they
-  describe is this task, landing now, not a future one).
+- `crates/server/src/pane.rs` - `Running.pid` replaces `.killer`; `PaneCommand`
+  drops `Stop`, gains the one new `AwaitExit` variant (§1 - `Hangup`/`Escalate`
+  are plain `PaneHandle` methods over the shared atomic, never commands on the
+  queue); `PaneHandle::{signal_hangup,signal_kill,await_exit,join_worker}`
+  replace `stop`; `STOP_TIMEOUT` deleted; module doc and `spawn_relay`'s own
+  long comment corrected (the gap they describe is this task, landing now, not
+  a future one).
 - `crates/server/src/signal.rs` - new: the one `killpg` call, `nix`-based.
 - `crates/server/src/runtime.rs` - `force_end` (new, shared); `Runtime::stop`
   rewritten to call it; `force_grace: Duration` field and constructor
   parameter, `FORCE_GRACE_DEFAULT`; `close_and_dispatch` (new); `Runtime::
-  handle`'s match gains the three close methods; `State.forcing: HashSet
-  <PaneId>` (new); `apply_event_locked`'s new first check.
+  handle`'s match gains the three close methods. `apply_event_locked` itself
+  is **unchanged** - its existing `Err(PaneNotFound)` arm already does what
+  §5's design needs (confirm this by reading, not by adding a test that
+  exercises a code path that was never touched).
 - `crates/server/src/dispatch/lookup.rs` - `panes_in_close_scope` (new, shared).
 - `crates/server/src/dispatch/{pane,tab,session}.rs` - `close()`'s own
   `any_running` check calls the new shared helper; behaviour unchanged.
-- `crates/server/src/dispatch/mod.rs` - `program_running()`'s call sites
-  unchanged; nothing else moves.
-- `crates/sdk/src/description/shapes.rs` - `ErrorCode::ProgramRunning`'s doc
-  comment reworded (§7); no variant added, no `errors` list changed.
+- `crates/server/src/dispatch/mod.rs` - unchanged; `program_running()` keeps
+  its current doc comment, verbatim (§7).
+- No `crates/sdk` change (§7 - corrected from this plan's first draft, which
+  had reworded `ErrorCode::ProgramRunning`'s doc comment for a refusal this
+  design no longer needs).
 - `crates/server/Cargo.toml`, `boundaries.toml` - `nix`'s `features` gains
   `"signal"`; `boundaries.toml`'s `[steg-server]` reason string extended.
 - `crates/server/tests/runtime.rs` - new tests (§9); every existing test that
@@ -527,13 +596,15 @@ of `steg-sdk`'s `local-socket` feature - checked, not assumed).
 7. `dispatch/lookup.rs`'s `panes_in_close_scope`; the three `close()` arms
    rewritten to call it, with the existing refusal tests re-run unchanged to
    prove no behaviour drift.
-8. `runtime.rs`'s `close_and_dispatch`, `State.forcing`, `apply_event_locked`'s
-   new check, `Runtime::handle`'s match - the full AC #1/#3/#4 proof (§9).
+8. `runtime.rs`'s `close_and_dispatch` and `Runtime::handle`'s match - the
+   full AC #1/#3/#4 proof (§9), including the check that `apply_event_locked`
+   needed no change at all (confirmed by reading plus the natural-death-
+   during-grace test, not assumed).
 9. `nix`'s `"signal"` feature, `boundaries.toml`'s reason string - `just deny`/
    `just check-boundaries` recorded clean.
 10. `just check` at each numbered step's own boundary, not only at the end.
 
-## Proof (AC by AC, every mechanism with a negative control)
+## 9. Proof (AC by AC, every mechanism with a negative control)
 
 Every real-process test uses a bounded wait (an event, or a polled condition
 with a stated bound, per this crate's own established pattern - never a bare
@@ -543,15 +614,19 @@ this crate's **default** test parallelism (`cargo test -p steg-server`/`just
 test`), not `--test-threads=1` - naming the exact thing the second round of
 TASK-1.76's own review found wrong with recording the narrower command instead.
 
-**AC #1** (every running program in scope ends, exit observed, then closes;
-producing output and silent): `pane.close --force` on one command pane running
-`yes` (continuous output) and one running `sleep 1000` (silent), each through
-`Runtime::handle`, asserting the process is gone (`kill -0`), the pane is gone
-from the tree, and the response is `Ok`. `tab.close --force`/`session.close
---force` over several such panes at once (brief item 4). Negative control:
-disable `close_and_dispatch`'s own pop-and-force step (route straight to the
-old `_`-arm shape) - the silent-program case fails (process still alive after
-the call returns), proving the test actually exercises the new mechanism.
+**AC #1** (every running program in scope ends, exit observed, and the pane
+closes - **in the order §5/§6 give, the tree first, named there as a
+departure from the criterion's own literal wording**; producing output and
+silent): `pane.close --force` on one command pane running `yes` (continuous
+output) and one running `sleep 1000` (silent), each through `Runtime::
+handle`, asserting the pane is gone from the tree **and** the process is gone
+(`kill -0`) by the time the call returns, and the response is `Ok`. `tab.close
+--force`/`session.close --force` over several such panes at once (brief item
+4). Negative control: disable `close_and_dispatch`'s own pop-into-`to_force`
+step (step 3), leaving the tree close but skipping `force_end` entirely - the
+silent-program case fails (process still alive after the call returns),
+proving the test actually exercises the new mechanism, not just the tree
+update it would have needed anyway.
 
 **AC #2** (bound and signals stated, mechanism from portable-pty's source and a
 real experiment, recorded first): §0's four experiments, written up above and
@@ -576,25 +651,38 @@ observable effect, matching this crate's existing style):
 | `--force`, program producing output | `force_end` pass 1 (SIGHUP alone) | new |
 | `--force`, silent program | `force_end` pass 1 | new |
 | `--force`, program traps the polite signal | `force_end` passes 3-4 (SIGKILL) | new |
-| `--force`, program already ended before the call | `panes_in_close_scope` finds nothing to force; plain `dispatch` close | new |
-| `--force`, program dies naturally *during* the grace window | `force_end`'s own `await_exit` observes the natural exit (no escalation needed); `apply_event_locked`'s `forcing` check no-ops the race | new - the brief's own named race, directly. Asserts not only that `force_end` returns and the process is gone, but that the worker thread itself actually ends (via a test-only accessor, or by confirming a second command sent to the same `PaneHandle`'s `commands` sender fails) - §1's own fix (the "replies at once" `AwaitExit` branch must also `break`) is specifically for this row: without it, the test would see the right process-level outcome while leaking the worker thread, which a test that only checks `kill -0` on the *process* would miss entirely |
-| `--force` during pane start-up | start-and-dispatch's own existing rollback (unaffected by this task - no running program exists yet to force) | existing, unchanged, re-asserted |
+| A plain close of an idle, already-ended pane | step 3 pops its handle into `to_force`; `force_end` no-ops the signal and ends the worker via one immediate `await_exit` | new - item 2's fix, its own row, its own test (§5) |
+| `--force`, program already ended before the call | same as the row above - force-vs-not makes no difference once nothing is running | new, shares the test above |
+| `--force`, program dies naturally *during* the grace window | the tree already closed in step 2 (before `force_end` runs); the worker's own real `Exited` reaches the drain thread exactly as always, `tree.record_exit` returns `Err(PaneNotFound)`, the **existing, unmodified** arm removes the (already-nonexistent-elsewhere) handle | new - the brief's own named race, directly, proving the *existing* code handles it with no change, not that a new check does. Asserts the worker thread itself actually ends (via a test-only accessor, or by confirming a second command sent to the same `PaneHandle`'s `commands` sender fails) - §1's own fix (the "replies at once" `AwaitExit` branch must also `break`) is specifically for this row: without it, the test would see the right process-level outcome while leaking the worker thread, which a test that only checks `kill -0` on the *process* would miss entirely |
+| `--force` during pane start-up | checked, not tested separately: §6 shows this cannot happen (`Runtime`'s one lock makes "started but no handle yet" unobservable to any other call) | existing invariant, re-confirmed by reading, no new test needed |
 | `Runtime::stop`/`Drop` | `force_end`, scope = every pane | rewritten (§4) |
 
-**AC #4** (no stall, no reach meanwhile): one test, using a deliberately long
-`force_grace` for this test alone (§3) rather than the suite's usual tiny
-value - a 30ms window makes "returned before the window closed" scheduling
-noise, not evidence. Starts two sessions, forces one pane with a trapping
-program (so the window is both real and guaranteed not to end early) while
-concurrently issuing `pane.show` against the *other* session's pane from a
-second thread, asserting the second call returns well inside that long window
-(a small, stated fraction of it, not "eventually") - proves no stall. A second
-test: two threads both issue
-`pane.close --force` on the *same* pane; asserts exactly one succeeds in ending
-the program and the other is refused with `ProgramRunning` at once (not after
-waiting), via `state.forcing`. Negative control: remove the `state.forcing`
-check (§5 step 2) - the second test either double-signals or races on which
-caller removes the pane (flaky/wrong), proving the check is load-bearing.
+**AC #4** (no stall, no reach meanwhile - now the full guarantee, §6, not only
+force-vs-force): one test, using a deliberately long `force_grace` for this
+test alone (§3) rather than the suite's usual tiny value - a 30ms window makes
+"returned before the window closed" scheduling noise, not evidence. Starts two
+sessions, forces one pane with a trapping program (so the window is both real
+and guaranteed not to end early) while concurrently issuing `pane.show`
+against the *other* session's pane from a second thread, asserting the second
+call returns well inside that long window (a small, stated fraction of it, not
+"eventually") - proves no stall. A second test, using the same long-grace,
+trapping-program setup: a *second* thread issues `pane.show` (then, separately,
+a plain `pane.close`, then `pane.swap`) against the **same** pane that is
+being forced, each asserting it is refused with the ordinary `PaneNotFound`/
+`NoSuchTarget` at once, not after the grace window - proving the pane is
+unreachable by every method, not only a second `--force`, which is what §5's
+close-first redesign specifically bought over the first draft's narrower
+`forcing` set. A third test: two threads both issue `pane.close --force` on
+the same pane; asserts exactly one actually signals/ends the program (via a
+real process and `kill -0`) and the other's call either returns `PaneNotFound`
+at once (it arrived after the first already closed the tree) or itself
+performs the one, same close (it arrived first) - never both. Negative
+control for all three: temporarily reorder `close_and_dispatch` back to this
+plan's first draft's shape (`force_end` before the tree close) - the second
+and third tests then flake or double-act (a `pane.show`/`pane.swap` mid-grace
+succeeds against a pane that is about to be forced out from under it, or two
+concurrent force-closes both proceed), proving close-first, not merely the
+lock, is what the tests depend on.
 
 **AC #5**: `nix::sys::signal::{kill,killpg}` are safe functions, confirmed by
 reading `sys/signal.rs` directly (§0, §8) - no `unsafe` keyword appears
@@ -609,13 +697,24 @@ stale one, the exact thing TASK-1.76's second review was dinged for).
 
 ## Risks / for the engineer
 
-- §5 step 6's idle-handle fix (a plain close of an already-ended pane leaking
-  its handle) is a pre-existing TASK-1.76 gap, not named by any of this task's
-  five criteria. Proposed here because it is nearly free given the
-  interception this task already builds; cut to its own task if preferred.
-- §6's scoping of "cannot be reached" (force-vs-force only, not force-vs-
-  everything-else) is a real, reasoned choice, not a default - confirm or
-  widen it.
+- **AC #1's stated order (end, observe, then close) is reversed by design**
+  (Scope, §5, §6) - the tree closes first, under one lock acquisition, and the
+  program is ended after, with the caller's reply held until that is done.
+  This is what gives AC #4 its full guarantee (every method unreachable, not
+  only a second `--force`); the literal order was tried first and found not
+  to give that guarantee (Scope's own account of why). Confirm this trade, or
+  ask for the literal order with a narrower AC #4 instead.
+- §5 step 3's idle-handle fix (a plain close of an already-ended pane leaking
+  its handle) is a pre-existing TASK-1.76 gap, not named by any of this
+  task's five criteria. Included per instruction, folded into the same pass
+  `force_end` already runs for a genuinely forced pane, at no extra cost.
+- §6 answers four specific costs of close-first (a kill that never actually
+  completes because the process is wedged in an uninterruptible kernel sleep;
+  a client's view of the pane's last output between the signal and the
+  death; a future TASK-1.46 close event firing before the program is
+  confirmed dead; a force racing a pane still starting) - each checked
+  against the existing code or named as an accepted, pre-existing residual
+  risk, none left silent.
 - §0's job-control limitation (an interactive shell's own backgrounded job,
   reassigned to a new process group) is named, not fixed - no AC asks for it,
   and fixing it needs either controlling-terminal state or a full descendant

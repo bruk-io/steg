@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T17:57:00Z'
+updated_date: '2026-11-16T17:58:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -680,6 +680,51 @@ running 1 test
 test declaring_a_size_of_zero_is_refused ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T17:58:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        &mut connection,
+(B[m[32m+        vec!["sh", "-c", "exec sleep 100"],
+(B[m[32m+    );
+(B[m     let attached = attach(&mut stream, &mut connection, &pane);
+     flood_stdin(&mut stream, &connection, attached.stream);
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1238:
+     // reset to a bound comfortably past `force_end`'s own worst case
+     // before a call whose reply can legitimately take that long, so
+     // `call_and_read_reply`'s own blocking read does not time out first.
+[31m-    stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+(B[m[32m+    stream
+(B[m[32m+        .set_read_timeout(Some(Duration::from_secs(10)))
+(B[m[32m+        .unwrap();
+(B[m 
+     let mut params = Map::new();
+     params.insert("target".to_string(), json!(pane));
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1263:
+ /// stop`).
+ #[test]
+ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck() {
+[31m-    let _flood_guard = FLOOD_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+(B[m[32m+    let _flood_guard = FLOOD_TEST_LOCK
+(B[m[32m+        .lock()
+(B[m[32m+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+(B[m     let (socket_path, stop, handle) = start_server();
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1270:
+[31m-    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exec sleep 100"]);
+(B[m[32m+    let pane = new_pane_running(
+(B[m[32m+        &mut stream,
+(B[m[32m+        &mut connection,
+(B[m[32m+        vec!["sh", "-c", "exec sleep 100"],
+(B[m[32m+    );
+(B[m     let attached = attach(&mut stream, &mut connection, &pane);
+     flood_stdin(&mut stream, &connection, attached.stream);
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

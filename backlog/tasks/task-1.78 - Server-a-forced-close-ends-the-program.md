@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:09:00Z'
+updated_date: '2026-11-16T03:11:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2177,6 +2177,36 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:11:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.1s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (16.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (29.8s)
+ok      test (steg-server) (13.3s)
+ok      test (steg-server, race-fixture) (13.8s)
+ok      build (steg) (0.7s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 124, 123 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

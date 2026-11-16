@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:43:00Z'
+updated_date: '2026-11-16T01:51:00Z'
 labels:
   - size-2
   - changes-requested
@@ -601,6 +601,36 @@ Nit: reworded the mark-for-a-pane-already-gone test's own comment (crates/server
 Checks recorded on this task since the review: a passing run of the fixed test alone (exit 0), five repeats with no flakiness; the bypass-the-guard control (exit 101, confirmed failing, restored); the drain-removed control (exit 101, confirmed failing, restored); the full runtime::tests suite (18 tests, exit 0) after restoring both; a full `just check` (exit 0) at the merged head.
 
 origin/main moved while this was in flight - fetched and merged (git merge --no-edit, branch already pushed): every incoming commit was board-only (backlog/ task and draft updates, review and check records); no crates/ file touched. TASK-1.78 (forced close) was still In Progress at merge time and remains so - the reworded comment on the gone-pane test no longer names it, so nothing here depends on when it lands. `just check` was re-recorded clean at the merged, pushed head, and CI is green on that same head (c495468).
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:51:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at c495468451b0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (18189515) panicked at crates/server/src/runtime.rs:1926:9:
+assertion `left == right` failed: a command pane's own program always wins over a mark (R97)
+  left: Some(Failed { exit_code: 3 })
+ right: Some(Running)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=3'
 asdlc_review_policies: ["review", "testing", "tools"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -896,6 +897,15 @@ Nits (3, at the cap):
 [Bugs, Nit] ui_levels.py's cross-level detection misses a cross-level path written as a literal argument inside an unrelated macro invocation (e.g. `some_macro!(crate::atoms::Thing)`) - confirmed live: tree-sitter-rust parses macro arguments as an opaque `token_tree`, so `find_all(kind="scoped_identifier")` never sees inside it. This is a different, more mundane gap than the one the plan names ("a path built by a macro that expands to a cross-level reference") and isn't disclosed under that name. Likely low real-world risk since gpui components aren't built with macro DSLs today.
 
 Verified as working, not just as claimed: plain/grouped/glob/aliased `use`, a fully-qualified expression path (counted once, not per nesting), the crate-root `pub use` re-export loophole (plain and aliased), a second `super::` hop staying a documented no-op, a `#[path]`-relocated file under a new top-level folder refused loudly as unplaced (not silently skipped), a nested submodule under a level still correctly attributed and checked (the disclosed limitation is narrowly the `super::super::` chain, not "nested files unchecked" generally), both exemptions (foundations permanent, gallery temporary with its TASK-1.93 end-condition comment) as one named line each, a colour literal inside `#[cfg(test)]` refused like any other, a comment and an ordinary string correctly passed, a 4-digit hex correctly passed, an arithmetic-built colour correctly and silently passed (as disclosed), and the two/one/zero-match message forms all correct for bare hex literals. `just check` passes on this head with both new recipes wired through `steg-quiet` into `check:`; no CI workflow edit was needed or made.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:14:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

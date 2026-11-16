@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:56:00Z'
+updated_date: '2026-11-16T19:49:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -533,6 +533,16 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+## CI's OWN NUMBERS (temporary workflow step, pull request 61, now removed)
+
+Ran on GitHub's hosted macOS runner, via a temporary CI step since removed (reverted in a follow-up commit before this pull request merges, per the engineer's instruction).
+
+Shipped-default test (5 attempts, 3,200 opens), 5 runs: all 5 passed, wall time 2.6s-4.7s per run.
+
+Ignored no-retry control (`max_open_attempts = 1`), 3 runs: all 3 reproduced the race. Opens until first failure on the worker that saw it: 1, 9, 1. Total opens across all workers before the control stopped them: 879, 793, 557. Wall time: 1.1s-1.4s per run.
+
+Reading this against the dev-machine table above: CI's runner reproduced faster and more consistently (3/3, each within under 1,000 total opens) than this shared dev machine did at the same bound (3/3 there too, but one run needed 60,491 opens and 110s) - consistent with this task's own finding that the rate depends on ambient pty activity elsewhere on the machine, which a dedicated CI runner has far less of than this heavily-shared dev machine. No miss recorded on either machine at the 100,000-open bound.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

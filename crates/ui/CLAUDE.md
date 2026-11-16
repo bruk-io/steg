@@ -13,9 +13,10 @@ request shows.
   molecules use atoms and foundations; atoms use foundations; foundations use nothing of
   this crate (R119). Not yet a check `just check` runs - TASK-1.94 adds it.
 - Every colour, size, radius, duration and font a *component* uses is a named value from
-  foundations, never a literal (R120). The gallery's own chrome is not a component of the
-  four levels and is exempt - its literals are placeholders TASK-1.93's real foundations
-  replace, marked as such where they appear.
+  foundations, never a literal (R120). The gallery is not a component of the four levels,
+  but since TASK-1.93 it draws everything it shows - every swatch, ramp, type sample,
+  spacing bar and corner - from `foundations` by name as well, the same as any real
+  component would; it has no literal of its own left to be exempt for.
 - Tests: `just test` runs this crate's tests when a change touches it; `just check-packages`
   builds and tests every package alone, including this one (both its `src/` lib and its
   `gallery` binary - compiling the binary is cheap and proves nothing opens a window by

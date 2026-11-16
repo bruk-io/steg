@@ -859,6 +859,53 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py'` exited 1 at 2026-11-16T03:26:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes, last 40 of 44 lines:
+
+```text
+    def test_violations_carries_a_genuine_alpha_as_a_rounded_percentage() -> None:
+        # 0x80 = 128/255 ~= 50.2%, rounded to 50 - the reviewer's own example.
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b2180); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0x1c1b2180)", (("surface.raised", "dark"),), 50),)
+E       AssertionError: assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b2180)', matches=(('surface.raised', 'dark'),), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b2180)', matches=(('surface.raised', 'dark'),), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:186: AssertionError
+__ test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too __
+
+    def test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", 'fn f() -> &\'static str { "#1c1b2180" }\n')
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, '"#1c1b2180"', (("surface.raised", "dark"),), 50),)
+E       assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='"#1c1b2180"', matches=(('surface.raised', 'dark'),), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='"#1c1b2180"', matches=(('surface.raised', 'dark'),), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:192: AssertionError
+__ test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name ___
+
+    def test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0xabcdef80); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0xabcdef80)", (), 50),)
+E       AssertionError: assert (Violation(pa...ercent=None),) == (Violation(pa..._percent=50),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0xabcdef80)', matches=(), alpha_percent=None) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0xabcdef80)', matches=(), alpha_percent=50)
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:198: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_violations_carries_a_genuine_alpha_as_a_rounded_percentage
+FAILED tests/unit/test_ui_colours.py::test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too
+FAILED tests/unit/test_ui_colours.py::test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name
+3 failed, 35 passed in 0.03s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

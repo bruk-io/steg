@@ -1534,6 +1534,21 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run` exited 0 at 2026-11-16T02:10:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -2101,6 +2101,21 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib pane::ending_tests::restarting_then_forcing_ends_the_new_program_as_a_plain_regression` exited 0 at 2026-11-16T03:07:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.65s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::ending_tests::restarting_then_forcing_ends_the_new_program_as_a_plain_regression ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 102 filtered out; finished in 0.02s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

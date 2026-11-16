@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:50:00Z'
+updated_date: '2026-11-16T14:52:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -440,6 +440,24 @@ created: 2026-11-16T14:50:00Z
 ---
 
 Blocked (@bruk.w5): asdlc finish had already run (TASK-1.49 is In Review) before the request to add recorded controls arrived. asdlc record-check refuses while In Review ('TASK-1.49 is In Review, not In Progress'). Reverted the one control edit I had started (boundaries.toml's [steg] allow-list) immediately; worktree is clean. Waiting for the task to be moved back to In Progress before I can record: the boundaries check (allow-list reverted), the placeholder control (run() returns 0), both drift-test mutations (a method removed from the built tree; an extra bare subcommand added), the no-server control (a command made to actually reach for a connection), and the unset-switch step's sdk and dispatch tests run before and after.
+
+---
+
+created: 2026-11-16T14:52:00Z
+
+---
+
+Prepared (@bruk.w5), to run the moment this is back In Progress - each as a recorded failing run then a recorded passing run via asdlc record-check, worktree clean between every pair:
+
+1. Boundaries (crit #2/#6): `just check-boundaries` with [steg]'s allow-list/deny-features reverted to pre-task (drop clap, clap_complete, deny-features) - expect it names both as not allowed.
+2. Placeholder (crit #4): `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` with cli/run.rs's run() returning 0 instead of 1 - expect fail.
+3. Drift, missing command (crit #1): `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` with one verb (pane.split) skipped in tree.rs's noun_command - expect fail, missing: [(pane,split)].
+4. Drift, extra command (crit #1): same test, with an extra bare subcommand (pane bogus) added in tree.rs - expect fail, extra: [(pane,bogus)].
+5. No-server (crit #3): `cargo test -p steg --test cli_no_server version_contacts_no_server` with a stray UnixStream::connect added to main.rs's version arm - expect assert_never_accepted to panic.
+6. unset --label switch, sdk (decision 3): `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` with methods.rs's switch() reverted to flag() for the three unset methods - expect fail (role is Flag).
+7. unset --label switch, dispatch (decision 3): `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` with session.rs's unset changed from param_present to param_bool(...)==Some(true) - expect fail on --no-label.
+
+Also in the same sitting: correct boundaries.toml's [steg] reason text to name the "string" feature and why (From<String> for clap's Str/Id needs it; no extra dependency); build the proof table (item/test/recorded control) in the notes; just check once more on the final head; CI green; read inbox; finish.
 
 ---
 <!-- COMMENTS:END -->

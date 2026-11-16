@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:30:00Z'
+updated_date: '2026-11-16T01:39:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1358,6 +1358,26 @@ Reviewed at head 3fbdf09f023c9d7707a407572f666aaf9e5ece3a (matches the task's fi
 [Nit] crates/steg/src/main.rs - the fallthrough for an unrecognised command (e.g. `server start --bogus`) still prints "steg: not yet implemented" and returns 0; pre-existing, but `server start`'s own exit-status contract with doc-2 is now real for this command, so an unrecognised variant of it silently succeeding reads as a gap worth a line in the notes, not necessarily a fix.
 
 Evidence otherwise sound: the task's recorded `just check` and negative controls are real, reproduced one myself, and the head reviewed is the head that is green on the PR.
+
+---
+
+created: 2026-11-16T01:39:00Z
+
+---
+
+Review findings fixed at head b5e2aa6 (PR #44, CI green). Each finding, and what was done about it:
+
+[Bugs, Important - leaked servers] How a test now finds and ends its server, leading as asked: `lsof -t` on the arbiter's **lock file**, not the socket path itself. Tried the socket path first (matching the obvious reading of "find the process holding the socket's lock") and it found nothing - confirmed directly, not assumed wrong: `bind_with_mode` (`crates/server/src/bind.rs`) binds the real socket under a temporary sibling name and only `rename`s it onto the final path afterward, and on this machine `lsof` reports a Unix domain socket's name as whatever path it was bound to *originally* - the rename never updates that. `lsof -p <pid>` on a real leftover server (confirmed by the review, 37 of them, parent 1) showed its socket fd still named `.steg-tmp-<pid>-<n>`, never the final path. The lock file has no such step (`arbiter::try_lock` creates it directly at its final name), so `lsof -t` on *it* works, confirmed directly before relying on it. A `ServerAtSocket` guard (Drop-based, same shape as `KillOnDrop`) does this lookup-and-kill on every path including a panic, added to both leaking tests; declared before the `Child` that causes the server to exist, so it runs after that `Child`'s own drop (reverse declaration order), when the server (if it survived, as `the_clients_process_group_being_sighupd...` specifically proves) is still there to find.
+
+Proved, not just fixed: a new suite-level check runs the whole `server_start.rs` suite, then counts any process matching this worktree's own `target/debug/steg` path (`pgrep -f`), asserting zero - recorded. Its own negative control (the guard's `Drop` body replaced with a no-op, reverted after): the same check now fails, with a non-zero count (2, matching the two tests that leak without it) - recorded, then restored and reconfirmed clean across 10 consecutive runs.
+
+[Compliance/Evidence, Important - untested exit statuses] Two new tests through the real binary: `an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason` (a plain file where a socket is expected - `arbiter::decide`'s already-proven `NotASocket` branch, reached here for the first time through `steg server start` itself) and `running_out_of_file_descriptors_exits_1` (the accept loop's own `Err` path - the server is started under a lowered `ulimit -n 16` via a shell wrapper, then 40 real connections are opened against it; confirmed empirically before writing it as a real assertion, with a scratch shell/Python experiment since deleted, that this reliably exhausts the limit and kills the accept loop within the first twenty connections on this machine, varying exactly which one trips it run to run (scheduling) but always within that range - the real test's connection count (40) is deliberately well past the observed range, not tuned to an exact number). Both run cleanly 15x in a row with no leftover processes.
+
+[Nit, taken] An unrecognised `server start` variant (e.g. `--bogus`) now exits 2 (doc-2's bad-usage status), not the generic "not yet implemented" placeholder's 0 - `server start` itself is no longer unimplemented, so a typo'd invocation of it silently succeeding would be a real gap now. One new test.
+
+Checks recorded, in order: the two fixed tests individually (pass); the suite-level zero-leak check (pass); the same check's negative control with the guard disabled (fail, count 2, as expected) then restored; the two new exit-status tests and the nit's test, each run 15x; the full 11-test suite, 10 consecutive runs each re-checked for zero leftover processes; `just check` at 3fbdf09 (pre-merge, green); merge of origin/main (clean, no code conflicts - only `backlog/` board files changed; confirmed `ServerConfig` still has no `launcher`/`login` fields, so TASK-1.45 has not actually merged its code yet despite its own check-recording commits being visible in history - no login-line adaptation needed); `just check` at the final head b5e2aa6 (green).
+
+PR #44's CI failed once more on this round, on the same already-tracked flake (TASK-1.82): `tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server`, `TimeoutError: likec4 mcp did not answer within 30.0s`, at the pre-merge head. Read the full log again before rerunning, not assumed the same: every one of this task's own steps (`test (steg)`, `test (steg, fixtures)`, `test (steg-server, race-fixture)`) passed; `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` showed nothing, same as the first occurrence. This is now the fourth independent occurrence of the exact same tracked test/error (two on other PRs per TASK-1.82's own description, two on this one) - reran and CI passed green at the final head (b5e2aa6, the merged one), confirmed via `gh pr view 44 --json headRefOid`.
 
 ---
 <!-- COMMENTS:END -->

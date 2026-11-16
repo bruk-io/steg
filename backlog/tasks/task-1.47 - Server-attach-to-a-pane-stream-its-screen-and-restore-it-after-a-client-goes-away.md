@@ -931,6 +931,51 @@ test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:47:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 649539f36d12 with uncommitted changes, last 40 of 65 lines:
+
+```text
+421 | |     next_stream: &RefCell<u32>,
+422 | | ) -> bool {
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+    = note: `-D clippy::too-many-arguments` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::too_many_arguments)]`
+
+error: doc list item without indentation
+   --> crates/server/src/dispatch/mod.rs:165:5
+    |
+165 | /// own completeness test checks against `description()` directly.
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+165 | ///   own completeness test checks against `description()` directly.
+    |     ++
+
+error: this function has too many arguments (8/7)
+   --> crates/server/src/runtime.rs:452:5
+    |
+452 | /     pub(crate) fn attach_pane(
+453 | |         &self,
+454 | |         description: &Description,
+455 | |         context: &Context,
+...   |
+460 | |         stream: u32,
+461 | |     ) -> Result<PaneId, ApiError> {
+    | |_________________________________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#too_many_arguments
+
+error: could not compile `steg-server` (lib) due to 9 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (lib test) due to 9 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -11,6 +11,7 @@
 //! unchanged.
 
 mod api;
+mod event;
 mod kernel_error;
 mod lookup;
 pub(crate) mod outcome;
@@ -20,6 +21,7 @@ mod setting;
 mod tab;
 
 pub(crate) use api::resolve as resolve_api_call;
+pub(crate) use event::{Filter, resolve_filter, tree_snapshot};
 pub(crate) use kernel_error::map_kernel_error;
 pub(crate) use lookup::{
     any_pane_running, find_tab, pane_mut, panes_in_close_scope, param_bool, param_i64,
@@ -190,7 +192,20 @@ pub fn dispatch(
         ("server", _) => Err(not_implemented_yet(
             "the server's own socket and lifecycle (TASK-1.44)",
         )),
-        ("event", _) => Err(not_implemented_yet("events (TASK-1.46)")),
+        // `event.watch` (TASK-1.46) is never actually routed here in
+        // production: it needs a connection's own registered subscriber
+        // (its `Outbound`) to reply atomically with the filter it sets,
+        // which this function has no access to (`dispatch` is a plain
+        // function over `&mut Tree`, no socket in its signature) -
+        // `Runtime::subscribe` answers it directly, before `dispatch`
+        // would ever be called with it. This arm stays only so the
+        // method is still "handled" by `mod.rs`'s own completeness test
+        // and so a test that calls `dispatch` directly with it (bypassing
+        // `Runtime`) gets a clear refusal rather than a panic.
+        ("event", _) => Err(not_implemented_yet(
+            "event.watch is answered by Runtime::subscribe, not dispatch::dispatch - this \
+             path is unreachable through a real connection",
+        )),
         ("client", _) => Err(not_implemented_yet("a client model (TASK-1.42)")),
         _ => unreachable!(
             "validate already refused any method not in the description, and every \

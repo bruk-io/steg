@@ -46,7 +46,12 @@ pub(super) fn dispatch(
 /// the caller (`list` has it from its own walk; `show` looks it up through
 /// [`tab_position`]) - shared so the two verbs never compute it two
 /// different ways.
-fn record_for(tree: &Tree, tab: &steg_kernel::Tab, position: usize, now: Moment) -> TabRecord {
+pub(super) fn record_for(
+    tree: &Tree,
+    tab: &steg_kernel::Tab,
+    position: usize,
+    now: Moment,
+) -> TabRecord {
     let id = tab.id();
     TabRecord {
         id,

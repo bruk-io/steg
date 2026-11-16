@@ -79,7 +79,12 @@ fn parse_direction(word: &str) -> Direction {
 /// `None` whenever the tab holds no declared size yet (R91) -
 /// `pane_size` below reads `Tree::tab_layout`/`Tab::size` the same way
 /// `tab::record_for` reads `tab_layout` for `TabRecord.layout`.
-fn record_for(tree: &Tree, tab_id: steg_sdk::TabId, pane: &Pane, now: Moment) -> PaneRecord {
+pub(super) fn record_for(
+    tree: &Tree,
+    tab_id: steg_sdk::TabId,
+    pane: &Pane,
+    now: Moment,
+) -> PaneRecord {
     PaneRecord {
         id: pane.id(),
         label: pane.label().map(str::to_string),

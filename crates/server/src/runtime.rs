@@ -20,12 +20,13 @@ use steg_kernel::{
     CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree,
 };
 use steg_sdk::{
-    ApiError, ClientId, ClientKind, Description, ErrorCode, PaneId, Program, Request, Response,
-    validate,
+    ApiError, ClientId, ClientKind, Connection, Description, ErrorCode, PaneId, Program, Request,
+    Response, SessionId, validate,
 };
 
-use crate::dispatch::{self, Context};
+use crate::dispatch::{self, Context, Filter};
 use crate::env::pane_environment;
+use crate::outbound::Outbound;
 use crate::pane::{self, DEFAULT_PANE_SIZE, PaneEvent, PaneHandle};
 use crate::program_param::program_from_request;
 use crate::pty::{LaunchSpec, ProgramLauncher};
@@ -167,6 +168,14 @@ struct State {
     // converted at the one place `apply_event_locked` calls
     // `record_exit`, never read by the kernel itself).
     clock_origin: Instant,
+    /// Every connection that can receive a broadcast event (TASK-1.46 §7):
+    /// registered the moment a connection is usable at all (`register_
+    /// subscriber`, called right after the handshake, before any request
+    /// can arrive), deregistered on every exit path (`deregister_
+    /// subscriber`). A registered connection with `filter: None` has
+    /// never called `event.watch` - it receives nothing, never
+    /// unfiltered (`broadcast` only ever matches a `Some` filter).
+    subscribers: HashMap<ClientId, Subscriber>,
     /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
     /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
     /// test-only, since nothing outside a test needs it. A mark the
@@ -178,6 +187,14 @@ struct State {
     /// inferred from a sleep or from a different pane's own marks.
     #[cfg(test)]
     applied_marks: HashMap<PaneId, u64>,
+}
+
+/// One registered connection's own broadcast handle and subscription
+/// filter (TASK-1.46 §7).
+struct Subscriber {
+    outbound: Arc<Outbound>,
+    /// `None` until `event.watch` runs on this connection.
+    filter: Option<Filter>,
 }
 
 /// Owns the kernel's tree and every pane's real runtime, and is the one
@@ -251,6 +268,7 @@ impl Runtime {
             panes: HashMap::new(),
             settings: Settings::new(),
             clock_origin: Instant::now(),
+            subscribers: HashMap::new(),
             #[cfg(test)]
             applied_marks: HashMap::new(),
         }));
@@ -351,6 +369,7 @@ impl Runtime {
                 );
                 if matches!(response, Response::Ok(_)) {
                     reapply_every_sized_tab(state);
+                    emit_focus_event(state, context, &resolved);
                 }
                 response
             }
@@ -401,6 +420,91 @@ impl Runtime {
         for change in &changes {
             apply_size_changed_locked(&mut state, change);
         }
+    }
+
+    /// Registers a connection as eligible for broadcast (TASK-1.46 §7):
+    /// called once, by `connection::handle`'s own `run_post_handshake`,
+    /// right after its writer (`outbound`) is spawned and before the read
+    /// loop that could bring in `event.watch` even starts - so a
+    /// connection is never asked to subscribe before it is registered
+    /// (`subscribe`'s own `.expect` relies on this). `filter: None` until
+    /// `event.watch` runs: a registered-but-unfiltered connection receives
+    /// nothing from `broadcast`, never everything.
+    pub(crate) fn register_subscriber(&self, client_id: ClientId, outbound: Arc<Outbound>) {
+        self.lock().subscribers.insert(
+            client_id,
+            Subscriber {
+                outbound,
+                filter: None,
+            },
+        );
+    }
+
+    /// Deregisters a connection (TASK-1.46 §7): called on every exit path
+    /// out of a connection (`connection::handle`'s own `ConnectionCleanup`
+    /// guard), so `broadcast` never holds a handle to a writer that is
+    /// gone. Idempotent: deregistering a connection that was never
+    /// registered, or already was, does nothing further.
+    pub fn deregister_subscriber(&self, client_id: ClientId) {
+        self.lock().subscribers.remove(&client_id);
+    }
+
+    /// `event.watch` (AC #1, #3, #4): registers this connection's own
+    /// filter and replies with the tree, atomically - both inside the one
+    /// lock acquisition, so nothing broadcast by another thread between
+    /// them can ever reach the wire ahead of this reply (TASK-1.46's own
+    /// plan, section 4, the race its first draft missed). Bypasses the
+    /// generic `Runtime::handle`/`Connection::reply`-afterward path
+    /// entirely: `connection::handle` calls this directly (after
+    /// resolving any `api.call` wrapping itself, so that path reaches
+    /// here too) instead of calling `handle` and enqueueing its own
+    /// reply - the reply is already on the wire by the time this returns
+    /// `Ok`.
+    ///
+    /// On `Err`, nothing is registered or changed: the caller builds and
+    /// enqueues the ordinary error reply itself, which needs no
+    /// atomicity (nothing was broadcast as part of answering a request
+    /// that never actually subscribed).
+    ///
+    /// # Errors
+    /// The same validation and target-resolution errors `dispatch::
+    /// dispatch` would give — a request `event.watch` does not declare, a
+    /// malformed `for`/`all`, or no session to resolve (`resolve_filter`).
+    ///
+    /// # Panics
+    /// Never in practice: `client_id` is only ever one `connection::
+    /// handle` passed back, which always calls `register_subscriber`
+    /// first - the same invariant `start_and_dispatch`'s own panics
+    /// already rest on elsewhere in this file.
+    pub fn subscribe(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+        client_id: ClientId,
+        request_id: u64,
+    ) -> Result<(), ApiError> {
+        let mut state = self.lock();
+        validate(description, request)?;
+        let filter = dispatch::resolve_filter(&state.tree, context, request)?;
+        let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+        let snapshot = dispatch::tree_snapshot(&state.tree, now);
+
+        let subscriber = state.subscribers.get_mut(&client_id).expect(
+            "register_subscriber already ran, before any request could arrive on this connection",
+        );
+        subscriber.filter = Some(filter);
+
+        let value = serde_json::to_value(snapshot).expect("TreeSnapshot always serialises");
+        let bytes = Connection::reply(request_id, Response::Ok(value));
+        // A failed enqueue means this connection's queue is already
+        // closed or full - it is tearing down concurrently (its own
+        // `deregister_subscriber` is on its way), and there is nothing
+        // further to do: the request still succeeded (the filter is set,
+        // the tree was read), there is simply no one left to write the
+        // reply to.
+        let _ = subscriber.outbound.enqueue_control(bytes);
+        Ok(())
     }
 
     /// Stops this `Runtime`: ends every running program, reaps each one,
@@ -566,6 +670,14 @@ impl Runtime {
             Ok(handle) => {
                 state.panes.insert(new_pane, handle);
                 reapply_every_sized_tab(&mut state);
+                // Creation events (§5 of this task's own plan): emitted
+                // only now, after the real spawn has actually succeeded -
+                // never at the earlier, still-rollback-able mint a few
+                // lines above, which the `Err` arm below can still undo.
+                // Outermost first: a session names its own new tab and
+                // pane without a subscriber having to wait for separate
+                // events to learn the shape of what was just created.
+                emit_creation_events(&state, request.method.as_str(), new_pane, request);
                 Response::Ok(value)
             }
             Err(error) => {
@@ -598,6 +710,13 @@ impl Runtime {
             Ok(scope) => scope,
             Err(error) => return Response::Error(error),
         };
+        // Same reason, for this task's own closure events (§5): captured
+        // once, before anything closes, reused for `emit_close_events`
+        // after a successful dispatch below.
+        let cascade = match capture_close_cascade(&state.tree, context, request) {
+            Ok(cascade) => cascade,
+            Err(error) => return Response::Error(error),
+        };
 
         let response = {
             // See `start_and_dispatch`'s own comment: one explicit deref
@@ -624,7 +743,14 @@ impl Runtime {
         // The close just ran, under the lock still held: the whole scope
         // is gone from the tree now, atomically - not partially, since
         // `close_pane`/`close_tab`/`close_session` are each one kernel
-        // operation, never a loop this could interrupt midway.
+        // operation, never a loop this could interrupt midway. Emitted
+        // before `force_end` runs (still under the lock, before it is
+        // dropped a few lines down) - the close events describe the
+        // tree, not the program's own lifecycle, and the tree has
+        // already changed by this point (TASK-1.78's own plan already
+        // assumed exactly this timing for this task).
+        emit_close_events(&state, &cascade);
+
         let to_force: Vec<(PaneId, PaneHandle)> = scope
             .into_iter()
             .filter_map(|pane| state.panes.remove(&pane).map(|handle| (pane, handle)))
@@ -795,6 +921,322 @@ fn new_pane_from(tree: &Tree, method: &str, value: &serde_json::Value) -> Option
     }
 }
 
+/// The session that owns `tab` - the same walk `rollback_mint`'s own
+/// `session.new` arm already does inline, pulled out so the creation
+/// -events helper below can use it for all three starting methods, not
+/// only that one.
+fn session_owning_tab(tree: &Tree, tab: steg_sdk::TabId) -> SessionId {
+    tree.sessions()
+        .iter()
+        .find(|session| session.tab(tab).is_some())
+        .map(steg_kernel::Session::id)
+        .expect("the tab just minted is still in the tree")
+}
+
+/// Emits `pane.status_changed` (§5 of this task's own plan): the one
+/// event site for every way a typed command's status actually changes
+/// (its own callers already decide *whether* anything changed - a no-op
+/// mark is never passed here at all). Silently does nothing if the pane
+/// cannot be scoped to a session (the pane is already gone from the tree,
+/// §5's own documented race) - there is no subscriber whose filter could
+/// meaningfully match it at that point anyway.
+fn emit_pane_status_changed(state: &State, pane: PaneId, status: Option<steg_sdk::Status>) {
+    let Some(scope) = state
+        .tree
+        .tab_of_pane(pane)
+        .map(|tab| session_owning_tab(&state.tree, tab))
+    else {
+        return;
+    };
+    broadcast(
+        state,
+        &steg_sdk::TreeEvent::PaneStatusChanged { pane, status },
+        scope,
+    );
+}
+
+/// What `pane.close`/`tab.close`/`session.close` will close, captured
+/// *before* `dispatch` runs (§5 of this task's own plan): once the close
+/// succeeds the tree can no longer be asked, the same reasoning
+/// `panes_in_close_scope` already uses for `force_end`'s own needs,
+/// applied here to this task's own event emission instead.
+enum CloseCascade {
+    /// `pane.close`: the one pane, and the session it scopes to.
+    Pane { id: PaneId, session: SessionId },
+    /// `tab.close`: the tab, its session, and its panes in order -
+    /// whether the session also closed (R94) is checked *after*
+    /// dispatch runs, since only then is it known.
+    Tab {
+        id: steg_sdk::TabId,
+        session: SessionId,
+        panes: Vec<PaneId>,
+    },
+    /// `session.close`: the session, and its tabs in order, each with
+    /// its own panes in order.
+    Session {
+        id: SessionId,
+        tabs: Vec<(steg_sdk::TabId, Vec<PaneId>)>,
+    },
+}
+
+/// Builds the [`CloseCascade`] `close_and_dispatch` needs, before it
+/// closes anything.
+///
+/// # Errors
+/// Whatever resolving the request's own target gives - the same errors
+/// `dispatch`'s own close arm would refuse with, caught here first since
+/// this runs before it.
+fn capture_close_cascade(
+    tree: &Tree,
+    context: &Context,
+    request: &Request,
+) -> Result<CloseCascade, ApiError> {
+    match request.method.as_str() {
+        "pane.close" => {
+            let pane = dispatch::target_pane(tree, context, request)?;
+            let tab = tree
+                .tab_of_pane(pane)
+                .expect("target_pane just resolved this pane; it is in the tree");
+            Ok(CloseCascade::Pane {
+                id: pane,
+                session: session_owning_tab(tree, tab),
+            })
+        }
+        "tab.close" => {
+            let tab = dispatch::target_tab(tree, context, request)?;
+            let session = session_owning_tab(tree, tab);
+            let panes = dispatch::panes_in_close_scope(tree, context, request)?;
+            Ok(CloseCascade::Tab {
+                id: tab,
+                session,
+                panes,
+            })
+        }
+        "session.close" => {
+            let session = dispatch::target_session(tree, context, request)?;
+            let tabs = tree
+                .session(session)
+                .map(|found| {
+                    found
+                        .tabs()
+                        .iter()
+                        .map(|tab| {
+                            let panes = tab.panes().iter().map(steg_kernel::Pane::id).collect();
+                            (tab.id(), panes)
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            Ok(CloseCascade::Session { id: session, tabs })
+        }
+        other => unreachable!(
+            "capture_close_cascade is only ever called for the three close methods, not {other}"
+        ),
+    }
+}
+
+/// Emits a [`CloseCascade`]'s own events, innermost first (§5 of this
+/// task's own plan): every pane, then its tab if the tab closed too, then
+/// the session if that closed too - one rule, whichever of the three
+/// methods caused it.
+fn emit_close_events(state: &State, cascade: &CloseCascade) {
+    use steg_sdk::TreeEvent;
+
+    match cascade {
+        CloseCascade::Pane { id, session } => {
+            broadcast(state, &TreeEvent::PaneClosed { id: *id }, *session);
+        }
+        CloseCascade::Tab { id, session, panes } => {
+            for pane in panes {
+                broadcast(state, &TreeEvent::PaneClosed { id: *pane }, *session);
+            }
+            broadcast(state, &TreeEvent::TabClosed { id: *id }, *session);
+            if state.tree.session(*session).is_none() {
+                // R94's cascade reached the session too.
+                broadcast(state, &TreeEvent::SessionClosed { id: *session }, *session);
+            }
+        }
+        CloseCascade::Session { id, tabs } => {
+            for (tab_id, panes) in tabs {
+                for pane in panes {
+                    broadcast(state, &TreeEvent::PaneClosed { id: *pane }, *id);
+                }
+                broadcast(state, &TreeEvent::TabClosed { id: *tab_id }, *id);
+            }
+            broadcast(state, &TreeEvent::SessionClosed { id: *id }, *id);
+        }
+    }
+}
+
+/// Emits the closure half of a cascade `ClosedPane` already describes
+/// (§5 of this task's own plan), innermost first: the pane always, then
+/// its tab if the cascade also closed that (R94), then its session if
+/// the cascade reached that far too. `scope` is the session every event
+/// in the cascade is filtered against, even once `closed.session` itself
+/// names it too - the same id, read once by the caller, since this
+/// cascade can never reach a session other than the one the pane itself
+/// was in.
+fn emit_close_cascade(state: &State, closed: &steg_kernel::ClosedPane, scope: SessionId) {
+    use steg_sdk::TreeEvent;
+
+    broadcast(state, &TreeEvent::PaneClosed { id: closed.pane }, scope);
+    if let Some(tab) = closed.tab {
+        broadcast(state, &TreeEvent::TabClosed { id: tab }, scope);
+    }
+    if let Some(session) = closed.session {
+        broadcast(state, &TreeEvent::SessionClosed { id: session }, scope);
+    }
+}
+
+/// Emits this task's own creation events (§5 of this task's plan),
+/// outermost first: `session.new` names its new session, tab and pane;
+/// `tab.new` its new tab and pane; `pane.split` its one new pane. Called
+/// only once the real spawn has succeeded (`start_and_dispatch`'s own
+/// `Ok` arm) - never at the earlier, still-rollback-able mint.
+///
+/// `request`'s own `label` param means a different thing per method (the
+/// new session's, the new tab's, or the new pane's own label - doc-2's
+/// own per-method parameter list, not one this function invents): read
+/// once and attached to whichever of the three it actually names: the
+/// others get `None`, never the same text repeated on something it was
+/// never given for.
+fn emit_creation_events(state: &State, method: &str, new_pane: PaneId, request: &Request) {
+    use steg_sdk::TreeEvent;
+
+    let label = dispatch::param_str(request, "label").map(str::to_owned);
+    let tab_id = state
+        .tree
+        .tab_of_pane(new_pane)
+        .expect("just started this pane's program; its tab still holds it");
+    let session_id = session_owning_tab(&state.tree, tab_id);
+
+    match method {
+        "session.new" => {
+            broadcast(
+                state,
+                &TreeEvent::SessionCreated {
+                    id: session_id,
+                    label,
+                },
+                session_id,
+            );
+            broadcast(
+                state,
+                &TreeEvent::TabCreated {
+                    id: tab_id,
+                    session: session_id,
+                    label: None,
+                },
+                session_id,
+            );
+            broadcast(
+                state,
+                &TreeEvent::PaneCreated {
+                    id: new_pane,
+                    tab: tab_id,
+                    label: None,
+                },
+                session_id,
+            );
+        }
+        "tab.new" => {
+            broadcast(
+                state,
+                &TreeEvent::TabCreated {
+                    id: tab_id,
+                    session: session_id,
+                    label,
+                },
+                session_id,
+            );
+            broadcast(
+                state,
+                &TreeEvent::PaneCreated {
+                    id: new_pane,
+                    tab: tab_id,
+                    label: None,
+                },
+                session_id,
+            );
+        }
+        "pane.split" => {
+            broadcast(
+                state,
+                &TreeEvent::PaneCreated {
+                    id: new_pane,
+                    tab: tab_id,
+                    label,
+                },
+                session_id,
+            );
+        }
+        other => unreachable!(
+            "emit_creation_events is only ever called for the three starting methods, not {other}"
+        ),
+    }
+}
+
+/// `tab.focus`/`pane.focus` (§5 of this task's own plan): emits the whole
+/// path (decision-5: "one event reports the whole path, so no client ever
+/// sees the two halves apart"), re-derived from the tree *after* the
+/// mutation rather than threading the kernel's own `Focused`/`FocusMove`
+/// back out of `dispatch::tab::focus`/`pane::focus` (both still return
+/// `Outcome::Nothing`, unchanged) - correct regardless of which of the
+/// two actually moved anything, or which neighbour `pane.focus
+/// --direction` landed on: re-resolving the *original* target after the
+/// fact still finds the same tab (focusing never moves a pane to another
+/// tab), and that tab's own `current()` is whichever pane the operation
+/// actually left focused, direction or not. Every other successful
+/// method is a no-op here (`None` match arm) - nothing else changes focus.
+///
+/// **`session.focused` is never emitted here, named as a gap rather than
+/// guessed at**: decision-5 gives a session no "current" of its own at the
+/// tree level at all ("each session has a current tab, and each tab has a
+/// current pane" - focus is a path *down* the tree; a session is the
+/// path's root, not a level something else makes current within it).
+/// Nothing in this task's own criteria or in decision-5 names what tree
+/// mutation would produce it; `session.focus` (R87) is a different verb
+/// entirely, addressed to a client, not a tree change, and owned by
+/// TASK-1.109 under its own event name (`session.focus_requested`).
+fn emit_focus_event(state: &State, context: &Context, request: &Request) {
+    use steg_sdk::TreeEvent;
+
+    let tab_id = match request.method.as_str() {
+        "tab.focus" => dispatch::target_tab(&state.tree, context, request).ok(),
+        "pane.focus" => dispatch::target_pane(&state.tree, context, request)
+            .ok()
+            .and_then(|pane| state.tree.tab_of_pane(pane)),
+        _ => None,
+    };
+    let Some(tab_id) = tab_id else {
+        return;
+    };
+    let session_id = session_owning_tab(&state.tree, tab_id);
+    let Some(pane_id) = state
+        .tree
+        .session(session_id)
+        .and_then(|session| session.tab(tab_id))
+        .map(steg_kernel::Tab::current)
+    else {
+        return;
+    };
+
+    let event = match request.method.as_str() {
+        "tab.focus" => TreeEvent::TabFocused {
+            session: session_id,
+            tab: tab_id,
+            pane: pane_id,
+        },
+        "pane.focus" => TreeEvent::PaneFocused {
+            session: session_id,
+            tab: tab_id,
+            pane: pane_id,
+        },
+        _ => unreachable!("already matched above"),
+    };
+    broadcast(state, &event, session_id);
+}
+
 /// Undoes exactly what `start_and_dispatch` minted, when the real spawn
 /// fails (§2's rollback) - the same kernel calls a rejected label's own
 /// rollback already uses, so no pane, tab or session is left behind for
@@ -857,11 +1299,34 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
             // kernel `Moment` - `Instant::now()` against this `Runtime`'s
             // own `clock_origin`, never read by the kernel itself.
             let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            // Captured *before* `record_exit` can close anything (the
+            // same reasoning `close_and_dispatch` already uses, §5 of
+            // this task's own plan): `pane.exited`'s own scope has to be
+            // this pane's session even when the cascade closes it too, so
+            // it is read from the tree while the pane is still in it,
+            // not derived from `ClosedPane`'s own fields afterward (those
+            // say *whether* the cascade reached the tab/session, not
+            // which tab/session the pane was in when it did not).
+            let scope = state
+                .tree
+                .tab_of_pane(pane)
+                .map(|tab| session_owning_tab(&state.tree, tab));
             match state.tree.record_exit(pane, exit_code, now) {
-                Ok(ExitOutcome::Closed(closed)) => {
-                    state.panes.remove(&closed.pane);
+                Ok(outcome) => {
+                    if let Some(scope) = scope {
+                        broadcast(
+                            state,
+                            &steg_sdk::TreeEvent::PaneExited { pane, exit_code },
+                            scope,
+                        );
+                        if let ExitOutcome::Closed(closed) = &outcome {
+                            emit_close_cascade(state, closed, scope);
+                        }
+                    }
+                    if let ExitOutcome::Closed(closed) = outcome {
+                        state.panes.remove(&closed.pane);
+                    }
                 }
-                Ok(ExitOutcome::Stayed) => {}
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
                     // TASK-1.78: this is now *exactly* what a forced close
                     // produces for its own grace window, every time, by
@@ -892,11 +1357,15 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
         PaneEvent::CommandOutputStarted { pane } => {
             note_mark_applied(state, pane);
             match state.tree.note_command_output_started(pane) {
-                Ok(CommandOutputStarted::Started | CommandOutputStarted::NotAShellPane) => {
-                    // No client event stream exists yet to forward either
-                    // outcome to (R52 is M2, TASK-1.46's own gap) - the
-                    // kernel's own state is already updated by the call
-                    // above; nothing further to do here today.
+                Ok(CommandOutputStarted::Started) => {
+                    emit_pane_status_changed(state, pane, Some(steg_sdk::Status::Running));
+                }
+                Ok(CommandOutputStarted::NotAShellPane) => {
+                    // Nothing changed (the kernel's own doc: "a command
+                    // pane's own program governs its status, never a
+                    // mark") - R52's own correction (M1 for the events
+                    // this task's own criteria reach) still means no
+                    // event where nothing moved.
                 }
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
                     // The mark is ignored - there is nothing else to do
@@ -930,13 +1399,19 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
             note_mark_applied(state, pane);
             let now = Moment::new(Instant::now().duration_since(state.clock_origin));
             match state.tree.note_command_ended(pane, exit_code, now) {
-                Ok(
-                    CommandEnded::Ended(_)
-                    | CommandEnded::EndedWithNoExitCode
-                    | CommandEnded::Ignored,
-                ) => {
-                    // Same as `CommandOutputStarted`'s own arm: nothing
-                    // to forward to a client event stream yet.
+                Ok(CommandEnded::Ended(status)) => {
+                    emit_pane_status_changed(state, pane, Some(status));
+                }
+                Ok(CommandEnded::EndedWithNoExitCode) => {
+                    // "the status is cleared, back to idle - not
+                    // replaced with anything" (the kernel's own doc) -
+                    // still a real change, reported the same as any
+                    // other: `None`, not skipped.
+                    emit_pane_status_changed(state, pane, None);
+                }
+                Ok(CommandEnded::Ignored) => {
+                    // Nothing changed (an end with no start, or a second
+                    // end in a row) - no event for a no-op.
                 }
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
                     // Same reasoning as `CommandOutputStarted`'s own arm.
@@ -1073,18 +1548,118 @@ fn reapply_every_sized_tab(state: &mut State) {
     }
 }
 
+/// Delivers one event to every subscriber whose own filter matches it
+/// (TASK-1.46 §5/§6/§7) - called from every tree-changing site in this
+/// file, still under the lock that site already holds, with `scope` the
+/// session the event belongs to (every part-A event has one). `event`'s
+/// own `to_wire` is the one place its name and body are derived - the
+/// same definition a subscriber's own `TreeEvent::parse` reads back.
+/// `enqueue_control` is lock-free and does no I/O (`outbound.rs`'s own
+/// doc), so nothing here ever writes to a socket while `state`'s lock is
+/// held; a full or closed queue is silently dropped here (AC #3: the
+/// server's own answer to a slow subscriber is closing its connection,
+/// not resending - the writer thread's own broken-write/full-queue
+/// handling is what actually closes it, not this call).
+fn broadcast(state: &State, event: &steg_sdk::TreeEvent, scope: SessionId) {
+    let (name, body) = event.to_wire();
+    for subscriber in state.subscribers.values() {
+        let Some(filter) = &subscriber.filter else {
+            continue;
+        };
+        if !filter.matches(&name, scope) {
+            continue;
+        }
+        let bytes = Connection::emit_event(&name, body.clone());
+        let _ = subscriber.outbound.enqueue_control(bytes);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+    use std::io::Read;
+    use std::os::unix::net::UnixStream;
+    use std::sync::Arc;
     use std::sync::mpsc;
     use std::thread;
     use std::time::{Duration, Instant};
 
-    use steg_sdk::{Program, ProgramStatus, Size, Status};
+    use steg_sdk::{ClientId, Program, ProgramStatus, Size, Status, TreeEvent};
 
-    use super::{LoginShell, Moment, Runtime, State, apply_event_locked, force_end};
+    use super::{
+        Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, force_end,
+    };
+    use crate::outbound::{Outbound, spawn_writer};
     use crate::pane::{PaneEvent, PaneHandle};
     use crate::pty::RealLauncher;
+
+    /// Registers a subscriber in `state` with a real writer thread
+    /// actually draining its queue onto a real, paired `UnixStream` - so
+    /// `broadcast`'s own calls (`apply_event_locked`'s real code path, no
+    /// doubles) can be observed from the test's own end of the pair,
+    /// exactly as a real connection's reader would. `filter` is the same
+    /// `Some`/`None` distinction a real connection has before/after
+    /// `event.watch` - a test that wants to prove a registered-but
+    /// -unfiltered subscriber receives nothing passes `None`.
+    fn register_test_subscriber(
+        state: &mut State,
+        filter: Option<Filter>,
+    ) -> (UnixStream, Arc<Outbound>, thread::JoinHandle<()>) {
+        let (read_end, write_end) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let writer = spawn_writer(Arc::clone(&outbound), write_end);
+        state.subscribers.insert(
+            ClientId::from_raw(1),
+            Subscriber {
+                outbound: Arc::clone(&outbound),
+                filter,
+            },
+        );
+        (read_end, outbound, writer)
+    }
+
+    /// Reads exactly one event off `stream` as a `TreeEvent`, bounded -
+    /// never a bare `read` with no deadline. `connection` is the caller's
+    /// own, carried across every call for the same stream - a fresh
+    /// `Connection` per call would discard any bytes a single `read`
+    /// happened to over-fetch (more than one queued frame can arrive in
+    /// one `read()`), silently losing the next event this same test still
+    /// expects; found exactly that way while building this test.
+    fn read_one_event(stream: &mut UnixStream, connection: &mut steg_sdk::Connection) -> TreeEvent {
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        loop {
+            match connection.poll() {
+                Some(steg_sdk::Incoming::Event { name, body }) => {
+                    return TreeEvent::parse(&name, body).expect("a described event parses");
+                }
+                Some(other) => panic!("expected an event, got {other:?}"),
+                None => {}
+            }
+            let mut buf = [0_u8; 4096];
+            let n = stream.read(&mut buf).expect("reading the broadcast event");
+            assert!(n > 0, "the writer closed before sending an event");
+            connection.receive(&buf[..n]);
+        }
+    }
+
+    /// Asserts nothing arrives on `stream` within `bound` - the no-poll
+    /// proof's own negative space: a quiet window with nothing broadcast
+    /// produces nothing read, not a timeout racing a real event.
+    fn assert_nothing_arrives_within(stream: &mut UnixStream, bound: Duration) {
+        stream.set_read_timeout(Some(bound)).unwrap();
+        let mut buf = [0_u8; 16];
+        match stream.read(&mut buf) {
+            Ok(0) => {}
+            Ok(n) => panic!("expected nothing, got {n} bytes"),
+            Err(err) => assert_eq!(
+                err.kind(),
+                std::io::ErrorKind::WouldBlock,
+                "expected a plain timeout, got {err:?}"
+            ),
+        }
+    }
 
     /// Bounded, never a bare `recv` - the no-sleep rule's own reasoning
     /// for every real-process wait in this crate's tests.
@@ -1131,6 +1706,7 @@ mod tests {
             panes,
             settings: steg_kernel::Settings::new(),
             clock_origin: Instant::now(),
+            subscribers: HashMap::new(),
             applied_marks: HashMap::new(),
         }
     }
@@ -1194,6 +1770,167 @@ mod tests {
         apply_event_locked(&mut state, PaneEvent::Exited { pane, exit_code: 0 });
 
         assert!(state.tree.sessions().is_empty());
+    }
+
+    /// AC #2: a command pane's own real exit, the `Stayed` outcome, emits
+    /// `pane.exited` to a subscriber - the exact production path
+    /// `apply_event_locked` is, not a synthetic call to `broadcast`.
+    /// Negative control: comment out the one `broadcast` call this test
+    /// depends on in `apply_event_locked`'s `Exited` arm - this test then
+    /// times out waiting for an event that never arrives, proving it
+    /// actually exercises that call.
+    #[test]
+    fn a_command_panes_exit_emits_pane_exited() {
+        let (mut state, pane) = fresh_state_with_one_pane();
+        let (mut stream, outbound, writer) = register_test_subscriber(
+            &mut state,
+            Some(Filter {
+                name: None,
+                session: None,
+            }),
+        );
+        let mut connection =
+            steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
+
+        apply_event_locked(&mut state, PaneEvent::Exited { pane, exit_code: 3 });
+
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::PaneExited { pane, exit_code: 3 }
+        );
+
+        outbound.close();
+        writer.join().unwrap();
+    }
+
+    /// AC #2: a shell pane's own exit, which cascades all the way to its
+    /// session closing (R94), emits all four events in the stated order -
+    /// `pane.exited` first (the causal fact), then the closure cascade
+    /// innermost first. Negative control: the same comment-out-the-call
+    /// proof as the test above, applied to `emit_close_cascade`'s own
+    /// three calls instead - this test then sees fewer than four events
+    /// and times out waiting for the rest.
+    #[test]
+    fn a_shell_panes_exit_emits_the_whole_cascade_in_order() {
+        let mut tree = steg_kernel::Tree::new();
+        let session = tree.new_session(None).unwrap();
+        let tab = tree.session(session).unwrap().tabs()[0].id();
+        let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(
+            pane,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+        )
+        .unwrap();
+        let mut state = test_state(tree, HashMap::new());
+        let (mut stream, outbound, writer) = register_test_subscriber(
+            &mut state,
+            Some(Filter {
+                name: None,
+                session: None,
+            }),
+        );
+        let mut connection =
+            steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
+
+        apply_event_locked(&mut state, PaneEvent::Exited { pane, exit_code: 0 });
+
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::PaneExited { pane, exit_code: 0 }
+        );
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::PaneClosed { id: pane }
+        );
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::TabClosed { id: tab }
+        );
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::SessionClosed { id: session }
+        );
+
+        outbound.close();
+        writer.join().unwrap();
+    }
+
+    /// AC #2: a typed command's start and end (TASK-1.84's own marks)
+    /// each emit `pane.status_changed`, with the status the kernel's own
+    /// `CommandOutputStarted`/`CommandEnded` computed - the same
+    /// `apply_event_locked` path a real OSC 133 mark drives, proven here
+    /// deterministically with no pty, the same reasoning this module's
+    /// own existing `apply_event` tests already give.
+    #[test]
+    fn a_typed_commands_start_and_end_emit_pane_status_changed() {
+        let mut tree = steg_kernel::Tree::new();
+        let session = tree.new_session(None).unwrap();
+        let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
+        tree.start_program(
+            pane,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+        )
+        .unwrap();
+        let mut state = test_state(tree, HashMap::new());
+        let (mut stream, outbound, writer) = register_test_subscriber(
+            &mut state,
+            Some(Filter {
+                name: None,
+                session: None,
+            }),
+        );
+        let mut connection =
+            steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
+
+        apply_event_locked(&mut state, PaneEvent::CommandOutputStarted { pane });
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::PaneStatusChanged {
+                pane,
+                status: Some(Status::Running)
+            }
+        );
+
+        apply_event_locked(
+            &mut state,
+            PaneEvent::CommandEnded {
+                pane,
+                exit_code: Some(0),
+            },
+        );
+        assert_eq!(
+            read_one_event(&mut stream, &mut connection),
+            TreeEvent::PaneStatusChanged {
+                pane,
+                status: Some(Status::Finished)
+            }
+        );
+
+        outbound.close();
+        writer.join().unwrap();
+    }
+
+    /// A subscriber registered but never having called `event.watch`
+    /// (`filter: None`) receives nothing - never everything unfiltered.
+    /// Negative control: pass `Some(Filter{name: None, session: None})`
+    /// instead (every other test above already does, and sees events) -
+    /// this test would then fail by finding an event where it expects
+    /// silence, proving the assertion is real.
+    #[test]
+    fn an_unfiltered_subscriber_receives_nothing() {
+        let (mut state, pane) = fresh_state_with_one_pane();
+        let (mut stream, outbound, writer) = register_test_subscriber(&mut state, None);
+
+        apply_event_locked(&mut state, PaneEvent::Exited { pane, exit_code: 0 });
+
+        assert_nothing_arrives_within(&mut stream, Duration::from_millis(200));
+
+        outbound.close();
+        writer.join().unwrap();
     }
 
     #[test]

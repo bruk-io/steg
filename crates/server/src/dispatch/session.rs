@@ -48,7 +48,7 @@ pub(super) fn dispatch(
 /// Builds the `SessionRecord` for the session at `index` in
 /// `tree.sessions()` — the record's `position` is that index, one-based
 /// (doc-15 R10).
-fn record_at(sessions: &[steg_kernel::Session], index: usize) -> SessionRecord {
+pub(super) fn record_at(sessions: &[steg_kernel::Session], index: usize) -> SessionRecord {
     let session = &sessions[index];
     SessionRecord {
         id: session.id(),

@@ -1715,4 +1715,12 @@ Narrow Evidence-only pass (handover was too early for a full review): the code i
 What is needed before this comes back: every control the plan names, recorded through `asdlc record-check` as a failing run (mechanism removed/reverted) and a passing run, against the tests as they stand; the pull request's CI green on the final head; and the task rebuilt on main after TASK-1.46 has actually merged, so its diff is its own.
 
 ---
+
+created: 2026-11-16T15:10:00Z
+
+---
+
+2026-11-16, @bruk.o: released to free a slot, not abandoned: the work is built and pushed (1ce276d), its controls are recorded, and it can do nothing more until TASK-1.46 merges to main. Reclaim as bruk.w4 then: merge main (TASK-1.46's commits come from main and the rebased copies drop out), re-run, CI green, finish.
+
+---
 <!-- COMMENTS:END -->

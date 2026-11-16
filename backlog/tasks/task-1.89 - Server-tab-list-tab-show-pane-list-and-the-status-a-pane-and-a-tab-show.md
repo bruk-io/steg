@@ -1,11 +1,11 @@
 ---
 id: TASK-1.89
 title: 'Server: tab list, tab show, pane list, and the status a pane and a tab show'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T11:44:00Z'
+updated_date: '2026-11-16T11:52:00Z'
 labels:
   - size-3
   - review-passed

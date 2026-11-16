@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:45:00Z'
+updated_date: '2026-11-16T19:47:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -21,6 +21,8 @@ asdlc_branch: task-1.117-app-a-bare-window-with-one-terminal-you
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -820,6 +822,15 @@ created: 2026-11-16T16:47:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted: this task is the read-only window. TASK-1.121 has typing and resizing (and the recording); TASK-1.122 has the latency measurement and the per-frame bound. The approved plan calls them parts 2 and 3: cite TASK-1.121 and TASK-1.122 in code and notes. It no longer depends on TASK-1.114: it needs only attach.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T19:47:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 2h 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

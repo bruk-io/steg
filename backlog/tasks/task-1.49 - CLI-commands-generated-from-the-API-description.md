@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:41:00Z'
+updated_date: '2026-11-16T13:50:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -17,6 +17,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-19
 asdlc_branch: task-1.49-cli-commands-generated-from-the-api
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '37c4dd0b7f74'
+asdlc_plan_approved_size: size-4
 ---
 
 ## Description
@@ -150,3 +153,16 @@ Plan (fdbb9acfc676) checked against doc-2, decision-1, decision-4, doc-16 and th
 
 Plan (37c4dd0b7f74) as rewritten for the command tree alone, checked by @bruk.o, 2026-11-16: ok. Covers criterion 1 (the drift test in both directions), the no-server half of criterion 4, and criterion 6; criteria 2, 3, 5, 7 and the rest of 4 are the two split-off tasks'. Includes, as a marked step, the description change making unset --label a switch (description only; dispatch already acts on presence). A command that parses and validates but cannot yet connect exits 1 with a named message until the connecting task replaces that. clap pinned at 4.6.7, builder only.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T13:50:00Z
+
+---
+
+Plan approved by @bruk (37c4dd0b7f74, size-4): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

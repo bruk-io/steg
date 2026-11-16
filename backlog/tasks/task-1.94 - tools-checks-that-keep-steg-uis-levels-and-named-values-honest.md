@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:40:00Z'
+updated_date: '2026-11-16T03:07:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
+references:
+  - task-1.94-tools-checks-that-keep-steg-ui-s-levels
+  - https://github.com/bruk-io/steg/pull/52
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -18,6 +22,10 @@ asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '43523b8d5452'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=3'
+asdlc_review_policies: ["review", "testing", "tools"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -585,6 +593,165 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:45:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.5s)
+ok      boundaries (0.2s)
+ok      licences (1.2s)
+ok      tests (every crate) (7.4s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.3s)
+ok      test (steg-server) (5.5s)
+ok      test (steg-server, race-fixture) (4.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.6s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built as planned, with the three points raised at approval:
+
+1. gpui's colour API, read from the pinned 0.2.2 source (crates registry cache, src/color.rs,
+   re-exported at crate root via `pub use color::*;` in src/gpui.rs), not guessed: free
+   functions rgb, rgba, hsla, black, white, red, green, blue, yellow, transparent_black,
+   transparent_white, opaque_grey all build a brand-new fixed colour from scratch, so they're
+   in COLOUR_CONSTRUCTORS. blend, opacity, alpha, fade_out, grayscale, to_rgb, solid_background,
+   linear_gradient, linear_color_stop, pattern_slash all take an existing colour as an argument
+   and transform/wrap it - excluded. Struct types Hsla/Rgba are both public with public fields,
+   covered separately as struct-literal detection (COLOUR_STRUCT_TYPES).
+2. Added both tests team-lead asked for: test_violations_refuses_foundations_importing_organisms_directly
+   (non-adjacent crossing) and test_violations_passes_an_organism_using_foundations_directly
+   (two levels down, must pass) - both in tools/tests/unit/test_ui_levels.py. Confirmed with a
+   negative control (RANK comparison changed to `!=`) that both would otherwise misbehave.
+3. The gallery's colour exemption in ui_colours.py is one named constant (GALLERY) with a comment
+   saying to remove it, plus the one line adding it to EXEMPT_PREFIXES, both commented "temporary -
+   remove ... once TASK-1.93 ends the gallery's placeholder exemption."
+
+AC#1 (R119): steg-ui-levels refuses an import inside crates/ui/src that reaches from one of the
+four levels into a level after it, including through a crate-root `pub use` re-export (closes a
+loophole a per-file text match would miss - proven both working and inert where it can't resolve,
+e.g. a glob re-export). format_violation names R119 and both levels. Proven with a live scratch
+violation in crates/ui/src/foundations/mod.rs, refused by the real `just check-ui-levels`, then
+reverted (not committed).
+
+AC#2 (R120): steg-ui-colours refuses a colour literal (hex int/string, a named gpui constructor
+call, or a bare Hsla/Rgba struct literal) anywhere in crates/ui outside foundations (permanent)
+and the gallery (temporary, see point 3). format_violation names R120 and the matching
+foundations value(s) by name and form, or says plainly when none match. Proven with a live
+scratch literal in crates/ui/src/atoms/mod.rs, refused by the real `just check-ui-colours`
+naming `surface.raised (dark)`, then reverted.
+
+AC#3: both checks have unit tests (tools/tests/unit/test_ui_levels.py, test_ui_colours.py,
+test_foundations.py, test_rust_source.py) and adapter tests against the real crate
+(tools/tests/adapter/test_ui_levels_real_repo.py, test_ui_colours_real_repo.py,
+test_foundations_real_repo.py) - 135 tests total, each check with a refused case and a passing
+case. Both are new justfile recipes (check-ui-levels, check-ui-colours) added to `check:`'s
+dependency chain; CI needs no edit since it only ever calls `just check`.
+
+Checks recorded on this task, in order: tests collected red (ModuleNotFoundError) before the
+four new tools/src/steg_tools modules existed; green once restored (134, then 135 after adding
+the end-to-end re-export test found missing while running a negative control); a negative
+control for each main mechanism - the level check's rank comparison (both the "must refuse"
+and "must pass" directions), the crate-root re-export table, the colour check's literal
+detection, and the colour check's exemption - each disabled, confirmed to fail exactly the
+right tests, restored, confirmed green again; a live scratch violation for each check, refused
+by the real `just check-ui-levels`/`just check-ui-colours`, then reverted; `just check` green
+twice (once before the final rebase, once after, on the exact pushed commit 5abcaef).
+
+Merge: rebased onto origin/main (branch had never been pushed). All upstream movement was
+board/backlog commits only (TASK-1.93, 1.96, 1.97, 1.45 recording checks and board updates) -
+no code files overlapped, so the rebase was conflict-free both times. The justfile line
+TASK-1.77 added to check-packages (steg, --features fixtures) landed independently and merged
+cleanly beside this task's own two new recipes.
+
+Dependency added: ast-grep-py (tools/pyproject.toml's first runtime dependency) - verified
+before adding it that PyPI publishes a cp315-cp315-macosx_11_0_arm64 wheel, matching CI's
+runner and Python pin exactly, with no build step.
+
+CI green on the pushed head (PR #52, both checks passed in ~3m41s).
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py'` exited 1 at 2026-11-16T03:06:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944 with uncommitted changes, last 40 of 70 lines:
+
+```text
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x1c1b21); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgb(0x1c1b21)", (("surface.raised", "dark"),)),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa..., 'dark'),)),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x1c1b21)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x1c1b21)', matches=(('surface.raised', 'dark'),))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:145: AssertionError
+____________ test_violations_matches_two_names_through_an_rgb_call _____________
+
+    def test_violations_matches_two_names_through_an_rgb_call() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x3d3b45); }\n")
+        found = violations((file,), COINCIDING_INDEX)
+>       assert found == (Violation(file.path, 1, "rgb(0x3d3b45)", (("outline", "dark"), ("track", "dark"))),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa...', 'dark'))),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x3d3b45)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgb(0x3d3b45)', matches=(('outline', 'dark'), ('track', 'dark')))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:151: AssertionError
+____ test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits ____
+
+    def test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b21ff); }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "rgba(0x1c1b21ff)", (("surface.raised", "dark"),)),)
+E       AssertionError: assert (Violation(pa... matches=()),) == (Violation(pa..., 'dark'),)),)
+E         
+E         At index 0 diff: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b21ff)', matches=()) != Violation(path='crates/ui/src/atoms/button.rs', line=1, text='rgba(0x1c1b21ff)', matches=(('surface.raised', 'dark'),))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:163: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_one_name_through_an_rgb_call
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_two_names_through_an_rgb_call
+FAILED tests/unit/test_ui_colours.py::test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits
+5 failed, 26 passed in 0.03s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2026-11-16T03:06:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944 with uncommitted changes:
+
+```text
+........................................................................ [ 50%]
+........................................................................ [100%]
+144 passed in 1.29s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check-ui-colours` exited 1 at 2026-11-16T03:07:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944 with uncommitted changes:
+
+```text
+FAILED  ui colours (exit 1, 0.0s)
+crates/ui/src/atoms/mod.rs:9: `gpui::rgb(0x3d3b45)` is a colour literal, which doc-17 R120 refuses outside foundations. This value matches outline (dark), track (dark) - use that named value instead.
+full output: .quiet/ui-colours.log
+error: recipe `check-ui-colours` failed on line 270 with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -596,6 +763,44 @@ created: 2026-11-16T02:18:00Z
 ---
 
 Plan approved by @bruk (43523b8d5452, size-2): its worker may build it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T02:46:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T03:01:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 3 nit. Cites: review, testing, tools. The diff does not match the plan.
+
+Reviewed at head 5abcaef9f944e6116b31a5f434e8c095cf7899a1 (matches PR #52's headRefOid; CI SUCCESS on that head; `just check` reproduced green by me locally in a fresh worktree of that commit).
+
+Important findings:
+
+[Bugs/Compliance, Important] tools/src/steg_tools/ui_colours.py:129-146: a colour literal written as a named-constructor call with a hex argument (`rgb(0x...)`, `rgba(0x...)`) is recorded as `Literal(line, text, hex_value=None)` - the hex is never extracted from the call's argument. `_inside_colour_constructor_call` (line 119) also suppresses the inner bare-hex literal that would otherwise have matched. Net effect: `violations()` can never report a name match for this form. Verified live: `fn a() -> u32 { 0x3d3b45 }` -> "This value matches outline (dark), track (dark)", but `rgb(0x3d3b45)` -> "No foundations value has this colour", same hex. `rgb(...)`/`rgba(...)` with a literal hex argument is exactly the plan's own canonical message example (`rgb(0x1c1b21) ... This value matches surface.raised (dark) - use that named value instead.`) and is the shape of the one real colour call already in the repo (gallery/main.rs's `rgb(...)`) - the implementation cannot produce the string the plan and AC#2 promise for this form. `hsla(...)` and `black()` genuinely carry no hex argument, so "no match" is correct for those - this finding is scoped to the hex-argument constructors only. The unit test `test_literal_colours_catches_a_named_constructor_call` (test_ui_colours.py:47) asserts `Literal(1, "rgb(0x1c1b21)", None)` as the expected, correct result - it encodes the defect rather than catching it.
+
+[Evidence, Important] tools/tests/unit/test_ui_colours.py: no test exercises `violations()` with a named-constructor-call literal against a matching index (every matching/no-matching test - lines 101-116 - uses a bare hex int or string, never a call). The hex-to-name match is AC#2's main mechanism ("naming the foundations value to use instead where one matches"), and the recorded negative controls (notes: "the colour check's literal detection, and the colour check's exemption") don't cover it either. A control on this specific clause would have failed exactly as my live run did, and caught the bug above before merge.
+
+Nits (3, at the cap):
+
+[Compliance, Nit] plugins/bruk-io-steg/rules/tools.md:17 ("The tools use only the standard library") is now contradicted by tools/pyproject.toml's ast-grep-py dependency. The plan named this explicitly, the engineer approved it in-task ("Plan approved by @bruk ... (1) It adds ast-grep-py ... the tools' first runtime dependency"), and the dependency itself (MIT licence, matches the repo's own default) is sound - not blocking this task on it. But the rule text still reads as an absolute, and an in-task approval doesn't amend a written policy; the rule needs its own PR to the tasks repo saying it now permits a vetted runtime dependency for a real parse, or scoping the exception.
+
+[Compliance, Nit] tools/src/steg_tools/rust_source.py is a new shared module not named in the plan's "New files" list (which named foundations.py, ui_levels.py, ui_colours.py and three test files only). A reasonable, small extraction shared by both checks exactly as planned to share the foundations reader - but undisclosed as a plan departure. Its test (test_rust_source.py) is named in the AC#3 summary, so its existence wasn't hidden, just the new-file decision.
+
+[Bugs, Nit] ui_levels.py's cross-level detection misses a cross-level path written as a literal argument inside an unrelated macro invocation (e.g. `some_macro!(crate::atoms::Thing)`) - confirmed live: tree-sitter-rust parses macro arguments as an opaque `token_tree`, so `find_all(kind="scoped_identifier")` never sees inside it. This is a different, more mundane gap than the one the plan names ("a path built by a macro that expands to a cross-level reference") and isn't disclosed under that name. Likely low real-world risk since gpui components aren't built with macro DSLs today.
+
+Verified as working, not just as claimed: plain/grouped/glob/aliased `use`, a fully-qualified expression path (counted once, not per nesting), the crate-root `pub use` re-export loophole (plain and aliased), a second `super::` hop staying a documented no-op, a `#[path]`-relocated file under a new top-level folder refused loudly as unplaced (not silently skipped), a nested submodule under a level still correctly attributed and checked (the disclosed limitation is narrowly the `super::super::` chain, not "nested files unchecked" generally), both exemptions (foundations permanent, gallery temporary with its TASK-1.93 end-condition comment) as one named line each, a colour literal inside `#[cfg(test)]` refused like any other, a comment and an ordinary string correctly passed, a 4-digit hex correctly passed, an arithmetic-built colour correctly and silently passed (as disclosed), and the two/one/zero-match message forms all correct for bare hex literals. `just check` passes on this head with both new recipes wired through `steg-quiet` into `check:`; no CI workflow edit was needed or made.
 
 ---
 <!-- COMMENTS:END -->

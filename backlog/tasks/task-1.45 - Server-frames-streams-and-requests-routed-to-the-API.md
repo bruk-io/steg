@@ -1,13 +1,14 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:37:00Z'
+updated_date: '2026-11-16T03:02:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -27,10 +28,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '1007366d16d6'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review", "testing-rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1133,6 +1133,61 @@ origin/main brought in by merge (this branch was already pushed, so rebase was n
 Checks recorded, in order: the negative control for each of the three findings (failing), each restored and re-recorded passing; just check at the merged head (611fa8c, matching PR #50's own headRefOid) - green, all 22 steps (steg-ui and the steg fixtures suite now included, from the merged tasks); tests/routing.rs run 20 times at the merged head - 0 failures.
 
 PR: https://github.com/bruk-io/steg/pull/50 (unchanged). CI green (check, 3m28s) at the final head.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 5); do timeout 15 cargo test -p steg-server --test routing a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs; rc=$?; if [ "$rc" -ne 101 ]; then fail=$((fail+1)); fi; done; echo "non-101 exits: $fail of 5 (expect 0: every run must fail by its own bound)"'` exited 0 at 2026-11-16T03:01:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986 with uncommitted changes, last 40 of 176 lines:
+
+```text
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+warning: field `shutdown_handle` is never read
+   --> crates/server/src/connection.rs:263:5
+    |
+260 | struct ConnectionCleanup<'a> {
+    |        ----------------- field in this struct
+...
+263 |     shutdown_handle: UnixStream,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-b6f2d180ae7f55f5)
+
+running 1 test
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... FAILED
+
+failures:
+
+---- a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs stdout ----
+
+thread 'a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs' (20035898) panicked at crates/server/tests/routing.rs:954:5:
+assertion `left == right` failed: the connection must still be cleaned up (and reported) within a bound, even with its writer thread genuinely blocked inside write_all on a full send buffer when this connection's own close runs
+  left: Err(Timeout)
+ right: Ok(Disconnected)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+non-101 exits: 0 of 5 (expect 0: every run must fail by its own bound)
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 18 passed"; then fail=$((fail+1)); echo "iteration $i FAILED"; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 0 at 2026-11-16T03:02:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986 with uncommitted changes:
+
+```text
+failures: 0 of 20
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1185,6 +1240,37 @@ created: 2026-11-16T02:37:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T02:54:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, testing-rust. The diff does not match the plan.
+
+Reviewed at head 611fa8c669864d34da23d63315607e748d58f470 (matches the task's recorded `just check` - all 22 steps green - and PR #50's own headRefOid, CI green at that head). Repeated myself: `cargo test -p steg-server --lib dispatch` (38/38 pass); `tests/routing.rs` 20x (0 failures); `crates/steg --test server_start --features fixtures` 5x (11/11 pass each run); `ps` after: zero server/test-binary processes left (the only matches were unrelated `gh pr checks`/shell processes from sibling worktrees). `cargo build -p steg-server`: no warnings.
+
+Review #1's three findings, checked individually:
+
+1. The headline shutdown-before-join fix: I reproduced the negative control myself (scratch edit removing `shutdown_handle.shutdown(Both)` from `ConnectionCleanup::drop`, reverted after). The new test `a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs` failed 5/5 by its own 5s bound (`Err(Timeout)`, not a hang - exit 101 each time); restored, it passed 20/20. The production fix is real and the control is reproducible. But see the Important finding below: the test's own way of knowing the writer is blocked before triggering cleanup is not sound.
+2. The placeholder/sentinel: moved before the kernel call as asked, decided from the path's own segment count (`segments_exactly`) rather than a `u64::MAX` sentinel passed into `Tree::resolve_tab_path`/`resolve_pane_path` and remapped. I read `crates/kernel/src/target.rs`'s own `resolve_tab_path`/`resolve_pane_path`/`split_path` and confirmed the segment counts the server now checks (1 vs 2 for tab; 1/2 vs 3 for pane) exactly match when the kernel would actually read a default - a malformed or fully-explicit path never reaches the dummy value, matching the new test `a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context`. Sound.
+3. The broken-write queue-close: `outbound.rs`'s writer now calls `outbound.close()` when `write_all` fails, and I confirmed by reading `connection.rs`'s reader loop that `outbound.enqueue_control(..).is_err()` already returns, letting `ConnectionCleanup::drop` join the (already-exited) writer and disconnect the client - the full path is wired correctly. Only a unit-level test exists for this (`outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`); see the Nit below.
+
+Merge of main: `crates/steg/src/main.rs` builds `ServerConfig::default()` and calls `run(handle, &socket_path, &config, &stopper, None)` exactly as the plan expected, with no explicit login (disclosed, matches the notes). `runtime.rs`'s import-list conflict (TASK-1.84's `CommandEnded`/`CommandOutputStarted` alongside this task's `ClientId`/`ClientKind`) is resolved cleanly, both present and used (`connect_client`/`disconnect_client`, `stop_tests`). No `crates/sdk` or `crates/kernel` file in the diff against origin/main. Nothing lost or duplicated that I could find.
+
+[Bugs/Compliance, Important] crates/server/tests/routing.rs:825 - the new proof for review #1's headline fix waits via `std::thread::sleep(Duration::from_millis(300))` for the writer to reach a blocked state before triggering this connection's own close, instead of waiting on the event. This is a direct violation of `.claude/rules/testing-rust.md` ("No test sleeps to wait for something; it waits on the event" - also `review.md`'s own Steg/Tests pass), and the plan's own §9 "Thread joining" bullet explicitly promises these proofs use "a counter or an `events`-style channel, never a sleep, bounded waits throughout" - a plan departure the notes never mention. It also leaves a real hole in the test's own evidence: the retrospective guard is `received < LARGE_CALLS * REPLY_BYTES_FLOOR` (received < 200,000), which `received == 0` also satisfies - so the assertion rules out "every reply fully arrived" but not "the writer never started writing at all," which is exactly the state the 300ms sleep exists to exclude. My own repeated runs (5 failing, 20 passing) confirm the underlying production fix is real, but the test's own precondition that the writer is genuinely blocked rests on an unmargined, unobserved delay, not a fact - a real weakness on a machine under load (this task's own notes already document real scheduling contention here), not merely a style nit. Minimum fix: wait on a real signal that the writer has started writing (or at minimum assert `received > 0`); the rule's actual fix is waiting on the event, not a timer.
+
+[Compliance, Nit] Task plan §9, "Thread joining": promises `Runtime::stop()` running only after every connection is joined is "proven directly: a real pane started on one connection, that connection closed, `run` returns, the real process is gone... now exercised through `listen::run` rather than by calling `Runtime::stop()` directly." I found no such test - `crates/server/src/runtime.rs`'s `stop_tests` module (lines ~2090+) is untouched by this task's diff against origin/main and still calls `Runtime::stop()` directly, not through `listen::run`. The notes never name this as dropped. The underlying property is still well-defended (the plan's own borrow-checker argument, unchanged), so this is a documentation/proof-completeness gap, not a behavioural one.
+
+[Compliance, Nit] Task plan §9's own opening line says every proof clause is "over a real socket... except where §2 names the one Outbound-internal test." The Context clause (target-less and partial-target `BadRequest` refusal) is proven only at the unit level (`dispatch/lookup.rs`) and the functional, in-process level (`tests/dispatch.rs`) - never through a real connection over the socket end-to-end, unlike every other §9 clause. Not named as a second exception in the notes. Every `routing.rs` test does implicitly run with `Context::none()` (since `connection::handle` hardcodes it), but none of them specifically exercises the missing-target refusal path.
+
+[Compliance, Nit] Review #1's third finding (closing the queue on a broken write) has only a unit-level test (`outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`); no integration test in `routing.rs` confirms a real connection's reader actually sees its next `enqueue_control` fail and the connection close with both threads joined when the peer has dropped its read side. I confirmed this by reading the code (connection.rs's `match` arm already returns on that error), not by a recorded run - this is the same "two parts" gap the plan's own AC #3 convention names for `Outbound`-level claims but does not apply here.
+
+No findings on: the segment-count/sentinel removal itself (verified against the kernel's own `resolve_tab_path`/`resolve_pane_path`); the broken-write production wiring; the merge's handling of TASK-1.77/1.84; AC #1/#2/#4 (unchanged since review #1, still sound); boundaries, licences, unsafe (none touched).
 
 ---
 <!-- COMMENTS:END -->

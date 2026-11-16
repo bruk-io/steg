@@ -1,0 +1,31 @@
+---
+id: TASK-1.108
+title: 'ui organisms: the command palette'
+status: To Do
+assignee: []
+created_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T02:59:00Z'
+labels:
+  - size-3
+milestone: m-0
+dependencies:
+  - TASK-1.105
+parent_task_id: TASK-1
+project: bruk-io-steg
+asdlc_accepted_from: DRAFT-11
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Design pages: Organisms (Command palette), Foundations - layout and resizing (Overlay), States (Palette: help; Closing something still running; Settings). GPUI example uniform_list.rs for the long list. The app's own task (TASK-1.59) then gives it actions and settings. doc-17 (the four levels, R117 to R125), decision-10 (the design is the artifact; a worker cannot open it, so the orchestrator supplies the saved page named below), decision-11 (GPUI directly). Read GPUI's README first, then its examples (https://github.com/zed-industries/zed/tree/main/crates/gpui/examples), checked against the pinned gpui 0.2.2 source in the cargo registry. Pure interface: no steg domain type, no I/O (R118). Depends on the palette molecules.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 The Command palette organism exists as the design gives it: one box over the window with its scrim, the input, the list of rows and the empty result, in its modes (go to, actions, help, and answering what an action asks), from a plain list of rows it is given
+- [ ] #2 Every state and variant the design's card draws is shown in the gallery, in light and in dark, each labelled as the card labels it; the pull request carries the gallery images (and a recording where the component moves or reacts), and the notes list the card's states against what the gallery shows, one by one
+- [ ] #3 It is given plain values and reports what the user did (R118); every colour, size, corner and duration comes from foundations through the theme (R120, R123); the level and colour checks pass with no exemption
+- [ ] #4 It is reachable and usable from the keyboard, shows the design's focus ring when focused from the keyboard and not from the pointer, and gives assistive technology its role, name and state, as far as the pinned GPUI allows: what it does not allow is established by experiment and written in the notes, not assumed (R125)
+- [ ] #5 It owns movement through the list from the keyboard, the selected row staying in view in a long list, focus held inside it while it is open and returned when it closes; it reports the text, the chosen row and being dismissed, and decides nothing about what a row means
+<!-- AC:END -->

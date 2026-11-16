@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:51:00Z'
+updated_date: '2026-11-16T13:55:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -149,6 +149,39 @@ TASK-1.89 (tab list, tab show, pane list) and TASK-1.88 (server and client metho
 Plan (fdbb9acfc676) checked against doc-2, decision-1, decision-4, doc-16 and the seven criteria by @bruk.o, 2026-11-16: sound; the split into three is taken (two drafts created: connecting, calling and exit statuses; output formats). This task keeps the generated command tree, help, version and completion. The orchestrator asked for one change to the split: the connecting task prints the server's reply with --json, so the CLI is usable by hand when it lands, before the output formats. For the engineer: the plan's five small decisions, all recommended as the worker does (steg and steg <noun> alone list and exit 0, as doc-2 says; doc-2 gains a line for api show with no target; unset --label becomes a switch in the description; pane move's missing direction is left; a nested value prints whole with --json and as its scalar fields in plain text).
 
 Plan (37c4dd0b7f74) as rewritten for the command tree alone, checked by @bruk.o, 2026-11-16: ok. Covers criterion 1 (the drift test in both directions), the no-server half of criterion 4, and criterion 6; criteria 2, 3, 5, 7 and the rest of 4 are the two split-off tasks'. Includes, as a marked step, the description change making unset --label a switch (description only; dispatch already acts on presence). A command that parses and validates but cannot yet connect exits 1 with a named message until the connecting task replaces that. clap pinned at 4.6.7, builder only.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:55:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 0fde255eb1c0:
+
+```text
+ok      format check (0.2s)
+ok      lint (90.8s)
+ok      boundaries (0.2s)
+ok      foundations (0.3s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.1s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.6s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (46.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.0s)
+ok      test (steg-server) (12.3s)
+ok      test (steg-server, race-fixture) (13.2s)
+ok      build (steg) (1.9s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (19.8s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (12.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

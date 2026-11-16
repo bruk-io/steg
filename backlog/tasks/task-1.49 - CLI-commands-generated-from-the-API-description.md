@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:07:00Z'
+updated_date: '2026-11-16T14:17:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -266,6 +266,32 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T14:17:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 1f528db67cb1 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 1.3s)
+    Checking clap_builder v4.6.7
+    Checking clap v4.6.7
+    Checking clap_complete v4.6.11
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+error: useless conversion to the same type: `clap::builder::ValueParser`
+  --> crates/steg/src/cli/values.rs:16:31
+   |
+16 |         ValueKind::Boolean => clap::value_parser!(bool).into(),
+   |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: consider removing `.into()`: `clap::value_parser!(bool)`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#useless_conversion
+   = note: `-D clippy::useless-conversion` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::useless_conversion)]`
+
+error: could not compile `steg` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg` (lib test) due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

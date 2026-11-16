@@ -1,9 +1,11 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-16T00:55:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.92-ui-the-design-s-named-values-as-one-data
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T15:09:00Z'
+updated_date: '2026-11-16T15:24:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1671,6 +1672,15 @@ Review findings fixed (head cbe0f15, merged TASK-1.98's newest head 25696d14 on 
 **Nit 1 corrected: the right reason not to re-run the five recorded negative controls is not "the merge didn't touch the same files."** That was the wrong criterion - testing.md's own trigger is whether the test, or the mechanism it proves, was edited since the control was recorded, not whether some other task's unrelated fix happened to land in the same file. The right check, which the reviewer independently performed and confirmed (review #6): diff the commit where the five controls were recorded (a3ebd891) against the current head, file by file, for every idle-stop test and the production code each one proves - if neither the test nor its mechanism changed, the control still holds; if either did, it needs re-recording. For this task's own five controls, none of the files they exercise or prove against were touched by any of the TASK-1.98 merges, which is the actual reason they didn't need re-running - not a coincidence about which files a different task happened to change.
 
 **Nit 3: `checker_tx.or(events)`'s touch to TASK-1.98's own two `AcceptRetried` send sites in listen.rs is a departure from this task's own plan, stated here as one.** The plan's section 6 claimed those two lines were "untouched by this task." They are not: while merging TASK-1.98's first head, I found both sites read the raw `events` parameter directly, which is always `None` in production, so `AcceptRetried` would never have reached the idle checker at all. Fixed by computing one effective sender once, before the loop (`checker_tx.or(events)`), with all three send sites in the loop - TASK-1.98's two retries and this task's own per-connection clone - reading it. Reported to the engineer in full (the exact before/after of both lines) at the time, for TASK-1.98's own reviewer to see; recording it here too, as the plan's own departure it is.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T15:24:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 15m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

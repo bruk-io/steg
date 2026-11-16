@@ -9,6 +9,14 @@
 //! the real `steg` binary via `std::os::unix::process::CommandExt::exec` -
 //! safe, a direct `execve` with no fork, so there is nothing half-forked for
 //! the compiler's unsafety rules to worry about.
+//!
+//! The flags after `server start` are this fixture's own argv (passed
+//! through unchanged), defaulting to `--on-demand` so the original test
+//! above needs no change - the same precondition also proves, with
+//! different flags, that `server start --no-on-demand` never attempts to
+//! detach at all (TASK-1.49's review finding: one parser for every
+//! `--on-demand`/`--no-on-demand` combination, doc-2 section 5's "last one
+//! wins", not a second hand-written grammar).
 
 use std::os::unix::process::CommandExt;
 
@@ -21,8 +29,15 @@ fn main() {
     // not a hook in the shipped binary (AC #5/#6).
     let steg_binary =
         std::env::var("STEG_TEST_BINARY").expect("the test should set STEG_TEST_BINARY");
+    let given_args: Vec<String> = std::env::args().skip(1).collect();
+    let flags = if given_args.is_empty() {
+        vec!["--on-demand".to_owned()]
+    } else {
+        given_args
+    };
     let err = std::process::Command::new(steg_binary)
-        .args(["server", "start", "--on-demand"])
+        .args(["server", "start"])
+        .args(&flags)
         .exec();
     // `exec` returns an `io::Error` only on failure - on success this
     // process's image is already gone, so this line is unreachable on the

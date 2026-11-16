@@ -4,9 +4,10 @@
 
 use std::io::{BufRead, BufReader, Read};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
 /// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
@@ -719,4 +720,149 @@ fn typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message() {
     );
 
     fixture.kill_now();
+}
+
+// --- the review finding: one parser for `server start`, not a second,
+// hand-written grammar (TASK-1.49). `--on-demand`/`--no-on-demand` are an
+// ordinary switch pair (doc-2 section 5): both always accepted, whichever
+// is given last wins. The `already_a_group_leader` fixture (above) is the
+// existing, established signal for "did this process actually try to
+// detach": on-demand always attempts it (and, under this fixture's own
+// precondition, always fails with the "could not detach" message);
+// explicit never attempts it at all, message or not. -------------------
+
+fn spawn_already_a_group_leader(socket_path: &Path, flags: &[&str]) -> KillOnDrop {
+    KillOnDrop::new(
+        Command::new(PathBuf::from(env!("CARGO_BIN_EXE_already_a_group_leader")))
+            .args(flags)
+            .env("STEG_SOCKET_PATH", socket_path)
+            .env("STEG_TEST_BINARY", steg_binary())
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("the fixture should spawn"),
+    )
+}
+
+/// Asserts `stream` never produces a line within `window` - the same
+/// bounded-wait-for-an-absence shape `crates/steg/tests/cli_no_server.rs`'s
+/// own `assert_never_accepted` already uses, for the same reason: there is
+/// no event to wait on instead of a timeout when proving something never
+/// happens.
+fn assert_stream_stays_silent(stream: impl Read + Send + 'static, window: Duration) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut line = String::new();
+        let mut reader = BufReader::new(stream);
+        let _ = reader.read_line(&mut line);
+        let _ = tx.send(line);
+    });
+    match rx.recv_timeout(window) {
+        Err(RecvTimeoutError::Timeout) => {} // never produced a line - the expected case
+        Ok(line) if line.is_empty() => {}    // the stream closed with nothing ever written
+        Ok(line) => panic!("expected no message, got {line:?}"),
+        Err(err) => panic!("unexpected error waiting for silence: {err:?}"),
+    }
+}
+
+/// `--no-on-demand` alone resolves to the explicit kind: `run_server_start`
+/// only ever attempts `detach()` when `on_demand` is true, so - unlike the
+/// existing `--on-demand` test above - this process never attempts to
+/// detach at all, precondition or not, and so never prints the "could not
+/// detach" message either.
+#[test]
+fn server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach() {
+    let socket_path = unique_socket_path();
+    let mut fixture = spawn_already_a_group_leader(&socket_path, &["--no-on-demand"]);
+
+    let stderr = fixture.child.stderr.take().expect("stderr was piped");
+    assert_stream_stays_silent(stderr, Duration::from_millis(500));
+
+    let stdout = fixture.child.stdout.take().expect("stdout was piped");
+    let started_line = read_one_line_bounded(stdout, Duration::from_secs(5));
+    assert_eq!(started_line, "started a new server");
+    assert!(
+        UnixStream::connect(&socket_path).is_ok(),
+        "the explicit server should be answering"
+    );
+
+    fixture.kill_now();
+}
+
+/// `--on-demand` given after `--no-on-demand` wins (doc-2 section 5): the
+/// same on-demand behaviour the existing
+/// `typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message`
+/// test proves for `--on-demand` alone, proved again here for the
+/// "started off, then turned back on" order, which only a single parser
+/// reading the whole switch pair - not matching `server start`'s literal
+/// argv - can resolve correctly.
+#[test]
+fn on_demand_given_after_no_on_demand_wins() {
+    let socket_path = unique_socket_path();
+    let mut fixture =
+        spawn_already_a_group_leader(&socket_path, &["--no-on-demand", "--on-demand"]);
+
+    let stderr = fixture.child.stderr.take().expect("stderr was piped");
+    let message = read_one_line_bounded(stderr, Duration::from_secs(5));
+    assert!(
+        message.contains("could not detach") && message.contains("continuing attached"),
+        "expected the carry-on-attached message (on-demand should have won and attempted to \
+         detach), got {message:?}"
+    );
+
+    let stdout = fixture.child.stdout.take().expect("stdout was piped");
+    let started_line = read_one_line_bounded(stdout, Duration::from_secs(5));
+    assert_eq!(started_line, "started a new server");
+
+    fixture.kill_now();
+}
+
+/// `--no-on-demand` given after `--on-demand` wins: the explicit kind,
+/// never attempting to detach - the mirror of the test above, proving the
+/// same "last one wins" rule from the other starting order.
+#[test]
+fn no_on_demand_given_after_on_demand_wins() {
+    let socket_path = unique_socket_path();
+    let mut fixture =
+        spawn_already_a_group_leader(&socket_path, &["--on-demand", "--no-on-demand"]);
+
+    let stderr = fixture.child.stderr.take().expect("stderr was piped");
+    assert_stream_stays_silent(stderr, Duration::from_millis(500));
+
+    let stdout = fixture.child.stdout.take().expect("stdout was piped");
+    let started_line = read_one_line_bounded(stdout, Duration::from_secs(5));
+    assert_eq!(started_line, "started a new server");
+    assert!(
+        UnixStream::connect(&socket_path).is_ok(),
+        "the explicit server should be answering"
+    );
+
+    fixture.kill_now();
+}
+
+/// `server start --help` prints the tree's own generated help (built from
+/// the description, the same as every other command) and starts nothing -
+/// doc-2 section 5: `--help` "contacts no server", checked here for the
+/// one command this task's generated tree hands off to hand-written
+/// behaviour, not only for the commands that stay on the placeholder.
+#[test]
+fn server_start_help_prints_the_generated_help_and_starts_nothing() {
+    let socket_path = unique_socket_path();
+    let output = Command::new(steg_binary())
+        .args(["server", "start", "--help"])
+        .env("STEG_SOCKET_PATH", &socket_path)
+        .output()
+        .expect("the real steg binary should run to completion");
+
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("--on-demand") && stdout.contains("--no-on-demand"),
+        "expected the generated help to list both switch flags, got {stdout:?}"
+    );
+    assert!(
+        UnixStream::connect(&socket_path).is_err(),
+        "--help must start nothing"
+    );
 }

@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:18:00Z'
+updated_date: '2026-11-16T03:47:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -2417,6 +2416,50 @@ created: 2026-11-16T03:18:00Z
 ---
 
 @bruk.r4 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T03:38:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Reviewed at PR #47 head 92fc50afc92a7b628a29a22cd215553857f64552 (just check clean at this oid, reproduced myself 11-16, ~2min; PR CI green on the same oid via gh pr checks 47).
+
+Round-3 diff is the ~145-line change since a4fb5d0 across crates/server/src/pane.rs, runtime.rs and tests/runtime.rs, answering round 2's two findings and the orchestrator's own backoff nit.
+
+1. The two renamed tests (restarting_then_forcing_ends_the_new_program_as_a_plain_regression; await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue) now claim no more than they show, and both name the real proof tests in their own docs. I repeated both controls myself, each in a scratch edit reverted after: removing the generation guard (clear_if_current unconditional) makes a_stale_generations_own_mark_dead_never_clobbers_a_newer_run fail (left: None, right: Some(200)) - the guard's own real proof holds. Routing await_exit through settle_worker (the queue path) makes await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue fail (settle_worker 6.4ms vs await_exit 6.8ms, "must actually be slowed" assertion trips) - this mechanism's own real proof holds too. The declined test-only seam for the restart test is the right call: clear_if_current is a pure predicate over (self.generation, generation), its only two callers are spawn_relay's two reap branches passing the generation captured at begin_run, and the unit test already constructs the exact out-of-order race directly - a seam would only re-exercise the same comparison through more machinery, no new logic coverage.
+
+2. The reap poll backoff (5ms doubling to a 100ms cap): read spawn_relay in full. The loop is entered fresh, with poll_interval reset to REAP_POLL_INITIAL_INTERVAL, every single time a run's own read loop breaks (once per run, not once per pane's lifetime) - so an ordinary exit sees ~0 added delay versus before (first try_wait almost always already finds the zombie, as the existing comment says), and the ramp only matters for a program that closes its pty slave while still actually running, where it climbs to the 100ms cap over ~155ms and holds there for the remainder of that run's life. Worst added delay before noticing a real exit: negligible for an ordinary exit, up to 100ms (previously 5ms) for the long-after-EOF case. Checked against every bound this latency could threaten: FORCE_GRACE_DEFAULT (2s) has ~1900ms of margin; the test suite's own TEST_GRACE (30ms, tests/runtime.rs and runtime.rs) is smaller than the 100ms cap in isolation, but every test using it either asserts only eventual death (not "no escalation needed"), or uses a much larger grace (500ms/3s) specifically because it is timing-sensitive - ESCALATE_CONFIRM_TIMEOUT and FORCE_JOIN_TIMEOUT (2s each) absorb the gap either way, and a spurious extra SIGKILL on an already-dead pid is harmless (ESRCH ignored) and not asserted against by any test I found. Lock is still dropped before the sleep (only the Ok(None) arm changed); the reap-and-clear critical section is otherwise untouched this round. The doubling's own unit test has a real recorded control: the FAILED run at 2026-11-16T03:05:52 shows the constant-5ms behavior ([5,5,5,5,5,5,5,5,5]) that this test was written to catch, fixed moments later.
+
+3. pane.split is in the sweep and its own doc names it. I reproduced the sweep's negative control myself: a scratch edit reordering close_and_dispatch back to force-before-close (reverted after) makes a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it fail with "pane.split must find the pane being forced unreachable, not act on it as if nothing were happening" - pane.split is indeed the probe caught, as claimed.
+
+4. The mark-for-a-gone-pane trace (apply_event_locked, CommandOutputStarted/Ended's PaneNotFound arm): the reachability trace is right - close_and_dispatch pops the pane's handle out of state.panes (into to_force) and drops the lock before force_end has actually ended the program, so a still-running program can emit a mark during that same grace window, landing on this arm. Nothing is left behind: the handle is owned throughout by force_end's own to_force/loop (not state.panes) and is still properly signalled, awaited, possibly escalated and joined by force_end's own later passes regardless of any marks arriving in between - this is a real no-op, correctly tested. [Bugs, Nit] The comment's own retained first half ("removing the handle here would drop its only Sender clone, ending the worker loop and leaking...") is stale for the one path its second half now names: on that path state.panes has already had the handle popped by close_and_dispatch's step 3, so there is nothing there for this arm to remove either way - the danger the comment describes cannot occur on its own one named path. Not a behaviour bug (removing an absent key is a no-op, so the code is correct either way), but a reader could come away believing state.panes might still hold a live handle here, which it structurally cannot once close-first has run. This is the same comment round 2 flagged (a different angle: not revisited after a merge); this round's rewrite traces reachability correctly but still leaves the stale half of its own reasoning unreconciled with what it just traced.
+
+5. Ran cargo test -p steg-server 20 times myself at this head: 0 failures. ps checked for the fixture patterns (sleep 1000/sleep 100[^0]/trap HUP) before (0 matches) and after (0 matches) - no leaked or pre-existing process at all in my run, consistent with the worker's own 20/20-clean, no-leak claim (their one survivor pid 64031 predated their run and is absent in mine). just check reproduced clean at 92fc50a (~2min). Escalation's own control repeated by hand (force_end pass 3's signal_kill disabled, reverted): pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails by its bound exactly as both prior rounds recorded - still sound. No unsafe anywhere in the diff (grep confirmed over the full origin/main...HEAD diff, only comments mention the word). The reaped-pid critical section (RunGate, clear_if_current, the try_wait-under-lock pattern) is untouched this round except for the Ok(None) arm's sleep/backoff - confirmed by the diff itself.
+
+6. Plan's own §9 proof table: every row still has a test or is named as dropped, as both prior rounds found; this round's own two fixes (honest test names/docs, pane.split addition) close the only two gaps either prior round left open. No new proof-step gap introduced by the backoff or the comment rewrite - both are covered by their own tests (next_reap_poll_interval's unit test; the existing mark-for-a-gone-pane test, unchanged in behaviour, doc reworded).
+
+No Important findings. plan-matched: no, as both prior rounds also recorded - RunGate/settle_worker/extra passes and now the backoff are real departures from the plan's own §1/§2 text, each explained in the notes as the review's own fix, not hidden.
+
+---
+
+created: 2026-11-16T03:47:00Z
+
+---
+
+Item 1 (nit) done and pushed: reworded apply_event_locked's CommandOutputStarted arm, which said removing a handle here "would drop its only Sender clone" - untrue on the one reachable path (close_and_dispatch already takes the handle out of state.panes before force_end ends its program, so there is no handle here to drop either way). Now says what is true: the mark is ignored; the handle is already with force_end, which ends the program and joins its threads. Updated the unit test's own doc comment to the same effect (it keeps the handle in panes only to prove this arm doesn't touch it, not to claim the real path has it there too). Comment-only, no behaviour change.
+
+Not run through asdlc record-check/finish, since the board won't take either after a clean review - ran plainly instead:
+- cargo test -p steg-server: 103 lib + 61 dispatch + 13 handshake + 5 program + 7 real_pty + 29 runtime + 8 shutdown + 1 socket_mode, all ok, 0 failed.
+- just check: every recipe ok (format, lint, boundaries, licences, tests-every-crate, build/test for sdk/kernel/server/steg/ui/app, tool tests, architecture, recipe names).
+- Pushed to e7cc551; gh pr checks 47 --watch green at that exact head (watched in the foreground, run 43799786237).
+
+Waiting on your word for item 2 (TASK-1.45/PR 50 merging first).
 
 ---
 <!-- COMMENTS:END -->

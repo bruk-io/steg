@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T02:27:00Z'
+updated_date: '2026-11-16T02:28:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -71,3 +71,9 @@ OPEN FOR THE ENGINEER
 - Item 5 (split timeout) - keep as a diagnostic improvement, or drop for a smaller diff.
 - task-1.37's and task-1.42's extra CI retries (logs expired, cause unconfirmed) - noting as an open question, not silently folded into or excluded from the failure-rate arithmetic above.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked by @bruk.o: ok. The cause is established from the failed and passing runs' timings and from reproduction: npx makes a live round trip to the npm registry even when the pinned package is already cached, CI's runners start with no npm cache, and when the registry is slow or retried that round trip lands inside the test's 30 second wait. The fix addresses it: prefer-offline for npm in this repository (one .npmrc, covering both npx call sites and the editor's MCP entry), and in CI a restored cache with an explicit warm-up step before just check, so a cold fetch is paid in a named step and not inside a timed wait. The test is not skipped, retried or loosened. Proof is a deterministic pair of runs with the registry blocked (without the fix the test fails; with it, it passes in under a second), with repeated cold CI jobs and local runs under load as corroboration only, since at the failure rate seen a run of green results alone proves little. Stated honestly in the plan: the 31 to 34 seconds seen in CI were not reproduced by contention alone. Orchestrator's answers to the three open points, which the engineer may overrule when approving: pin Node here through mise.toml (cheap, removes it from TASK-1.82's list, though it is not the cause); the proof framing and run counts are right; keep the split of the one timeout into a start-up bound and an exchange bound, so a future failure says which phase was slow.
+<!-- SECTION:NOTES:END -->

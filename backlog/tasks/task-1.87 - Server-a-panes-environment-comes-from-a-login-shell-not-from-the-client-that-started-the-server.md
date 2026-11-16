@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:03:00Z'
+updated_date: '2026-11-16T05:10:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -842,6 +842,36 @@ ok      tool tests (11.4s)
 ok      architecture (0.8s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T05:10:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at be2feaf9dca4:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (7.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.9s)
+ok      test (steg-server, race-fixture) (5.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.5s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

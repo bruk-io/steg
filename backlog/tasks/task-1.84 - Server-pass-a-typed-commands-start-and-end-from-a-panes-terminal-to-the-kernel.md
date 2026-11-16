@@ -25,6 +25,8 @@ asdlc_branch: task-1.84-server-pass-a-typed-command-s-start-and
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '33f0386d0f53'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -511,6 +513,15 @@ created: 2026-11-16T00:37:00Z
 ---
 
 Plan approved by @bruk (33f0386d0f53, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:03:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

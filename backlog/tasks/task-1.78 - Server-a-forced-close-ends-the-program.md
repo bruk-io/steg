@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:38:00Z'
+updated_date: '2026-11-16T03:47:00Z'
 labels:
   - size-3
   - review-passed
@@ -2445,6 +2445,21 @@ Round-3 diff is the ~145-line change since a4fb5d0 across crates/server/src/pane
 6. Plan's own §9 proof table: every row still has a test or is named as dropped, as both prior rounds found; this round's own two fixes (honest test names/docs, pane.split addition) close the only two gaps either prior round left open. No new proof-step gap introduced by the backoff or the comment rewrite - both are covered by their own tests (next_reap_poll_interval's unit test; the existing mark-for-a-gone-pane test, unchanged in behaviour, doc reworded).
 
 No Important findings. plan-matched: no, as both prior rounds also recorded - RunGate/settle_worker/extra passes and now the backoff are real departures from the plan's own §1/§2 text, each explained in the notes as the review's own fix, not hidden.
+
+---
+
+created: 2026-11-16T03:47:00Z
+
+---
+
+Item 1 (nit) done and pushed: reworded apply_event_locked's CommandOutputStarted arm, which said removing a handle here "would drop its only Sender clone" - untrue on the one reachable path (close_and_dispatch already takes the handle out of state.panes before force_end ends its program, so there is no handle here to drop either way). Now says what is true: the mark is ignored; the handle is already with force_end, which ends the program and joins its threads. Updated the unit test's own doc comment to the same effect (it keeps the handle in panes only to prove this arm doesn't touch it, not to claim the real path has it there too). Comment-only, no behaviour change.
+
+Not run through asdlc record-check/finish, since the board won't take either after a clean review - ran plainly instead:
+- cargo test -p steg-server: 103 lib + 61 dispatch + 13 handshake + 5 program + 7 real_pty + 29 runtime + 8 shutdown + 1 socket_mode, all ok, 0 failed.
+- just check: every recipe ok (format, lint, boundaries, licences, tests-every-crate, build/test for sdk/kernel/server/steg/ui/app, tool tests, architecture, recipe names).
+- Pushed to e7cc551; gh pr checks 47 --watch green at that exact head (watched in the foreground, run 43799786237).
+
+Waiting on your word for item 2 (TASK-1.45/PR 50 merging first).
 
 ---
 <!-- COMMENTS:END -->

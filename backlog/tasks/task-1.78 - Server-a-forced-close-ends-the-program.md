@@ -1614,6 +1614,27 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue -- --nocapture` exited 101 at 2026-11-16T02:14:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+error[E0425]: cannot find type `PaneHandle` in this scope
+    --> crates/server/src/pane.rs:1235:41
+     |
+1235 |         fn flooded_handle(pane: u64) -> PaneHandle {
+     |                                         ^^^^^^^^^^ not found in this scope
+     |
+help: consider importing this struct through its public re-export
+     |
+ 953 +     use crate::PaneHandle;
+     |
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `steg-server` (lib test) due to 1 previous error
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

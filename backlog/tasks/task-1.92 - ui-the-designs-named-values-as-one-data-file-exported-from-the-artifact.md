@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:17:00Z'
+updated_date: '2026-11-16T01:20:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -207,6 +207,14 @@ created: 2026-11-16T01:17:00Z
 ---
 
 Decided by the engineer on 2026-11-15, answering the plan's questions (he agreed with each recommendation put to him by @bruk.o): (1) track and off are named as real colours; they are drawn, so they exist. (2) A disabled control takes muted, as the Surfaces rule says: the icon button's use of off is the slip; off stays in the data file only if something else draws it, and the plan says which. This is a change to the design, to be made in the artifact too. (3) The terminal themes' cursor and the focus ring's colour are exported as a reference to the session colour, not as a fixed value. (4) The scrim is what is drawn, #050508 at 60% in dark, and the sentence saying black is corrected. (5) The fonts are the named ones: the system font for the interface; JetBrains Mono, then SF Mono, then Menlo for the terminal. Inter and the generic monospace in the pages are scaffolding and are not exported. (6) The three corner sizes are named by role: radius.surface 14, radius.track 10, radius.inner 8. (7) Only the current foundations files get a home in the repository: the superseded status-ball script, the backups and the font are left out. Where a decision differs from what the artifact's pages draw or say (2 and 4), the data file takes the decision, the README lists each difference, and the artifact is corrected to match as a follow-up the orchestrator raises with the engineer.
+
+---
+
+created: 2026-11-16T01:20:00Z
+
+---
+
+2026-11-15, @bruk.o: at the engineer's word the design artifact was corrected in this session, as version 1794791991-5d11: in the seven pages that carry the shared rule, a disabled icon button now takes muted (the rule .lv-ib:disabled, and the still drawing on the Atoms page), and the scrim's sentence on the Tokens and Layout pages now says #050508 at 60% in dark. Nothing else was changed. The engineer had himself resized a few boxes on the Tokens page in the canvas an hour earlier (layout only, no value), which is why the pages were edited in place and not regenerated: the generator scripts no longer reproduce the Tokens page exactly, and the README must say so. After the correction nothing draws the colour off: it is still defined in the pages' theme data but unused, so it is not exported. The pages as they are in that version are saved at /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794791991-5d11 : these are the saved pages the data file is exported from and records as its version, and with them decisions 2 and 4 are no longer differences between the data file and the artifact.
 
 ---
 <!-- COMMENTS:END -->

@@ -54,12 +54,66 @@ impl Drop for KillOnDrop {
     }
 }
 
-/// This piece's one named exception to "no sleeps as synchronisation": a
-/// socket appearing at a path is a filesystem change this process has no
-/// notification for, so every multi-process test here waits for one with a
-/// short, bounded poll - the same shape `crates/server/tests/race.rs`'s own
-/// `wait_until_accepting` and the sdk's own `connect()` retry loop already
-/// use for the identical reason.
+/// Finds the pid holding `socket_path`'s arbiter lock open, via `lsof -t` -
+/// **the lock file, not the socket path itself.** Found necessary by
+/// running this, not assumed: `bind_with_mode` (`crates/server/src/bind.rs`)
+/// binds the real socket under a *temporary* sibling name and only renames
+/// it onto `socket_path` afterward, and on this platform `lsof` reports a
+/// Unix domain socket's name as whatever path it was bound to originally -
+/// the rename never updates that - so `lsof -t socket_path` reliably finds
+/// nothing, confirmed directly (`lsof -p <pid>` on a real leftover server
+/// showed its socket fd still named `.steg-tmp-<pid>-<n>`, never the final
+/// path). The lock file has no such step - `arbiter::try_lock` creates it
+/// directly at its final name - so `lsof -t` on *it* works, also confirmed
+/// directly before relying on it here.
+fn find_server_pid(socket_path: &std::path::Path) -> Option<u32> {
+    let mut lock_path = socket_path.as_os_str().to_owned();
+    lock_path.push(".lock");
+    let output = Command::new("lsof")
+        .arg("-t")
+        .arg(&lock_path)
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()?
+        .trim()
+        .parse()
+        .ok()
+}
+
+/// Kills, on drop, whatever process `lsof` finds holding `socket_path`
+/// open. Needed whenever a test causes a server to be spawned *indirectly*
+/// (through the sdk's own `connect()`, via the `autostart_client` fixture):
+/// `connect()` spawns and drops its own `Child` immediately (TASK-1.70's
+/// documented behaviour), so no `Child` value this test owns ever refers to
+/// that server, and once it has detached (`setsid`) it has no parent this
+/// test could `wait()` on even if it somehow still held one - `setsid` only
+/// changes session/group membership, never reparents a process away from
+/// whoever actually forked it, but there is no fork in this picture at all
+/// for *this* server: the sdk's own spawn is what created it, and the sdk
+/// never hands that `Child` back. `lsof` is the one way left to find it
+/// from outside. On every path, including a panicking assertion - the same
+/// reason `KillOnDrop` exists for a directly-held `Child`.
+///
+/// Confirmed empirically, not assumed, that this is actually needed: a
+/// review of this task found exactly these two tests (the only ones that
+/// reach a server through this fixture rather than a directly-held
+/// `Child`) each leaking one real, permanently-running `steg server start
+/// --on-demand` process per run - up to 37 found alive, parent 1 (orphaned,
+/// reparented once this process's own ancestor exited), since an on-demand
+/// server here never stops by itself (no idle rule exists yet, TASK-1.86's)
+/// and nothing was ever waiting to reap one once it detached.
+struct ServerAtSocket(PathBuf);
+
+impl Drop for ServerAtSocket {
+    fn drop(&mut self) {
+        if let Some(pid) = find_server_pid(&self.0) {
+            let _ = Command::new("kill").args(["-9", &pid.to_string()]).status();
+        }
+    }
+}
+
 /// Polls `path` repeatedly over `timeout`, failing the instant a connect
 /// ever fails within that window - not a single, immediate check. Signal
 /// delivery (SIGKILL, SIGHUP) is not synchronous with the syscall that sends
@@ -77,6 +131,12 @@ fn assert_stays_reachable(path: &std::path::Path, window: Duration, message: &st
     }
 }
 
+/// This piece's one named exception to "no sleeps as synchronisation": a
+/// socket appearing at a path is a filesystem change this process has no
+/// notification for, so every multi-process test here waits for one with a
+/// short, bounded poll - the same shape `crates/server/tests/race.rs`'s own
+/// `wait_until_accepting` and the sdk's own `connect()` retry loop already
+/// use for the identical reason.
 fn wait_for_socket(path: &std::path::Path, timeout: Duration) {
     let deadline = Instant::now() + timeout;
     loop {
@@ -233,6 +293,125 @@ fn a_fresh_start_replaces_the_socket_of_a_server_killed_outright() {
     second.kill_now();
 }
 
+/// AC #5's exit-status table, the refusal row: an existing, untrusted file
+/// at the socket's own path (`arbiter::decide`'s `NotASocket` branch,
+/// already proven at the library level by `crates/server/src/paths.rs`'s
+/// own tests) reaches status 4 and names the reason on stderr, through the
+/// real binary - a row the review found untested, reachable with no new
+/// mechanism (just a plain file where a socket is expected).
+#[test]
+fn an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason() {
+    let not_a_socket = unique_socket_path();
+    std::fs::write(&not_a_socket, b"not a socket").expect("writing the plain file should succeed");
+
+    let output = Command::new(steg_binary())
+        .args(["server", "start"])
+        .env("STEG_SOCKET_PATH", &not_a_socket)
+        .output()
+        .expect("the real steg binary should run to completion");
+
+    assert_eq!(
+        output.status.code(),
+        Some(4),
+        "stderr was: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("could not start a server"),
+        "expected the reason to be named on stderr, got {stderr:?}"
+    );
+    assert!(
+        output.stdout.is_empty(),
+        "a refusal should print nothing on stdout, got {:?}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let _ = std::fs::remove_file(&not_a_socket);
+}
+
+/// AC #5's exit-status table, the "ran and failed" row: `run`'s own accept
+/// loop returns `Err` (and `main` maps that to status 1) when `accept`
+/// itself fails - reached here by starting the server under a lowered
+/// open-file limit and then opening real connections until it runs out,
+/// confirmed empirically before writing this test (a scratch shell/Python
+/// experiment, deleted after): a handful of connections against a limit of
+/// 16 reliably exhausts it on this machine, varying exactly which
+/// connection trips it run to run (scheduling, not a bug) but always
+/// tripping within the first twenty - the real connection count here (40)
+/// is deliberately generous past that observed range, not tuned to the
+/// exact number.
+#[test]
+fn running_out_of_file_descriptors_exits_1() {
+    let socket_path = unique_socket_path();
+    // `ulimit` is a shell builtin, not a program - the lowered limit has to
+    // be set in the same shell that then `exec`s the real binary, so it
+    // actually applies to *that* process rather than only to a subshell
+    // `sh` itself, which `exec` here replaces in place.
+    let mut server = KillOnDrop::new(
+        Command::new("sh")
+            .arg("-c")
+            .arg(format!(
+                "ulimit -n 16; exec {} server start",
+                steg_binary().display()
+            ))
+            .env("STEG_SOCKET_PATH", &socket_path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("the shell wrapper should spawn"),
+    );
+    wait_for_socket(&socket_path, Duration::from_secs(5));
+
+    // Real connections, left open (never read from, never sent a hello) so
+    // each keeps consuming the server's own file descriptors rather than
+    // being reaped - exactly what drives `accept`'s own fd allocation to
+    // fail. Ignoring a failed connect here is deliberate: once the server
+    // dies, later attempts in this same loop are expected to fail too, and
+    // the real assertion is the server's own exit status below, not how
+    // many connections this loop itself manages to open.
+    let mut held = Vec::new();
+    for _ in 0..40 {
+        if let Ok(stream) = UnixStream::connect(&socket_path) {
+            held.push(stream);
+        }
+    }
+
+    let status = server
+        .child
+        .wait()
+        .expect("the server should exit on its own once accept fails");
+    server.done = true;
+    assert_eq!(
+        status.code(),
+        Some(1),
+        "expected the server to exit 1 once its accept loop failed, got {status:?}"
+    );
+
+    drop(held);
+    let _ = std::fs::remove_file(&socket_path);
+    let mut lock_path = socket_path.into_os_string();
+    lock_path.push(".lock");
+    let _ = std::fs::remove_file(lock_path);
+}
+
+/// The review's nit, taken: an unrecognised variant of `server start`
+/// (extra or unknown arguments) gets doc-2 section 6's bad-usage status
+/// (2), not the generic "not yet implemented" placeholder's status 0 -
+/// `server start` itself is no longer unimplemented, so silently
+/// succeeding on a typo'd invocation of it would be a real gap now, not
+/// merely a pre-existing one.
+#[test]
+fn an_unrecognised_server_start_variant_exits_2() {
+    let output = Command::new(steg_binary())
+        .args(["server", "start", "--bogus"])
+        .output()
+        .expect("the real steg binary should run to completion");
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+}
+
 /// AC #3: several real clients starting a server at the same moment end up
 /// connected to the same one. Four real, separate `steg server start
 /// --on-demand` processes, test-owned so the test can distinguish winner
@@ -358,6 +537,12 @@ fn a_losing_racers_dropped_child_is_a_zombie_until_reaped() {
 #[test]
 fn the_client_being_sigkilled_does_not_end_the_server() {
     let socket_path = unique_socket_path();
+    // Ends the server this test causes to be spawned indirectly, on every
+    // path including a panic - declared before the client that causes it
+    // to exist, so this guard's own `Drop` runs *after* `client`'s own
+    // (drop order is declaration order, reversed) and the server is still
+    // there, reachable by `lsof`, when this guard's own drop runs.
+    let _server_guard = ServerAtSocket(socket_path.clone());
     let mut client = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_autostart_client")))
             .env("STEG_SOCKET_PATH", &socket_path)
@@ -378,13 +563,9 @@ fn the_client_being_sigkilled_does_not_end_the_server() {
         "the server should still be answering after its client was SIGKILLed",
     );
 
-    // Reap whatever `on-demand` server process this spawned, by killing
-    // the whole socket's would-be holder: simplest here is to just leave
-    // it to the test's own eventual process exit plus the OS's own
-    // reparenting, consistent with the sdk's own documented, accepted cost
-    // (a short-lived test, not a long-running client) - named rather than
-    // hidden. Nothing further to clean up deterministically: this test, by
-    // design (section 7 of the plan), never held that server's own pid.
+    // `_server_guard`'s own `Drop` (declared above, before `client`) finds
+    // and kills the real server this test caused to be spawned, once
+    // `client` (dropped first) has already ended.
 }
 
 /// AC #2, the second test: `SIGHUP` sent to the client's *whole process
@@ -400,6 +581,11 @@ fn the_clients_process_group_being_sighupd_does_not_end_the_server() {
     use std::os::unix::process::CommandExt;
 
     let socket_path = unique_socket_path();
+    // See the SIGKILL test's own comment on `_server_guard`'s declaration
+    // order: this one matters even more here, since the whole point of
+    // this test is that the server *survives* the SIGHUP - it is still
+    // there, needing this guard, at the very end.
+    let _server_guard = ServerAtSocket(socket_path.clone());
     let mut client = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_autostart_client")))
             .env("STEG_SOCKET_PATH", &socket_path)

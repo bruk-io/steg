@@ -22,6 +22,15 @@ fn main() {
     {
         ["server", "start"] => run_server_start(false),
         ["server", "start", "--on-demand"] => run_server_start(true),
+        // An unrecognised variant of a command this binary *does*
+        // implement gets doc-2 section 6's own bad-usage status (2), not
+        // the generic placeholder below - that placeholder is for commands
+        // not implemented at all yet (TASK-1.49's), which `server start`
+        // itself no longer is.
+        ["server", "start", ..] => {
+            eprintln!("steg: unrecognised arguments to server start");
+            2
+        }
         _ => {
             println!("steg: not yet implemented");
             0

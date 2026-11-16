@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T08:39:00Z'
+updated_date: '2026-11-16T11:54:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -439,3 +439,15 @@ Carried from finished tasks (2026-11-15), for this task's plan: (1) TASK-1.74 ga
 
 Plan (9891d485ef9c) checked against decision-2, doc-2, doc-8 R36, doc-9, doc-15 R91 and doc-16 R101 by @bruk.o, 2026-11-16: not yet ok. (1) For the engineer: the plan makes attach a new kind of control message outside the API description; decision-2 lists four control types (request, response, error, event) and speaks of the attach result, and R36, R42 and R75 say the app uses no surface a plugin cannot see, so whether attach is a described method (with a stated exception to R32 for the CLI) or protocol outside the description is the engineer's decision; the orchestrator recommends a described method sent as an ordinary request. (2) Must change: the worker loop wakes every tick for every pane for ever, attached or not, changed or not; it must block with no timeout when there is no attachment or nothing has changed since the last tick, and arm one deadline when output arrives. (3) Must be stated: the state a new attachment is registered in (caught up at the snapshot's sequence), so it is not sent a second snapshot on the next tick. (4) For the engineer: the tick as a published user setting or a server configuration value until the app measures it; the orchestrator recommends the latter. The split into three is taken (drafts created). Held for the engineer's answers, then one rewrite.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T11:54:00Z
+
+---
+
+2026-11-16, @bruk.o: the engineer decided as recommended: attach is a described API method sent as an ordinary request and marked as opening a stream (an exception to R32 for the generated CLI); the tick is 8 ms as a server configuration value, not a published setting. The plan is being rewritten once; doc-2 gains a line when the plan is approved.
+
+---
+<!-- COMMENTS:END -->

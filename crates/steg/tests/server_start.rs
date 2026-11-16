@@ -66,6 +66,16 @@ impl Drop for KillOnDrop {
 /// path). The lock file has no such step - `arbiter::try_lock` creates it
 /// directly at its final name - so `lsof -t` on *it* works, also confirmed
 /// directly before relying on it here.
+///
+/// **Loud, not quiet, on anything other than "exactly nothing" or "exactly
+/// one pid" - a review nit found the earlier version of this function
+/// went quiet in exactly the cases that matter most.** `None` (nothing
+/// holds the lock) is a genuine, non-fatal answer - the server has
+/// already gone. Anything else that is not exactly one pid is not: a
+/// machine with no `lsof` at all must not look the same as "nothing to
+/// clean up," since that is precisely how this guard would go back to
+/// silently leaking servers, which is the bug this whole mechanism exists
+/// to fix.
 fn find_server_pid(socket_path: &std::path::Path) -> Option<u32> {
     let mut lock_path = socket_path.as_os_str().to_owned();
     lock_path.push(".lock");
@@ -73,13 +83,27 @@ fn find_server_pid(socket_path: &std::path::Path) -> Option<u32> {
         .arg("-t")
         .arg(&lock_path)
         .output()
-        .ok()?;
-    String::from_utf8_lossy(&output.stdout)
+        .expect(
+            "lsof should be runnable on this machine - without it this guard cannot find a \
+             server to clean up, and must fail loudly rather than silently leak one",
+        );
+    let text = String::from_utf8_lossy(&output.stdout);
+    let pids: Vec<&str> = text
         .lines()
-        .next()?
-        .trim()
-        .parse()
-        .ok()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect();
+    match pids.as_slice() {
+        [] => None,
+        [one] => Some(
+            one.parse()
+                .unwrap_or_else(|err| panic!("lsof reported a non-numeric pid {one:?}: {err}")),
+        ),
+        many => panic!(
+            "expected lsof to report at most one pid holding {lock_path:?}, got {many:?} - \
+             this guard cannot safely pick one to kill"
+        ),
+    }
 }
 
 /// Kills, on drop, whatever process `lsof` finds holding `socket_path`
@@ -148,6 +172,27 @@ fn wait_for_socket(path: &std::path::Path, timeout: Duration) {
             "nothing ever answered at {path:?}"
         );
         std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Waits for `child` to exit, bounded by polling `try_wait` - a review nit
+/// found two places in this file that waited on a process expected to have
+/// already been ended by something *other* than this function calling
+/// `kill()` itself first (a signal sent elsewhere, or a resource limit this
+/// process hit on its own): on a machine where that expectation does not
+/// hold, a bare, unbounded `wait()` would hang the test instead of failing
+/// it with a message saying what did not happen.
+fn wait_bounded(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.try_wait().expect("try_wait should not fail") {
+            return status;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the process did not exit within the bound"
+        );
+        std::thread::sleep(Duration::from_millis(20));
     }
 }
 
@@ -378,10 +423,11 @@ fn running_out_of_file_descriptors_exits_1() {
         }
     }
 
-    let status = server
-        .child
-        .wait()
-        .expect("the server should exit on its own once accept fails");
+    // Bounded, not a bare `wait()` - a review nit found that on a machine
+    // where this test's own file-descriptor-exhaustion assumption does not
+    // hold, an unbounded wait here would hang instead of failing promptly
+    // with a message saying so.
+    let status = wait_bounded(&mut server.child, Duration::from_secs(5));
     server.done = true;
     assert_eq!(
         status.code(),
@@ -620,7 +666,18 @@ fn the_clients_process_group_being_sighupd_does_not_end_the_server() {
         "the server should still be answering after its client's whole process group was SIGHUPed",
     );
 
-    client.done = true; // SIGHUP already ended it (default disposition); nothing to kill
+    // Waited on, bounded, rather than just marked done: SIGHUP's default
+    // disposition should already have ended the client, but that is an
+    // expectation about the signal, not a guarantee this function itself
+    // enforced the way `kill_now`'s own `kill()` does - a review nit
+    // found this left a zombie (nothing ever reaped it) until the whole
+    // test binary exited.
+    let status = wait_bounded(&mut client.child, Duration::from_secs(5));
+    client.done = true;
+    assert!(
+        !status.success(),
+        "the client should have been ended by the SIGHUP, not exited cleanly on its own"
+    );
 }
 
 /// Section 3's own decided behaviour: typing `--on-demand` directly at an

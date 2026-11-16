@@ -45,65 +45,43 @@ fn appearance_from_env(value: Option<&str>) -> Appearance {
     }
 }
 
-/// Build the theme for `appearance`, with `foundations::default_session` as the
-/// session colour - no component of this crate, this gallery included, writes its
-/// own colour literal (R120 binds a real component; this gallery holds itself to the
-/// same rule anyway, since TASK-1.94's check will too).
-fn gallery_theme(appearance: Appearance) -> Theme {
-    Theme::new(appearance, foundations::default_session(appearance))
-}
-
 /// Every named colour this gallery shows, paired with its own `Theme` method
 /// (crates/ui/design/foundations.json's `colours` and `colour_aliases`) - plus `tint`
 /// and `scrim`'s own colour component, which belong here rather than in "Other named
-/// values" (team lead's review: a colour wants a swatch and its hex, not debug text).
-fn colour_entries(theme: &Theme) -> Vec<(&'static str, Hsla)> {
+/// values" (review #4: a colour wants a swatch and its hex, not debug text). `tint`
+/// and `scrim` carry their own opacity in the design (review #5) - stated in the name
+/// itself, since that's the one property `colour_swatch` doesn't otherwise show.
+fn colour_entries(theme: &Theme) -> Vec<(String, Hsla)> {
+    let (tint_colour, tint_opacity) = theme.tint();
+    let scrim = theme.scrim();
     vec![
-        ("surface.ground", theme.surface_ground()),
-        ("surface.pane", theme.surface_pane()),
-        ("surface.raised", theme.surface_raised()),
-        ("surface.overlay", theme.surface_overlay()),
-        ("fill.hover", theme.fill_hover()),
-        ("fill.quiet", theme.fill_quiet()),
-        ("outline", theme.outline()),
-        ("text", theme.text()),
-        ("text.secondary", theme.text_secondary()),
-        ("text.muted", theme.text_muted()),
-        ("ramp.1 violet", theme.ramp_1_violet()),
-        ("ramp.2 pink", theme.ramp_2_pink()),
-        ("ramp.3 red", theme.ramp_3_red()),
-        ("ramp.4 orange", theme.ramp_4_orange()),
-        ("ramp.5 amber", theme.ramp_5_amber()),
-        ("ramp.6 green", theme.ramp_6_green()),
-        ("session.blue", theme.session_blue()),
-        ("track", theme.track()),
-        ("blocked", theme.blocked()),
-        ("done", theme.done()),
-        ("error", theme.error()),
-        ("tint", theme.tint().0),
-        ("scrim", theme.scrim().colour),
+        ("surface.ground".to_string(), theme.surface_ground()),
+        ("surface.pane".to_string(), theme.surface_pane()),
+        ("surface.raised".to_string(), theme.surface_raised()),
+        ("surface.overlay".to_string(), theme.surface_overlay()),
+        ("fill.hover".to_string(), theme.fill_hover()),
+        ("fill.quiet".to_string(), theme.fill_quiet()),
+        ("outline".to_string(), theme.outline()),
+        ("text".to_string(), theme.text()),
+        ("text.secondary".to_string(), theme.text_secondary()),
+        ("text.muted".to_string(), theme.text_muted()),
+        ("ramp.1 violet".to_string(), theme.ramp_1_violet()),
+        ("ramp.2 pink".to_string(), theme.ramp_2_pink()),
+        ("ramp.3 red".to_string(), theme.ramp_3_red()),
+        ("ramp.4 orange".to_string(), theme.ramp_4_orange()),
+        ("ramp.5 amber".to_string(), theme.ramp_5_amber()),
+        ("ramp.6 green".to_string(), theme.ramp_6_green()),
+        ("session.blue".to_string(), theme.session_blue()),
+        ("track".to_string(), theme.track()),
+        ("blocked".to_string(), theme.blocked()),
+        ("done".to_string(), theme.done()),
+        ("error".to_string(), theme.error()),
+        (format!("tint @ {:.0}%", tint_opacity * 100.0), tint_colour),
+        (
+            format!("scrim @ {:.0}%", scrim.opacity * 100.0),
+            scrim.colour,
+        ),
     ]
-}
-
-/// `Hsla` -> `"#rrggbb"`, for display only - the standard HSL-to-RGB conversion, run
-/// backwards from whatever colour the theme already resolved. Not a second source of
-/// truth and not a colour literal: nothing here names a colour, it's arithmetic on
-/// one `Theme` already handed us, same as any other read of a value it returns.
-fn hex_of(colour: Hsla) -> String {
-    let h = colour.h * 6.0;
-    let c = (1.0 - (2.0 * colour.l - 1.0).abs()) * colour.s;
-    let x = c * (1.0 - (h.rem_euclid(2.0) - 1.0).abs());
-    let m = colour.l - c / 2.0;
-    let (r1, g1, b1) = match h as i32 {
-        0 => (c, x, 0.0),
-        1 => (x, c, 0.0),
-        2 => (0.0, c, x),
-        3 => (0.0, x, c),
-        4 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    let to_byte = |v: f32| ((v + m) * 255.0).round().clamp(0.0, 255.0) as u8;
-    format!("#{:02x}{:02x}{:02x}", to_byte(r1), to_byte(g1), to_byte(b1))
 }
 
 /// The 16 ANSI colours of one terminal theme, named the way `AnsiColours` lists them.
@@ -174,12 +152,12 @@ fn other_named_values(theme: &Theme) -> Vec<(&'static str, String)> {
 
 /// One colour: a border so a colour close to the window's own background still reads
 /// as its own swatch, and its design name beneath it. `with_hex` also shows the
-/// colour's own hex (team lead's review: a colour wants a swatch *and* its hex, not
-/// just a name) - skipped for the 21-wide terminal theme rows, where this screen's
-/// own height is the binding constraint (every row already named, every hex still
-/// one `hex_of` call away from any of them).
+/// colour's own hex, via `foundations::hex_of` (review #4: a colour wants a swatch
+/// *and* its hex, not just a name) - skipped for the 21-wide terminal theme rows,
+/// where this screen's own height is the binding constraint (every row already
+/// named, every hex still one `hex_of` call away from any of them).
 fn colour_swatch(
-    name: &'static str,
+    name: impl Into<String>,
     colour: Hsla,
     label_colour: Hsla,
     border: Hsla,
@@ -203,14 +181,14 @@ fn colour_swatch(
             div()
                 .text_size(px(9.0))
                 .text_color(label_colour)
-                .child(name),
+                .child(name.into()),
         )
         .when(with_hex, |swatch| {
             swatch.child(
                 div()
                     .text_size(px(9.0))
                     .text_color(label_colour)
-                    .child(hex_of(colour)),
+                    .child(foundations::hex_of(colour)),
             )
         })
 }
@@ -317,8 +295,8 @@ impl Gallery {
     fn new(window: &mut Window, cx: &mut Context<Self>, appearance: Appearance) -> Self {
         let focus_handle = cx.focus_handle();
         window.focus(&focus_handle);
-        let theme = gallery_theme(appearance);
-        cx.set_global(gallery_theme(theme.appearance()));
+        let theme = Theme::with_default_session(appearance);
+        cx.set_global(Theme::with_default_session(theme.appearance()));
         Self {
             theme,
             focus_handle,
@@ -332,8 +310,8 @@ impl Gallery {
     /// permission grant this recipe does not take on).
     fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
         if event.keystroke.key == "t" {
-            self.theme = gallery_theme(self.theme.appearance().toggled());
-            cx.set_global(gallery_theme(self.theme.appearance()));
+            self.theme = Theme::with_default_session(self.theme.appearance().toggled());
+            cx.set_global(Theme::with_default_session(self.theme.appearance()));
             cx.notify();
         }
     }
@@ -536,20 +514,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hex_of_round_trips_a_named_colours_own_hex() {
-        // ramp.1 violet, dark: #a98cff (crates/ui/design/foundations.json).
-        assert_eq!(hex_of(gpui::rgb(0xa98cff).into()), "#a98cff");
-    }
-
-    #[test]
-    fn hex_of_round_trips_a_near_neutral_colour() {
-        // surface.ground, light: #f1efec - near-grey (low saturation), the case the
-        // plan flagged as a real risk for this conversion (hue is ill-conditioned at
-        // low saturation) - checked directly rather than assumed fine.
-        assert_eq!(hex_of(gpui::rgb(0xf1efec).into()), "#f1efec");
-    }
-
-    #[test]
     fn unset_is_light() {
         assert_eq!(appearance_from_env(None), Appearance::Light);
     }
@@ -574,11 +538,11 @@ mod tests {
     #[test]
     fn the_gallery_theme_carries_the_appearance_asked_for() {
         assert_eq!(
-            gallery_theme(Appearance::Dark).appearance(),
+            Theme::with_default_session(Appearance::Dark).appearance(),
             Appearance::Dark
         );
         assert_eq!(
-            gallery_theme(Appearance::Light).appearance(),
+            Theme::with_default_session(Appearance::Light).appearance(),
             Appearance::Light
         );
     }

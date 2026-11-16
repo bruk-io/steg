@@ -16,14 +16,17 @@ request shows.
   foundations, never a literal (R120). The gallery is not a component of the four levels,
   but since TASK-1.93 it draws everything it shows - every swatch, ramp, type sample,
   spacing bar and corner - from `foundations` by name as well, the same as any real
-  component would. Its own non-test code has no colour literal left: `gallery_theme`
-  reaches the default session colour through `foundations::default_session`, not a hex.
-  Two literals remain, both inside `#[cfg(test)]` in `gallery/main.rs` - `hex_of`'s own
-  round-trip tests, which need a literal hex to assert against by the nature of what
-  they prove. TASK-1.94's colour-literal check (once it lands) treats a `#[cfg(test)]`
-  block the same as any other code, so whoever removes this crate's gallery-wide
-  exemption for that check needs either a narrower carve-out for these two tests or to
-  rehome them - flagged here rather than left for that task to discover.
+  component would, and has no colour literal of its own, test or otherwise: `Theme::
+  with_default_session` reaches the default session colour through a `Theme`, never a
+  bare `Hsla` (checked by `tools/src/steg_tools/foundations_public_surface.py`, part of
+  `just check` - a public function in this crate returning `Hsla` outside `impl Theme` is
+  a build failure, not a convention), and `hex_of` (display only, `foundations::hex_of`)
+  lives in `foundations` along with its own round-trip tests, which do need a literal hex
+  to assert against - `crates/ui/src/foundations/**` is the one path TASK-1.94's
+  colour-literal check always exempts, so this needs no carve-out from anyone later.
+  Confirmed directly, not assumed: `steg-ui-colours` run from TASK-1.94's own branch
+  against this crate's tree with the gallery's temporary exemption removed entirely finds
+  nothing (recorded on TASK-1.93).
 - Tests: `just test` runs this crate's tests when a change touches it; `just check-packages`
   builds and tests every package alone, including this one (both its `src/` lib and its
   `gallery` binary - compiling the binary is cheap and proves nothing opens a window by

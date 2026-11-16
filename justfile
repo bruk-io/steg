@@ -33,7 +33,7 @@ default:
     @just --list
 
 # what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, and this file's own recipe names
-check: check-fmt lint check-boundaries check-foundations deny test check-packages test-tools check-architecture check-recipes
+check: check-fmt lint check-boundaries check-foundations check-foundations-public-surface deny test check-packages test-tools check-architecture check-recipes
 
 # Seeds Zig's own package cache (`ZIG_GLOBAL_CACHE_DIR`, .cargo/config.toml) from the
 # committed, read-only tarballs in third_party/ghostty-vt-zig-deps/p/, so a real build never
@@ -168,6 +168,10 @@ generate-foundations:
 # fail if generated.rs doesn't match foundations.json (doc-17 R121) - naming `just generate-foundations` as the fix
 check-foundations:
     @if [ "{{rust}}" = no ]; then echo "skip    foundations: no Rust workspace yet"; else {{quiet}} "foundations" -- uv run --quiet --project tools steg-generate-foundations --check; fi
+
+# fail if a public function in crates/ui/src/foundations outside impl Theme returns a bare Hsla (doc-17 R123) - the compile-level guarantee the module's own doc comment claims
+check-foundations-public-surface:
+    @if [ "{{rust}}" = no ]; then echo "skip    foundations public surface: no Rust workspace yet"; else {{quiet}} "foundations public surface" -- uv run --quiet --project tools steg-foundations-public-surface; fi
 
 # install or check what the recipes need beyond Rust itself (cargo-deny first, then the
 # pinned Zig mise.toml names - idempotent, and a no-op once it's installed)

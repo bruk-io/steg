@@ -35,13 +35,16 @@ mod runtime;
 mod signal;
 
 pub use arbiter::{Arbitration, Reason as ArbitrationReason, ServerHandle, attempt};
-pub use config::{DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT, ServerConfig};
+pub use config::{
+    DEFAULT_ACCEPT_ERROR_BACKOFF, DEFAULT_ARBITRATION_TIMEOUT, DEFAULT_HANDSHAKE_TIMEOUT,
+    ServerConfig,
+};
 pub use connection::ConnectionEvent;
 pub use detach::detach;
 pub use dispatch::{Context, Outcome, dispatch};
 pub use env::pane_environment;
 pub use error::Error;
-pub use listen::{ServeOutcome, Stopper, resolve_socket_path, run, serve};
+pub use listen::{RecoverableAcceptError, ServeOutcome, Stopper, resolve_socket_path, run, serve};
 pub use login_env::{Capture, FallbackReason, LoginIdentity, capture_login_environment};
 pub use pane::{PaneEvent, PaneHandle, start};
 pub use paths::Reason as PathReason;

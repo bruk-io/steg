@@ -51,6 +51,13 @@ use crate::runtime::Runtime;
 pub enum ConnectionEvent {
     Connected,
     Disconnected,
+    /// `run`'s accept loop hit an `accept()`/`try_clone()` error it
+    /// classified as safe to retry (TASK-1.98 AC #1/#4), sent once per
+    /// retry, before the loop's own backoff sleep. Not a connection at
+    /// all - no stream exists on this path - so it is its own variant
+    /// rather than folded into `Connected`/`Disconnected`, which both
+    /// name a real one.
+    AcceptRetried(crate::listen::RecoverableAcceptError),
 }
 
 /// How long is left before `deadline`, as of `now` - `None` once `now`

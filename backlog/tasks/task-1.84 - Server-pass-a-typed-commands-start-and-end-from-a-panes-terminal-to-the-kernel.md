@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:27:00Z'
+updated_date: '2026-11-16T01:28:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -29,6 +29,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -647,6 +648,15 @@ Head reviewed: 7f6ab3ae5a6e9b8766f2eab12dd457284dcb1ac7 (matches the task's fina
 [Compliance, Nit] crates/server/src/runtime.rs, `a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic`'s own comment ("standing in for a forced close that has already happened ... until TASK-1.78 lands") will read as stale once TASK-1.78 merges, since the scenario becomes real rather than synthetic; the `PaneNotFound` arm's behaviour itself is generic (keyed only on whether the tree still holds the pane) and I found nothing in TASK-1.78's planned files that would change its meaning.
 
 Other brief items checked clean: `events.send` appears only twice in pane.rs, both inside `worker_loop` (the `Exited` arm and `drain_command_marks`, called only from the `PtyBytes` arm) - the worker is the sole sender of every `PaneEvent` for a pane on every path; a restart only ever targets a command pane (R97: a shell pane closes rather than restarting), and the kernel already treats marks on a command pane as `NotAShellPane`/`Ignored`, so no old-run mark can be misapplied to a new run even putting the channel-ordering argument aside. `apply_event_locked`'s two new arms match the plan exactly, including `now` computed once per event the same way the `Exited` arm already does, and the `Err(other) => unreachable!` arms are genuinely unreachable - `Tree::note_command_output_started`/`note_command_ended` only ever construct `Err(Error::PaneNotFound(id))`, confirmed by reading `tree.rs`. Kernel diff is confined to the one doc comment on `terminal.rs`; no other kernel file touched, no `unsafe`, no new dependency. The one departure from the plan (no drain after `Terminal::resize`) was already named and accepted at plan-check by @bruk.o, so `--plan-matched no` reflects that departure as data, not a new finding.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:28:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

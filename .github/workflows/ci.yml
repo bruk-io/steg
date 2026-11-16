@@ -162,23 +162,3 @@ jobs:
         # instead of it.
         if: github.event_name == 'push'
         run: just test-all
-
-      # TEMPORARY (TASK-1.112) - removed before this pull request merges. Gathers this
-      # CI runner's own numbers for the shipped-default cross-process test (already run
-      # once, cleanly, inside `just check` above) and the ignored sequential control
-      # (never run in `just check` - see `tests/openpty_race.rs`'s own module doc for
-      # why), a few times each, so the task's own notes can record both this runner's
-      # numbers and the engineer's dev machine's side by side.
-      - name: TEMPORARY - TASK-1.112 cross-process numbers (shipped default, 5 runs)
-        run: |
-          for i in 1 2 3 4 5; do
-            echo "=== run $i ==="
-            cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_at_the_shipped_default_never_fail
-          done
-
-      - name: TEMPORARY - TASK-1.112 cross-process numbers (ignored no-retry control, 3 runs)
-        run: |
-          for i in 1 2 3; do
-            echo "=== run $i ==="
-            cargo test -p steg-server --features pty-race-fixture --test openpty_race -- --ignored --nocapture cross_process_opens_with_no_retry_the_permanent_control_eventually_fails
-          done

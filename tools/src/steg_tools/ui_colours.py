@@ -59,17 +59,14 @@ DESIGN_DATA = "crates/ui/design/foundations.json"
 # reads them from, not writes them as.
 FOUNDATIONS = f"{UI_SRC}/foundations"
 
-# Temporary - remove this constant, and the line that adds it to EXEMPT_PREFIXES below,
-# once TASK-1.93 makes the gallery draw its colours from foundations instead of its own
-# placeholder (`crates/ui/CLAUDE.md`, and `gallery/main.rs`'s own doc comment:
-# "TASK-1.93's real foundations replace[s]" this placeholder). Whichever of the two
-# tasks merges second ends this exemption.
+# Still a file-discovery root below (the gallery's own colours are checked, not
+# skipped) - only its exemption from EXEMPT_PREFIXES was temporary, and TASK-1.93
+# ended it: the gallery now draws every colour it shows from `foundations` by name,
+# confirmed by running this check against TASK-1.93's tree with the exemption removed
+# before either task merged (no violation found).
 GALLERY = "crates/ui/gallery"
 
-EXEMPT_PREFIXES = (
-    FOUNDATIONS,
-    GALLERY,  # temporary - remove this line when GALLERY above is removed
-)
+EXEMPT_PREFIXES = (FOUNDATIONS,)
 
 # Every free function in gpui 0.2.2's `src/color.rs` that builds a brand-new colour
 # value from scratch, re-exported at crate root (`pub use color::*;`), read from that

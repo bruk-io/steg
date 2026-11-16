@@ -4,7 +4,7 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T11:36:00Z'
+updated_date: '2026-11-16T12:54:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.47
   - TASK-1.114
   - TASK-1.115
+  - TASK-1.117
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -39,3 +40,15 @@ doc-9 R19; doc-10 R23, R29; doc-13 R59 (the view is written fresh, with nothing 
 <!-- SECTION:NOTES:BEGIN -->
 Carried (2026-11-15): Terminal::resize and the pty are given a pixel cell size of zero (unknown) everywhere today (TASK-1.39, 1.40, 1.76). This task's terminal view is the first thing that knows real pixel dimensions; its plan says how they reach the server and the pty.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T12:54:00Z
+
+---
+
+2026-11-16, @bruk.o: now builds on TASK-1.117, the thin slice the engineer asked for (a bare window with one terminal you can type in). That task makes the first terminal view and measures key to paint; this one keeps the budget as a pass or fail on a 120 Hz display, the 100 MB flood with a second pane, font settings, a size set by another client, and fitting the view into the pane layout. Its first criterion (rows and cursor from the attachment, typing reaches the program) is met by the slice and is re-proven here inside a pane.
+
+---
+<!-- COMMENTS:END -->

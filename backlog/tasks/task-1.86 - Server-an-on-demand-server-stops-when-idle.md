@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T12:23:00Z'
+updated_date: '2026-11-16T13:20:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -838,6 +838,295 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
 
 error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop every_sender_dropping_is_what_lets_run_return_after_stop` exited 101 at 2026-11-16T12:23:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test every_sender_dropping_is_what_lets_run_return_after_stop ... FAILED
+
+failures:
+
+---- every_sender_dropping_is_what_lets_run_return_after_stop stdout ----
+
+thread 'every_sender_dropping_is_what_lets_run_return_after_stop' (27630136) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 5s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_sender_dropping_is_what_lets_run_return_after_stop
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Check FAILED: `cargo test -p steg-server --lib the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` exited 101 at 2026-11-16T12:25:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... FAILED
+
+failures:
+
+---- idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible stdout ----
+
+thread 'idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible' (27644487) panicked at crates/server/src/idle.rs:338:9:
+no observation should arrive while the checker is blocked with no timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 159 filtered out; finished in 0.11s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib idle::` exited 0 at 2026-11-16T12:25:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 9 tests
+test idle::tests::a_connected_client_with_no_matching_disconnect_never_fires_no_matter_how_far_time_moves ... ok
+test idle::tests::a_connect_then_disconnect_within_one_tick_restarts_the_full_period ... ok
+test idle::tests::empty_from_construction_and_waiting_past_idle_timeout_expires ... ok
+test idle::tests::wait_until_is_exact_not_approximate ... ok
+test idle::tests::wait_at_29_30_and_31_seconds_of_idleness ... ok
+test idle::tests::a_client_reconnecting_every_29_seconds_never_fires ... ok
+test idle::tests::a_nonzero_session_count_never_fires_regardless_of_clients ... ok
+test idle::tests::a_recoverable_accept_retry_does_not_count_as_a_client_arriving ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.36s
+```
+
+Check FAILED: `cargo test -p steg --features fixtures --test idle_stop` exited 101 at 2026-11-16T12:25:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... FAILED
+
+failures:
+
+---- an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one stdout ----
+
+thread 'an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one' (27649216) panicked at crates/steg/tests/idle_stop.rs:77:9:
+the process did not exit within the bound
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.36s
+
+error: test failed, to rerun pass `-p steg --test idle_stop`
+```
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T12:26:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes, last 40 of 410 lines:
+
+```text
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... ok
+kill: 53417: No such process
+kill: 53466: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+kill: 53352: No such process
+kill: 53463: No such process
+kill: 53464: No such process
+kill: 53465: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 53335: No such process
+kill: 53333: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 53345: No such process
+kill: 53344: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T13:16:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6, last 40 of 61 lines:
+
+```text
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-3e9d6d82b6885ce6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.38s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T13:16:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/idle.rs:334:
+         // periodic-poll design would show up here as an early, spurious
+         // `Wait::Forever` observation instead of a timeout.
+         assert!(
+[31m-            observed_rx.recv_timeout(Duration::from_millis(300)).is_err(),
+(B[m[32m+            observed_rx
+(B[m[32m+                .recv_timeout(Duration::from_millis(300))
+(B[m[32m+                .is_err(),
+(B[m             "no observation should arrive while the checker is blocked with no timeout"
+         );
+         // Now disconnect - the checker wakes from its untimed `recv()`,
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/idle.rs:379:
+         let checker = std::thread::spawn({
+             let stop = stop.clone();
+             move || {
+[31m-                run_checker_with_observer(signal_rx, stop, || 0, idle_timeout, move |wait| {
+(B[m[31m-                    let _ = observed_tx.send(*wait);
+(B[m[31m-                });
+(B[m[32m+                run_checker_with_observer(
+(B[m[32m+                    signal_rx,
+(B[m[32m+                    stop,
+(B[m[32m+                    || 0,
+(B[m[32m+                    idle_timeout,
+(B[m[32m+                    move |wait| {
+(B[m[32m+                        let _ = observed_tx.send(*wait);
+(B[m[32m+                    },
+(B[m[32m+                );
+(B[m             }
+         });
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:17:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 33.0s)
+   Compiling nix v0.28.0
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+    Checking portable-pty v0.9.0
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg)
+error: wildcard match will also match any future added variants
+   --> crates/server/src/idle.rs:420:13
+    |
+420 |             other => panic!("expected Wait::Until with some time still left, got {other:?}"),
+    |             ^^^^^ help: try: `other @ Wait::Forever | other @ Wait::Expired`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg-server` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:20:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.5s)
+ok      boundaries (0.2s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (53.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.7s)
+ok      test (steg-server) (20.3s)
+ok      test (steg-server, race-fixture) (23.3s)
+ok      test (steg-server, accept-backoff-fixture) (24.7s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (5.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

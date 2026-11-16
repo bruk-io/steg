@@ -14,8 +14,11 @@ def test_is_exempt_for_a_foundations_path() -> None:
     assert is_exempt("crates/ui/src/foundations/generated.rs") is True
 
 
-def test_is_exempt_for_the_gallery_path() -> None:
-    assert is_exempt("crates/ui/gallery/main.rs") is True
+def test_is_exempt_is_false_for_the_gallery_path() -> None:
+    # The gallery's own exemption was temporary, ending once TASK-1.93 made it draw
+    # every colour it shows from foundations by name - it's still a file-discovery
+    # root (`rust_files(root, GALLERY)`), just no longer exempt from this check.
+    assert is_exempt("crates/ui/gallery/main.rs") is False
 
 
 def test_is_exempt_is_false_for_an_ordinary_atom_path() -> None:
@@ -113,9 +116,12 @@ def test_violations_skips_a_literal_inside_the_foundations_path() -> None:
     assert violations((file,), SURFACE_RAISED_INDEX) == ()
 
 
-def test_violations_skips_a_literal_inside_the_gallery_path() -> None:
+def test_violations_now_reports_a_literal_inside_the_gallery_path_too() -> None:
+    # The gallery's exemption ended with TASK-1.93 - a literal there is a violation
+    # like any other now, not skipped.
     file = RustFile("crates/ui/gallery/main.rs", "fn f() -> u32 { 0x1c1b21 }\n")
-    assert violations((file,), SURFACE_RAISED_INDEX) == ()
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "0x1c1b21", (("surface.raised", "dark"),)),)
 
 
 def test_violations_reports_the_same_literal_outside_either_exempt_path() -> None:

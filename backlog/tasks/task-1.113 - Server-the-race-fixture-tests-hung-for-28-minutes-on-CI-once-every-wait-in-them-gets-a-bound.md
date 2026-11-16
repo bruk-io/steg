@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-16T05:42:00Z'
+updated_date: '2026-11-16T13:14:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -28,3 +29,15 @@ On 2026-11-16 pull request 55's check run 43802834909 (attempt 1, commit 51c1659
 - [ ] #3 A test proves a bound works: a fixture process made to hang fails its test within the bound and leaves no process behind, with a recorded negative control
 - [ ] #4 just check cannot spend its whole CI time limit on one hung test: the suite fails within minutes when a test hangs
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T13:14:00Z
+
+---
+
+2026-11-16, @bruk.o: a second kind of hung test, for the same lesson: TASK-1.98's new accept-backoff tests joined a reader thread with no bound and hung for 30 minutes on CI (run 43866214322) and three times on the worker's machine. Fixed in that task; when this task bounds the race tests, consider a suite-level guard so that no single test binary can run past a few minutes in just check (the fourth criterion here).
+
+---
+<!-- COMMENTS:END -->

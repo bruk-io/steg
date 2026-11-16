@@ -1,9 +1,11 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
+updated_date: '2026-11-16T08:24:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -13,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.98-server-the-accept-loop-survives-an-error
 ---
 
 ## Description

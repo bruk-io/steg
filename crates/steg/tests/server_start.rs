@@ -457,6 +457,51 @@ fn call_and_read_reply(
     }
 }
 
+/// `lsof -p pid`'s own open-fd count, minus the header row it always
+/// prints - `0` once the process is gone (an empty `lsof` result), never
+/// an error: a caller polling this across a process's own death is
+/// expected to see that, not panic over it.
+fn open_fd_count(pid: u32) -> u64 {
+    let output = Command::new("lsof")
+        .arg("-p")
+        .arg(pid.to_string())
+        .output()
+        .expect("lsof should be runnable on this machine");
+    (String::from_utf8_lossy(&output.stdout).lines().count() as u64).saturating_sub(1)
+}
+
+/// Polls `pid`'s own open-fd count (`lsof`) until it reaches `limit`,
+/// within a small margin - confirming descriptor exhaustion actually
+/// happened, rather than assumed from the `-n` value and how many
+/// connections a test happens to hold (a review of this task found the
+/// test below asserting survival without this: 18 of 20 runs with the
+/// exhaustion-handling arms disabled still passed, because most of them
+/// never drove the server anywhere near its own limit at all). The same
+/// bounded-poll-on-an-external-fact shape `wait_for_socket` already uses
+/// in this file, for the identical reason: there is no notification for
+/// an OS-level fact like this, only a fact to poll for. Fails with a
+/// clear message, not a silent pass, if the limit is never reached within
+/// `bound` - a runner with a different baseline then fails loudly here,
+/// rather than letting the rest of this test assert things it never
+/// actually exercised.
+fn wait_for_descriptor_exhaustion(pid: u32, limit: u64, bound: Duration) -> u64 {
+    const MARGIN: u64 = 5;
+    let deadline = Instant::now() + bound;
+    loop {
+        let count = open_fd_count(pid);
+        if count + MARGIN >= limit {
+            return count;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the server's own descriptor count never reached its configured limit \
+             ({limit}) within the bound - last observed {count} - exhaustion was never \
+             established, so the rest of this test would not be proving anything"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
 /// TASK-1.98 AC #3, replacing `running_out_of_file_descriptors_exits_1`
 /// (named here, as the task's own notes require, since this reverses that
 /// test's own expectation): that test proved the server used to die the
@@ -468,45 +513,30 @@ fn call_and_read_reply(
 /// server's own *child* process, never this test binary's own) now shows
 /// the server surviving it instead.
 ///
-/// The `-n` value (180) is not inherited from the old test's own 16, and is
-/// derived, not merely widened past a thin margin (a review of this task
-/// found the first chosen value, 128, measured on this machine alone and
-/// never exercised on CI, too close to its own observed failure point to
-/// trust on a runner with a different baseline):
-///
-/// - **Measured, not guessed, this server's own real descriptor cost**: a
-///   real `server start`, steady state, with one session and one connected
-///   client, holds 15 open descriptors on this machine (`lsof -p <pid>`
-///   against an unrestricted run). Before `run`'s own accept loop is even
-///   reached, TASK-1.87 (merged into this branch while this task was being
-///   built) also spawns a real login shell and captures its environment,
-///   a real child process with its own pipes - a transient cost on top of
-///   that steady-state number, not included in it, since the shell has
-///   already exited and its own fds closed by the time this measurement
-///   runs.
-/// - **Measured, not guessed, where that transient cost actually bites**:
-///   at `-n 90`, the very first client's own handshake already fails
-///   ("server closed before replying to the hello") before this test ever
-///   deliberately holds a connection open; at `-n 120`, every run passes.
-///   The true peak sits somewhere in that bracket - not pinned down
-///   further, since narrowing it needs no new information this test's own
-///   proof depends on.
-/// - **The chosen value, and why it cannot pass vacuously on a different
-///   runner**: 180 is 1.5x the empirically-passing 120, for headroom
-///   against a runner with a slower or differently-timed login-shell
-///   spawn. It still guarantees real exhaustion occurs, by construction,
-///   not by luck: `HELD_CONNECTIONS` below costs two descriptors each if
-///   fully accepted, so all of them succeeding would need `180 +
-///   2*HELD_CONNECTIONS` descriptors - comfortably past 180 for any
-///   baseline this server could plausibly have, which is what forces at
-///   least some of them to hit `EMFILE` rather than all succeeding
-///   quietly. `HELD_CONNECTIONS` itself stays well under this platform's
-///   128-deep listen backlog (`crates/server/tests/accept_backoff.rs`'s
-///   own module doc explains why that specific margin matters - the same
-///   reasoning applies to this file's own one-shot batch, below).
+/// The `-n` value (180) only has to be low enough to *reach* within
+/// `wait_for_descriptor_exhaustion`'s own bound, below - it is not, on its
+/// own, what proves exhaustion happened (a review of this task found the
+/// opposite: at the first chosen value, 128, with the exhaustion-handling
+/// arms disabled by a scratch edit, 18 of 20 runs still passed, because
+/// `try_wait`'s own "is the server still running" check happened before
+/// the server had taken enough of its own backlog to actually hit its
+/// limit - the test's own arithmetic about what *should* happen was never
+/// itself a confirmation that it *did*). `wait_for_descriptor_exhaustion`
+/// is that confirmation, polling the real, running server's own `lsof`
+/// -reported fd count until it reaches `RLIMIT_NOFILE`, and failing this
+/// test loudly, with a clear message, if it never does - so a runner with
+/// a different baseline fails here instead of passing by accident. 180
+/// itself is chosen with real margin over this server's own measured cost
+/// (a real `server start`, steady state, with one session and one
+/// client, holds 15 open descriptors on this machine, `lsof -p <pid>`
+/// against an unrestricted run; TASK-1.87's own real login-shell capture,
+/// which runs before `run`'s own accept loop is even reached, adds a
+/// transient cost on top of that - empirically, `-n 90` already fails the
+/// very first handshake, `-n 120` always passes), not chosen to be the
+/// proof itself.
 #[test]
 fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers() {
-    const RLIMIT_NOFILE: &str = "180";
+    const RLIMIT_NOFILE: u64 = 180;
     const HELD_CONNECTIONS: usize = 100;
 
     let socket_path = unique_socket_path();
@@ -560,6 +590,13 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
             held.push(stream);
         }
     }
+
+    // Confirmed, not assumed: the server's own descriptor count has
+    // actually reached its configured limit - this is what the rest of
+    // this test's own assertions depend on meaning anything (this file's
+    // own `wait_for_descriptor_exhaustion`, above).
+    let pid = server.child.id();
+    wait_for_descriptor_exhaustion(pid, RLIMIT_NOFILE, Duration::from_secs(5));
 
     // The server is still running, not dead the instant accept() first
     // failed (the whole point of this test, replacing the old one's own

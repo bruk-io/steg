@@ -17,17 +17,38 @@
 //!
 //! **Every wait in this file is bounded** (a join, a read, a connect, a
 //! child's own exit) - a review of this task found a real, reachable
-//! unbounded one: an earlier version sustained exhaustion with one
-//! background thread that kept calling `UnixStream::connect` forever, with
-//! nothing capping it against this platform's own listen backlog (128,
+//! unbounded one in an earlier version. **What is actually confirmed, not
+//! merely theorised**: `CountReader`'s own `thread.join()` had no bound,
+//! and the fixture's own stdout only closes once its process exits - so
+//! any run where the fixture did not exit (this file's own next doc
+//! paragraph names the reason that actually happened: the exhaustion
+//! condition ending quietly, with the background supply thread's own
+//! stop-join then also running unbounded) hung this file's own join, with
+//! no timeout anywhere to end it. Reproduced directly, both on this
+//! platform's own CI runner from a fresh `git push` and independently in
+//! a second engineer's own reproduction of this same PR.
+//!
+//! **What this file's first review round *suspected*, and what a direct
+//! check since then found instead**: that earlier version's background
+//! supply thread kept calling `UnixStream::connect` with nothing capping
+//! it against this platform's own listen backlog (128,
 //! `UnixListener::bind`'s own hardcoded value on macOS - confirmed by
-//! reading `library/std/src/os/unix/net/listener.rs`, not assumed). Once
-//! that thread's own held connections reached the backlog's own capacity,
-//! its next `connect()` blocked - `UnixStream` has no `connect_timeout` at
-//! all - and stopping that thread then joined it with no bound either, so
-//! the whole test hung. Confirmed as the real mechanism, not assumed: this
-//! platform's own CI runner hit it from a fresh `git push`, independent of
-//! anything left running on any one engineer's own machine.
+//! reading `library/std/src/os/unix/net/listener.rs`, not assumed), and
+//! the working theory at the time was that a `connect()` against a full
+//! backlog would itself block (`UnixStream` has no `connect_timeout` at
+//! all) once that thread's own held connections reached it. **A direct
+//! probe since found that is not what this platform does**: binding a
+//! listener that never once calls `accept()` at all - the most adversarial
+//! case there is - and then calling `connect()` against it 300 times in a
+//! row, every single attempt either succeeded immediately or failed
+//! immediately with `ECONNREFUSED`; none ever blocked. A second engineer's
+//! own independent reproduction of this same question found the same
+//! thing. That theory is retracted, not merely left unstated: under what
+//! condition (if any) a Unix-domain `connect()` *does* block on this
+//! platform remains unestablished. The fix below does not depend on
+//! settling that - bounding every wait is correct regardless of which
+//! specific call might someday be the slow one - which is why it stays,
+//! unchanged, rather than being narrowed to only the confirmed mechanism.
 //!
 //! Every test in this file uses `ConnectionSupply`, a background thread
 //! that keeps replenishing held connections until told to stop, rather
@@ -183,7 +204,15 @@ fn spawn_fixture(socket_path: &std::path::Path, extra_env: &[(&str, &str)]) -> R
 
 fn wait_until_accepting(path: &std::path::Path, deadline: Instant) {
     loop {
-        if UnixStream::connect(path).is_ok() {
+        // Bounded (`connect_bounded`), not a bare `connect()` - this
+        // file's own module doc says every wait here is bounded, and this
+        // one is no exception just because it is expected to resolve fast
+        // in practice (nothing has connected yet at this point in every
+        // test that calls this, so the backlog this file's own module doc
+        // worries about is nowhere near relevant) - the outer `deadline`
+        // only bounds how many attempts this loop makes, not any single
+        // one of them.
+        if connect_bounded(path, Duration::from_millis(500)).is_some() {
             return;
         }
         assert!(

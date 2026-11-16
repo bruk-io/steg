@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -754,6 +755,15 @@ What I verified clean, reproduced myself: the fixed themes[]/focus_ring enumerat
 Plan-matched: no, same basis as round 2 (the plan's file list never named Tokens.dc.html/foundations.json/either README) - explained on the task by comments #2/#3, so not itself a finding, per policy.
 
 Unmet: AC#3 again - the registry/walk pair still does not live up to its own documented exhaustiveness claim, now for a different and broader class of key (any dotted-name collision in sizes/type/ramps, not just themes[]/focus_ring) than round 2 found.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T04:29:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

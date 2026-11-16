@@ -573,6 +573,12 @@ DRAFT-1's, §6).
   conflict.
 <!-- SECTION:PLAN:END -->
 
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (4ee3881365b0) checked against the four acceptance criteria, decision-2, doc-11 (R52 as corrected, R82, R83), doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised at the orchestrator's request: the reply carrying the tree is queued inside the locked step that registers the subscription, so no event can precede it on the wire (tested for order as well as exactly-once); the tree and the events are typed shapes in the sdk; the description gains Returns::Nested and Method.follows (Nothing, Events, Attachment), which TASK-1.47 uses; one rule for cascades on every path; a test for the filter by session. The event at a finished status's expiry is split into its own task (drafted): status.rs keeps timing off the wire by a merged decision, so the server reports the expiry from one armed deadline. For the engineer: the description's new vocabulary, and reading 'a subscription can be ended' as ended by disconnecting.
+<!-- SECTION:NOTES:END -->
+
 ## Comments
 
 <!-- COMMENTS:BEGIN -->

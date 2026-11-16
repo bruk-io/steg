@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:12:00Z'
+updated_date: '2026-11-16T12:15:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -37,13 +37,8 @@ Seen on 2026-11-16 (UTC) on main at d06ab92 (the merge of pull request 52, which
 <!-- SECTION:PLAN:BEGIN -->
 ## For the engineer
 
-1. **The retry bound and its parameter.** Retry on *any* error from the open step (not a specific error - see "why not match the error" below), up to `max_open_attempts` attempts total, no sleep between them; the last error surfaces with the attempt count in its message. Default 3, as a field on `RealLauncher`'s own constructor (`RealLauncher::default()` = 3, `RealLauncher::new(n)` for a test), not a new `ServerConfig` field - `ServerConfig::launcher` is already `Arc<dyn ProgramLauncher>`, and a bound that only means something for the real launcher belongs on it, not duplicated on `ServerConfig` where a fake launcher would ignore it. A test (unit or fixture) builds `RealLauncher::new(1)` directly to force "no retry". From the measured rate (worst local figure, ~0.4% failing per open under 16 hammering processes): the chance all 3 attempts fail, treating each as independent, is `0.004³ ≈ 6.4×10⁻⁸` - about one in 15.6 million opens at that same density. I have not proven independence across attempts a few microseconds apart; stated as the approximation it is.
-2. **Why not match the error's text** (reversing this plan's first draft): the sign already disagreed between two sightings (`-6` reproduced directly through this exact dependency; `6` in the task's own description of the CI incident) and `portable-pty` discards the structured `io::Error` before it reaches us (`unix.rs:46`: `bail!("failed to openpty: {:?}", io::Error::last_os_error())` - a formatted string inside an `anyhow::Error`, confirmed by reading the source, not assumed). Retrying on any error instead costs a genuine, non-transient failure (the system's own pty limit, a real permission problem) only a few extra syscalls before it is reported exactly as it is today, just with the attempt count added - nothing is masked, and nothing depends on a string that could stop matching on a dependency bump. I don't see a reason to narrow this further; say so if you do.
-3. **The proof test's shape**, two layers, each below with its own control - confirm before I build either:
-   - A deterministic unit test behind a small seam in `pty.rs` (no process, no real pty) - see "Proof, layer (a)".
-   - A statistical test across real, separate processes, reusing the already-reviewed `race-fixture`/`race-attempt` pattern in this crate - see "Proof, layer (b)". Its fixture calls a new, crate-internal "open only" step (the real lock, the real retry, no `spawn_command`) so its density matches the bare-libc probe that actually reproduces this, not the full path I could not make fail in the time I had.
-4. **Observability**: see "What's reported" below - a new `PaneEvent::OpenRetried` variant, the same shape TASK-1.98 is adding `ConnectionEvent::AcceptRetried` for. Read TASK-1.98's plan yourself before either lands, since both are touching `crate::pane`'s/`crate::listen`'s sibling event enums around the same time and I don't want to presume which of the two merges first.
-5. **The lock stays.** See "What stays of TASK-1.76's lock" below.
+1. **The retry bound.** Default 5 attempts in total (raised from an earlier draft's 3), no sleep between them, as a field on `RealLauncher`'s own constructor (`RealLauncher::default()` = 5, `RealLauncher::new(n)` for a test - a test builds `RealLauncher::new(1)` to force "no retry"). Reasoning: the shipped test's own false-failure budget at 3 attempts (~1 in 5,000) was too loose for something that runs on every `just check` and every CI run, and rested on treating attempts as independent - optimistic, since an immediate retry right after a collision lands in the same burst of contention that caused it, so the true rate is probably worse than the idealised number. An extra attempt costs a real server nothing. At 5 attempts (same independence caveat, restated below with the measurement that checks it): the shipped test's own false-failure chance drops to roughly 1 in 305 million - see "Proof, layer (b)" for the number and the caveat together, and "Order of work" for the measurement that tests the assumption instead of trusting it.
+2. **The proof test's shape**: a deterministic unit test behind a small seam in `pty.rs` (layer (a)), and a statistical test across real, separate processes reusing the already-reviewed `race-fixture`/`race-attempt` pattern in this crate (layer (b)) - confirm you're fine with a second instance of that pattern before I build it.
 
 ## Why this is not only a test problem
 
@@ -85,14 +80,14 @@ This is the literal text, from this crate's own dependency, not a guess - and th
 
 ## The fix
 
-Keep `OPENPTY_LOCK` exactly as `pty.rs` has it today (see "What stays of the lock", below). Wrap the one call to `pty_system.openpty(...)` in a bounded retry, still entirely inside the lock, on *any* error (not a specific one - see "For the engineer", #2):
+Keep `OPENPTY_LOCK` exactly as `pty.rs` has it today (see "What stays of the lock", below). Wrap the one call to `pty_system.openpty(...)` in a bounded retry, still entirely inside the lock, on **any** error - not a specific one. Why not match the error's own text (reversing this plan's first draft): the sign already disagreed between two sightings (`-6` reproduced directly through this exact dependency; `6` in the task's own description of the CI incident) and `portable-pty` discards the structured `io::Error` before it reaches us (`unix.rs:46`: `bail!("failed to openpty: {:?}", io::Error::last_os_error())` - a formatted string inside an `anyhow::Error`, confirmed by reading the source, not assumed). Retrying on any error instead costs a genuine, non-transient failure (the system's own pty limit, a real permission problem) only a few extra syscalls before it is reported exactly as it is today, just with the attempt count added - nothing is masked, and nothing depends on a string that could stop matching on a dependency bump. I don't see a reason to narrow this further.
 
 ```rust
 impl RealLauncher {
     pub fn new(max_open_attempts: u32) -> Self { ... } // asserts >= 1
 }
 impl Default for RealLauncher {
-    fn default() -> Self { Self::new(3) }
+    fn default() -> Self { Self::new(5) }
 }
 
 // inside RealLauncher::spawn, still under OPENPTY_LOCK:
@@ -139,7 +134,7 @@ The no-lock sanity check above failed 1 time in 1,277 real opens under sustained
 Unit tests beside `open_with_retry` in `pty.rs`'s own `#[cfg(test)]` module (`.claude/rules/testing-rust.md`: unit tests prove logic, no doubles - this is a plain function parameter, not a mock of `portable_pty`):
 
 - `fails_once_then_succeeds_counts_one_retry`: a closure that errors on its first call, then returns `Ok(())` - asserts `Ok((_, 2))`.
-- `fails_every_time_surfaces_after_exactly_the_bound`: a closure that always errors - with `max_attempts = 3`, asserts `Err((_, 3))` and that the count `3` reached the closure exactly 3 times (a counter inside the closure).
+- `fails_every_time_surfaces_after_exactly_the_bound`: a closure that always errors - with `max_attempts = 3` (an arbitrary bound for this generic test, independent of whatever `RealLauncher::default()` ships), asserts `Err((_, 3))` and that the closure was called exactly 3 times (a counter inside the closure).
 - `succeeds_first_time_needs_no_retry`: a closure that always succeeds - asserts `Ok((_, 1))`, and that the closure was only called once (so a passing "retries" test isn't secretly retrying every time).
 - **Control**: with the retry loop reverted to a single call (`open_with_retry`'s body replaced by `try_open().map(|v| (v, 1))`), `fails_once_then_succeeds_counts_one_retry` fails - recorded via `asdlc record-check` both ways.
 
@@ -147,14 +142,14 @@ Unit tests beside `open_with_retry` in `pty.rs`'s own `#[cfg(test)]` module (`.c
 
 New feature `pty-race-fixture` (off by default), mirroring `race-fixture` exactly: a `[[bin]] openpty-race-attempt` (`tests/fixtures/openpty_race_attempt.rs`) and a `[[test]] openpty_race` (`tests/openpty_race.rs`), both `required-features = ["pty-race-fixture"]`.
 
-The fixture calls a new, crate-visible function that is **only** the locked, retried open step - no `spawn_command`, closing the pair immediately after a successful open so fds don't accumulate across its own loop - so its density matches the bare-libc probe's, which is the one shape that has actually reproduced this. It loops that call a fixed number of times (an argument from the environment, the same convention `race_attempt.rs` already uses - no path or count on argv), counting failures, and prints `done:<failures>:<n>` at the end.
+The fixture calls a new, crate-visible function that is **only** the locked, retried open step - no `spawn_command`, closing the pair immediately after a successful open so fds don't accumulate across its own loop - so its density matches the bare-libc probe's, which is the one shape that has actually reproduced this. It loops that call a fixed number of times (an argument from the environment, the same convention `race_attempt.rs` already uses - no path or count on argv). The open step already returns `(value, attempts)`/`(error, attempts)` from `open_with_retry` itself, so the fixture tabulates attempts-per-open as it goes (how many needed 1, 2, 3, 4, or 5 attempts, and how many exhausted all 5) with no extra plumbing, and prints `done:<exhausted>:<n>:<attempt histogram>` at the end - this is also the data "Order of work" below uses for the independence measurement, from the same runs, not a separate exercise.
 
 **Synchronised start, no periodic wake-up**: the test spawns all `N` fixture processes first, each blocking on reading one byte from its own inherited stdin before entering its loop (not a sleep-based rendezvous, not polling) - then releases all `N` within the same instant by writing to each. Every spawned process is wrapped in the same `ReapOnDrop` guard `tests/race.rs` already has (kill + wait on drop, including the panicking path), so nothing is left running, bounded, or orphaned regardless of which assertion fails.
 
-**The numbers, from the measured rate (worst local figure, ~0.4% per open, treated as independent per open)**:
+**The numbers, from the measured rate (worst local figure, ~0.4% per open)**:
 
-- Total opens needed so a **no-retry control** (`max_open_attempts = 1`, same as today) has a chance of showing *zero* failures below one in ten thousand: solving `(1-0.004)^n < 10⁻⁴` gives `n > 2,297`. Chosen: `N = 16` processes × `200` opens each = 3,200 total - `(0.996)^3200 ≈ 2.8×10⁻⁶`, comfortably under the bar.
-- The **same 3,200 opens, with the shipped default (3 attempts)**: chance of at least one open exhausting all 3 is `1 - (1 - 0.004³)^3200 ≈ 3200 × 6.4×10⁻⁸ ≈ 2.0×10⁻⁴` - about one run in five thousand flakes on its own, at this worst-case measured rate. Stated plainly, not hidden: if this is too flaky a budget for a CI test the engineer wants green every time, the knob to pull is the shipped default (4 attempts instead of 3 cuts this to ~8×10⁻⁷), not the test's own density - the density is what the control's own bound requires.
+- Total opens needed so a **no-retry control** (`max_open_attempts = 1`, same as today) has a chance of showing *zero* failures below one in ten thousand: solving `(1-0.004)^n < 10⁻⁴` gives `n > 2,297`. Chosen: `N = 16` processes × `200` opens each = 3,200 total - `(0.996)^3200 ≈ 2.8×10⁻⁶`, comfortably under the bar. Unchanged by the attempts bound - this number is about single, independent opens spread across the whole run, not about retries within one open.
+- The **same 3,200 opens, with the shipped default (5 attempts)**: chance of at least one open exhausting all 5, *treating attempts as independent*, is `1 - (1 - 0.004⁵)^3200 ≈ 3200 × 1.0×10⁻¹² ≈ 3.3×10⁻⁹` - about one run in 305 million, at this worst-case measured rate. **This idealised number rests on an optimistic assumption**: an immediate retry right after a collision lands inside the same burst of contention that caused it, so attempts are plausibly correlated, not independent, and the true rate could be worse than this. That's exactly what the measurement in "Order of work" below checks, rather than trusting the arithmetic - this number is reported as the starting estimate, not the final word.
 - **Permanent control** (mirrors TASK-1.98's own zero-backoff control): the identical fixture and test, `max_open_attempts` forced to 1, must show at least one failure - this is what actually proves the race is real and the fixture reaches it, not merely that the fixed version happens to pass.
 
 **If CI's own runner does not reproduce the control's failure on the first several runs**: that is read as a finding about CI's own hardware/contention density relative to this dev machine, recorded on the task with the numbers from both places side by side - not a reason to delete or weaken the control. The fix ships either way, on the strength of the bare-libc mechanism evidence and AC #2's own allowance for a cause that cannot be excluded; what changes is only how convincing the *local* proof of the control is on that specific runner, which gets written down honestly rather than papered over.
@@ -181,12 +176,13 @@ The fixture calls a new, crate-visible function that is **only** the locked, ret
 2. `pane.rs`: `PaneEvent::OpenRetried`, the two send sites, `PaneCommand::Resume`'s new field.
 3. `Cargo.toml` feature/bin/test declarations; `tests/fixtures/openpty_race_attempt.rs`; `tests/openpty_race.rs`, including the permanent `max_open_attempts = 1` control.
 4. Record both the control and the fixed version via `asdlc record-check`, repeated, with the numbers above.
-5. Add the temporary CI loop, gather its own numbers on the task, remove it in a follow-up commit before merge.
-6. `just check`/`just test-all` clean at the final commit.
+5. **Test the independence assumption, rather than trust it.** Using the same fixture (shipped `max_open_attempts = 5`), run a larger volume under the same 16-process density (e.g. 16 × 2,000 opens = 32,000, one dedicated run, not part of the routine repeats above) and tabulate, from the attempt counts `open_with_retry` already returns, how many opens needed exactly 1, 2, 3, 4, or 5+ attempts. Put the table in the task's **notes**, not the plan. If a second attempt fails noticeably more often than a first one (the correlated-burst case the independence assumption would miss), say so plainly and say whether 5 is still the right bound or whether a bare `std::thread::yield_now()` between attempts - never a `sleep`, which needs its own evidence this measurement doesn't provide - is better justified by what the table shows. If the table instead looks close to independent, say that too and leave the bound and the no-sleep retry as they are.
+6. Add the temporary CI loop, gather its own numbers on the task, remove it in a follow-up commit before merge.
+7. `just check`/`just test-all` clean at the final commit.
 
 ## Risks
 
-- The statistical test's own false-failure budget (~1 in 5,000 at the shipped default, worst measured rate) is a real, stated number, not zero - flagged above for the engineer, with the knob (attempts) that moves it.
+- The statistical test's own false-failure budget (~1 in 305 million at the shipped 5-attempt default, worst measured rate, *if* attempts are independent) is a real, stated number, not zero, and the independence assumption behind it is optimistic by the engineer's own reasoning - "Order of work" step 5 measures this directly rather than leaving it as arithmetic; if the real rate is worse than idealised, that step says so and reassesses, before this is called proven.
 - The seam (`open_with_retry`) is a plain generic function, not tied to `portable_pty`'s types, so layer (a)'s tests cost nothing and never touch a real pty - low risk.
 - Retrying still happens entirely inside `OPENPTY_LOCK`, still no sleep anywhere in it - TASK-1.76's own reviewed invariant ("nothing under the lock blocks on another thread's progress") is unchanged in kind, only "one call" becomes "one call, retried a bounded number of times".
 <!-- SECTION:PLAN:END -->

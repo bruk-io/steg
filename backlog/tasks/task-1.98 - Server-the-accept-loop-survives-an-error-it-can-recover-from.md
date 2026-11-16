@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:18:00Z'
+updated_date: '2026-11-16T12:20:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -528,6 +528,38 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98/crates/
      }
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T12:20:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at e79616624a3c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.5s)
+ok      boundaries (0.2s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (every crate) (13.7s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.2s)
+ok      test (steg-server, race-fixture) (15.3s)
+ok      test (steg-server, accept-backoff-fixture) (15.6s)
+ok      build (steg) (0.8s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

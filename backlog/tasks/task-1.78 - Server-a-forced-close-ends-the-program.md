@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:59:00Z'
+updated_date: '2026-11-16T03:05:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2010,6 +2010,37 @@ Nits: (1) the stale 10/10 run re-recorded as 20/20 clean at the final head, no l
 Merged origin/main: brought in TASK-1.45/1.77/1.84's own server changes (RunGate's module doc, pane.rs's own imports, boundaries.toml/Cargo.toml's nix feature list) plus unrelated crates/ui, tools, and backlog changes. Resolved conflicts in boundaries.toml, crates/server/Cargo.toml (merged both nix feature reasons - setsid for TASK-1.77, killpg/Signal for this task), and crates/server/src/pane.rs (merged both import lists). Fixed origin/main's own new runtime.rs tests (TASK-1.84) that used PaneHandle::stop() and the 2-arg Runtime::new, both since replaced by this task.
 
 Checks recorded: cargo test -p steg-server --lib (targeted generation-guard and backlog-comparison tests, each with its negative control); cargo test -p steg-server (full suite, clean after the merge); cargo test -p steg-server -p steg-kernel -p steg; just check (clean, twice - one transient exit 143 from resource contention with other concurrent workers on this shared machine, re-ran clean); the server suite 20 times at the final head (a4fb5d0), 0 failures, no leaked process. CI green at a4fb5d0 (gh pr checks 47, watched in the foreground). Review response posted to the PR as a comment.
+
+Check FAILED: `cargo test -p steg-server --lib pane::tests::the_reap_poll_interval_doubles_then_holds_at_its_cap` exited 101 at 2026-11-16T03:05:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::tests::the_reap_poll_interval_doubles_then_holds_at_its_cap ... FAILED
+
+failures:
+
+---- pane::tests::the_reap_poll_interval_doubles_then_holds_at_its_cap stdout ----
+
+thread 'pane::tests::the_reap_poll_interval_doubles_then_holds_at_its_cap' (20108901) panicked at crates/server/src/pane.rs:1031:9:
+assertion `left == right` failed: the interval must double each time until it reaches the cap, then hold there - never exceed it, never reset
+  left: [5ms, 5ms, 5ms, 5ms, 5ms, 5ms, 5ms, 5ms, 5ms]
+ right: [5ms, 10ms, 20ms, 40ms, 80ms, 100ms, 100ms, 100ms, 100ms]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::tests::the_reap_poll_interval_doubles_then_holds_at_its_cap
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 102 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

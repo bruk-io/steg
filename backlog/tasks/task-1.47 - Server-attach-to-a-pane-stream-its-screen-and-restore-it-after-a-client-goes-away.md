@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:18:00Z'
+updated_date: '2026-11-16T12:22:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -116,67 +116,79 @@ Two corrections to this plan's own first draft, both the lead's:
    serialises everything through (it has no other state to race against:
    it is the only thread that ever touches `attachments` or `tracked_seq`).
 
-## The method vocabulary, aligned to TASK-1.46's actual plan (not my own guess)
+## The method vocabulary, aligned to TASK-1.46's final plan
 
-TASK-1.46's plan ("For the engineer" point 1) settled this: `Returns` gains
-`Snapshot { of: String }` (a nested reply, named in prose - the same honesty
-`ValueKind::Text` already uses for `layout`/`status`); `Method` gains
-`stream_item: Option<Returns>` - when `Some`, the method's one id-matched
-reply is followed by further items with no id, shaped as given. `event.
-watch` becomes `returns: Snapshot{of: "the tree..."}`, `stream_item:
-Some(Records{fields:[event,data]})`. Its own plan already names what this
-task uses: `pane.attach` becomes `returns: Snapshot{of: "a pane's screen"}`,
-`stream_item: Some(Snapshot{of: "a screen update"})` (a delta is nested too -
-it carries changed rows by position, not flat fields). I am building against
-these two names, not my own working guess from the first draft of this
-section (dropped: `Returns::Value`, and dropped entirely: my own
-`Method::opens_stream` field and its mechanical touch to every existing
-`Method` literal - `stream_item: Some(_)` already *is* the structural marker
-a CLI generator needs to know a method keeps producing items after its first
-reply, so a second, parallel "this opens a stream" flag would have been
-exactly the second mechanism for the same need the lead warned against. I
-was wrong to add it in the previous revision; withdrawn here, not layered on
-top of 1.46's field.
+The names changed once more since the previous revision of this section;
+building against the final ones, below, not the earlier `Snapshot`/
+`stream_item` guess (withdrawn along with every reference to it). TASK-1.46's
+own "For the engineer" point 1 settles two separate things, because a
+method's reply and what follows it are two different questions:
 
-**One real gap, raised rather than resolved silently, as asked**: neither
-`Snapshot{of}` nor `stream_item: Option<Returns>` says *which stream* the
-follow-on items travel on. `event.watch`'s own items stay on stream 0 - the
-same connection, already multiplexed with everything else it does. `pane.
-attach`'s own items travel on the attachment's own, newly-opened stream,
-whose id is itself part of the first reply (my JSON shape: `{"stream":
-<u32>, "snapshot": <the Snapshot's own value>}` - the reply is an object
-carrying both the plain integer and the nested value `Snapshot{of}`
-describes; reading `of` as describing the whole reply object, not literally
-one bare nested value, already covers *that* half with no new field, the
-same loose reading `Snapshot{of}` already gives `event.watch`'s own tree).
-What is missing is purely the routing fact: today, nothing in the
-description distinguishes "stream_item's items are on stream 0" from
-"stream_item's items are on a stream this reply itself names." **This is
-protocol-relevant, not merely documentation quality - R110 again: a
-generated client or a future lint deciding *where to read from* needs this
-mechanically, not from a sentence a person wrote.** My own recommendation,
-offered for the engineer to confirm or overrule rather than built against
-silently: one more field, scoped to exactly this question and nothing else -
-e.g. `Method.stream_item_channel: Option<ItemChannel>` where `ItemChannel`
-is `StreamZero | NamedInReply` (only meaningful when `stream_item` is
-`Some`; `event.watch` declares `StreamZero`, `pane.attach` declares
-`NamedInReply`). I am not building against this until it is settled on
-1.46's plan (the field belongs beside `stream_item`, so it is that task's
-to add, the same as `Returns::Snapshot`/`stream_item` themselves) - naming it
-now so it is decided once, before either plan is approved, not discovered
-by a reviewer asking "which stream does this mean."
+- **A nested reply.** `Returns` gains `Nested { of: String, summary: String }`
+  - `of` names the reply's own sdk type (`"TreeSnapshot"` for `event.watch`),
+  the same role `Identifier{of}` already plays for naming a kind of id,
+  applied to naming a kind of value instead. `api show` prints "a nested
+  value of type `<of>` - `<summary>`" in place of a fields table.
+- **What follows.** `Method` gains `follows: Follows`, a closed enum:
+  `Nothing` (every method but two); `Events(Returns)` - id-less items on the
+  *same* control stream the reply travelled on (`event.watch`'s case);
+  `Attachment { item: Returns, stream_id_field: String }` - id-less items on
+  a *new* stream, whose id is one named field of the reply itself. The third
+  variant is mine, and it is what answers the routing question this plan's
+  previous revision raised and left open: there is no separate channel
+  marker to invent - `stream_id_field` *is* the answer, naming exactly which
+  field of the `Nested` reply the client reads the new stream's id from.
+  **Confirmed, not a gap**: `Follows::Attachment` expresses everything this
+  task needs - the item's shape (`item: Returns`) and which stream it
+  travels on (`stream_id_field`) - so there is nothing further to raise.
 
-`pane.attach`'s own `details`, until the routing question above is settled
-either leaves this to prose or becomes redundant with the structural
-answer:
+Applied to this task's two methods (names chosen here, since 1.46's own plan
+left them to this task to confirm, offering only placeholders):
 
-> "Opens a stream to the pane's screen. The reply is the stream's id and its
-> opening snapshot; updates that follow arrive on that stream, not as this
-> call's own output. `steg pane attach` exists for completeness (R32) and
-> for scripting through `api call` - it prints the id and the snapshot once
-> and exits, the same as any other command; a program that wants the stream
-> itself (the app, a plugin) uses the sdk's `Connection` directly, as
-> decision-2 and doc-16 R101 already describe."
+- `pane.attach`: `returns: Nested{of: "PaneAttached", summary: "the new
+  stream's id, and the pane's screen as it was at the moment of attaching"}`,
+  `follows: Follows::Attachment{item: Nested{of: "ScreenUpdate", summary:
+  "the rows that changed, or a whole screen when a client fell behind"},
+  stream_id_field: "stream"}`.
+- `pane.detach`: `returns: Nothing`, `follows: Follows::Nothing`.
+
+Two new, named sdk types this task adds (`crates/sdk/src/screen.rs`), the
+reply's own real shape, matching `of` exactly - `PaneAttached`'s own
+`stream_id_field` is literally the name of one of its fields, not a separate
+string that could drift from the type:
+
+```rust
+/// `pane.attach`'s own reply (decision-2 section 3): the new stream's id,
+/// and the pane's screen at the moment of attaching.
+pub struct PaneAttached {
+    pub stream: u32,
+    pub snapshot: Screen,
+}
+```
+
+`Update` (this crate's own existing `Delta`/`Full`/`Unchanged` shape,
+`crates/sdk/src/screen.rs`) is renamed to `ScreenUpdate` to match the `of`
+name above and to read unambiguously in `api show`'s own output, where `of`
+is a bare type name with no module path in front of it to disambiguate a
+plain "Update" from doc-14's own general use of the word for layout/session/
+tab changes elsewhere in the API - a small, mechanical rename with nothing
+else depending on the old name yet (confirmed: `steg-kernel`'s `terminal.rs`
+is this type's only other user today, and only ever by its Rust name, never
+serialised under the old one anywhere).
+
+**The description-level check, proposed as this task's own test, as
+invited** (TASK-1.46 builds the general `of`-names-a-real-type allow-list
+check; this task adds its own two entries to that allow-list, and a second,
+narrower check specific to `Follows::Attachment`): for every method whose
+`follows` is `Attachment{..}`, `stream_id_field` names a field that really
+exists on that method's own `Nested` reply type, checked at run time, not
+only by eye - serialise a real `PaneAttached` value and assert its own JSON
+object contains a key equal to `stream_id_field`'s declared string. Concrete,
+not aspirational: a typo in `stream_id_field` (or a later rename of
+`PaneAttached::stream` that forgets this string) fails the build. Today this
+only has one case to check (`pane.attach`); written generically enough that
+the next method to use `Follows::Attachment` is covered by the same test,
+not a new one.
 
 **Doc-2 §8's table and the completeness test, the exact count and the exact
 lines, for the lead to add** (specs are the lead's, not mine, to edit - this
@@ -199,12 +211,13 @@ stale pre-merge guess:
   name needs the new number, same mechanical update TASK-1.89 and TASK-1.109
   each already make for their own additions.
 
-`api show pane.attach` needs no renderer change: `details` is already free
-text, rendered as-is. A future Python client (M2) needs nothing special
-either - R106/decision-2 §8's own gate already proved a dependency-free
-client reads any method's JSON reply and then demuxes frames off the same
-connection by stream id, which is exactly what `pane.attach`'s reply plus
-the existing wire framing gives it, with no generated code.
+`api show pane.attach` needs no renderer change beyond what 1.46 already
+adds for `Nested`: the summary string carries what this task needs to say.
+A future Python client (M2) needs nothing special either - R106/decision-2
+§8's own gate already proved a dependency-free client reads any method's
+JSON reply and then demuxes frames off the same connection by stream id,
+which is exactly what `pane.attach`'s reply plus the existing wire framing
+gives it, with no generated code.
 
 ## Scope, narrowed by the split the lead has already filed
 
@@ -414,19 +427,20 @@ different kinds of backlog.
 one that adds it ("whichever task puts these on the wire adds serialisation
 at that point - R106"): `#[derive(Serialize, Deserialize)]` on `Screen`,
 `Row`/`Run`/`CellStyle`, `Rgb`, `Underline`, `Wide`, `Cursor`, `CursorShape`,
-and `Update` (the `Delta`/`Full`/`Unchanged` shape the attachment's own
-stream carries after the snapshot). `boundaries.toml`'s existing allowance
-for `serde`/`serde_json` in `steg-sdk` already covers this (R106) - no new
-dependency. `RowId`/`Page` stay TASK-1.115's own (scrollback paging), not
-touched here. The updates on an attachment's own non-zero stream are
-`Kind::Control` frames whose payload is `Update`'s own JSON, not a `Control`
-value - `crates/sdk/src/wire/control.rs`'s module doc already anticipates
-this ("a screen-mode attachment's update ... no new `Kind` is needed for
-that, only a non-zero stream id"), and `Connection::poll` already hands
-these back undecoded as `Incoming::StreamControl { stream, payload }` for
-whichever code owns the attachment to decode - this task is simply that
-code, encoding/decoding `Update` directly rather than wrapping it in
-`Control`.
+and `ScreenUpdate` (renamed from `Update`, above - the `Delta`/`Full`/
+`Unchanged` shape the attachment's own stream carries after the snapshot),
+plus the two new reply types `PaneAttached` (above). `boundaries.toml`'s
+existing allowance for `serde`/`serde_json` in `steg-sdk` already covers
+this (R106) - no new dependency. `RowId`/`Page` stay TASK-1.115's own
+(scrollback paging), not touched here. The updates on an attachment's own
+non-zero stream are `Kind::Control` frames whose payload is `ScreenUpdate`'s
+own JSON, not a `Control` value - `crates/sdk/src/wire/control.rs`'s module
+doc already anticipates this ("a screen-mode attachment's update ... no new
+`Kind` is needed for that, only a non-zero stream id"), and `Connection::
+poll` already hands these back undecoded as `Incoming::StreamControl {
+stream, payload }` for whichever code owns the attachment to decode - this
+task is simply that code, encoding/decoding `ScreenUpdate` directly rather
+than wrapping it in `Control`.
 
 ## Files that change
 
@@ -466,18 +480,25 @@ code, encoding/decoding `Update` directly rather than wrapping it in
   frame for a now-open attachment stream does not close the connection
   outright the way every non-`Request` variant does today (named
   limitation for TASK-1.114, above).
-- `crates/sdk/src/description/methods.rs`: the two new `Method` entries
-  (`pane.attach` with `returns: Snapshot{of: "a pane's screen"}`,
-  `stream_item: Some(Snapshot{of: "a screen update"})`; `pane.detach` with
-  `returns: Nothing`, `stream_item: None` - both exactly TASK-1.46's own
-  vocabulary, no field of this task's own invention), plus whichever field
-  TASK-1.46 adds for the stream-routing question raised above, once it is
-  settled; `the_method_set_is_exactly_doc_2_section_8s_42_pairs`'s own
-  count, bumped to 44. **`Method::opens_stream` and its touch to every
-  existing literal, named in the previous revision of this plan, are
-  withdrawn** - subsumed by `stream_item` itself, which is TASK-1.46's
-  field to add, not this task's.
-- `crates/sdk/src/screen.rs`: the serde derives (above).
+- `crates/sdk/src/description/methods.rs`: the two new `Method` entries -
+  `pane.attach` (`returns: Nested{of: "PaneAttached", summary: "..."}`,
+  `follows: Follows::Attachment{item: Nested{of: "ScreenUpdate", summary:
+  "..."}, stream_id_field: "stream"}`) and `pane.detach` (`returns:
+  Nothing`, `follows: Follows::Nothing`) - both exactly TASK-1.46's own
+  vocabulary (`Returns::Nested`, `Method.follows`/`Follows`), no field of
+  this task's own invention; this task's own description-level test (the
+  `stream_id_field` check, above), added beside 1.46's `of`-names-a-real
+  -type allow-list, with this task's two type names added to it;
+  `the_method_set_is_exactly_doc_2_section_8s_42_pairs`'s own count,
+  bumped to 44. **`Method::opens_stream`, `Returns::Value` and
+  `Returns::Snapshot`/`Method.stream_item`, named in earlier revisions of
+  this plan, are all withdrawn** - superseded by 1.46's final
+  `Nested`/`Follows`, not layered on top of them.
+- `crates/sdk/src/screen.rs`: the serde derives, `PaneAttached`, and the
+  `Update` -> `ScreenUpdate` rename (above).
+- `crates/kernel/src/terminal.rs`: the one other place `Update` is named
+  (`Terminal::changes_since`'s own return type) - updated to `ScreenUpdate`,
+  a rename with no behaviour change; its own tests' imports follow.
 - `crates/sdk/src/wire/connection.rs`: `Connection::attach` (client-side
   convenience, mirroring `call` - §1).
 - `crates/server/src/outbound.rs`: remove the five `#[cfg_attr(not(test),
@@ -504,9 +525,9 @@ code, encoding/decoding `Update` directly rather than wrapping it in
    subscriber table. This is also where the idle/no-wake-up proof belongs
    (point 3's own test), before anything else depends on the loop's shape.
 4. `pane.attach`/`pane.detach` dispatch + the sdk's description entries +
-   `Connection::attach` - once TASK-1.46's `Returns::Snapshot`/
-   `stream_item` (and the stream-routing field, once settled) have merged;
-   proven by a plain attach/detach round trip with no tick activity yet.
+   `Connection::attach` - once TASK-1.46's `Returns::Nested`/`Method.
+   follows`/`Follows` have merged; proven by a plain attach/detach round
+   trip with no tick activity yet.
    **What this task builds against in the meantime (steps 1-3 do not wait
    on 1.46 at all)**: `PaneCommand::Attach`/`Detach`, the per-attachment
    list, the tick body and its back-pressure are all exercised directly -
@@ -603,19 +624,25 @@ offered as done, per `team:testing`.
   would hang; reverting the bound join back to a bare `join()` on this
   specific case is the control that would make a real hang show up as a
   failure instead of the test itself timing out silently.
-- **The wire shapes round-trip.** `crates/sdk/tests/`: `Screen`/`Update`
-  encode and decode back to the same value, including a value exercising
-  every field (every `Underline`/`Wide`/`CursorShape` variant, `fg`/`bg`/
-  `underline_colour` both `Some` and `None`) so a forgotten `#[derive]` on
-  a nested type fails here rather than silently serialising as `null`;
-  `Connection::attach`'s own request/reply round-trips against a
-  `Description` carrying the new methods. Negative control: drop the
-  `#[derive(Deserialize)]` from one nested type (e.g. `CellStyle`) - the
-  crate fails to compile, which is itself the proof the derive is load
-  -bearing rather than redundant; for the `Connection::attach` round trip,
-  temporarily have it skip `validate` - a request naming an unknown field
-  or missing a required one then round-trips anyway, which the un-reverted
-  test would otherwise never catch.
+- **The wire shapes round-trip.** `crates/sdk/tests/`: `Screen`/
+  `ScreenUpdate`/`PaneAttached` encode and decode back to the same value,
+  including a value exercising every field (every `Underline`/`Wide`/
+  `CursorShape` variant, `fg`/`bg`/`underline_colour` both `Some` and
+  `None`) so a forgotten `#[derive]` on a nested type fails here rather than
+  silently serialising as `null`; `Connection::attach`'s own request/reply
+  round-trips against a `Description` carrying the new methods. Negative
+  control: drop the `#[derive(Deserialize)]` from one nested type (e.g.
+  `CellStyle`) - the crate fails to compile, which is itself the proof the
+  derive is load-bearing rather than redundant; for the `Connection::attach`
+  round trip, temporarily have it skip `validate` - a request naming an
+  unknown field or missing a required one then round-trips anyway, which
+  the un-reverted test would otherwise never catch.
+- **`stream_id_field` names a real field of its own reply type.** Serialise
+  a `PaneAttached` value; assert the JSON object has a key equal to
+  `"stream"` (the declared `stream_id_field`). Negative control: rename
+  `PaneAttached::stream` without updating the description's own string -
+  the test fails, proving it actually reads the live struct rather than
+  echoing the same literal back at itself.
 
 ## Risks / for the engineer
 
@@ -624,13 +651,9 @@ offered as done, per `team:testing`.
   tick, back-pressure) build and prove against `PaneCommand` directly, with
   no sdk/description dependency at all - named so the whole task is not
   mistakenly read as blocked.
-- **Still open, raised above, not yet settled**: which stream `pane.
-  attach`'s `stream_item` travels on - `event.watch`'s own precedent is
-  stream 0, mine is a stream named in the reply, and today's vocabulary
-  (`Returns::Snapshot`/`Method.stream_item`) does not say which. My own
-  recommendation (a small `ItemChannel` field beside `stream_item`) is
-  offered, not built against; this task's step 4 cannot be called done
-  until it is confirmed one way or another.
+- The stream-routing question this plan raised in its previous revision is
+  now settled by TASK-1.46's own final vocabulary: `Follows::Attachment`'s
+  `stream_id_field` names it directly. Nothing left open on that point.
 - `connection.rs` and `runtime.rs` are both being touched by TASK-1.46,
   1.98 and 1.86 at the same time (listen.rs, connection.rs's event enum,
   runtime.rs, per the lead's own note) - expect a real merge conflict in
@@ -649,6 +672,8 @@ offered as done, per `team:testing`.
 Carried from finished tasks (2026-11-15), for this task's plan: (1) TASK-1.74 gave RowId, Update and Page no wire form, like the rest of the screen shapes in the sdk; this task is where they first travel, so it decides the wire form for the whole family. (2) TASK-1.74: changes_since can be called correctly once per tick per terminal; this task fans one tick's Update out to each attachment's own queue. (3) TASK-1.42: client labels are not validated, and ClientNotViewingPane/ClientNotViewingTab map to BadRequest only because no client method existed; decide their codes when a method can return them. (4) TASK-1.76 gives Runtime::apply_size_changed for when a client declares a size or the latest client changes.
 
 Plan (9891d485ef9c) checked against decision-2, doc-2, doc-8 R36, doc-9, doc-15 R91 and doc-16 R101 by @bruk.o, 2026-11-16: not yet ok. (1) For the engineer: the plan makes attach a new kind of control message outside the API description; decision-2 lists four control types (request, response, error, event) and speaks of the attach result, and R36, R42 and R75 say the app uses no surface a plugin cannot see, so whether attach is a described method (with a stated exception to R32 for the CLI) or protocol outside the description is the engineer's decision; the orchestrator recommends a described method sent as an ordinary request. (2) Must change: the worker loop wakes every tick for every pane for ever, attached or not, changed or not; it must block with no timeout when there is no attachment or nothing has changed since the last tick, and arm one deadline when output arrives. (3) Must be stated: the state a new attachment is registered in (caught up at the snapshot's sequence), so it is not sent a second snapshot on the next tick. (4) For the engineer: the tick as a published user setting or a server configuration value until the app measures it; the orchestrator recommends the latter. The split into three is taken (drafts created). Held for the engineer's answers, then one rewrite.
+
+Plan (9cff507ccc3f) checked against the three acceptance criteria as narrowed, decision-2 sections 3 and 6, doc-8 R36, doc-9, doc-16 R101, TASK-1.46's plan (4ee3881365b0) and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised to the engineer's decisions (attach and detach as described methods; the tick 8 ms in ServerConfig) and at the orchestrator's request (no wake-up for an idle or unattached pane, with a counted proof; a new attachment registered as caught up at its snapshot's sequence; the reply queued in the same step that registers the attachment, as Runtime::subscribe does). Uses TASK-1.46's vocabulary: returns Nested{of: PaneAttached}, follows Attachment{item: Nested{of: ScreenUpdate}, stream_id_field: stream}. Depends on TASK-1.46 merging first for that vocabulary; the worker loop, tick and back-pressure are built and proven below the method layer meanwhile. doc-2 section 8 gains two rows when the plan is approved.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

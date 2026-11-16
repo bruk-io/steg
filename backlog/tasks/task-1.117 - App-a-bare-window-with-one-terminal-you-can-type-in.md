@@ -1,13 +1,14 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T19:47:00Z'
+updated_date: '2026-11-16T19:56:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -21,8 +22,10 @@ asdlc_branch: task-1.117-app-a-bare-window-with-one-terminal-you
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -831,6 +834,33 @@ created: 2026-11-16T19:47:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 2h 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T19:56:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+[Bugs, Important] crates/app/src/main.rs:180-187 (AppWindow::teardown, called from on_window_should_close at main.rs:252-258). teardown() calls `self.startup_thread.take()` then an unconditional `thread.join()`, on the main thread, before touching `self.phase`. If the window closes while still `Phase::Connecting`, nothing can unblock that thread: `startup::run()` (startup.rs) creates its `shutdown_handle` as a purely local variable (startup.rs:111-113) that only escapes to the caller via `Attached` on success (startup.rs:221-226) - on any other path, including "still running", no handle to interrupt it ever reaches `AppWindow`. Two concrete hangs follow: (1) while inside `connect()`'s own retry loop, the window freezes for up to `connect_timeout` (10s, startup.rs:108); (2) once connected, every subsequent step (`block_until` for the hello reply at startup.rs:119, and every `call()`/`block_until` for session.list/session.new/tab.list/pane.list/attach) is a blocking `read()` with no timeout and no way to be interrupted from outside the thread - if the server accepts the connection and then stalls, `join()` never returns and the whole app is frozen, not just the window. This is the same class of leak the plan's own §1/§3 and this review's brief (item 2) call out for the reader thread, for which the mechanism and its test exist (`Client::stop`/`client.rs`'s tests) - but no equivalent exists for the startup thread, and no test exercises closing the window during `Phase::Connecting` at all (unsurprising, since nothing in `just check` opens a window, per AC #3 - but this is exactly the gap that leaves it unfound).
+
+[Compliance/Evidence, Important] crates/app/src/startup.rs:166-194 and `find_or_make_session` (startup.rs:231-260). AC #2's own mechanism - "running the app again attaches to the same session" - is this logic: label matching in `find_or_make_session`, and the stale-pane branch that replaces a dead pane's tab with `tab.new` in the same session rather than minting a second session (plan §3/§6). `startup.rs` has zero `#[cfg(test)]` (confirmed: grepped for `cfg(test)`/`mod tests`, nothing), and there is no `crates/app/tests/` either - every proof item in the plan's own §4 list is drawn only from `model`, `metrics` and `client`, never from `startup`. The one manual check recorded in the notes ("closing and relaunching re-attaches to the same session") only exercises the still-running branch; the notes never claim the dead-pane/`tab.new` branch was run at all, by hand or otherwise. Per review policy, a branch the plan itself names as worth proving (the stale-pane fix-up is its own numbered point, §6) needs a test that reaches it, and this one has none - automated or manual.
+
+[Compliance, Important] boundaries.toml / crates/app/Cargo.toml (unicode-segmentation). The plan's §1 names exactly three manifest additions for part 1: `steg-sdk` with `local-socket`, `serde_json`, and `futures` - with `futures` singled out for a paragraph of its own reasoning about not being reachable through gpui's own re-exports. `unicode-segmentation` is a fourth, new direct dependency (used in model.rs's `run_columns` for grapheme counting) that the plan never names and the implementation notes never mention (the notes name only `futures` as an added dependency). The boundaries.toml/Cargo.toml comments justify it well on their own terms, but that is the code explaining itself after the fact, not the plan or the notes - an unannounced manifest/boundary change is exactly the kind of decision review policy treats as a finding even when it turns out to be the right one. (Related nit: a new dependency reaching the workspace this way has no licence named on the task itself, though `just licences` already passed on it.)
+
+[Bugs, Nit] crates/app/src/terminal_element.rs:220-241 (`run_key`). The cache key hashes `fg`/`bg`/bold/italic/inverse/invisible/faint/strikethrough/underline, but not `underline_colour` - two runs identical except for underline colour collide on the same cache key and the first one shaped wins, painting the wrong underline colour on a cache hit. Not exercised by anything in this task (no coloured-underline fixture), and cosmetic.
+
+[Bugs, Nit] crates/app/src/startup.rs (`StartupError::Protocol(String)`). Collapses several distinct failure causes (a malformed frame, a write error, a read error, an API error response, an unexpected shape) into one string-carrying variant rather than an enum a caller could match on (rust.md: "never [add context] by turning it into a string"). Acceptable in effect since the only consumer is a human-readable "disconnected: ..." placeholder with no branching on the cause, but worth a real enum if a later task ever needs to tell these apart.
+
+What I did not find wrong: the no-polling design (startup and the reader each block on a real `read()`/`connect()`, handed to the foreground task over a channel it `.await`s, confirmed by reading client.rs/startup.rs/main.rs in full - no timer, no sleep-loop, no read timeout anywhere); the reader thread's own shutdown (`Client::stop`/`Drop`, verified both by reading and by my own scratch edit removing the `shutdown()` call in client.rs, reverted - the bounded test `stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound` failed with "did not finish within the test's own bound" exactly as claimed, then passed again once reverted); the app reaching the server only through `steg_sdk` (no `steg-kernel`/`steg-server` import anywhere in crates/app); every proof item the plan's own §4 names (model's fixed row count, the blank-first-row regression, columns_that_fit's floor rule, a Wide run's doubled column count, the channel decoding a StreamControl frame) has a recorded failing-then-passing `asdlc record-check` pair, run against the branch's own final commit; and the hand reconciliation of main's idle-stop/accept-backoff work (idle.rs, arbiter.rs, accept_backoff tests) looks sound - diffing this branch against origin/main shows those files byte-for-byte unchanged, and the only overlap is `attach_tick` threaded additively through `Runtime::new`/`ServerConfig`/`pane::start`/`listen::run`, fixed up in the branch's own last commit ("Fix two test-only call sites the merge's own additive conflicts left behind") after a recorded `just check` failure caught the two missed call sites, with `just check` green afterward.
+
+The PR's image (https://github.com/user-attachments/assets/3b6e9d01-2556-4101-a6bf-a4b3873166d2): a bare dark window titled "steg", a `$` prompt and a violet block cursor, nothing else drawn - matches §2's letterboxing (the grid at top-left, empty terminal-background filling the rest of a window taller than the fixed grid) and decision-8/R26's session colour on the cursor (TerminalTheme::cursor). Nothing personal in it.
+
+Not checked: the app was not run (out of scope for this review); R19's latency budget (explicitly deferred to TASK-1.122 by this task's own narrowed scope); TASK-1.47's own mechanism and tests (its own PR, out of scope here beyond the reconciliation above).
 
 ---
 <!-- COMMENTS:END -->

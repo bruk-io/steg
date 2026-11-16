@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:10:00Z'
+updated_date: '2026-11-16T01:11:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1076,6 +1076,20 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
 
 error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_with_force_actually_ends_a_silent_program` exited 0 at 2026-11-16T01:11:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+kill: 52003: No such process
+test pane_close_with_force_actually_ends_a_silent_program ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
 ```
 <!-- SECTION:NOTES:END -->
 

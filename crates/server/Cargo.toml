@@ -27,8 +27,11 @@ serde_json = "1"
 # outside this task's control and could move it later. `fs` for
 # `Flock`/`FlockArg`, `user` for `geteuid` - confirmed by compiling and
 # running exactly these calls, not assumed: `geteuid` needs `user`
-# specifically, it is not in nix's unguarded base surface.
-nix = { version = "0.28", default-features = false, features = ["fs", "user"] }
+# specifically, it is not in nix's unguarded base surface. `process` for
+# `setsid` (TASK-1.77, `detach.rs`) - confirmed the same way: `setsid` is
+# gated behind `process` specifically, not `fs`/`user` (`nix-0.28.0/src/
+# unistd.rs:167-168`).
+nix = { version = "0.28", default-features = false, features = ["fs", "user", "process"] }
 
 [features]
 # Gates the race test's own fixture binary and the integration test

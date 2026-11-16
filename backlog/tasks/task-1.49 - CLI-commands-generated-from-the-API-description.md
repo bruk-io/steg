@@ -1,14 +1,13 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:49:00Z'
+updated_date: '2026-11-16T15:54:00Z'
 labels:
   - size-4
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -921,6 +920,12 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Review fix: the Important finding (main.rs matching server start's literal argv, letting --no-on-demand/other switch orderings fall through to the placeholder) is fixed - one parser (the generated tree) for every invocation, server.start's parsed result handed to run_server_start instead of its literal argv. Three new tests through the already_a_group_leader fixture (now parameterised by its own argv instead of a hardcoded --on-demand), plus a server start --help test, each with its own recorded control (the pre-fix literal-matching main.rs restored via git show, confirmed failing, fix restored, confirmed passing - git status clean after each). All 15 pre-existing server_start tests and the sdk's own local_socket tests (steg server start --on-demand, run for real) still pass unchanged. Full proof-table addendum is in the task's comments.
+
+Nit: noted as a gap for the description, not worked around in the CLI - doc-2 section 3's own Nouns table does give each noun a one-line summary, so a per-noun summary field belongs in the description, not hand-written here. Left for your own draft, per your message.
+
+just check recorded green on the final head. CI green (~4m32s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

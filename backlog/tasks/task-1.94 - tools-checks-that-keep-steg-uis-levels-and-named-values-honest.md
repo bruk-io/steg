@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:40:00Z'
+updated_date: '2026-11-16T02:45:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -584,6 +584,36 @@ ok      architecture (0.8s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T02:45:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 5abcaef9f944:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.5s)
+ok      boundaries (0.2s)
+ok      licences (1.2s)
+ok      tests (every crate) (7.4s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.3s)
+ok      test (steg-server) (5.5s)
+ok      test (steg-server, race-fixture) (4.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.6s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

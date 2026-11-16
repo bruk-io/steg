@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T05:42:00Z'
+updated_date: '2026-11-16T06:30:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -76,6 +76,14 @@ created: 2026-11-16T05:42:00Z
 ---
 
 2026-11-16, @bruk.o: a hang, not a failure: check run 43802834909 attempt 1 stopped after 'ok test (steg-server)' and was cancelled at 30 minutes; the next step is the race-fixture tests. Attempt 2 passed in 10.6s. Drafted as its own task.
+
+---
+
+created: 2026-11-16T06:30:00Z
+
+---
+
+2026-11-16, @bruk.o: the arbiter's socket test failed once more under full-suite parallelism in TASK-1.87's worktree (passed alone and in five further full runs). Third sighting of that test.
 
 ---
 <!-- COMMENTS:END -->

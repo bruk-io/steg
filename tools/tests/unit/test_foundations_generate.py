@@ -13,12 +13,13 @@ from steg_tools.foundations_generate import (
     IdentifierCollisionError,
     Ref,
     Session,
-    _bake_colour_for_appearance,
     assign_identifiers,
+    bake_colour_for_appearance,
     classify,
     identifier,
     is_stale,
     pascal_case,
+    render,
     render_colours,
     render_focus_ring,
     render_plain_group,
@@ -109,25 +110,25 @@ def test_a_ref_to_something_with_no_value_field_is_refused() -> None:
 
 
 # ---------------------------------------------------------------------------
-# _bake_colour_for_appearance: the terminal themes' only resolution need (no `self`
+# bake_colour_for_appearance: the terminal themes' only resolution need (no `self`
 # to delegate through, since they're free functions, not `Theme` methods)
 # ---------------------------------------------------------------------------
 
 
 def test_a_literal_bakes_to_itself_regardless_of_appearance() -> None:
-    assert _bake_colour_for_appearance("#1c1b21", Appearance.DARK, {}) == "#1c1b21"
-    assert _bake_colour_for_appearance("#1c1b21", Appearance.LIGHT, {}) == "#1c1b21"
+    assert bake_colour_for_appearance("#1c1b21", Appearance.DARK, {}) == "#1c1b21"
+    assert bake_colour_for_appearance("#1c1b21", Appearance.LIGHT, {}) == "#1c1b21"
 
 
 def test_a_ref_bakes_to_the_named_colours_form_for_that_appearance() -> None:
     index = {"surface.pane": {"name": "surface.pane", "dark": "#141318", "light": "#f8f6f4"}}
-    assert _bake_colour_for_appearance({"ref": "surface.pane"}, Appearance.DARK, index) == "#141318"
-    assert _bake_colour_for_appearance({"ref": "surface.pane"}, Appearance.LIGHT, index) == "#f8f6f4"
+    assert bake_colour_for_appearance({"ref": "surface.pane"}, Appearance.DARK, index) == "#141318"
+    assert bake_colour_for_appearance({"ref": "surface.pane"}, Appearance.LIGHT, index) == "#f8f6f4"
 
 
 def test_session_is_refused_rather_than_silently_resolved() -> None:
     with pytest.raises(ValueError, match="session"):
-        _bake_colour_for_appearance("session", Appearance.DARK, {})
+        bake_colour_for_appearance("session", Appearance.DARK, {})
 
 
 # ---------------------------------------------------------------------------
@@ -261,6 +262,44 @@ def test_a_single_list_of_strings_fields_const_has_no_redundant_static() -> None
 def test_a_multi_field_structs_own_fields_keep_their_static() -> None:
     rust = render_plain_group("font.ui", {"family": "system", "role": "ui"}, {})
     assert "pub family: &'static str," in rust
+
+
+# ---------------------------------------------------------------------------
+# render: determinism - the plan's own commitment, proven on the smallest fixture
+# that exercises every section render() requires outright (the rest it reads with
+# .get(), so they're free to omit here)
+# ---------------------------------------------------------------------------
+
+MINIMAL_FIXTURE = {
+    "artifact_version": "test-version",
+    "colours": [],
+    "tint": {"name": "tint", "colour": "session", "opacity": 0.1, "use": "x"},
+    "sizes": {},
+    "focus_ring": {"width": 2, "unit": "px", "offset": 2, "colour": "session"},
+}
+
+
+def test_render_is_deterministic_for_the_same_input() -> None:
+    assert render(MINIMAL_FIXTURE) == render(MINIMAL_FIXTURE)
+
+
+def test_render_produces_text_for_every_required_section() -> None:
+    rendered = render(MINIMAL_FIXTURE)
+    assert "test-version" in rendered
+    assert "pub fn tint" in rendered
+    assert "pub fn focus_ring_colour" in rendered
+
+
+# ---------------------------------------------------------------------------
+# a generated struct derives Debug (and Copy where every field allows it) - the
+# gallery's "every other named value" section reads every plain group back with
+# `{:?}`, so this is load-bearing, not decoration
+# ---------------------------------------------------------------------------
+
+
+def test_a_multi_field_groups_struct_derives_debug_clone_copy() -> None:
+    rust = render_plain_group("font.ui", {"family": "system", "role": "ui"}, {})
+    assert "#[derive(Debug, Clone, Copy)]\npub struct FontUi" in rust
 
 
 # ---------------------------------------------------------------------------

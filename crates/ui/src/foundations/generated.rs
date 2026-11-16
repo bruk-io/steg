@@ -11,11 +11,13 @@ fn hsla_from_hex(hex: u32) -> Hsla {
     gpui::rgb(hex).into()
 }
 
+#[derive(Debug, Clone)]
 pub struct RampValue {
     pub stops: Vec<(f32, Hsla)>,
     pub caption_opacity: f32,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct ScrimValue {
     pub colour: Hsla,
     pub opacity: f32,
@@ -392,6 +394,7 @@ impl Theme {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct FontUi {
     pub family: &'static str,
     pub role: &'static str,
@@ -406,6 +409,7 @@ pub const FONT_UI: FontUi = FontUi {
 /// Design name: "font.terminal".
 pub const FONT_TERMINAL: &[&str] = &["JetBrains Mono", "SF Mono", "Menlo"];
 
+#[derive(Debug, Clone, Copy)]
 pub struct Terminal {
     pub size: Pixels,
     pub line_height: Pixels,
@@ -419,6 +423,7 @@ pub const TERMINAL: Terminal = Terminal {
     weight: 400.0,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct UiBody {
     pub size: Pixels,
     pub weight: f32,
@@ -435,6 +440,7 @@ pub const UI_BODY: UiBody = UiBody {
 /// Design name: "ui.small". Counts, captions, key caps
 pub const UI_SMALL: Pixels = px(12.0);
 
+#[derive(Debug, Clone, Copy)]
 pub struct UiLabel {
     pub size: Pixels,
     pub weight: f32,
@@ -464,6 +470,7 @@ pub const SPACE: [Pixels; 7] = [
     px(16.0),
 ];
 
+#[derive(Debug, Clone, Copy)]
 pub struct NavSide {
     pub width: Pixels,
     pub row_height: Pixels,
@@ -477,6 +484,7 @@ pub const NAV_SIDE: NavSide = NavSide {
     tab_indent: px(28.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct NavTop {
     pub height: Pixels,
     pub tab_height: Pixels,
@@ -490,6 +498,7 @@ pub const NAV_TOP: NavTop = NavTop {
     track_inset: px(2.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct TabWidth {
     pub usual: Pixels,
     pub max: Pixels,
@@ -503,6 +512,7 @@ pub const TAB_WIDTH: TabWidth = TabWidth {
     min: px(72.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct PaneGap {
     pub resting: Pixels,
     pub grabbed: Pixels,
@@ -517,6 +527,7 @@ pub const PANE_GAP: PaneGap = PaneGap {
 /// Design name: "pane.caption".
 pub const PANE_CAPTION: Pixels = px(30.0);
 
+#[derive(Debug, Clone, Copy)]
 pub struct Palette {
     pub width: Pixels,
     pub row_height: Pixels,
@@ -542,6 +553,7 @@ pub const RADIUS_INNER: Pixels = px(8.0);
 /// Design name: "radius.round". Colour chips and progress bars, fully round (Tokens.dc.html's radii card draws this as a fourth swatch, 999px - CSS's way of writing fully round, not a design-named value in px; this entry's name is the orchestrator's choice and the engineer may change it)
 pub const RADIUS_ROUND: Pixels = px(999.0);
 
+#[derive(Debug, Clone, Copy)]
 pub struct StatusRing {
     pub diameter: Pixels,
     pub thickness: Pixels,
@@ -553,6 +565,7 @@ pub const STATUS_RING: StatusRing = StatusRing {
     thickness: px(2.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct RowGap {
     pub tab: Pixels,
     pub caption_or_session_row: Pixels,
@@ -566,6 +579,7 @@ pub const ROW_GAP: RowGap = RowGap {
     palette_row: px(12.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct StackGap {
     pub rows: Pixels,
     pub groups: Pixels,
@@ -577,6 +591,7 @@ pub const STACK_GAP: StackGap = StackGap {
     groups: px(16.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct TrackLayout {
     pub inset: Pixels,
     pub gap: Pixels,
@@ -592,6 +607,7 @@ pub const TRACK_LAYOUT: TrackLayout = TrackLayout {
     radius_inner: px(8.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct SplitLayout {
     pub gap_drawn: Pixels,
     pub gap_grabbed: Pixels,
@@ -603,6 +619,7 @@ pub const SPLIT_LAYOUT: SplitLayout = SplitLayout {
     gap_grabbed: px(12.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct OverlayLayout {
     pub width: Pixels,
     pub top_offset: Pixels,
@@ -614,6 +631,7 @@ pub const OVERLAY_LAYOUT: OverlayLayout = OverlayLayout {
     top_offset: px(120.0),
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct FocusRing {
     pub width: Pixels,
     pub offset: Pixels,
@@ -630,6 +648,7 @@ pub const FOCUS_RING: FocusRing = FocusRing {
 /// Design name: "motion.status-fade". A change of status fades in on both the ring and the bar, so it reads as a change and not a jump
 pub const MOTION_STATUS_FADE: std::time::Duration = std::time::Duration::from_millis(200);
 
+#[derive(Debug, Clone, Copy)]
 pub struct AnsiColours {
     pub black: Hsla,
     pub red: Hsla,
@@ -649,6 +668,7 @@ pub struct AnsiColours {
     pub bright_white: Hsla,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct TerminalTheme {
     pub bg: Hsla,
     pub bg_inactive: Hsla,

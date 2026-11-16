@@ -9,7 +9,11 @@
 //!
 //! What it shows, each from `foundations` by its own design name: every colour as a
 //! swatch, light and dark; the two ramps; the type sizes; the spacing steps; the four
-//! corners; and both terminal themes' 16 ANSI colours.
+//! corners; both terminal themes' 16 ANSI colours; and - as plain `name: value` rows,
+//! "Other named values" - every one of the data file's 54 names (AC#4) that isn't
+//! already a swatch, bar or sample above (`faint`, `tint`, the rest of `type` and
+//! `sizes`, `motion.status-fade`, `focus_ring`), so a reviewer can find *every* design
+//! name somewhere in this image, not only the ones that draw naturally as a picture.
 //!
 //! The only thing in `steg-ui` that calls `gpui::Application::run`; `src/` never opens a
 //! window, and nothing in `cargo build`/`cargo test` executes this file's `main`.
@@ -19,9 +23,10 @@ use gpui::{
     Window, WindowBounds, WindowOptions, div, prelude::*, px, size,
 };
 use steg_ui::foundations::{
-    self, Appearance, FOCUS_RING, FONT_TERMINAL, NAV_SIDE, PALETTE_INPUT, PANE_CAPTION,
-    RADIUS_INNER, RADIUS_ROUND, RADIUS_SURFACE, RADIUS_TRACK, SPACE, Theme, UI_BODY, UI_LABEL,
-    UI_SMALL,
+    self, Appearance, FOCUS_RING, FONT_TERMINAL, FONT_UI, MOTION_STATUS_FADE, NAV_SIDE, NAV_TOP,
+    OVERLAY_LAYOUT, PALETTE, PALETTE_INPUT, PANE_CAPTION, PANE_GAP, RADIUS_INNER, RADIUS_ROUND,
+    RADIUS_SURFACE, RADIUS_TRACK, ROW_GAP, SPACE, SPLIT_LAYOUT, STACK_GAP, STATUS_RING, TAB_WIDTH,
+    TERMINAL, TRACK_LAYOUT, Theme, UI_BODY, UI_LABEL, UI_SMALL,
 };
 
 /// Read the gallery's initial appearance from `STEG_GALLERY_THEME` ("light" or "dark",
@@ -97,6 +102,45 @@ fn ansi_entries(ansi: &foundations::AnsiColours) -> Vec<(&'static str, Hsla)> {
     ]
 }
 
+/// Every design name not already shown as a swatch, bar or sample elsewhere in this
+/// gallery (AC#4: every one of the 54 names findable somewhere in the image) - `faint`,
+/// `tint`, the rest of `type` and `sizes`, `motion.status-fade` and `focus_ring` - each
+/// as its own plain Rust value, read back with `{:?}` (every generated plain group
+/// derives `Debug`), resolved against `theme` wherever a value has a light/dark form.
+fn other_named_values(theme: &Theme) -> Vec<(&'static str, String)> {
+    vec![
+        ("faint", format!("{:?}", theme.faint())),
+        ("tint", format!("{:?}", theme.tint())),
+        ("font.ui", format!("{FONT_UI:?}")),
+        ("font.terminal", format!("{FONT_TERMINAL:?}")),
+        ("terminal", format!("{TERMINAL:?}")),
+        ("nav.side", format!("{NAV_SIDE:?}")),
+        ("nav.top", format!("{NAV_TOP:?}")),
+        ("tab.width", format!("{TAB_WIDTH:?}")),
+        ("pane.gap", format!("{PANE_GAP:?}")),
+        ("pane.caption", format!("{PANE_CAPTION:?}")),
+        ("palette", format!("{PALETTE:?}")),
+        (
+            "status.ring",
+            format!("{STATUS_RING:?}, track {:?}", theme.status_ring_track()),
+        ),
+        ("scrim", format!("{:?}", theme.scrim())),
+        ("row.gap", format!("{ROW_GAP:?}")),
+        ("stack.gap", format!("{STACK_GAP:?}")),
+        (
+            "track.layout",
+            format!("{TRACK_LAYOUT:?}, fill {:?}", theme.track_layout_fill()),
+        ),
+        ("split.layout", format!("{SPLIT_LAYOUT:?}")),
+        ("overlay.layout", format!("{OVERLAY_LAYOUT:?}")),
+        ("motion.status-fade", format!("{MOTION_STATUS_FADE:?}")),
+        (
+            "focus_ring",
+            format!("{FOCUS_RING:?}, colour {:?}", theme.focus_ring_colour()),
+        ),
+    ]
+}
+
 /// One colour, its design name beneath it, and a border so a colour close to the
 /// window's own background still reads as its own swatch.
 fn colour_swatch(
@@ -112,8 +156,8 @@ fn colour_swatch(
         .gap(px(2.0))
         .child(
             div()
-                .w(px(56.0))
-                .h(px(36.0))
+                .w(px(40.0))
+                .h(px(26.0))
                 .rounded(RADIUS_INNER)
                 .border_1()
                 .border_color(border)
@@ -296,6 +340,35 @@ impl Render for Gallery {
                 ),
             );
 
+        // Three columns, not one: this screen's own height is the binding constraint
+        // on the gallery window (observed clamped well short of the room a single
+        // column of this section's 20 rows would need), and this section has spare
+        // width to spend instead - three is what the window's own width actually
+        // fits (observed; a fourth ran off the right edge with no wrap).
+        let other_values = other_named_values(theme);
+        let column_size = other_values.len().div_ceil(3);
+        let other = div()
+            .flex()
+            .gap(px(16.0))
+            .children(other_values.chunks(column_size).map(|rows| {
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .children(rows.iter().map(|(name, value)| {
+                        div()
+                            .flex()
+                            .flex_col()
+                            .child(div().text_size(px(10.0)).text_color(muted).child(*name))
+                            .child(
+                                div()
+                                    .text_size(px(10.0))
+                                    .text_color(text)
+                                    .child(value.clone()),
+                            )
+                    }))
+            }));
+
         div()
             .id("gallery-root")
             .track_focus(&self.focus_handle)
@@ -303,31 +376,36 @@ impl Render for Gallery {
             .size_full()
             .flex()
             .flex_col()
-            .gap(px(20.0))
+            .gap(px(10.0))
             .p(px(24.0))
             .bg(theme.surface_ground())
             .text_color(text)
             .child(format!(
-                "steg-ui gallery ({}; press t to switch) - NAV_SIDE.width {:?}, FONT_TERMINAL {:?}, FOCUS_RING.width {:?}, PANE_CAPTION {:?}",
-                if matches!(theme.appearance(), Appearance::Dark) { "dark" } else { "light" },
-                NAV_SIDE.width,
-                FONT_TERMINAL,
-                FOCUS_RING.width,
-                PANE_CAPTION,
+                "steg-ui gallery ({}; press t to switch)",
+                if matches!(theme.appearance(), Appearance::Dark) {
+                    "dark"
+                } else {
+                    "light"
+                },
             ))
             .child(section("Colours", muted, colours))
             .child(section("Ramps", muted, ramps))
             .child(section("Spacing", muted, spacing))
             .child(section("Corners", muted, corners))
             .child(section("Type", muted, type_sizes))
-            .child(section("Terminal themes (dark, light)", muted, terminal_themes))
+            .child(section(
+                "Terminal themes (dark, light)",
+                muted,
+                terminal_themes,
+            ))
+            .child(section("Other named values", muted, other))
     }
 }
 
 fn main() {
     let appearance = appearance_from_env(std::env::var("STEG_GALLERY_THEME").ok().as_deref());
     Application::new().run(move |cx: &mut App| {
-        let bounds = WindowBounds::centered(size(px(1040.0), px(1020.0)), cx);
+        let bounds = WindowBounds::centered(size(px(1040.0), px(1050.0)), cx);
         let result = cx.open_window(
             WindowOptions {
                 window_bounds: Some(bounds),

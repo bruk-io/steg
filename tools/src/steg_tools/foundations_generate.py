@@ -148,7 +148,7 @@ class Appearance(Enum):
     LIGHT = "light"
 
 
-def _bake_colour_for_appearance(value: object, appearance: Appearance, colours_index: dict[str, dict]) -> str:
+def bake_colour_for_appearance(value: object, appearance: Appearance, colours_index: dict[str, dict]) -> str:
     """Resolve one colour-position value to a literal hex for `appearance`, baking any
     ref to a `colours[]` entry. Used only where there is no `Theme`/`self` to delegate
     through - today, only the terminal themes' own fields, which are free functions,
@@ -459,8 +459,12 @@ def render_plain_group(name: str, group: dict[str, object], index: dict[str, obj
     struct_name = pascal_case(ident)
     struct_fields = "\n".join(f"    pub {field_name}: {rust_type}," for field_name, rust_type, _ in fields)
     const_fields = "\n".join(f"    {field_name}: {initialiser}," for field_name, _, initialiser in fields)
+    # Debug (the gallery's own "every other named value" section reads every one of
+    # these back with `{:?}`) and Clone/Copy (every field a plain group can have -
+    # Pixels, f32, Duration, &str, [Pixels; N] - is itself Copy, so the struct can be
+    # too, for free).
     return (
-        f"pub struct {struct_name} {{\n{struct_fields}\n}}\n\n"
+        f"#[derive(Debug, Clone, Copy)]\npub struct {struct_name} {{\n{struct_fields}\n}}\n\n"
         f"{marker}\npub const {ident.upper()}: {struct_name} = {struct_name} {{\n{const_fields}\n}};"
     )
 
@@ -555,10 +559,10 @@ def render_themes(data: dict[str, object], colours_index: dict[str, dict]) -> st
         ValueError: a theme's `cursor` isn't `"session"`.
     """
     structs = (
-        "pub struct AnsiColours {\n"
+        "#[derive(Debug, Clone, Copy)]\npub struct AnsiColours {\n"
         + "\n".join(f"    pub {ansi}: Hsla," for ansi in _ANSI_NAMES)
         + "\n}\n\n"
-        "pub struct TerminalTheme {\n"
+        "#[derive(Debug, Clone, Copy)]\npub struct TerminalTheme {\n"
         "    pub bg: Hsla,\n"
         "    pub bg_inactive: Hsla,\n"
         "    pub fg: Hsla,\n"
@@ -576,13 +580,13 @@ def render_themes(data: dict[str, object], colours_index: dict[str, dict]) -> st
         # "steg dark"/"steg light" - every ref in a theme (bg_inactive) resolves
         # against *that* theme's own appearance, never the other one.
         appearance = Appearance.DARK if "dark" in name else Appearance.LIGHT
-        bg = _bake_colour_for_appearance(theme["bg"], appearance, colours_index)
-        bg_inactive = _bake_colour_for_appearance(theme["bg_inactive"], appearance, colours_index)
-        fg = _bake_colour_for_appearance(theme["fg"], appearance, colours_index)
-        selection = _bake_colour_for_appearance(theme["selection"], appearance, colours_index)
+        bg = bake_colour_for_appearance(theme["bg"], appearance, colours_index)
+        bg_inactive = bake_colour_for_appearance(theme["bg_inactive"], appearance, colours_index)
+        fg = bake_colour_for_appearance(theme["fg"], appearance, colours_index)
+        selection = bake_colour_for_appearance(theme["selection"], appearance, colours_index)
         ansi_fields = "\n".join(
             f"            {ansi}: hsla_from_hex(0x"
-            f"{_hex_to_int(_bake_colour_for_appearance(theme['ansi'][ansi], appearance, colours_index)):06x}),"
+            f"{_hex_to_int(bake_colour_for_appearance(theme['ansi'][ansi], appearance, colours_index)):06x}),"
             for ansi in _ANSI_NAMES
         )
         functions.append(
@@ -637,8 +641,9 @@ def render(data: dict[str, object]) -> str:
         _HEADER.format(artifact_version=data["artifact_version"]),
         _IMPORTS,
         "fn hsla_from_hex(hex: u32) -> Hsla {\n    gpui::rgb(hex).into()\n}",
-        "pub struct RampValue {\n    pub stops: Vec<(f32, Hsla)>,\n    pub caption_opacity: f32,\n}",
-        "pub struct ScrimValue {\n    pub colour: Hsla,\n    pub opacity: f32,\n}",
+        # No Copy: `Vec` isn't.
+        "#[derive(Debug, Clone)]\npub struct RampValue {\n    pub stops: Vec<(f32, Hsla)>,\n    pub caption_opacity: f32,\n}",
+        "#[derive(Debug, Clone, Copy)]\npub struct ScrimValue {\n    pub colour: Hsla,\n    pub opacity: f32,\n}",
         colour_functions,
         theme_impl,
         render_type(data),

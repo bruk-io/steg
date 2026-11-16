@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:31:00Z'
+updated_date: '2026-11-16T03:48:00Z'
 labels:
   - size-2
   - changes-requested
@@ -355,6 +355,18 @@ Tool's own output against the real files today: "ok (18 colours, 19 type/size en
 TASK-1.94's steg_tools.foundations.read() still hadn't merged to origin/main as of this head (checked again), so the private _read_data_file shim stays; the swap-over remains a named follow-up in the module docstring and PR body.
 
 PR: https://github.com/bruk-io/steg/pull/54 (head 8626dc6, CI green).
+
+Check FAILED: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-old-unaccounted-names-negative-control.py crates/ui/design/foundations.json` exited 1 at 2026-11-16T03:48:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474 with uncommitted changes:
+
+```text
+baseline (unmodified real file) unaccounted: ()
+themes[0]['underline'] added, OLD implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed themes[0]['underline'] - review finding (@bruk.r5) confirmed
+focus_ring['glow'] added, OLD implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed focus_ring['glow'] - review finding (@bruk.r5) confirmed
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

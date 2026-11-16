@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:52:00Z'
+updated_date: '2026-11-16T15:10:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -23,6 +23,8 @@ asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -458,6 +460,15 @@ Prepared (@bruk.w5), to run the moment this is back In Progress - each as a reco
 7. unset --label switch, dispatch (decision 3): `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` with session.rs's unset changed from param_present to param_bool(...)==Some(true) - expect fail on --no-label.
 
 Also in the same sitting: correct boundaries.toml's [steg] reason text to name the "string" feature and why (From<String> for clap's Str/Id needs it; no extra dependency); build the proof table (item/test/recorded control) in the notes; just check once more on the final head; CI green; read inbox; finish.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:10:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 21m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

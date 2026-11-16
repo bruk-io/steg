@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T16:47:00Z'
+updated_date: '2026-11-16T16:48:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -148,6 +148,39 @@ Every item below is recorded through `asdlc record-check` as a failing run (the 
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (8551f6bb93b8) as rewritten for the read-only window alone, checked against doc-9, doc-10 (R20, R22, R24), doc-13 R59, doc-16, doc-17 and decision-11 by @bruk.o, 2026-11-16: ok. The split into three is taken (typing and resizing; measurement and the per-frame bound: two drafts). Revised at the orchestrator's request: the socket is not polled; a thread blocks on the read and hands each update through a channel to a task on the window's executor, woken by the channel. Needs only TASK-1.47. Adds futures as a direct dependency of the app (already in the lock file through gpui). Draws a fixed grid from the attach snapshot until the typing task brings the size.
+
+Check passed: `just check` exited 0 at 2026-11-16T16:48:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at d1c726dbd094:
+
+```text
+ok      format check (0.2s)
+ok      lint (89.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (47.4s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (43.7s)
+ok      test (steg-server) (13.7s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (2.2s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (20.1s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

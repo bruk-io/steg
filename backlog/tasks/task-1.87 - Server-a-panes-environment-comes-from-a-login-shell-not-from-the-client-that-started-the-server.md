@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:46:00Z'
+updated_date: '2026-11-16T04:47:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -640,6 +640,25 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
 
 error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
+
+Check passed: `cargo test -p steg-server --test real_pty` exited 0 at 2026-11-16T04:47:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-d5887de6b4314ba9)
+
+running 8 tests
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+test a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home ... ok
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_real_programs_environment_never_leaks_this_processs_own_ambient_variables ... ok
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+test many_threads_opening_a_real_pty_at_once_never_fails ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
 ```
 <!-- SECTION:NOTES:END -->
 

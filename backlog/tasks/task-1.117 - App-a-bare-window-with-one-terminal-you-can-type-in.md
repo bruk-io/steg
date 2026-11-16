@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:06:00Z'
+updated_date: '2026-11-16T17:08:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -225,6 +225,39 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates
      run.style.inverse.hash(&mut hasher);
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T17:08:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (13.5s)
+ok      build (steg-sdk) (1.1s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (1.3s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (1.2s)
+ok      test (steg-server) (15.1s)
+ok      test (steg-server, race-fixture) (14.3s)
+ok      build (steg) (2.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

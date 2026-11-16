@@ -1,16 +1,19 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:45:00Z'
+updated_date: '2026-11-16T02:46:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.91
+references:
+  - task-1.94-tools-checks-that-keep-steg-ui-s-levels
+  - https://github.com/bruk-io/steg/pull/52
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -615,6 +618,67 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Built as planned, with the three points raised at approval:
+
+1. gpui's colour API, read from the pinned 0.2.2 source (crates registry cache, src/color.rs,
+   re-exported at crate root via `pub use color::*;` in src/gpui.rs), not guessed: free
+   functions rgb, rgba, hsla, black, white, red, green, blue, yellow, transparent_black,
+   transparent_white, opaque_grey all build a brand-new fixed colour from scratch, so they're
+   in COLOUR_CONSTRUCTORS. blend, opacity, alpha, fade_out, grayscale, to_rgb, solid_background,
+   linear_gradient, linear_color_stop, pattern_slash all take an existing colour as an argument
+   and transform/wrap it - excluded. Struct types Hsla/Rgba are both public with public fields,
+   covered separately as struct-literal detection (COLOUR_STRUCT_TYPES).
+2. Added both tests team-lead asked for: test_violations_refuses_foundations_importing_organisms_directly
+   (non-adjacent crossing) and test_violations_passes_an_organism_using_foundations_directly
+   (two levels down, must pass) - both in tools/tests/unit/test_ui_levels.py. Confirmed with a
+   negative control (RANK comparison changed to `!=`) that both would otherwise misbehave.
+3. The gallery's colour exemption in ui_colours.py is one named constant (GALLERY) with a comment
+   saying to remove it, plus the one line adding it to EXEMPT_PREFIXES, both commented "temporary -
+   remove ... once TASK-1.93 ends the gallery's placeholder exemption."
+
+AC#1 (R119): steg-ui-levels refuses an import inside crates/ui/src that reaches from one of the
+four levels into a level after it, including through a crate-root `pub use` re-export (closes a
+loophole a per-file text match would miss - proven both working and inert where it can't resolve,
+e.g. a glob re-export). format_violation names R119 and both levels. Proven with a live scratch
+violation in crates/ui/src/foundations/mod.rs, refused by the real `just check-ui-levels`, then
+reverted (not committed).
+
+AC#2 (R120): steg-ui-colours refuses a colour literal (hex int/string, a named gpui constructor
+call, or a bare Hsla/Rgba struct literal) anywhere in crates/ui outside foundations (permanent)
+and the gallery (temporary, see point 3). format_violation names R120 and the matching
+foundations value(s) by name and form, or says plainly when none match. Proven with a live
+scratch literal in crates/ui/src/atoms/mod.rs, refused by the real `just check-ui-colours`
+naming `surface.raised (dark)`, then reverted.
+
+AC#3: both checks have unit tests (tools/tests/unit/test_ui_levels.py, test_ui_colours.py,
+test_foundations.py, test_rust_source.py) and adapter tests against the real crate
+(tools/tests/adapter/test_ui_levels_real_repo.py, test_ui_colours_real_repo.py,
+test_foundations_real_repo.py) - 135 tests total, each check with a refused case and a passing
+case. Both are new justfile recipes (check-ui-levels, check-ui-colours) added to `check:`'s
+dependency chain; CI needs no edit since it only ever calls `just check`.
+
+Checks recorded on this task, in order: tests collected red (ModuleNotFoundError) before the
+four new tools/src/steg_tools modules existed; green once restored (134, then 135 after adding
+the end-to-end re-export test found missing while running a negative control); a negative
+control for each main mechanism - the level check's rank comparison (both the "must refuse"
+and "must pass" directions), the crate-root re-export table, the colour check's literal
+detection, and the colour check's exemption - each disabled, confirmed to fail exactly the
+right tests, restored, confirmed green again; a live scratch violation for each check, refused
+by the real `just check-ui-levels`/`just check-ui-colours`, then reverted; `just check` green
+twice (once before the final rebase, once after, on the exact pushed commit 5abcaef).
+
+Merge: rebased onto origin/main (branch had never been pushed). All upstream movement was
+board/backlog commits only (TASK-1.93, 1.96, 1.97, 1.45 recording checks and board updates) -
+no code files overlapped, so the rebase was conflict-free both times. The justfile line
+TASK-1.77 added to check-packages (steg, --features fixtures) landed independently and merged
+cleanly beside this task's own two new recipes.
+
+Dependency added: ast-grep-py (tools/pyproject.toml's first runtime dependency) - verified
+before adding it that PyPI publishes a cp315-cp315-macosx_11_0_arm64 wheel, matching CI's
+runner and Python pin exactly, with no build step.
+
+CI green on the pushed head (PR #52, both checks passed in ~3m41s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

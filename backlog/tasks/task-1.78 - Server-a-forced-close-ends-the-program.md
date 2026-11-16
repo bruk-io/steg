@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:52:00Z'
+updated_date: '2026-11-16T02:10:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1503,6 +1503,37 @@ Checks: just check clean at the final head (68d10a8, matching PR #47's green CI)
 Named, not fixed: an interactive shell's own job-control reassignment of a backgrounded job to a new process group, which the group signal does not reach (killpg targets the pgid portable-pty's setsid() establishes at exec, which an interactive shell's own job control can move a background job out of afterward); a process stuck in an uninterruptible kernel sleep, where SIGKILL is delivered but delivery is not completion, which no userspace mechanism can force - the caller still gets Response::Ok either way (no error code exists for "could not confirm"), and the worker/relay pair is dropped unjoined if this ever actually happens.
 
 Two items were the engineer's at plan time and were decided then: the AC #1 reorder (approved, criterion reworded to match) and the idle-handle fix (told to include it).
+
+Check FAILED: `cargo test -p steg-server --lib pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run` exited 101 at 2026-11-16T02:10:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run ... FAILED
+
+failures:
+
+---- pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run stdout ----
+
+thread 'pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run' (18697434) panicked at crates/server/src/pane.rs:935:9:
+assertion `left == right` failed: a stale generation's own mark-dead must never clobber a newer run's live pid
+  left: None
+ right: Some(200)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

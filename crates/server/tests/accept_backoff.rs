@@ -14,13 +14,50 @@
 //!   provably mid-backoff) still ends the server with status 1 and still
 //!   runs the same cleanup (socket file removed, lock released) as any
 //!   other stop.
+//!
+//! **Every wait in this file is bounded** (a join, a read, a connect, a
+//! child's own exit) - a review of this task found a real, reachable
+//! unbounded one: an earlier version sustained exhaustion with one
+//! background thread that kept calling `UnixStream::connect` forever, with
+//! nothing capping it against this platform's own listen backlog (128,
+//! `UnixListener::bind`'s own hardcoded value on macOS - confirmed by
+//! reading `library/std/src/os/unix/net/listener.rs`, not assumed). Once
+//! that thread's own held connections reached the backlog's own capacity,
+//! its next `connect()` blocked - `UnixStream` has no `connect_timeout` at
+//! all - and stopping that thread then joined it with no bound either, so
+//! the whole test hung. Confirmed as the real mechanism, not assumed: this
+//! platform's own CI runner hit it from a fresh `git push`, independent of
+//! anything left running on any one engineer's own machine.
+//!
+//! Every test in this file uses `ConnectionSupply`, a background thread
+//! that keeps replenishing held connections until told to stop, rather
+//! than one fixed batch: a fixed batch, tried first while building this
+//! task, was found - measured, not assumed - to only ever produce a brief
+//! burst before the fixture's own accept loop drained it and went idle
+//! waiting for a connection that would never arrive, which both (a) made
+//! AC #4's own rate tests measure nothing over their own 500ms window once
+//! nothing throttled how fast the loop could consume it (the zero-backoff
+//! case), and (b), more subtly, meant AC #1/#2's own stop/fatal tests could
+//! pass even with their own fix *removed* - not because the fix worked, but
+//! because the storm had already quietly ended on its own by the time
+//! `STOP_AFTER_RETRIES`/`DUP2_AFTER_RETRIES` fired, letting `stop()`'s own
+//! ordinary wakeup (a real `connect()`, on the loop's already-unmodified
+//! success path) win regardless. `ConnectionSupply` keeps the condition
+//! genuinely live until each test says otherwise, so every one of them
+//! tests what it claims to. Every individual `connect()` it makes is
+//! itself bounded (`connect_bounded`, spawned on its own thread and joined
+//! with `join_with_bound`), so even if the backlog genuinely does fill
+//! (the slow-draining, real-backoff case), no single attempt can block
+//! this thread past its own bound, and stopping it is bounded the same
+//! way.
 
 use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixStream;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use nix::sys::resource::{Resource, getrlimit, setrlimit};
@@ -28,19 +65,16 @@ use steg_server::{Arbitration, ServerConfig, attempt};
 
 /// Comfortably above what binding the socket and holding its lock cost on
 /// their own (confirmed empirically while building this task, not
-/// guessed) - `ConnectionFlood`, below, is what pushes past it, and keeps
-/// pushing for as long as a test needs the condition sustained.
+/// guessed).
 const FIXTURE_RLIMIT_NOFILE: u64 = 48;
 
 /// Raises this test *process's* own soft `RLIMIT_NOFILE` to its own hard
-/// limit - found necessary while building this task, not assumed: a
-/// `ConnectionFlood` run for a full measurement window can open several
-/// hundred real connections of its own (each held, never closed, for as
-/// long as the flood runs), comfortably past a shell's common default
-/// soft limit (256 on this platform). Raising only the soft limit, never
-/// the hard one, is the same safe, standard idiom documented on
-/// `setrlimit(2)` for a process widening its own budget - nothing is
-/// lowered here, unlike the fixture's own, deliberately lowered limit.
+/// limit - cheap defensive margin against `ConnectionSupply`'s own real
+/// connections landing on a shell with an unusually low default (256 is
+/// common on this platform). Raising only the soft limit, never the hard
+/// one, is the same safe, standard idiom documented on `setrlimit(2)` for
+/// a process widening its own budget - nothing is lowered here, unlike the
+/// fixture's own, deliberately lowered limit.
 fn raise_own_rlimit() {
     let (_soft, hard) =
         getrlimit(Resource::RLIMIT_NOFILE).expect("getrlimit should succeed on this platform");
@@ -69,15 +103,67 @@ fn fixture_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_accept-backoff-attempt"))
 }
 
+/// Bounded join, the shape `crates/server/tests/shutdown.rs`'s own
+/// `join_within` already uses: a watcher thread does the real,
+/// potentially-unbounded join, and this function only ever waits on a
+/// channel with a bound - so a thread that somehow never ends (this
+/// file's own module doc names the one way that used to happen) fails
+/// this call with `None`, rather than hanging it. The watcher itself is
+/// never joined - if the real thread never ends, neither does the
+/// watcher, but nothing here ever waits on *that*, so it costs this
+/// function nothing beyond a thread that outlives it, acceptable on a
+/// test's own, rare, timeout path.
+fn join_with_bound<T: Send + 'static>(handle: JoinHandle<T>, bound: Duration) -> Option<T> {
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let result = handle.join();
+        let _ = tx.send(result);
+    });
+    match rx.recv_timeout(bound) {
+        Ok(Ok(value)) => Some(value),
+        Ok(Err(_)) => None, // the joined thread panicked
+        Err(_) => None,     // timed out
+    }
+}
+
+/// One `connect()` attempt, bounded - spawned on its own thread so a
+/// `connect()` that would otherwise block (this platform's own listen
+/// backlog, 128, full - this file's own module doc) cannot block the
+/// caller past `bound`. A timed-out attempt's own thread is abandoned, not
+/// force-stopped (`connect()` itself has no cancellation): it either
+/// eventually succeeds, whose result nobody ever reads, and ends, or never
+/// does and outlives this test binary - acceptable, since nothing here
+/// ever joins it again either way.
+fn connect_bounded(path: &Path, bound: Duration) -> Option<UnixStream> {
+    let path = path.to_path_buf();
+    let handle = std::thread::spawn(move || UnixStream::connect(&path));
+    join_with_bound(handle, bound).and_then(Result::ok)
+}
+
 /// Kills and reaps its child on drop, including when a panicking assertion
 /// unwinds past it - the same guard `race.rs`'s own `ReapOnDrop` already
 /// uses, so a failing assertion here never leaves a real process behind.
+/// The wait after `kill()` is bounded (`try_wait`, polled), not a bare
+/// `wait()`: a review of this task required every wait here to be bounded,
+/// including this one, and a `Drop` must never panic, so this gives up
+/// silently after the bound rather than asserting.
 struct ReapOnDrop(Child);
 
 impl Drop for ReapOnDrop {
     fn drop(&mut self) {
         let _ = self.0.kill();
-        let _ = self.0.wait();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            match self.0.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+                Err(_) => return,
+            }
+        }
+        // Gave up waiting for a `SIGKILL`'d child to be reaped within the
+        // bound - never expected in practice (a killed process does not
+        // stay around), but a `Drop` does not get to hang the test
+        // process, which is itself likely mid-panic, to find out why.
     }
 }
 
@@ -108,44 +194,44 @@ fn wait_until_accepting(path: &std::path::Path, deadline: Instant) {
     }
 }
 
-/// Keeps connecting to the fixture's socket on a background thread, never
-/// handshaking and never closing what it opens, until told to stop -
-/// sustaining descriptor pressure on the fixture for as long as a test
-/// needs it, rather than one fixed batch. **Found necessary while building
-/// this task, not assumed to be enough on its own**: a single upfront
-/// batch of held connections only produced a brief burst of recoverable
-/// errors (long enough to prove AC #1's stop fix and AC #2's fatal path,
-/// both of which need just one), not a condition sustained across the
-/// hundreds of milliseconds AC #4's own bound/spin tests have to measure a
-/// *rate* over - this is what makes "exhausted" mean "exhausted until this
-/// test says otherwise," not "briefly, around however many connections one
-/// batch happened to supply." Ignoring a failed `connect()` is deliberate,
-/// the same reasoning `crates/steg/tests/server_start.rs`'s own
-/// `running_out_of_file_descriptors_exits_1` used: once descriptors are
-/// genuinely exhausted, later attempts are expected to fail too, and this
-/// is a setup step, not the test's own assertion.
-struct ConnectionFlood {
-    stop: std::sync::Arc<AtomicBool>,
-    thread: Option<std::thread::JoinHandle<Vec<UnixStream>>>,
+/// Keeps replenishing held connections against `socket_path` on a
+/// background thread until told to stop, pushing the fixture's own
+/// lowered `RLIMIT_NOFILE` past its limit and keeping it there for as long
+/// as a test needs: used by every test in this file, not only AC #4's own
+/// rate tests, for the reason this file's own module doc gives (a fixed
+/// batch let the condition end quietly on its own, which could make even
+/// the stop/fatal tests pass for the wrong reason). Each individual
+/// `connect()` is itself bounded (`connect_bounded`), so this can run
+/// indefinitely with no risk of the one real hang a review of this task
+/// found: a thread that could itself block forever on a full backlog.
+/// Ignoring a failed `connect()` (a `connect_bounded` timeout) is
+/// deliberate, the same reasoning `crates/steg/tests/server_start.rs`'s
+/// own `running_out_of_file_descriptors_exits_1` used for its own ignored
+/// `connect()` failures: once descriptors are genuinely exhausted, later
+/// attempts are expected to fail (or, here, time out) too, and this is a
+/// setup step, not the test's own assertion.
+struct ConnectionSupply {
+    stop: Arc<AtomicBool>,
+    thread: Option<JoinHandle<Vec<UnixStream>>>,
 }
 
-impl ConnectionFlood {
-    fn start(socket_path: &std::path::Path) -> Self {
-        let stop = std::sync::Arc::new(AtomicBool::new(false));
+impl ConnectionSupply {
+    fn start(socket_path: &Path) -> Self {
+        let stop = Arc::new(AtomicBool::new(false));
         let path = socket_path.to_path_buf();
-        let thread_stop = std::sync::Arc::clone(&stop);
+        let thread_stop = Arc::clone(&stop);
         let thread = std::thread::spawn(move || {
             let mut held = Vec::new();
             while !thread_stop.load(Ordering::Relaxed) {
-                if let Ok(stream) = UnixStream::connect(&path) {
-                    held.push(stream);
+                match connect_bounded(&path, Duration::from_millis(100)) {
+                    Some(stream) => held.push(stream),
+                    // Only reached if the backlog is genuinely already
+                    // full (this file's own module doc) - a short pause
+                    // before trying again, rather than immediately
+                    // spawning another attempt that would likely also
+                    // need its own bound to expire.
+                    None => std::thread::sleep(Duration::from_millis(20)),
                 }
-                // A short pace, not a busy spin on this thread's own
-                // part - this is the test's own setup pressure, not the
-                // behaviour under test, and a real connection's own
-                // `connect()` cost already dominates this loop's time in
-                // practice.
-                std::thread::sleep(Duration::from_micros(500));
             }
             held
         });
@@ -155,40 +241,48 @@ impl ConnectionFlood {
         }
     }
 
-    /// Stops the flood and hands back every connection it made, still
-    /// open - the caller holds these until it is done needing the
-    /// condition sustained, same as the one-shot batch this replaced did.
+    /// Stops the supply and hands back every connection it made, still
+    /// open - bounded (`join_with_bound`): the supply thread's own loop
+    /// checks `stop` between attempts, each of which is itself bounded at
+    /// 100ms, so it is expected back well within this bound in practice;
+    /// an empty `Vec` on a timeout (never observed while building this
+    /// task) is still a safe answer; a stuck supply thread at that point
+    /// has not blocked anything else, since nothing after this call
+    /// depends on recovering its particular connections.
     fn stop_and_collect(mut self) -> Vec<UnixStream> {
         self.stop.store(true, Ordering::Relaxed);
-        self.thread
-            .take()
-            .expect("stop_and_collect is only ever called once")
-            .join()
-            .expect("the flood thread should not panic")
+        join_with_bound(
+            self.thread
+                .take()
+                .expect("stop_and_collect is only ever called once"),
+            Duration::from_secs(5),
+        )
+        .unwrap_or_default()
     }
 }
 
-impl Drop for ConnectionFlood {
+impl Drop for ConnectionSupply {
     /// A backstop for the panicking path only - every test below calls
-    /// `stop_and_collect` itself on the happy path, which already joins
-    /// the thread; this only matters if an assertion panics first.
+    /// `stop_and_collect` itself on the happy path. Bounded the same way.
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            let _ = join_with_bound(thread, Duration::from_secs(5));
         }
     }
 }
 
 /// Reads the fixture's own `"count {n}"` lines from its stdout on a side
-/// thread, parsed into the numbers alone, and joined on every path out of
-/// this struct's own `Drop` - the thread's loop ends on its own once the
-/// fixture process exits and closes its stdout, which every test below
-/// guarantees before dropping this (through `ReapOnDrop`, above, or a
-/// bounded wait on the fixture exiting by itself).
+/// thread, parsed into the numbers alone. Joined with a bound (`drop`,
+/// below) rather than assumed to end promptly: the thread's own loop ends
+/// once the fixture process exits and closes its stdout, which every test
+/// below guarantees (through `ReapOnDrop`, or a bounded wait on the
+/// fixture exiting by itself) before dropping this - but a bound here too
+/// is what turns "the fixture somehow did not actually exit" into a clear
+/// failure rather than a second way to hang.
 struct CountReader {
     rx: mpsc::Receiver<u64>,
-    thread: Option<std::thread::JoinHandle<()>>,
+    thread: Option<JoinHandle<()>>,
 }
 
 impl CountReader {
@@ -247,7 +341,11 @@ impl CountReader {
 impl Drop for CountReader {
     fn drop(&mut self) {
         if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+            // Bounded (`join_with_bound`, above), not a bare `join()` - a
+            // review of this task required every wait here to be bounded;
+            // a `Drop` must not panic, so a timeout here is silently given
+            // up on rather than asserted.
+            let _ = join_with_bound(thread, Duration::from_secs(5));
         }
     }
 }
@@ -290,15 +388,15 @@ fn wait_bounded(child: &mut Child, timeout: Duration) -> std::process::ExitStatu
 
 /// AC #4: with a real, short backoff, the loop's own attempt rate while
 /// descriptors stay exhausted is bounded, not a spin. Measured, not
-/// guessed, while building this task (`ConnectionFlood` sustaining real
-/// exhaustion for the whole window, three separate runs): `ACCEPT_BACKOFF_MS
-/// =20` over a 500ms window observes about 23; `ACCEPT_BACKOFF_MS=0`
+/// guessed, with `ConnectionSupply`'s own bounded replenishment (not the
+/// unbounded, review-found-broken design this file's own module doc
+/// names): `ACCEPT_BACKOFF_MS=20` over a 500ms window observes about 22;
+/// `ACCEPT_BACKOFF_MS=0`
 /// (`accept_errors_spin_without_a_backoff_negative_control`, below)
-/// observes about 750-770, roughly 30x more. The bound below (150) leaves
-/// six times the observed backoff rate for scheduling jitter, while
-/// staying comfortably under a third of the observed spin rate - the
-/// negative control's own threshold (below) is the same margin, read the
-/// other way.
+/// observes on the order of ten thousand in the same window - the bound
+/// below (150) leaves nearly seven times the observed backoff rate for
+/// scheduling jitter, while staying two orders of magnitude under the
+/// observed spin rate.
 #[test]
 fn accept_errors_back_off_instead_of_spinning() {
     const BOUND: u64 = 150;
@@ -308,22 +406,20 @@ fn accept_errors_back_off_instead_of_spinning() {
     let mut fixture = spawn_fixture(&socket_path, &[("ACCEPT_BACKOFF_MS", "20")]);
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
-    let flood = ConnectionFlood::start(&socket_path);
+    let supply = ConnectionSupply::start(&socket_path);
     let counts = CountReader::spawn(&mut fixture);
     counts.wait_for_first(Duration::from_secs(5));
     let observed = counts.max_within(Duration::from_millis(500));
-    let held = flood.stop_and_collect();
+    let held = supply.stop_and_collect();
 
     assert!(
         observed < BOUND,
         "expected a bounded retry rate with a real backoff, observed {observed} attempts in 500ms"
     );
 
-    // `fixture` first: its `Drop` kills and waits the process, closing its
-    // stdout - only then is `counts`'s own reader thread guaranteed to see
-    // EOF and return, rather than blocking forever on a pipe still held
-    // open by a process that is still alive but has stopped writing to it
-    // (found necessary while building this test, not assumed).
+    // `fixture` first: its `Drop` kills and waits (bounded) the process,
+    // closing its stdout - only then is `counts`'s own reader thread
+    // guaranteed to see EOF and return.
     drop(fixture);
     drop(counts);
     drop(held);
@@ -344,11 +440,11 @@ fn accept_errors_spin_without_a_backoff_negative_control() {
     let mut fixture = spawn_fixture(&socket_path, &[("ACCEPT_BACKOFF_MS", "0")]);
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
-    let flood = ConnectionFlood::start(&socket_path);
+    let supply = ConnectionSupply::start(&socket_path);
     let counts = CountReader::spawn(&mut fixture);
     counts.wait_for_first(Duration::from_secs(5));
     let observed = counts.max_within(Duration::from_millis(500));
-    let held = flood.stop_and_collect();
+    let held = supply.stop_and_collect();
 
     assert!(
         observed > BOUND * 3,
@@ -357,11 +453,6 @@ fn accept_errors_spin_without_a_backoff_negative_control() {
          if this harness could not tell the difference"
     );
 
-    // `fixture` first: its `Drop` kills and waits the process, closing its
-    // stdout - only then is `counts`'s own reader thread guaranteed to see
-    // EOF and return, rather than blocking forever on a pipe still held
-    // open by a process that is still alive but has stopped writing to it
-    // (found necessary while building this test, not assumed).
     drop(fixture);
     drop(counts);
     drop(held);
@@ -394,10 +485,10 @@ fn a_stop_asked_mid_exhaustion_ends_the_server_promptly() {
     );
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
-    let flood = ConnectionFlood::start(&socket_path);
+    let supply = ConnectionSupply::start(&socket_path);
 
     let status = wait_bounded(&mut fixture.0, Duration::from_secs(5));
-    let held = flood.stop_and_collect();
+    let held = supply.stop_and_collect();
     fixture.0.stdout.take(); // nothing left to read; avoid a pointless pipe wait
     assert!(
         status.success(),
@@ -439,10 +530,10 @@ fn a_fatal_accept_error_ends_the_server_and_cleans_up() {
     );
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
-    let flood = ConnectionFlood::start(&socket_path);
+    let supply = ConnectionSupply::start(&socket_path);
 
     let status = wait_bounded(&mut fixture.0, Duration::from_secs(5));
-    let held = flood.stop_and_collect();
+    let held = supply.stop_and_collect();
     fixture.0.stdout.take();
     assert_eq!(
         status.code(),

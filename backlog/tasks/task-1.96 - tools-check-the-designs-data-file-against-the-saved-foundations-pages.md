@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T01:05:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.92
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:52:00Z'
+updated_date: '2026-11-16T03:00:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -21,6 +21,8 @@ asdlc_branch: task-1.96-tools-check-the-design-s-data-file
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -286,6 +288,15 @@ created: 2026-11-16T02:39:00Z
 ---
 
 2026-11-15, one more correction to the design, at the engineer's word (he took @bruk.o's recommendation): fill.quiet's description said 'Key caps, progress track, a button under the pointer', but every progress bar and ring in the design's pages is drawn with track and none with fill.quiet (checked across all the pages: 48 bars on track, none on fill.quiet), so 'progress track' was stale. The Tokens page now reads 'Key caps, a button under the pointer'. The artifact's version is now 1794796789-1b13, which supersedes 1794796322-6d8e from the comment above: the page to commit is /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794796789-1b13/Tokens.dc.html , artifact_version is 1794796789-1b13, and fill.quiet's use text in crates/ui/design/foundations.json changes to match. Colour values are unchanged; the data file's diff is the version line and that one description.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:00:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.96: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

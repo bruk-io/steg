@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:38:00Z'
+updated_date: '2026-11-16T00:39:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -935,6 +935,32 @@ test the_client_being_sigkilled_does_not_end_the_server ... ok
 test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+```
+
+Check FAILED: `sh -c 'for i in $(seq 1 15); do cargo test -p steg --features fixtures --test server_start -- started_is_printed_only_after_the_socket_already_accepts || exit 1; done'` exited 1 at 2026-11-16T00:39:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 221ef18c07f7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 1 test
+test started_is_printed_only_after_the_socket_already_accepts ... FAILED
+
+failures:
+
+---- started_is_printed_only_after_the_socket_already_accepts stdout ----
+
+thread 'started_is_printed_only_after_the_socket_already_accepts' (16073789) panicked at crates/steg/tests/server_start.rs:192:5:
+the socket should already accept a connection the instant "started" is printed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    started_is_printed_only_after_the_socket_already_accepts
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p steg --test server_start`
 ```
 <!-- SECTION:NOTES:END -->
 

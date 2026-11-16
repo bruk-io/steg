@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:32:00Z'
+updated_date: '2026-11-16T00:33:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -29,7 +29,7 @@ Piece three of the split of TASK-1.79 (2026-11-15). Depends on the kernel piece 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 When a pane's terminal reports a prompt-marked command starting or ending, the server passes it to the kernel with a clock reading as a Moment, through the same route a program's exit already takes (TASK-1.76's Runtime::apply_event), and pane show and the tab's shown status reflect it
+- [ ] #1 When a pane's terminal reports a prompt-marked command starting or ending, the server passes it to the kernel with a clock reading as a Moment, through the same route a program's exit already takes (TASK-1.76's Runtime::apply_event), in an order in which a mark is never applied after that pane's own exit; the kernel's status for the pane and the tab's shown status reflect it, read through the kernel. Reporting that status over the API (pane show, tab show, tab list) is the follow-up task's
 - [ ] #2 Shown end to end with a real shell in a real pty that emits the marks: a command that succeeds, one that fails, and one still running; and a shell that emits none, where nothing changes
 - [ ] #3 No child is left unreaped and no thread running by anything this adds, and the tests stop the runtime they start
 <!-- AC:END -->
@@ -102,3 +102,15 @@ New tests in `crates/server/src/runtime.rs`'s `#[cfg(test)] mod tests` (not `tes
 <!-- SECTION:NOTES:BEGIN -->
 Carried from TASK-1.83's planning (2026-11-15): pane.show's wire field 'status' is built today from the program's status (running or ended), in crates/server/src/dispatch/pane.rs, not from the display status the kernel now keeps (running, finished, failed, with its ending rules). This task is where the server first has a clock reading to ask the kernel for the display status, so its plan says what pane show and the tab's shown status report over the API, against doc-2 and doc-11, and whether the field's meaning changes or a second field is needed; name any description change for the engineer.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T00:33:00Z
+
+---
+
+Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps passing the marks to the kernel. Reporting the display status over the API moved to a new draft with the list and show methods nobody owned (tab show and tab list are still answered NotImplementedYet, and reading a status needs the clock passed into dispatch, which TASK-1.45 is rewriting now). Criterion 1 reworded to match; criteria 2 and 3 unchanged.
+
+---
+<!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:01:00Z'
+updated_date: '2026-11-16T03:02:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1177,6 +1177,14 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test routing`
 non-101 exits: 0 of 5 (expect 0: every run must fail by its own bound)
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 18 passed"; then fail=$((fail+1)); echo "iteration $i FAILED"; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 0 at 2026-11-16T03:02:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986 with uncommitted changes:
+
+```text
+failures: 0 of 20
 ```
 
 Commits since the review: 0.

@@ -156,25 +156,17 @@ fn new(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome,
 /// `tab.close` (AC #4): refuses while any of the tab's panes has a program
 /// running and `--force` was not given, with `ErrorCode::ProgramRunning`,
 /// touching nothing - the same dispatch-level policy `pane::close` uses,
-/// over every pane the tab holds rather than one.
+/// over every pane the tab holds rather than one. With `--force`, this
+/// always proceeds - see `pane::close`'s own doc for why nothing is left
+/// running by the time this unconditional `tree.close_tab` runs.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_tab(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
 
-    if !force {
-        let any_running = super::find_tab(tree, id)
-            .ok_or_else(|| map_kernel_error(Error::TabNotFound(id)))?
-            .panes()
-            .iter()
-            .any(|pane| {
-                matches!(
-                    pane.program_status(),
-                    Some(steg_sdk::ProgramStatus::Running)
-                )
-            });
-        if any_running {
-            return Err(super::program_running());
-        }
+    if !force
+        && super::any_pane_running(tree, &super::panes_in_close_scope(tree, context, request)?)
+    {
+        return Err(super::program_running());
     }
 
     tree.close_tab(id).map_err(map_kernel_error)?;

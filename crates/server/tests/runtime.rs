@@ -24,6 +24,13 @@ use steg_server::{Context, LoginShell, RealLauncher, Runtime};
 const POLL_TIMEOUT: Duration = Duration::from_secs(20);
 const POLL_INTERVAL: Duration = Duration::from_millis(20);
 
+/// A tiny `force_grace` for every test in this file that does not itself
+/// need a real window to measure against (TASK-1.78 §3) - the AC #4 stall
+/// test builds its own `Runtime` with a deliberately long grace instead
+/// (see that test), since a 30ms window would make "returned before the
+/// window closed" scheduling noise, not evidence.
+const TEST_GRACE: Duration = Duration::from_millis(30);
+
 fn runtime() -> (Runtime, Description) {
     (
         Runtime::new(
@@ -32,6 +39,7 @@ fn runtime() -> (Runtime, Description) {
                 argv0: "/bin/sh".to_string(),
                 home: "/tmp".to_string(),
             },
+            TEST_GRACE,
         ),
         description(),
     )
@@ -419,19 +427,149 @@ fn id_of_session(id: SessionId) -> String {
     id.to_string()
 }
 
+/// Whether a process with this id still exists, reaped or not - the same
+/// `kill -0` probe `crate::pane`'s own tests already use.
+fn process_exists(pid: u32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .unwrap()
+        .success()
+}
+
+/// Starts a session whose program reports its own pid by writing it to a
+/// real file, then `exec`s into `then` - the pid stays the same across
+/// that `exec`, so this is the pid of whatever ends up actually running.
+/// A plain file, not a `PaneEvent`, because the pid itself is the one
+/// thing no event carries - `Exited`, the only variant, is about the
+/// *end* of a run, not its start.
+fn session_with_a_pane_reporting_its_pid(
+    runtime: &Runtime,
+    api: &Description,
+    then: &str,
+) -> (SessionId, TabId, u32) {
+    static UNIQUE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let unique = UNIQUE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let pid_file = std::env::temp_dir().join(format!(
+        "steg-runtime-test-pid-{}-{unique}.pid",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&pid_file);
+
+    let session = ok(runtime.handle(
+        api,
+        &no_context(),
+        &request(
+            "session.new",
+            vec![(
+                "program",
+                json!([
+                    "sh",
+                    "-c",
+                    format!("echo $$ > {} ; exec {then}", pid_file.display())
+                ]),
+            )],
+        ),
+    ));
+    let session_id: SessionId = id_of(&session).parse().unwrap();
+    let shown = ok(runtime.handle(
+        api,
+        &no_context(),
+        &request("session.show", vec![("target", json!(id_of(&session)))]),
+    ));
+    let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
+
+    let pid = poll(|| {
+        std::fs::read_to_string(&pid_file)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+    });
+    let _ = std::fs::remove_file(&pid_file);
+
+    (session_id, tab_id, pid)
+}
+
 #[test]
-fn pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap() {
-    // AC #4: "--force stays as it is today until the forced-close task" -
-    // an unconditional close, touching the program not at all. The
-    // process itself staying alive, orphaned, until it exits on its own
-    // and the stale `PaneHandle` is cleaned up by `apply_event`'s own
-    // `PaneNotFound` handling, is proven at the kernel-access level in
-    // `src/runtime.rs`'s own tests (`apply_event_on_a_pane_the_tree_no_
-    // longer_holds_removes_the_stale_handle_without_panicking`); this
-    // proves the externally-observable half: the tree really does lose
-    // the pane, immediately, through the public API alone.
+fn pane_close_with_force_actually_ends_a_program_producing_output() {
+    // AC #1: a program that is producing output (`yes`), not only a
+    // silent one. The pane's own pid, read back from a real file, is what
+    // proves the *process* ended, not only the tree entry.
     let (runtime, api) = runtime();
-    let (session_id, tab_id) = session_with_a_long_running_pane(&runtime, &api);
+    let (session_id, tab_id, pid) =
+        session_with_a_pane_reporting_its_pid(&runtime, &api, "yes >/dev/null");
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+    assert!(process_exists(pid), "must be running before the force");
+
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "pane.close",
+            vec![("target", json!("1")), ("force", json!(true))],
+        ),
+    ));
+
+    assert!(
+        !process_exists(pid),
+        "the program itself must be ended, not merely orphaned"
+    );
+    let sessions = ok(runtime.handle(&api, &no_context(), &request("session.list", vec![])));
+    assert_eq!(
+        sessions,
+        json!([]),
+        "the pane, its tab and its session (R94) are gone from the tree"
+    );
+}
+
+#[test]
+fn pane_close_with_force_actually_ends_a_silent_program() {
+    // AC #1's other half: a program that prints nothing at all - the
+    // case TASK-1.40 left (a silent program kept the relay blocked in
+    // `read` and the child alive).
+    let (runtime, api) = runtime();
+    let (session_id, tab_id, pid) =
+        session_with_a_pane_reporting_its_pid(&runtime, &api, "sleep 1000");
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+    assert!(process_exists(pid), "must be running before the force");
+
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "pane.close",
+            vec![("target", json!("1")), ("force", json!(true))],
+        ),
+    ));
+
+    assert!(
+        !process_exists(pid),
+        "a silent program must be ended too, not left running because it \
+         never produced output for the relay thread to read"
+    );
+}
+
+#[test]
+fn pane_close_with_force_ends_a_program_that_traps_the_polite_signal() {
+    // AC #2: the escalation, through the public path, not only `pane::
+    // ending_tests`'s own direct-handle version - a program trapping the
+    // polite signal is still ended, by the stated bound.
+    let (runtime, api) = runtime();
+    let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
+        &runtime,
+        &api,
+        "sh -c \"trap '' HUP; touch /tmp/steg-trap-ready-marker-$$ ; exec sleep 1000\"",
+    );
+    let marker = format!("/tmp/steg-trap-ready-marker-{pid}");
+    poll(|| std::path::Path::new(&marker).exists().then_some(()));
+    let _ = std::fs::remove_file(&marker);
     let context = Context {
         default_session: Some(session_id),
         default_tab: Some(tab_id),
@@ -447,11 +585,748 @@ fn pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stat
         ),
     ));
 
-    // The pane (and, since it was the tab's only one, the tab and the
-    // session too, R94) is gone - closing something already closed is
-    // `NoSuchTarget`/an empty list, never a lingering `ProgramRunning`.
+    assert!(
+        !process_exists(pid),
+        "a program trapping the polite signal must still be ended, by escalating"
+    );
+}
+
+#[test]
+fn a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_regression() {
+    // TASK-1.78's review, finding 1: a flooding program's own real exit,
+    // arriving naturally during the grace window, must not be
+    // misclassified as "still running" purely because its own backlog
+    // of `PtyBytes` has not drained through the worker's queue yet -
+    // which would otherwise cause a pointless `SIGKILL` and an extra
+    // `ESCALATE_CONFIRM_TIMEOUT` wait (2s) on top of the grace period
+    // itself. A deliberately long grace (3s) is what makes "it returned
+    // promptly" a meaningful assertion rather than noise under the
+    // *fixed* mechanism - but the review's second round found this is
+    // not a proof: it still passes with `await_exit` routed back through
+    // the worker's own queue, because the kernel's own pty buffer
+    // throttles the writing shell well before a 20,000-line flood builds
+    // the backlog this bug actually needs (confirmed by hand, recorded as
+    // a check at the time, not hidden). A real, deterministic proof needs
+    // a backlog this task does not depend on any OS buffering to build,
+    // which is what `pane::ending_tests::await_exit_is_not_delayed_by_a_
+    // backlog_on_the_workers_own_queue` (two separate handles, a real
+    // 1,000,000-item backlog built directly through the handle's own
+    // `send_input`) does instead - *that* test is this mechanism's actual
+    // proof, with its own recorded negative control; this one is kept as
+    // a realistic end-to-end regression only, named for exactly that.
+    let grace = Duration::from_secs(3);
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        grace,
+    );
+    let api = description();
+    // Floods a real backlog (20,000 lines through the pty, not a file -
+    // confirmed by hand to take well under a second for a shell's own
+    // builtin loop+echo) then exits on its own with a distinct code,
+    // never signalled by this task's own mechanism at all.
+    let session = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request(
+            "session.new",
+            vec![(
+                "program",
+                json!([
+                    "sh",
+                    "-c",
+                    "i=0; while [ $i -lt 20000 ]; do echo xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done; exit 7"
+                ]),
+            )],
+        ),
+    ));
+    let session_id: SessionId = id_of(&session).parse().unwrap();
+    let shown = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request("session.show", vec![("target", json!(id_of(&session)))]),
+    ));
+    let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    let start = std::time::Instant::now();
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "pane.close",
+            vec![("target", json!("1")), ("force", json!(true))],
+        ),
+    ));
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < Duration::from_millis(1500),
+        "force-closing a flooding program that had already exited on its \
+         own took {elapsed:?} - close to the grace ({grace:?}) plus the \
+         escalation-confirm margin would mean it was misclassified as a \
+         straggler and needlessly killed"
+    );
+}
+
+#[test]
+fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
+    // Brief item 4: several running panes at once, over one *shared*
+    // grace window, not one per pane. Every one of the four panes traps
+    // the polite signal, so every one needs the escalation - a serial
+    // "signal, wait the whole grace, escalate" loop would cost roughly
+    // `4 * grace` at minimum; a shared window costs roughly one `grace`
+    // regardless of how many panes. The grace here (500ms) is
+    // deliberately real, not `TEST_GRACE`'s usual 30ms: a bound tight
+    // enough to separate "one window" from "four windows" needs a
+    // window wide enough that scheduling noise cannot close the gap.
+    let grace = Duration::from_millis(500);
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        grace,
+    );
+    let api = description();
+
+    // The marker file's own content is the pid (`echo $$`, not a bare
+    // `touch`) - one file doubles as both "the trap is installed" and
+    // "this is who to check for afterward", with no second file needed.
+    fn trapping_pane_program(ready: &std::path::Path) -> Vec<String> {
+        vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            format!(
+                "trap '' HUP; echo $$ > {} ; exec sleep 1000",
+                ready.display()
+            ),
+        ]
+    }
+    fn ready_marker(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "steg-tab-close-ready-{}-{tag}.marker",
+            std::process::id()
+        ))
+    }
+
+    let first_ready = ready_marker("0");
+    let _ = std::fs::remove_file(&first_ready);
+    let session = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request(
+            "session.new",
+            vec![("program", json!(trapping_pane_program(&first_ready)))],
+        ),
+    ));
+    let session_id: SessionId = id_of(&session).parse().unwrap();
+    let shown = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request("session.show", vec![("target", json!(id_of(&session)))]),
+    ));
+    let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    // Three more panes in the same tab, each its own real program,
+    // trapping the polite signal too - `tab.close --force` has to end
+    // all four, every one by escalating.
+    let mut readies = vec![first_ready];
+    for i in 1..4 {
+        let ready = ready_marker(&i.to_string());
+        let _ = std::fs::remove_file(&ready);
+        ok(runtime.handle(
+            &api,
+            &context,
+            &request(
+                "pane.split",
+                vec![
+                    ("target", json!("1")),
+                    ("direction", json!("right")),
+                    ("program", json!(trapping_pane_program(&ready))),
+                ],
+            ),
+        ));
+        readies.push(ready);
+    }
+    // Every pane must have reached its own trap+marker before forcing,
+    // the same race `pane::ending_tests`' own trapping test found and
+    // fixed the same way - and each marker's own content is that pane's
+    // real pid, read back for the dead-afterward check below.
+    let pids: Vec<u32> = readies
+        .iter()
+        .map(|ready| {
+            let pid = poll(|| {
+                std::fs::read_to_string(ready)
+                    .ok()
+                    .and_then(|text| text.trim().parse().ok())
+            });
+            let _ = std::fs::remove_file(ready);
+            pid
+        })
+        .collect();
+
+    let start = std::time::Instant::now();
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "tab.close",
+            vec![
+                ("target", json!(tab_id.to_string())),
+                ("force", json!(true)),
+            ],
+        ),
+    ));
+    let elapsed = start.elapsed();
+
+    assert!(
+        elapsed < grace * 2,
+        "ending four trapping panes at once took {elapsed:?}, more than \
+         twice one grace window ({grace:?}) - the bound this task's own \
+         force_end gives is one shared window regardless of pane count, \
+         not `panes * grace`, which four of them would already exceed \
+         on its own ({:?})",
+        grace * 4
+    );
+    for pid in &pids {
+        assert!(
+            !process_exists(*pid),
+            "pane with pid {pid} must actually be dead, not only removed from the tree"
+        );
+    }
+    let sessions = ok(runtime.handle(&api, &no_context(), &request("session.list", vec![])));
+    assert_eq!(
+        sessions,
+        json!([]),
+        "the whole session closed with the tab (R94)"
+    );
+}
+
+#[test]
+fn session_close_with_force_ends_every_pane_of_every_tab() {
+    // `session.close` itself, directly - `tab.close`'s own test above
+    // already proves the one-grace-window bound this task's own
+    // `force_end` gives either method; this proves `session.close`'s own
+    // dispatch arm reaches the same `close_and_dispatch` wrapper, over a
+    // session with two tabs, not only one.
+    let (runtime, api) = runtime();
+    let (session_id, tab_id, first_pid) =
+        session_with_a_pane_reporting_its_pid(&runtime, &api, "sleep 1000");
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+    let pid_file = std::env::temp_dir().join(format!(
+        "steg-runtime-test-pid-second-tab-{}.pid",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_file(&pid_file);
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "tab.new",
+            vec![(
+                "program",
+                json!([
+                    "sh",
+                    "-c",
+                    format!("echo $$ > {} ; exec sleep 1000", pid_file.display())
+                ]),
+            )],
+        ),
+    ));
+    let second_pid: u32 = poll(|| {
+        std::fs::read_to_string(&pid_file)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+    });
+    let _ = std::fs::remove_file(&pid_file);
+    assert!(process_exists(first_pid));
+    assert!(process_exists(second_pid));
+
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request(
+            "session.close",
+            vec![
+                ("target", json!(id_of_session(session_id))),
+                ("force", json!(true)),
+            ],
+        ),
+    ));
+
+    assert!(!process_exists(first_pid));
+    assert!(!process_exists(second_pid));
     let sessions = ok(runtime.handle(&api, &no_context(), &request("session.list", vec![])));
     assert_eq!(sessions, json!([]));
+}
+
+#[test]
+fn pane_close_on_an_already_ended_pane_succeeds_without_force() {
+    // A plain close (no `--force`) of a pane whose program had already
+    // ended must succeed, not refuse - `ProgramRunning` only fires while
+    // something genuinely is. This is the externally-observable half;
+    // the idle-handle fix itself (TASK-1.78 §5, item 2 - a stale
+    // `PaneHandle` and its worker thread, never visible through this
+    // public API) is proven at the kernel-access level instead, in
+    // `src/runtime.rs`'s own `#[cfg(test)]` module, where `state.panes`
+    // can actually be read (DRAFT-1: this test's own assertions below
+    // would pass identically with or without that fix, so it is not
+    // offered as proof of it).
+    let (runtime, api) = runtime();
+    let session = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request(
+            "session.new",
+            vec![("program", json!(["sh", "-c", "exit 0"]))],
+        ),
+    ));
+    let session_id: SessionId = id_of(&session).parse().unwrap();
+    let shown = ok(runtime.handle(
+        &api,
+        &no_context(),
+        &request("session.show", vec![("target", json!(id_of(&session)))]),
+    ));
+    let tab_id: TabId = shown["current_tab"].as_str().unwrap().parse().unwrap();
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+    // Waits for the real exit first (R97: a command pane stays), so the
+    // program is genuinely `Ended`, not merely assumed to be by now.
+    poll(|| {
+        let shown = ok(runtime.handle(
+            &api,
+            &context,
+            &request("pane.show", vec![("target", json!("1"))]),
+        ));
+        // TASK-1.89 renamed the clock-free fact this polls for to
+        // `program_status` (`status` is now doc-11's richer value,
+        // typed `Status`, which has no `"ended"` word at all).
+        (shown["program_status"] == json!("ended")).then_some(())
+    });
+
+    // No `--force` needed - nothing is running, so this is the *plain*
+    // close path, not the forced one, which is exactly the case the gap
+    // was in.
+    ok(runtime.handle(
+        &api,
+        &context,
+        &request("pane.close", vec![("target", json!("1"))]),
+    ));
+
+    let sessions = ok(runtime.handle(&api, &no_context(), &request("session.list", vec![])));
+    assert_eq!(sessions, json!([]));
+}
+
+#[test]
+fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
+    // AC #4's second clause, in full (TASK-1.78 §6): not only a second
+    // `--force`, but *any* method naming the pane being forced - proven
+    // with a deliberately long grace (see this test's own `runtime`, not
+    // the shared tiny `TEST_GRACE`) and a trapping program, so the window
+    // is wide enough for "refused at once, not after the grace" to be
+    // real evidence rather than scheduling noise.
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        Duration::from_secs(5),
+    );
+    let api = description();
+    let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
+        &runtime,
+        &api,
+        "sh -c \"trap '' HUP; touch /tmp/steg-unreachable-ready-$$ ; exec sleep 1000\"",
+    );
+    let marker = format!("/tmp/steg-unreachable-ready-{pid}");
+    poll(|| std::path::Path::new(&marker).exists().then_some(()));
+    let _ = std::fs::remove_file(&marker);
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    let runtime = std::sync::Arc::new(runtime);
+    let forcing_context = context;
+    let forced_runtime = std::sync::Arc::clone(&runtime);
+    let forcing = std::thread::spawn(move || {
+        forced_runtime.handle(
+            &description(),
+            &forcing_context,
+            &request(
+                "pane.close",
+                vec![("target", json!("1")), ("force", json!(true))],
+            ),
+        )
+    });
+
+    // Give the forcing thread a moment to acquire the lock and start the
+    // close - not a proof of ordering by itself (the second assertion
+    // below, which checks the *response*, is), just enough that this
+    // request is reasonably likely to land mid-force rather than before
+    // it starts at all.
+    std::thread::sleep(Duration::from_millis(50));
+    let during = std::time::Instant::now();
+    let meanwhile = runtime.handle(
+        &api,
+        &context,
+        &request("pane.show", vec![("target", json!("1"))]),
+    );
+    let elapsed = during.elapsed();
+
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "a request for the pane being forced took {elapsed:?} - it must be \
+         refused at once (the pane is already gone, close-first), never \
+         stalled for the grace window"
+    );
+    assert!(
+        matches!(meanwhile, Response::Error(_)),
+        "the pane being forced must be unreachable, not shown as if nothing \
+         were happening"
+    );
+
+    forcing.join().unwrap();
+    assert!(!process_exists(pid));
+}
+
+/// TASK-1.78's review, finding 2: AC #4's "unreachable by any method"
+/// guarantee was claimed for every method but tested only for
+/// `pane.show` and a second `--force` - this covers every other method
+/// that can name a pane: a plain `pane.close` (no `--force`), `pane.
+/// split` (names an existing pane as its own source - the review's own
+/// nit), `pane.swap`, `pane.move`, `pane.set`, `pane.unset`, `pane.
+/// focus`. `pane.resize`/`pane.send`/`pane.capture`/`pane.wait` are left
+/// out - not implemented yet (`dispatch/pane.rs`'s own `not_implemented_
+/// yet` arms), so there is nothing here to prove unreachable. One
+/// parameterised test, not seven separate ones, so a failure names the
+/// method that let the forced pane through.
+#[test]
+fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        Duration::from_secs(5),
+    );
+    let api = description();
+    let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
+        &runtime,
+        &api,
+        "sh -c \"trap '' HUP; touch /tmp/steg-method-coverage-ready-$$ ; exec sleep 1000\"",
+    );
+    let marker = format!("/tmp/steg-method-coverage-ready-{pid}");
+    poll(|| std::path::Path::new(&marker).exists().then_some(()));
+    let _ = std::fs::remove_file(&marker);
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    let runtime = std::sync::Arc::new(runtime);
+    let forcing_context = context;
+    let forced_runtime = std::sync::Arc::clone(&runtime);
+    let forcing = std::thread::spawn(move || {
+        forced_runtime.handle(
+            &description(),
+            &forcing_context,
+            &request(
+                "pane.close",
+                vec![("target", json!("1")), ("force", json!(true))],
+            ),
+        )
+    });
+    std::thread::sleep(Duration::from_millis(50));
+
+    let probes: Vec<(&str, Vec<(&str, Value)>)> = vec![
+        ("pane.close", vec![("target", json!("1"))]),
+        (
+            "pane.split",
+            vec![("target", json!("1")), ("direction", json!("right"))],
+        ),
+        (
+            "pane.swap",
+            vec![("target", json!("1")), ("with", json!("2"))],
+        ),
+        (
+            "pane.move",
+            vec![("target", json!("1")), ("to", json!("1"))],
+        ),
+        (
+            "pane.set",
+            vec![("target", json!("1")), ("label", json!("x"))],
+        ),
+        (
+            "pane.unset",
+            vec![("target", json!("1")), ("label", json!(true))],
+        ),
+        ("pane.focus", vec![("target", json!("1"))]),
+    ];
+    for (method, params) in probes {
+        let during = std::time::Instant::now();
+        let response = runtime.handle(&api, &context, &request(method, params));
+        let elapsed = during.elapsed();
+
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "{method} against a pane being forced took {elapsed:?} - it \
+             must be refused at once, never stalled for the grace window"
+        );
+        assert!(
+            matches!(response, Response::Error(_)),
+            "{method} must find the pane being forced unreachable, not \
+             act on it as if nothing were happening"
+        );
+    }
+
+    forcing.join().unwrap();
+    assert!(!process_exists(pid));
+}
+
+/// The same guarantee, for a tab being forced: `tab.close` (plain), `tab.
+/// move`, `tab.set`, `tab.unset`, `tab.focus`. `tab.list`/`tab.show` are
+/// left out - not implemented yet.
+#[test]
+fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        Duration::from_secs(5),
+    );
+    let api = description();
+    let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
+        &runtime,
+        &api,
+        "sh -c \"trap '' HUP; touch /tmp/steg-tab-coverage-ready-$$ ; exec sleep 1000\"",
+    );
+    let marker = format!("/tmp/steg-tab-coverage-ready-{pid}");
+    poll(|| std::path::Path::new(&marker).exists().then_some(()));
+    let _ = std::fs::remove_file(&marker);
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    let runtime = std::sync::Arc::new(runtime);
+    let forcing_context = context;
+    let forced_runtime = std::sync::Arc::clone(&runtime);
+    let forcing = std::thread::spawn(move || {
+        forced_runtime.handle(
+            &description(),
+            &forcing_context,
+            &request(
+                "tab.close",
+                vec![("target", json!("1")), ("force", json!(true))],
+            ),
+        )
+    });
+    std::thread::sleep(Duration::from_millis(50));
+
+    let probes: Vec<(&str, Vec<(&str, Value)>)> = vec![
+        ("tab.close", vec![("target", json!("1"))]),
+        ("tab.move", vec![("target", json!("1")), ("to", json!("1"))]),
+        (
+            "tab.set",
+            vec![("target", json!("1")), ("label", json!("x"))],
+        ),
+        (
+            "tab.unset",
+            vec![("target", json!("1")), ("label", json!(true))],
+        ),
+        ("tab.focus", vec![("target", json!("1"))]),
+    ];
+    for (method, params) in probes {
+        let during = std::time::Instant::now();
+        let response = runtime.handle(&api, &context, &request(method, params));
+        let elapsed = during.elapsed();
+
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "{method} against a tab being forced took {elapsed:?} - it \
+             must be refused at once, never stalled for the grace window"
+        );
+        assert!(
+            matches!(response, Response::Error(_)),
+            "{method} must find the tab being forced unreachable, not \
+             act on it as if nothing were happening"
+        );
+    }
+
+    forcing.join().unwrap();
+    assert!(!process_exists(pid));
+}
+
+/// The same guarantee, for a session being forced: `session.close`
+/// (plain), `session.show`, `session.move`, `session.set`, `session.
+/// unset`. `session.focus` is left out - not implemented yet.
+#[test]
+fn a_session_being_forced_is_unreachable_by_every_method_that_can_name_it() {
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        Duration::from_secs(5),
+    );
+    let api = description();
+    let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
+        &runtime,
+        &api,
+        "sh -c \"trap '' HUP; touch /tmp/steg-session-coverage-ready-$$ ; exec sleep 1000\"",
+    );
+    let marker = format!("/tmp/steg-session-coverage-ready-{pid}");
+    poll(|| std::path::Path::new(&marker).exists().then_some(()));
+    let _ = std::fs::remove_file(&marker);
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+
+    let runtime = std::sync::Arc::new(runtime);
+    let forcing_context = context;
+    let forced_runtime = std::sync::Arc::clone(&runtime);
+    let forcing = std::thread::spawn(move || {
+        forced_runtime.handle(
+            &description(),
+            &forcing_context,
+            &request(
+                "session.close",
+                vec![("target", json!("1")), ("force", json!(true))],
+            ),
+        )
+    });
+    std::thread::sleep(Duration::from_millis(50));
+
+    let probes: Vec<(&str, Vec<(&str, Value)>)> = vec![
+        ("session.close", vec![("target", json!("1"))]),
+        ("session.show", vec![("target", json!("1"))]),
+        (
+            "session.move",
+            vec![("target", json!("1")), ("position", json!(1))],
+        ),
+        (
+            "session.set",
+            vec![("target", json!("1")), ("label", json!("x"))],
+        ),
+        (
+            "session.unset",
+            vec![("target", json!("1")), ("label", json!(true))],
+        ),
+    ];
+    for (method, params) in probes {
+        let during = std::time::Instant::now();
+        let response = runtime.handle(&api, &context, &request(method, params));
+        let elapsed = during.elapsed();
+
+        assert!(
+            elapsed < Duration::from_secs(1),
+            "{method} against a session being forced took {elapsed:?} - \
+             it must be refused at once, never stalled for the grace \
+             window"
+        );
+        assert!(
+            matches!(response, Response::Error(_)),
+            "{method} must find the session being forced unreachable, \
+             not act on it as if nothing were happening"
+        );
+    }
+
+    forcing.join().unwrap();
+    assert!(!process_exists(pid));
+}
+
+#[test]
+fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
+    // AC #4's own single-remover invariant, proven under real
+    // concurrency: two threads force the same pane at once - exactly one
+    // of them actually ends the program (the other's own call either
+    // lands first and does the real work, or lands second and finds the
+    // pane already gone) - never both signalling or both closing. Stated
+    // plainly, not overclaimed (DRAFT-1): this holds because
+    // `close_and_dispatch` runs the whole of `panes_in_close_scope` +
+    // `dispatch::dispatch` under one `Mutex`, which already serialises
+    // the two callers regardless of close-first versus the first draft's
+    // own force-before-close order - it is `a_pane_being_forced_is_
+    // unreachable_by_another_request_meanwhile`'s own stall assertion,
+    // not this one, that close-first's negative control (§9) actually
+    // moves. This test still earns its place: the Mutex giving mutual
+    // exclusion is exactly what AC #4's "never both" needs, and nothing
+    // here depends on which lock-holding order produces it.
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        Duration::from_secs(2),
+    );
+    let (session_id, tab_id, pid) =
+        session_with_a_pane_reporting_its_pid(&runtime, &description(), "sleep 1000");
+    let context = Context {
+        default_session: Some(session_id),
+        default_tab: Some(tab_id),
+        default_pane: Some(PaneId::from_raw(0)),
+    };
+    let runtime = std::sync::Arc::new(runtime);
+
+    let mut threads = Vec::new();
+    for _ in 0..2 {
+        let runtime = std::sync::Arc::clone(&runtime);
+        threads.push(std::thread::spawn(move || {
+            runtime.handle(
+                &description(),
+                &context,
+                &request(
+                    "pane.close",
+                    vec![("target", json!("1")), ("force", json!(true))],
+                ),
+            )
+        }));
+    }
+    let results: Vec<_> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+
+    let ok_count = results
+        .iter()
+        .filter(|r| matches!(r, Response::Ok(_)))
+        .count();
+    assert_eq!(
+        ok_count, 1,
+        "exactly one of the two concurrent forces must perform the real \
+         close; the other must find the pane already gone"
+    );
+    assert!(!process_exists(pid));
 }
 
 // --- Review finding 1: api.call must start a program too ------------------

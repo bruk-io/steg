@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:17:00Z'
+updated_date: '2026-11-16T14:19:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -292,6 +292,39 @@ warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg` (lib test) due to 1 previous error
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:19:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 1f528db67cb1 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (15.6s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (32.2s)
+ok      test (steg-server) (11.3s)
+ok      test (steg-server, race-fixture) (11.7s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.2s)
+ok      test (steg, fixtures) (6.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

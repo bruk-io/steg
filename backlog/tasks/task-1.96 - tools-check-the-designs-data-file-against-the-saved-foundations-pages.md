@@ -1,14 +1,13 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:50:00Z'
+updated_date: '2026-11-16T03:55:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -439,6 +438,24 @@ ok      recipe names (0.0s)
 ```
 
 Commits since the review: 39, 38 without the Asdlc-Worker trailer.
+
+Review finding (@bruk.r5, 1 Important) addressed: unaccounted_names enumerated themes[]/focus_ring leaf keys from a fixed field tuple, never from the data file's own keys. The reviewer's own reproduction (focus_ring["glow"]=3, themes[0]["underline"]="#fff" on a scratch copy) printed "ok" and exited 0, silently missing both.
+
+Fixed: unaccounted_names rewritten to walk the parsed JSON generically (_leaf_paths): a dict's keys become path.key (skipping a small universal set - name/use/unit/ansi/artifact_version/artifact_url - never a per-section list); a list of dicts each carrying their own "name" is a list of named entries, recursing into each (_entry_path also handles motion's self-prefixed names generically, not as a special case); anything else reached this way is one leaf. A leaf is accounted for if it equals, or is a dotted descendant of, some registered name (_is_accounted_for) - a descendant is accounted for because the checking function that name stands for already recurses the whole value (_numbers_in sees every number under e.g. sizes.nav.side), so nothing numeric there goes uninspected; a new non-numeric field added the same way is a known, accepted gap, now stated in crates/ui/design/README.md, not a silent one.
+
+Consequences: the five themes[].X wildcard skip entries became ten per-instance entries (themes.steg dark.bg, themes.steg light.bg, etc.) - a generic walk can't collapse two theme instances into one pattern without the per-section special-casing the finding rejects. ramps.ramp.caption_opacity became unreachable (its parent ramps.ramp already covers it via the prefix rule) and was folded into that entry's reason text rather than left dead.
+
+"Inside a size's group" (one of the team lead's listed test levels) is read as: a new numeric field inside an already-checked whole value (e.g. sizes.nav.side) is accounted for by its covering ancestor, per the _numbers_in reasoning above - this is a chosen reading, not something the literal review reproduced (which covered only themes[]/focus_ring), flagged as such rather than assumed. Tested explicitly both ways (the numeric case not refused; the non-numeric case documented as a known gap, also not refused).
+
+Checks (recorded on the task):
+- Negative control, recorded not claimed: a scratch script (/private/tmp/.../task-1.96-old-unaccounted-names-negative-control.py) runs a verbatim copy of the pre-fix implementation against the real data file with both of the reviewer's mutations applied - exits 1, printing that it silently missed both, confirming the bug before the fix.
+- Unit+adapter: 60 tests (up from 50) - new: the reviewer's own two reproductions re-run directly against the real file; one test per nesting level (top-level key, directly inside sizes, inside a theme, inside focus_ring, a new list entry); the numeric/non-numeric "inside a group" pair; two property-style tests over every real leaf path of the current file (split by checked vs declared-unseen), each confirming that removing a registry entry which alone covers a leaf makes that leaf show up named.
+- just check at the merged final head (320b9d7), after fetching and merging origin/main (branch already pushed) - clean, no conflicts; TASK-1.93/1.94/1.97 still hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs.
+- CI green on PR 54 at head 320b9d7: gh pr checks 54 --watch, check passed in 3m58s.
+
+Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked) - only the printed reasons for ramps.ramp (folds in caption_opacity) and the themes lines (now per-instance) changed; full text in the PR description.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head 320b9d7, CI green).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

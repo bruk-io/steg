@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:11:00Z'
+updated_date: '2026-11-16T15:12:00Z'
 labels:
   - size-4
   - changes-requested
@@ -418,6 +418,18 @@ Checks recorded on the task via asdlc record-check: just check green at every st
 Tests, all through the real binary or the built tree directly, never this machine's own server: tests/cli_drift.rs (criterion #1, a set comparison never a method count, both directions, with negative controls proving it catches a missing/extra command), tests/cli_no_server.rs (criterion #3, with a real listener bound at STEG_SOCKET_PATH proving these commands never attempt a connection, not merely that they happen to succeed anyway), tests/cli_run_placeholder.rs (criterion #4, every described method - server.start excluded as the hand-written exception already proved by tests/server_start.rs). All pre-existing tests (server_start.rs, login_environment.rs, dispatch.rs, runtime.rs, the sdk's own description tests) still pass unchanged.
 
 CI on the PR is green (just check, ~6m30s).
+
+Check FAILED: `just check-boundaries` exited 1 at 2026-11-16T15:12:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg depends on clap, which is not on its allow list in boundaries.toml (the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own; serde_json is here only for TASK-1.87's own end-to-end fixture binary (crates/steg/tests/fixtures/env_leak_client.rs), which builds a session.new request's params the same way crates/server/tests/routing.rs already does - a fixture is a [[bin]] target, which only ever sees [dependencies], never [dev-dependencies] - crates/steg/src/main.rs itself never imports it; clap and clap_complete (TASK-1.49) build the CLI's whole command tree at run time from steg-sdk's own API description (decision-1 sections 2, 6 and 7: nothing names a method, a flag or a value kind by hand) - clap's builder API, never its derive feature, so no proc-macro or Unicode-3.0 dependency is pulled in beyond what the workspace's own serde_derive already needs; clap_complete generates the completion subcommand's shell scripts from that same tree).
+steg depends on clap_complete, which is not on its allow list in boundaries.toml (the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own; serde_json is here only for TASK-1.87's own end-to-end fixture binary (crates/steg/tests/fixtures/env_leak_client.rs), which builds a session.new request's params the same way crates/server/tests/routing.rs already does - a fixture is a [[bin]] target, which only ever sees [dependencies], never [dev-dependencies] - crates/steg/src/main.rs itself never imports it; clap and clap_complete (TASK-1.49) build the CLI's whole command tree at run time from steg-sdk's own API description (decision-1 sections 2, 6 and 7: nothing names a method, a flag or a value kind by hand) - clap's builder API, never its derive feature, so no proc-macro or Unicode-3.0 dependency is pulled in beyond what the workspace's own serde_derive already needs; clap_complete generates the completion subcommand's shell scripts from that same tree).
+full output: .quiet/boundaries.log
+error: recipe `check-boundaries` failed on line 161 with exit code 1
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

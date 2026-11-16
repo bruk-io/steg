@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T17:48:00Z'
+updated_date: '2026-11-16T17:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -347,6 +347,45 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach typed_bytes_reach_a_real_program_in_order` exited 101 at 2026-11-16T17:52:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+warning: method `send_input` is never used
+   --> crates/server/src/runtime.rs:590:19
+    |
+244 | impl Runtime {
+    | ------------ method in this implementation
+...
+590 |     pub(crate) fn send_input(&self, client: ClientId, pane: PaneId, bytes: Vec<u8>) {
+    |                   ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test typed_bytes_reach_a_real_program_in_order ... FAILED
+
+failures:
+
+---- typed_bytes_reach_a_real_program_in_order stdout ----
+
+thread 'typed_bytes_reach_a_real_program_in_order' (44720435) panicked at crates/server/tests/attach.rs:445:30:
+the server closed before an update arrived
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    typed_bytes_reach_a_real_program_in_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 <!-- SECTION:NOTES:END -->
 

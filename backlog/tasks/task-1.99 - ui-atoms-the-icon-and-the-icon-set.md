@@ -1,11 +1,10 @@
 ---
 id: TASK-1.99
 title: 'ui atoms: the icon, and the icon set'
-status: In Progress
-assignee:
-  - '@bruk.w7'
+status: To Do
+assignee: []
 created_date: '2026-11-16T02:45:00Z'
-updated_date: '2026-11-16T13:51:00Z'
+updated_date: '2026-11-16T14:02:00Z'
 labels:
   - size-3
 milestone: m-4

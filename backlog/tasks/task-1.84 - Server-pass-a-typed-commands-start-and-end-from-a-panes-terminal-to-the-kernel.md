@@ -3,14 +3,13 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:53:00Z'
+updated_date: '2026-11-16T01:58:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -695,6 +694,20 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 48, 48 without the Asdlc-Worker trailer.
+
+Second review's findings fixed (review by @bruk.r2, 2026-11-16):
+
+Important: the sibling-shell-pane-plus-sleep design from the first fix still only inferred that the command pane's own marks had landed - two panes are two workers, with nothing ordering one worker's send against the other's, so under load a broken guard could still pass. Replaced with State::applied_marks, a per-pane count kept under #[cfg(test)] only and incremented inside apply_event_locked itself - the one fact that is true exactly when this pane's own two marks have been applied by the runtime, read under the same lock apply_event_locked holds while updating it, so observing the count means that call has already fully returned, not that a sleep has merely elapsed. (The increment itself is behind an item-level #[cfg(test)]/#[cfg(not(test))] function split, not a #[cfg(test)] on the statement itself - that form is unstable on expressions, confirmed by the compiler error it produced.) The test now waits on that count reaching 2, bounded, before asserting Running; the sibling pane and its sleep are both gone.
+
+Why the wait cannot be satisfied early: the count for this pane is only ever incremented inside apply_event_locked's own CommandOutputStarted/CommandEnded arms, under the same State lock the test's own poll acquires - there is no way for the test to observe count == 2 before the runtime has fully applied (called into the kernel for) both of this pane's own marks, and no other pane's events can advance this pane's own count, since the map is keyed per pane.
+
+Two negative controls run, confirmed failing, and restored, each recorded with asdlc record-check: the kernel's command-pane guard bypassed in both Pane::note_command_output_started and note_command_ended (crates/kernel/src/pane.rs) - the test fails, reading Failed{exit_code: 3} where it must read Running; the mark drain removed again in crates/server/src/pane.rs - the test fails by its own bounded wait on the count, which never reaches 2 (times out at 20s, last seen 0). Run 30 times after the fix with no flakiness (recorded as a batch, not individually).
+
+Nit (prior review): already fixed in the previous round - the mark-for-a-pane-already-gone test's comment describes what it stands for rather than naming TASK-1.78.
+
+Checks recorded since this review: the fixed test alone (exit 0); 30 repeated runs with no flakiness; the guard-bypassed control (exit 101, confirmed failing, restored); the drain-removed control (exit 101, confirmed failing by its own bounded wait, restored); the full runtime::tests suite (18 tests, exit 0) after restoring both; a full `just check` (exit 0) at the merged head.
+
+origin/main moved while this was in flight - fetched and merged (git merge --no-edit, branch already pushed): every incoming commit was board-only (backlog/ task and draft updates, review and check records, a new tools task); no crates/ file touched. TASK-1.78 (forced close) remains In Progress. `just check` was re-recorded clean at the merged, pushed head (a0df2aa), and CI is green on that same head.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

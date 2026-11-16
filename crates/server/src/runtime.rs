@@ -930,6 +930,45 @@ mod tests {
         assert!(!login.home.is_empty());
     }
 
+    /// What a panic inside one connection's call to `Runtime::handle`
+    /// (TASK-1.45 §5) actually rests on: `Runtime::lock`'s own existing
+    /// `unwrap_or_else(PoisonError::into_inner)`. Proved directly, one
+    /// layer down from a real connection (which this task adds no
+    /// deliberate panic-injection hook to simulate end-to-end, the same
+    /// reasoning TASK-1.44's review gave for rejecting a shipped
+    /// test-only hook): poison the lock for real, on another thread, then
+    /// confirm a subsequent call through the public `Runtime::handle`
+    /// still succeeds rather than hanging or propagating the poison.
+    #[test]
+    fn a_panic_while_holding_the_lock_does_not_poison_a_later_call() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+
+        let state_handle = std::sync::Arc::clone(&runtime.state);
+        let panicked = std::thread::spawn(move || {
+            let _guard = state_handle.lock().unwrap();
+            panic!("a bug inside a request handler, simulated for this test");
+        })
+        .join();
+        assert!(panicked.is_err(), "the spawned thread really did panic while holding the lock");
+
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+        let response = runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "session.list".to_string(),
+                params: serde_json::Map::new(),
+            },
+        );
+        match response {
+            steg_sdk::Response::Ok(value) => assert_eq!(value, serde_json::json!([])),
+            steg_sdk::Response::Error(error) => {
+                panic!("expected Ok after recovering from the poison, got {error:?}")
+            }
+        }
+    }
+
     #[test]
     fn runtime_new_does_not_panic_and_starts_empty() {
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());

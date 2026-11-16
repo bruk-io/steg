@@ -243,11 +243,24 @@ fn malformed_hello_reply(reason: String) -> Vec<u8> {
 /// once, right after the writer is spawned and the client is minted, and
 /// holding it for the rest of the function, is what makes every exit
 /// path still clean up - even one this function's own code never
-/// explicitly names - rather than leaving the writer thread blocked on
-/// its condvar forever and the client stuck in the tree.
+/// explicitly names - rather than leaving the writer thread blocked
+/// forever and the client stuck in the tree.
+///
+/// **`shutdown_handle.shutdown(Both)` runs before `writer.join()`, not
+/// just `outbound.close()`** - found necessary while testing this: a
+/// client that keeps sending requests while never reading any reply
+/// fills the OS socket's own send buffer, not only `Outbound`'s queue,
+/// so the writer thread can be blocked *inside* `write_all` itself, on a
+/// buffer that will never drain - a case `outbound.close()`'s own
+/// condvar `notify` does nothing for, since the writer is not waiting on
+/// it. `shutdown`, called on a cloned handle to the same underlying
+/// socket (the same mechanism `listen.rs`'s own `shutdown_handle` already
+/// relies on), forces that blocked write to fail promptly instead,
+/// exactly the way it already forces a blocked *read* to see `Ok(0)`.
 struct ConnectionCleanup<'a> {
     outbound: Arc<Outbound>,
     writer: Option<JoinHandle<()>>,
+    shutdown_handle: UnixStream,
     runtime: &'a Runtime,
     client_id: ClientId,
 }
@@ -255,6 +268,7 @@ struct ConnectionCleanup<'a> {
 impl Drop for ConnectionCleanup<'_> {
     fn drop(&mut self) {
         self.outbound.close();
+        let _ = self.shutdown_handle.shutdown(std::net::Shutdown::Both);
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
@@ -287,9 +301,13 @@ fn run_post_handshake(
     runtime: &Runtime,
     client_id: ClientId,
 ) {
-    let write_half = match stream.try_clone() {
-        Ok(cloned) => cloned,
-        Err(_) => {
+    // Three independent handles to the one underlying socket: `stream`
+    // itself (this function's own reads), `write_half` (moved into the
+    // writer thread), and `shutdown_handle` (kept by the cleanup guard
+    // solely to force a stuck writer to fail promptly - see its own doc).
+    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
+        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
+        _ => {
             // No write half to hand a writer thread at all - nothing was
             // ever spawned, so there is nothing to join; the client this
             // function was given still has to be disconnected.
@@ -302,6 +320,7 @@ fn run_post_handshake(
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
+        shutdown_handle,
         runtime,
         client_id,
     };

@@ -4,6 +4,7 @@ title: 'Server: send input to a pane, capture its screen, and wait for its progr
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:34:00Z'
+updated_date: '2026-11-16T04:33:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -28,3 +29,9 @@ Found on 2026-11-15: TASK-1.50 (CLI: send, capture, wait, watch) needs these thr
 - [ ] #3 pane wait answers when the pane's program exits with its exit code, or when the timeout given passes, without holding the runtime's lock or a connection's reader while it waits; a pane closed while being waited on answers at once; the plan says how a waiting request is held now that a reply is written by the connection's writer (TASK-1.45)
 - [ ] #4 The three methods leave the not-yet list in dispatch; each is proved with a real program in a real pty and bounded waits, and no thread or child is left by any path, including a client that disconnects while waiting
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-1.89's plan (2026-11-15): dispatch is pure and does no I/O by design, so pane send, capture and wait cannot be arms of dispatch; they need a wrapper at the Runtime level, as starting a program has (start_and_dispatch) and as the forced close has (TASK-1.78). The citation dispatch gives for them today (TASK-1.40) is stale; TASK-1.89 corrects it to name this task.
+<!-- SECTION:NOTES:END -->

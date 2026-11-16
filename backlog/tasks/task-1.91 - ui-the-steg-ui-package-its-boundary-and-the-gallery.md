@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:19:00Z'
+updated_date: '2026-11-16T01:30:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -278,6 +278,33 @@ FAILED tools/tests/adapter/test_affected_real_workspace.py::test_the_five_real_c
 1 failed, 51 passed in 1.18s
 full output: .quiet/tool-tests.log
 error: recipe `test-tools` failed on line 92 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:30:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.91 on task-1.91-ui-the-steg-ui-package-its-boundary-and at d6e18b7c21ba with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.4s)
+ok      architecture (0.9s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

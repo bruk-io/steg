@@ -1,10 +1,11 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-15T23:53:00Z'
+updated_date: '2026-11-16T08:24:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -14,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.86-server-an-on-demand-server-stops-when
 ---
 
 ## Description

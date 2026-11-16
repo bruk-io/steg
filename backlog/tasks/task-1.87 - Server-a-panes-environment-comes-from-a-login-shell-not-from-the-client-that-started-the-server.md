@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:22:00Z'
+updated_date: '2026-11-16T04:33:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -339,6 +339,43 @@ Every control below is a scratch edit, recorded and reverted immediately
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-8 (R3, R98, R99), doc-2 section 4 and doc-16 by @bruk.o: ok, with one decision that is the engineer's and one ordering constraint. The environment is captured once, after the socket is bound and before requests are served, by running the account's login shell from a cleared environment seeded with HOME, USER, LOGNAME and a minimal PATH, with a marker before the dump so start-up noise cannot corrupt it and a bound of about three seconds; on any failure the server starts with a small fixed environment, never the starting client's. A pane's program gets the captured environment plus TERM and the STEG_ variables set by the server. No unsafe, no new dependency. The decision for the engineer: the capture runs the shell as a login shell and not as an interactive one, so on zsh it reads .zprofile and not .zshrc; a shell pane still reads .zshrc itself when it starts, but a command pane started through the API or the CLI gets only what .zprofile gives, and many people set PATH and tool managers in .zshrc. The alternative is to capture from an interactive login shell, as some editors do, at the cost of slower and noisier start-up files running in the capture; the bound and the fallback are the same either way. Ordering: criterion 1 is proved through a real client and a real server, which needs TASK-1.45 merged; the build starts after it merges.
+
+Check passed: `cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-16T04:33:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+warning: constant `DEFAULT_LOGIN_IDENTITY_TIMEOUT` is never used
+  --> crates/server/src/login_env.rs:54:11
+   |
+54 | pub const DEFAULT_LOGIN_IDENTITY_TIMEOUT: Duration = Duration::from_secs(2);
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT` is never used
+  --> crates/server/src/login_env.rs:62:11
+   |
+62 | pub const DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT: Duration = Duration::from_secs(3);
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 11 tests
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 112 filtered out; finished in 0.21s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

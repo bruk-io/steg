@@ -1,9 +1,11 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
+updated_date: '2026-11-16T16:48:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -13,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
 ---
 
 ## Description

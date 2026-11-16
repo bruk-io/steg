@@ -109,6 +109,11 @@ test-tools:
 # the same reason: off by default (a review of TASK-1.44 found the race test's own fixture
 # binary should not build for an ordinary `cargo build`), so without this second run the
 # race test (AC #2) would never execute under `just check` either.
+#
+# steg alone, the same way again, with `--features fixtures` (TASK-1.77): off by default for
+# the identical reason - its two fixture binaries (the process-group-leader and autostart
+# -client cases) should not build for an ordinary `cargo build -p steg`, so without this run
+# `server_start.rs` (AC #1-#6) would never execute under `just check` either.
 check-packages: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
@@ -122,6 +127,9 @@ check-packages: zig-deps-seeded
         fi
         if [ "$pkg" = steg-server ]; then
             {{quiet}} "test (steg-server, race-fixture)" -- cargo test -p steg-server --features race-fixture
+        fi
+        if [ "$pkg" = steg ]; then
+            {{quiet}} "test (steg, fixtures)" -- cargo test -p steg --features fixtures
         fi
     done
 

@@ -307,7 +307,14 @@ pub fn run(
 /// `steg_sdk::socket_path` rather than duplicated. Every one of this
 /// task's own tests sets `config.socket_path` explicitly instead, so
 /// this is only ever exercised for real by a caller that does not.
-fn resolve_socket_path(config: &ServerConfig) -> std::path::PathBuf {
+///
+/// `pub` (TASK-1.77): `crates/steg`'s own entry point needs the exact same
+/// path `attempt`/`run` will resolve, to print and connect-test against
+/// before either of those functions is called - re-deriving this logic a
+/// second time in `crates/steg` would be the second definition this
+/// function's own doc already argues against.
+#[must_use]
+pub fn resolve_socket_path(config: &ServerConfig) -> std::path::PathBuf {
     if let Some(path) = &config.socket_path {
         return path.clone();
     }

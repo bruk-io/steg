@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:29:00Z'
+updated_date: '2026-11-16T01:31:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1423,6 +1423,31 @@ ok      build (steg-app) (0.3s)
 ok      test (steg-app) (0.4s)
 ok      tool tests (1.3s)
 ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:31:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (9.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (9.1s)
+ok      test (steg-server, race-fixture) (9.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.4s)
+ok      architecture (1.1s)
 ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

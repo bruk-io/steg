@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:20:00Z'
+updated_date: '2026-11-16T01:21:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -620,6 +620,51 @@ test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung 
 test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
 
 test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+```
+
+Check FAILED: `cargo test -p steg-server --test routing an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection` exited 101 at 2026-11-16T01:21:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 53 lines:
+
+```text
+
+warning: methods `open_stream`, `close_stream`, and `enqueue_data` are never used
+   --> crates/server/src/outbound.rs:162:19
+    |
+127 | impl Outbound {
+    | ------------- methods in this implementation
+...
+162 |     pub(crate) fn open_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^
+...
+175 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+...
+191 |     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+    |                   ^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 1 test
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... FAILED
+
+failures:
+
+---- an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection stdout ----
+
+thread 'an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection' (16941942) panicked at crates/server/tests/routing.rs:138:21:
+assertion `left != right` failed: the connection should have closed within 2s
+  left: WouldBlock
+ right: WouldBlock
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
 ```
 <!-- SECTION:NOTES:END -->
 

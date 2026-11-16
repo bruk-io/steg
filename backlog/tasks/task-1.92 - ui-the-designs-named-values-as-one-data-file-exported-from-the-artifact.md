@@ -1,11 +1,11 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:01:00Z'
+updated_date: '2026-11-16T02:06:00Z'
 labels:
   - size-3
   - review-passed

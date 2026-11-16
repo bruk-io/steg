@@ -1351,6 +1351,37 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 162 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply` exited 101 at 2026-11-16T14:12:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply ... FAILED
+
+failures:
+
+---- description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply stdout ----
+
+thread 'description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply' (40154424) panicked at crates/sdk/src/description/methods.rs:1867:17:
+assertion `left == right` failed: pane.attach
+  left: Attachment { item: Nested { of: "ScreenUpdate", summary: "the rows that changed, or a whole screen when a client fell behind" }, stream_id_field: "stream" }
+ right: Nothing
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 162 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

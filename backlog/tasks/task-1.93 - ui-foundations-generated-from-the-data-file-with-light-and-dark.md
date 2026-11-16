@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T06:20:00Z'
+updated_date: '2026-11-16T06:29:00Z'
 labels:
   - size-3
   - review-passed
@@ -1595,6 +1595,21 @@ Reviewed PR #55 at head 23759ee (the branch's current head: TASK-1.96's reviewed
 6. AC#4 reproduced independently: `design_entries()` finds 54 names in the real data file, `grep -c 'Design name:' generated.rs` = 54, the adapter test passes with the same count. `just check` 28/28 clean at 23759ee (my own run).
 
 plan-matched: no - same explained departures recorded in the notes/comments #4,#6,#9 (module name forced by the engineer's brief; radius.round as a plain Pixels const; resolve_for_appearance not existing; this round's PR #54 absorption and regenerate). Policy's --plan-matched is literal about any departure, explained or not, so this stays "no" across every round.
+
+---
+
+created: 2026-11-16T06:29:00Z
+
+---
+
+Review #6's two nits, taken as comments and documentation only - no code logic touched. New head: 8b51027.
+
+1. crates/ui/src/foundations/mod.rs and crates/ui/CLAUDE.md both said reaching a bare colour outside Theme is "a compile error"/"a build failure, not a convention" - it isn't either. Reworded both to name what actually enforces R123: check-foundations-public-surface, a just check step, refusing a pub fn whose declared return type is spelled Hsla or gpui::Hsla outside impl Theme. Named, in both places and in the check's own docstring (tools/src/steg_tools/foundations_public_surface.py), the three forms that got past it: a pub const of the colour type (not a function), a renamed import of the type, and a type alias for it - none visible to a check that matches on spelling, not on what the type is.
+2. justfile's check-foundations-public-surface comment said the check covers foundations only; corrected - it's covered the whole crate since e4f757c.
+
+Ran: cargo build -p steg-ui and cargo doc -p steg-ui --no-deps (doc-comment syntax, no logic change, both clean); the two affected pytest files (9 tests, unchanged - docstring-only); cargo fmt --all; full just check (28 steps, all ok, including design pages, ui levels, ui colours, and test (steg-server, race-fixture) at 5.8s). Pushed 8b51027; gh pr checks 55 --watch in the foreground, CI green in ~3.7 minutes, confirmed step-by-step in the run's own log.
+
+Plan section untouched.
 
 ---
 <!-- COMMENTS:END -->

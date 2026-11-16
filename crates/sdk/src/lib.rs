@@ -43,7 +43,8 @@ pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
 pub use record::{PaneRecord, SessionRecord, SettingRecord, TabRecord};
 pub use screen::{
-    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+    CellStyle, Cursor, CursorShape, Page, PaneAttached, Rgb, Row, RowId, Run, Screen, ScreenUpdate,
+    Underline, Wide,
 };
 pub use setting::{Setting, settings};
 pub use status::Status;

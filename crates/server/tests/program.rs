@@ -7,10 +7,16 @@
 use std::io::Write as _;
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use steg_sdk::{PaneId, Screen};
 
 use steg_server::{Error, LaunchSpec, PaneEvent, ProgramLauncher, SpawnedProgram};
+
+/// A tiny `attach_tick` for every `steg_server::start` in this file - none
+/// of these tests attach to a pane (TASK-1.47's own tests live in
+/// `crates/server/src/pane.rs` and this crate's own `tests/` directory).
+const TEST_TICK: Duration = Duration::from_millis(1);
 
 /// What a `FakeLauncher`'s `spawn` call hands back to the test driving it:
 /// the write end of the pipe that stands in for the fake program's
@@ -168,7 +174,8 @@ fn a_programs_exit_code_reaches_the_event_channel() {
     let (events_tx, events_rx) = mpsc::channel();
     let pane = PaneId::from_raw(1);
 
-    let handle = steg_server::start(spec(), pane, Arc::new(launcher), events_tx).unwrap();
+    let handle =
+        steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
     let driver = drivers.recv().unwrap();
 
     driver.end(3);
@@ -186,7 +193,8 @@ fn output_printed_before_exit_is_in_the_snapshot() {
     let (events_tx, events_rx) = mpsc::channel();
     let pane = PaneId::from_raw(1);
 
-    let handle = steg_server::start(spec(), pane, Arc::new(launcher), events_tx).unwrap();
+    let handle =
+        steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
     let mut driver = drivers.recv().unwrap();
 
     driver.print(b"hello");
@@ -208,7 +216,8 @@ fn restarting_keeps_the_same_terminal_so_old_output_survives_a_new_run() {
     let (events_tx, events_rx) = mpsc::channel();
     let pane = PaneId::from_raw(1);
 
-    let handle = steg_server::start(spec(), pane, Arc::new(launcher), events_tx).unwrap();
+    let handle =
+        steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
     let mut first_driver = drivers.recv().unwrap();
     first_driver.print(b"first-run");
     first_driver.end(3);
@@ -233,7 +242,8 @@ fn resize_reaches_the_terminal_even_with_no_program_running() {
     let (events_tx, events_rx) = mpsc::channel();
     let pane = PaneId::from_raw(1);
 
-    let handle = steg_server::start(spec(), pane, Arc::new(launcher), events_tx).unwrap();
+    let handle =
+        steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
     let driver = drivers.recv().unwrap();
     driver.end(0);
     events_rx.recv().unwrap();
@@ -252,7 +262,8 @@ fn a_pane_with_no_program_running_accepts_input_as_a_no_op() {
     let (events_tx, events_rx) = mpsc::channel();
     let pane = PaneId::from_raw(1);
 
-    let handle = steg_server::start(spec(), pane, Arc::new(launcher), events_tx).unwrap();
+    let handle =
+        steg_server::start(spec(), pane, Arc::new(launcher), events_tx, TEST_TICK).unwrap();
     let driver = drivers.recv().unwrap();
     driver.end(0);
     events_rx.recv().unwrap();

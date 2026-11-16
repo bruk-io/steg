@@ -277,6 +277,7 @@ pub fn run(
         Arc::clone(&config.launcher),
         config.login.clone(),
         crate::runtime::FORCE_GRACE_DEFAULT,
+        config.attach_tick,
     );
 
     // Split apart before the loop, not destructured after it as before:

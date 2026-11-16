@@ -15,7 +15,8 @@ use ghostty_vt::style::{
 use ghostty_vt::terminal::{Options, Point, PointCoordinate};
 use ghostty_vt::{Event, Terminal as Engine};
 use steg_sdk::{
-    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
+    CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, ScreenUpdate, Underline,
+    Wide,
 };
 
 use crate::error::Error;
@@ -214,8 +215,8 @@ impl Terminal {
     /// The rows that changed since `seen`, or a whole screen when `seen`
     /// cannot be resumed from (AC #4, #5).
     ///
-    /// `seen` is the `seq` a previous [`Update::Delta`] or
-    /// [`Update::Full`] carried; `None` for a caller that has never
+    /// `seen` is the `seq` a previous [`ScreenUpdate::Delta`] or
+    /// [`ScreenUpdate::Full`] carried; `None` for a caller that has never
     /// called this before. There is exactly one current point per
     /// terminal (this method owns the one [`RenderState`] this terminal
     /// has - proved by test that a second, independent render state does
@@ -228,7 +229,7 @@ impl Terminal {
     /// extended here to "or was never caught up to begin with."
     ///
     /// Calling this twice with nothing written in between returns
-    /// [`Update::Unchanged`] the second time: the first call already
+    /// [`ScreenUpdate::Unchanged`] the second time: the first call already
     /// consumed whatever the engine had marked dirty. Several callers
     /// sharing one terminal must not each call this expecting their own
     /// independent view - TASK-1.47 is where several attachments to one
@@ -241,7 +242,7 @@ impl Terminal {
     /// # Errors
     ///
     /// Returns [`Error::Engine`] if the engine could not report its state.
-    pub fn changes_since(&mut self, seen: Option<u64>) -> Result<Update, Error> {
+    pub fn changes_since(&mut self, seen: Option<u64>) -> Result<ScreenUpdate, Error> {
         // `seq` starts at 0, which this method never hands out (the first
         // response bumps it to at least 1), so a caller claiming 0 is
         // never "current" - same as a caller with no point at all.
@@ -265,10 +266,10 @@ impl Terminal {
         snapshot.clean().map_err(Error::Engine)?;
 
         Ok(match outcome {
-            None => Update::Unchanged,
+            None => ScreenUpdate::Unchanged,
             Some(Outcome::Delta(rows)) => {
                 self.seq += 1;
-                Update::Delta {
+                ScreenUpdate::Delta {
                     rows,
                     cursor,
                     seq: self.seq,
@@ -276,7 +277,7 @@ impl Terminal {
             }
             Some(Outcome::Full(rows)) => {
                 self.seq += 1;
-                Update::Full {
+                ScreenUpdate::Full {
                     screen: Screen { rows, cursor },
                     seq: self.seq,
                 }
@@ -528,7 +529,7 @@ impl Terminal {
 }
 
 /// What a call to [`Terminal::changes_since`] found, before it is turned
-/// into the [`Update`] variant that also carries the cursor and the new
+/// into the [`ScreenUpdate`] variant that also carries the cursor and the new
 /// `seq` (kept out of the sdk shape so this module can build the rows
 /// first and only touch `self.seq` once, after the borrow on
 /// `self.render` the snapshot holds has ended).
@@ -540,7 +541,7 @@ enum Outcome {
 /// Walks every row the given snapshot holds (the viewport, plus whatever
 /// overscan is requested - none, here), building each with [`build_row`].
 /// Shared by [`Terminal::screen`] and [`Terminal::changes_since`]'s
-/// [`Update::Full`] arm, so a whole-screen read means the same thing from
+/// [`ScreenUpdate::Full`] arm, so a whole-screen read means the same thing from
 /// either caller.
 fn all_rows(snapshot: &Snapshot<'_>, palette: &[EngineRgb; 256]) -> Result<Vec<Row>, Error> {
     let mut row_iterator = RowIterator::new().map_err(Error::Engine)?;
@@ -557,7 +558,7 @@ fn all_rows(snapshot: &Snapshot<'_>, palette: &[EngineRgb; 256]) -> Result<Vec<R
 /// Walks only the rows the given snapshot's render state has marked
 /// dirty, each paired with its position from the top of the screen
 /// (`RowIteration::next_dirty`'s own `u16`). Used by
-/// [`Terminal::changes_since`]'s [`Update::Delta`] arm; never called when
+/// [`Terminal::changes_since`]'s [`ScreenUpdate::Delta`] arm; never called when
 /// the snapshot's own [`Dirty`] is `Full` or `Clean` (`next_dirty` would
 /// return every row, or none, respectively - the caller already branches
 /// on `Dirty` to pick the cheaper read).
@@ -840,7 +841,7 @@ fn uri_from_bytes(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use steg_sdk::{Rgb, RowId, Underline, Update, Wide};
+    use steg_sdk::{Rgb, RowId, ScreenUpdate, Underline, Wide};
 
     use super::{CommandMark, CursorShape, Terminal};
 
@@ -1624,25 +1625,25 @@ mod tests {
 
     // --- AC #4: the rows changed since a given point ---
 
-    /// Unwraps an [`Update::Full`] for a test assertion, or fails with a
+    /// Unwraps an [`ScreenUpdate::Full`] for a test assertion, or fails with a
     /// message naming which variant actually came back. A plain
     /// wildcard arm is refused here (`clippy::wildcard_enum_match_arm`,
-    /// since `Update` is this crate's own enum, not a foreign one), so
+    /// since `ScreenUpdate` is this crate's own enum, not a foreign one), so
     /// every arm is named.
-    fn expect_full(update: Update) -> (steg_sdk::Screen, u64) {
+    fn expect_full(update: ScreenUpdate) -> (steg_sdk::Screen, u64) {
         match update {
-            Update::Full { screen, seq } => (screen, seq),
-            Update::Unchanged => panic!("expected Full, got Unchanged"),
-            Update::Delta { .. } => panic!("expected Full, got Delta"),
+            ScreenUpdate::Full { screen, seq } => (screen, seq),
+            ScreenUpdate::Unchanged => panic!("expected Full, got Unchanged"),
+            ScreenUpdate::Delta { .. } => panic!("expected Full, got Delta"),
         }
     }
 
-    /// Same as [`expect_full`], for [`Update::Delta`].
-    fn expect_delta(update: Update) -> Vec<(u16, steg_sdk::Row)> {
+    /// Same as [`expect_full`], for [`ScreenUpdate::Delta`].
+    fn expect_delta(update: ScreenUpdate) -> Vec<(u16, steg_sdk::Row)> {
         match update {
-            Update::Delta { rows, .. } => rows,
-            Update::Unchanged => panic!("expected Delta, got Unchanged"),
-            Update::Full { .. } => panic!("expected Delta, got Full"),
+            ScreenUpdate::Delta { rows, .. } => rows,
+            ScreenUpdate::Unchanged => panic!("expected Delta, got Unchanged"),
+            ScreenUpdate::Full { .. } => panic!("expected Delta, got Full"),
         }
     }
 
@@ -1662,7 +1663,10 @@ mod tests {
         term.write(b"hi");
         let (_, seq) = expect_full(term.changes_since(None).unwrap());
 
-        assert_eq!(term.changes_since(Some(seq)).unwrap(), Update::Unchanged);
+        assert_eq!(
+            term.changes_since(Some(seq)).unwrap(),
+            ScreenUpdate::Unchanged
+        );
     }
 
     #[test]

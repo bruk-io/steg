@@ -199,6 +199,10 @@ pub struct Runtime {
     // own tests pass a tiny value, so the suite's own total time does not
     // grow by the production grace on every test that exercises forcing.
     force_grace: Duration,
+    // TASK-1.47: how often an attached pane's worker thread computes and
+    // fans out a screen update - threaded to every `pane::start` call
+    // below, the same injected-not-read shape `force_grace` already uses.
+    attach_tick: Duration,
 }
 
 /// The production default for [`Runtime::new`]'s own `force_grace`
@@ -244,6 +248,7 @@ impl Runtime {
         launcher: Arc<dyn ProgramLauncher>,
         login: LoginShell,
         force_grace: Duration,
+        attach_tick: Duration,
     ) -> Self {
         let (events_tx, events_rx) = mpsc::channel();
         let state = Arc::new(Mutex::new(State {
@@ -288,6 +293,7 @@ impl Runtime {
             events: Some(events_tx),
             drain: Some(drain),
             force_grace,
+            attach_tick,
         }
     }
 
@@ -562,6 +568,7 @@ impl Runtime {
             self.events
                 .clone()
                 .expect("starting a program after this Runtime has been stopped"),
+            self.attach_tick,
         ) {
             Ok(handle) => {
                 state.panes.insert(new_pane, handle);
@@ -1112,6 +1119,12 @@ mod tests {
     /// exception), so the value only has to be cheap, never realistic.
     const TEST_GRACE: Duration = Duration::from_millis(30);
 
+    /// A tiny `attach_tick` for every `Runtime::new` in this module - none
+    /// of these tests attach to a pane (TASK-1.47's own tests live in
+    /// `pane.rs` and this crate's `tests/` directory), so the value only
+    /// has to be cheap, never realistic.
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
     fn login() -> LoginShell {
         LoginShell {
             argv0: "/bin/sh".to_string(),
@@ -1216,6 +1229,7 @@ mod tests {
             gone,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         let mut state = test_state(tree, HashMap::from([(gone, handle)]));
@@ -1263,6 +1277,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1291,6 +1306,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         state.panes.insert(pane, handle);
@@ -1320,7 +1336,12 @@ mod tests {
     fn disconnect_client_reapplies_the_next_latest_declared_size() {
         use steg_sdk::{ClientKind, Request, Size};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
         let session = match runtime.handle(
@@ -1443,7 +1464,12 @@ mod tests {
             ],
             ..login()
         };
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login, TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login,
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1523,7 +1549,12 @@ mod tests {
     /// construction alone.
     #[test]
     fn a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1593,7 +1624,12 @@ mod tests {
     /// still succeeds rather than hanging or propagating the poison.
     #[test]
     fn a_panic_while_holding_the_lock_does_not_poison_a_later_call() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
 
         let state_handle = std::sync::Arc::clone(&runtime.state);
         let panicked = std::thread::spawn(move || {
@@ -1626,7 +1662,12 @@ mod tests {
 
     #[test]
     fn runtime_new_does_not_panic_and_starts_empty() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let context = crate::dispatch::Context::none();
         let response = runtime.handle(
@@ -1652,7 +1693,12 @@ mod tests {
     /// not offered as proof of it - this is).
     #[test]
     fn a_plain_close_of_an_already_ended_pane_removes_its_idle_handle() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1757,7 +1803,12 @@ mod tests {
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1880,7 +1931,12 @@ mod tests {
     fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -2032,7 +2088,12 @@ mod tests {
     fn the_general_sizing_step_reaches_every_pane_through_split_close_and_swap() {
         use steg_sdk::{ClientKind, Request, SessionId, Size, TabId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -2321,6 +2382,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         state.panes.insert(pane, handle);
@@ -2475,6 +2537,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events,
+            TEST_TICK,
         )
         .unwrap();
         runtime.state.lock().unwrap().panes.insert(pane, handle);
@@ -2499,6 +2562,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, tab_id, pane) = start_real_pane(
             &runtime,
@@ -2531,6 +2595,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2554,6 +2619,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2586,6 +2652,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2637,6 +2704,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session_id, _, pane) = start_real_pane(
             &runtime,
@@ -2701,6 +2769,7 @@ mod tests {
             gone,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         let mut state = test_state(tree, HashMap::from([(gone, handle)]));
@@ -2746,6 +2815,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
 
         let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
@@ -2842,6 +2912,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session, tab_id, pane) = start_real_pane(
             &runtime,
@@ -2885,6 +2956,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session, tab_id, pane) = start_real_pane(
             &runtime,
@@ -2941,6 +3013,10 @@ mod stop_tests {
     /// after the polite signal is given a real chance, not so long that
     /// the whole module's run time grows needlessly.
     const TEST_GRACE: Duration = Duration::from_millis(200);
+
+    /// A tiny `attach_tick` for every `Runtime::new` in this module - same
+    /// reasoning as `tests::TEST_TICK`: nothing here attaches to a pane.
+    const TEST_TICK: Duration = Duration::from_millis(1);
 
     fn login() -> super::LoginShell {
         super::LoginShell {
@@ -3032,6 +3108,7 @@ mod stop_tests {
             pane,
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -3056,7 +3133,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_program_producing_output() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "yes");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -3072,7 +3149,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_silent_program() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "sleep 1000");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -3088,7 +3165,7 @@ mod stop_tests {
 
     #[test]
     fn stop_is_a_no_op_for_a_pane_whose_program_has_already_ended() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         // `true` exits at once, no `exec sleep` keeping it alive - by the
         // time this pid is known at all (printed, then read back), the
         // process behind it is already gone or going; this test only
@@ -3126,7 +3203,7 @@ mod stop_tests {
 
     #[test]
     fn stop_with_no_panes_at_all_returns_at_once() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         runtime.stop();
         assert!(runtime.state.lock().unwrap().panes.is_empty());
     }
@@ -3140,7 +3217,7 @@ mod stop_tests {
     /// argued.
     #[test]
     fn stop_ends_a_program_that_traps_the_polite_signal() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
 
         // Waits for a real marker the nested shell writes *after*
         // installing its own trap, before calling `stop` - found

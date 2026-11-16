@@ -45,6 +45,16 @@ pub const DEFAULT_LOGIN_IDENTITY_TIMEOUT: Duration = Duration::from_secs(2);
 /// starts, so it delays a client's first request, never its `connect()`.
 pub const DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// How often a pane's worker thread (with at least one attachment, and
+/// something it has not yet reported) computes and fans out a screen
+/// update (TASK-1.47; decision-2 section 9: "the tick is unsettled...
+/// the answer wants a GPUI client in front of it"). A provisional default,
+/// not a measured answer - decision-2 section 4.1's own 8 ms row, chosen
+/// over its 1 ms row because 1 ms costs resynchronisations under a flood
+/// in that same measurement, revisited once the app has a real window to
+/// measure frames against.
+pub const DEFAULT_ATTACH_TICK: Duration = Duration::from_millis(8);
+
 /// Everything this task's server-starting path needs that would otherwise
 /// be read from the environment or the clock, so every test overrides it
 /// instead of waiting a production-length duration.
@@ -88,6 +98,9 @@ pub struct ServerConfig {
     /// may take before falling back to a fixed, minimal one - see
     /// [`DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT`].
     pub login_environment_timeout: Duration,
+    /// How often an attached pane computes and fans out a screen update
+    /// (TASK-1.47) - see [`DEFAULT_ATTACH_TICK`].
+    pub attach_tick: Duration,
 }
 
 impl Default for ServerConfig {
@@ -100,6 +113,7 @@ impl Default for ServerConfig {
             login: LoginShell::default(),
             login_identity_timeout: DEFAULT_LOGIN_IDENTITY_TIMEOUT,
             login_environment_timeout: DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT,
+            attach_tick: DEFAULT_ATTACH_TICK,
         }
     }
 }

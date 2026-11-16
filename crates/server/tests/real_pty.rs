@@ -26,6 +26,10 @@ use steg_server::{Error, LaunchSpec, PaneEvent, ProgramLauncher, RealLauncher};
 /// each take well under a second).
 const EVENT_TIMEOUT: Duration = Duration::from_secs(20);
 
+/// A tiny `attach_tick` for every `steg_server::start` in this file - none
+/// of these tests attach to a pane.
+const TEST_TICK: Duration = Duration::from_millis(1);
+
 /// Blocks for one [`PaneEvent`], bounded by [`EVENT_TIMEOUT`].
 fn recv_event(events_rx: &mpsc::Receiver<PaneEvent>) -> PaneEvent {
     events_rx
@@ -93,6 +97,7 @@ fn a_real_program_runs_in_the_given_working_directory() {
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .unwrap();
 
@@ -136,6 +141,7 @@ fn a_real_programs_environment_carries_the_five_variables_and_path() {
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .unwrap();
 
@@ -184,6 +190,7 @@ fn a_real_programs_environment_never_leaks_this_processs_own_ambient_variables()
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .unwrap();
 
@@ -225,6 +232,7 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .unwrap();
 
@@ -283,6 +291,7 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .unwrap();
 
@@ -362,6 +371,7 @@ fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home()
         pane,
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     )
     .expect("a bad cwd alone does not fail start() - portable-pty substitutes home and spawns");
 
@@ -389,6 +399,7 @@ fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
         PaneId::from_raw(1),
         Arc::new(RealLauncher),
         events_tx,
+        TEST_TICK,
     );
 
     assert!(

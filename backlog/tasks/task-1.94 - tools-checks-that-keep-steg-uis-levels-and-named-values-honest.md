@@ -1,14 +1,13 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:28:00Z'
+updated_date: '2026-11-16T03:32:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -960,6 +959,46 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 43, 42 without the Asdlc-Worker trailer.
+
+Second review's two findings, both about one case - a colour literal with a genuine
+(non-ff) alpha - addressed:
+
+1. Important, the message: `_alpha_percent` (ui_colours.py) reads the alpha byte out of
+   an 8-digit hex value and rounds it to a percentage, returning None (treated as fully
+   opaque, same as no alpha at all) when the byte is `ff`. `format_violation` now branches
+   on it: a match with a genuine alpha says "It is the colour of <names> at <N>% opacity,
+   not that colour itself - foundations holds opacity as its own named values too (faint,
+   tint, the ramp's caption_opacity, scrim), so name both the colour and an opacity, or
+   add a new named value to the design - never the bare literal" - never "use that named
+   value instead", which this round's review correctly called wrong advice for a
+   translucent literal. With ff or no alpha, the message is exactly as before. A literal
+   with a genuine alpha that matches no foundations colour still gets the plain "no
+   match" message - there's no name to combine opacity language with, decided and stated
+   in format_violation's own docstring.
+
+2. Important, tests: added, each its own -
+   test_violations_treats_an_rgba_call_with_ff_alpha_as_an_opaque_match (ff, the ordinary
+   wording), test_violations_carries_a_genuine_alpha_as_a_rounded_percentage (0x80, the
+   reviewer's own example, asserts the rounded 50), test_violations_carries_a_genuine_alpha_from_an_eight_digit_hex_string_too
+   (the same through a bare "#...80" string, not a call),
+   test_violations_has_an_alpha_but_no_match_when_the_colour_matches_no_name, plus
+   message-level tests (test_format_violation_names_the_opacity_and_does_not_say_use_that_value_instead,
+   test_format_violation_uses_the_ordinary_wording_for_a_match_with_no_alpha,
+   test_format_violation_says_plainly_when_nothing_matches_even_with_an_alpha). Negative
+   control recorded: `_alpha_percent` forced to always return None (the alpha branch
+   removed), confirmed exactly the three translocent-literal violations tests fail (the
+   ff and format-level tests correctly stay passing, since they don't exercise that
+   branch), restored, confirmed 151 green - both runs recorded on the task. Also
+   demonstrated live: a scratch `gpui::rgba(0x1c1b2180)` in crates/ui/src/atoms/mod.rs,
+   refused by the real `just check-ui-colours` with the exact new wording ("at 50%
+   opacity... never the bare literal"), then reverted.
+
+Checks recorded on this task, in order for this round: the fix's tests green (151
+passed); the new alpha branch's negative control, failing then passing; the live
+scratch-violation demonstration, refused with the exact designed wording, then
+reverted; `just check` green on the merged head (66dc63b, after merging origin/main -
+42 commits, all board/backlog, no code overlap, clean merge); CI green on the pushed
+head (PR #52, 3m10s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

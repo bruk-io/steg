@@ -1367,6 +1367,26 @@ error: test failed, to rerun pass `-p steg-server --test idle_stop`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test idle_stop` exited 0 at 2026-11-16T14:55:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 6 tests
+test every_sender_dropping_is_what_lets_run_return_after_stop ... ok
+test a_genuinely_idle_server_stops_itself_within_a_bound ... ok
+test closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker ... ok
+test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out ... ok
+test an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle ... ok
+test a_session_that_exists_prevents_the_idle_stop ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.23s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

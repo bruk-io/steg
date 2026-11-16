@@ -3,10 +3,11 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-15T23:37:00Z'
+updated_date: '2026-11-16T00:25:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -17,6 +18,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.84-server-pass-a-typed-command-s-start-and
 ---
 
 ## Description

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T06:50:00Z'
+updated_date: '2026-11-16T15:45:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -92,6 +92,14 @@ created: 2026-11-16T06:50:00Z
 ---
 
 2026-11-16, @bruk.o: one failure in crates/server/tests/shutdown.rs during the second review of TASK-1.87 (ten runs of the server suite at ed80ab8); neither that task nor TASK-1.78's merge touches the file. Output not kept by the reviewer.
+
+---
+
+created: 2026-11-16T15:45:00Z
+
+---
+
+2026-11-16, @bruk.o: one timeout of outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails during TASK-1.86's review, while two full suites ran at once on this machine; five of five passed alone. Also noted there, to be drafted as tasks once the first window's work has slots to spare: (1) a panic in a launcher's spawn during session new, tab new or pane split skips pane::start's rollback of the half-made session (from TASK-1.76, crates/server/src/pane.rs near line 565); (2) the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created (from TASK-1.98's review); (3) a pane's screen freezes while its program refuses input, because the pty write blocks the pane's worker (TASK-1.114's plan); (4) the API description has no one-line summary for a noun, so steg --help lists nouns bare (TASK-1.49's review).
 
 ---
 <!-- COMMENTS:END -->

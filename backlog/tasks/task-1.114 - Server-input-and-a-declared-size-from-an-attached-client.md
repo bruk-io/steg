@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T15:09:00Z'
+updated_date: '2026-11-16T16:43:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'ec385ef4d563'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -223,3 +226,16 @@ This stays one task: input, the declared size, and the size carried on every upd
 <!-- SECTION:NOTES:BEGIN -->
 Plan (ec385ef4d563) checked against the four acceptance criteria, decision-2 section 3, doc-14 and doc-15 R91, doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Built on TASK-1.47's branch (not merged) and to merge after it. Revised once at the orchestrator's request: the full cost of a program that does not read its input is stated (that pane's worker is blocked, so its screen stops updating and its commands wait), with a proof item on a real program that never reads (the connection stays responsive, another pane keeps updating, a forced close and a server stop return within their bounds), and that a failure there is a bug to fix in this task. For the engineer: the new method tab.declare_size (a row in doc-2; the method count moves to 45); a size with zero columns or rows is refused; and the accepted limit that one pane's own screen freezes while its program refuses input, with a follow-up proposed.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T16:43:00Z
+
+---
+
+Plan approved by @bruk (ec385ef4d563, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

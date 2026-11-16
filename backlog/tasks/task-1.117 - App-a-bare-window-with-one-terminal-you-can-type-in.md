@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T15:37:00Z'
+updated_date: '2026-11-16T16:43:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.117-app-a-bare-window-with-one-terminal-you
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '8551f6bb93b8'
+asdlc_plan_approved_size: size-5
 ---
 
 ## Description
@@ -150,3 +153,16 @@ Every item below is recorded through `asdlc record-check` as a failing run (the 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (8551f6bb93b8) as rewritten for the read-only window alone, checked against doc-9, doc-10 (R20, R22, R24), doc-13 R59, doc-16, doc-17 and decision-11 by @bruk.o, 2026-11-16: ok. The split into three is taken (typing and resizing; measurement and the per-frame bound: two drafts). Revised at the orchestrator's request: the socket is not polled; a thread blocks on the read and hands each update through a channel to a task on the window's executor, woken by the channel. Needs only TASK-1.47. Adds futures as a direct dependency of the app (already in the lock file through gpui). Draws a fixed grid from the attach snapshot until the typing task brings the size.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T16:43:00Z
+
+---
+
+Plan approved by @bruk (8551f6bb93b8, size-5): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

@@ -1,14 +1,14 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:44:00Z'
+updated_date: '2026-11-16T16:18:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -25,8 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
+asdlc_review_policies: ["testing"]
 asdlc_plan_matched: no
 ---
 
@@ -1572,6 +1572,70 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:45:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at ca699eee225c:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (12.0s)
+ok      test (steg-server, race-fixture) (13.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 52, 51 without the Asdlc-Worker trailer.
+
+The 2 Important findings and 2 nits from the second review, addressed. Both the commits below are pushed and verified present on origin (I checked this explicitly this time, after round 1's notes claimed a comment fix that was never actually committed).
+
+1. pane.move's own cascade (same class of bug as round 1, one method later): dispatch::pane::move_ now returns Outcome::PaneMoved(MovedPane) instead of discarding it into Outcome::Nothing. pane.move used to fall through Runtime::handle's generic arm, which only ever sees an already-erased Response - a new move_and_dispatch (mirroring close_and_dispatch) reads the typed outcome directly, captures the source session before the move can cascade it away, and emits tab.closed (then session.closed if the source session was also emptied), innermost first. No event for the pane itself changing tabs - named as TASK-1.109's below. New tests: pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab, pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session - each with its own recorded negative control (both broadcasts in move_and_dispatch disabled, both tests failed correctly, reverted).
+
+To answer the review's own "be systematic" ask, the full table of every kernel Tree function that creates or removes a session, tab or pane, its server call site, the event it causes, and the test that proves it:
+
+| Kernel function | Creates/removes | Server call site | Event(s) | Test |
+|---|---|---|---|---|
+| new_session | session + its first tab + first pane | dispatch::session::new, via start_and_dispatch | SessionCreated, TabCreated, PaneCreated (outermost first) | session_new_emits_session_created_tab_created_and_pane_created_in_order |
+| new_tab | tab + its first pane | dispatch::tab::new, via start_and_dispatch | TabCreated, PaneCreated | observed (not named) by a_filter_by_session_excludes_another_sessions_events and a_filter_by_name_keeps_only_that_event |
+| split_pane | one pane | dispatch::pane::split, via start_and_dispatch | PaneCreated | pane_split_emits_pane_created_only (added this round - had no dedicated test before) |
+| close_session | the session + every tab + every pane it held | dispatch::session::close, via close_and_dispatch | every pane, then its own tab, per tab in order, then the session | session_close_emits_the_whole_cascade_innermost_first |
+| close_tab | the tab + its panes (+ the session, if it was the session's last tab) | dispatch::tab::close, via close_and_dispatch | every pane, then the tab, then the session if emptied | tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session |
+| close_pane | the pane (+ its tab if emptied) (+ the session if that emptied too) | dispatch::pane::close, via close_and_dispatch | pane.closed, then tab.closed if cascaded, then session.closed if cascaded | pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order |
+| record_exit (delegates to close_pane when the pane closes on exit) | same as close_pane, when it fires | Runtime::apply_event_locked's PaneEvent::Exited arm | pane.exited always; the same close cascade when the exit closes the pane | a_command_panes_exit_emits_pane_exited (Stayed), a_shell_panes_exit_emits_the_whole_cascade_in_order (Closed) |
+| move_pane_to_tab | the pane is not removed, it changes tabs; can cascade-remove the source tab (+ the source session if that was its last tab) | dispatch::pane::move_, via move_and_dispatch (new this round) | tab.closed if the source tab closed, then session.closed if the source session closed too | pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab, pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session |
+| Session::move_tab, Tree::move_session, swap_panes, fill_pane, unfill_pane, resize_pane | none - reorder/layout only, never create or remove a session, tab or pane | n/a | n/a | n/a |
+| disconnect_client, view_pane, stop_viewing, declare_size, note_input, acknowledge_pane, start_program, restart_program, note_command_output_started, note_command_ended | none - client/program/status state, never tree topology | n/a | n/a (status changes already go through pane.status_changed) | n/a |
+
+No row is left without an event after this round's fix. The rows that change the tree in a way that is not a creation or a closure are TASK-1.109's, by name: move_pane_to_tab itself (a pane now living in another tab), and every reorder/layout-only function above (a tab's position, a session's position, a pane swapped, zoomed/unzoomed, resized). Precisely what a subscriber is and is not told today when a pane moves: it IS told if the move emptied and closed the source tab and/or session (this round's fix - a subscriber is never left believing in a tab or session that is actually gone, which was the one thing AC #2 requires). It is NOT told that the pane itself now lives in a different tab - no pane.moved event exists in the API description yet, and a subscriber's own copy of the destination tab's pane list goes stale until it re-reads (tab.show/pane.show) or TASK-1.109 adds that event. That gap is real but out of this task's own scope, same as a layout or position changing.
+
+2. The session_close_emits_the_whole_cascade_innermost_first control was not actually recorded against what the rebuilt (two tabs, two panes each) test proves - correct, and my own citation of it in the last round's notes was wrong (the bug-fix control doesn't touch session.close's own loop; confirmed by rerunning the 2x2 test under it - it still passes). Recorded the real one now: flattened session.close's own loop in emit_close_events (every pane across every tab, then every tab, instead of per-tab grouping) - the test fails correctly ("expected the first tab's own tab.closed third, got PaneClosed"), proving the interleaving is real and now actually on record. Reverted; just test clean.
+
+Nits: broadcast's own doc comment (runtime.rs) genuinely rewritten and pushed this time (I checked `git show origin/<branch>:crates/server/src/runtime.rs` directly before writing this, rather than trusting my own working tree) - verified present on the pushed branch. emit_close_cascade and emit_close_events's pane.close arm no longer duplicate the same three broadcasts - the latter now calls the former directly.
+
+Checks: just check clean before this round's commit and again after merging origin/main (recorded both); just test clean throughout, including the full cargo test -p steg-server run. gh pr checks 63 --watch reports no checks configured on this repo (empty statusCheckRollup) - nothing to wait on, confirmed again this round.
+
+Same overlap as last round, unchanged and still open: TASK-1.86 adds its own SessionCountChanged notify inside the same apply_event_locked PaneEvent::Exited arm this task restructured - whoever merges second folds it into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping scope captured before record_exit runs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1699,6 +1763,46 @@ Confirmed correct, not findings: the pane.close/tab.close doc-comment correction
 plan-matched: no - the plan's own "Files that change" says explicitly "no change to `Outcome`/return shapes for any close/new arm (§5 reads tree state before and after instead...)" and §5 itself says "never by threading a new return shape through `dispatch::tab::close`/`session::close`". This round's diff adds `Outcome::PaneClosed`/`TabClosed` and stops reading the tree after a close - the opposite of what the plan says it does, for the reason the plan itself gives (the bug the first review found). The departure is right and already explained in the notes (so no separate Compliance finding beyond what's above) - the flag reflects the diff-vs-plan-text mismatch itself, not a fault in the decision to depart.
 
 One overlap to state for whoever merges second: TASK-1.86 (PR 60, in review) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. Whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's own broadcasts, keeping this task's `scope` (captured before `record_exit` runs, since `record_exit` can remove the very tab/session `scope` would otherwise have to be read back from) - 1.86's own notify must not move ahead of this task's broadcasts, and must not re-derive `scope` after `record_exit`.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:54:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T16:18:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: testing. The diff does not match the plan.
+
+Third review (same-machine) at head ca699eee225c (matches the task's own recorded `just check` head; PR #63 CI reports SUCCESS at this commit, confirmed via `gh pr view`).
+
+Diff reviewed: ffd6f32..ca699ee, restricted to this round's own changes (crates/server/src/dispatch/outcome.rs, dispatch/pane.rs, runtime.rs, tests/events.rs - the backlog/docs churn in that range came from merging origin/main, not this task).
+
+1. pane.move's fix, tried against a running server (real-socket tests): the three scenarios all behave correctly. `pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab` (tab.closed only) and `pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session` (tab.closed then session.closed) both pass; I reproduced the control myself (scratch-disabled both broadcasts in `move_and_dispatch`) and both fail correctly with no event arriving. The third case the brief named - a move that empties nothing - has no test in the diff; I added one in a scratch edit (moved one of two panes out of a two-pane tab) and it passes (no closure event arrives), then reverted it. Behaviour is correct; the case is just not on record (Nit, not Important - no acceptance criterion is unmet, since AC #2 is about events firing when the tree actually changes that way, not about proving silence on a no-op).
+
+Checked that `move_and_dispatch` omitting `emit_focus_event` (present in `handle`'s generic `_` arm, absent here) is not a regression: `emit_focus_event` only ever fires for `tab.focus`/`pane.focus` requests (it matches on `request.method` and returns early for anything else) - it would never have fired for `pane.move` even when `pane.move` went through the generic arm before this round. No other served method that creates/closes tree state calls it either, so this is consistent with the rest of the dispatch, not a new gap.
+
+2. Systematic pass: grepped crates/kernel/src/tree.rs for every public function and insertion/removal site myself. The worker's table is complete - no function creates or removes a session, tab or pane beyond what the table lists. `move_tab`/`move_session` are remove-then-reinsert at the same scope (reorder, not removal); `swap_panes`/`fill_pane`/`unfill_pane`/`resize_pane` touch layout only; `move_pane_to_tab` (via `Tab::remove_pane_for_move`) is the one row this round's fix now covers, and its own cascade is sourced from `close_tab` internally, so it genuinely can close the session too (confirmed by reading `move_pane_to_tab`/`close_tab` together). No row is left without an event.
+
+3. `session_close_emits_the_whole_cascade_innermost_first`'s control: confirmed recorded after the 2x2 rebuild, and repeated myself (scratch-flattened the per-tab loop in `emit_close_events`'s `session.close` arm) - fails at the same assertion the notes describe. Sampled five rows of the proof table (session.new, session.close, pane.close, the shell-exit cascade, pane.move) and repeated three myself: session.close (above), pane.close (scratch-reverted both arms of `emit_close_events`'s old bug - both new pane.close tests fail correctly with a WouldBlock timeout, nothing arrives), and pane.move (above). All reproduce at the right assertion; all scratch edits reverted, working tree clean throughout.
+
+4. Nits from round 2: both genuinely fixed on this head. `broadcast`'s own doc comment (runtime.rs) now accurately describes the `shutdown(Both)` call made under the lock on a failed enqueue - read directly at head, matches the code. `emit_close_cascade` is now the one function both the exit-driven and request-driven (`pane.close`) paths call - confirmed by reading `emit_close_events`'s `pane.close` arm, which now calls it directly instead of repeating its three broadcasts.
+
+5. `just check` clean on my own run at ca699ee (all steps ok, including boundaries/licences/architecture). `--test events` 30/30 passed, no flakiness. Full `steg-server` suite 5/5 passed, no flakiness. Process count before and after: 1 (an unrelated long-running background job unconnected to this worktree), no leftovers from my own runs.
+
+6. Restated for whoever merges second: TASK-1.86 (PR 60, passed review, not yet on main) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. I read that arm directly at ca699ee: `scope` is captured from `tab_of_pane`/`session_owning_tab` *before* `record_exit` runs (since `record_exit` can remove the very tab/session scope would otherwise have to be read back from), then on `Ok(outcome)`, `pane.exited` broadcasts first, and only inside `if let ExitOutcome::Closed(closed) = &outcome` does `emit_close_cascade` run. 1.86's own notify must land inside that same `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's broadcasts, using the same pre-captured `scope` - never re-derived after `record_exit`, and never placed ahead of this task's own broadcasts.
+
+No Important findings on this round's own changes; the five Important findings and the two nits from the first two rounds are addressed and verified, not re-raised. plan-matched is "no" for the same reason round 2 already recorded and explained (the plan's own text still says no `Outcome`/return-shape change for any close/new arm; this round's `PaneMoved` variant is the same explained class of departure, not a new unexplained one).
 
 ---
 <!-- COMMENTS:END -->

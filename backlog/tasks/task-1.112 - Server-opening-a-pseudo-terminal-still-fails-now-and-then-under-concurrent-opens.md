@@ -268,6 +268,21 @@ test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `cargo test -p steg-server --lib pty::tests` exited 0 at 2026-11-16T12:58:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 3 tests
+test pty::tests::fails_once_then_succeeds_counts_one_retry ... ok
+test pty::tests::succeeds_first_time_needs_no_retry ... ok
+test pty::tests::fails_every_time_surfaces_after_exactly_the_bound ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

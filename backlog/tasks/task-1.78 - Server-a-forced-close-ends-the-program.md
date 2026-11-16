@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:20:00Z'
+updated_date: '2026-11-16T02:25:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1816,6 +1816,53 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server -p steg-kernel -p steg` exited 0 at 2026-11-16T02:25:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at c7c751c59813 with uncommitted changes, last 40 of 645 lines:
+
+```text
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+kill: 7562: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 7572: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-3e485a295dc08c8a)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-794b69be98f698ad)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

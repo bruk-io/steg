@@ -3965,10 +3965,7 @@ mod tests {
         let first = tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
         let tab_id = tree.session(session_id).unwrap().tabs()[0].id();
 
-        assert_eq!(
-            tree.tab_layout(tab_id),
-            Ok(&steg_sdk::Layout::Pane(first))
-        );
+        assert_eq!(tree.tab_layout(tab_id), Ok(&steg_sdk::Layout::Pane(first)));
     }
 
     #[test]

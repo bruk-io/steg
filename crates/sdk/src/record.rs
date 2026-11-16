@@ -282,7 +282,10 @@ mod tests {
         record.status = Some(Status::Failed { exit_code: 3 });
 
         let value = serde_json::to_value(record).unwrap();
-        assert_eq!(value["status"], serde_json::json!({"failed": {"exit_code": 3}}));
+        assert_eq!(
+            value["status"],
+            serde_json::json!({"failed": {"exit_code": 3}})
+        );
     }
 
     /// Ties `PaneRecord`'s own shape to the description's, the same way

@@ -420,8 +420,7 @@ fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
 
     let mut list_params = Map::new();
     list_params.insert("target".to_string(), json!(session_id));
-    let (_, response) =
-        call_and_read_reply(&mut stream, &mut connection, "tab.list", list_params);
+    let (_, response) = call_and_read_reply(&mut stream, &mut connection, "tab.list", list_params);
     let tabs = match response {
         Response::Ok(value) => value,
         Response::Error(error) => panic!("tab.list failed: {error:?}"),
@@ -454,12 +453,8 @@ fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
         "target".to_string(),
         json!(format!("{session_id}/{tab_id}")),
     );
-    let (_, response) = call_and_read_reply(
-        &mut stream,
-        &mut connection,
-        "pane.list",
-        pane_list_params,
-    );
+    let (_, response) =
+        call_and_read_reply(&mut stream, &mut connection, "pane.list", pane_list_params);
     let panes = match response {
         Response::Ok(value) => value,
         Response::Error(error) => panic!("pane.list failed: {error:?}"),

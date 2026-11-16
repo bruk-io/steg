@@ -824,16 +824,16 @@ fn tab_list_returns_every_tab_of_the_session_in_order() {
         &mut Settings::new(),
         &api,
         &context,
-        &request(
-            "tab.list",
-            vec![("target", json!(session_id.to_string()))],
-        ),
+        &request("tab.list", vec![("target", json!(session_id.to_string()))]),
         moment(0),
     ));
 
     let records = value.as_array().unwrap();
     assert_eq!(records.len(), 2);
-    assert_eq!(records[0]["id"], json!(context.default_tab.unwrap().to_string()));
+    assert_eq!(
+        records[0]["id"],
+        json!(context.default_tab.unwrap().to_string())
+    );
     assert_eq!(records[0]["position"], json!(1));
     assert_eq!(records[1]["id"], json!(second_tab.to_string()));
     assert_eq!(records[1]["position"], json!(2));
@@ -868,7 +868,11 @@ fn tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order()
     let tab_id = context.default_tab.unwrap();
     let first = context.default_pane.unwrap();
     let second = tree
-        .split_pane(first, steg_sdk::Direction::Right, steg_sdk::PaneKind::Terminal)
+        .split_pane(
+            first,
+            steg_sdk::Direction::Right,
+            steg_sdk::PaneKind::Terminal,
+        )
         .unwrap();
 
     // `first` (R112's first pane) is merely Running; `second` (R112's
@@ -898,10 +902,7 @@ fn tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order()
         &mut Settings::new(),
         &api,
         &context,
-        &request(
-            "tab.show",
-            vec![("target", json!(tab_id.to_string()))],
-        ),
+        &request("tab.show", vec![("target", json!(tab_id.to_string()))]),
         moment(0),
     ));
     assert_eq!(shown["shown_status"], json!(second.to_string()));
@@ -911,7 +912,13 @@ fn tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order()
         &mut Settings::new(),
         &api,
         &context,
-        &request("tab.list", vec![("target", json!(context.default_session.unwrap().to_string()))]),
+        &request(
+            "tab.list",
+            vec![(
+                "target",
+                json!(context.default_session.unwrap().to_string()),
+            )],
+        ),
         moment(0),
     ));
     assert_eq!(listed[0]["shown_status"], json!(second.to_string()));
@@ -1045,7 +1052,11 @@ fn pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order() {
     let tab_id = context.default_tab.unwrap();
     let first = context.default_pane.unwrap();
     let second = tree
-        .split_pane(first, steg_sdk::Direction::Left, steg_sdk::PaneKind::Terminal)
+        .split_pane(
+            first,
+            steg_sdk::Direction::Left,
+            steg_sdk::PaneKind::Terminal,
+        )
         .unwrap();
 
     let value = ok(dispatch(
@@ -1060,7 +1071,8 @@ fn pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order() {
     let records = value.as_array().unwrap();
     assert_eq!(records.len(), 2);
     assert_eq!(
-        records[0]["id"], json!(second.to_string()),
+        records[0]["id"],
+        json!(second.to_string()),
         "second was split to the Left of first, so it reads first in R112's order"
     );
     assert_eq!(records[1]["id"], json!(first.to_string()));

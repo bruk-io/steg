@@ -913,6 +913,34 @@ test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_
 
 test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.36s
 ```
+
+Check FAILED: `cargo test -p steg --features fixtures --test idle_stop` exited 101 at 2026-11-16T12:25:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... FAILED
+
+failures:
+
+---- an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one stdout ----
+
+thread 'an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one' (27649216) panicked at crates/steg/tests/idle_stop.rs:77:9:
+the process did not exit within the bound
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.36s
+
+error: test failed, to rerun pass `-p steg --test idle_stop`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

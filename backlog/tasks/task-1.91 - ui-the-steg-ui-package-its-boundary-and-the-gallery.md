@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:09:00Z'
+updated_date: '2026-11-16T01:10:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -232,4 +232,6 @@ image-writing crate - deliberately, so this task adds zero new licence surface a
 
 <!-- SECTION:NOTES:BEGIN -->
 Read first: GPUI's README, https://github.com/zed-industries/zed/blob/main/crates/gpui/README.md (the engineer: 'a really good intro to it'), then the examples; accessibility examples are a11y.rs, focus_visible.rs and tab_stop.rs.
+
+Plan checked against doc-17 (R117, R124), decision-11 and doc-16 (R104, R108, R111) by @bruk.o: ok. steg-ui is a package allowed gpui and nothing of steg's, and the app is allowed steg-ui; the gallery is a binary of the package; the theme switch is a placeholder named as what TASK-1.93 replaces. The capture was established by experiment: gpui 0.2.2 offers no way to read back what it drew, so the image comes from the system's screen capture of the gallery's own window, which needs the invoking terminal to hold the Screen Recording permission, granted once by a person; CI's runner cannot hold it, so just check and CI only compile the gallery and the capture is a recipe a worker or a person runs. Orchestrator's answers to the two points raised: 'capture' is added to the recipe verbs; the permission is documented in the package's CLAUDE.md, and, for the build, the capture recipe itself checks that the image shows the gallery (a known colour at a known place) and fails with a message naming the Screen Recording permission when it does not, so that a blank or wrong capture can never be attached to a pull request as its image.
 <!-- SECTION:NOTES:END -->

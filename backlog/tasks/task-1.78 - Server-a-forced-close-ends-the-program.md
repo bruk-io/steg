@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:11:00Z'
+updated_date: '2026-11-16T03:15:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2207,6 +2207,64 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 124, 123 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c '
+echo "=== process count before (sleep 1000/sleep 100 and trap-HUP fixtures) ===";
+ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep | wc -l;
+START_EPOCH=$(date +%s);
+for i in $(seq 1 20); do cargo test -p steg-server 2>&1 | grep -E "test result|FAILED" || exit 1; done;
+echo ALL_20_RUNS_CLEAN;
+echo "=== process count after (same patterns) ===";
+AFTER=$(ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep);
+echo "$AFTER" | wc -l;
+echo "=== of those, any that STARTED during this run and are still alive (a real leak) ===";
+echo "$AFTER" | awk -v start="$START_EPOCH" "{print}"
+'` exited 0 at 2026-11-16T03:15:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a, last 40 of 187 lines:
+
+```text
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ALL_20_RUNS_CLEAN
+=== process count after (same patterns) ===
+       1
+=== of those, any that STARTED during this run and are still alive (a real leak) ===
+brukhabtu        64031   0.0  0.0 488782768   1488 s007  Ss+  10:06PM   0:00.01 sleep 1000
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:13:00Z'
+updated_date: '2026-11-16T02:20:00Z'
 labels:
   - size-3
   - changes-requested
@@ -884,6 +884,48 @@ No file under crates/sdk or crates/kernel changed. origin/main was rebased in cl
 Left out, by task, as the plan named: events and subscriptions (TASK-1.46); attach, screen-mode streams, the real drop-and-resync policy Outbound's data side is built for but not yet exercised by production code (TASK-1.47); the CLI and any real per-connection context (TASK-1.49); start-on-demand, detach, the login shell from the password database (TASK-1.77). The absence of a post-handshake per-frame deadline is this task's own chosen design (a trickling client is indistinguishable from an idle one, by intent), not a gap handed to another task - proven never-closed by routing.rs's own a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed.
 
 PR: https://github.com/bruk-io/steg/pull/50. CI green (check, 3m4s) at the final head.
+
+Check FAILED: `cargo test -p steg-server --test routing a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs` exited 101 at 2026-11-16T02:20:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 3cada1b0b743 with uncommitted changes:
+
+```text
+warning: field `shutdown_handle` is never read
+   --> crates/server/src/connection.rs:263:5
+    |
+260 | struct ConnectionCleanup<'a> {
+    |        ----------------- field in this struct
+...
+263 |     shutdown_handle: UnixStream,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/routing.rs (target/debug/deps/routing-0c157b8cdcb37f92)
+
+running 1 test
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... FAILED
+
+failures:
+
+---- a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs stdout ----
+
+thread 'a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs' (18818234) panicked at crates/server/tests/routing.rs:832:5:
+assertion `left == right` failed: the connection must still be cleaned up (and reported) within a bound, even with its writer thread genuinely blocked inside write_all on a full send buffer when this connection's own close runs
+  left: Err(Timeout)
+ right: Ok(Disconnected)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.32s
+
+error: test failed, to rerun pass `-p steg-server --test routing`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

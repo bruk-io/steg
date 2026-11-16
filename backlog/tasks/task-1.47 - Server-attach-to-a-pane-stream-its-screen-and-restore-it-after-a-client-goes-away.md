@@ -1151,6 +1151,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking` exited 101 at 2026-11-16T14:10:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking stdout ----
+
+thread 'pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking' (40129331) panicked at crates/server/src/pane.rs:2096:13:
+the queue never filled - test is not exercising DATA_CAP
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

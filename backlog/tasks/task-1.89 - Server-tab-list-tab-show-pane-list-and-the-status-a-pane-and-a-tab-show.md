@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:05:00Z'
+updated_date: '2026-11-16T05:06:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -576,6 +576,35 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 failures:
     tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+```
+
+Check FAILED: `cargo test -p steg-server --test dispatch -- pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf` exited 101 at 2026-11-16T05:06:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-a3fcf474f697b99f)
+
+running 1 test
+test pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf ... FAILED
+
+failures:
+
+---- pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf stdout ----
+
+thread 'pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf' (24049776) panicked at crates/server/tests/dispatch.rs:1029:5:
+assertion `left == right` failed: this tab's only pane fills the whole declared size
+  left: Null
+ right: Object {"columns": Number(100), "rows": Number(20)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_show_size_reflects_the_tabs_declared_size_and_this_panes_own_leaf
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
 

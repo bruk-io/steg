@@ -4,10 +4,12 @@ title: 'ui atoms: the status ring and the status bar'
 status: To Do
 assignee: []
 created_date: '2026-11-16T02:46:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-5
 milestone: m-4
-dependencies: []
+dependencies:
+  - TASK-1.93
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5

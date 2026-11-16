@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:23:00Z'
+updated_date: '2026-11-16T02:24:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -126,3 +126,9 @@ Negative controls (via `tmp_path` copies of the real file, per team:testing - th
 3. The reverse-direction allow-list starts empty. Any future page addition with no file entry is a deliberate choice to extend that table, not silence - worth confirming that's the intended failure mode (refuse first, allow-list second) rather than warn-only.
 4. Decision 0's gap is in the design's own page, not in this tool or the data file: `track` is a named colour of the design with no named row on Tokens.dc.html. Correcting the artifact (adding a `track` row to the colours table, the same kind of correction TASK-1.92 already made twice for `off` and the scrim sentence) is the engineer's to ask for, not this task's to do. Until the artifact is corrected, `track` stays a declared Tier C exception rather than something this task works around.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-17 (R121, R122) by @bruk.o: ok, with the decisions listed at its end for the engineer. The tool reads the rendered body of the saved Tokens and Details pages (not their script blocks, and not the Layout page, whose own text says it names no values) and sorts every entry of the data file into three tiers that the tool itself prints: exact name and value (17 colours, the 32 terminal colours), name present with its numbers checked within the row (type, most sizes), and declared unseen with a reason. The reverse direction lists the named rows of the same tables and reports any with no entry in the file. It reads the data file through TASK-1.94's shared reader. Named so it does not clash with TASK-1.93 or TASK-1.94: design_pages.py, steg-design-check, check-design. Orchestrator's recommendation on the corners: a small reviewed name map (four entries) so the three pixel corners are checked against the merged row's numbers, since a missed corner is the very error TASK-1.92's review caught by hand; the engineer decides.
+<!-- SECTION:NOTES:END -->

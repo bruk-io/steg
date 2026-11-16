@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T14:58:00Z'
+updated_date: '2026-11-16T15:02:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1503,6 +1503,42 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/
          FirstFrame::NotAHello(reason) => {
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:02:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (63.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (22.7s)
+ok      test (steg-server, race-fixture) (22.6s)
+ok      test (steg-server, accept-backoff-fixture) (24.0s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (7.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 75, 73 without the Asdlc-Worker trailer.

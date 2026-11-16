@@ -1,13 +1,14 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:28:00Z'
+updated_date: '2026-11-16T15:40:00Z'
 labels:
   - size-4
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -24,10 +25,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review", "testing"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -874,6 +874,38 @@ created: 2026-11-16T15:28:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:40:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Full review (first full pass; an earlier evidence-only pass sent this back for missing controls, now recorded and verified - see below). Head reviewed: 97d873c (matches the PR's head, CI green on that head: the "check" workflow run completed SUCCESS). just check run fresh in a detached review worktree at this head: green (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours).
+
+[Bugs, Important] crates/steg/src/main.rs:27-28 vs the generated `server.start` command (crates/sdk/src/description/methods.rs:930-946, mapped by crates/steg/src/cli/tree.rs): the hand-written interception only matches the literal argv `["server","start"]` and `["server","start","--on-demand"]`. `server.start`'s own description declares `on_demand` as a `Switch`, and doc-2 section 5 requires both `--on-demand` and `--no-on-demand` to always be accepted with the same meaning. `--no-on-demand` (equivalent in meaning to plain `server start`) and `--on-demand --no-on-demand` (last-wins = off) are not matched by the hand-written arms, so they fall through to `run_generated`, parse successfully against the generated `server start` subcommand (it is valid usage, not a usage error), and reach the placeholder: exit 1, "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)" - a real, already-working command made to look unbuilt, under a documented, locally-valid flag spelling. Verified by hand against the built binary: `server start` and `server start --on-demand` actually start a server; `server start --no-on-demand` and `server start --on-demand --no-on-demand` both hit the placeholder instead. main.rs's own comment ("Any other variant of server start... reaches the generated server start subcommand here too... clap's own usage error (status 2) or --help (status 0)... answers it") is itself wrong for this case: `--no-on-demand` is not bad usage, so no usage error is produced, and no doc-2 status fits "a working command silently doing nothing." Not covered by any test: cli_run_placeholder.rs explicitly excludes server.start from its per-method loop, since it is only proved by tests/server_start.rs, which exercises just the two hand-matched invocations. This was a bug in the approved plan's own stated assumption about main.rs's routing, not a departure from the plan - the diff matches the plan's files and order of work.
+
+[Bugs, Nit] crates/steg/src/cli/tree.rs noun_command: a noun-level `Command` gets no `.about()` (only verb-level commands do, from `method.summary`), so `steg --help` lists `session`, `tab`, `pane`, etc. with blank descriptions. This is not a generator bug - `Description` carries no noun-level summary field to draw from, only per-method summary/details - so there is nothing for the mapping to read; flagged as a nit since top-level `--help` reads emptier than the subcommand help does.
+
+Verified myself, in a detached worktree, git status clean before and after each:
+- Drift control: `pane.split` skipped in `tree.rs`'s `noun_command` loop -> `cli_drift`'s completeness test failed, "methods with no generated command: [(\"pane\", \"split\")]"; reverted -> passed.
+- Placeholder control: `cli/run.rs`'s `run()` changed to return 0 -> `cli_run_placeholder`'s completeness test failed on session.list (left: 0, right: 1); reverted -> passed.
+Both match the task's own recorded controls exactly, run fresh against the tests as they stand on this head.
+
+Checked by hand through the real binary, STEG_SOCKET_PATH pointed at a non-existent path: `session new -- htop -d 5 --cwd /tmp` parses and reaches the placeholder (program-after-`--` and a flag together); `pane split --direction bogus` -> clap usage error, exit 2, listing the closed set; `pane resize --by abc` -> exit 2, invalid integer; `pane unset --label --no-label` / `--no-label --label` (own test already proves this, re-run and confirmed) - last given wins; `session show` with no target reaches the placeholder (target is `required: false` in the description, matching doc-2's "defaults to the current session" and the engineer's accepted recommendation on `api.show`); `steg`/`steg <noun>` alone list and exit 0 with STEG_SOCKET_PATH pointed at a real listener that never saw a connection (repeated the no-server tests' own control by hand too). `completion zsh` prints a real completion script with no server contacted, generated from the same tree `build()` returns. All ten runs of the new tests (cli_drift, cli_no_server, cli_run_placeholder, the sdk switch-role test, the dispatch switch test) passed with no flakiness. `ps` after finishing shows nothing left from this review's worktree.
+
+Nothing names a method, noun, verb or flag by hand outside version/completion (tree.rs's own NON_METHOD_COMMANDS) and the one stated exception, server start (main.rs:27-28) - grepped the whole crate for every noun/verb/flag literal.
+
+Dependencies: clap pinned exactly at =4.6.7 (builder API only, "string" feature named and explained, derive denied via boundaries.toml's deny-features), clap_complete pinned at =4.6.11, both newly allowed in boundaries.toml's [steg] with a reason naming decision-1 and this task; Cargo.lock's other new entries (anstream, anstyle, clap_lex, strsim, etc.) are clap's own transitive deps for the features actually enabled, nothing unexplained. Licence check passes.
+
+doc-2's own flag table (section 5, "Flags that recur") still writes a single row `--label <text> | new, set, unset` - now wrong for `unset` on session/tab/pane, where label is a switch (`--label`/`--no-label`, no value). For the orchestrator: that row should split into `--label <text> | new, set` and a second line (or a note) covering `--label`/`--no-label` | `unset`.
+
+Plan-matched: yes - the diff touches exactly the plan's named files in the stated order (boundaries.toml, methods.rs's three unset params, the new crates/steg/src/cli/* modules, main.rs's routing, the three new test files, Cargo.toml/Cargo.lock), and the switch step, the placeholder seam and the drift test all match the approved plan's own design section.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:34:00Z'
+updated_date: '2026-11-16T13:36:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -129,4 +129,6 @@ Carried from TASK-1.75's build (2026-11-15), for this task's plan to settle agai
 Carried from TASK-1.77's planning (2026-11-15): when a server is stopping, a connection the accept loop takes in the instant it sees the stop flag is dropped with no reply, so the client sees connect succeed and then end of file, a third outcome beside refused and not found. The CLI's client must treat end of file before a server hello as no server there, and start one, exactly as it treats a refusal; say whether that belongs in the sdk's local-socket provider (which today only waits for the socket) or in the handshake's caller.
 
 TASK-1.89 (tab list, tab show, pane list) and TASK-1.88 (server and client methods) were accepted on 2026-11-15 for methods the generated commands will call; this task's own tests should use methods that exist when it is built and need not wait for those.
+
+Plan (fdbb9acfc676) checked against doc-2, decision-1, decision-4, doc-16 and the seven criteria by @bruk.o, 2026-11-16: sound; the split into three is taken (two drafts created: connecting, calling and exit statuses; output formats). This task keeps the generated command tree, help, version and completion. The orchestrator asked for one change to the split: the connecting task prints the server's reply with --json, so the CLI is usable by hand when it lands, before the output formats. For the engineer: the plan's five small decisions, all recommended as the worker does (steg and steg <noun> alone list and exit 0, as doc-2 says; doc-2 gains a line for api show with no target; unset --label becomes a switch in the description; pane move's missing direction is left; a nested value prints whole with --json and as its scalar fields in plain text).
 <!-- SECTION:NOTES:END -->

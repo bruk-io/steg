@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:22:00Z'
+updated_date: '2026-11-16T04:55:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -339,6 +339,481 @@ Every control below is a scratch edit, recorded and reverted immediately
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-8 (R3, R98, R99), doc-2 section 4 and doc-16 by @bruk.o: ok, with one decision that is the engineer's and one ordering constraint. The environment is captured once, after the socket is bound and before requests are served, by running the account's login shell from a cleared environment seeded with HOME, USER, LOGNAME and a minimal PATH, with a marker before the dump so start-up noise cannot corrupt it and a bound of about three seconds; on any failure the server starts with a small fixed environment, never the starting client's. A pane's program gets the captured environment plus TERM and the STEG_ variables set by the server. No unsafe, no new dependency. The decision for the engineer: the capture runs the shell as a login shell and not as an interactive one, so on zsh it reads .zprofile and not .zshrc; a shell pane still reads .zshrc itself when it starts, but a command pane started through the API or the CLI gets only what .zprofile gives, and many people set PATH and tool managers in .zshrc. The alternative is to capture from an interactive login shell, as some editors do, at the cost of slower and noisier start-up files running in the capture; the bound and the fallback are the same either way. Ordering: criterion 1 is proved through a real client and a real server, which needs TASK-1.45 merged; the build starts after it merges.
+
+Check passed: `cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-16T04:33:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+warning: constant `DEFAULT_LOGIN_IDENTITY_TIMEOUT` is never used
+  --> crates/server/src/login_env.rs:54:11
+   |
+54 | pub const DEFAULT_LOGIN_IDENTITY_TIMEOUT: Duration = Duration::from_secs(2);
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT` is never used
+  --> crates/server/src/login_env.rs:62:11
+   |
+62 | pub const DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT: Duration = Duration::from_secs(3);
+   |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 11 tests
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 112 filtered out; finished in 0.21s
+```
+
+Check FAILED: `cargo test -p steg-server --lib` exited 101 at 2026-11-16T04:39:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 147 lines:
+
+```text
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+kill: 63478: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+kill: 63476: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+kill: 63474: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+
+failures:
+
+---- pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own stdout ----
+
+thread 'pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own' (22633151) panicked at crates/server/src/pane.rs:673:14:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+
+failures:
+    pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own
+
+test result: FAILED. 123 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `cargo test -p steg-server --test real_pty` exited 101 at 2026-11-16T04:40:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 56 lines:
+
+```text
+thread 'a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again' (22653532) panicked at crates/server/tests/real_pty.rs:166:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home stdout ----
+
+thread 'a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home' (22653534) panicked at crates/server/tests/real_pty.rs:303:6:
+a bad cwd alone does not fail start() - portable-pty substitutes home and spawns: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- a_shell_panes_real_exit_reaches_the_kernels_cascade stdout ----
+
+thread 'a_shell_panes_real_exit_reaches_the_kernels_cascade' (22653537) panicked at crates/server/tests/real_pty.rs:224:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- a_real_program_runs_in_the_given_working_directory stdout ----
+
+thread 'a_real_program_runs_in_the_given_working_directory' (22653535) panicked at crates/server/tests/real_pty.rs:79:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- many_threads_opening_a_real_pty_at_once_never_fails stdout ----
+
+thread 'many_threads_opening_a_real_pty_at_once_never_fails' (22653538) panicked at crates/server/tests/real_pty.rs:407:31:
+round 0/10, thread 0/32: RealLauncher::spawn failed under concurrent opens: the pseudo-terminal failed: Unable to spawn sh because:
+Unable to resolve the PATH
+
+
+failures:
+    a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again
+    a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home
+    a_real_program_runs_in_the_given_working_directory
+    a_shell_panes_real_exit_reaches_the_kernels_cascade
+    many_threads_opening_a_real_pty_at_once_never_fails
+
+test result: FAILED. 2 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-16T04:42:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 323 lines:
+
+```text
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-28715a1c11dd3b93)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-7da8aa152f6f03c1)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T04:42:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests tests/fixtures/already_a_group_leader.rs (target/debug/deps/already_a_group_leader-e262f96fc889a606)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests tests/fixtures/autostart_client.rs (target/debug/deps/autostart_client-6b0dd6f6b50bd8a0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-7b4495d74eacd8b0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+```
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-16T04:46:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 323 lines:
+
+```text
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-28715a1c11dd3b93)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-7da8aa152f6f03c1)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test real_pty a_real_programs_environment_never_leaks_this_processs_own_ambient_variables` exited 101 at 2026-11-16T04:46:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 221 lines:
+
+```text
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_real_programs_environment_never_leaks_this_processs_own_ambient_variables
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
+```
+
+Check passed: `cargo test -p steg-server --test real_pty` exited 0 at 2026-11-16T04:47:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/real_pty.rs (target/debug/deps/real_pty-d5887de6b4314ba9)
+
+running 8 tests
+test a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join ... ok
+test a_shell_panes_real_exit_reaches_the_kernels_cascade ... ok
+test a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home ... ok
+test a_real_program_runs_in_the_given_working_directory ... ok
+test a_real_programs_environment_never_leaks_this_processs_own_ambient_variables ... ok
+test a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again ... ok
+test a_real_programs_environment_carries_the_five_variables_and_path ... ok
+test many_threads_opening_a_real_pty_at_once_never_fails ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+```
+
+Check FAILED: `cargo test -p steg-server --lib login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment` exited 101 at 2026-11-16T04:47:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 1 test
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment stdout ----
+
+thread 'login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment' (22988126) panicked at crates/server/src/login_env.rs:417:9:
+assertion `left == right` failed: a variable set only in the calling process's own environment must not reach the captured login shell's environment
+  left: Some("steg-server")
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 123 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib login_env::` exited 0 at 2026-11-16T04:48:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 11 tests
+test login_env::tests::fallback_env_omits_user_and_logname_when_the_identity_itself_has_none ... ok
+test login_env::tests::fallback_env_is_exactly_the_named_constant_set ... ok
+test login_env::tests::parse_env_dump_skips_a_malformed_entry_with_no_equals_sign ... ok
+test login_env::tests::parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_does_not_exist ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 113 filtered out; finished in 0.20s
+```
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::steg_vars_and_term_always_win` exited 101 at 2026-11-16T04:50:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 45 lines:
+
+```text
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... FAILED
+
+failures:
+
+---- runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env stdout ----
+
+thread 'runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env' (23151613) panicked at crates/server/src/runtime.rs:1217:9:
+the server's own TERM must win over the login shell's own base_env: TERM=bogus-term-from-login-shell
+STEG_SERVER=bogus-server-from-login-shell
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 124 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-16T04:50:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 136 lines:
+
+```text
+test runtime::tests::login_shell_default_is_a_fixed_zero_io_value ... ok
+test arbiter::tests::attempt_finds_a_real_live_listener_already_running ... ok
+test paths::tests::a_real_plain_file_at_the_path_is_not_a_socket ... ok
+test arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test paths::tests::a_real_socket_we_own_is_ours_and_a_socket ... ok
+test arbiter::tests::attempt_becomes_the_server_when_nothing_is_there ... ok
+test login_env::tests::resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home ... ok
+test runtime::tests::login_shell_resolve_identity_never_panics_and_is_never_empty ... ok
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... ok
+test login_env::tests::capture_login_environment_sources_the_login_profile_not_the_interactive_one ... ok
+test runtime::tests::a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+kill: 56751: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+kill: 56747: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+kill: 56750: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 56746: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 125 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+```
+
+Check passed: `cargo test -p steg --features fixtures --test login_environment` exited 0 at 2026-11-16T04:55:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/login_environment.rs (target/debug/deps/login_environment-5d80ac678d8aeeb7)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

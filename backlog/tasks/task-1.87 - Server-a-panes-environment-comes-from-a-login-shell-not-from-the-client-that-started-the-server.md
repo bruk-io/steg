@@ -3,11 +3,11 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T11:47:00Z'
+updated_date: '2026-11-16T11:53:00Z'
 labels:
   - size-3
   - review-passed

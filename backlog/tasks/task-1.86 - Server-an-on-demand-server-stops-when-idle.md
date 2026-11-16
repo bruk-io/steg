@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:16:00Z'
+updated_date: '2026-11-16T13:17:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1068,6 +1068,33 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/
  
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:17:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 8e8294aeb8f6 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 33.0s)
+   Compiling nix v0.28.0
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+    Checking portable-pty v0.9.0
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg)
+error: wildcard match will also match any future added variants
+   --> crates/server/src/idle.rs:420:13
+    |
+420 |             other => panic!("expected Wait::Until with some time still left, got {other:?}"),
+    |             ^^^^^ help: try: `other @ Wait::Forever | other @ Wait::Expired`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg-server` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

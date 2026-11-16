@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:04:00Z'
+updated_date: '2026-11-16T15:10:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=5,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1481,6 +1482,15 @@ Nits (2, both minor):
 - `Connection::watch`'s signature (`for_: Option<&str>`) departs from the plan's own sketch (`for_: &[&str]`); justified inline (the API's own `for` is a single Choice value, not a list) but not called out in the task's notes.
 
 Not findings, confirmed working as designed: the slow-subscriber shutdown (shutdown() on a cloned socket from the broadcasting thread while holding the Runtime's lock is the same cross-thread-shutdown idiom TASK-1.45's own ConnectionCleanup already uses and is non-blocking; the unit test does prove the real socket closes, not just queue bookkeeping); TASK-1.47's own `pane.attach` does use `Follows::Attachment` as this task's description predicted usable. TASK-1.86 (in review) adds its own `SessionCountChanged` notify inside the exact same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures (not just connection.rs/listen.rs as this task's own Risks section says) - whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping this task's `scope` captured before `record_exit`.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T15:10:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 5m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

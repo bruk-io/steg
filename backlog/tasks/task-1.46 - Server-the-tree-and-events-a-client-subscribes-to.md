@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:16:00Z'
+updated_date: '2026-11-16T12:47:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -17,6 +17,9 @@ type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-16
 asdlc_branch: task-1.46-server-the-tree-and-events-a-client
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '4ee3881365b0'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -595,6 +598,15 @@ created: 2026-11-16T11:54:00Z
 ---
 
 2026-11-16, @bruk.o: the engineer decided all four as recommended: the tree is the reply to event watch; the event names as proposed; a subscriber that does not read has its connection closed; status-change events are M1 (R52's label corrected in doc-11). The plan is being rewritten once for part A.
+
+---
+
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (4ee3881365b0, size-3): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

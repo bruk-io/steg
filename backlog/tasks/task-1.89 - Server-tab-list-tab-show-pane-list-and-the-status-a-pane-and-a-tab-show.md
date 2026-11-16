@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:18:00Z'
+updated_date: '2026-11-16T05:24:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -787,6 +787,16 @@ created: 2026-11-16T05:18:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.89: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+created: 2026-11-16T05:24:00Z
+
+---
+
+Small departure from the plan, per the team lead: the three split tasks (TASK-1.110 "Server: pane resize", TASK-1.111 "Kernel and server: move a tab to another session", TASK-1.109 the events task owning session.focus) now have real ids, accepted after this task's plan was written. Updated the three not_implemented_yet messages that cited them by title alone to cite the id instead (pane.send/capture/wait's TASK-1.90 citation was already an id and is unchanged).
+
+cargo test -p steg-server --test dispatch and just check both passed locally before pushing (commit c88bcc8, then merged with origin/main at ba83798 with no code conflict - only backlog/ files). Could not record these through `asdlc record-check`: it refuses while the task is In Review ("not In Progress, so @bruk.w5 can't record checks on it"). CI passed at the final head, ba83798: https://github.com/bruk-io/steg/actions/runs/43809715675
 
 ---
 <!-- COMMENTS:END -->

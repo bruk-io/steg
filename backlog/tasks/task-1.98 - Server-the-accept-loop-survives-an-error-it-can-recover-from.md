@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T13:59:00Z'
+updated_date: '2026-11-16T14:02:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -778,6 +779,15 @@ created: 2026-11-16T13:14:00Z
 ---
 
 2026-11-16, @bruk.o: follow-up noted from the first review, not for this task: the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created; the classification added here covers descriptors, not threads. To be drafted as its own small task once this one merges.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T14:02:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 3m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1004,6 +1004,36 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib outbound::tests::a_broken_write` exited 101 at 2026-11-16T02:24:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 3cada1b0b743 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... FAILED
+
+failures:
+
+---- outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails stdout ----
+
+thread 'outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails' (18895564) panicked at crates/server/src/outbound.rs:458:9:
+assertion `left == right` failed: the writer's own broken-write exit must close the queue, the same as an explicit Outbound::close() would
+  left: Ok(())
+ right: Err(Closed)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 104 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

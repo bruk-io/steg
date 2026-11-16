@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:48:00Z'
+updated_date: '2026-11-16T04:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -711,6 +711,51 @@ test login_env::tests::capture_login_environment_prints_noise_before_the_marker_
 test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
 
 test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 113 filtered out; finished in 0.20s
+```
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::steg_vars_and_term_always_win` exited 101 at 2026-11-16T04:50:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 45 lines:
+
+```text
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... FAILED
+
+failures:
+
+---- runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env stdout ----
+
+thread 'runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env' (23151613) panicked at crates/server/src/runtime.rs:1217:9:
+the server's own TERM must win over the login shell's own base_env: TERM=bogus-term-from-login-shell
+STEG_SERVER=bogus-server-from-login-shell
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 124 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -67,6 +67,17 @@ name = "env_leak_client"
 path = "tests/fixtures/env_leak_client.rs"
 required-features = ["fixtures"]
 
+# `fixture_server` (TASK-1.87, AC #1, review finding): the real server
+# code (`attempt`/`detach`/`build_login_shell`/`run`), given a login
+# identity from this fixture's own environment instead of the real
+# password database - so `login_environment.rs`'s own end-to-end test
+# can point it at a throwaway home with its own `.zprofile`, never this
+# machine's real one. Does not exist in the shipped binary at all.
+[[bin]]
+name = "fixture_server"
+path = "tests/fixtures/fixture_server.rs"
+required-features = ["fixtures"]
+
 # Declared explicitly (autodiscovery alone cannot carry `required-features`)
 # so this one test file is skipped, not built, without `fixtures` - the same
 # reason the two binaries above are gated, and the same shape `steg-server`'s

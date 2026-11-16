@@ -108,6 +108,41 @@ impl LoginShell {
     }
 }
 
+/// Captures `identity`'s own login shell environment and builds the
+/// [`LoginShell`] a caller passes to [`Runtime::new`] from it - the
+/// "capture, then report a fallback" step `crates/steg/src/main.rs`'s
+/// own `run_server_start` needs, written once so it is not duplicated at
+/// TASK-1.87's own fixture-only entry point for tests
+/// (`crates/steg/tests/fixtures/fixture_server.rs`), which calls this
+/// with a *fabricated* identity (a throwaway home, never the password
+/// database) instead of [`LoginShell::resolve_identity`]'s real one -
+/// everything from this call onward is the real path: the real capture,
+/// the real launcher, a real client over a real socket.
+///
+/// Returns the reason alongside the built `LoginShell` on a fallback,
+/// rather than printing anything itself - this crate does no I/O of that
+/// kind (no `eprintln!`/`println!` appears anywhere in `crates/server/
+/// src`, and this function keeps that true); the caller decides whether
+/// and how to report it.
+#[must_use]
+pub fn build_login_shell(
+    identity: crate::login_env::LoginIdentity,
+    environment_timeout: std::time::Duration,
+) -> (LoginShell, Option<crate::login_env::FallbackReason>) {
+    let (base_env, fallback_reason) =
+        match crate::login_env::capture_login_environment(&identity, environment_timeout) {
+            crate::login_env::Capture::Captured(env) => (env, None),
+            crate::login_env::Capture::Fallback(reason, env) => (env, Some(reason)),
+        };
+    let login = LoginShell {
+        argv0: identity.shell.to_string_lossy().into_owned(),
+        home: identity.home.to_string_lossy().into_owned(),
+        user: identity.user,
+        base_env,
+    };
+    (login, fallback_reason)
+}
+
 /// The kernel's tree, and every pane's real runtime, held together under
 /// one lock (TASK-1.76 §1): many operations need both atomically (a
 /// forced close, once built, removes a `PaneHandle` and closes the tree's

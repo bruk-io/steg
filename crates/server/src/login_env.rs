@@ -10,6 +10,19 @@
 //! script, a stalled directory service). Neither ever touches this
 //! process's own environment table (`std::env::set_var` is unsafe and is
 //! not used anywhere in this module); both hand back plain data.
+//!
+//! **Accepted, engineer-confirmed limit: a login shell run this way never
+//! sources `.zshrc`.** `-l` (login) without `-i` (interactive) is
+//! deliberate (a login shell's own profile, never an interactive prompt
+//! that would need a real tty - see [`capture_login_environment`]'s own
+//! doc) - but on zsh that also means only `.zprofile` is sourced, never
+//! `.zshrc` (confirmed empirically, and proved here by
+//! `capture_login_environment_sources_the_login_profile_not_the_
+//! interactive_one`). A command pane's own program therefore never sees
+//! anything a person set only in `.zshrc` - most macOS users' own `PATH`
+//! edits, among other things. Accepted as a real gap, not worked around:
+//! widening this to source `.zshrc` too would mean treating every pane's
+//! own program as an interactive session, which it is not.
 
 use std::ffi::{OsStr, OsString};
 use std::io::Read;
@@ -53,14 +66,6 @@ const DEFAULT_HOME: &str = "/";
 /// AC #2's wording allows). Fixed and named so a test can assert on it
 /// exactly, not merely "did not panic."
 const FALLBACK_PATH: &str = "/usr/bin:/bin:/usr/sbin:/sbin";
-
-/// A fixed line [`capture_login_environment`]'s own command prints before
-/// `exec`ing into the environment dump, so a profile script's own startup
-/// noise (a banner, a warning) can never corrupt [`parse_env_dump`]: login
-/// -profile sourcing always finishes before the `-c` string's own commands
-/// run, so every byte before this marker's own trailing newline is noise
-/// to discard, never part of the dump that follows.
-const ENV_CAPTURE_MARKER: &str = "__steg_env_capture__";
 
 /// Resolves the login identity of the account this process is running as,
 /// from the password database - never from `$SHELL`/`$HOME`/`$USER` in
@@ -143,13 +148,31 @@ pub enum Capture {
 /// of its own, e.g. a profile script that forks with `&`, could otherwise
 /// let the read finish while the shell itself has not yet exited, leaving
 /// an unbounded `wait()` after the bound already fired). On timeout, the
-/// caller kills by pid (read before the `Child` moved into the thread)
-/// via a plain `kill` subprocess, the same technique this repository's
-/// own tests already use (`crates/steg/tests/server_start.rs`), not a new
-/// `nix` feature. The abandoned thread's own `wait()` still reaps the
-/// process shortly after; not joined here, for the same reason
-/// [`resolve_login_identity`]'s own worker thread is not joined on its
-/// timeout path.
+/// caller kills the whole *process group* (`kill -9 -<pid>`, the pid read
+/// before the `Child` moved into the thread), via a plain `kill`
+/// subprocess, the same technique this repository's own tests already use
+/// (`crates/steg/tests/server_start.rs`), not a new `nix` feature.
+///
+/// **A backgrounded grandchild that inherits the stdout pipe is the
+/// reason this kills the group, not just the shell's own pid.** A profile
+/// that backgrounds a process of its own (`sleep 100 &`) and then exits
+/// leaves that grandchild running, still holding the pipe's write end
+/// open - found by testing exactly this, not assumed: the shell's own
+/// exit alone does not make `read_to_end` see end-of-file, so the reader
+/// thread (and this function's own bound) would otherwise depend on when
+/// that unrelated process happens to end, which is never guaranteed.
+/// `.process_group(0)` below puts the shell in its own, fresh process
+/// group (the same technique `crates/steg/tests/server_start.rs`'s own
+/// SIGHUP test already uses) so that killing *that* group reaches a
+/// backgrounded grandchild too, as long as it never changes its own
+/// group (the one remaining, accepted gap, stated here rather than
+/// silently assumed covered: a profile that deliberately re-parents its
+/// own background job into a different process group would still
+/// outlive this bound). Once the group is killed, the grandchild's own
+/// close of the pipe lets the abandoned reader thread's `read_to_end`
+/// return and the thread exit on its own; not joined here, for the same
+/// reason [`resolve_login_identity`]'s own worker thread is not joined
+/// on its timeout path.
 ///
 /// `stderr` is discarded (`Stdio::null()`): a profile's own warnings are
 /// not this capture's concern, and keeping it unpiped avoids a full pipe
@@ -162,19 +185,26 @@ pub enum Capture {
 /// nothing in between that could clear it.
 #[must_use]
 pub fn capture_login_environment(identity: &LoginIdentity, timeout: Duration) -> Capture {
+    use std::os::unix::process::CommandExt;
+
     let fallback = |reason: FallbackReason| Capture::Fallback(reason, fallback_env(identity));
+    let marker = capture_marker();
 
     let mut command = Command::new(&identity.shell);
     command
         .arg("-l")
         .arg("-c")
-        .arg(format!("echo {ENV_CAPTURE_MARKER}; exec /usr/bin/env -0"))
+        .arg(format!("echo {marker}; exec /usr/bin/env -0"))
         .env_clear()
         .env("HOME", &identity.home)
         .env("PATH", FALLBACK_PATH)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null());
+        .stderr(Stdio::null())
+        // Its own, fresh process group - see this function's own doc for
+        // why: killing it on timeout has to reach a backgrounded
+        // grandchild too, not only this direct child's own pid.
+        .process_group(0);
     if let Some(user) = &identity.user {
         command.env("USER", user).env("LOGNAME", user);
     }
@@ -183,7 +213,10 @@ pub fn capture_login_environment(identity: &LoginIdentity, timeout: Duration) ->
         Ok(child) => child,
         Err(_) => return fallback(FallbackReason::SpawnFailed),
     };
-    let pid = child.id();
+    // `process_group(0)` makes this child its own group leader, so its
+    // own pid *is* the group's pid - confirmed directly (`ps -o pid,pgid`
+    // on a spawned child), not assumed from the API's own doc alone.
+    let pgid = child.id();
 
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
@@ -202,30 +235,59 @@ pub fn capture_login_environment(identity: &LoginIdentity, timeout: Duration) ->
             if !status.success() {
                 return fallback(FallbackReason::NonZeroExit);
             }
-            Capture::Captured(parse_env_dump(&bytes))
+            Capture::Captured(parse_env_dump(&bytes, &marker))
         }
         Ok(Err(_)) => fallback(FallbackReason::SpawnFailed),
         Err(_) => {
             // The `Child` itself is owned by the thread above (not this
-            // stack), so killing it means killing by pid - bounded, since
-            // `kill`'s own subprocess runs and exits near-instantly.
-            let _ = Command::new("kill").arg("-9").arg(pid.to_string()).status();
+            // stack), so killing it means killing by pid - the *group's*
+            // pid, with the leading `-` `kill` reads as "a process
+            // group, not a process" - bounded, since `kill`'s own
+            // subprocess runs and exits near-instantly.
+            let _ = Command::new("kill")
+                .arg("-9")
+                .arg(format!("-{pgid}"))
+                .status();
             fallback(FallbackReason::TimedOut)
         }
     }
 }
 
+/// A marker unguessable by anything this capture did not itself
+/// generate, combining this process's own pid, a monotonic counter and
+/// the current time, none of which a login shell's own profile could
+/// predict in advance. Generated once per call, never a fixed constant:
+/// a fixed one would let a profile that happens to echo the exact same
+/// literal text corrupt [`parse_env_dump`]'s own search for it (an
+/// unlikely coincidence for a *fixed* string, but not one worth leaving
+/// possible when a cheap, per-call value closes it outright).
+fn capture_marker() -> String {
+    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let counter = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    format!(
+        "__steg_env_capture_{}_{counter}_{nanos}__",
+        std::process::id()
+    )
+}
+
 /// Parses `/usr/bin/env -0`'s own NUL-delimited output, discarding every
-/// byte up to and including [`ENV_CAPTURE_MARKER`]'s own trailing
-/// newline, the one place a profile script's startup noise (always
-/// printed *before* the marker, since login-profile sourcing finishes
-/// before the `-c` string's own commands run) could otherwise corrupt
-/// the dump that follows. A line with no `=` is skipped (malformed, not
-/// a crash); a value containing its own `=` is split on the first one
-/// only.
+/// byte up to and including `marker`'s own trailing newline, the one
+/// place a profile script's startup noise (always printed *before* the
+/// marker, since login-profile sourcing finishes before the `-c`
+/// string's own commands run) could otherwise corrupt the dump that
+/// follows. `marker` is [`capture_marker`]'s own fresh, per-call value,
+/// never a fixed string a profile could happen to echo itself and so
+/// corrupt this search - the risk a fixed marker would carry, closed by
+/// construction rather than by searching for the *last* match instead. A
+/// line with no `=` is skipped (malformed, not a crash); a value
+/// containing its own `=` is split on the first one only.
 #[must_use]
-fn parse_env_dump(bytes: &[u8]) -> Vec<(OsString, OsString)> {
-    let marker_line = format!("{ENV_CAPTURE_MARKER}\n");
+fn parse_env_dump(bytes: &[u8], marker: &str) -> Vec<(OsString, OsString)> {
+    let marker_line = format!("{marker}\n");
     let dump_start = bytes
         .windows(marker_line.len())
         .position(|window| window == marker_line.as_bytes())
@@ -276,8 +338,8 @@ mod tests {
     use std::time::Duration;
 
     use super::{
-        Capture, ENV_CAPTURE_MARKER, FallbackReason, LoginIdentity, capture_login_environment,
-        fallback_env, parse_env_dump, resolve_login_identity,
+        Capture, FallbackReason, LoginIdentity, capture_login_environment, fallback_env,
+        parse_env_dump, resolve_login_identity,
     };
 
     fn find<'a>(env: &'a [(OsString, OsString)], key: &str) -> Option<&'a std::ffi::OsStr> {
@@ -371,14 +433,27 @@ mod tests {
         }
     }
 
+    /// Cheap and side-effect-free (a local passwd lookup, no child
+    /// process, no file written) - not a claim about this machine's own
+    /// account beyond what every real account's passwd entry already
+    /// guarantees: the fallback branch is proven separately, by
+    /// fabrication, below. Checks the returned shell/home/user actually
+    /// *exist*, not merely that they are non-empty strings.
     #[test]
-    fn resolve_login_identity_never_panics_and_always_names_a_real_shell_and_home() {
-        // A smoke test, not a claim about this machine's own account -
-        // every real account has a passwd entry, so the fallback branch
-        // is proven separately, by fabrication, below.
+    fn resolve_login_identity_never_panics_and_returns_a_home_a_shell_and_a_user_that_exist() {
         let identity = resolve_login_identity(Duration::from_secs(5));
-        assert!(!identity.shell.as_os_str().is_empty());
-        assert!(!identity.home.as_os_str().is_empty());
+        assert!(
+            identity.shell.is_file(),
+            "the resolved shell should be a real, existing file: {identity:?}"
+        );
+        assert!(
+            identity.home.is_dir(),
+            "the resolved home should be a real, existing directory: {identity:?}"
+        );
+        assert!(
+            identity.user.is_some_and(|user| !user.is_empty()),
+            "the resolved user should be a real, non-empty login name"
+        );
     }
 
     #[test]
@@ -388,7 +463,7 @@ mod tests {
 
         let capture = capture_login_environment(
             &test_identity(std::path::Path::new("/bin/zsh"), &home.path),
-            Duration::from_secs(10),
+            Duration::from_secs(20),
         );
 
         let Capture::Captured(env) = capture else {
@@ -417,7 +492,7 @@ mod tests {
 
         let capture = capture_login_environment(
             &test_identity(std::path::Path::new("/bin/zsh"), &home.path),
-            Duration::from_secs(10),
+            Duration::from_secs(20),
         );
 
         let Capture::Captured(env) = capture else {
@@ -452,7 +527,7 @@ mod tests {
 
         let capture = capture_login_environment(
             &test_identity(&fake.path, std::path::Path::new("/tmp")),
-            Duration::from_secs(5),
+            Duration::from_secs(20),
         );
 
         assert!(
@@ -482,18 +557,19 @@ mod tests {
 
     #[test]
     fn capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump() {
-        // A profile that echoes a banner to stdout before this capture's
-        // own marker line - proving the marker, not luck, is what keeps
-        // the dump parseable.
-        let fake = FakeShell::script(&format!(
-            "echo 'Welcome to a noisy profile!'; \
-             echo {ENV_CAPTURE_MARKER}; \
-             exec /usr/bin/env -0"
-        ));
+        // A profile that echoes a banner to stdout, *then* actually runs
+        // the real `-c` command `capture_login_environment` passed it -
+        // `$3` is that string (`-l`, `-c` are `$1`/`$2`; see this file's
+        // own shebang-script reasoning elsewhere), carrying this run's
+        // own fresh marker, which this test cannot predict in advance
+        // and so cannot hardcode - proving the marker, not luck, is what
+        // keeps the dump parseable, against the real mechanism rather
+        // than a stand-in for it.
+        let fake = FakeShell::script("echo 'Welcome to a noisy profile!'\neval \"$3\"");
 
         let capture = capture_login_environment(
             &test_identity(&fake.path, std::path::Path::new("/tmp")),
-            Duration::from_secs(5),
+            Duration::from_secs(20),
         );
 
         let Capture::Captured(env) = capture else {
@@ -511,6 +587,84 @@ mod tests {
             !env.is_empty(),
             "the real dump after the marker must still parse: {env:?}"
         );
+    }
+
+    /// A review finding, reproduced directly: a profile that backgrounds
+    /// a process of its own and then exits leaves that grandchild
+    /// running, still holding the pipe's write end open - without
+    /// killing the whole *group* on timeout, the reader thread (and, in
+    /// a long-running server, the grandchild itself) would be left
+    /// unbounded. Proves both halves: this function still returns within
+    /// its own stated bound, *and* the grandchild is actually gone
+    /// shortly after, not merely unreported.
+    #[test]
+    fn capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open() {
+        let grandchild_pid_file = std::env::temp_dir().join(format!(
+            "steg-grandchild-pid-{}-{}",
+            std::process::id(),
+            unique_suffix()
+        ));
+        let _ = fs::remove_file(&grandchild_pid_file);
+        let fake = FakeShell::script(&format!(
+            "sleep 100 & echo $! > {}; exit 0",
+            grandchild_pid_file.display()
+        ));
+
+        // A full second, not the 200ms `falls_back_on_a_shell_that_never_
+        // finishes_in_time` uses: that test only needs the shell's own
+        // process to exist at all, but this one needs the shell to
+        // actually finish forking `sleep 100 &` *and* writing its pid to
+        // a file before this capture's own bound fires - found to matter
+        // under real load, not assumed: a tighter bound flaked under a
+        // concurrently busy machine, killing the group before the
+        // grandchild had even been written down to find later.
+        let started = std::time::Instant::now();
+        let capture = capture_login_environment(
+            &test_identity(&fake.path, std::path::Path::new("/tmp")),
+            Duration::from_secs(1),
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "capture_login_environment must still return within a bound close to its own \
+             timeout, not hang on the grandchild: took {:?}",
+            started.elapsed()
+        );
+        assert!(
+            matches!(capture, Capture::Fallback(FallbackReason::TimedOut, _)),
+            "expected a timeout fallback, got {capture:?}"
+        );
+
+        let grandchild_pid = loop {
+            if let Ok(text) = fs::read_to_string(&grandchild_pid_file)
+                && let Ok(pid) = text.trim().parse::<u32>()
+            {
+                break pid;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "the backgrounded grandchild's own pid file never appeared"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let alive = std::process::Command::new("kill")
+                .arg("-0")
+                .arg(grandchild_pid.to_string())
+                .status()
+                .expect("kill -0 should run")
+                .success();
+            if !alive {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "the backgrounded grandchild (pid {grandchild_pid}) was never killed"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
+
+        let _ = fs::remove_file(&grandchild_pid_file);
     }
 
     #[test]
@@ -558,12 +712,19 @@ mod tests {
         assert_eq!(env.len(), 2);
     }
 
+    /// `parse_env_dump` itself takes the marker as a plain parameter
+    /// (never a global constant, since the real one is fresh per call,
+    /// `capture_marker`'s own doc) - this test's own marker is any fixed
+    /// string, since this function's own logic does not care what the
+    /// marker's value is, only that it matches.
+    const TEST_MARKER: &str = "__test_marker__";
+
     #[test]
     fn parse_env_dump_skips_a_malformed_entry_with_no_equals_sign() {
-        let mut bytes = format!("{ENV_CAPTURE_MARKER}\n").into_bytes();
+        let mut bytes = format!("{TEST_MARKER}\n").into_bytes();
         bytes.extend_from_slice(b"GOOD=value\0malformed\0ALSO_GOOD=ok\0");
 
-        let env = parse_env_dump(&bytes);
+        let env = parse_env_dump(&bytes, TEST_MARKER);
 
         assert_eq!(find(&env, "GOOD"), Some(std::ffi::OsStr::new("value")));
         assert_eq!(find(&env, "ALSO_GOOD"), Some(std::ffi::OsStr::new("ok")));
@@ -576,10 +737,10 @@ mod tests {
 
     #[test]
     fn parse_env_dump_splits_a_value_containing_its_own_equals_sign_on_the_first_one_only() {
-        let mut bytes = format!("{ENV_CAPTURE_MARKER}\n").into_bytes();
+        let mut bytes = format!("{TEST_MARKER}\n").into_bytes();
         bytes.extend_from_slice(b"KEY=a=b=c\0");
 
-        let env = parse_env_dump(&bytes);
+        let env = parse_env_dump(&bytes, TEST_MARKER);
 
         assert_eq!(find(&env, "KEY"), Some(std::ffi::OsStr::new("a=b=c")));
     }

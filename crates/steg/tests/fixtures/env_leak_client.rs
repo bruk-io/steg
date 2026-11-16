@@ -3,8 +3,13 @@
 //! exactly as a real client would, so the server it causes to exist
 //! inherits *this process's own* ambient environment - the stand-in here
 //! for whatever a real client's own environment would otherwise leak
-//! through. Does the real handshake, starts a real session whose shell
-//! writes `TERM`/`STEG_SERVER`/this process's own unique marker to a file
+//! through, and (review finding) the channel the test uses to hand the
+//! autostarted server a *fabricated* login identity (`STEG_TEST_LOGIN_
+//! SHELL`/`_HOME`/`_USER`), inherited the same way, rather than this
+//! machine's real one: `STEG_TEST_BINARY` names `fixture_server`, not the
+//! real `steg` binary, so there is no production path this matters on.
+//! Does the real handshake, starts a real session whose shell writes
+//! `TERM`/`STEG_SERVER`/`PATH`/this process's own unique marker to a file
 //! the test polls (there is no `pane.capture`-style API yet to read a
 //! pane's screen back over the wire, so the real program's own output is
 //! what the test reads instead - the same technique `server_start.rs`'s own
@@ -18,13 +23,13 @@ use serde_json::{Map, json};
 use steg_sdk::{ClientKind, Connection, Incoming, Response, WireRole as Role, description};
 
 fn main() {
-    let steg_binary =
+    let fixture_binary =
         std::env::var("STEG_TEST_BINARY").expect("the test should set STEG_TEST_BINARY");
     let output_path =
         std::env::var("STEG_TEST_OUTPUT_PATH").expect("the test should set STEG_TEST_OUTPUT_PATH");
 
     let options = steg_sdk::ConnectOptions {
-        binary: std::path::PathBuf::from(steg_binary),
+        binary: std::path::PathBuf::from(fixture_binary),
         socket_path: None,
         autostart: true,
         connect_timeout: Duration::from_secs(10),
@@ -47,12 +52,21 @@ fn main() {
         read_some(&mut stream, &mut connection);
     }
 
+    // Written to a temporary path first, then renamed onto `output_path`
+    // - a rename is atomic on the same filesystem, so the test's own
+    // poll of `output_path` never sees a partial write (found by running
+    // the suite repeatedly, not assumed: a direct `> output_path`
+    // redirect let the test occasionally read the file after only the
+    // first one or two `echo`s had landed, between the shell's own
+    // writes).
+    let tmp_output_path = format!("{output_path}.tmp");
     let program = json!([
         "sh",
         "-c",
         format!(
-            "{{ echo TERM=$TERM; echo STEG_SERVER=$STEG_SERVER; echo PATH=$PATH; }} > {}",
-            output_path
+            "{{ echo TERM=$TERM; echo STEG_SERVER=$STEG_SERVER; echo PATH=$PATH; \
+             echo MARK_ZPROFILE=$MARK_ZPROFILE; }} > {tmp_output_path} && \
+             mv {tmp_output_path} {output_path}"
         )
     ]);
     let mut params = Map::new();

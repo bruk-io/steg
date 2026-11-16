@@ -46,4 +46,4 @@ pub use pane::{PaneEvent, PaneHandle, start};
 pub use paths::Reason as PathReason;
 pub use program_param::program_from_request;
 pub use pty::{LaunchSpec, ProgramLauncher, RealLauncher, SpawnedProgram};
-pub use runtime::{LoginShell, Runtime};
+pub use runtime::{LoginShell, Runtime, build_login_shell};

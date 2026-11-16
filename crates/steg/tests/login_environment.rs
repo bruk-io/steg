@@ -1,55 +1,59 @@
 //! AC #1 (doc-8 R99): a pane's program starts with a login shell's own
 //! environment, not the client's - proved end to end, through the real
-//! `steg` binary, a real on-demand server, and a real client
-//! (`tests/fixtures/env_leak_client.rs`).
+//! server code, a real on-demand server, and a real client
+//! (`tests/fixtures/env_leak_client.rs`), with a *fabricated* login
+//! identity (`tests/fixtures/fixture_server.rs`) rather than this
+//! machine's real one.
 //!
-//! **One departure from the brief's own "throwaway home directory"
-//! phrasing, stated plainly rather than silently approximated.**
-//! `crate::login_env::resolve_login_identity` reads the password database
-//! for this process's own real effective uid - by design, since reading
-//! `$HOME`/`$SHELL` from the environment instead is exactly what R99
-//! forbids. That means this end-to-end test cannot redirect identity
-//! resolution to a fabricated shell/home the way `login_env.rs`'s own
-//! `#[cfg(test)]` module already does (there, `capture_login_environment`
-//! takes `shell`/`home` as plain parameters - no production code path
-//! reads them from anywhere ambient). Two ways to get a throwaway home
-//! into this real, whole-binary path were considered and rejected:
+//! **Review finding, resolved: this test's own identity is never resolved
+//! from the real password database.** An earlier version of this test let
+//! the real `steg` binary resolve its own login identity, which meant the
+//! server it autostarted ran *this machine's* real login shell against
+//! *this machine's* real `~/.zprofile`/`/etc/zprofile` - a result that
+//! depends on the speed and content of whoever happens to run the test
+//! (a slow `.zprofile` step could push the capture past its bound and
+//! silently flip to the fallback, failing an assertion about a real
+//! system path for reasons unrelated to any regression), and executes a
+//! real person's start-up files as a side effect of running tests, which
+//! this team's own convention forbids.
 //!
-//! - **Mutating this real account's own `~/.zprofile`** (temporarily,
-//!   restored after) - rejected outright: a crashed test leaves a
-//!   developer's real shell configuration corrupted, and a concurrently
-//!   open terminal sourcing the same file mid-write is a real hazard, not
-//!   a theoretical one.
-//! - **Seeding `ZDOTDIR`** - confirmed empirically that zsh honours it for
-//!   dotfile lookup while leaving `$HOME` itself untouched (`env -i
-//!   HOME=<real> ZDOTDIR=<throwaway> ... zsh -l -c env` sources the
-//!   throwaway directory's own `.zprofile`), which would have let this
-//!   test use a real throwaway profile with no dotfile mutation at all -
-//!   but the only way to reach it from this real binary is either reading
-//!   `ZDOTDIR` out of the *server's own* ambient environment (which is
-//!   exactly the kind of client-set variable reaching a login shell's own
-//!   profile-sourcing step that R99 exists to prevent - a client could set
-//!   `ZDOTDIR` to point at an attacker-controlled directory), or a
-//!   test-only hook in the shipped binary (this team's own convention
-//!   disfavours one, `TASK-1.77`'s own AC #5). Neither is acceptable for
-//!   production code reachable this way.
+//! The fix follows a convention this crate already has, rather than
+//! inventing a new one: `crates/steg/Cargo.toml` already ships three
+//! `fixtures`-feature-gated `[[bin]]`s compiled out of the shipped
+//! binary entirely. `fixture_server` is a fourth: the real server code
+//! (`attempt`, `detach`, `build_login_shell`, `run` - everything
+//! `crates/steg/src/main.rs`'s own `run_server_start(true)` calls), given
+//! a `LoginIdentity` from its own environment instead of
+//! `resolve_login_identity`'s real password-database lookup. Two
+//! alternatives were considered first and rejected (mutating a real
+//! account's own `~/.zprofile`; threading `ZDOTDIR` through to
+//! production code - both for reasons that still apply and are kept
+//! here for the record): mutating a real account's own dotfiles risks
+//! corrupting them if the test crashes mid-write, and a client-settable
+//! `ZDOTDIR` reaching production code would be a new way for a client to
+//! redirect a login shell's own profile-sourcing step, exactly the kind
+//! of thing R99 exists to prevent. Neither is needed once the identity
+//! itself can simply be given to a fixture-only entry point instead.
 //!
-//! What this test proves instead, safely, through the real account's own
-//! real identity: **the leak-absence half of AC #1** (a variable set only
-//! in the launching client's own environment is absent from the pane,
-//! `CARGO_PKG_NAME`-style - here, a value unique to this test run,
-//! inherited by the real detached server from the real fixture client
-//! that autostarted it), and **that a real capture actually happened, not
-//! merely the fallback** (the pane's own `PATH` carries a `path_helper`
-//! -specific entry only a real macOS login shell's own profile produces,
-//! never `FALLBACK_PATH`'s plain four directories) and **AC #3 through the
-//! real binary** (`TERM=xterm-256color`, whatever the login shell's own
-//! profile might otherwise export). The throwaway-home-specific proof -
-//! that a login shell's own start-up *file* is what is sourced, not merely
-//! "the real one happens to work" - is `crates/server/src/login_env.rs`'s
-//! own `capture_login_environment_sources_the_login_profile_not_the_
-//! interactive_one` test, with a fabricated shell/home pair no production
-//! code path can reach ambiently.
+//! What this test proves, now against a throwaway home with its own
+//! `.zprofile` and nothing about this machine: **the leak-absence half
+//! of AC #1** (a variable set only in the launching client's own
+//! environment is absent from the pane), **that a real capture actually
+//! happened, not merely the fallback** (the throwaway `.zprofile`'s own
+//! marker and `PATH` addition are both present - specific to this test's
+//! own profile, never `fallback_env`'s fixed four variables), and **AC
+//! #3 through the real binary** (`TERM=xterm-256color`, whatever the
+//! login shell's own profile exports). The one thing this test does not
+//! prove - that `-l` without `-i` means only `.zprofile` is sourced,
+//! never `.zshrc` - is `crates/server/src/login_env.rs`'s own
+//! `capture_login_environment_sources_the_login_profile_not_the_
+//! interactive_one`, which already uses a fabricated shell/home pair at
+//! the function level; keeping one small test of real identity
+//! resolution alone (no fixture, no side effect - it reads the password
+//! database and returns a home/shell/user that exist) is
+//! `login_env.rs`'s own `resolve_login_identity_never_panics_and_
+//! always_names_a_real_shell_and_home`, strengthened by this same
+//! review round to check the returned paths are real.
 
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -72,12 +76,41 @@ fn unique_output_path() -> PathBuf {
     ))
 }
 
-fn steg_binary() -> PathBuf {
-    PathBuf::from(env!("CARGO_BIN_EXE_steg"))
+fn fixture_server_binary() -> PathBuf {
+    PathBuf::from(env!("CARGO_BIN_EXE_fixture_server"))
 }
 
 fn env_leak_client_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_env_leak_client"))
+}
+
+/// A throwaway home directory with its own `.zprofile` exporting a
+/// marker and a `PATH` addition - never this machine's own home, so this
+/// test never reads this machine's own real start-up files.
+/// `crates/server/src/login_env.rs`'s own `ThrowawayHome`, duplicated
+/// here rather than shared across crates.
+struct ThrowawayHome {
+    path: PathBuf,
+}
+
+impl ThrowawayHome {
+    fn with_zprofile(body: &str) -> Self {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "steg-login-env-e2e-home-{}-{suffix}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&path).expect("creating the throwaway home should succeed");
+        std::fs::write(path.join(".zprofile"), body).expect("writing .zprofile should succeed");
+        Self { path }
+    }
+}
+
+impl Drop for ThrowawayHome {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
 }
 
 /// Kills and reaps its child on drop, including when a panicking assertion
@@ -187,6 +220,16 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
     let socket_path = unique_socket_path();
     let output_path = unique_output_path();
     let _ = std::fs::remove_file(&output_path);
+    // A throwaway home with its own `.zprofile` - unique to this test
+    // run, read by nothing but the fixture server this test itself
+    // causes to exist. The marker it exports and the `PATH` it adds are
+    // both specific to *this* profile, never anything this machine's
+    // own real account might also happen to have.
+    let marker_in_zprofile = format!("steg-login-env-e2e-zprofile-marker-{}", std::process::id());
+    let home = ThrowawayHome::with_zprofile(&format!(
+        "export MARK_ZPROFILE={marker_in_zprofile}\nexport PATH=\"$HOME/custom-bin:$PATH\"\n"
+    ));
+
     // Ends the real, detached server this test's own fixture causes to
     // exist, on every path including a panic - declared before the
     // fixture client itself, so this guard's own `Drop` runs *after* the
@@ -204,9 +247,12 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
     let mut client = KillOnDrop::new(
         Command::new(env_leak_client_binary())
             .env("STEG_SOCKET_PATH", &socket_path)
-            .env("STEG_TEST_BINARY", steg_binary())
+            .env("STEG_TEST_BINARY", fixture_server_binary())
             .env("STEG_TEST_OUTPUT_PATH", &output_path)
             .env("STEG_TEST_LEAK_MARKER", &marker_value)
+            .env("STEG_TEST_LOGIN_SHELL", "/bin/zsh")
+            .env("STEG_TEST_LOGIN_HOME", &home.path)
+            .env("STEG_TEST_LOGIN_USER", "steg-test-user")
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -238,17 +284,17 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
         text.contains("TERM=xterm-256color"),
         "AC #3 through the real binary: TERM must be set by the server: {text:?}"
     );
-    // A `path_helper`-specific entry (verified present on this machine's
-    // own real macOS login shell by running `capture_login_environment`'s
-    // own mechanism directly, §1 of this task's plan) - present only when
-    // a real capture happened, never when `fallback_env`'s plain
-    // `/usr/bin:/bin:/usr/sbin:/sbin` was used instead. A bare
-    // `contains("/usr/bin")` would pass on the fallback too, so this
-    // checks something only the real profile produces.
+    // A real capture happened, not merely the fallback: the throwaway
+    // profile's own marker and `PATH` addition are both present - never
+    // `fallback_env`'s fixed four variables, and nothing about this
+    // machine's own real account.
     assert!(
-        text.contains("/System/Cryptexes/App/usr/bin"),
-        "the pane's own PATH must carry the real login shell's own path_helper entries, not \
-         the fallback: {text:?}"
+        text.contains(&format!("MARK_ZPROFILE={marker_in_zprofile}")),
+        "the throwaway .zprofile's own marker must reach the pane: {text:?}"
+    );
+    assert!(
+        text.contains(&format!("{}/custom-bin", home.path.display())),
+        "the throwaway .zprofile's own PATH addition must reach the pane: {text:?}"
     );
 
     let _ = std::fs::remove_file(&output_path);

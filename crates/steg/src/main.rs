@@ -87,25 +87,26 @@ fn run_server_start(on_demand: bool) -> i32 {
             // `connect()`). On any failure, the fallback is a fixed,
             // minimal environment, never this process's own inherited
             // one - reported here, since `steg-server` itself prints
-            // nothing.
+            // nothing. `build_login_shell` is the one place this
+            // "capture, then report a fallback" step is written - shared
+            // with TASK-1.87's own fixture-only entry point for tests
+            // (`crates/steg/tests/fixtures/fixture_server.rs`), which
+            // calls it with a fabricated identity instead of the real
+            // one just resolved above.
             let identity = steg_server::LoginIdentity {
                 shell: std::path::PathBuf::from(&config.login.argv0),
                 home: std::path::PathBuf::from(&config.login.home),
                 user: config.login.user.clone(),
             };
-            config.login.base_env = match steg_server::capture_login_environment(
-                &identity,
-                config.login_environment_timeout,
-            ) {
-                steg_server::Capture::Captured(env) => env,
-                steg_server::Capture::Fallback(reason, env) => {
-                    eprintln!(
-                        "steg: could not capture the login shell's environment ({reason:?}); \
-                             panes will start with a minimal default environment instead"
-                    );
-                    env
-                }
-            };
+            let (login, fallback_reason) =
+                steg_server::build_login_shell(identity, config.login_environment_timeout);
+            config.login = login;
+            if let Some(reason) = fallback_reason {
+                eprintln!(
+                    "steg: could not capture the login shell's environment ({reason:?}); \
+                     panes will start with a minimal default environment instead"
+                );
+            }
 
             // `listen::run` requires a `&Stopper`; one must exist regardless of
             // whether anything outside this call can reach it yet (nothing can,

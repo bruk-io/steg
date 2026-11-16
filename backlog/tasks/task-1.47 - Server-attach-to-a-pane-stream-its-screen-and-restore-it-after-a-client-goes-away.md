@@ -3,13 +3,14 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:00:00Z'
+updated_date: '2026-11-16T14:02:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -29,8 +30,10 @@ asdlc_branch: task-1.47-server-attach-to-a-pane-stream-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '9cff507ccc3f'
 asdlc_plan_approved_size: size-5
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=0'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1085,6 +1088,27 @@ created: 2026-11-16T14:00:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.47: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:02:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Narrow Evidence-only pass (handover was too early for a full review): the code itself has not been reviewed yet; a full review follows once this returns. plan-matched not assessed in this pass (no diff read).
+
+[Evidence, Important] No recorded negative control for any proof test the plan names. The plan names ~10 controls (stale cached screen vs fresh terminal.screen(); NeedsResync instead of CaughtUp(snapshot.seq); skipped seq increment; open_stream before the reply queued (ordering rule); unconditional recv_timeout wake-up; blocking enqueue_data on Full; stop/shutdown while next_tick is armed; dropped #[derive(Deserialize)] on a nested type; Connection::attach skipping validate; renaming PaneAttached::stream without updating stream_id_field). Every recorded check on the task is either a build/format/lint failure (E0061 arg-count mismatch, clippy wildcard-match-arm, too-many-arguments, format check) or a passing `just check`/full test run; none is a recorded failing run of a proof test with its mechanism removed. The implementation notes say controls were "run by hand and reverted" - review.md's Evidence pass and team:testing both require a recorded run, not a hand-run-and-reverted demonstration.
+
+[Evidence, Important] CI not observed green on the head under review. As of this check, PR 62's only check run (43880843311, workflow CI, job "check") against head a44410556662 is still IN_PROGRESS, not completed.
+
+[Compliance, Important] The diff under review is not this task's own. The implementation notes assert the work was built "on TASK-1.46's merged Returns::Nested/Follows vocabulary," but TASK-1.46 is still In Progress, not completed and not on origin/main. Two of the four commits on this branch - "sdk: Returns::Nested and Method.follows for a reply followed by a stream" and "sdk: TreeSnapshot, SessionTree, TabTree and a typed TreeEvent, with Connection::watch" - are TASK-1.46's own commits, rebased onto this branch, confirmed absent from `git log origin/main..origin/<branch>` being the only place they appear.
+
+What is needed before this comes back: every control the plan names, recorded through `asdlc record-check` as a failing run (mechanism removed/reverted) and a passing run, against the tests as they stand; the pull request's CI green on the final head; and the task rebuilt on main after TASK-1.46 has actually merged, so its diff is its own.
 
 ---
 <!-- COMMENTS:END -->

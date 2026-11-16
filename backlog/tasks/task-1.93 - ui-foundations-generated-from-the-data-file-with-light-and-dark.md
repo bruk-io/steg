@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T05:47:00Z'
+updated_date: '2026-11-16T05:48:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1121,6 +1121,17 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Commits since the review: 94, 76 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T05:48:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 31c799f466ab:
+
+```text
+ok      build (gallery) (0.3s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
 ```
 
 Commits since the review: 94, 76 without the Asdlc-Worker trailer.

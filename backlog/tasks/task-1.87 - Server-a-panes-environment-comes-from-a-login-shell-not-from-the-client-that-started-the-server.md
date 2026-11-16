@@ -3,14 +3,13 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:14:00Z'
+updated_date: '2026-11-16T07:20:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -1489,6 +1488,107 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Both findings fixed. PR #56 updated (ed80ab8 -> 040c5f0), CI green at the
+final head.
+
+## Important: the leak-absence assertion now proves something
+
+Found what you asked for: the control my prior notes cited
+("RealLauncher::spawn's env_clear() removed - the leak test fails") ran
+against crates/server/tests/real_pty.rs's own
+a_real_programs_environment_never_leaks_this_processs_own_ambient_variables,
+not against crates/steg/tests/login_environment.rs. That control was real
+and still holds, but it is not the end-to-end test AC #1 names, and saying
+so only in a quoted test name without flagging the mismatch is exactly how
+this got missed - noted plainly on the task now, not just fixed quietly.
+
+Fixed both things you named: env_leak_client's shell now dumps its whole
+environment (`env`, not four chosen lines), and login_environment.rs checks
+more than the one named marker - every variable this fixture chain's own
+plumbing sets (STEG_TEST_LEAK_MARKER itself, plus
+STEG_TEST_LOGIN_SHELL/_HOME/_USER, STEG_TEST_BINARY, STEG_TEST_OUTPUT_PATH,
+STEG_SOCKET_PATH) is asserted absent by name - none of them is something a
+real login shell's own profile could ever legitimately export. The marker
+stays set where a leak would actually come from: env_leak_client's own
+environment, inherited by the real server it autostarts via
+steg_sdk::connect's own Command::spawn (confirmed by reading it - no
+.env_clear() there, so it inherits everything by default), which is the
+path AC #1 is actually about.
+
+Audited every other absence assertion in this task's own tests for the
+same shape (an absence asserted on output that could never contain the
+thing): login_env.rs's own leak test (checks one named, non-secret key via
+assert_eq!, never prints the whole captured env - safe by construction,
+confirmed by reading the earlier recorded check's own output) and
+runtime.rs's override-ordering test (the base_env it checks is entirely
+fabricated by the test itself, never a real environment) were already
+sound. real_pty.rs's own sibling leak test had the identical shape
+(checked the right thing, but on a dump it then printed whole on failure)
+- fixed the same way.
+
+## A real incident, caught before it left this machine - full account
+
+Re-running the fixed test's own negative control (pty.rs's env_clear()
+removed) the first time, with the assertion message still interpolating
+the pane's whole environment dump directly, produced a recorded-check
+commit that GitHub's own push protection rejected: a real-looking
+Anthropic API key from this session's own environment, pattern-matched by
+GitHub's scanner, was in the pane's own leaked dump (since the whole point
+of that control is that the leak happens) and got written into the board
+comment asdlc record-check produces, then into a commit, then rejected on
+push. It never reached the remote - GitHub refused the push outright. The
+local commit asdlc created was itself reset back to origin/main
+automatically (confirmed via git reflog) once the push failed, so it is
+not on any branch; the object is still present locally, dangling and
+unreferenced (confirmed via git fsck), not garbage-collected. A second,
+earlier dangling commit from the same investigation carries the same
+content. I have not run git gc or otherwise purged these - that is a call
+for you or Bruk, not mine to make unilaterally on a shared repo other
+sessions are also committing to. Checking the dangling commit directly (to
+confirm what happened, redacting before viewing further) also showed
+several other real-looking secrets from this session's own environment in
+the same leaked dump (a messaging token, two other API-key-shaped values)
+that GitHub's own scanner did not happen to flag - none of this reached
+GitHub either, for the same reason.
+
+Root cause fixed before touching the control again: no assertion in this
+task's own tests ever prints the full text/dump it checked, in
+login_environment.rs or real_pty.rs's own sibling. Verified the fix by
+running the control locally first (plain cargo test, output inspected for
+any secret-shaped content - none found) before recording it through asdlc
+again; both halves of the control (env_clear() removed; the capture forced
+to its own fallback) are now recorded clean. Flagging this plainly rather
+than treating it as resolved by the code fix alone - the exposure itself
+(a dangling, unpushed local object) is something you or Bruk may want to
+look at directly, and if any of these are real, live credentials rather
+than session-scoped tokens, that is worth knowing regardless of what
+happens to this task.
+
+## Nit: the success path's own accepted gap, stated
+
+login_env.rs's own module doc for capture_login_environment now states the
+success-path gap plainly: a backgrounded grandchild that does not hold the
+capture's own stdout pipe open is left running, unsupervised, for as long
+as it likes - only the timeout path kills the group, because only there is
+the function already giving up on the shell itself. Accepted and said why:
+this capture's job is reading the environment back within a bound, not
+auditing everything a login shell's own start-up might spawn.
+
+## shutdown.rs
+
+Did not reproduce the failure you saw, across the 10x sweep below, a
+standalone `cargo test -p steg-server`, and `just check` - every run of
+shutdown.rs's own suite passed. Nothing further to give you from this
+session.
+
+## Checks recorded
+
+Both negative controls, re-run against the fixed end-to-end test and
+recorded clean (no secret-shaped content in either); the 10x sweep (10x
+`cargo test -p steg-server`, 10x `cargo test -p steg --features fixtures`)
+with the real-process count at 0 both before and after; `just check` at
+the final, pushed, CI-green head (040c5f0).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

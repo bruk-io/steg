@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T01:34:00Z'
+updated_date: '2026-11-16T01:36:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -52,6 +52,14 @@ created: 2026-11-16T01:34:00Z
 ---
 
 2026-11-15: fourth occurrence of the LikeC4 MCP smoke test timing out in CI, again on pull request 44 (TASK-1.77), on a different head (b5e2aa6). Four CI runs were queued at once. A draft pulls this one item out to be done now.
+
+---
+
+created: 2026-11-16T01:36:00Z
+
+---
+
+2026-11-15: a second test seen failing once without cause, reported by TASK-1.78's worker: crates/server arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server failed once under a full just check while six agents were building on the machine, in a file that task did not touch; clean on 8 immediate reruns. One occurrence, local, under heavy load: recorded to watch, not yet a pattern. If it is seen again, especially in CI, it gets a task of its own (the test's own timing bound under load is the first thing to look at).
 
 ---
 <!-- COMMENTS:END -->

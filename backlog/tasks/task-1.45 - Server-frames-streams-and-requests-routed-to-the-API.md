@@ -1,14 +1,13 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:32:00Z'
+updated_date: '2026-11-16T02:37:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -1119,6 +1118,20 @@ failures: 0 of 20
 ```
 
 Commits since the review: 69, 58 without the Asdlc-Worker trailer.
+
+Review #1 findings fixed (@bruk.r1, 1 Important, 2 nits). Leading with the first, as asked:
+
+How the new test makes the writer genuinely block: api.list's own reply is ~30KB (measured directly), comfortably over this platform's own default send buffer for a Unix-domain socket (~8KB, confirmed during this task's own earlier work) - so even the first of ten such calls, sent and never read, cannot be written in full before this connection's own close runs. a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs (routing.rs) sends those ten, waits 300ms for the writer to genuinely reach that blocked state, then triggers this connection's own close from the inside (a hostile frame, never a server-wide stop() - listen.rs's own separate shutdown mechanism would also unblock a stuck writer and could mask this exact bug), asserts ConnectionEvent::Disconnected arrives within a 5s bound (which only happens once ConnectionCleanup's Drop has joined the writer), and then confirms retrospectively that the writer really was cut off mid-delivery (bytes received < the full amount every reply would have sent had nothing blocked) - the actual evidence this test exercises a genuinely stuck write, not a fast one. Negative control: removing the shutdown_handle.shutdown(Both) call made this test fail by its own 5s bound (a clean panicked assertion, exit 101, not a hang) - recorded, then reverted. The notes' earlier sentence claiming a recorded control for this specific bug was wrong (the one exit-124 block that existed was for the unrelated unbounded-test-wait bug); that sentence is now replaced by this real one.
+
+2. [Nit] Where a partial target path meets a missing default: now decided before any kernel call, from the path's own segment count alone (doc-2 section 4's own public target grammar - structural only: how many `/`-separated segments, and whether any is empty; never which kind of match a segment is, which stays entirely the kernel's job). resolve_tab_str/resolve_pane_str (dispatch/lookup.rs) no longer pass a sentinel id into the kernel at all - NO_DEFAULT_SESSION/NO_DEFAULT_TAB and remap_missing_default are gone. New test (a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context) proves a genuinely too-long path from a no-context connection still gets the kernel's own exact InvalidTargetPath message, not a missing-context answer - the one way a careless version of this approach could have gotten the wrong error code (both map to BadRequest, so the code alone can't tell them apart; the message is what actually proves it). Negative control (segment count ignored, treated as always needing a default) recorded 5 of 11 tests failing, including the new one; restored and recorded all 11 passing.
+
+3. [Nit] The writer thread's own write_all failing (a broken socket, not the "client never reads" case Outbound::close already covers) now also closes the queue (outbound.rs), so the reader's next enqueue fails and the connection ends, instead of letting the reader keep computing and queueing up to CONTROL_CAP replies nobody will ever send. New test (a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails): a peer that has already dropped its own end makes the very next write fail immediately - no thread or wait needed. Negative control (not closing on a broken write) recorded failing; restored and recorded passing.
+
+origin/main brought in by merge (this branch was already pushed, so rebase was not an option): TASK-1.77 (PR 44) and TASK-1.84 (PR 46) had both merged. One real conflict, runtime.rs's own import list (TASK-1.84's CommandEnded/CommandOutputStarted alongside this task's own ClientId/ClientKind) - resolved by hand, both kept; the rest auto-merged clean. TASK-1.77's own entry point (crates/steg/src/main.rs) builds ServerConfig::default() and calls run(handle, &socket_path, &config, &stopper, None) exactly as this task's plan expected - run's own signature needed no change. But it passes no explicit login: this task's plan had assumed TASK-1.77 would resolve a real login shell from the password database (R99); it did not - detach.rs only calls setsid(), and the entry point still uses ServerConfig::default()'s own LoginShell::from_process_env() placeholder. That part of R99 is still open, left for a later task - not something this merge needed to adapt code for, named here as the review asked.
+
+Checks recorded, in order: the negative control for each of the three findings (failing), each restored and re-recorded passing; just check at the merged head (611fa8c, matching PR #50's own headRefOid) - green, all 22 steps (steg-ui and the steg fixtures suite now included, from the merged tasks); tests/routing.rs run 20 times at the merged head - 0 failures.
+
+PR: https://github.com/bruk-io/steg/pull/50 (unchanged). CI green (check, 3m28s) at the final head.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

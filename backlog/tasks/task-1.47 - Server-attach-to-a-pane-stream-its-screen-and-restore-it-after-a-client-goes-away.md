@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:47:00Z'
+updated_date: '2026-11-16T12:51:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -677,6 +677,51 @@ Carried from finished tasks (2026-11-15), for this task's plan: (1) TASK-1.74 ga
 Plan (9891d485ef9c) checked against decision-2, doc-2, doc-8 R36, doc-9, doc-15 R91 and doc-16 R101 by @bruk.o, 2026-11-16: not yet ok. (1) For the engineer: the plan makes attach a new kind of control message outside the API description; decision-2 lists four control types (request, response, error, event) and speaks of the attach result, and R36, R42 and R75 say the app uses no surface a plugin cannot see, so whether attach is a described method (with a stated exception to R32 for the CLI) or protocol outside the description is the engineer's decision; the orchestrator recommends a described method sent as an ordinary request. (2) Must change: the worker loop wakes every tick for every pane for ever, attached or not, changed or not; it must block with no timeout when there is no attachment or nothing has changed since the last tick, and arm one deadline when output arrives. (3) Must be stated: the state a new attachment is registered in (caught up at the snapshot's sequence), so it is not sent a second snapshot on the next tick. (4) For the engineer: the tick as a published user setting or a server configuration value until the app measures it; the orchestrator recommends the latter. The split into three is taken (drafts created). Held for the engineer's answers, then one rewrite.
 
 Plan (9cff507ccc3f) checked against the three acceptance criteria as narrowed, decision-2 sections 3 and 6, doc-8 R36, doc-9, doc-16 R101, TASK-1.46's plan (4ee3881365b0) and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised to the engineer's decisions (attach and detach as described methods; the tick 8 ms in ServerConfig) and at the orchestrator's request (no wake-up for an idle or unattached pane, with a counted proof; a new attachment registered as caught up at its snapshot's sequence; the reply queued in the same step that registers the attachment, as Runtime::subscribe does). Uses TASK-1.46's vocabulary: returns Nested{of: PaneAttached}, follows Attachment{item: Nested{of: ScreenUpdate}, stream_id_field: stream}. Depends on TASK-1.46 merging first for that vocabulary; the worker loop, tick and back-pressure are built and proven below the method layer meanwhile. doc-2 section 8 gains two rows when the plan is approved.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T12:51:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 27c15dbcef41, last 40 of 68 lines:
+
+```text
+   Compiling native-tls v0.2.18
+   Compiling ureq v3.5.2
+   Compiling dirs-sys v0.5.0
+   Compiling serial2 v0.2.39
+   Compiling nix v0.28.0
+   Compiling flate2 v1.1.11
+   Compiling dirs v6.0.0
+   Compiling thiserror-impl v1.0.69
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling thiserror v1.0.69
+   Compiling filedescriptor v0.8.3
+   Compiling portable-pty v0.9.0
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+error[E0061]: this function takes 3 arguments but 4 arguments were supplied
+   --> crates/server/src/listen.rs:276:23
+    |
+276 |     let mut runtime = Runtime::new(
+    |                       ^^^^^^^^^^^^
+...
+280 |         config.attach_tick,
+    |         ------------------ unexpected argument #4 of type `Duration`
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:243:12
+    |
+243 |     pub fn new(
+    |            ^^^
+help: remove the extra argument
+    |
+279 -         crate::runtime::FORCE_GRACE_DEFAULT,
+280 -         config.attach_tick,
+279 +         crate::runtime::FORCE_GRACE_DEFAULT,
+    |
+
+For more information about this error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib) due to 1 previous error
+full output: .quiet/build-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

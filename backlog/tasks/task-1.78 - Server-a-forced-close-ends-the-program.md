@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:00:00Z'
+updated_date: '2026-11-16T01:01:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -933,6 +933,12 @@ kill: 1940: No such process
 test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
 
 test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+```
+
+Check passed: `just lint` exited 0 at 2026-11-16T01:01:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      lint (0.5s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r4
 ---
 
 ## Description
@@ -2407,6 +2408,15 @@ Negative controls I repeated myself, all reverted: (1) force_end pass 3 (signal_
 Checked and sound, not repeated as controls beyond the above: shared N-pane deadline (tab_close_with_force_ends_every_program_in_scope_within_one_grace_window, with its own recorded negative control); the idle-handle fix (recorded negative control); no unsafe anywhere in the diff (grep confirmed); a restart gives the new run its own generation (traced in pane::start/restart and RunGate::begin_run); TASK-1.77's api.call entry point and TASK-1.45's constructor signature are both reached correctly from the merge. Process leak check: ran cargo test -p steg-server 5 times myself (ps count for sleep/steg processes before and after: 2 -> 1, no growth) - consistent with, though fewer runs than, the task's own recorded 20/20-clean, no-leaked-process run at this head; this machine runs many concurrent agents, so ps counts alone are noisy corroboration, not independent proof.
 
 plan-matched: no, as review 1 also recorded - RunGate replaces the plan's own Arc<AtomicU64>, force_end gained passes 5/6, and join_worker was split into settle_worker+join_worker, all explained in the notes as the review 1 fix, not findings on their own, but a real departure from the plan's own §1/§2 text.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T03:18:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

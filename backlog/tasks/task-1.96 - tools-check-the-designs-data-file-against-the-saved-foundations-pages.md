@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T04:06:00Z'
+updated_date: '2026-11-16T04:18:00Z'
 labels:
   - size-2
   - changes-requested
@@ -457,6 +457,23 @@ Checks (recorded on the task):
 Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked) - only the printed reasons for ramps.ramp (folds in caption_opacity) and the themes lines (now per-instance) changed; full text in the PR description.
 
 PR: https://github.com/bruk-io/steg/pull/54 (head 320b9d7, CI green).
+
+Check FAILED: `sh -c 'cd tools && uv run --project . python "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-string-prefix-negative-control.py" "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-prev-design-pages.py" ../crates/ui/design/foundations.json'` exited 1 at 2026-11-16T04:18:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 320b9d785a96 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpvd42Xg` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+baseline (unmodified real file) unaccounted: ()
+sizes['palette.footer']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed sizes['palette.footer']
+type['terminal.bold']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed type['terminal.bold']
+sizes['nav.side.extra']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed sizes['nav.side.extra']
+ramp named 'ramp.secondary': OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed ramp named 'ramp.secondary'
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

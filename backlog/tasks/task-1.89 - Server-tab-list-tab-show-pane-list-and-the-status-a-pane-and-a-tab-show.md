@@ -1,9 +1,11 @@
 ---
 id: TASK-1.89
 title: 'Server: tab list, tab show, pane list, and the status a pane and a tab show'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
+updated_date: '2026-11-16T04:21:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.89-server-tab-list-tab-show-pane-list-and
 ---
 
 ## Description

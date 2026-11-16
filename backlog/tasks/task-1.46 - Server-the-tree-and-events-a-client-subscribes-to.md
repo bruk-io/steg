@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:09:00Z'
+updated_date: '2026-11-16T14:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -23,6 +23,8 @@ asdlc_branch: task-1.46-server-the-tree-and-events-a-client
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1006,6 +1008,15 @@ created: 2026-11-16T13:01:00Z
 ---
 
 The first recorded check on this task (just check exited 101) raced my own in-progress edit to shapes.rs/methods.rs mid-run, not a real failure of the pre-existing codebase: the background process picked up a half-finished struct field addition while I was still editing. The next recorded check, after finishing that edit, is clean and is the true state at this step.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:13:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

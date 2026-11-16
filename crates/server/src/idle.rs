@@ -334,7 +334,9 @@ mod tests {
         // periodic-poll design would show up here as an early, spurious
         // `Wait::Forever` observation instead of a timeout.
         assert!(
-            observed_rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            observed_rx
+                .recv_timeout(Duration::from_millis(300))
+                .is_err(),
             "no observation should arrive while the checker is blocked with no timeout"
         );
         // Now disconnect - the checker wakes from its untimed `recv()`,
@@ -379,9 +381,15 @@ mod tests {
         let checker = std::thread::spawn({
             let stop = stop.clone();
             move || {
-                run_checker_with_observer(signal_rx, stop, || 0, idle_timeout, move |wait| {
-                    let _ = observed_tx.send(*wait);
-                });
+                run_checker_with_observer(
+                    signal_rx,
+                    stop,
+                    || 0,
+                    idle_timeout,
+                    move |wait| {
+                        let _ = observed_tx.send(*wait);
+                    },
+                );
             }
         });
 
@@ -409,7 +417,9 @@ mod tests {
                 "the clock should have kept running, not reset: {remaining:?} should be \
                  less than {idle_timeout:?}"
             ),
-            other => panic!("expected Wait::Until with some time still left, got {other:?}"),
+            other @ (Wait::Forever | Wait::Expired) => {
+                panic!("expected Wait::Until with some time still left, got {other:?}")
+            }
         }
 
         drop(signal_tx);

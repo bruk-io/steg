@@ -143,24 +143,21 @@ fn a_real_programs_environment_carries_the_five_variables_and_path() {
 
     let screen = handle.snapshot().unwrap();
     let text = screen_text(&screen);
-    assert!(text.contains("STEG_SERVER=/tmp/steg-test.sock"), "{text}");
-    assert!(
-        text.contains(&format!(
-            "STEG_SESSION={}",
-            steg_sdk::SessionId::from_raw(7)
-        )),
-        "{text}"
-    );
-    assert!(
-        text.contains(&format!("STEG_TAB={}", steg_sdk::TabId::from_raw(8))),
-        "{text}"
-    );
-    assert!(
-        text.contains(&format!("STEG_PANE={}", PaneId::from_raw(9))),
-        "{text}"
-    );
-    assert!(text.contains("STEG_BIN_DIR=/usr/local/steg/bin"), "{text}");
-    assert!(text.contains("PATH=/usr/local/steg/bin:"), "{text}");
+    // This screen is bounded, by `RealLauncher::spawn`'s own
+    // `.env_clear()`, to exactly the six variables this test supplied -
+    // never a real ambient leak in this test's own, non-adversarial
+    // setup. Still never interpolated whole into a failure message, as a
+    // matter of this file's own convention now (see the sibling test
+    // right below for the case that convention actually matters for).
+    assert!(text.contains("STEG_SERVER=/tmp/steg-test.sock"));
+    assert!(text.contains(&format!(
+        "STEG_SESSION={}",
+        steg_sdk::SessionId::from_raw(7)
+    )));
+    assert!(text.contains(&format!("STEG_TAB={}", steg_sdk::TabId::from_raw(8))));
+    assert!(text.contains(&format!("STEG_PANE={}", PaneId::from_raw(9))));
+    assert!(text.contains("STEG_BIN_DIR=/usr/local/steg/bin"));
+    assert!(text.contains("PATH=/usr/local/steg/bin:"));
     handle.shutdown();
 }
 
@@ -194,10 +191,20 @@ fn a_real_programs_environment_never_leaks_this_processs_own_ambient_variables()
 
     let screen = handle.snapshot().unwrap();
     let text = screen_text(&screen);
+    // Never interpolated into the failure message below: this screen is
+    // `sh -c "env"`'s own real output, which - if the mechanism this test
+    // exists to prove actually failed (the scenario its own negative
+    // control deliberately creates) - carries this *test process's own*
+    // whole ambient environment, on whatever real machine happens to run
+    // this suite. Printing that back risked a real secret reaching
+    // wherever this failure message is captured (confirmed the hard way
+    // once, in `crates/steg/tests/login_environment.rs`'s own sibling
+    // assertion, not here) - so only whether the one named variable was
+    // found is ever shown.
     assert!(
         !text.contains("CARGO_PKG_NAME"),
         "a variable set only in this test process's own ambient environment must not reach \
-         the pane: {text}"
+         the pane (its value is withheld from this message on purpose)"
     );
     handle.shutdown();
 }

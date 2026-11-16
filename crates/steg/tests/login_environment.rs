@@ -54,6 +54,37 @@
 //! `login_env.rs`'s own `resolve_login_identity_never_panics_and_
 //! always_names_a_real_shell_and_home`, strengthened by this same
 //! review round to check the returned paths are real.
+//!
+//! **Second review finding, resolved: the leak-absence assertion used to
+//! be vacuous.** `tests/fixtures/env_leak_client.rs`'s own shell command
+//! used to echo four variables chosen by name (`TERM`, `STEG_SERVER`,
+//! `PATH`, `MARK_ZPROFILE`) - never `STEG_TEST_LEAK_MARKER`, the one
+//! variable a leak would actually have to appear in, so
+//! `!text.contains(&marker_value)` held whatever the server did (removing
+//! `RealLauncher::spawn`'s own `.env_clear()` left this test passing,
+//! confirmed by running it, not assumed). The control this task's own
+//! earlier notes cited as proving the leak-absence half
+//! (`RealLauncher::spawn`'s `env_clear()` removed, "the leak test fails")
+//! ran against `crates/server/tests/real_pty.rs`'s own `a_real_programs_
+//! environment_never_leaks_this_processs_own_ambient_variables` instead -
+//! a real, working control, but for a *different* test than the one
+//! offered as this task's end-to-end proof of AC #1; said so plainly
+//! rather than left to look like it covered this file. Fixed two ways,
+//! together: the pane's shell now dumps its *whole* environment (`env`,
+//! not four chosen names), and this file checks more than the one named
+//! marker - every variable this fixture chain sets that the pane could
+//! never legitimately inherit (`STEG_TEST_LEAK_MARKER` itself, plus the
+//! fixture's own plumbing: `STEG_TEST_LOGIN_SHELL`/`_HOME`/`_USER`,
+//! `STEG_TEST_BINARY`, `STEG_TEST_OUTPUT_PATH`, `STEG_SOCKET_PATH`) is
+//! asserted absent by *name*, not by searching for one value that might
+//! coincidentally not appear elsewhere.
+//!
+//! The marker is still set where a leak would actually come from: on
+//! `env_leak_client`'s own environment, inherited by the real server it
+//! autostarts (`steg_sdk::connect`'s own `Command::spawn` inherits the
+//! calling process's whole environment by default, confirmed by reading
+//! it) - the path AC #1 is actually about, not somewhere the pane could
+//! never have reached it from regardless of whether the bug exists.
 
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -273,31 +304,81 @@ fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_client
 
     wait_for_socket(&socket_path, Duration::from_secs(5));
 
+    // The pane's *whole* environment now (review finding: picking which
+    // variables to assert on by name made the leak-absence check vacuous,
+    // since the one that would prove a leak was never among them). Never
+    // printed whole in a failure message, on purpose - see
+    // `assert_var_absent`'s own doc for why.
     let text = wait_for_output(&output_path, Duration::from_secs(10));
 
-    assert!(
-        !text.contains(&marker_value),
-        "a variable set only in the launching client's own environment must not reach the \
-         pane: {text:?}"
-    );
-    assert!(
-        text.contains("TERM=xterm-256color"),
-        "AC #3 through the real binary: TERM must be set by the server: {text:?}"
-    );
+    assert_var_absent(&text, "STEG_TEST_LEAK_MARKER");
+    // Every other variable this fixture chain's own plumbing sets, named
+    // individually rather than searched for by value: none of them is
+    // something the pane could legitimately inherit from a real login
+    // shell's own profile, so every one of these absences is a real,
+    // independent check, not a restatement of the one above.
+    for plumbing_var in [
+        "STEG_TEST_LOGIN_SHELL",
+        "STEG_TEST_LOGIN_HOME",
+        "STEG_TEST_LOGIN_USER",
+        "STEG_TEST_BINARY",
+        "STEG_TEST_OUTPUT_PATH",
+        "STEG_SOCKET_PATH",
+    ] {
+        assert_var_absent(&text, plumbing_var);
+    }
+    assert_var_equals(&text, "TERM", "xterm-256color");
     // A real capture happened, not merely the fallback: the throwaway
     // profile's own marker and `PATH` addition are both present - never
     // `fallback_env`'s fixed four variables, and nothing about this
-    // machine's own real account.
+    // machine's own real account. Both of these are values this test
+    // itself chose (never a real secret), so printing them back is safe -
+    // unlike the leak checks above, which must never echo what they find.
     assert!(
         text.contains(&format!("MARK_ZPROFILE={marker_in_zprofile}")),
-        "the throwaway .zprofile's own marker must reach the pane: {text:?}"
+        "the throwaway .zprofile's own marker must reach the pane"
     );
     assert!(
         text.contains(&format!("{}/custom-bin", home.path.display())),
-        "the throwaway .zprofile's own PATH addition must reach the pane: {text:?}"
+        "the throwaway .zprofile's own PATH addition must reach the pane"
     );
 
     let _ = std::fs::remove_file(&output_path);
+}
+
+/// Asserts `dump` (the pane's own whole environment) never defines
+/// `name`, **without ever printing `dump`, or the value `name` was found
+/// with, in the failure message.** `dump` is the pane's *whole*
+/// environment - if the mechanism this test exists to prove actually
+/// failed, it could carry anything the real machine running this suite
+/// happens to have set ambiently. Found the hard way, not anticipated:
+/// an earlier version of this function's own call sites interpolated
+/// `dump` directly into the assertion message, and this review round's
+/// own negative control (a real leak, deliberately reintroduced) put a
+/// real secret from this session's own environment into a board comment
+/// as a result - caught by GitHub's own push protection, not by this
+/// test. Only whether `name` was defined at all is ever shown now.
+fn assert_var_absent(dump: &str, name: &str) {
+    let prefix = format!("{name}=");
+    assert!(
+        !dump.lines().any(|line| line.starts_with(&prefix)),
+        "{name}, which the pane could never legitimately inherit from a real login shell's \
+         own profile, was present in the pane's own environment - its value is withheld from \
+         this message on purpose, since a pane's whole environment dump can carry an unrelated \
+         real secret"
+    );
+}
+
+/// Asserts `dump` defines `name` with exactly `value` - safe to print
+/// `value` back on failure, unlike [`assert_var_absent`], because every
+/// caller of this function only ever checks a value *this test itself*
+/// chose, never one read back from the pane's own, unconstrained dump.
+fn assert_var_equals(dump: &str, name: &str, value: &str) {
+    let line = format!("{name}={value}");
+    assert!(
+        dump.lines().any(|l| l == line),
+        "expected {name}={value:?} in the pane's own environment, did not find it"
+    );
 }
 
 /// Waits for `child` to exit, bounded by polling `try_wait`.

@@ -8,11 +8,15 @@
 //! SHELL`/`_HOME`/`_USER`), inherited the same way, rather than this
 //! machine's real one: `STEG_TEST_BINARY` names `fixture_server`, not the
 //! real `steg` binary, so there is no production path this matters on.
-//! Does the real handshake, starts a real session whose shell writes
-//! `TERM`/`STEG_SERVER`/`PATH`/this process's own unique marker to a file
-//! the test polls (there is no `pane.capture`-style API yet to read a
-//! pane's screen back over the wire, so the real program's own output is
-//! what the test reads instead - the same technique `server_start.rs`'s own
+//! Does the real handshake, starts a real session whose shell dumps its
+//! *whole* environment (`env`, not a handful of named variables - review
+//! finding: picking which variables to echo by name is exactly how an
+//! earlier version of this fixture made the leak-absence assertion
+//! vacuous, since the one variable that would prove a leak was never
+//! among the ones chosen) to a file the test polls (there is no
+//! `pane.capture`-style API yet to read a pane's screen back over the
+//! wire, so the real program's own output is what the test reads
+//! instead, the same technique `server_start.rs`'s own
 //! `"echo $$ > pid_file"` fixtures already use), then exits.
 
 use std::io::{Read, Write};
@@ -52,22 +56,21 @@ fn main() {
         read_some(&mut stream, &mut connection);
     }
 
+    // The pane's *whole* environment, not a handful of names picked by
+    // this fixture - the review's own point: an absence assertion on
+    // output that could never contain the thing being checked for proves
+    // nothing, and that is exactly the shape picking names by hand had.
     // Written to a temporary path first, then renamed onto `output_path`
     // - a rename is atomic on the same filesystem, so the test's own
     // poll of `output_path` never sees a partial write (found by running
     // the suite repeatedly, not assumed: a direct `> output_path`
-    // redirect let the test occasionally read the file after only the
-    // first one or two `echo`s had landed, between the shell's own
-    // writes).
+    // redirect let the test occasionally read the file after only part
+    // of the dump had landed).
     let tmp_output_path = format!("{output_path}.tmp");
     let program = json!([
         "sh",
         "-c",
-        format!(
-            "{{ echo TERM=$TERM; echo STEG_SERVER=$STEG_SERVER; echo PATH=$PATH; \
-             echo MARK_ZPROFILE=$MARK_ZPROFILE; }} > {tmp_output_path} && \
-             mv {tmp_output_path} {output_path}"
-        )
+        format!("env > {tmp_output_path} && mv {tmp_output_path} {output_path}")
     ]);
     let mut params = Map::new();
     params.insert("program".to_string(), program);

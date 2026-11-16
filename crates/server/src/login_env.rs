@@ -174,6 +174,22 @@ pub enum Capture {
 /// reason [`resolve_login_identity`]'s own worker thread is not joined
 /// on its timeout path.
 ///
+/// **The success path kills nothing, on purpose - stated plainly, not
+/// left to be found by reading only the timeout path above.** A profile
+/// that backgrounds a process which does *not* hold the stdout pipe open
+/// (redirected elsewhere, or itself closed before backgrounding) lets
+/// `read_to_end` see end-of-file as soon as the shell itself exits, well
+/// within the bound - a genuine success, `Capture::Captured` returned
+/// promptly - while that backgrounded process keeps running, entirely
+/// unsupervised by this function, for as long as it likes. Accepted: a
+/// real login shell's own profile is allowed to background a legitimate
+/// job the person's session is meant to outlive (an agent, a daemon they
+/// start on purpose) - this capture's job is reading the environment
+/// back within a bound, not auditing or owning everything a login
+/// shell's own start-up might spawn. Only the *timeout* path kills the
+/// group, because only there is this function already giving up on the
+/// shell itself; a clean exit earns no such sweep.
+///
 /// `stderr` is discarded (`Stdio::null()`): a profile's own warnings are
 /// not this capture's concern, and keeping it unpiped avoids a full pipe
 /// ever blocking the child while this function only ever reads stdout.

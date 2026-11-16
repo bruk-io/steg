@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:55:00Z'
+updated_date: '2026-11-16T02:56:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -438,6 +438,51 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (1.3s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 101 at 2026-11-16T02:56:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 9dd6c15aee49, last 40 of 72 lines:
+
+```text
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-1079895324ddf99e)
+
+running 6 tests
+test refuses_to_start_one_when_autostart_is_false ... ok
+test spawn_fails_promptly_when_the_binarys_path_does_not_exist ... ok
+test connects_without_spawning_when_a_listener_is_already_bound ... FAILED
+test spawn_fails_when_the_binary_exists_but_is_not_executable ... ok
+test gives_up_with_a_timeout_when_nothing_ever_binds ... ok
+test starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true ... FAILED
+
+failures:
+
+---- connects_without_spawning_when_a_listener_is_already_bound stdout ----
+
+thread 'connects_without_spawning_when_a_listener_is_already_bound' (19939747) panicked at crates/sdk/tests/local_socket.rs:91:54:
+called `Result::unwrap()` on an `Err` value: Os { code: 48, kind: AddrInUse, message: "Address already in use" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true stdout ----
+
+thread 'starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true' (19939752) panicked at crates/sdk/tests/local_socket.rs:124:5:
+assertion failed: connect(&options).is_ok()
+
+
+failures:
+    connects_without_spawning_when_a_listener_is_already_bound
+    starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-sdk --test local_socket`
+full output: .quiet/test-steg-sdk-local-socket.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

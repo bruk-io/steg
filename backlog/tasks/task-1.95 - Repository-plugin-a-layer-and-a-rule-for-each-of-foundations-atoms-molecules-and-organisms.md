@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T00:55:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -30,3 +30,9 @@ doc-17 (the four levels, R118, R125, R126). The plugin is plugins/bruk-io-steg, 
 - [ ] #2 Each rule leads with its level's test from doc-17, so that reading it settles whether a thing is an atom, a molecule or an organism; then what the level may use, that a component is given plain values and reports what the user did (R118), accessibility for anything a person acts on (R125), and one file in the repository that shows the pattern
 - [ ] #3 No rule restates what a check enforces (the dependency boundary, import direction, colour literals, the generated file); each names the check instead. The rules are changed through asdlc-plugin and pass its check against the repository
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-15, @bruk.o: the first real components are TASK-1.100 (atoms), TASK-1.103 (molecules) and TASK-1.106 (organisms); each level's rule points at one file from those when it exists.
+<!-- SECTION:NOTES:END -->

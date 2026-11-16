@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T11:39:00Z'
+updated_date: '2026-11-16T11:41:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -465,6 +465,12 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `just test` exited 0 at 2026-11-16T11:41:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at 246af7ec5f82 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-server) (14.5s)
 ```
 <!-- SECTION:NOTES:END -->
 

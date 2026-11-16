@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:45:00Z'
+updated_date: '2026-11-16T02:46:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -2068,6 +2069,15 @@ Negative controls repeated by hand, reverted: (1) force_end pass 3's signal_kill
 Checked and clean: no unsafe anywhere in the diff; nix's "signal" feature is listed in boundaries.toml's [steg-server] allow/reason and Cargo.toml, matching plan §8; no crates/kernel or crates/sdk files touched; files touched match the plan's own "Files that change" list exactly.
 
 Overlap: TASK-1.84 (PR #46, in review) adds two apply_event_locked arms for command marks that "deliberately leave the handle in place" on PaneNotFound - that assumption is about to become moot once this merges, since close_and_dispatch now pops every scope pane's handle synchronously at close time (both forced and plain closes), before any mark or exit event for it can arrive; there will be no handle left in state.panes to leave in place. TASK-1.84 will need to revisit that comment/behaviour against this task's new reality, though it is not this task's own bug. TASK-1.45 (not yet in review) constructs Runtime::new and calls stop() explicitly; it will need to pass a force_grace argument (FORCE_GRACE_DEFAULT for production) and should expect stop() to take up to ~6s worst case now rather than up to 5s per pane serially.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T02:46:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.78: a same-machine review: it waited 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:11:00Z'
+updated_date: '2026-11-16T01:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1131,6 +1131,33 @@ kill: 55008: No such process
 test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.06s
+```
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread` exited 101 at 2026-11-16T01:12:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... FAILED
+
+failures:
+
+---- pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread stdout ----
+
+thread 'pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread' (16702677) panicked at crates/server/src/pane.rs:800:9:
+the worker thread must actually end, not just reply - the bug this test is named for left a worker thread running forever behind a reply that looked correct on its own
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

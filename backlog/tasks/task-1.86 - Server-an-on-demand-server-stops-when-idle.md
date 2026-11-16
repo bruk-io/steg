@@ -839,6 +839,33 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; 
 
 error: test failed, to rerun pass `-p steg-server --test idle_stop`
 ```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop every_sender_dropping_is_what_lets_run_return_after_stop` exited 101 at 2026-11-16T12:23:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test every_sender_dropping_is_what_lets_run_return_after_stop ... FAILED
+
+failures:
+
+---- every_sender_dropping_is_what_lets_run_return_after_stop stdout ----
+
+thread 'every_sender_dropping_is_what_lets_run_return_after_stop' (27630136) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 5s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_sender_dropping_is_what_lets_run_return_after_stop
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

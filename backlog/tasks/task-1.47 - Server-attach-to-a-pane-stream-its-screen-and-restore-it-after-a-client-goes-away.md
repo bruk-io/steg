@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:15:00Z'
+updated_date: '2026-11-16T14:18:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1617,6 +1617,41 @@ running 1 test
 test connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.01s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:18:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (4.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (19.1s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (36.1s)
+ok      test (steg-server) (15.2s)
+ok      test (steg-server, race-fixture) (18.3s)
+ok      build (steg) (1.6s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.9s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (12.2s)
+ok      architecture (1.9s)
+ok      recipe names (0.2s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

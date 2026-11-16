@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T01:34:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

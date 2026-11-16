@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T08:57:00Z'
+updated_date: '2026-11-16T09:06:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -37,7 +37,7 @@ Second piece of the split of TASK-1.77 (2026-11-15). doc-8 R99. The worker's pla
 <!-- SECTION:PLAN:BEGIN -->
 Read against doc-8 R99, doc-2 section 6/8, doc-15 (R94, R97), doc-16 (R101, R110), the three pull requests not yet on main (47/3e4594e, 56/040c5f0, 57/93973fd - this plan is written against their heads, not `origin/main`), and TASK-1.77's own carried design (its Implementation Notes, "For TASK-1.86"). No file is edited in this phase.
 
-**Revision note:** this replaces the plan's earlier version after the engineer's review of it. Three changes: (1) the checker now waits exactly, never on a timer, which needed working out whether the session count can change with no client connected (it can - R94/R97's cascade - and the plan now says where `Runtime` tells the checker); (2) AC #4's forward note is now a proposed criterion on TASK-1.49, with the residual window named precisely; (3) "an explicit start never idle-stops" now has a named, event-bounded test rather than a fixed-wait assertion. Nothing else changed from the reviewed version.
+**Revision note (second round):** the engineer asked for one simplification - one thread and one channel instead of two, since the relay thread existed only to convert between two message types so `connection.rs` stayed untouched, and the deadlock-avoidance I had to design around came from that extra hop. This version drops the relay and `IdleSignal` entirely: `ConnectionEvent` itself (`connection.rs`'s existing enum) gains one new variant, `connection::handle`'s own signature does not change at all, and the join bound is re-derived from scratch against every sender and every path out of `run`. Everything else from the first-reviewed version is unchanged.
 
 ## For the engineer
 
@@ -47,26 +47,27 @@ Read against doc-8 R99, doc-2 section 6/8, doc-15 (R94, R97), doc-16 (R101, R110
 - *Proving the client's handling isn't available either, honestly.* `local_socket::connect` returns `Ok(stream)` the instant the OS-level `connect()` succeeds - it never reads a byte, so it cannot distinguish "healthy" from "accepted-then-dropped." The code that *would* notice (attempting a handshake, treating a bare EOF the same as refused) only runs in whatever drives `steg_sdk::Connection::new(Role::Client, ...)` for real, which has no production caller yet (TASK-1.49's CLI isn't built). Writing that retry logic only inside a test, to then assert it works, tests the test's own logic, not shipped behaviour - I'm not doing that.
 - *What the ordinary case already gives, with zero new client code.* The overwhelming majority of "the instant it is stopping" - anything from the moment `stop()` is called up to the very edge of that one-iteration race - already gets `ECONNREFUSED` or, once the socket file is later removed, `ENOENT`. `local_socket::connect` already treats *any* `Err` from its own `UnixStream::connect` as "no server, autostart" - this needs no change. I prove this end to end, with real processes: an idle server stops itself, a client connecting afterward is refused, and a fresh on-demand start at the same path succeeds.
 - *The residual window, named precisely, not left implied.* What a client sees today, in the narrow instant its `connect()` lands in the same accept-loop iteration the stop flag has just become true: `UnixStream::connect` returns `Ok` - a real, connected socket from the client's point of view - and a subsequent read on it sees end-of-file with zero bytes: not a decodable frame, not a protocol error, not `ConnectionRefused`/`NotFound` - a clean close with nothing ever written. Nothing built yet performs that subsequent read as part of becoming a client, so nothing in the repository today can observe this outcome at all, let alone react to it.
-- *Recommendation:* accept AC #4 as proven by (a) that ordinary-timing real-process test, (b) the existing `stop_racing_a_client_connecting_still_returns_within_a_bound` (TASK-1.45, unchanged) as proof `run()` never hangs when a connect races `stop()` - the same `Stopper::stop()` function regardless of who calls it, so this task adds no new risk there - and (c) a criterion added to **TASK-1.49** ("CLI: commands generated from the API description, in the steg package" - confirmed, that is the task with no real client-handshake caller yet): *a client whose connection is accepted and then closed before a hello arrives treats that the same as no server being there, and arbitrates again once.* Not prose on this task - an acceptance criterion on that one, worded so its own worker has to build and prove it, the same way TASK-1.77 carried design notes to me rather than a vague pointer. If you'd rather this task prove the exact-instant case directly, that needs a different, smaller task first (a minimal real client ahead of TASK-1.49) - say so and I'll replan.
+- *Recommendation:* accept AC #4 as proven by (a) that ordinary-timing real-process test, (b) the existing `stop_racing_a_client_connecting_still_returns_within_a_bound` (TASK-1.45, unchanged) as proof `run()` never hangs when a connect races `stop()` - the same `Stopper::stop()` function regardless of who calls it, so this task adds no new risk there - and (c) a criterion added to **TASK-1.49** ("CLI: commands generated from the API description, in the steg package" - confirmed, that is the task with no real client-handshake caller yet): *a client whose connection is accepted and then closed before a hello arrives treats that the same as no server being there, and arbitrates again once.* Not prose on this task - an acceptance criterion on that one, worded so its own worker has to build and prove it. If you'd rather this task prove the exact-instant case directly, that needs a different, smaller task first (a minimal real client ahead of TASK-1.49) - say so and I'll replan.
 
-**2. AC #3's "ending its programs" is vacuous for idle-stop's own trigger in production, by construction - one test below deliberately builds the non-vacuous case anyway, to prove the sequence rather than assert it.** The predicate only calls `stop()` when `session_count == 0` (R99: "no sessions and no clients") - in normal operation idle-stop can never fire while any session, let alone a running program, exists (a session only disappears from the tree when explicitly closed, not merely because its one pane's program exited - doc-2: "a pane started with a program stays when the program ends"). `Runtime::stop()` ending real programs is already proven elsewhere (TASK-1.76/1.78's own tests) - this task doesn't need to re-prove that mechanism, only that this trigger reaches it. "A short injected grace period" (AC #3's wording) is satisfied by injecting a short `idle_timeout`, not `force_grace`. I did **not** touch `listen::run`'s hardcoded `crate::runtime::FORCE_GRACE_DEFAULT` (a line PR 47/TASK-1.78 just wrote) - no need to; the one test that does construct a real session sidesteps `force_grace` entirely with a fake `ProgramLauncher` (section 9) rather than touching that line. I *did* end up adding two small, necessary lines inside `Runtime::stop()` itself (section 4, below) - flagged there, not hidden.
+**2. AC #3's "ending its programs" is vacuous for idle-stop's own trigger in production, by construction - one test below deliberately builds the non-vacuous case anyway, to prove the sequence rather than assert it.** The predicate only calls `stop()` when `session_count == 0` (R99: "no sessions and no clients") - in normal operation idle-stop can never fire while any session, let alone a running program, exists. `Runtime::stop()` ending real programs is already proven elsewhere (TASK-1.76/1.78's own tests) - this task doesn't need to re-prove that mechanism, only that this trigger reaches it. "A short injected grace period" is satisfied by injecting a short `idle_timeout`, not `force_grace`. I did **not** touch `listen::run`'s hardcoded `FORCE_GRACE_DEFAULT`; the one test that does construct a real session sidesteps `force_grace` with a fake `ProgramLauncher` instead. I *did* add two small, necessary lines inside `Runtime::stop()` itself (section 4) - flagged there, not hidden.
 
-**3. Not splitting.** I checked for a seam the way the standing default asks. Every piece here (the predicate, the two new threads, the `ServerConfig`/entry-point wiring) exists only to serve one behaviour (R99's idle stop) and none is independently reviewable or valuable alone - unlike TASK-1.77's three unrelated concerns. One task, one PR.
+**3. Not splitting.** Every piece here (the predicate, the one new thread, the `ServerConfig`/entry-point wiring) exists only to serve one behaviour (R99's idle stop) and none is independently reviewable or valuable alone.
 
-**4. This round's required change, summarised.** The first version of this plan had the checker poll every 100ms for the whole life of every on-demand server. That's wrong for a background terminal server that may sit idle-eligible, or not, for days. Fixed below: the checker blocks with no timeout at all while not idle-eligible, and with a timeout that is exactly the time left to the deadline once it is - which needed confirming whether the session count can change with nobody connected. It can (R94/R97's own cascade: a shell pane's program exiting can close its pane, its tab, and its session, driven entirely by the pty, never by a client) - section 4 is where `Runtime` tells the checker.
+**4. This round's simplification, summarised.** The previous version used two threads and two channel types - a relay converting `ConnectionEvent` into a separate `IdleSignal` wrapper purely so `connection.rs` stayed untouched, and a three-step join order (relay, then `runtime.stop()`, then checker) to avoid a deadlock that shape itself created. Simplified below to one thread and one channel: `ConnectionEvent` (already defined in `connection.rs`) gains one new variant, `SessionCountChanged`, so the exact same type flows from `connection::handle`, from `Runtime`'s own notifier, and - once it lands - from TASK-1.98's own addition to the accept loop. `connection::handle`'s signature does not change at all. The join bound is re-derived from the actual set of senders and every path out of `run`, below (section 6) - it turns out to need exactly one join, in one place, not three.
+
+**5. Coordination with TASK-1.98.** That task adds its own `ConnectionEvent` variant (an accept retried after a recoverable error) sent from the accept loop, and also touches `listen::run` - the same enum and the same function this task now touches, though different lines of each (section 6 says exactly which). Per the engineer: it lands first, this task rebases onto it. My own diff to `ConnectionEvent` is one more variant added alongside whatever TASK-1.98 adds - nothing about my own variant's meaning or the checker's handling of it depends on knowing TASK-1.98's exact name or payload (the checker's own match treats any variant it doesn't specifically care about identically - section 5).
 
 ## Why this builds on three unmerged PRs, and the risk that carries
 
-Read against PR 47 (3e4594e, TASK-1.78: `Runtime::new`'s third `force_grace` argument, `Runtime::stop` ending every pane within a bound), PR 56 (040c5f0, TASK-1.87: `ServerConfig.login`/`login_identity_timeout`/`login_environment_timeout`, the `fixtures`-gated `fixture_server` binary), and PR 57 (93973fd, TASK-1.89: a merge commit, not itself a feature I depend on for this task - `listen::run`'s shape I'm building against is 040c5f0's, which already contains PR 47 merged in). None of these are on `origin/main` yet. **Risk:** if any lands with a shape different from what's quoted below (especially `listen::run`'s body, `Runtime::stop`'s body, or `ServerConfig`'s field list), my branch needs a rebase before `record-check` - I'll note the exact diff in this task's notes if that happens, not reopen this plan.
+Read against PR 47 (3e4594e, TASK-1.78: `Runtime::new`'s third `force_grace` argument, `Runtime::stop` ending every pane within a bound), PR 56 (040c5f0, TASK-1.87: `ServerConfig.login`/`login_identity_timeout`/`login_environment_timeout`, the `fixtures`-gated `fixture_server` binary), and PR 57 (93973fd, TASK-1.89: a merge commit, not itself a feature I depend on for this task - `listen::run`'s shape I'm building against is 040c5f0's, which already contains PR 47 merged in). None of these are on `origin/main` yet, and TASK-1.98 (section 5 above) is a fourth, still-being-planned point of the same kind. **Risk:** if any lands with a shape different from what's quoted below (especially `listen::run`'s body, `Runtime::stop`'s body, `ConnectionEvent`'s own variants, or `ServerConfig`'s field list), my branch needs a rebase before `record-check` - I'll note the exact diff in this task's notes if that happens, not reopen this plan.
 
-## 1. `IdlePredicate` and `Wait`: a pure function of counts and a given time, telling the caller exactly how long to wait rather than only whether to stop now
+## 1. `IdlePredicate` and `Wait`: a pure function of counts and a given time, decoupled from `ConnectionEvent`'s own type
 
-New module `crates/server/src/idle.rs` (not `listen.rs` or `lib.rs` - `.claude/rules/rust.md`: behaviour in named modules). Not exported from `lib.rs` (`pub(crate)` only) - nothing outside this crate needs it, and R101/R110 keep the sdk as the one public interface; `listen.rs` is the only caller.
+New module `crates/server/src/idle.rs` (not `listen.rs` or `lib.rs` - `.claude/rules/rust.md`: behaviour in named modules). Not exported from `lib.rs` (`pub(crate)` only) - nothing outside this crate needs it.
+
+**Decoupled from `ConnectionEvent` on purpose, this round.** Now that `ConnectionEvent` is a channel two tasks independently widen (section 5), the predicate's own public shape shouldn't depend on its exact variant list growing over time. Two plain methods instead of one that takes the enum:
 
 ```rust
-/// What a caller should do next, given the counts and the time just read -
-/// never computed on a schedule of its own, only in response to a real
-/// event or a wait that has just elapsed (`listen::run_checker`, below).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Wait {
     /// Not idle-eligible (a client is connected, or a session exists):
@@ -80,7 +81,7 @@ pub(crate) enum Wait {
 }
 
 pub(crate) struct IdlePredicate {
-    live_clients: i64, // signed: a stray Disconnected with no matching Connected
+    live_clients: i64, // signed: a stray disconnect with no matching connect
                        // must never panic this thread on underflow; harmless if
                        // it goes negative, which nothing in normal operation does
     empty_since: Option<Instant>,
@@ -91,17 +92,15 @@ impl IdlePredicate {
         Self { live_clients: 0, empty_since: None }
     }
 
-    pub(crate) fn on_event(&mut self, event: ConnectionEvent, now: Instant) {
-        match event {
-            ConnectionEvent::Connected => {
-                self.live_clients += 1;
-                self.empty_since = None; // AC #2: counts from acceptance
-            }
-            ConnectionEvent::Disconnected => {
-                self.live_clients -= 1;
-                // empty_since is (re)started on the next wait(), not here.
-            }
-        }
+    pub(crate) fn client_connected(&mut self) {
+        self.live_clients += 1;
+        self.empty_since = None; // AC #2: counts from acceptance - no `now` needed,
+                                 // since resetting to `None` doesn't record a value
+    }
+
+    pub(crate) fn client_disconnected(&mut self) {
+        self.live_clients -= 1;
+        // empty_since is (re)started on the next wait(), not here.
     }
 
     /// `now` and `session_count` are both given, never read by this function.
@@ -122,49 +121,59 @@ impl IdlePredicate {
     }
 }
 ```
-
-**Correcting TASK-1.77's own carried claim about the arbiter probe, checked rather than repeated.** Its notes said a probe (`Connected` then an almost-immediate `Disconnected`, no hello) "costs at most a few seconds," resting on `get_or_insert`. Tracing it: `on_event(Connected)` sets `empty_since = None` unconditionally; `on_event(Disconnected)` does not set it back. So the *next* `wait()` call's `get_or_insert(now)` seeds it from whatever `now` happens to be at that call, not from any earlier value - the clock restarts from zero, not "close to where it was." **A probe costs a full idle period, not a few seconds**, and `Wait::Until`'s own returned `Duration` after such a pair is exactly `idle_timeout`, not a partial remainder - checkable directly, not just inferred. Still compatible with AC #2 ("does not *by itself* keep an idle server alive" - one probe delays once, it doesn't hold indefinitely).
+**Correcting TASK-1.77's own carried claim about the arbiter probe, checked rather than repeated.** Its notes said a probe (connect then an almost-immediate disconnect, no hello) "costs at most a few seconds," resting on `get_or_insert`. Tracing it: `client_connected` sets `empty_since = None` unconditionally; `client_disconnected` does not set it back. So the *next* `wait()` call's `get_or_insert(now)` seeds it from whatever `now` happens to be at that call, not from any earlier value - the clock restarts from zero, not "close to where it was." **A probe costs a full idle period, not a few seconds**, and `Wait::Until`'s own returned `Duration` after such a pair is exactly `idle_timeout`, not a partial remainder - checkable directly. Still compatible with AC #2 ("does not *by itself* keep an idle server alive").
 
 Unit tests (`#[cfg(test)]` inline, literal `Instant`s built from one fixed base plus `Duration` offsets, no sleeping):
 
 1. `wait_at_29_30_and_31_seconds_of_idleness` - three literal cases on one otherwise-empty predicate: 29s → `Wait::Until(Duration::from_secs(1))` (exact), 30s → `Wait::Expired`, 31s → `Wait::Expired` (AC #1's own boundary wording).
-2. `a_connected_with_no_matching_disconnected_never_fires_no_matter_how_far_time_moves` - `on_event(Connected, t0)`, then `wait` at `t0 + 10_000s` → `Wait::Forever` (AC #2: mid-handshake counts from acceptance).
+2. `a_connected_client_with_no_matching_disconnect_never_fires_no_matter_how_far_time_moves` - `client_connected()`, then `wait` at `t0 + 10_000s` → `Wait::Forever` (AC #2: mid-handshake counts from acceptance).
 3. `a_nonzero_session_count_never_fires_regardless_of_clients` - `wait(far_future, 1, idle_timeout)` → `Wait::Forever` even with `live_clients == 0`.
-4. `a_connect_then_disconnect_within_one_tick_restarts_the_full_period` - the arbiter-probe shape: `on_event(Connected, t0)`, `on_event(Disconnected, t0 + 1ms)`, `wait(t0 + 1ms, 0, idle_timeout)` → `Wait::Until(idle_timeout)` *exactly* (not a partial remainder) - named for what it actually proves (restarts from the wait call, full period, not the "few seconds" framing TASK-1.77 inherited).
-5. `a_client_reconnecting_every_29_seconds_never_fires` - five literal cycles of `Connected` at `t0 + 29*n`s, `Disconnected` at `t0 + 29*n + 1`s (modelling the handshake timeout closing it before the next arrives); a `wait` call right after each disconnect returns `Wait::Until(idle_timeout)` (a fresh full period each time, never cumulative) and the next `Connected` always arrives before that period could mature into `Expired` - "stated and tested," AC #2's own open question, with no real time elapsed.
-6. `empty_from_construction_and_waiting_past_idle_timeout_expires` - the base case: an untouched predicate (matching a just-started, genuinely idle server) returns `Wait::Until(idle_timeout)` from its very first call, then `Wait::Expired` once that long has passed - R99's own "stops by itself" timing starts from server start, not from the first client leaving. This means the client that *caused* the on-demand start is itself racing that same 30s clock while it polls for the socket to accept (`local_socket::connect`'s own 20ms retry loop, `connect_timeout` far below 30s by default) - harmless by construction (the default `idle_timeout` is two orders of magnitude larger than a normal connect), named here so a reviewer doing the same arithmetic finds the answer rather than redoing it.
-7. `wait_until_is_exact_not_approximate` - literal elapsed values (5s, 17s against a 30s `idle_timeout`) each return `Wait::Until(idle_timeout - elapsed)` to the exact `Duration`, not a rounded or padded one - backs "a timeout that is exactly the time left to the deadline" with a value a reviewer can check, not inferred from behaviour.
+4. `a_connect_then_disconnect_within_one_tick_restarts_the_full_period` - the arbiter-probe shape: `client_connected()`, `client_disconnected()`, `wait(t0 + 1ms, 0, idle_timeout)` → `Wait::Until(idle_timeout)` *exactly* - named for what it actually proves, not the "few seconds" framing TASK-1.77 inherited.
+5. `a_client_reconnecting_every_29_seconds_never_fires` - five literal cycles of connect (`client_connected()`) then disconnect (`client_disconnected()`) at `t0 + 29*n`s and `t0 + 29*n + 1`s; a `wait` call right after each disconnect returns `Wait::Until(idle_timeout)` (a fresh full period each time) and the next connect always arrives before that period could mature into `Expired`.
+6. `empty_from_construction_and_waiting_past_idle_timeout_expires` - an untouched predicate returns `Wait::Until(idle_timeout)` from its very first call, then `Wait::Expired` once that long has passed - R99's own "stops by itself" timing starts from server start. The client that *caused* the on-demand start is itself racing that same 30s clock while it polls for the socket (`local_socket::connect`'s own 20ms retry loop, far below 30s by default) - harmless by construction, named so a reviewer doing the same arithmetic finds the answer rather than redoing it.
+7. `wait_until_is_exact_not_approximate` - literal elapsed values (5s, 17s against a 30s `idle_timeout`) each return `Wait::Until(idle_timeout - elapsed)` to the exact `Duration`, not rounded or padded.
 
-**AC #2's arbiter-probe clause, through the real arbiter, needs no separate wiring-level test.** `arbiter::probe` (040c5f0's `arbiter.rs:177`) only runs on `ExistingFile::OursAndASocket` - a *contended* start, where a file already exists and another process checks whether it's a live one of ours - never on a solo start with nothing there yet. So a real probe is reachable only in the same multi-process race TASK-1.77's own `four_simultaneous_starts_converge_on_one_server` already exercises, not in any test this task adds. What a probe looks like to `run`'s own accept loop (`Connected` then an immediate `Disconnected`, no hello) is, by `connection.rs`'s own documented caveat, indistinguishable from *any* short-lived client that connects and leaves before a hello - the server has no signal to tell them apart, so there is nothing a probe-specific test could exercise that test 4 above does not already cover identically. Named here so a reviewer checking this clause finds the reasoning rather than a gap.
+**AC #2's arbiter-probe clause, through the real arbiter, needs no separate wiring-level test.** `arbiter::probe` only runs on `ExistingFile::OursAndASocket` - a *contended* start - never on a solo start with nothing there yet, so a real probe is reachable only in the same multi-process race TASK-1.77's own `four_simultaneous_starts_converge_on_one_server` already exercises. What a probe looks like to `run`'s own accept loop is, by `connection.rs`'s own documented caveat, indistinguishable from any short-lived client that connects and leaves before a hello - test 4 above already covers that shape identically.
 
-No negative control for these seven: pure-function unit tests of logic with no mechanism behind them to disable (team testing skill: "an ordinary unit test of a pure function does not need one").
+No negative control for these seven: pure-function unit tests of logic with no mechanism behind them to disable.
 
 ## 2. Why the session count can change with no client connected, and where `Runtime` tells the checker
 
-**Checked against the kernel, not assumed.** R94 (doc-15): "Closing a tab's last pane closes the tab, and closing a session's last tab ends the session." R97: "A pane started as a plain shell closes when the shell exits." `Tree::record_exit` (`crates/kernel/src/tree.rs`) runs exactly this cascade when a pane's program ends: `pane.closes_on_exit()` (true for a plain shell pane) calls `self.close_pane(id)`, whose return type `ClosedPane { pane, tab: Option<TabId>, session: Option<SessionId> }` reports `session: Some(id)` *exactly* when this one exit closed a session - precise, not a guess. `apply_event_locked`'s own `PaneEvent::Exited` arm already calls `record_exit` and matches on `ExitOutcome::Closed(closed)`; none of this runs through any client connection at all - it is driven by the drain thread reading a real pty's `PaneEvent`, which can arrive at any time, client or no client. **So yes, the session count can drop to zero with nobody connected, and the checker has no other way to learn that**, since it never reads the tree on a schedule of its own (section 5's whole point).
+**Checked against the kernel, not assumed.** R94 (doc-15): "Closing a tab's last pane closes the tab, and closing a session's last tab ends the session." R97: "A pane started as a plain shell closes when the shell exits." `Tree::record_exit` runs exactly this cascade when a pane's program ends: `pane.closes_on_exit()` (true for a plain shell pane) calls `self.close_pane(id)`, whose return type `ClosedPane { pane, tab: Option<TabId>, session: Option<SessionId> }` reports `session: Some(id)` *exactly* when this one exit closed a session - precise, not a guess. `apply_event_locked`'s own `PaneEvent::Exited` arm already calls `record_exit`; none of this runs through any client connection - it is driven by the drain thread reading a real pty's event, which can arrive at any time, client or no client. So the session count can drop to zero with nobody connected, and the checker has no other way to learn that, since it never reads the tree on a schedule of its own (section 5's whole point).
 
-`idle.rs` gains a second type, carried on the same channel the checker already reads:
+**Why only the `PaneEvent::Exited` arm, not `close_and_dispatch`'s own request-driven `session.close`/`tab.close`/`pane.close` path.** That path can also close a session (R94), but it only ever runs as the result of a request on an already-accepted, already-handshaken connection - and `connection::handle` sends `Disconnected` on every path out of itself, including a panic unwinding past it (its own doc comment already says so). So a request-driven close is always followed, sooner or later, by that same connection's own `Disconnected`, which already wakes the checker and makes it re-read the live count. Adding a second notify call on that path would be correct but redundant. The pty-driven path is different in kind - no connection and no `Disconnected` behind it at all - so it is the one case with nothing else to wake the checker.
+
+## 3. `connection.rs`'s one change: a new `ConnectionEvent` variant, nothing else
 
 ```rust
-pub(crate) enum IdleSignal {
-    Connection(ConnectionEvent),
-    /// A pane's exit just closed a session (`ClosedPane::session: Some(_)`) -
-    /// carries no id: the checker only ever needs "re-read the count," never
-    /// which session, and re-reading is already exact and cheap (`Runtime::
-    /// session_counter`, section 4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionEvent {
+    Connected,
+    Disconnected,
+    /// A pane's exit just closed a session with no client connected to it
+    /// (R94/R97's own cascade) - carries no id: a caller that cares always
+    /// re-reads the live count (`Runtime::session_counter`), never caches
+    /// one against this event. Sent by `Runtime`, never by `connection::
+    /// handle` - the one variant here not about one connection's own
+    /// lifecycle (TASK-1.98 adds another non-connection-specific one,
+    /// an accept retried; this channel is becoming the server's own
+    /// internal "something happened" stream, not strictly per-connection,
+    /// and keeping one shared enum rather than each task inventing its
+    /// own wrapper is what keeps the two edits from colliding).
     SessionCountChanged,
 }
 ```
 
-`runtime.rs` gains: one field on `State` (`notify_session_count_changed: Option<Sender<idle::IdleSignal>>`, `None` by construction - nothing sets it until `listen::run` does, section 7); one setter, self-locking like `connect_client`/`disconnect_client` already are:
+**`connection::handle`'s own signature does not change, and neither does either of its two existing send call sites.** It already takes `events: Option<Sender<ConnectionEvent>>` and already sends `Connected`/`Disconnected` to it; both are untouched by this task. The only edit inside `connection.rs` is the one variant above and its doc comment.
+
+`runtime.rs` gains: one field on `State` (`notify_session_count_changed: Option<Sender<ConnectionEvent>>`, `None` by construction); one setter, self-locking like `connect_client`/`disconnect_client` already are:
 
 ```rust
 impl Runtime {
     /// Told once, by `listen::run`, only when idle-checking is on (section
-    /// 7) - every pane-exit cascade that closes a session (R94) sends on
-    /// this afterward, so the checker learns of it the instant it happens,
-    /// never by polling the tree.
-    pub(crate) fn set_idle_notifier(&self, notify: Sender<idle::IdleSignal>) {
+    /// 6) - every pane-exit cascade that closes a session (R94) sends on
+    /// this afterward.
+    pub(crate) fn set_idle_notifier(&self, notify: Sender<ConnectionEvent>) {
         self.lock().notify_session_count_changed = Some(notify);
     }
 }
@@ -175,25 +184,23 @@ and one addition inside the *existing* `PaneEvent::Exited` arm of `apply_event_l
 ```rust
 if closed.session.is_some() {
     if let Some(notify) = &state.notify_session_count_changed {
-        let _ = notify.send(idle::IdleSignal::SessionCountChanged);
+        let _ = notify.send(ConnectionEvent::SessionCountChanged);
     }
 }
 ```
 
-**Why only the `PaneEvent::Exited` arm, not `close_and_dispatch`'s own request-driven `session.close`/`tab.close`/`pane.close` path.** That path can also close a session (R94), but it only ever runs as the result of a request on an already-accepted, already-handshaken connection - and `connection::handle` sends `Disconnected` on every path out of itself, including a panic unwinding past it (its own doc comment already says so). So a request-driven close is always followed, sooner or later, by that same connection's own `Disconnected` - which already wakes the checker (section 5) and makes it re-read the live count via `wait()`'s own `session_count()` call, correctly. Adding a second notifier call on that path would be correct but redundant - never the thing that makes the server idle-eligible when nothing else would have. The pty-driven path (`apply_event_locked`) is different in kind: it runs on the drain thread, with no connection and no `Disconnected` behind it at all, so it is the one case with nothing else to wake the checker - the only place this task adds a notifier call.
+**Why calling `set_idle_notifier` after `Runtime::new` is safe, not racy.** `listen::run` calls it immediately after constructing `runtime`, before the accept loop starts accepting anything - no pane can exist yet, so no `PaneEvent::Exited` can arrive before the notifier is set.
 
-**Why calling `set_idle_notifier` after `Runtime::new` is safe, not racy.** `listen::run` calls it (section 7) immediately after constructing `runtime`, before the accept loop starts accepting anything - no pane can exist yet (a pane is only ever minted by a request, which needs an accepted, handshaken connection, which needs the accept loop already running), so no `PaneEvent::Exited` can arrive before the notifier is set. Stated plainly rather than left to be trusted.
-
-**The matching addition to `Runtime::stop()` (PR 47/TASK-1.78's own method - a small, necessary touch, not avoided this time).** `stop()` already takes every `Option`-wrapped field and empties it (`self.events.take()`, `self.drain.take()`) so a second call is a no-op; this field joins that list for the same reason, and for a second one - section 7's checker thread, when blocked in `Wait::Forever`, can only be woken by the channel disconnecting if every sender into it, including `Runtime`'s own, is actually dropped. One line, inside the lock `stop()` already takes:
+**The matching addition to `Runtime::stop()` (PR 47/TASK-1.78's own method).** `stop()` already takes every `Option`-wrapped field and empties it (`self.events.take()`, `self.drain.take()`) so a second call is a no-op; this field joins that list for the same reason, and for a second one - section 6's checker, when blocked in `Wait::Forever`, can only be woken by the channel disconnecting if every sender into it, including `Runtime`'s own, is actually dropped:
 
 ```rust
-state.notify_session_count_changed = None; // drops this Runtime's own sender clone,
-    // one of the last things keeping the checker's channel connected (section 7)
+state.notify_session_count_changed = None; // drops this Runtime's own sender clone -
+    // one of the senders section 6's join bound is derived against
 ```
 
-## 3. `ServerConfig.idle_timeout: Option<Duration>` - the on/off switch R99 needs
+## 4. `ServerConfig.idle_timeout: Option<Duration>` - the on/off switch R99 needs
 
-`None` means never idle-stop (an explicit start's default, unchanged); `Some(duration)` is the period. Added to `crates/server/src/config.rs` beside the existing injected-time fields, same pattern as `login_identity_timeout`:
+`None` means never idle-stop (an explicit start's default, unchanged); `Some(duration)` is the period:
 
 ```rust
 pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30); // R99
@@ -201,21 +208,18 @@ pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30); // R99
 ```rust
 pub idle_timeout: Option<Duration>,
 ```
-`ServerConfig::default()` sets it to `None` - **not** `Some(DEFAULT_IDLE_TIMEOUT)`. `run_server_start`'s own `ServerConfig::default()` call is shared between an explicit and an on-demand start (section 5 of TASK-1.77's plan); defaulting to `Some` here would make an *explicit* start idle-stop too, which R99 forbids outright ("a server started explicitly stops only when told to"). The `on_demand` branch is what turns it on (section 8 below) - a one-line, explicit `Some`, not a default, the same reasoning TASK-1.87 gave for writing `config.login = ...` explicitly rather than leaving it to a default that happens to match.
+`ServerConfig::default()` sets it to `None` - **not** `Some(DEFAULT_IDLE_TIMEOUT)`: `run_server_start`'s own `ServerConfig::default()` call is shared between an explicit and an on-demand start; defaulting to `Some` here would make an *explicit* start idle-stop too, which R99 forbids outright. The `on_demand` branch turns it on (section 7) - a one-line, explicit `Some`, not a default.
 
-`Debug for ServerConfig`'s manual impl gets one more `.field(...)` line (it's a plain `Option<Duration>`, no special handling needed, unlike `launcher`).
+`Debug for ServerConfig`'s manual impl gets one more `.field(...)` line.
 
-## 4. `Runtime::session_counter` - the seam into a non-`Arc` `Runtime`
-
-`listen::run` owns `Runtime` by value (so `runtime.stop()` typechecks only once every connection thread, scoped to `runtime`'s own borrow, has already been joined - TASK-1.45's own property). The checker thread has to outlive that borrow, so it cannot hold `&Runtime` itself. `Runtime` already holds `state: Arc<Mutex<State>>` - the checker needs only a cheap, independently-cloneable read, so I give it an owned `Arc` clone, not a borrow:
+## 5. `Runtime::session_counter` and `idle::run_checker`: exact waits, no polling
 
 ```rust
 // crates/server/src/runtime.rs
 impl Runtime {
     /// A cheap, repeatable way to read the live session count, usable from a
-    /// thread that outlives any borrow of `self` (`listen::run`'s idle
-    /// checker - TASK-1.86). `pub(crate)`: nothing outside this crate needs
-    /// it, same reasoning as every other internal seam here.
+    /// thread that outlives any borrow of `self`. `pub(crate)`: nothing
+    /// outside this crate needs it.
     pub(crate) fn session_counter(&self) -> impl Fn() -> usize + Send + 'static {
         let state = Arc::clone(&self.state);
         move || {
@@ -229,35 +233,28 @@ impl Runtime {
     }
 }
 ```
-Built once in `listen::run`, before `thread::scope` - calling it needs only `&Runtime`, no conflict with the later `&mut self` `runtime.stop()` call, since the returned closure holds no borrow of `runtime` at all, only its own `Arc` clone.
-
-## 5. `idle::run_checker`: exact waits, decided by an `IdleSignal`, no polling
+`listen::run` owns `Runtime` by value (so `runtime.stop()` typechecks only once every connection thread, scoped to `runtime`'s own borrow, has already been joined - TASK-1.45's own property); the checker has to outlive that borrow, so it is given this owned `Arc` clone, never `&Runtime` itself.
 
 ```rust
+// crates/server/src/idle.rs
 pub(crate) fn run_checker(
-    rx: Receiver<IdleSignal>,
+    rx: Receiver<ConnectionEvent>,
     stop: Stopper,
     session_count: impl Fn() -> usize,
     idle_timeout: Duration,
 ) {
-    // `|_wait| {}` is a zero-capture, zero-field closure - the compiler
-    // monomorphises `run_checker_with_observer` for this exact type and
-    // inlines the call, the same as every other no-op callback already in
-    // this codebase (e.g. the sdk's own default handlers); not a per-
-    // iteration indirection in the shipped server.
     run_checker_with_observer(rx, stop, session_count, idle_timeout, |_wait| {});
 }
 
-/// `observe` is called once per loop iteration, with the `Wait` just
+/// `observe` is called once per loop iteration with the `Wait` just
 /// computed, before acting on it - production's own `run_checker` passes a
-/// no-op; a test passes a counting/recording closure instead, so "how many
-/// times did this block with no timeout, how many times with a bounded
-/// one, in what order" is counted through a real hook the loop itself
-/// calls, never inferred from wall-clock timing (`crates/server/src/idle.
-/// rs`'s own `#[cfg(test)]` module is the only other caller - `run_checker`
-/// is still what every production path calls, unchanged).
+/// no-op (a zero-capture closure the compiler inlines, not a per-iteration
+/// indirection in the shipped server); a test passes a recording closure
+/// instead, so "how many times did this block with no timeout, how many
+/// times with a bounded one, in what order" is counted through a real
+/// hook, never inferred from wall-clock timing.
 fn run_checker_with_observer(
-    rx: Receiver<IdleSignal>,
+    rx: Receiver<ConnectionEvent>,
     stop: Stopper,
     session_count: impl Fn() -> usize,
     idle_timeout: Duration,
@@ -276,56 +273,34 @@ fn run_checker_with_observer(
             }
         };
         match recv_result {
-            Ok(IdleSignal::Connection(event)) => predicate.on_event(event, Instant::now()),
-            Ok(IdleSignal::SessionCountChanged) => {} // nothing to update on the predicate
-                // itself - session_count is read fresh on every `wait()` call, never
-                // cached; this signal exists only to wake a `Wait::Forever` block
-                // promptly instead of leaving a session-less, client-less server
-                // waiting indefinitely for a `Connected` that may never come.
+            Ok(ConnectionEvent::Connected) => predicate.client_connected(),
+            Ok(ConnectionEvent::Disconnected) => predicate.client_disconnected(),
+            Ok(_) => {} // any other `ConnectionEvent` variant (`SessionCountChanged`,
+                // TASK-1.98's own addition, and anything future) just wakes this loop
+                // to re-evaluate on the next `wait()` call - the deliberate trade this
+                // catch-all makes: a variant that should have updated the predicate
+                // directly but doesn't get a named arm here still gets picked up
+                // correctly, because `session_count()` is re-read fresh on every
+                // `wait()` call regardless of which event woke it. Nothing here
+                // depends on knowing every variant's exact name to stay correct
             Err(mpsc::RecvTimeoutError::Timeout) => {} // loop back - `wait()` will see
                 // `Expired` next time, since at least `remaining` has now passed
             Err(mpsc::RecvTimeoutError::Disconnected) => return, // every sender into
-                // `rx` is gone (section 7) - run() has already ended; nothing left to
-                // decide, whether or not this thread's own wait ever matured
+                // `rx` is gone (section 6) - run() has already ended
         }
     }
 }
 ```
-No new public method on `Stopper` (its public surface was deliberately narrowed by a prior review - "there is now one public way to stop, and it always works" - adding a query method back would cut against that). Termination is guaranteed without one, by the channel disconnecting - see section 7's own join ordering, not a poll interval.
+No new public method on `Stopper` (its public surface was deliberately narrowed by a prior review). Termination is guaranteed without one, by the channel disconnecting - section 6's own derivation, not a poll interval.
 
-## 6. `idle::run_connection_relay`: the one place `ConnectionEvent` becomes `IdleSignal`
-
-No change to `connection::handle`'s signature, and no change to `connection.rs` at all - it keeps sending plain `ConnectionEvent`s to whatever `Sender<ConnectionEvent>` it's given, exactly as today. A small, always-blocking (never-polling) relay thread is what turns those into `IdleSignal` for the checker, and is also where forwarding to an external test-observer (`events`, the existing public parameter) happens when idle-checking is on - the checker itself (section 5) never needs to know `events` exists:
-
-```rust
-pub(crate) fn run_connection_relay(
-    rx: Receiver<ConnectionEvent>,
-    combined: Sender<IdleSignal>,
-    forward_to: Option<Sender<ConnectionEvent>>,
-) {
-    for event in rx {
-        if let Some(forward_to) = &forward_to {
-            let _ = forward_to.send(event);
-        }
-        let _ = combined.send(IdleSignal::Connection(event));
-    }
-    // `rx`'s own iterator ends the instant every sender into it - every
-    // per-connection clone (joined inside `thread::scope`) and this
-    // function's one caller's own clone (dropped when that scope returns,
-    // section 7) - is gone. No timeout anywhere in this function.
-}
-```
-
-## 7. Wiring `listen::run`: two threads, built only when idle-checking is on, joined in the order their own inputs actually disconnect
-
-Factored into its own function, rather than inlined where it's called, for one reason beyond readability: it is then directly, structurally testable - "does this spawn anything at all when `idle_timeout` is `None`" becomes a plain call and an `assert!`, not a timing-based inference (section 9).
+## 6. Wiring `listen::run`: one thread, one channel, and the join bound derived from every sender and every exit path
 
 ```rust
 // crates/server/src/listen.rs
 struct IdleWiring {
-    connection_relay_tx: Sender<ConnectionEvent>, // cloned per-connection, replacing
-                                                   // today's bare `events.clone()`
-    relay_handle: thread::JoinHandle<()>,
+    checker_tx: Sender<ConnectionEvent>, // cloned per-connection and used by the
+                                         // accept loop's own sends (TASK-1.98's own
+                                         // addition reads this same variable)
     checker_handle: thread::JoinHandle<()>,
 }
 
@@ -333,74 +308,54 @@ fn build_idle_wiring(
     idle_timeout: Option<Duration>,
     runtime: &Runtime,
     stop: &Stopper,
-    events: Option<Sender<ConnectionEvent>>,
 ) -> Option<IdleWiring> {
     let idle_timeout = idle_timeout?; // `None` in, `None` out, nothing built -
-        // this one line is the whole of "an explicit start spawns neither thread"
+        // this one line is the whole of "an explicit start spawns no thread"
 
-    let (connection_relay_tx, connection_relay_rx) = mpsc::channel();
-    let (combined_tx, combined_rx) = mpsc::channel();
-    runtime.set_idle_notifier(combined_tx.clone());
-
-    let relay_combined_tx = combined_tx.clone();
-    let relay_handle = thread::Builder::new()
-        .name("steg-idle-relay".to_string())
-        .spawn(move || idle::run_connection_relay(connection_relay_rx, relay_combined_tx, events))
-        .expect("spawning the idle connection-relay thread");
-    drop(combined_tx); // this function's own clone - only the relay's (above) and
-                       // `Runtime`'s own (`set_idle_notifier`, just above) remain live
+    let (checker_tx, checker_rx) = mpsc::channel();
+    runtime.set_idle_notifier(checker_tx.clone());
 
     let stop = stop.clone();
     let session_count = runtime.session_counter();
     let checker_handle = thread::Builder::new()
         .name("steg-idle-checker".to_string())
-        .spawn(move || idle::run_checker(combined_rx, stop, session_count, idle_timeout))
+        .spawn(move || idle::run_checker(checker_rx, stop, session_count, idle_timeout))
         .expect("spawning the idle checker thread");
 
-    Some(IdleWiring { connection_relay_tx, relay_handle, checker_handle })
+    Some(IdleWiring { checker_tx, checker_handle })
 }
 ```
-Called from `run()`, before `thread::scope`, as `build_idle_wiring(config.idle_timeout, &runtime, &stop, events.clone())`. Everything the `Some` path needs - the channels, both thread spawns - is produced inside this one function, so there is no second place that has to agree the pieces are all present or all absent; no invariant to restate with an `.expect()`.
-
-Before `thread::scope`, split the result so only what the connection loop needs is moved into it:
+Called from `run()`, before `thread::scope`, as `build_idle_wiring(config.idle_timeout, &runtime, &stop)`, then split:
 ```rust
-let (connection_relay_tx, relay_handle, checker_handle) = match build_idle_wiring(config.idle_timeout, &runtime, &stop, events.clone()) {
-    Some(w) => (Some(w.connection_relay_tx), Some(w.relay_handle), Some(w.checker_handle)),
-    None => (None, None, None),
+let (checker_tx, checker_handle) = match build_idle_wiring(config.idle_timeout, &runtime, &stop) {
+    Some(w) => (Some(w.checker_tx), Some(w.checker_handle)),
+    None => (None, None),
 };
 ```
-Inside the loop, the per-connection sender becomes `connection_relay_tx.clone().or_else(|| events.clone())` in place of today's bare `events.clone()` - when idle-checking is off (`connection_relay_tx` is `None`), this is `events.clone()`, byte-for-byte what runs today; no behaviour change for an explicit start or any existing test (none sets `idle_timeout`, so it stays `None`). `connection_relay_tx` is captured by the `move |scope| { ... }` closure exactly as `events` already is, and its last clone drops when `thread::scope` returns.
+Inside the loop, the per-connection sender becomes `checker_tx.clone().or_else(|| events.clone())` in place of today's bare `events.clone()` - when idle-checking is off (`checker_tx` is `None`), this is `events.clone()`, byte-for-byte what runs today; no behaviour change for an explicit start or any existing test. `checker_tx` is captured by the `move |scope| { ... }` closure exactly as `events` already is.
 
-**Join order - the part this round's review asked to fix - each handle joined only once what it is blocked on is actually gone, never by a poll interval:**
+**Dropped this round: the external-observer-while-idle-checking capability the relay used to carry, and why that's fine.** None of this task's own tests need both `events` (a test observer) and `idle_timeout` set on the same server at once - checked against every test in section 8 before dropping it, not assumed. When `idle_timeout` is `Some`, `checker_tx` is what every connection gets; `events`, if also given, is not read by the per-connection wiring. If a later test genuinely needs both, the fix is for `connection::handle`'s own two existing send call sites to send to a second, external sender too, inline - not a thread brought back to adapt between two types that no longer exist.
+
+**The join bound, re-derived against every sender of `checker_tx` and every path out of `run`, not assumed from the previous round's shape.** Three kinds of sender exist once idle-checking is on:
+
+- **(a) The one `checker_tx` captured by `run`'s own `move |scope| { ... }` closure** - the value every per-connection clone and the accept loop's own send (TASK-1.98's) are made from. Dropped the instant that closure itself returns, i.e. when `thread::scope(...)` returns - the same guarantee `events` already relies on today, unchanged by this task.
+- **(b) Each per-connection clone**, moved into its own `scope.spawn(move || connection::handle(...))` closure. Dropped when that thread ends - an ordinary close, a handshake timeout, a protocol violation, *or a panic*: Rust runs a thread's own local destructors during an ordinary unwind regardless of whether `thread::scope`'s own `let _ = join.join();` later discards the panic result, so this clone is gone either way. Already-joined by the existing connections-join loop, on every path out of the loop (a clean stop, a fatal `accept()` error - both break the same loop the same way).
+- **(c) `Runtime`'s own one clone**, held in `State.notify_session_count_changed` until `Runtime::stop()` drops it (section 3's one new line).
+
+**Every path out of `run` reaches the same three steps in the same order - a clean stop (the idle checker's own `stop.stop()`, or a later `server stop`), and a fatal accept error alike, since both break the same loop the same way, and a connection panicking changes nothing about (b)'s timing (above):** `drop(listener)` → join every still-open connection (clears every live (b)) → the scope closure returns (clears (a)) → `runtime.stop()` runs (clears (c)). **Only after all three are gone** does joining the checker have a bound that comes from the channel disconnecting rather than a guess:
 ```rust
-// after `drop(listener)` and the existing connections-join loop, still inside
-// `thread::scope`'s return, before `runtime.stop()`:
-if let Some(relay_handle) = relay_handle {
-    let _ = relay_handle.join(); // `connection_relay_rx` has already disconnected:
-        // every per-connection clone is joined above, and this function's own
-        // clone (captured by the scope's closure) just dropped when the scope
-        // returned - nothing left to send, so the relay's `for event in rx`
-        // already ended on its own.
-}
-
-runtime.stop(); // now also drops `state.notify_session_count_changed` (section 2) -
-    // the last live sender into the checker's channel besides the relay's, which
-    // is already gone (joined just above).
-
+runtime.stop();
 if let Some(checker_handle) = checker_handle {
-    let _ = checker_handle.join(); // every sender into `combined_rx` is now gone
-        // (the relay's, just joined; `Runtime`'s own, just dropped by `stop()`
-        // above) - whichever `Wait` state the checker was in, `Forever` or
-        // mid-`Until`, its blocking call now sees `Disconnected` and returns.
-        // This bound comes from the channel disconnecting, not from any poll
-        // interval - there is none left in this design.
+    let _ = checker_handle.join(); // (a), every (b), and (c) are all gone by this
+        // line - whichever `Wait` state the checker was in, `Forever` or mid-
+        // `Until`, its blocking call now sees `Disconnected` and returns.
 }
 ```
-**Why this exact order, not relay-then-checker-then-stop or some other arrangement.** If `runtime.stop()` ran *after* joining the checker, a checker genuinely blocked in `Wait::Forever` (a session still open when some other mechanism, not this task's, calls `stop()` directly - e.g. a later `server stop`) would deadlock: `Runtime`'s own sender clone is the last thing keeping that channel connected, and nothing else would ever wake a no-timeout `recv()`. Joining the relay before `runtime.stop()` matters for the same reason in miniature - it's one of the two senders the checker's disconnect depends on, and it is itself already guaranteed to end once the scope above returns, so there's no cost to doing it first.
+One join, in one place, after `runtime.stop()` - not three, and not before it: joining the checker *before* `runtime.stop()` would be the deadlock the previous round's relay design needed two extra steps to avoid, because (c) would still be alive and nothing else would ever wake a `Wait::Forever` with no more events coming.
 
-**Exact lines this touches in 040c5f0's `listen.rs`, for TASK-1.98's ordering (same accept loop, different lines):** the `let (stream, _addr) = match listener.accept() ...` arm, `reap_finished(&mut connections)`, and the `if stop.should_stop() { drop(stream); break Ok(()); }` block are **untouched** by this task - those are TASK-1.98's. This task's only line inside the loop is the one computing the per-connection sender (today's bare `let events = events.clone();`, becoming the `connection_relay_tx.clone().or_else(...)` line above); everything else is before the loop (building `idle_wiring`) or after `thread::scope` returns (joining the relay, then `runtime.stop()`, then joining the checker).
+**Exact lines this touches in 040c5f0's `listen.rs`, for TASK-1.98's ordering (same function, different lines, and the same enum from a different angle - section 5 above):** the `let (stream, _addr) = match listener.accept() ...` arm, `reap_finished(&mut connections)`, and the `if stop.should_stop() { drop(stream); break Ok(()); }` block are **untouched** by this task - those are TASK-1.98's, including wherever it sends its own new `ConnectionEvent` variant from inside that loop (it reads the same `checker_tx`/`events`-effective variable this task's own per-connection line computes, with no new sender of its own to track). This task's only line inside the loop is the per-connection sender computation (today's `let events = events.clone();`, becoming `checker_tx.clone().or_else(...)`); everything else is before the loop (`build_idle_wiring`) or after `thread::scope` returns (`runtime.stop()`, then one join).
 
-## 8. The entry point: on-demand turns idle-stop on, explicitly
+## 7. The entry point: on-demand turns idle-stop on, explicitly
 
 `crates/steg/src/main.rs`'s `run_server_start`, in the `Became` branch, after the existing `detach()` call and before constructing `Stopper`:
 ```rust
@@ -409,9 +364,9 @@ if on_demand {
     config.idle_timeout = Some(steg_server::DEFAULT_IDLE_TIMEOUT);
 }
 ```
-(`DEFAULT_IDLE_TIMEOUT` re-exported from `lib.rs` alongside the existing `DEFAULT_HANDSHAKE_TIMEOUT`/`DEFAULT_ARBITRATION_TIMEOUT`.) No test-only hook: this is the same shape as the existing `println!`/`detach()` lines, gated on the same `on_demand` the CLI already parses, nothing a test controls that production can't reach.
+No test-only hook: the same shape as the existing `println!`/`detach()` lines, gated on the same `on_demand` the CLI already parses.
 
-`crates/steg/tests/fixtures/fixture_server.rs` (always mirrors the on-demand path - its own doc comment already says so) gets the same line unconditionally, plus one test-only override so an out-of-process test can inject a short period without touching the shipped binary:
+`crates/steg/tests/fixtures/fixture_server.rs` (always mirrors the on-demand path) gets the same line unconditionally, plus one test-only override:
 ```rust
 if let Ok(millis) = std::env::var("STEG_TEST_IDLE_TIMEOUT_MS") {
     config.idle_timeout = Some(Duration::from_millis(
@@ -422,62 +377,67 @@ if let Ok(millis) = std::env::var("STEG_TEST_IDLE_TIMEOUT_MS") {
 }
 ```
 
-## 9. Tests
+## 8. Tests
 
-**`crates/server/tests/idle_stop.rs` (new, in-process, real sockets and threads - no process spawn needed at this layer):** reuses `shutdown.rs`'s own `start_server`/`wait_until_accepting`/`join_within` shape (same crate, same file conventions) with `config.idle_timeout = Some(short)`.
+**Two tests stay inside the crate, not in `tests/idle_stop.rs`, because what they call is private.** `build_idle_wiring` (section 6) and `run_checker_with_observer` (section 5) are both plain, unexported `fn`s - keeping them that way, rather than widening either to `pub(crate)` just so an integration test under `tests/` could reach them, is the same narrow-surface choice this plan already makes everywhere else. An integration test is a separate crate and can only call `pub` items, so these two live in the module they test, in its own `#[cfg(test)]` block:
 
-- `a_genuinely_idle_server_stops_itself_within_a_bound`: `start_truly_idle_server`-style setup (drains the startup probe first, same reason `shutdown.rs` already gives), no client ever connects after that, `join_within(server_thread, idle_timeout + margin)`. **Negative control:** with `idle_timeout` set to `None` instead (scratch edit), the same server does *not* stop within the bound - recorded, reverted.
-- `a_session_that_exists_prevents_the_idle_stop`: start a server with `config.launcher` overridden to a fake, in-memory `ProgramLauncher` (`runtime.rs`'s own tests already build one - reused, not reinvented) so `session.new` mints a real tree session with no real pty and no real program behind it - sidestepping `FORCE_GRACE_DEFAULT`/`ESCALATE_CONFIRM_TIMEOUT`/`FORCE_JOIN_TIMEOUT` entirely, rather than widening the test's bound to cover them. Create the session over the wire (reusing `shutdown.rs`'s own handshake-completion helper plus a `session.new` call), confirm `run()` does **not** return within `idle_timeout + margin` even with the connection then closed. **Negative control:** same scenario with the session closed first (`session.close`) - now it *does* stop within the bound, proving the session, not the connection, is what was holding it open.
-- `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker`: the case section 2 exists for - a fake `ProgramLauncher` whose fake program can be told to "exit" from the test (the same shape `runtime.rs`'s own fake launcher tests already use to simulate a program ending), a real shell-kind session with no command (so it closes on exit, R97), a client that creates it, sends input or otherwise completes its own part, and **disconnects** before the program "exits." Only after the connection is gone does the test trigger the fake program's exit, cascading (R94) to close the session with zero clients attached - `join_within(server_thread, idle_timeout + margin)` then proves the checker noticed via `IdleSignal::SessionCountChanged`, not by ever being woken by a client. **Negative control:** the same scenario with `Runtime::set_idle_notifier` never called (scratch edit - skip that one line in `listen::run`) - the server does *not* stop within the bound, because nothing told the checker the session was gone while it was blocked in `Wait::Forever`; recorded, reverted.
-- `build_idle_wiring_spawns_neither_thread_when_idle_timeout_is_none`: calls `listen::build_idle_wiring` directly (same crate, `pub(crate)` or private - no process, no real server, no timing of any kind) with `idle_timeout: None`, asserts the result is `None`. This, not a timing-bounded test, is **the** proof that an explicit start never idle-stops: it is a structural fact about the one gate both new threads are built behind (section 7's own `?` on the first line), checked directly rather than inferred from "didn't stop within however long we waited" - which would only ever show *slow*, never *never*, however long that bound was made. No negative control needed, for the same reason the pure predicate's own unit tests need none: a direct check of a guard clause, not a mechanism that could silently not run.
-- `an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle`: `config.idle_timeout: None`, a fake launcher, a full real lifecycle with no delay anywhere - connect, create a session, close it, disconnect - then, with **no wait at all**, a **fresh connect to the same socket still succeeds**. This is the behavioural complement to the structural test above, not a second proof of "never spawns a checker" - it shows the explicit path still works end to end with this task's changes present, through the one path (`connection_relay_tx` staying `None`, per `build_idle_wiring`) that keeps `connection::handle`'s per-connection sender exactly what it is today.
-- `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`: calls `idle::run_checker_with_observer` directly (both `pub(crate)`, same crate - no thread, no process, no real server needed for this one), with an injected `session_count` closure fixed at `0` and a recording `observe` closure. A feeder, synchronised through the same recording channel (never a sleep), sends `IdleSignal::Connection(Connected)` once the first `Wait::Until` has been observed, then `Connection(Disconnected)` once `Wait::Forever` has been observed. Asserts the exact observed sequence: `[Until(idle_timeout), Forever, Until(idle_timeout), Expired]` - four entries, not an unbounded or periodic number - which is this task's own direct proof of "no wake-up while ineligible, exactly one timed wait per eligible period," counted through the hook itself rather than inferred from timing. **Negative control:** temporarily reverting `run_checker_with_observer`'s loop to the earlier, rejected 100ms-poll design (a scratch edit) makes the observed sequence dozens of entries long for the same script, instead of four - recorded, reverted.
+- `crates/server/src/listen.rs`'s own test module gains `build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none`: calls `build_idle_wiring` directly with `idle_timeout: None`, asserts the result is `None` - a structural fact about the one gate the thread is built behind, not a timing inference. No negative control needed - a direct check of a guard clause, not a mechanism that could silently not run.
+- `crates/server/src/idle.rs`'s own test module (beside `IdlePredicate`'s unit tests, section 1) gains `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`: calls `run_checker_with_observer` directly, with a `session_count` closure fixed at `0` and a recording `observe` closure. A feeder, synchronised through the same recording channel (never a sleep), sends `Connected` once the first `Wait::Until` has been observed, then `Disconnected` once `Wait::Forever` has been observed. Asserts the exact observed sequence: `[Until(idle_timeout), Forever, Until(idle_timeout), Expired]` - four entries, not an unbounded or periodic number. **Negative control:** temporarily reverting the loop to the earlier, rejected 100ms-poll design (a scratch edit) makes the observed sequence dozens of entries long for the same script; recorded, reverted.
+
+**`crates/server/tests/idle_stop.rs` (new, in-process, real sockets and threads - no process spawn needed at this layer):** reuses `shutdown.rs`'s own `start_server`/`wait_until_accepting`/`join_within` shape with `config.idle_timeout = Some(short)`.
+
+- `a_genuinely_idle_server_stops_itself_within_a_bound`: `wait_until_accepting`, no client ever connects, `join_within(server_thread, idle_timeout + margin)` - `margin` must exceed one connect/accept cycle (a few milliseconds), not just "be generous": it covers the startup probe's own effect on the deadline, which shifts `empty_since` to just after the probe's own disconnect is processed, stated as a deliberate, sized margin rather than drained away as `shutdown.rs`'s older tests do, since nothing here needs the first `accept()` to have definitely cycled past it the way `stop()`'s own wake-up guarantee did. **Negative control:** `idle_timeout: None` instead (scratch edit) - the same server does not stop within the bound; recorded, reverted.
+- `a_session_that_exists_prevents_the_idle_stop`: a fake, in-memory `ProgramLauncher` (`runtime.rs`'s own tests already build one) so `session.new` mints a real tree session with no real pty behind it - sidestepping `force_grace` entirely rather than widening the bound to cover it. Create the session over the wire, confirm `run()` does **not** return within `idle_timeout + margin` even with the connection then closed. **Negative control:** the session closed first instead - now it does stop within the bound.
+- `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker`: the case section 2 exists for - a fake launcher whose fake program can be told to "exit" from the test, a real shell-kind session, a client that creates it and **disconnects** before the program "exits." Only after the connection is gone does the test trigger the exit, cascading (R94) to close the session with zero clients attached - `join_within(server_thread, idle_timeout + margin)` then proves the checker noticed via `ConnectionEvent::SessionCountChanged`, not by ever being woken by a client. **Negative control:** the same scenario with the one new line inside `Runtime::stop()` removed (scratch edit) - the server does not stop within the bound; recorded, reverted.
+- `every_sender_dropping_is_what_lets_run_return_after_stop`: a fake launcher, a real session created so the checker is genuinely blocked in `Wait::Forever` (section 6's own hardest case), then the test calls `stop.stop()` directly - an externally-triggered stop, the same shape a later `server stop` command would produce, decoupled from idle-timing entirely. Asserts `run()` returns within a bound (`join_within`). **Negative control, the one this round's review asked for by name:** remove the `state.notify_session_count_changed = None;` line from `Runtime::stop()` (a scratch edit) and rerun the identical script - `join_within`'s own bounded wait now fails (a panic from the bound, not a hang that takes the whole suite down with it), because `Runtime`'s own sender clone is still alive, the channel never disconnects, and the checker's `Wait::Forever` block never wakes; recorded, reverted. This is the direct proof that the join bound in section 6 comes from the senders this task tracked, not from something else making it look safe by coincidence.
+- `an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle`: `config.idle_timeout: None`, a fake launcher, a full real lifecycle with no delay anywhere - connect, create a session, close it, disconnect - then a fresh connect to the same socket still succeeds, with no wait at all.
 
 **`crates/steg/tests/idle_stop.rs` (new, `fixtures`-gated, real process - AC #1/#3's own "shown end to end with a real server process"):**
 
-- `an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one`: spawns `fixture_server` with `STEG_TEST_IDLE_TIMEOUT_MS` set short plus the existing required `STEG_TEST_LOGIN_*` vars, waits for the socket to accept, confirms no client ever connects, bounded-polls (`try_wait`, never a bare `wait()`) for the process to exit on its own within `idle_timeout + margin`, asserts exit code 0. Then: a fresh `UnixStream::connect` to the same path fails (refused or not found - either is correct, same framing `stop_racing_a_client_connecting_still_returns_within_a_bound` already uses for this exact ambiguity), and spawning `fixture_server` again at the same path succeeds and prints "started a new server" (AC #4's ordinary-timing case, proven with real processes, zero new client code - the sdk's existing autostart already does this). **Negative control:** drop the `STEG_TEST_IDLE_TIMEOUT_MS`-reading block from `fixture_server.rs` in a scratch edit (so `config.idle_timeout` stays `None` even in the fixture) - the spawned process never exits, the bounded `try_wait` poll times out, the test fails loudly rather than hanging; recorded, reverted.
+- `an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one`: spawns `fixture_server` with `STEG_TEST_IDLE_TIMEOUT_MS` set short plus the existing required `STEG_TEST_LOGIN_*` vars, waits for the socket to accept, confirms no client ever connects, bounded-polls (`try_wait`, never a bare `wait()`) for the process to exit on its own within `idle_timeout + margin`, asserts exit code 0. Then: a fresh connect to the same path fails, and spawning `fixture_server` again at the same path succeeds and prints "started a new server". **Negative control:** drop the `STEG_TEST_IDLE_TIMEOUT_MS`-reading block from `fixture_server.rs` (scratch edit) - the spawned process never exits, the bounded `try_wait` poll times out rather than hanging; recorded, reverted.
 
-`crates/server/tests/idle_stop.rs`'s own `build_idle_wiring_spawns_neither_thread_when_idle_timeout_is_none` (above) is what proves "an explicit start never idle-stops," structurally, at the layer where `idle_timeout` actually lives. TASK-1.77's existing `explicit_start_stays_up_with_no_client_ever_connecting` continues to pass unmodified at the real-process layer - that is what "the explicit path is unaffected" needs there, not a second, slower copy of the same proof.
+`listen.rs`'s own `build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none` (above) is what proves "an explicit start never idle-stops," structurally. TASK-1.77's existing `explicit_start_stays_up_with_no_client_ever_connecting` continues to pass unmodified at the real-process layer.
 
-**Processes and threads, named per the team's own policy:** every `Child` this task's own new tests spawn is wrapped in TASK-1.77's existing `KillOnDrop` (reused, not reinvented); the relay and checker threads are each joined on every path out of `run()` (section 7), in the order their own disconnect condition is actually met, never by a poll interval; no test sleeps for the idle timeout to elapse - `join_within`/`try_wait`/`recv_timeout`/the observer-driven synchronisation bound every wait, and the *only* literal `Instant::now()`-driven real time in this whole task is the checker's own production clock reads and the two out-of-process tests' injected short `idle_timeout` - never a test computing its own deadline by sleeping past one.
+**Processes and threads, named per the team's own policy:** every `Child` this task's own new tests spawn is wrapped in TASK-1.77's existing `KillOnDrop`; the one checker thread is joined on every path out of `run` (section 6), with the join bound re-derived against every sender rather than assumed; no test sleeps for the idle timeout to elapse - `join_within`/`try_wait`/`recv_timeout`/the observer-driven synchronisation bound every wait.
 
 ## Proof, by acceptance criterion
 
-- **AC #1** (a server started on demand stops itself after 30s with no sessions/clients; one with a session, or started explicitly, never does; boundary at 29/30/31s with literal values): unit tests 1, 3, 6 above (the predicate itself) plus `a_genuinely_idle_server_stops_itself_within_a_bound`, `a_session_that_exists_prevents_the_idle_stop`, `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` (the wiring, each with its own negative control), `build_idle_wiring_spawns_neither_thread_when_idle_timeout_is_none` (the explicit path, structurally) and `an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle` (the same path, behaviourally) plus `an_on_demand_server_with_no_clients_stops_itself...` (a real process, with its own negative control).
-- **AC #2** (counts from acceptance, not handshake completion; the arbiter probe does not by itself keep it alive; the 29-second reconnector is stated and tested): unit tests 2, 4 (corrected), 5 - `a_connected_with_no_matching_disconnected_never_fires...`, `a_connect_then_disconnect_within_one_tick_restarts_the_full_period`, `a_client_reconnecting_every_29_seconds_never_fires`.
-- **AC #3** (session count from `Runtime`; stop via the one `Stopper::stop` function, then the `Runtime`; shown end to end with real process, short injected grace, bounded waits): section 4's `session_counter` (reads `Tree::sessions().len()` through `Runtime`'s own state, nothing duplicated), section 7's `stop.stop()` call (the same public function every other caller uses), `an_on_demand_server_with_no_clients_stops_itself...` for the real-process, bounded-wait proof, and `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` for the one case where "ending its programs" is not vacuous - with the general vacuity of that clause for idle-stop's own trigger still stated in "For the engineer" above, not glossed over.
-- **AC #4** (a client connecting as the server stops sees what it would see with no server, and starts a fresh one; real processes): `an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one` for the ordinary-timing case through the real, unmodified sdk; `stop_racing_a_client_connecting_still_returns_within_a_bound` (TASK-1.45, unchanged, re-cited not re-proven) for "never hangs" under the exact-instant race; the exact-instant "starts a fresh one" clause handed to a proposed TASK-1.49 criterion, per "For the engineer" above, with the residual window named precisely there.
-- **The checker's own exact-wait property** (this round's required change, not itself a numbered AC but load-bearing for all four above): `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`, with its own negative control.
+- **AC #1**: unit tests 1, 3, 6 (the predicate) plus `a_genuinely_idle_server_stops_itself_within_a_bound`, `a_session_that_exists_prevents_the_idle_stop`, `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` (each with its own negative control), `build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none` and `an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle` plus `an_on_demand_server_with_no_clients_stops_itself...` (a real process, with its own negative control).
+- **AC #2**: unit tests 2, 4 (corrected), 5.
+- **AC #3**: section 5's `session_counter`, section 6's `stop.stop()` call (the same public function every other caller uses), `an_on_demand_server_with_no_clients_stops_itself...` for the real-process bounded-wait proof, `closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` for the one case where "ending its programs" is not vacuous, and `every_sender_dropping_is_what_lets_run_return_after_stop` for the join bound itself, with its own negative control.
+- **AC #4**: `an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one` for the ordinary-timing case; `stop_racing_a_client_connecting_still_returns_within_a_bound` (TASK-1.45, unchanged, re-cited not re-proven) for "never hangs"; the exact-instant "starts a fresh one" clause handed to a proposed TASK-1.49 criterion.
+- **The checker's own exact-wait property and its join bound** (load-bearing for all four above, not itself a numbered AC): `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` and `every_sender_dropping_is_what_lets_run_return_after_stop`, each with its own negative control.
 
 ## Files
 
-- `crates/server/src/idle.rs` (new): `IdlePredicate`, `Wait`, `IdleSignal`, `run_checker`/`run_checker_with_observer`, `run_connection_relay`, their unit tests.
+- `crates/server/src/idle.rs` (new): `IdlePredicate`, `Wait`, `run_checker`/`run_checker_with_observer`, their unit tests including `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` (private items, tested in this module's own `#[cfg(test)]` block, not from `tests/`).
 - `crates/server/src/lib.rs`: `mod idle;` (no new `pub use` - internal only).
+- `crates/server/src/connection.rs`: one new `ConnectionEvent` variant, `SessionCountChanged`, and its doc comment widened; nothing else in this file changes.
 - `crates/server/src/config.rs`: `idle_timeout: Option<Duration>` field, `DEFAULT_IDLE_TIMEOUT` const, `Debug` impl's one new field line.
 - `crates/server/src/runtime.rs`: `Runtime::session_counter`, `Runtime::set_idle_notifier`, `State.notify_session_count_changed`, one new arm's worth of lines inside `apply_event_locked`'s existing `PaneEvent::Exited` match, one new line inside the existing `Runtime::stop()`.
-- `crates/server/src/listen.rs`: the `IdleWiring` construction, the per-connection sender line, the relay/checker join ordering.
-- `crates/server/tests/idle_stop.rs` (new).
+- `crates/server/src/listen.rs`: `build_idle_wiring`, the per-connection sender line, one join after `runtime.stop()`, and `build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none` in this module's own `#[cfg(test)]` block (same reason as `idle.rs`'s own test, above).
+- `crates/server/tests/idle_stop.rs` (new, five tests).
 - `crates/steg/src/main.rs`: one `if on_demand { config.idle_timeout = Some(...) }` line in `run_server_start`.
 - `crates/steg/tests/fixtures/fixture_server.rs`: the same line, unconditionally, plus the `STEG_TEST_IDLE_TIMEOUT_MS` override.
-- `crates/steg/Cargo.toml`: one new `[[test]]` entry (`idle_stop`, `required-features = ["fixtures"]`), same shape as `server_start`/`login_environment`.
-- `crates/steg/tests/idle_stop.rs` (new).
+- `crates/steg/Cargo.toml`: one new `[[test]]` entry (`idle_stop`, `required-features = ["fixtures"]`).
+- `crates/steg/tests/idle_stop.rs` (new, one test).
 
-No `Cargo.toml` dependency change, no `boundaries.toml` change (no new external dependency, no new package, all std), no `unsafe`.
+No `Cargo.toml` dependency change, no `boundaries.toml` change, no `unsafe`.
 
 ## Order of work
 
-1. `idle.rs`'s pure pieces first - `IdlePredicate`/`Wait`, their unit tests (pure, no I/O, fast feedback) - `cargo test -p steg-server idle::` before touching anything else.
-2. `idle::run_checker`/`run_checker_with_observer`/`run_connection_relay` and the observer-driven loop-shape test, still with no real server involved.
-3. `ServerConfig.idle_timeout`, `Runtime::session_counter`, `Runtime::set_idle_notifier` and the `apply_event_locked`/`Runtime::stop` additions (small, mechanical, but check each against PR 47's actual merged shape if it has landed by then).
-4. `listen::run`'s wiring, proven in-process (`crates/server/tests/idle_stop.rs`, all six tests) before touching `crates/steg` at all.
+1. `idle.rs`'s pure pieces first - `IdlePredicate`/`Wait`, their unit tests - before touching anything else.
+2. `idle::run_checker`/`run_checker_with_observer` and `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` (`idle.rs`'s own test module), still with no real server involved.
+3. `connection.rs`'s one new variant, `ServerConfig.idle_timeout`, `Runtime::session_counter`, `Runtime::set_idle_notifier` and the `apply_event_locked`/`Runtime::stop` additions - check each against PR 47's and TASK-1.98's actual merged shape if either has landed by then.
+4. `listen::run`'s wiring, proven in-process (`crates/server/tests/idle_stop.rs`'s own five tests, plus `build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none` in `listen.rs`'s own test module) before touching `crates/steg` at all.
 5. The entry point and fixture changes, then the out-of-process test.
 6. `just check` and the affected-crate tests (`just test`) last, recorded.
 
 ## Risks
 
-- The three unmerged PRs this reads against (see above) - rebase risk, not a design risk, named there; `Runtime::stop()`'s own body is now one of the places I touch, which is a second, small point of friction against PR 47 specifically, beyond the field additions already named.
+- The three unmerged PRs this reads against, plus TASK-1.98 (section 5) - rebase risk, not a design risk.
 - AC #4's exact-instant clause, per "For the engineer" above - the one open decision this plan surfaces rather than guesses at.
-- Two new always-blocking (never-polling) threads per on-demand server (the relay, the checker) - bounded, cheap, no different in kind from the drain thread `Runtime` already has; their join ordering (section 7) is the one place a future change to `listen::run`'s shutdown sequence could reintroduce a deadlock if it's not kept in mind - named here so it's checked, not just once, correctly, now.
+- One always-blocking (never-polling) thread per on-demand server (the checker) - bounded, cheap, no different in kind from the drain thread `Runtime` already has; its join bound (section 6) is derived against the current shutdown sequence, and a future change to that sequence should re-check the same three senders rather than assume the ordering still holds.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

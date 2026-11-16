@@ -324,6 +324,19 @@ mod tests {
             observed_rx.recv().expect("the second observation"),
             Wait::Forever
         );
+        // Held here, genuinely idle-ineligible, for several multiples of
+        // what a periodic-poll design would use as its own interval -
+        // asserting *nothing* arrives on the observer channel during this
+        // real window is this test's own direct proof of "no wake-up
+        // while ineligible": a `recv_timeout` that times out, the same
+        // established idiom this crate's own tests already use to prove
+        // an absence (never a bare sleep followed by a guess). A reverted
+        // periodic-poll design would show up here as an early, spurious
+        // `Wait::Forever` observation instead of a timeout.
+        assert!(
+            observed_rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "no observation should arrive while the checker is blocked with no timeout"
+        );
         // Now disconnect - the checker wakes from its untimed `recv()`,
         // updates, and loops back to a *fresh* full `Wait::Until`.
         signal_tx

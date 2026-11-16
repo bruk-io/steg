@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:54:00Z'
+updated_date: '2026-11-16T13:57:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -756,6 +756,32 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events the_snapshots_reply_always_precedes_any_event_under_a_real_race'` exited 101 at 2026-11-16T13:57:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test the_snapshots_reply_always_precedes_any_event_under_a_real_race ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37919283) panicked at crates/server/tests/events.rs:556:17:
+expected the reply first, got Event { name: "session.created", body: Object {"id": String("0000002f"), "label": Null} } instead
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --test events`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:24:00Z'
+updated_date: '2026-11-16T00:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -142,6 +142,31 @@ Every clause below over a real socket, the sdk's own `Connection` (role `Client`
 Dependency added by @bruk.o 2026-11-15: TASK-1.76 introduces the server's Runtime (the tree, the pane handles and one handle() entry point); this task routes frames into it rather than into dispatch directly. The session count the idle rule needs (TASK-1.77) comes from here.
 
 Plan checked against decision-2 (sections 1, 3, 6, 7), doc-14, doc-2 sections 4 and 6, and doc-16 by @bruk.o: ok. After the handshake a connection has a reader and one writer; the writer drains control ahead of data with bounded queues, as decision-2 describes; the reader routes a request to the one Runtime and leans on the sdk's own classification for everything else, so nothing is added to the sdk. The Runtime is created inside run from ServerConfig, borrowed by connection threads inside a thread scope, and stopped explicitly after they are joined, before the socket file is removed and the lock released: this task owns the Runtime, and TASK-1.77's entry point only builds the configuration. A connection has no default session, tab or pane; a request that needs a target and gives none is refused as a bad request naming what is missing, as doc-2 gives at the CLI. Stated, not built: a connected client may sit mid-frame as it may sit idle; the number of connections is not bounded in M1. One point for the build, not the plan: where a partial target path meets a missing default, prefer deciding before the kernel is called over passing a placeholder id and remapping its error, and keep a test that a real missing target under a real context still answers NoSuchTarget.
+
+Check passed: `just check` exited 0 at 2026-11-16T00:29:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a1efb552dced:
+
+```text
+ok      format check (0.2s)
+ok      lint (92.4s)
+ok      boundaries (0.2s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.2s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (45.4s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (46.8s)
+ok      test (steg-server) (6.2s)
+ok      test (steg-server, race-fixture) (6.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.3s)
+ok      build (steg-app) (19.1s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (2.7s)
+ok      architecture (2.0s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

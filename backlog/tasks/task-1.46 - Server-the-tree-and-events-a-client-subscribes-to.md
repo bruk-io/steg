@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:48:00Z'
+updated_date: '2026-11-16T14:49:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1038,6 +1038,34 @@ failures:
     a_filter_by_session_excludes_another_sessions_events
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_new_emits_session_created_tab_created_and_pane_created_in_order'` exited 101 at 2026-11-16T14:49:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_new_emits_session_created_tab_created_and_pane_created_in_order ... FAILED
+
+failures:
+
+---- session_new_emits_session_created_tab_created_and_pane_created_in_order stdout ----
+
+thread 'session_new_emits_session_created_tab_created_and_pane_created_in_order' (41770486) panicked at crates/server/tests/events.rs:225:5:
+expected tab.created second, got PaneCreated { id: PaneId(4), tab: TabId(3), label: None }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_new_emits_session_created_tab_created_and_pane_created_in_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.01s
 
 error: test failed, to rerun pass `-p steg-server --test events`
 ```

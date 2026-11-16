@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:00:00Z'
+updated_date: '2026-11-16T00:06:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -38,10 +38,11 @@ Builds on TASK-1.44's foreground serve(): the detach wraps that same loop. The w
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Rewritten for this piece alone (B1 of the split), against `origin/main` with TASK-1.76
-merged. The idle rule (TASK-1.86) and the login environment (TASK-1.87) are separate
-drafts; nothing below plans either, and section 8 says plainly what this piece leaves
-them.
+Rewritten again, for this piece alone, now that TASK-1.45's own plan (being finalised)
+settles who owns the `Runtime`: not this task. The idle stop (TASK-1.86) and the login
+environment (TASK-1.87) are separate, accepted drafts; nothing below plans either -
+what this task worked out for them, beyond what belongs in a plan, is in this task's
+own notes under a heading for each, for their workers to start from.
 
 ## 1. No fork, no fd-passing, one safe `setsid` call - unchanged from the shared design
 
@@ -63,69 +64,52 @@ unistd.rs:343-344`) is **safe** - the one `unsafe` block is inside `nix` itself,
 audited the same way this crate's existing `Flock`/`geteuid` use already relies on. It
 is gated behind nix's `"process"` feature (confirmed: `nix-0.28.0/src/unistd.rs:167
 -168`), **not** `"fs"`/`"user"`, which `steg-server`'s `Cargo.toml` already declares -
-this task adds `"process"` to that list (section 9). `nix::unistd::daemon` is not the
+this task adds `"process"` to that list (section 11). `nix::unistd::daemon` is not the
 alternative, checked rather than assumed: it is `cfg`-gated to `linux_android,
 freebsdlike, solarish, netbsdlike` (`nix-0.28.0/src/unistd.rs:987-992`) - explicitly
 **not** `macos`/`apple` targets, so it does not exist on this platform at all.
 `nix::unistd::fork` is an **`unsafe fn`** in this version (`nix-0.28.0/src/unistd.
 rs:287`) - the reason a double-fork design (an intermediate exits at once so the client
 reaps a short-lived child instead of holding a zombie, section 7) is considered and set
-aside: it would add the one `unsafe` block AC #6 now forbids outright, to remove a cost
-the sdk's own code already accepts and names.
+aside: it would add the one `unsafe` block AC #6 forbids outright, to remove a cost the
+sdk's own code already accepts and names.
 
 ## 2. An explicit `server start` runs in the foreground and never detaches (AC #1)
 
 R3 and R99 give detaching only to an on-demand start; AC #1 now says this in so many
-words ("runs in the foreground of the terminal or supervisor that started it"). Two
-small functions, not one with a flag, since the two differ in more than a branch
-(detaching, which `LoginShell` feeds `Runtime::new`, section 7):
+words ("runs in the foreground of the terminal or supervisor that started it"). No new
+server-side function is needed for this path at all - section 5's entry point composes
+`attempt`/`run` directly, with a fresh `Stopper` nobody else holds:
 
 ```rust
-// crates/server/src/start.rs (new)
-pub fn serve_explicit(
-    handle: ServerHandle,
-    socket_path: &Path,
-    config: &ServerConfig,
-) -> Result<(), Error> {
-    let mut runtime = Runtime::new(Arc::new(RealLauncher), LoginShell::from_process_env());
-    // `listen::run` requires a `&Stopper` - one must exist regardless. Bound, not a
-    // throwaway temporary, so the point reads as deliberate: nobody else holds this
-    // one *today*, so nothing in this task makes this server stop before `run()`
-    // ends on its own (no signal handler either, see below) - `server stop`
-    // (TASK-1.45) is what will reach it once a request can.
-    let stopper = Stopper::new();
-    let result = listen::run(handle, socket_path, config, &stopper, None);
-    // Every exit path out of `run` - a clean stop or an `Err` from the accept loop -
-    // still stops `Runtime`: captured, not `?`-propagated early, the same "cleanup
-    // runs on every path, including the error one" shape `listen::run`'s own "no
-    // early return inside this loop" comment already uses.
-    runtime.stop();
-    result
-}
+let stopper = steg_server::Stopper::new();
+// `listen::run` requires a `&Stopper`; one must exist regardless of whether anything
+// outside this call can reach it yet (nothing can, today - see below).
+let result = steg_server::run(handle, &socket_path, &config, &stopper, None);
 ```
 
 **What a person at a terminal sees, and how it is stopped.** `run_server_start` (section
 5) prints "started a new server" (or the matching line for one already running, or a
-refusal) and then this function blocks - the shell prompt does not return - until
-`listen::run` itself ends. **No signal handler is added, considered and rejected.** A
-graceful `SIGINT`/`SIGTERM` handler (Ctrl-C calling `stopper.stop()` then `runtime.
-stop()` in order, rather than the OS's own default disposition for either signal, which
-is immediate termination with no Rust code run at all) would need either an `unsafe`
-`sigaction` registration (`nix::sys::signal`'s own handler-installing calls are `unsafe`,
-since a signal handler's body is constrained to async-signal-safe operations the
-compiler cannot check) or a new dependency (`signal-hook`, which does the same thing
-behind a safe API, at the cost of a crate none of this task's six criteria asks for).
-AC #6 forbids the first outright; nothing in doc-2 or this task's own criteria asks for
-the second, and R99's own "stops only when told to" reads more naturally as a request
-over the socket (`server stop`, TASK-1.45's and a later task's to build) than a signal a
-person's terminal happens to deliver. **So today: `kill -TERM`/`kill -INT`/Ctrl-C all end
-an explicit server by the OS's own default action - immediate termination, no exit
-status in the normal sense at all (a process ended by an unhandled signal has no `exit()`
-code; a shell reports this its own way, e.g. "terminated" or `128+signal`, which is the
-shell's convention, not this process's).** This is safe, not merely tolerated: the
-arbiter's lock releases on process death by any means, including this one (TASK-1.44's
-own proven property, `attempt_takes_over_a_stale_socket_left_by_a_dead_server`), so a
-raw kill never corrupts the arbiter's own state for the next `attempt()`.
+refusal) and then blocks on `run` - the shell prompt does not return - until it ends.
+**No signal handler is added, considered and rejected.** A graceful `SIGINT`/`SIGTERM`
+handler (Ctrl-C calling `stopper.stop()` in order, rather than the OS's own default
+disposition for either signal, which is immediate termination with no Rust code run at
+all) would need either an `unsafe` `sigaction` registration (`nix::sys::signal`'s own
+handler-installing calls are `unsafe`, since a signal handler's body is constrained to
+async-signal-safe operations the compiler cannot check) or a new dependency
+(`signal-hook`, which does the same thing behind a safe API, at the cost of a crate none
+of this task's six criteria asks for). AC #6 forbids the first outright; nothing in
+doc-2 or this task's own criteria asks for the second, and R99's own "stops only when
+told to" reads more naturally as a request over the socket (`server stop`, TASK-1.45's
+and a later task's to build) than a signal a person's terminal happens to deliver. **So
+today: `kill -TERM`/`kill -INT`/Ctrl-C all end an explicit server by the OS's own
+default action - immediate termination, no exit status in the normal sense at all** (a
+process ended by an unhandled signal has no `exit()` code; a shell reports this its own
+way, e.g. "terminated" or `128+signal`, which is the shell's convention, not this
+process's). This is safe, not merely tolerated: the arbiter's lock releases on process
+death by any means, including this one (TASK-1.44's own proven property, `attempt_
+takes_over_a_stale_socket_left_by_a_dead_server`), so a raw kill never corrupts the
+arbiter's own state for the next `attempt()`.
 
 **An interrupt during start-up leaves no socket file or lock behind - what this claim
 actually rests on, since nothing here catches the signal either.** With no handler, the
@@ -150,66 +134,99 @@ leader and `setsid` succeeds.
 **Why typing `steg server start --on-demand` at an interactive shell prompt is exactly
 this case.** A job-control shell (`zsh`, `bash`) calls `setpgid(pid, pid)` on *every*
 command it launches, foreground or background, making each one the leader of its own,
-brand-new process group - this is how job control itself works, not specific to `&`.
-A person running the on-demand form directly therefore already *is* a process-group
+brand-new process group - this is how job control itself works, not specific to `&`. A
+person running the on-demand form directly therefore already *is* a process-group
 leader by the time this code's own `setsid()` call runs, and that call returns `EPERM`.
+
+**The one new function this task adds to `steg-server`** - `detach()`, in a new, small
+module scoped to exactly this (`.claude/rules/rust.md`: behaviour lives in named
+modules, not `lib.rs`). Its only callers are outside this crate (`crates/steg`'s entry
+point, and the fixture below) - worth naming as deliberate rather than a stray `pub`,
+since the last round of this plan moved `session_counter` out for exactly the opposite
+reason (no caller anywhere). The difference is R98 itself: "everything about starting,
+detaching... is the server's own code" is not a preference this crate could choose to
+place differently - detaching has to live in `steg-server` regardless of who calls it,
+the same way `attempt`/`run` already have no caller inside this crate either and are
+not treated as suspect for it:
+
+```rust
+// crates/server/src/detach.rs (new)
+
+//! Leaving the session and process group inherited from whatever started this
+//! process (R98: detaching is the server's own code, never the CLI's).
+
+/// Starts a new session, detaching from any controlling terminal and the process
+/// group inherited from whatever spawned this process. `Err` only if this process
+/// is already a process-group leader (typically: invoked directly at an
+/// interactive shell prompt, never through the sdk's own spawn path - section 3's
+/// own tests cover both). Not fatal to a caller - `crates/steg`'s own handling
+/// (section 5) continues attached and says so.
+///
+/// # Errors
+/// Whatever `setsid(2)` fails with, converted from `nix::errno::Errno` via its own
+/// `impl From<Errno> for io::Error` (confirmed by reading `nix-0.28.0`'s own
+/// `errno.rs`, the same conversion `error.rs`'s existing `Io` variant already
+/// relies on elsewhere in this crate) - kept as a plain `io::Result` rather than
+/// wrapped in this crate's own `Error`, since nothing here needs `Error`'s richer
+/// shape for a value a caller only ever displays, never pattern-matches.
+pub fn detach() -> std::io::Result<()> {
+    nix::unistd::setsid().map(|_pid| ()).map_err(std::io::Error::from)
+}
+```
 
 **Decided: carry on attached, with a stated message - not a refusal.** This is an
 unusual, debugging-shaped way to invoke `--on-demand` (every real client goes through
 the sdk's spawn path, never types this directly), so refusing outright would make the
 flag unusable for a curious or debugging person, and R99's guarantee (survives the
-client, takes its environment from a login shell) still matters only in the measure
-this attached mode can give it - attached, the server is exactly as foreground-bound as
-an explicit start, which is an honest, lesser guarantee stated plainly rather than
-silently dropped:
-
-```rust
-pub fn serve_on_demand(
-    handle: ServerHandle,
-    socket_path: &Path,
-    config: &ServerConfig,
-) -> Result<(), Error> {
-    if let Err(err) = nix::unistd::setsid() {
-        eprintln!(
-            "steg: could not detach from this terminal ({err}); continuing attached - \
-             closing this terminal will end this server"
-        );
-    }
-    let mut runtime = Runtime::new(Arc::new(RealLauncher), LoginShell::from_process_env());
-    let stopper = Stopper::new();
-    let result = listen::run(handle, socket_path, config, &stopper, None);
-    runtime.stop();
-    result
-}
-```
+client) still matters only in the measure this attached mode can give it - attached,
+the server is exactly as foreground-bound as an explicit start, which is an honest,
+lesser guarantee stated plainly rather than silently dropped (section 5's own code).
 
 **A real test for each case, both safe, zero `unsafe`.** The non-leader case is section
 7's own SIGHUP test (setsid succeeds silently, no message). The leader case needs a
 process that is *itself* already a group leader before it becomes the server - built as
-a small fixture binary (the same shape as TASK-1.44's own `race-attempt`,
-`tests/fixtures/already_a_group_leader.rs`) whose entire body is:
+a small fixture binary (the same shape as TASK-1.44's own `race-attempt`, feature
+-gated the same way, living in `crates/steg` since it needs `CARGO_BIN_EXE_steg`, only
+set for that crate's own tests - `crates/steg/tests/fixtures/already_a_group_leader.rs`):
 
 ```rust
+use std::os::unix::process::CommandExt; // for `.exec()`, below - a trait method,
+                                         // not in scope without this import
+
 fn main() {
-    nix::unistd::setsid().expect("the fixture must become its own leader to set up the case");
+    steg_server::detach().expect("the fixture must become its own leader to set up the case");
     let err = std::process::Command::new(env!("CARGO_BIN_EXE_steg"))
         .args(["server", "start", "--on-demand"])
         .exec(); // std::os::unix::process::CommandExt::exec - safe: replaces this
                  // process's image in place via `execve`, no fork, nothing left
-                 // half-forked for the compiler's unsafety rules to worry about
-    panic!("exec never returns on success: {err}");
+                 // half-forked for the compiler's unsafety rules to worry about.
+                 // Returns an `io::Error` only on failure - on success this
+                 // process's image is already gone, so the panic below is
+                 // unreachable-on-success, not a missing branch.
+    panic!("exec failed: {err}");
 }
 ```
 
+Reusing `steg_server::detach()` itself (rather than calling `nix::unistd::setsid()` a
+second time) is what lets this fixture live in `crates/steg` with **no new dependency**
+- `nix` stays confined to `steg-server`; `boundaries.toml`'s `[steg]` entry is untouched.
 `exec()` keeps the same pid, the same (now session-and-group-leader) process group, and
 the same open file descriptors - so the real `steg` binary that replaces this process's
-image is running as the exact precondition being tested, with no `unsafe` anywhere in
-the fixture or in `start.rs`. `CommandExt::exec()` returns an `io::Error` **only on
-failure** - on success the calling process's image is already gone, so the `panic!`
-after it is unreachable on the success path, not a missing branch. The test spawns this fixture with piped stdout, asserts
-the "could not detach... continuing attached" line appears, and that the server still
-starts and answers a connection (not refused) - the chosen behaviour is "carry on," not
-"refuse," and this is what proves it rather than only documenting it.
+image is running as the exact precondition being tested. The test spawns this fixture
+with piped stdout, asserts the "could not detach... continuing attached" line appears,
+and that the server still starts and answers a connection (not refused) - the chosen
+behaviour is "carry on," not "refuse," and this is what proves it rather than only
+documenting it.
+
+**`detach()` has no unit test of its own calling it directly in-process.** Doing so
+would change the *whole test binary's own* session and process-group membership for the
+rest of that `cargo test` run - a process-wide side effect that would corrupt any other
+test sharing that process under default parallelism, the same hazard TASK-1.44's own
+`socket_mode.rs` (the one test that sets the process `umask`) was given its own,
+separate integration-test file to avoid. Its success path is proved instead by section
+7's SIGHUP test (a real, separate process, its own call); its failure path by this
+section's fixture test - both already necessarily out-of-process, so neither needs a
+unit test to add the same risk a second time.
 
 ## 4. What detaching leaves shared with the client, and what is done about each
 
@@ -227,14 +244,14 @@ addressed one at a time rather than left implicit:
   null()` on all three, unchanged) before this code ever runs, so "does not write to a
   dead terminal" is already true for that path regardless of what this task does.
   **Nothing in this server's own steady-state code writes to stdout/stderr or reads
-  stdin at all** - confirmed by grep across `listen.rs`/`connection.rs`/`pane.rs`/
-  `runtime.rs` for `print`/`eprint`/`stdin`: none, outside this task's own one-line
-  startup message in `crates/steg`. So even for the group-leader-attached case above,
-  where these fds really are the person's live terminal, there is nothing left to write
-  to them once that one message is printed - a terminal closing afterward has no later
-  write to fail against. Not closed or redirected by this task, because nothing needs
-  it: doing so would cost a design decision (closing stdin on an attached, interactive
-  invocation is a surprise) for no correctness gained.
+  stdin at all** - confirmed by grep across `listen.rs`/`connection.rs` for `print`/
+  `eprint`/`stdin`: none, outside this task's own one-line startup messages in `crates/
+  steg`. So even for the group-leader-attached case above, where these fds really are
+  the person's live terminal, there is nothing left to write to them once that message
+  is printed - a terminal closing afterward has no later write to fail against. Not
+  closed or redirected by this task, because nothing needs it: doing so would cost a
+  design decision (closing stdin on an attached, interactive invocation is a surprise)
+  for no correctness gained.
 - **The current working directory.** Inherited from the spawning client by default
   (`Command::spawn` does this, unchanged). **A `chdir("/")` once detached was drafted
   for this - the standard daemonising practice `nix::unistd::daemon`'s own `nochdir=
@@ -269,8 +286,10 @@ fn main() {
 }
 
 fn run_server_start(on_demand: bool) -> i32 {
-    let config = steg_server::ServerConfig::default();
-    let socket_path = steg_server::resolve_socket_path(&config); // newly `pub`, section 9
+    let config = steg_server::ServerConfig::default(); // section 8: unchanged by
+                                                         // this task, before or
+                                                         // after TASK-1.45/1.87
+    let socket_path = steg_server::resolve_socket_path(&config); // newly `pub`, section 11
     match steg_server::attempt(&config, &socket_path) {
         Ok(steg_server::Arbitration::AlreadyRunning) => { println!("a server is already running"); 0 }
         Ok(steg_server::Arbitration::Refuse(reason)) => {
@@ -280,12 +299,19 @@ fn run_server_start(on_demand: bool) -> i32 {
         Err(err) => { eprintln!("steg: could not start a server: {err}"); 4 }
         Ok(steg_server::Arbitration::Became(handle)) => {
             println!("started a new server");
-            let result = if on_demand {
-                steg_server::serve_on_demand(handle, &socket_path, &config)
-            } else {
-                steg_server::serve_explicit(handle, &socket_path, &config)
-            };
-            match result { Ok(()) => 0, Err(_) => 1 }
+            if on_demand {
+                if let Err(err) = steg_server::detach() {
+                    eprintln!(
+                        "steg: could not detach from this terminal ({err}); continuing \
+                         attached - closing this terminal will end this server"
+                    );
+                }
+            }
+            let stopper = steg_server::Stopper::new();
+            match steg_server::run(handle, &socket_path, &config, &stopper, None) {
+                Ok(()) => 0,
+                Err(_) => 1,
+            }
         }
     }
 }
@@ -307,24 +333,20 @@ reversed.
 
 | Outcome | Status |
 |---|---|
-| Started (became the server) and `run`/`serve_on_demand` later returns cleanly | 0 |
+| Started (became the server) and `run` later returns cleanly | 0 |
 | Already running | 0 |
 | Already running, specifically a loser of a simultaneous-start race (section 6's own test asserts this exact case) - same status, named separately since it is the one this piece's own race test checks | 0 |
 | Refused - an untrusted existing file or an unsafe directory (`Arbitration::Refuse`) | 4 |
 | Refused - arbitration timed out (`Arbitration::Refuse(ArbitrationTimedOut)`) | 4 |
 | A genuine I/O error from `attempt` itself | 4 |
-| Started, then `run`/`serve_on_demand` returns an `Err` (an accept-loop I/O failure) | 1 |
+| Started, then `run` returns an `Err` (an accept-loop I/O failure) | 1 |
 | Ended by an unhandled signal (section 2) | none - not an `exit()` status at all |
 
-**No test-only hook (AC #5 restated under its new number).** Nothing in `main.rs` or
-`start.rs` branches on anything that exists only for a test to control; `STEG_SOCKET_
-PATH` (already existing) is the one override every test and a real debugging session
-share, unchanged by this task.
+**No test-only hook (AC #5).** Nothing in `main.rs` or `detach.rs` branches on anything
+that exists only for a test to control; `STEG_SOCKET_PATH` (already existing) is the
+one override every test and a real debugging session share, unchanged by this task.
 
 ## 6. Two (and several) real clients converge on one server (AC #3)
-
-Unchanged in substance from the shared design, widened to four racers since "several"
-is now the word AC #3 uses:
 
 **Test-owned `std::process::Command`s, not the sdk's `connect()`, for this specific
 test.** The sdk's `connect()` deliberately never returns a `Child`, so a test going
@@ -393,58 +415,61 @@ zombie"), then reaps it itself (`.wait()`) as test hygiene.
   children) - not the detaching mechanism, named as such.
 - `the_clients_process_group_being_sighupd_does_not_end_the_server`: the same shape, but
   `kill(-pgid, SIGHUP)` on the client's *whole process group* once the server is up -
-  this is the test that actually exercises `setsid`.
+  this is the test that actually exercises `detach()`.
 
-## 8. What this piece leaves, by name, stated plainly (AC #4's own scope, and the two drafts)
+## 8. One `ServerConfig`, three tasks, no `Runtime` here
+
+**This task does not construct or stop a `Runtime` - that changes from the shared
+design, settled by TASK-1.45's own plan.** TASK-1.45 (frames and requests, its plan
+being finalised now) is what creates the one `Runtime`, inside `listen::run` itself,
+from `ServerConfig` (which gains a `launcher` and a `login` field, both with their own
+`Default` impl), shares it with the connections it routes to, and stops it explicitly in
+`run`'s own shutdown - exactly where in that sequence (the listener closes before the
+connection-join loop today, TASK-1.44's own nit fix; the socket file and lock go after
+it) is TASK-1.45's own plan to settle, not asserted here - not this task's code, and
+not `start.rs`/`serve_on_demand`-style wrapper functions this plan's earlier drafts
+proposed (removed). `runtime.rs` is untouched by this piece.
+
+**What this task puts in `ServerConfig`: nothing beyond `::default()`.** `run_server_
+start` (section 5) constructs `ServerConfig::default()` exactly as it would if `launcher`
+and `login` did not exist yet - and when TASK-1.45 adds them, this call site needs no
+edit at all, because `Default` fills in whatever is new. TASK-1.87 will later change
+what `login`'s own default *is* (from today's stand-in to a real login-shell-sourced
+value) without this call site changing either. This is the "touch the struct in a way
+that merges cleanly" property stated directly: three tasks (this one, TASK-1.45,
+TASK-1.87) each add or consume one field of `ServerConfig`, and none of the three needs
+to edit another's call site to do it.
+
+**If this task merges before TASK-1.45, the server process simply has no `Runtime` at
+all - said plainly, not implied.** A server this task starts completes real handshakes
+(TASK-1.44's own scope, untouched) and does nothing past them: no session can be
+created, no pane started, because nothing constructs a `Runtime` and nothing routes a
+request to one yet. This is not a regression this task introduces - it is the state the
+whole repository is in today (confirmed earlier: no production call to `Runtime::new`
+exists anywhere on `origin/main`) - this task's own contribution is making the *socket*
+reachable through a real binary for the first time, nothing about panes or sessions.
+
+## 9. What this leaves, by name, stated plainly
 
 - **The idle rule (TASK-1.86).** An on-demand server built by this piece **never stops
-  by itself** - there is no idle checker here at all, by construction (confirmed by
-  `start.rs`'s own code: nothing holds a `Stopper` past this function's own scope, and
-  nothing calls `.stop()` from anywhere but this function's own return path). A test
-  that needs to end one it started must do one of two things: call `Stopper::stop()`
-  directly, for an in-process test that holds its own clone across the thread boundary
-  (`listen::run`'s own existing tests already do this); or send a real signal to the
-  real process, for an out-of-process test (section 6, 7's own zombie/race tests - a
-  `kill()` on the held `Child`).
-- **The login environment (TASK-1.87).** `serve_on_demand` builds its `Runtime` from
-  `LoginShell::from_process_env()` - this process's own environment, inherited from the
-  client that spawned it. **A pane started through this piece's own `Runtime` still
-  gets the starting client's environment, not a login shell's** - stated plainly, not
-  silently carried, since R99's own text ("not from the client") does not hold yet for
-  this one field. TASK-1.87 replaces this one call site; nothing else in `runtime.rs`
-  or `start.rs` changes when it does.
+  by itself** - there is no idle checker here at all, by construction (nothing holds a
+  `Stopper` past `run_server_start`'s own scope). A test that needs to end one it
+  started must do one of two things: call `Stopper::stop()` directly, for an in-process
+  test that holds its own clone across the thread boundary (`listen::run`'s own existing
+  tests already do this); or send a real signal to the real process, for an
+  out-of-process test (sections 6, 7's own zombie/race tests - a `kill()` on the held
+  `Child`). This task's own worked-out predicate design is in this task's notes, headed
+  for TASK-1.86, not in this plan.
+- **The login environment (TASK-1.87).** `ServerConfig`'s own `login` field (TASK-1.45's
+  addition) keeps whatever stand-in default TASK-1.45 gives it until TASK-1.87 replaces
+  it - this task never reads or sets it at all. This task's own worked-out design for
+  resolving a login *identity* from the password database is in this task's notes,
+  headed for TASK-1.87, with the gap stated there too: identity (which shell, which
+  home) is necessary but not what R99 asks for (the environment a login shell gives,
+  PATH above all) - TASK-1.87's own acceptance criteria already say so.
 - **Routing a real request to `Runtime::handle` at all (TASK-1.45, in planning now).**
-  Section 9 names exactly what it changes.
-
-## 9. A real `Runtime`, where it is created, and the seam TASK-1.45 fills
-
-**Today, nothing in production constructs a `Runtime` at all** - every call to `Runtime
-::new` on `origin/main` is inside `runtime.rs`'s or `tests/runtime.rs`'s own test code
-(confirmed: `git grep Runtime::new origin/main -- crates/` finds no call site outside
-`#[cfg(test)]`/`tests/`). This piece is the first: both `serve_explicit` and `serve_on_
-demand` (sections 2, 3) construct one, hold it as a plain, un-shared value for the
-server's whole life, and call `runtime.stop()` on every exit path out of `listen::run`,
-including its `Err` path - matching that function's own "cleanup runs on every path"
-convention rather than `?`-propagating early. `Runtime::stop`'s own behaviour (`SIGHUP`
-by pid, bounded, no escalation - TASK-1.78's own line to draw) is unchanged; this piece
-is only the first thing that calls it for real. `runtime.rs` itself is **not edited at
-all** by this piece - no new method, nothing moves.
-
-**The seam TASK-1.45 fills, named rather than built here.** `Runtime::handle` is still
-unreachable from a real connection: `listen::run`'s per-connection thread
-(`connection::handle`) only ever decodes the hello today (TASK-1.44's own, unchanged
-scope). For a real request to reach `Runtime::handle`, TASK-1.45 needs a way to get this
-function's own `runtime` value to that thread - which means changing `start.rs`'s local
-`let mut runtime = Runtime::new(...)` to `let runtime = Arc::new(Runtime::new(...))` and
-threading a clone into whatever `listen::run`/`connection::handle` gains to carry it
-(a new parameter, or a small context struct - TASK-1.45's own design call). **`Arc::
-get_mut` is already safely available for the `.stop()` call once that happens**:
-`listen::run` already joins every spawned connection thread on every path before
-returning (TASK-1.44's thread-joining rule), so by the time `run()` returns and this
-function calls `.stop()`, every other `Arc<Runtime>` clone a connection thread held has
-already been dropped - this function's own clone is the last one standing, which is
-exactly `Arc::get_mut`'s own precondition. Named now so TASK-1.45 does not have to
-rediscover it.
+  Section 8 names exactly what it adds to `ServerConfig` and where it constructs the
+  `Runtime`; nothing further to say here.
 
 ## 10. Testing discipline this piece's own multi-process tests follow throughout
 
@@ -473,24 +498,24 @@ thread count (not `--test-threads=1`) before being cited as proof, counts record
 `record-check` - the same discipline TASK-1.44/1.76's own reviews required, run at full
 concurrency specifically because this machine has shown contention under heavy parallel
 testing before (TASK-1.76's own `openpty` finding) - though that finding does not apply
-here directly: no pseudo-terminal is opened anywhere in this piece (`Runtime::new`'s own
-`Arc::new(RealLauncher)` only names the type; nothing calls `RealLauncher::spawn`, since
-nothing routes a request that would start a pane, section 8). What this piece's own
-width actually stresses is concurrent socket binds and process spawns, and `arbiter::
-attempt` already has eight-wide proof of exactly that (TASK-1.44's own race.rs, ten
-consecutive runs, no flake) - this piece's four-wide real-process test (section 6) rides
-the same already-validated mechanism, with real process-spawn overhead on top rather
-than a new source of flakiness.
+here directly: no pseudo-terminal is opened anywhere in this piece (no `Runtime` is
+constructed at all, section 8, so nothing calls `RealLauncher::spawn`). What this
+piece's own width actually stresses is concurrent socket binds and process spawns, and
+`arbiter::attempt` already has eight-wide proof of exactly that (TASK-1.44's own
+race.rs, ten consecutive runs, no flake) - this piece's four-wide real-process test
+(section 6) rides the same already-validated mechanism, with real process-spawn
+overhead on top rather than a new source of flakiness.
 
 **A negative control for each mechanism this proof rests on:**
 
-- **`setsid` removed** (a scratch edit to `start.rs`, reverted after, recorded with
-  `record-check` the way TASK-1.44's own "prove one bites" steps are): the SIGHUP test
-  (section 7) fails - the server dies with the client's process group. The SIGKILL test
-  does **not** fail with `setsid` removed, and this is said honestly rather than treated
-  as a gap: that property never depended on detaching at all (section 7's own framing),
-  so a negative control that "proves" it by failing would be proving the wrong thing;
-  its absence of failure here is the correct, stated outcome, not a missing test.
+- **`detach()`'s call to `setsid` removed** (a scratch edit, reverted after, recorded
+  with `record-check` the way TASK-1.44's own "prove one bites" steps are): the SIGHUP
+  test (section 7) fails - the server dies with the client's process group. The SIGKILL
+  test does **not** fail with `setsid` removed, and this is said honestly rather than
+  treated as a gap: that property never depended on detaching at all (section 7's own
+  framing), so a negative control that "proves" it by failing would be proving the
+  wrong thing; its absence of failure here is the correct, stated outcome, not a
+  missing test.
 - **The entry point's print moved before `attempt()` resolves** (a scratch edit):
   section 5's own race-the-print test fails intermittently (not every run, since the
   bind is fast) - recorded across several runs to show the intermittency itself, not
@@ -500,16 +525,18 @@ than a new source of flakiness.
 ## 11. Dependencies and unsafe
 
 **One Cargo.toml change**: `steg-server`'s `nix` feature list gains `"process"`
-(section 1's `setsid`), alongside the existing `"fs"`, `"user"` - no new external crate.
-`boundaries.toml`'s `[steg-server]` entry's `reason` and feature list are updated to
-name it; `just check-boundaries` proves the declared features match what is actually
-used, confirmed in the build phase rather than assumed here.
+(section 1's `setsid`), alongside the existing `"fs"`, `"user"` - no new external crate
+anywhere, including `crates/steg` (section 3's fixture reuses `steg_server::detach()`
+rather than depending on `nix` itself). `boundaries.toml`'s `[steg-server]` entry's
+`reason` and feature list are updated to name it; `just check-boundaries` proves the
+declared features match what is actually used, confirmed in the build phase rather than
+assumed here.
 
 **Unsafe: none, anywhere in this piece.** `setsid` (section 1) is a safe wrapper already
 audited inside `nix`; the group-leader fixture's own `Command::exec()` (section 3) is
 also safe (replaces the process image via a direct `execve`, no fork, nothing left
-half-forked); `std::env::set_current_dir` (section 4) is a plain safe function, unlike
-`set_var`/`remove_var`; no `fork`, no `pre_exec`, no `FromRawFd`, no signal handler.
+half-forked); no `fork`, no `pre_exec`, no `FromRawFd`, no signal handler, no `std::env::
+set_var`/`set_current_dir`.
 
 ## Proof, by acceptance criterion
 
@@ -519,9 +546,10 @@ half-forked); `std::env::set_current_dir` (section 4) is a plain safe function, 
   a server. `explicit_start_stays_up_with_no_client_ever_connecting`: spawns `steg
   server start` with no flag, waits for the socket to accept, waits a short bound with
   **no client ever connecting**, asserts the process is still alive and the socket still
-  accepts - a real, biting assertion (nothing in `serve_explicit` *could* stop it, and
-  this proves that remains true rather than reading the code for it). Section 2's own
-  "no signal handler" reasoning and its exit-status table cover "runs in the foreground."
+  accepts - a real, biting assertion (nothing in this task's own code *could* stop it,
+  and this proves that remains true rather than reading the code for it). Section 2's
+  own "no signal handler" reasoning and its exit-status table cover "runs in the
+  foreground."
 - **AC #2** (on-demand survives the client, shown with real processes): the SIGKILL test
   (section 7).
 - **AC #3** (two/several real clients, one server): section 6's four-wide test, the
@@ -537,11 +565,10 @@ half-forked); `std::env::set_current_dir` (section 4) is a plain safe function, 
   (section 3) and the "could not start" messages (section 5) are the only new prints,
   neither gated on anything test-only.
 - **AC #6** (every spawned child/thread accounted for; what the client holds; no
-  unsafe): section 7's zombie test; section 9's `runtime.stop()` on every exit path,
-  including `run()`'s own `Err`, proved by forcing that path (a scratch edit to `listen
-  ::run` returning an `Err` immediately, reverted after) and confirming `Runtime::stop`'s
-  own, already-proven behaviour (TASK-1.76's `stop_tests`) still runs; section 11's own
-  accounting for zero `unsafe`.
+  unsafe): section 7's zombie test is the whole of this criterion's "what the client
+  holds" clause - there is no idle checker, no `Runtime`, no drain thread in this
+  piece's own code to account for beyond it; section 11's own accounting for zero
+  `unsafe`.
 
 **No sleeps as synchronisation, anywhere in this piece.** Every wait is on a real event:
 a socket accepting, `try_wait()`/`wait()` on a real process, a pipe actually producing

@@ -12,10 +12,21 @@ an *existing* colour as an argument and transform or wrap it - they are not in
 
 What this cannot see, named outright: a hex value assembled by arithmetic
 (`(0x1c << 16) | 0x1b21`) rather than written as one literal; a colour passed as a bare
-float triple with no distinguishing call or struct name. A named constant defined
-outside foundations and merely *used* elsewhere is not a blind spot - that constant's
-own definition is a literal outside foundations too, and is caught there, at its one
-true source.
+float triple with no distinguishing call or struct name; a colour literal written
+*inside* a macro's arguments, for the same reason `ui_levels` can't see a cross-level
+path there - the parser hands a macro invocation's body back as an opaque token tree. A
+named constant defined outside foundations and merely *used* elsewhere is not a blind
+spot - that constant's own definition is a literal outside foundations too, and is
+caught there, at its one true source.
+
+`rgb`/`rgba`'s own argument, when it is itself a hex literal, is read back out and
+matched against foundations the same way a bare hex is - `rgb(0x3d3b45)` names the same
+colour as a bare `0x3d3b45` would, and must match the same names. An 8-digit `rgba`
+argument's trailing two digits are alpha, which foundations' colours don't carry, so
+they're dropped before matching: `rgba(0x3d3b45ff)` matches on `3d3b45`, the same as
+`rgb(0x3d3b45)`. A call whose argument isn't itself a literal (a variable, an
+expression) is still refused as a colour constructor call outside foundations - there's
+simply no name to suggest for it.
 
 Usage: steg-ui-colours
 """
@@ -110,10 +121,45 @@ def _line(node: SgNode) -> int:
     return node.range().start.line + 1
 
 
+# Of COLOUR_CONSTRUCTORS, only these two take a hex value as their argument (gpui's
+# `src/color.rs`: `rgb(hex: u32)`, `rgba(hex: u32)`) - every other name there takes
+# plain floats or nothing, so there is no hex to read back out of a call to it.
+HEX_ARGUMENT_CONSTRUCTORS = frozenset({"rgb", "rgba"})
+
+
 def _is_colour_constructor_call(node: SgNode) -> bool:
     """Say whether a `call_expression` node calls one of `COLOUR_CONSTRUCTORS`, however qualified."""
     callee = node.field("function")
     return callee is not None and callee.text().rsplit("::", 1)[-1] in COLOUR_CONSTRUCTORS
+
+
+def _rgb_hex(text: str) -> str:
+    """Normalise a hex literal's text to its RGB portion: lowercase, no `#`/`0x`
+    prefix, and alpha (an 8th and 9th digit) dropped - foundations' colours carry no
+    alpha, so `rgba(0x3d3b45ff)` matches on `3d3b45`, the same name a bare `0x3d3b45`
+    or `rgb(0x3d3b45)` would."""
+    return foundations.normalise_hex(text)[:6]
+
+
+def _hex_argument(node: SgNode) -> str | None:
+    """The hex a `rgb`/`rgba` call's own argument names, when that argument is itself a
+    hex literal - `None` for any other constructor (none of them take a hex argument at
+    all) or for an argument that isn't a plain literal (a variable, an expression): that
+    call is still refused as a colour constructor outside foundations, just with no name
+    to suggest for it."""
+    callee = node.field("function")
+    if callee is None or callee.text().rsplit("::", 1)[-1] not in HEX_ARGUMENT_CONSTRUCTORS:
+        return None
+    arguments = node.field("arguments")
+    if arguments is None:
+        return None
+    parts = arguments.named_children()
+    if len(parts) != 1:
+        return None
+    argument = parts[0]
+    if argument.kind() == "integer_literal" and HEX_INT_RE.match(argument.text()):
+        return _rgb_hex(argument.text())
+    return None
 
 
 def _inside_colour_constructor_call(node: SgNode) -> bool:
@@ -132,13 +178,13 @@ def literal_colours(source: str) -> tuple[Literal, ...]:
     found: list[Literal] = []
     for node in root.find_all(kind="call_expression"):
         if _is_colour_constructor_call(node):
-            found.append(Literal(_line(node), node.text(), None))
+            found.append(Literal(_line(node), node.text(), _hex_argument(node)))
     for node in root.find_all(kind="integer_literal"):
         if HEX_INT_RE.match(node.text()) and not _inside_colour_constructor_call(node):
-            found.append(Literal(_line(node), node.text(), foundations.normalise_hex(node.text())))
+            found.append(Literal(_line(node), node.text(), _rgb_hex(node.text())))
     for node in root.find_all(kind="string_literal"):
         if HEX_STRING_RE.match(node.text()):
-            found.append(Literal(_line(node), node.text(), foundations.normalise_hex(node.text().strip('"'))))
+            found.append(Literal(_line(node), node.text(), _rgb_hex(node.text().strip('"'))))
     for node in root.find_all(kind="struct_expression"):
         type_node = node.field("name")
         if type_node is not None and type_node.text().rsplit("::", 1)[-1] in COLOUR_STRUCT_TYPES:

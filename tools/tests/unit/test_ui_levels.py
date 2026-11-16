@@ -226,6 +226,13 @@ def test_violations_counts_a_fully_qualified_expression_path_once_not_once_per_n
     assert found[0].reached_level == "atoms"
 
 
+def test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments() -> None:
+    # The named, documented blind spot (this module's own docstring): tree-sitter hands
+    # a macro's parenthesised body back as one opaque token tree, never a scoped_identifier.
+    file = RustFile("crates/ui/src/foundations/mod.rs", "fn f() { some_macro!(crate::atoms::Button); }\n")
+    assert violations((file,), {}) == ()
+
+
 def test_violations_ignores_an_unplaced_file() -> None:
     # level_of_file returns None for it, so this function has nothing to check it against -
     # unplaced_files (above) is what refuses it, loudly, not this function silently.

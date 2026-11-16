@@ -44,9 +44,29 @@ def test_literal_colours_passes_an_ordinary_string() -> None:
     assert literal_colours('fn f() -> &\'static str { "hello" }\n') == ()
 
 
-def test_literal_colours_catches_a_named_constructor_call() -> None:
+def test_literal_colours_catches_a_named_constructor_call_and_reads_its_hex_argument() -> None:
+    # The review bug: this used to assert hex_value=None here, so the match through a
+    # call was never reached by any test - and the code agreed with the wrong assertion.
     found = literal_colours("fn f() { rgb(0x1c1b21); }\n")
-    assert found == (Literal(1, "rgb(0x1c1b21)", None),)
+    assert found == (Literal(1, "rgb(0x1c1b21)", "1c1b21"),)
+
+
+def test_literal_colours_reads_an_rgba_calls_hex_argument_dropping_alpha() -> None:
+    # Alpha (the trailing two digits) isn't part of a foundations colour - dropped before matching.
+    found = literal_colours("fn f() { rgba(0x3d3b45ff); }\n")
+    assert found == (Literal(1, "rgba(0x3d3b45ff)", "3d3b45"),)
+
+
+def test_literal_colours_has_no_hex_for_a_constructor_with_no_hex_argument() -> None:
+    # hsla takes four floats, not a hex - nothing to read back out.
+    found = literal_colours("fn f() { hsla(0.1, 0.2, 0.3, 1.0); }\n")
+    assert found == (Literal(1, "hsla(0.1, 0.2, 0.3, 1.0)", None),)
+
+
+def test_literal_colours_has_no_hex_for_a_call_whose_argument_is_not_a_literal() -> None:
+    # Still a colour constructor call outside foundations, still refused - just nothing to name.
+    found = literal_colours("fn f(c: u32) { rgb(c); }\n")
+    assert found == (Literal(1, "rgb(c)", None),)
 
 
 def test_literal_colours_catches_a_qualified_named_constructor_call() -> None:
@@ -114,6 +134,39 @@ def test_violations_has_no_matches_when_the_literal_matches_no_foundations_value
     file = RustFile("crates/ui/src/atoms/button.rs", "fn f() -> u32 { 0xabcdef }\n")
     found = violations((file,), SURFACE_RAISED_INDEX)
     assert found == (Violation(file.path, 1, "0xabcdef", ()),)
+
+
+# --- violations through a constructor call: the review's main finding --------------------
+
+
+def test_violations_matches_one_name_through_an_rgb_call() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x1c1b21); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgb(0x1c1b21)", (("surface.raised", "dark"),)),)
+
+
+def test_violations_matches_two_names_through_an_rgb_call() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0x3d3b45); }\n")
+    found = violations((file,), COINCIDING_INDEX)
+    assert found == (Violation(file.path, 1, "rgb(0x3d3b45)", (("outline", "dark"), ("track", "dark"))),)
+
+
+def test_violations_has_no_match_through_an_rgb_call_when_nothing_matches() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgb(0xabcdef); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgb(0xabcdef)", ()),)
+
+
+def test_violations_matches_through_an_rgba_call_ignoring_its_alpha_digits() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f() { rgba(0x1c1b21ff); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgba(0x1c1b21ff)", (("surface.raised", "dark"),)),)
+
+
+def test_violations_refuses_a_call_with_a_non_literal_argument_with_nothing_to_suggest() -> None:
+    file = RustFile("crates/ui/src/atoms/button.rs", "fn f(c: u32) { rgb(c); }\n")
+    found = violations((file,), SURFACE_RAISED_INDEX)
+    assert found == (Violation(file.path, 1, "rgb(c)", ()),)
 
 
 # --- formatting --------------------------------------------------------------------------

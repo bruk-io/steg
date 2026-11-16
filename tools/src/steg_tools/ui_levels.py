@@ -12,6 +12,16 @@ directory, not a parent of it.
 What this reads, and what it cannot, is in `resolve_path`'s and `crate_root_exports`'s
 own docstrings.
 
+**What this cannot see, named outright**: a path written as a macro's *argument*, such
+as `some_macro!(crate::atoms::Button)`. Tree-sitter hands a macro invocation's
+parenthesised body back as one opaque `token_tree` of bare tokens (`crate`, `::`,
+`atoms`, ...), never reconstructed into the `scoped_identifier` node this module
+searches for - confirmed empirically, not assumed: parsing that exact line finds zero
+`scoped_identifier` nodes anywhere in it. This is a different gap from a macro that
+*expands to* a cross-level reference (which no static parse can see either, since
+seeing it needs the expansion, not just the source as written) - this one is a path
+already sitting in the source, verbatim, that this check simply never looks inside.
+
 Usage: steg-ui-levels
 """
 

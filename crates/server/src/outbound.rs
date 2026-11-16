@@ -161,8 +161,8 @@ impl Outbound {
     /// first real caller).
     pub(crate) fn open_stream(&self, stream: u32) {
         let mut queues = self.lock();
-        if !queues.data.contains_key(&stream) {
-            queues.data.insert(stream, VecDeque::new());
+        if let std::collections::hash_map::Entry::Vacant(entry) = queues.data.entry(stream) {
+            entry.insert(VecDeque::new());
             queues.order.push(stream);
         }
     }

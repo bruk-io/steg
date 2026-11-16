@@ -17,7 +17,10 @@ use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 use steg_kernel::{ExitOutcome, Moment, Settings, SizeChanged, Tree};
-use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
+use steg_sdk::{
+    ApiError, ClientId, ClientKind, Description, ErrorCode, PaneId, Program, Request, Response,
+    validate,
+};
 
 use crate::dispatch::{self, Context};
 use crate::env::pane_environment;
@@ -225,6 +228,40 @@ impl Runtime {
     pub fn apply_size_changed(&self, change: &SizeChanged) {
         let mut state = self.lock();
         apply_size_changed_locked(&mut state, change);
+    }
+
+    /// Mints a real, tree-tracked client (TASK-1.45 §1): `connection::
+    /// handle` calls this once, right after a successful handshake, before
+    /// the `ServerHello` is built - replacing `connection.rs`'s own
+    /// previous `next_local_client_id()`, a local counter with no kernel
+    /// backing at all (its own doc named wiring a real model in as this
+    /// task's job). Self-locking, same shape as [`Runtime::apply_size_changed`].
+    pub fn connect_client(&self, kind: ClientKind, label: Option<String>) -> ClientId {
+        self.lock().tree.connect_client(kind, label)
+    }
+
+    /// Disconnects a client this `Runtime` minted (TASK-1.45 §1), applying
+    /// every `SizeChanged` the kernel reports as a consequence (a
+    /// disconnecting client may have been the latest declarer for some
+    /// tab's size, decision-6) - the same `apply_size_changed_locked` every
+    /// other mutation already reapplies through. Called once, on every
+    /// path out of `connection::handle` (ordinary close, a protocol
+    /// violation, a panic unwinding past it).
+    ///
+    /// # Panics
+    /// Never in practice: the only way `Tree::disconnect_client` can fail
+    /// is an id this `Runtime` never minted, which `connection::handle`
+    /// never passes (it only ever passes back the id its own, prior
+    /// `connect_client` call returned).
+    pub fn disconnect_client(&self, id: ClientId) {
+        let mut state = self.lock();
+        let changes = state
+            .tree
+            .disconnect_client(id)
+            .expect("connection::handle only ever disconnects a client it minted itself");
+        for change in &changes {
+            apply_size_changed_locked(&mut state, change);
+        }
     }
 
     /// Stops this `Runtime`: ends every running program (`PaneHandle::
@@ -801,6 +838,85 @@ mod tests {
 
         let screen = state.panes[&pane].snapshot().unwrap();
         assert_eq!(screen.rows.len(), 10);
+    }
+
+    /// `Runtime::connect_client`/`disconnect_client` (TASK-1.45 §1): a
+    /// thin, self-locking wrapper proof, not a re-proof of the kernel's
+    /// own cascade (`crates/kernel/src/tree.rs`'s own
+    /// `latest_falls_back_to_the_next_most_recently_active_remaining_viewer_on_departure`
+    /// already proves `Tree::disconnect_client` itself). What this proves
+    /// is that `Runtime`'s own wrapper actually calls through to the real
+    /// tree and reapplies whatever `SizeChanged`s it gets back - checked
+    /// on a real pane's real pty, the same way every other
+    /// `apply_size_changed` test in this module already does.
+    #[test]
+    fn disconnect_client_reapplies_the_next_latest_declared_size() {
+        use steg_sdk::{ClientKind, Request, Size};
+
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context::none();
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+        let (pane, tab_id) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            (tab.panes()[0].id(), tab.id())
+        };
+
+        // `a` and `b` are minted through the public wrapper this test is
+        // about; `view_pane`/`declare_size` have no `Runtime`-level
+        // wrapper of their own (no dispatch method reaches them yet,
+        // TASK-1.42's own gap), so those two calls reach the tree
+        // directly, the same way this module's other size tests already
+        // do.
+        let a = runtime.connect_client(ClientKind::App, None);
+        let b = runtime.connect_client(ClientKind::Cli, None);
+        let first_change = {
+            let mut state = runtime.state.lock().unwrap();
+            state.tree.view_pane(a, pane).unwrap();
+            state.tree.view_pane(b, pane).unwrap();
+            state
+                .tree
+                .declare_size(a, tab_id, Size::new(80, 24))
+                .unwrap();
+            state.tree.declare_size(b, tab_id, Size::new(40, 10)).unwrap()
+        };
+        runtime.apply_size_changed(&first_change);
+        assert_eq!(
+            runtime.state.lock().unwrap().panes[&pane]
+                .snapshot()
+                .unwrap()
+                .rows
+                .len(),
+            10,
+            "b, the latest, declared 40x10 last"
+        );
+
+        runtime.disconnect_client(b);
+
+        assert_eq!(
+            runtime.state.lock().unwrap().panes[&pane]
+                .snapshot()
+                .unwrap()
+                .rows
+                .len(),
+            24,
+            "a's own 80x24 must be reapplied once b (the latest) disconnects"
+        );
     }
 
     #[test]

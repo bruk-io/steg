@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T06:05:00Z'
+updated_date: '2026-11-16T06:16:00Z'
 labels:
   - size-3
   - review-passed
@@ -871,6 +871,14 @@ Added the three ambiguous-target tests the plan's proof promised: `tab_list_with
 The mechanical `moment(...)` threading through `tests/dispatch.rs`'s ~79 existing calls landed in the same commit as the real `tab.list`/`tab.show`/`pane.list` implementation, not disclosed as its own commit at the time - a departure from the plan's own order-of-work step 11, which asked for it separately. Noting it here since the history can't be split after the fact.
 
 Could not run this through `asdlc record-check` or `asdlc finish` - both refuse once a task has passed review. This comment is the record instead, as you asked.
+
+---
+
+created: 2026-11-16T06:16:00Z
+
+---
+
+Independent read of ba83798..93973fd by a separate agent, 2026-11-16: correct. The only code-bearing merge in the range is e92e8fb (ba83798 + TASK-1.78's 3e4594e); 93973fd is a second merge that brings in only backlog/ files from origin/main, no code. Diffed the actual merge tree against git's own mechanical auto-merge (merge-tree --write-tree ba83798 3e4594e): the only textual conflict was dispatch/mod.rs's re-export list, resolved as a correct superset (tab_position + any_pane_running + panes_in_close_scope). Exactly three further hand edits exist beyond that, matching the author's account with nothing extra: (1) close_and_dispatch's Moment computed the same way, same point under the lock, as handle and start_and_dispatch - verified by reading all three call sites (runtime.rs:260,421,524). Checked whether this matters given force_end can block the reply for up to force_grace: it does not, because pane.close/tab.close/session.close never read  at all (dispatch/pane.rs, tab.rs, session.rs close() takes no Moment) - the arg is pure plumbing for dispatch()'s uniform signature, so no stale-boundary risk reaches any reply. (2) both new Runtime::new calls in runtime.rs's own test module got TEST_GRACE, matching every sibling test in that module. (3) tests/runtime.rs's already-ended poll now reads program_status instead of status - necessary, not cosmetic: doc-11's new  serializes as Running/Finished/Failed{..} and expires after FINISHED_LIFETIME (R83), so the old string compare would never match again; program_status's text mapping (dispatch/pane.rs status_text) does yield "ended". Grepped the whole tree for any remaining status=="running"/"ended" string compares in either branch's tests - none left. The three new ambiguous-target tests (a91e403) assert ErrorCode::AmbiguousTarget specifically, produced by kernel_error.rs's exhaustive (no wildcard) match on Error::TargetAmbiguous - a dedicated kernel variant, not a generic refusal, so a first-match implementation would fail these, not pass vacuously. just check passed in full (26/26 steps incl. test (steg-server) and test (steg-server, race-fixture)). Ran cargo test -p steg-server 5 times back to back: all passed every time, and no test-spawned process (shell, trap/sleep fixture, steg-server) was left behind afterward - the only ps matches before/after were unrelated session noise. No follow-ups found.
 
 ---
 <!-- COMMENTS:END -->

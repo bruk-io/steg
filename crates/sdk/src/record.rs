@@ -209,7 +209,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -311,7 +312,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -392,7 +394,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };
@@ -447,7 +450,8 @@ mod tests {
                 | crate::description::Returns::Records { fields } => fields,
                 other @ (crate::description::Returns::Nothing
                 | crate::description::Returns::Identifier { .. }
-                | crate::description::Returns::Text) => {
+                | crate::description::Returns::Text
+                | crate::description::Returns::Nested { .. }) => {
                     panic!("{dotted}'s returns is not a record: {other:?}")
                 }
             };

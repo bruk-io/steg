@@ -4,7 +4,7 @@ title: 'App: the command palette'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T02:15:00Z'
+updated_date: '2026-11-16T02:59:00Z'
 labels:
   - size-4
 milestone: m-0
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.58
   - TASK-1.53
   - TASK-1.48
+  - TASK-1.108
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -32,3 +33,15 @@ doc-10: R21, R80. decision-9. The app's look and behaviour is the design artifac
 - [ ] #4 Closing something with a program running asks first, and ending a session always asks, with the safe answer selected
 - [ ] #5 The palette is the only thing that opens over the window
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T02:59:00Z
+
+---
+
+2026-11-15, @bruk.o: the components this task shows now have tasks of their own in steg-ui (doc-17, accepted today), built into the gallery without the server. This task becomes giving that component what the server reports and sending what the user does back as requests; it no longer draws the component itself. The command palette organism is TASK-1.108.
+
+---
+<!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:12:00Z'
+updated_date: '2026-11-16T01:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1171,6 +1171,32 @@ running 1 test
 test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.01s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime -- a_pane_being_forced_is_unreachable_by_another_request_meanwhile` exited 101 at 2026-11-16T01:13:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... FAILED
+
+failures:
+
+---- a_pane_being_forced_is_unreachable_by_another_request_meanwhile stdout ----
+
+thread 'a_pane_being_forced_is_unreachable_by_another_request_meanwhile' (16735843) panicked at crates/server/tests/runtime.rs:841:5:
+a request for the pane being forced took 4.955128667s - it must be refused at once (the pane is already gone, close-first), never stalled for the grace window
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_being_forced_is_unreachable_by_another_request_meanwhile
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 5.04s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
 ```
 <!-- SECTION:NOTES:END -->
 

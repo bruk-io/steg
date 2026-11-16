@@ -536,6 +536,51 @@ test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... 
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound'` exited 101 at 2026-11-16T17:24:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 43 lines:
+
+```text
+  |
+6 | use std::net::Shutdown;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `shutdown_handle` is never read
+  --> crates/app/src/client.rs:29:5
+   |
+28 | pub struct Client {
+   |            ------ field in this struct
+29 |     shutdown_handle: UnixStream,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... FAILED
+
+failures:
+
+---- client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound stdout ----
+
+thread 'client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound' (44450864) panicked at crates/app/src/client.rs:179:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:13:00Z'
+updated_date: '2026-11-16T14:36:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,8 +24,10 @@ asdlc_branch: task-1.46-server-the-tree-and-events-a-client
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=5,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1017,6 +1020,37 @@ created: 2026-11-16T14:13:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:36:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 5 Important, 2 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed at head 18e00d0 (matches the task's own recorded `just check` head; PR #63's CI is green on this commit). Ran `just check` myself (clean) and the server lib suite plus `--test events` 10x each with no flakiness and no leftover processes.
+
+Important findings:
+
+1. [Bugs/Compliance, AC #2] runtime.rs:1002-1020 `capture_close_cascade`'s `CloseCascade::Pane` arm (the `pane.close` request path) only ever captures/emits `pane.closed{id}` - it never checks whether closing that pane also closed its tab and session (R94's own cascade, which `Tree::close_pane` in crates/kernel/src/tree.rs does perform and reports via `ClosedPane{tab: Option, session: Option}`, the same struct the exit-driven path already reads those fields from). Reproduced directly: a session with one tab and one pane, subscribed with `--all`, `pane.close --force` on its only pane returns Ok and the subscriber receives only `pane.closed`, never `tab.closed`/`session.closed`, even though the tab and session are both gone from the tree afterward. A subscriber's own tree model is left referencing a tab and session the server has already discarded - AC #2's "Each is caused by every place the tree changes that way, whether from a request..." is unmet for this one path. The plan's own §5 table lists only `pane.closed{id}` for `pane.close`, so the worker built exactly what the plan said; the plan itself missed this case.
+
+2. [Evidence] No recorded negative control for the session-scope filter, which the plan's own §10 names explicitly ("Negative control: remove the scope check inside broadcast"). The four controls recorded in the task's notes (atomicity, slow-subscriber shutdown, closure-cascade order, name filter) don't clearly include one isolating `Filter::matches`'s `scope_ok` check. I repeated it myself (scratch-disabled `scope_ok` in crates/server/src/dispatch/event.rs): `a_filter_by_session_excludes_another_sessions_events` fails correctly, so the mechanism is real - the control is just not on the record.
+
+3. [Evidence] No recorded negative control for the creation-cascade order (`session_new_emits_session_created_tab_created_and_pane_created_in_order`), which §10 asks for ("drive session.new and assert the three creation events arrive in the stated order... negative control for each"). I repeated it myself (removed the `TabCreated` broadcast in `emit_creation_events`'s `session.new` arm): the test fails correctly, catching the dropped event. No recorded run for this one exists in the task's check history.
+
+4. [Evidence] No recorded negative control for the exit-driven cascade order (`a_shell_panes_exit_emits_the_whole_cascade_in_order`, runtime.rs unit test). Its own doc comment describes what a control would show but no recorded failing run for this specific test appears in the task's history (the one runtime.rs unit-test control on record is the slow-subscriber one).
+
+5. [Compliance] `session_close_emits_the_whole_cascade_innermost_first` exercises one tab with one pane; the plan's §10 asks for "two tabs with two panes each" specifically to prove every pane.closed precedes its own tab's tab.closed (per-tab interleaving). The single-tab case can't distinguish correct interleaving from "every pane.closed across every tab, then every tab.closed" - code review shows `emit_close_events`'s `Session` arm is correct, but the proof-list row isn't covered as specified.
+
+Nits (2, both minor):
+- `broadcast`'s own doc comment says "nothing here ever writes to a socket while state's lock is held," but `subscriber.shutdown.shutdown(Both)` is a socket syscall made under that lock (non-blocking in practice on a Unix socket, so not a bug - the comment overstates it).
+- `Connection::watch`'s signature (`for_: Option<&str>`) departs from the plan's own sketch (`for_: &[&str]`); justified inline (the API's own `for` is a single Choice value, not a list) but not called out in the task's notes.
+
+Not findings, confirmed working as designed: the slow-subscriber shutdown (shutdown() on a cloned socket from the broadcasting thread while holding the Runtime's lock is the same cross-thread-shutdown idiom TASK-1.45's own ConnectionCleanup already uses and is non-blocking; the unit test does prove the real socket closes, not just queue bookkeeping); TASK-1.47's own `pane.attach` does use `Follows::Attachment` as this task's description predicted usable. TASK-1.86 (in review) adds its own `SessionCountChanged` notify inside the exact same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures (not just connection.rs/listen.rs as this task's own Risks section says) - whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping this task's `scope` captured before `record_exit`.
 
 ---
 <!-- COMMENTS:END -->

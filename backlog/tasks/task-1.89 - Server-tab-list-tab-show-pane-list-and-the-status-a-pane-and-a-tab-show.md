@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T04:51:00Z'
+updated_date: '2026-11-16T04:56:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -320,6 +320,51 @@ running 0 tests
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
    Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-sdk -p steg-kernel` exited 0 at 2026-11-16T04:56:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes, last 40 of 507 lines:
+
+```text
+test wire::frame::tests::frame_constructors_set_the_expected_kind_and_stream ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+
+test result: ok. 142 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/connection.rs (target/debug/deps/connection-5aaf1820065b9c7d)
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-b8a3fda317535471)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
 
 running 0 tests
 

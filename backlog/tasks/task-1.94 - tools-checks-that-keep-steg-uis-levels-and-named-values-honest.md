@@ -473,6 +473,33 @@ FAILED tests/unit/test_ui_colours.py::test_violations_lists_every_matching_name_
 FAILED tests/unit/test_ui_colours.py::test_violations_has_no_matches_when_the_literal_matches_no_foundations_value
 11 failed, 13 passed in 0.05s
 ```
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py -k exempt'` exited 1 at 2026-11-16T02:32:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+FF..                                                                     [100%]
+=================================== FAILURES ===================================
+____________________ test_is_exempt_for_a_foundations_path _____________________
+
+    def test_is_exempt_for_a_foundations_path() -> None:
+>       assert is_exempt("crates/ui/src/foundations/generated.rs") is True
+E       AssertionError: assert False is True
+E        +  where False = is_exempt('crates/ui/src/foundations/generated.rs')
+
+tests/unit/test_ui_colours.py:14: AssertionError
+_____________________ test_is_exempt_for_the_gallery_path ______________________
+
+    def test_is_exempt_for_the_gallery_path() -> None:
+>       assert is_exempt("crates/ui/gallery/main.rs") is True
+E       AssertionError: assert False is True
+E        +  where False = is_exempt('crates/ui/gallery/main.rs')
+
+tests/unit/test_ui_colours.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_is_exempt_for_a_foundations_path
+FAILED tests/unit/test_ui_colours.py::test_is_exempt_for_the_gallery_path - A...
+2 failed, 2 passed, 19 deselected in 0.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

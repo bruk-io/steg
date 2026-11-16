@@ -1,14 +1,13 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:18:00Z'
+updated_date: '2026-11-16T15:24:00Z'
 labels:
   - size-4
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -758,6 +757,20 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+All seven controls named in the plan, recorded through asdlc record-check as a failing run then a passing run against the tests as they stand, git status confirmed clean after each revert (none needed a test fix - every one failed exactly as the plan predicted):
+
+1. Boundaries (crit #2/#6): just check-boundaries, [steg] allow-list/deny-features reverted -> failed naming clap/clap_complete; restored -> passed.
+2. Placeholder (crit #4): cli_run_placeholder's completeness test, run() returning 0 -> failed on session.list; reverted -> passed.
+3. Drift, missing command (crit #1): cli_drift's completeness test, pane.split skipped in the tree -> failed, missing: [(pane,split)]; reverted -> passed.
+4. Drift, extra command (crit #1): same test, an extra pane bogus subcommand added -> failed, extra: [(pane,bogus)]; reverted -> passed.
+5. No-server (crit #3): cli_no_server's version test, a stray connection added to version's arm -> failed (assert_never_accepted panicked); reverted -> passed.
+6. unset --label switch, sdk (decision 3): the sdk's own role test, switch() reverted to flag() -> failed (role Flag, expected Switch); re-applied -> passed.
+7. unset --label switch, dispatch (decision 3): the dispatch test, param_present changed to param_bool(...)==Some(true) -> failed on --no-label; reverted -> passed.
+
+Full table (proof item / test / recorded control) is in this task's comments. boundaries.toml's [steg] reason now names clap's "string" feature and why - correcting the plan's own claim that Str/Id implement From<String> unconditionally (it's gated behind that feature; checked against clap_builder's own Cargo.toml, not docs.rs's always-every-feature build, which is what misled the plan). No leaking to 'static was ever needed either way.
+
+just check recorded green on the final head (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours). CI green on the pushed head (~5m17s). Branch merged with origin/main three times across this session (board-only changes each time, no code conflicts).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

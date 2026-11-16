@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T11:57:00Z'
+updated_date: '2026-11-16T12:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -664,6 +664,51 @@ test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_
 test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T12:00:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        socket_path,
+(B[m[32m+        Some(Duration::from_secs(30)),
+(B[m[32m+        Arc::new(launcher),
+(B[m[32m+    );
+(B[m     let (socket_path, stop, server_thread) = start_server(config);
+ 
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/tests/idle_stop.rs:416:
+     let response = call_and_read_reply(&mut stream, &mut connection, "session.new", Map::new());
+[31m-    assert!(matches!(response, Response::Ok(_)), "session.new failed: {response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(response, Response::Ok(_)),
+(B[m[32m+        "session.new failed: {response:?}"
+(B[m[32m+    );
+(B[m     let driver = drivers
+         .recv_timeout(Duration::from_secs(5))
+         .expect("the fake launcher should have been asked to spawn the shell pane");
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/tests/idle_stop.rs:456:
+             ("force".to_string(), json!(true)),
+         ]),
+     );
+[31m-    assert!(matches!(response, Response::Ok(_)), "session.close failed: {response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(response, Response::Ok(_)),
+(B[m[32m+        "session.close failed: {response:?}"
+(B[m[32m+    );
+(B[m     drop(stream);
+ 
+     // No wait at all: there is no `idle_timeout` to wait out. A fresh
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg/tests/idle_stop.rs:87:
+ 
+ #[test]
+ fn an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one()
+[31m- {
+(B[m[32m+{
+(B[m     let socket_path = unique_socket_path();
+     let mut server = KillOnDrop::new(
+         Command::new(fixture_server_binary())
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:45:00Z'
+updated_date: '2026-11-16T01:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -888,6 +888,372 @@ kill: 47774: No such process
 test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 0.01s
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-16T01:00:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes, last 40 of 103 lines:
+
+```text
+test runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once ... ok
+test runtime::tests::login_shell_from_process_env_never_panics_and_is_never_empty ... ok
+test listen::tests::a_finished_connection_is_removed_and_a_still_open_one_is_kept ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test paths::tests::a_real_plain_file_at_the_path_is_not_a_socket ... ok
+test bind::tests::a_real_bind_sets_0600_under_the_ambient_umask ... ok
+test paths::tests::a_real_private_directory_is_safe ... ok
+test arbiter::tests::attempt_finds_a_real_live_listener_already_running ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test bind::tests::nothing_is_left_at_the_temporary_name_after_a_successful_bind ... ok
+test paths::tests::a_real_world_writable_directory_is_refused ... ok
+test paths::tests::a_real_socket_we_own_is_ours_and_a_socket ... ok
+test bind::tests::a_second_bind_replaces_the_first_at_the_same_path ... ok
+test arbiter::tests::attempt_becomes_the_server_when_nothing_is_there ... ok
+test arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server ... ok
+test pane::ending_tests::signal_hangup_ends_a_real_program_through_the_public_handle ... ok
+kill: 1939: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+kill: 1966: No such process
+test runtime::stop_tests::stop_ends_a_silent_program ... ok
+kill: 1971: No such process
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+kill: 1969: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 1970: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+kill: 1940: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+```
+
+Check passed: `just lint` exited 0 at 2026-11-16T01:01:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      lint (0.5s)
+```
+
+Check passed: `cargo test -p steg-server --lib --tests` exited 0 at 2026-11-16T01:02:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes, last 40 of 257 lines:
+
+```text
+test a_nonexistent_cwd_through_api_call_leaves_nothing_behind ... ok
+test pane_split_with_a_nonexistent_cwd_leaves_no_new_pane_behind ... ok
+test session_close_refuses_while_any_pane_in_any_of_its_tabs_is_running ... ok
+test pane_close_with_force_on_a_running_program_proceeds_exactly_as_today_the_stated_gap ... ok
+test session_new_through_api_call_with_no_program_runs_the_login_shell ... ok
+test pane_close_refuses_while_its_program_is_running_and_touches_nothing ... ok
+test a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind ... ok
+test pane_split_with_no_program_or_cwd_runs_the_login_shell_at_home ... ok
+test a_bad_command_through_api_call_leaves_nothing_behind ... ok
+test tab_new_with_a_nonexistent_cwd_leaves_no_new_tab_or_pane_behind ... ok
+test session_new_through_api_call_starts_a_real_program ... ok
+test tab_new_with_a_bad_command_leaves_no_new_tab_or_pane_behind ... ok
+test pane_split_with_a_bad_command_leaves_no_new_pane_behind ... ok
+test tab_close_refuses_while_any_of_its_panes_is_running ... ok
+test session_new_with_a_command_starts_it_and_pane_show_reports_it_running_then_ended ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+test pane_split_through_api_call_starts_a_real_program ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T01:07:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 0.9s)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/steg)
+error: redundant redefinition of a binding `context`
+   --> crates/server/tests/runtime.rs:884:9
+    |
+884 |         let context = context;
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: `context` is initially defined here
+   --> crates/server/tests/runtime.rs:874:9
+    |
+874 |     let context = Context {
+    |         ^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#redundant_locals
+    = note: `-D clippy::redundant-locals` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_locals)]`
+
+error: could not compile `steg-server` (test "runtime") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:09:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (9.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (9.0s)
+ok      test (steg-server, race-fixture) (9.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_with_force_actually_ends_a_silent_program` exited 101 at 2026-11-16T01:10:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: unused variable: `scope`
+   --> crates/server/src/runtime.rs:453:13
+    |
+453 |         let scope = match dispatch::panes_in_close_scope(&state.tree, context, request) {
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_scope`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.91s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test pane_close_with_force_actually_ends_a_silent_program ... FAILED
+
+failures:
+
+---- pane_close_with_force_actually_ends_a_silent_program stdout ----
+
+thread 'pane_close_with_force_actually_ends_a_silent_program' (16678026) panicked at crates/server/tests/runtime.rs:556:5:
+a silent program must be ended too, not left running because it never produced output for the relay thread to read
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_actually_ends_a_silent_program
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_with_force_actually_ends_a_silent_program` exited 0 at 2026-11-16T01:11:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+kill: 52003: No such process
+test pane_close_with_force_actually_ends_a_silent_program ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.03s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime pane_close_with_force_ends_a_program_that_traps_the_polite_signal` exited 101 at 2026-11-16T01:11:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... FAILED
+
+failures:
+
+---- pane_close_with_force_ends_a_program_that_traps_the_polite_signal stdout ----
+
+thread 'pane_close_with_force_ends_a_program_that_traps_the_polite_signal' (16688429) panicked at crates/server/tests/runtime.rs:592:5:
+a program trapping the polite signal must still be ended, by escalating
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_close_with_force_ends_a_program_that_traps_the_polite_signal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 6.08s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `cargo test -p steg-server --test runtime pane_close_with_force_ends_a_program_that_traps_the_polite_signal` exited 0 at 2026-11-16T01:11:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+kill: 55008: No such process
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.06s
+```
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread` exited 101 at 2026-11-16T01:12:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... FAILED
+
+failures:
+
+---- pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread stdout ----
+
+thread 'pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread' (16702677) panicked at crates/server/src/pane.rs:800:9:
+the worker thread must actually end, not just reply - the bug this test is named for left a worker thread running forever behind a reply that looked correct on its own
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread` exited 0 at 2026-11-16T01:12:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::ending_tests::await_exit_after_the_program_already_ended_still_ends_the_worker_thread ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.01s
+```
+
+Check FAILED: `cargo test -p steg-server --test runtime -- a_pane_being_forced_is_unreachable_by_another_request_meanwhile` exited 101 at 2026-11-16T01:13:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... FAILED
+
+failures:
+
+---- a_pane_being_forced_is_unreachable_by_another_request_meanwhile stdout ----
+
+thread 'a_pane_being_forced_is_unreachable_by_another_request_meanwhile' (16735843) panicked at crates/server/tests/runtime.rs:841:5:
+a request for the pane being forced took 4.955128667s - it must be refused at once (the pane is already gone, close-first), never stalled for the grace window
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_being_forced_is_unreachable_by_another_request_meanwhile
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 5.04s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:15:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (12.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (11.9s)
+ok      test (steg-server, race-fixture) (12.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do echo "=== run $i ==="; if ! cargo test -p steg-server 2>&1 | tail -3 | grep -q "test result: ok"; then fail=$((fail+1)); echo "RUN $i FAILED"; fi; done; echo "TOTAL FAILURES: $fail / 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:17:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+=== run 1 ===
+=== run 2 ===
+=== run 3 ===
+=== run 4 ===
+=== run 5 ===
+=== run 6 ===
+=== run 7 ===
+=== run 8 ===
+=== run 9 ===
+=== run 10 ===
+TOTAL FAILURES: 0 / 10
+```
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do echo "=== run $i ==="; out=$(cargo test -p steg-server 2>&1); if echo "$out" | grep -qE "FAILED|error\["; then fail=$((fail+1)); echo "RUN $i FAILED"; echo "$out" | grep -E "FAILED|error\[" ; fi; done; echo "TOTAL FAILURES: $fail / 10"; test "$fail" -eq 0'` exited 0 at 2026-11-16T01:19:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+=== run 1 ===
+=== run 2 ===
+=== run 3 ===
+=== run 4 ===
+=== run 5 ===
+=== run 6 ===
+=== run 7 ===
+=== run 8 ===
+=== run 9 ===
+=== run 10 ===
+TOTAL FAILURES: 0 / 10
 ```
 <!-- SECTION:NOTES:END -->
 

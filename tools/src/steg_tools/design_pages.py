@@ -69,9 +69,15 @@ was a value the page and the then-draft file agreed on; doc-10 flagged it as not
 confirmed - a judgement this tool cannot make). This is a consistency check between two
 documents, not a substitute for reading doc-10's open-questions list.
 
-TASK-1.94 is adding a shared `steg_tools.foundations.read()` for the data file; this task
-imports it once it has merged. Until then, `_read_data_file` below is the few lines that
-stand in for it (see TASK-1.96's plan, "Module shape").
+The plan named TASK-1.94's `steg_tools.foundations.read()` as a shared reader this task
+would import once merged. Now that it has (its `Foundations` dataclass holds `colours`
+and `opacity_names` only - R120's colour-literal check, AC#2, is TASK-1.94's whole scope),
+it covers a narrow slice of what this module reads: colours, but not `type`, `sizes`,
+`themes`, `motion`, `ramps`, `colour_aliases`, `tint` or `focus_ring`, every one of which
+Tier B, `mapped_sentence_mismatches` and `unaccounted_names` need as raw JSON. Importing
+it for colours alone would mean reading the file twice down two different paths for no
+real gain, so `_read_data_file` below stays the one read of the whole document - not an
+oversight, a decision made once TASK-1.94's actual shape was known.
 
 Usage: steg-design-check [--data-file <path>]
 """
@@ -906,11 +912,13 @@ def ansi_reverse_missing(file_themes: tuple[dict, ...], page: Page, page_name: s
 
 
 def _read_data_file(path: Path) -> dict[str, object]:
-    """Read `crates/ui/design/foundations.json`.
+    """Read `crates/ui/design/foundations.json` as the raw document.
 
-    TASK-1.94 is adding a shared `steg_tools.foundations.read()` for this file; once it
-    has merged, this function is replaced by that import (TASK-1.96's plan, "Module
-    shape"). Until then, this is the few lines the plan allows as a private fallback.
+    `steg_tools.foundations.read()` (TASK-1.94, merged) reads `colours` and derives
+    `opacity_names` only - everything else this module reads (`type`, `sizes`, `themes`,
+    `motion`, `ramps`, `colour_aliases`, `tint`, `focus_ring`) is outside its scope, so
+    this stays the one read of the whole document rather than reading the file twice
+    down two different paths for the colours alone (see the module docstring).
     """
     with path.open() as handle:
         data = json.load(handle)

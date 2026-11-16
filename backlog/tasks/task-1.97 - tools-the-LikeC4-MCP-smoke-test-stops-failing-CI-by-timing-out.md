@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T02:31:00Z'
+updated_date: '2026-11-16T02:39:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -84,6 +84,48 @@ Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/
 
 ```text
 ok      tool tests (1.1s)
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && HTTP_PROXY=http://127.0.0.1:1 HTTPS_PROXY=http://127.0.0.1:1 uv run --project tools pytest -q tools/tests/adapter/test_likec4_mcp_smoke.py'` exited 1 at 2026-11-16T02:39:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 108747d79566 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpsISfbL` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server _
+
+    def test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server() -> None:
+        root = workspace.repo_root()
+        assert root is not None, "this test runs inside a git checkout"
+    
+>       summary = read_project_summary(root / "architecture", likec4_version=PINNED_LIKEC4_VERSION)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tools/tests/adapter/test_likec4_mcp_smoke.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/src/steg_tools/likec4_mcp.py:178: in read_project_summary
+    responses = take_replies(_received_messages(), count=2)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tools/src/steg_tools/likec4_mcp.py:64: in take_replies
+    for message in messages:
+                   ^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _received_messages() -> Iterator[Mapping[str, object]]:
+        first = True
+        while True:
+            bound = startup_timeout if first else timeout
+            try:
+                line = lines.get(timeout=bound)
+            except queue.Empty:
+                phase = "to start" if first else "mid-exchange"
+>               raise TimeoutError(f"likec4 mcp did not answer ({phase}) within {bound}s") from None
+E               TimeoutError: likec4 mcp did not answer (to start) within 60.0s
+
+tools/src/steg_tools/likec4_mcp.py:169: TimeoutError
+=========================== short test summary info ============================
+FAILED tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server
+1 failed in 65.04s (0:01:05)
 ```
 <!-- SECTION:NOTES:END -->
 

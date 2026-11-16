@@ -728,28 +728,26 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
                     // above; nothing further to do here today.
                 }
                 Err(steg_kernel::Error::PaneNotFound(_)) => {
-                    // Unlike `Exited`'s own `PaneNotFound` arm above, a
-                    // mark arriving for a pane the tree no longer holds
-                    // must not remove this pane's `PaneHandle`: the
-                    // program it owns may still be running, and removing
-                    // the handle here would drop its only `Sender`
-                    // clone, ending the worker loop and leaking the
-                    // relay thread and an unkilled child - worse than
-                    // the race being guarded against.
+                    // The mark is ignored - there is nothing else to do
+                    // with one for a pane the tree no longer holds.
                     //
                     // Reachable by exactly one path, traced for TASK-
                     // 1.78's review: `close_and_dispatch` removes the
-                    // pane from the tree and drops the lock before
+                    // pane from the tree *and* takes its `PaneHandle` out
+                    // of `state.panes` under the same lock, before
                     // `force_end` has actually ended its program (§5) -
                     // a still-running program can emit an OSC 133 mark
                     // during that same grace window, forwarded by its
                     // relay/worker thread exactly as it would have been
                     // before the close. By the time this event reaches
-                    // the control thread, the tree no longer has the
-                    // pane, but `force_end` has not yet finished with
-                    // its handle either. Not a gap close-first left
-                    // open - force_end still ends the program by its
-                    // stated bound, this mark is simply overtaken by it.
+                    // the control thread, the handle is already with
+                    // `force_end`, not `state.panes` - this arm was never
+                    // at risk of dropping its only `Sender` clone on this
+                    // path, since there is no handle here to drop either
+                    // way. `force_end` is what ends the program and
+                    // joins its threads, on its own stated bound; this
+                    // mark is simply overtaken by it. Not a gap
+                    // close-first left open.
                 }
                 Err(other) => unreachable!(
                     "Tree::note_command_output_started documents only Error::PaneNotFound \
@@ -2203,13 +2201,17 @@ mod tests {
     fn a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic() {
         // Same shape as `apply_event_on_a_pane_the_tree_no_longer_holds_
         // removes_the_stale_handle_without_panicking`: the tree never
-        // gets this pane at all, standing in for the one path this is
-        // actually reachable by (TASK-1.78's review traced it): a
-        // forced close's own grace window - `close_and_dispatch` has
-        // already removed the pane from the tree, but `force_end` has
-        // not yet ended its still-running program, which can still emit
-        // a mark in the meantime - but a real, still-running
-        // `PaneHandle` for it is in `panes`.
+        // gets this pane at all, standing in for the one path this arm
+        // is actually reachable by (TASK-1.78's review traced it): a
+        // forced close's own grace window, where `close_and_dispatch`
+        // has already removed the pane from the tree, but `force_end`
+        // has not yet ended its still-running program, which can still
+        // emit a mark in the meantime. On the real path the handle
+        // itself has already moved into `force_end`'s own local scope,
+        // out of `panes` entirely - kept in `panes` here only to prove
+        // this arm does not touch it (`assert!(state.panes.contains_
+        // key(...))` below), not to claim the real path ever has it
+        // there too.
         let tree = steg_kernel::Tree::new();
         let gone = steg_sdk::PaneId::from_raw(999);
         let (events_tx, _events_rx) = mpsc::channel();

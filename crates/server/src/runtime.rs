@@ -1042,6 +1042,104 @@ mod tests {
         }
     }
 
+    /// The idle-handle fix itself (TASK-1.78 §5, item 2), proven where it
+    /// can actually be observed - `state.panes`, private to this module,
+    /// not through `Runtime::handle`'s own public responses, which never
+    /// expose it either way (DRAFT-1: `tests/runtime.rs`'s own black-box
+    /// sibling, `pane_close_on_an_already_ended_pane_succeeds_without_
+    /// force`, would pass identically with or without this fix, so it is
+    /// not offered as proof of it - this is).
+    #[test]
+    fn a_plain_close_of_an_already_ended_pane_removes_its_idle_handle() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let description = steg_sdk::description();
+        let no_context = crate::dispatch::Context {
+            default_session: steg_sdk::SessionId::from_raw(0),
+            default_tab: steg_sdk::TabId::from_raw(0),
+            default_pane: steg_sdk::PaneId::from_raw(0),
+        };
+
+        let session = match runtime.handle(
+            &description,
+            &no_context,
+            &steg_sdk::Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exit 0"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+        let (pane, tab_id) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            (tab.panes()[0].id(), tab.id())
+        };
+
+        // Waits for the real exit first (R97: a command pane stays) by
+        // polling the kernel's own status directly - bounded, no event
+        // for this exists on the server side (`PaneEvent::Exited` only
+        // reaches the drain thread, not a test holding the lock between
+        // polls).
+        let start = std::time::Instant::now();
+        loop {
+            let ended = {
+                let state = runtime.state.lock().unwrap();
+                matches!(
+                    state
+                        .tree
+                        .session(session_id)
+                        .and_then(|s| s.tabs()[0].pane(pane))
+                        .and_then(steg_kernel::Pane::program_status),
+                    Some(steg_sdk::ProgramStatus::Ended { .. })
+                )
+            };
+            if ended {
+                break;
+            }
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "the real `exit 0` never reached Ended within the bound"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            runtime.state.lock().unwrap().panes.contains_key(&pane),
+            "the idle handle must still be there right after the program ends - \
+             this is the gap's own starting condition, not yet the fix"
+        );
+
+        let context = crate::dispatch::Context {
+            default_session: session_id,
+            default_tab: tab_id,
+            default_pane: pane,
+        };
+        match runtime.handle(
+            &description,
+            &context,
+            &steg_sdk::Request {
+                method: "pane.close".to_string(),
+                params: serde_json::json!({"target": pane.to_string()})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.close failed: {error:?}"),
+        }
+
+        assert!(
+            !runtime.state.lock().unwrap().panes.contains_key(&pane),
+            "the plain close must remove the now-pointless idle handle, \
+             not leave it (and its worker thread) running forever"
+        );
+    }
+
     /// Rule B (§2): the live directory (`Terminal::cwd`, set by a real
     /// OSC 7) differs from the directory the program *started* in
     /// (`Program::cwd`, given at `session.new`) - and it is the live one

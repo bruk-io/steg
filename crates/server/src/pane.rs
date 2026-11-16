@@ -923,11 +923,15 @@ mod ending_tests {
         assert!(handle.await_exit(EVENT_TIMEOUT));
         assert!(handle.join_worker(EVENT_TIMEOUT));
 
-        // The background job never reaches its own `touch` if it was
-        // genuinely ended by the group signal rather than merely
-        // outliving its now-dead parent - give it a short, bounded moment
-        // past the parent's own death to prove a negative (it does not
-        // appear), not an instant check that could just be "too early".
+        // Not a race against the `touch`: the backgrounded job is itself
+        // `sleep 1000`, so if it survived the group signal, it would not
+        // reach its own `touch` for another ~1000s regardless of how
+        // long this waits - a killed job never reaches it, at all, not
+        // "not yet". This short, bounded sleep is only to let the OS
+        // finish actually delivering/acting on the signal before the
+        // check below reads the filesystem, the same margin `runtime.rs`'s
+        // own `stop_is_a_no_op_for_a_pane_whose_program_has_already_ended`
+        // test gives for the same reason.
         std::thread::sleep(Duration::from_millis(300));
         assert!(
             !marker.exists(),

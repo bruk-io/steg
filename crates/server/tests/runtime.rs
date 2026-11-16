@@ -597,16 +597,54 @@ fn pane_close_with_force_ends_a_program_that_traps_the_polite_signal() {
 
 #[test]
 fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
-    // Brief item 4: several running panes at once, over one grace window,
-    // not one per pane - proven by a real total-time bound, not only "it
-    // eventually finished".
-    let (runtime, api) = runtime();
+    // Brief item 4: several running panes at once, over one *shared*
+    // grace window, not one per pane. Every one of the four panes traps
+    // the polite signal, so every one needs the escalation - a serial
+    // "signal, wait the whole grace, escalate" loop would cost roughly
+    // `4 * grace` at minimum; a shared window costs roughly one `grace`
+    // regardless of how many panes. The grace here (500ms) is
+    // deliberately real, not `TEST_GRACE`'s usual 30ms: a bound tight
+    // enough to separate "one window" from "four windows" needs a
+    // window wide enough that scheduling noise cannot close the gap.
+    let grace = Duration::from_millis(500);
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        },
+        grace,
+    );
+    let api = description();
+
+    // The marker file's own content is the pid (`echo $$`, not a bare
+    // `touch`) - one file doubles as both "the trap is installed" and
+    // "this is who to check for afterward", with no second file needed.
+    fn trapping_pane_program(ready: &std::path::Path) -> Vec<String> {
+        vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            format!(
+                "trap '' HUP; echo $$ > {} ; exec sleep 1000",
+                ready.display()
+            ),
+        ]
+    }
+    fn ready_marker(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "steg-tab-close-ready-{}-{tag}.marker",
+            std::process::id()
+        ))
+    }
+
+    let first_ready = ready_marker("0");
+    let _ = std::fs::remove_file(&first_ready);
     let session = ok(runtime.handle(
         &api,
         &no_context(),
         &request(
             "session.new",
-            vec![("program", json!(["sh", "-c", "sleep 1000"]))],
+            vec![("program", json!(trapping_pane_program(&first_ready)))],
         ),
     ));
     let session_id: SessionId = id_of(&session).parse().unwrap();
@@ -621,9 +659,14 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
         default_tab: tab_id,
         default_pane: PaneId::from_raw(0),
     };
-    // Three more panes in the same tab, each its own real, silent
-    // program - `tab.close --force` has to end all four.
-    for _ in 0..3 {
+
+    // Three more panes in the same tab, each its own real program,
+    // trapping the polite signal too - `tab.close --force` has to end
+    // all four, every one by escalating.
+    let mut readies = vec![first_ready];
+    for i in 1..4 {
+        let ready = ready_marker(&i.to_string());
+        let _ = std::fs::remove_file(&ready);
         ok(runtime.handle(
             &api,
             &context,
@@ -632,11 +675,28 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
                 vec![
                     ("target", json!("1")),
                     ("direction", json!("right")),
-                    ("program", json!(["sh", "-c", "sleep 1000"])),
+                    ("program", json!(trapping_pane_program(&ready))),
                 ],
             ),
         ));
+        readies.push(ready);
     }
+    // Every pane must have reached its own trap+marker before forcing,
+    // the same race `pane::ending_tests`' own trapping test found and
+    // fixed the same way - and each marker's own content is that pane's
+    // real pid, read back for the dead-afterward check below.
+    let pids: Vec<u32> = readies
+        .iter()
+        .map(|ready| {
+            let pid = poll(|| {
+                std::fs::read_to_string(ready)
+                    .ok()
+                    .and_then(|text| text.trim().parse().ok())
+            });
+            let _ = std::fs::remove_file(ready);
+            pid
+        })
+        .collect();
 
     let start = std::time::Instant::now();
     ok(runtime.handle(
@@ -653,10 +713,20 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
     let elapsed = start.elapsed();
 
     assert!(
-        elapsed < Duration::from_secs(5),
-        "ending four panes at once took {elapsed:?} - the bound is one \
-         shared grace window, not one per pane"
+        elapsed < grace * 2,
+        "ending four trapping panes at once took {elapsed:?}, more than \
+         twice one grace window ({grace:?}) - the bound this task's own \
+         force_end gives is one shared window regardless of pane count, \
+         not `panes * grace`, which four of them would already exceed \
+         on its own ({:?})",
+        grace * 4
     );
+    for pid in &pids {
+        assert!(
+            !process_exists(*pid),
+            "pane with pid {pid} must actually be dead, not only removed from the tree"
+        );
+    }
     let sessions = ok(runtime.handle(&api, &no_context(), &request("session.list", vec![])));
     assert_eq!(
         sessions,
@@ -728,12 +798,17 @@ fn session_close_with_force_ends_every_pane_of_every_tab() {
 }
 
 #[test]
-fn pane_close_with_force_on_an_already_ended_pane_still_cleans_up_its_handle() {
-    // The idle-handle fix (TASK-1.78 §5, item 2): a plain close of a pane
-    // whose program had already ended used to leave its handle (and
-    // worker thread) behind forever - this proves the close succeeds and
-    // the pane is gone, exercising the same `close_and_dispatch` path a
-    // genuinely running pane does, just with nothing left to signal.
+fn pane_close_on_an_already_ended_pane_succeeds_without_force() {
+    // A plain close (no `--force`) of a pane whose program had already
+    // ended must succeed, not refuse - `ProgramRunning` only fires while
+    // something genuinely is. This is the externally-observable half;
+    // the idle-handle fix itself (TASK-1.78 §5, item 2 - a stale
+    // `PaneHandle` and its worker thread, never visible through this
+    // public API) is proven at the kernel-access level instead, in
+    // `src/runtime.rs`'s own `#[cfg(test)]` module, where `state.panes`
+    // can actually be read (DRAFT-1: this test's own assertions below
+    // would pass identically with or without that fix, so it is not
+    // offered as proof of it).
     let (runtime, api) = runtime();
     let session = ok(runtime.handle(
         &api,
@@ -860,7 +935,17 @@ fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
     // concurrency: two threads force the same pane at once - exactly one
     // of them actually ends the program (the other's own call either
     // lands first and does the real work, or lands second and finds the
-    // pane already gone) - never both signalling or both closing.
+    // pane already gone) - never both signalling or both closing. Stated
+    // plainly, not overclaimed (DRAFT-1): this holds because
+    // `close_and_dispatch` runs the whole of `panes_in_close_scope` +
+    // `dispatch::dispatch` under one `Mutex`, which already serialises
+    // the two callers regardless of close-first versus the first draft's
+    // own force-before-close order - it is `a_pane_being_forced_is_
+    // unreachable_by_another_request_meanwhile`'s own stall assertion,
+    // not this one, that close-first's negative control (§9) actually
+    // moves. This test still earns its place: the Mutex giving mutual
+    // exclusion is exactly what AC #4's "never both" needs, and nothing
+    // here depends on which lock-holding order produces it.
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
         LoginShell {

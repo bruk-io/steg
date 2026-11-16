@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:04:00Z'
+updated_date: '2026-11-16T01:05:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -24,9 +24,9 @@ doc-17 (R121, R122, the section 'The design, and where its values are today'), d
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 crates/ui/design/foundations.json holds every named value of the design's foundations under the design's own names: the 17 colours with their light and dark forms, the two ramps, type, sizes, corners, durations, both terminal themes with their 16 ANSI colours and base colours, and the focus ring's measurements; and it records the artifact version it was exported from (R121, R122)
+- [ ] #1 crates/ui/design/foundations.json holds every named value of the design's foundations under the design's own names: the colours with their light and dark forms, the two ramps, type, sizes, corners, durations, both terminal themes with their 16 ANSI colours and base colours, and the focus ring's measurements; and it records the artifact version it was exported from (R121, R122)
 - [ ] #2 Values the design's working data holds as sentences (type, sizes, the ramps, the themes' base colours) are given a structured form: each is a number with its unit, a colour, or a list of them, and nothing a program must parse out of prose. The plan lists each such value with the form it takes, for the engineer, and anything the design does not actually fix is listed as a question and not guessed
-- [ ] #3 The working data and the scripts that drew the design's pages have a durable home in the repository, with a README saying what they are and that the artifact is the source; a tested tool checks that every colour in the data file appears in the saved copy of the artifact's foundations page under the same name and value
+- [ ] #3 The working data and the scripts that drew the design's foundations pages, and the saved copies of those pages, have a durable home in the repository, with a README saying what they are, which are current and which are history, and that the artifact is the source
 - [ ] #4 No value is changed in the export: the pull request says so, and a reviewer can compare the data file with the artifact's pages by name
 <!-- AC:END -->
 
@@ -190,3 +190,15 @@ This check is deliberately narrower than TASK-1.94's ("checks that keep steg-ui'
 - No `generated.rs`, no Rust code at all (TASK-1.93).
 - No change to any value (AC#4) — the PR's diff should be readable name-by-name against this table for review.
 <!-- SECTION:PLAN:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T01:05:00Z
+
+---
+
+Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps the data file and the durable home for the design's working files (reviewed by reading). The tested tool that checks the data file against the saved pages moved to a new draft. Criterion 3 reworded to match; criterion 1 no longer says 17 colours, since the plan found the pages draw two more.
+
+---
+<!-- COMMENTS:END -->

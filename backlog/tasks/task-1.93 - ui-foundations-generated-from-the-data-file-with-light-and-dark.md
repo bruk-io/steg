@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=6,nit=1'
 asdlc_review_policies: ["review", "app"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1005,6 +1006,15 @@ Reviewed at PR #55 head d919cf45905c (matches the task's final recorded `just ch
 What I confirmed matches the notes (value-by-value, and by direct testing, not just reading): every colour/alias/opacity/ramp/tint/type/size/motion/theme/focus_ring value in generated.rs matches crates/ui/design/foundations.json exactly; AC#4's 54/54 name count (recounted the data file by hand and via `grep -c 'Design name:'`); R123 is a compile error, not a convention (scratch-edited a call to a private `*_dark`/`*_light` fn from outside `generated`, confirmed E0425, reverted); the hex->Hsla->rgb round trip is bit-exact for 4 sample hexes including a near-black surface and a saturated amber (scratch `#[test]`, reverted) - captured-pixel deviations from the hex (up to ~11/255 on saturated swatches) are screencapture colour management, consistent with this repo's own documented tolerance mechanism (`gallery.py`'s `shows_marker` tolerance=8), not a conversion bug; the staleness negative control (mutated one colour in a scratch copy of the data file, `just check-foundations` failed naming the fix, reverted, passed again, one-line diff); the generator is deterministic (`just generate-foundations` run against HEAD's own data file reproduced byte-identical `generated.rs`, sha256 match); 42 Python tests and 10 Rust tests pass as recorded; `just check` passes clean at this head; TASK-1.94's import-direction check (`ui_levels.py`) finds nothing wrong in this tree; `recipes.py`'s new "generate" verb and `check-foundations`'s new recipe are already covered by the existing real-justfile adapter test (no new test needed, the plan's risk didn't materialize); no boundaries/licence/security findings.
 
 plan-matched: no - explained departures (the module is `foundations_generate.py`, not the plan's `foundations.py`; `radius.round` became a plain `Pixels` const instead of the plan's marker type, reasoned from gpui's own source and recorded per the approval comment's request; the plan's named `resolve_for_appearance` multi-hop resolver doesn't exist, delegation happens one hop at a time through `Theme` methods instead) are all stated in the notes with reasons, but policy's --plan-matched is literal about any departure, explained or not.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T03:39:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.93: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-16T12:47:00Z'
+updated_date: '2026-11-16T13:50:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -52,7 +52,7 @@ Agents and scripts are the main users. A person at a prompt is served by the sam
 steg <noun> <verb> [target] [flags]
 ```
 
-- Every command has a noun and a verb. `steg <noun>` alone lists that noun's verbs, and `steg` alone lists the nouns.
+- Every command has a noun and a verb. `steg <noun>` alone lists that noun's verbs, and `steg` alone lists the nouns; both succeed, with status 0 (confirmed by Bruk on 2026-11-16 with TASK-1.49's plan: listing is what was asked for, so it is not a usage error).
 - The one positional is the target: the thing the verb acts on. No command has a second, with one exception: a program to run is given after `--`, as in `steg pane split -- htop -d 5`.
 - Everything else is a flag.
 - There are no aliases and no abbreviations: `steg pane list`, never `steg ls`.
@@ -291,7 +291,7 @@ Generated from the API, so this table describes the API as much as the CLI. Each
 | `setting set` | setting | `--value <text>`. The setting is named by the positional and its new value is the flag, since here the property is the thing addressed |
 | `setting unset` | setting | Clears the override, so the setting returns to its default |
 | `api list` | none | Every method, one per line |
-| `api show` | method | One method in full |
+| `api show` | method, or none | One method in full. With no target, the whole description |
 | `api call` | method | Parameters as JSON on standard input |
 | `version` | none | Not an API method; no server |
 | `completion` | shell | Not an API method; no server |

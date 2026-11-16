@@ -40,6 +40,16 @@ fn target_str(request: &Request) -> Option<&str> {
     param_str(request, "target")
 }
 
+/// Refused when a request gives no `target` at all, or a partial one that
+/// omits a part this connection has no default for (TASK-1.45 §1): bad
+/// usage (doc-2 section 6's status 2), not "matched nothing" - nothing was
+/// even looked up, since there was no id to look up with.
+fn missing_context(kind: &str) -> ApiError {
+    bad_request(format!(
+        "no target given, and this connection has no {kind} context to fall back on"
+    ))
+}
+
 /// Resolves `request`'s `target` as a session, falling back to
 /// `context.default_session` when it is left out.
 pub(crate) fn target_session(
@@ -49,7 +59,9 @@ pub(crate) fn target_session(
 ) -> Result<SessionId, ApiError> {
     match target_str(request) {
         Some(part) => resolve_session_str(tree, part),
-        None => Ok(context.default_session),
+        None => context
+            .default_session
+            .ok_or_else(|| missing_context("session")),
     }
 }
 
@@ -62,7 +74,7 @@ pub(crate) fn target_tab(
 ) -> Result<TabId, ApiError> {
     match target_str(request) {
         Some(part) => resolve_tab_str(tree, context, part),
-        None => Ok(context.default_tab),
+        None => context.default_tab.ok_or_else(|| missing_context("tab")),
     }
 }
 
@@ -75,7 +87,7 @@ pub(crate) fn target_pane(
 ) -> Result<PaneId, ApiError> {
     match target_str(request) {
         Some(part) => resolve_pane_str(tree, context, part),
-        None => Ok(context.default_pane),
+        None => context.default_pane.ok_or_else(|| missing_context("pane")),
     }
 }
 
@@ -158,23 +170,73 @@ fn resolve_session_str(tree: &Tree, part: &str) -> Result<SessionId, ApiError> {
     tree.resolve_session(part).map_err(map_kernel_error)
 }
 
-/// Resolves a tab from a target path given as a bare string.
+/// Whether `part` splits (on `/`) into exactly `n` segments, none of them
+/// empty - doc-2 section 4's own target grammar, structural only (never
+/// which *kind* of match a segment is: a full identifier, a label, a
+/// position, or an identifier suffix, which stays entirely the kernel's
+/// own job in `Tree::resolve_session`/`Session::resolve_tab`/
+/// `Tab::resolve_pane`). Used only to decide, before any kernel call,
+/// whether a default this connection might lack would actually be read -
+/// a review of this task's plan preferred deciding the missing part
+/// before the kernel is called, over passing a placeholder id and
+/// remapping its error, and this is knowable from the path's own shape
+/// and the context alone, with no kernel call needed to know it.
+fn segments_exactly(part: &str, n: usize) -> bool {
+    let parts: Vec<&str> = part.split('/').collect();
+    parts.len() == n && parts.iter().all(|segment| !segment.is_empty())
+}
+
+/// Resolves a tab from a target path given as a bare string. doc-2
+/// section 4's own grammar, `"[session/]tab"`: the session part is
+/// omitted only at exactly one well-formed segment, which is the only
+/// shape that ever reads `context.default_session` at all - confirmed by
+/// reading `Tree::resolve_tab_path`'s own `match` on the parsed path.
+/// Anything else (two well-formed segments, so the session is given
+/// explicitly; or a malformed path the kernel's own `split_path` refuses
+/// before ever touching the default) passes a value that is never read,
+/// so its absence never matters there - `SessionId::from_raw(0)` is as
+/// good a value as any for a branch proven not to read it.
 pub(crate) fn resolve_tab_str(
     tree: &Tree,
     context: &Context,
     part: &str,
 ) -> Result<TabId, ApiError> {
-    tree.resolve_tab_path(part, context.default_session)
+    let default_session = if segments_exactly(part, 1) {
+        context
+            .default_session
+            .ok_or_else(|| missing_context("session"))?
+    } else {
+        context.default_session.unwrap_or(SessionId::from_raw(0))
+    };
+    tree.resolve_tab_path(part, default_session)
         .map_err(map_kernel_error)
 }
 
-/// Resolves a pane from a target path given as a bare string.
+/// Resolves a pane from a target path given as a bare string. doc-2
+/// section 4's own grammar, `"[session/][tab/]pane"`: the session part is
+/// given only at exactly three well-formed segments (so `default_session`
+/// is read at one or two segments), and the tab part only at two or three
+/// (so `default_tab` is read only at exactly one) - the same reasoning
+/// [`resolve_tab_str`] already gives, confirmed the same way by reading
+/// `Tree::resolve_pane_path`'s own `match`.
 pub(crate) fn resolve_pane_str(
     tree: &Tree,
     context: &Context,
     part: &str,
 ) -> Result<PaneId, ApiError> {
-    tree.resolve_pane_path(part, context.default_session, context.default_tab)
+    let default_session = if segments_exactly(part, 1) || segments_exactly(part, 2) {
+        context
+            .default_session
+            .ok_or_else(|| missing_context("session"))?
+    } else {
+        context.default_session.unwrap_or(SessionId::from_raw(0))
+    };
+    let default_tab = if segments_exactly(part, 1) {
+        context.default_tab.ok_or_else(|| missing_context("tab"))?
+    } else {
+        context.default_tab.unwrap_or(TabId::from_raw(0))
+    };
+    tree.resolve_pane_path(part, default_session, default_tab)
         .map_err(map_kernel_error)
 }
 
@@ -272,5 +334,189 @@ mod tests {
         let nonexistent = PaneId::from_raw(999_999);
 
         assert!(!any_pane_running(&tree, &[nonexistent]));
+    }
+
+    // --- Context::none() and the missing-context refusal (TASK-1.45 §1) --
+
+    use super::{resolve_pane_str, resolve_tab_str, target_pane, target_session, target_tab};
+    use crate::dispatch::Context;
+    use serde_json::{Map, json};
+    use steg_kernel::Tree;
+    use steg_sdk::Request;
+
+    /// A tree with one real session, tab and pane - `Tree::new`'s own
+    /// deterministic ids - so a test can tell "the real one" apart from
+    /// `Context::none()`'s own absence.
+    fn tree_with_one_of_each() -> (Tree, super::SessionId, super::TabId, super::PaneId) {
+        let mut tree = Tree::new();
+        let session = tree.new_session(None).unwrap();
+        let tab = tree.session(session).unwrap().tabs()[0].id();
+        let pane = tree.session(session).unwrap().tabs()[0].panes()[0].id();
+        (tree, session, tab, pane)
+    }
+
+    fn request_with_target(target: &str) -> Request {
+        let mut params = Map::new();
+        params.insert("target".to_string(), json!(target));
+        Request {
+            method: "irrelevant.for.this.test".to_string(),
+            params,
+        }
+    }
+
+    fn request_with_no_target() -> Request {
+        Request {
+            method: "irrelevant.for.this.test".to_string(),
+            params: Map::new(),
+        }
+    }
+
+    #[test]
+    fn a_target_less_request_from_context_none_is_bad_request_for_every_part() {
+        let (tree, _session, _tab, _pane) = tree_with_one_of_each();
+        let context = Context::none();
+        let request = request_with_no_target();
+
+        assert_eq!(
+            target_session(&tree, &context, &request).unwrap_err().code,
+            ErrorCode::BadRequest
+        );
+        assert_eq!(
+            target_tab(&tree, &context, &request).unwrap_err().code,
+            ErrorCode::BadRequest
+        );
+        assert_eq!(
+            target_pane(&tree, &context, &request).unwrap_err().code,
+            ErrorCode::BadRequest
+        );
+    }
+
+    /// The negative control for the test above, read the other way: a real
+    /// default (not `Context::none()`) is still answered, unaffected -
+    /// pins that the refusal is about *absence*, not about target-less
+    /// requests in general.
+    #[test]
+    fn a_target_less_request_with_a_real_context_still_resolves() {
+        let (tree, session, tab, pane) = tree_with_one_of_each();
+        let context = Context {
+            default_session: Some(session),
+            default_tab: Some(tab),
+            default_pane: Some(pane),
+        };
+        let request = request_with_no_target();
+
+        assert_eq!(target_session(&tree, &context, &request), Ok(session));
+        assert_eq!(target_tab(&tree, &context, &request), Ok(tab));
+        assert_eq!(target_pane(&tree, &context, &request), Ok(pane));
+    }
+
+    #[test]
+    fn a_fully_explicit_target_resolves_from_context_none_unaffected() {
+        let (tree, session, tab, _pane) = tree_with_one_of_each();
+        let context = Context::none();
+        let full_path = format!("{session}/{tab}");
+
+        assert_eq!(resolve_tab_str(&tree, &context, &full_path), Ok(tab));
+    }
+
+    /// The same claim, one level further: a fully explicit pane path
+    /// (session, tab and pane all named) never touches either sentinel,
+    /// even with no context at all.
+    #[test]
+    fn a_fully_explicit_pane_target_resolves_from_context_none_unaffected() {
+        let (tree, session, tab, pane) = tree_with_one_of_each();
+        let context = Context::none();
+        let full_path = format!("{session}/{tab}/{pane}");
+
+        assert_eq!(resolve_pane_str(&tree, &context, &full_path), Ok(pane));
+    }
+
+    /// A partial target (just the tab) that omits the session part it
+    /// would need, from a connection with no session context: refused the
+    /// same way as giving no target at all, not "session not found" about
+    /// a number nobody named.
+    #[test]
+    fn a_partial_tab_target_omitting_the_session_part_from_context_none_is_bad_request() {
+        let (tree, _session, tab, _pane) = tree_with_one_of_each();
+        let context = Context::none();
+
+        let error = resolve_tab_str(&tree, &context, &tab.to_string()).unwrap_err();
+        assert_eq!(error.code, ErrorCode::BadRequest);
+    }
+
+    /// The decision is made from the path's own shape before the kernel
+    /// is ever called (no sentinel id exists to leak, by construction -
+    /// confirmed here rather than only argued): a path with too many
+    /// segments for a tab (three) is refused by the kernel's own
+    /// `InvalidTargetPath`, never `missing_context`'s `BadRequest` about
+    /// an absent default - even from a `Context::none()` connection,
+    /// where naively treating "no default" as the reason for any failure
+    /// would have given the wrong answer.
+    #[test]
+    fn a_malformed_tab_target_from_context_none_is_the_kernels_own_error_not_missing_context() {
+        let (tree, session, tab, pane) = tree_with_one_of_each();
+        let context = Context::none();
+
+        let path = format!("{session}/{tab}/{pane}");
+        let error = resolve_tab_str(&tree, &context, &path).unwrap_err();
+        // InvalidTargetPath also maps to BadRequest (kernel_error.rs), the
+        // same code missing_context uses - the code alone cannot tell
+        // these apart, so the message is what actually proves this is
+        // the kernel's own too-many-segments refusal (its own exact
+        // Display text, `error.rs`), not missing_context's.
+        assert_eq!(error.code, ErrorCode::BadRequest);
+        assert_eq!(
+            error.message,
+            format!("{path:?} is not a valid target path")
+        );
+    }
+
+    /// The pane equivalent, omitting both the session and tab parts (a
+    /// bare pane id) with a real `default_session` but no `default_tab` -
+    /// the session resolves for real, then the tab lookup is the one that
+    /// hits the missing default.
+    #[test]
+    fn a_partial_pane_target_omitting_the_tab_part_from_context_with_no_tab_is_bad_request() {
+        let (tree, session, _tab, pane) = tree_with_one_of_each();
+        let context = Context {
+            default_session: Some(session),
+            default_tab: None,
+            default_pane: None,
+        };
+
+        let error = resolve_pane_str(&tree, &context, &pane.to_string()).unwrap_err();
+        assert_eq!(error.code, ErrorCode::BadRequest);
+    }
+
+    /// `target_tab`/`target_pane` themselves (not just the lower-level
+    /// `resolve_*_str` they call) still answer a fully-explicit target
+    /// correctly from a `Context::none()` connection - the same claim as
+    /// the two tests above, through the entry point a dispatch arm
+    /// actually calls.
+    #[test]
+    fn target_tab_and_target_pane_resolve_a_fully_explicit_target_from_context_none() {
+        let (tree, session, tab, pane) = tree_with_one_of_each();
+        let context = Context::none();
+
+        let tab_request = request_with_target(&format!("{session}/{tab}"));
+        assert_eq!(target_tab(&tree, &context, &tab_request), Ok(tab));
+
+        let pane_request = request_with_target(&format!("{session}/{tab}/{pane}"));
+        assert_eq!(target_pane(&tree, &context, &pane_request), Ok(pane));
+    }
+
+    /// A genuinely wrong, fully-explicit target from a `Context::none()`
+    /// connection still gets the real kernel error about the id the caller
+    /// actually typed, never the missing-context refusal - the sentinel's
+    /// own remapping must not swallow a real `NoSuchTarget`.
+    #[test]
+    fn a_wrong_but_fully_explicit_target_from_context_none_is_a_real_not_found() {
+        let (tree, session, _tab, _pane) = tree_with_one_of_each();
+        let context = Context::none();
+        let wrong_tab = super::TabId::from_raw(999);
+
+        let error =
+            resolve_tab_str(&tree, &context, &format!("{session}/{wrong_tab}")).unwrap_err();
+        assert_eq!(error.code, ErrorCode::NoSuchTarget);
     }
 }

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:06:00Z'
+updated_date: '2026-11-16T04:18:00Z'
 labels:
   - size-2
   - changes-requested
@@ -23,8 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=2,nit=0'
+asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
 ---
 
@@ -264,6 +264,257 @@ Coverage, clause by clause (every proof item from the plan is in the test files 
 One correction to the plan's own text, discovered during build (not a scope change - substance unchanged, just an internal inconsistency in my own planning prose): the plan said the reverse-direction allow-list "starts empty... everything on Tokens/Details maps to a file entry today." That's wrong by one entry: the Sizes table's "radius" row has no exact file key (file has radius.surface/track/inner/round, none spelled "radius"), so REVERSE_ALLOW_LIST contains exactly {"radius"} today, not nothing - the same radius.* exception the plan's Tier C section already discusses, just restated correctly for the reverse-direction registry specifically. No other reverse-direction surprises found; every other page name (17 colours, 16 type/size names, 32 ANSI names after underscore/space translation) matches a file key exactly, verified both by the adapter test and by hand against the real files during planning.
 
 PR: https://github.com/bruk-io/steg/pull/54 (head dcbeaf2, CI green).
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T03:17:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 7152cd7a370a with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpYK1CIf` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+..................................................                       [100%]
+50 passed in 0.38s
+```
+
+Commits since the review: 10, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:18:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 7152cd7a370a with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.5s)
+ok      architecture (1.4s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 10, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:19:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (4.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.6s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 80, 79 without the Asdlc-Worker trailer.
+
+Review findings addressed (@bruk.r1, 3 Important, PR 54 at pushed head dcbeaf2):
+
+1. The engineer's decisions (task comments #2/#3) are now in: design/canvas/project/Tokens.dc.html replaced byte-for-byte with the saved .../design-artifact-pages-1794796789-1b13/Tokens.dc.html (checksum 765c9e4e535e2af92d16d403ed9cd61751bc0c3b79e8b36adeacae85712bac4d confirmed both sides). crates/ui/design/foundations.json's diff is exactly the two lines promised (artifact_version; fill.quiet.use). track moved from TIER_C_SKIPS to Tier A (18 of 18 colours, no exception left; EXPECTED_SHAPES' Tokens colours minimum 17->18). The corner map (RADIUS_MAP: radius.surface/track/inner -> the page's one merged "radius" row, 14/10/8) replaces the three sizes.radius.* TIER_C_SKIPS entries; radius.round stays declared unseen. REVERSE_ALLOW_LIST went back to empty: reverse_missing now takes an explicit `allow` parameter and main() unions REVERSE_ALLOW_LIST with RADIUS_MAP.values(), so "radius" is matched through the map, not excused by a separate allow-list entry. Both READMEs updated (design/canvas/README.md's version note; a new section in crates/ui/design/README.md on steg-design-check's coverage and the field-blind caveat).
+
+2. The number check's field-blindness (reviewer's own negative control: swapping tab.width's usual/min left the same two numbers present and still passed) is tightened via FIELD_WORD_MAPS/RADIUS_WORD_MAP: a field's number is tied to the word that follows it in the page's own sentence (`_word_tied_number`/`_tightened_mismatches`), for every field whose clause has exactly one number followed by a distinguishing word - tab.width (all 3 fields), nav.side/nav.top/pane.gap/sizes.palette/status.ring (some fields), the three radius corners (RADIUS_WORD_MAP). Every field not covered this way stays on the weaker "present somewhere" check, now stated in main()'s own passing stdout and in crates/ui/design/README.md's new section, not only the module docstring.
+
+3. focus_ring.width/offset (neither checked nor declared unseen) are now in TIER_C_SKIPS, along with focus_ring.colour, themes[].cursor, and the top-level session_colour - three more occurrences of the literal "session" sentinel the same gap could have hidden, found while building `unaccounted_names()`: enumerates every leaf key of the data file against TIER_B_NAMES/RADIUS_MAP/TIER_C_SKIPS, wired into main() as its own refusal (not just a test), so a key added later can't fall through both silently.
+
+Checks (all exit 0, recorded on the task):
+- Unit+adapter: 50 tests (tools/tests/unit/test_design_pages.py, tools/tests/adapter/test_design_pages_real_workspace.py) - new tests for the tab.width swap (both as a synthetic fixture and against the real file), the FIELD_WORD_MAPS fallback case, unaccounted_names and its required negative control (removing one TIER_C_SKIPS entry makes exactly that key unaccounted), and the radius-map's own negative control.
+- just check at the merged final head (8626dc6), after fetching and merging origin/main (branch already pushed, so merged not rebased) - clean, no conflicts: TASK-1.93/1.94/1.97 still hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs as of this head, confirmed again before pushing.
+- CI green on PR 54 at head 8626dc6: gh pr checks 54 --watch, check passed in 2m43s.
+
+Tool's own output against the real files today: "ok (18 colours, 19 type/size entries, 32 ANSI colours checked)" plus the field-blind caveat (13 fields tightened) and 26 declared-unseen entries - full text in the PR description.
+
+TASK-1.94's steg_tools.foundations.read() still hadn't merged to origin/main as of this head (checked again), so the private _read_data_file shim stays; the swap-over remains a named follow-up in the module docstring and PR body.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head 8626dc6, CI green).
+
+Check FAILED: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-old-unaccounted-names-negative-control.py crates/ui/design/foundations.json` exited 1 at 2026-11-16T03:48:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474 with uncommitted changes:
+
+```text
+baseline (unmodified real file) unaccounted: ()
+themes[0]['underline'] added, OLD implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed themes[0]['underline'] - review finding (@bruk.r5) confirmed
+focus_ring['glow'] added, OLD implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed focus_ring['glow'] - review finding (@bruk.r5) confirmed
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T03:48:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpxQvYnQ` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+............................................................             [100%]
+60 passed in 0.26s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:49:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 8626dc6a9474 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (5.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.5s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:50:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 320b9d785a96:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (3.9s)
+ok      test (steg-server, race-fixture) (4.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.4s)
+ok      architecture (0.8s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 39, 38 without the Asdlc-Worker trailer.
+
+Review finding (@bruk.r5, 1 Important) addressed: unaccounted_names enumerated themes[]/focus_ring leaf keys from a fixed field tuple, never from the data file's own keys. The reviewer's own reproduction (focus_ring["glow"]=3, themes[0]["underline"]="#fff" on a scratch copy) printed "ok" and exited 0, silently missing both.
+
+Fixed: unaccounted_names rewritten to walk the parsed JSON generically (_leaf_paths): a dict's keys become path.key (skipping a small universal set - name/use/unit/ansi/artifact_version/artifact_url - never a per-section list); a list of dicts each carrying their own "name" is a list of named entries, recursing into each (_entry_path also handles motion's self-prefixed names generically, not as a special case); anything else reached this way is one leaf. A leaf is accounted for if it equals, or is a dotted descendant of, some registered name (_is_accounted_for) - a descendant is accounted for because the checking function that name stands for already recurses the whole value (_numbers_in sees every number under e.g. sizes.nav.side), so nothing numeric there goes uninspected; a new non-numeric field added the same way is a known, accepted gap, now stated in crates/ui/design/README.md, not a silent one.
+
+Consequences: the five themes[].X wildcard skip entries became ten per-instance entries (themes.steg dark.bg, themes.steg light.bg, etc.) - a generic walk can't collapse two theme instances into one pattern without the per-section special-casing the finding rejects. ramps.ramp.caption_opacity became unreachable (its parent ramps.ramp already covers it via the prefix rule) and was folded into that entry's reason text rather than left dead.
+
+"Inside a size's group" (one of the team lead's listed test levels) is read as: a new numeric field inside an already-checked whole value (e.g. sizes.nav.side) is accounted for by its covering ancestor, per the _numbers_in reasoning above - this is a chosen reading, not something the literal review reproduced (which covered only themes[]/focus_ring), flagged as such rather than assumed. Tested explicitly both ways (the numeric case not refused; the non-numeric case documented as a known gap, also not refused).
+
+Checks (recorded on the task):
+- Negative control, recorded not claimed: a scratch script (/private/tmp/.../task-1.96-old-unaccounted-names-negative-control.py) runs a verbatim copy of the pre-fix implementation against the real data file with both of the reviewer's mutations applied - exits 1, printing that it silently missed both, confirming the bug before the fix.
+- Unit+adapter: 60 tests (up from 50) - new: the reviewer's own two reproductions re-run directly against the real file; one test per nesting level (top-level key, directly inside sizes, inside a theme, inside focus_ring, a new list entry); the numeric/non-numeric "inside a group" pair; two property-style tests over every real leaf path of the current file (split by checked vs declared-unseen), each confirming that removing a registry entry which alone covers a leaf makes that leaf show up named.
+- just check at the merged final head (320b9d7), after fetching and merging origin/main (branch already pushed) - clean, no conflicts; TASK-1.93/1.94/1.97 still hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs.
+- CI green on PR 54 at head 320b9d7: gh pr checks 54 --watch, check passed in 3m58s.
+
+Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked) - only the printed reasons for ramps.ramp (folds in caption_opacity) and the themes lines (now per-instance) changed; full text in the PR description.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head 320b9d7, CI green).
+
+Check FAILED: `sh -c 'cd tools && uv run --project . python "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-string-prefix-negative-control.py" "/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.96-prev-design-pages.py" ../crates/ui/design/foundations.json'` exited 1 at 2026-11-16T04:18:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 320b9d785a96 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpvd42Xg` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+baseline (unmodified real file) unaccounted: ()
+sizes['palette.footer']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed sizes['palette.footer']
+type['terminal.bold']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed type['terminal.bold']
+sizes['nav.side.extra']: OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed sizes['nav.side.extra']
+ramp named 'ramp.secondary': OLD (string-prefix) implementation reports: ()
+BUG REPRODUCED: the OLD implementation silently missed ramp named 'ramp.secondary'
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --project . pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q'` exited 0 at 2026-11-16T04:18:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 320b9d785a96 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpVyiBXs` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+...................................................................      [100%]
+67 passed in 0.30s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T04:18:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.96 on task-1.96-tools-check-the-design-s-data-file at 3e4626128b29 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (4.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.0s)
+ok      test (steg-server, race-fixture) (4.2s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (1.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 24, 24 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -332,6 +583,94 @@ What I verified clean, with my own negative controls (via --data-file scratch co
 - Repeated both of the plan's own required negative controls myself (changed value refused naming both forms; removed value reported missing) - both reproduced.
 
 Unmet: AC#1 (track and the three corners, per the engineer's decisions), AC#3 (focus_ring.width/offset silently uncovered; the README caveat never added). AC#2's tests/negative-controls/CI wiring are all present and I reproduced them.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:23:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:31:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Reviewed PR #54 at its pushed head 8626dc6 (matches the task's recorded `just check` and PR CI green, 2m43s - confirmed again via `gh pr checks 54`). Verdict: changes requested.
+
+This is the second review (after @bruk.r1's changes-requested at dcbeaf2). All three of that review's findings are now fixed and verified by my own reproduction:
+- The engineer's decisions (comments #2/#3) are in the pushed head: design/canvas/project/Tokens.dc.html is byte-for-byte the saved page at artifact version 1794796789-1b13 (checksum 765c9e4e535e2af92d16d403ed9cd61751bc0c3b79e8b36adeacae85712bac4d confirmed both sides); the data file's diff against main is exactly artifact_version and fill.quiet.use, no colour changed; Layout.dc.html and Details.dc.html are unchanged (still an earlier artifact version, and both READMEs say so plainly); track has a row on Tokens.dc.html and is Tier A (18/18, EXPECTED_SHAPES minimum 17->18); both READMEs updated.
+- The corner map: radius.surface/track/inner each check against the merged "radius" row via RADIUS_MAP/RADIUS_WORD_MAP. I changed each corner individually in a scratch copy of foundations.json: each refused, naming the value and the tied word. I swapped radius.surface/track's values: both refused (field-tied mismatch). radius.round stays in TIER_C_SKIPS with a reason; REVERSE_ALLOW_LIST is empty, "radius" is matched through RADIUS_MAP.values(), not a separate exemption.
+- Field tightening: read FIELD_WORD_MAPS/RADIUS_WORD_MAP against the real page text for every Tier B sizes row (nav.side, nav.top, tab.width, pane.gap, palette, status.ring, radius) - each tightened field's word correctly follows its number in a single-number clause of the page's own sentence; every field left on the weak check has its word either preceding its number or sharing a clause with another number (e.g. nav.top's tab_height/track_inset, nav.side's row_height/tab_indent, pane.gap's grabbed), matching what the code and its comments claim. I reproduced the swap of tab.width's usual/min (refused), swapped radius.surface/track (refused), and swapped nav.side's two untightened fields row_height/tab_indent (passes, as documented - field-blind by design for fields the sentence doesn't let you tie cleanly). The tool's own passing stdout and crates/ui/design/README.md both state which fields are tightened and which stay weak, matching the plan's instruction. `_word_tied_number` returns None (falls back to the weak check, not a mismatch) when no single-number clause contains the word, so a reordered sentence degrades gracefully rather than producing a false refusal - checked by reasoning through every FIELD_WORD_MAPS/RADIUS_WORD_MAP entry against the real page text, no case where a correct file would be refused.
+- Completeness (AC#3): I enumerated every leaf key of the real crates/ui/design/foundations.json by hand (colours: 18, colour_aliases: 3, opacities: 1, ramps: 2 + caption_opacity, tint, motion: 1, type: 7, sizes: 18, themes[0]: ansi/name structural + 5 fields, focus_ring: 4 fields + unit, session_colour) and compared against TIER_B_NAMES/RADIUS_MAP (checked) plus TIER_C_SKIPS (declared unseen): every key is accounted for today, including focus_ring.width/offset (the first review's finding #3), now in TIER_C_SKIPS along with focus_ring.colour, themes[].cursor and session_colour. Adding an unknown sizes key to a scratch copy (sizes.new_thing) is correctly refused by name.
+
+New Important finding, found by my own negative control, not reasoning alone:
+
+[Compliance, Important] tools/src/steg_tools/design_pages.py:518-525 (`unaccounted_names`) enumerates `themes[]` and `focus_ring` leaf keys from a fixed field tuple (`("bg","fg","bg_inactive","selection","cursor")` / `("width","offset","colour","corner_radius_addition")`), never from the data file's own keys the way `type`/`sizes`/`colour_aliases`/`opacities`/`ramps`/`motion` are (those walk `data.get(...)` directly). I added `focus_ring["glow"] = 3` and `themes[0]["underline"] = "#fff"` to a scratch copy of the real foundations.json and ran `steg-design-check --data-file <scratch>`: it printed "ok (18 colours, 19 type/size entries, 32 ANSI colours checked)" and exited 0, silently missing both new keys. This directly contradicts what is committed: crates/ui/design/README.md's new section says the test "enumerates every leaf key of this file and asserts each one is either checked or in that declared list, so a key added here later cannot fall through both silently"; the module's own docstring and the PR description make the same claim. It is also the same category of gap @bruk.r1's finding #3 on this same task already caught (focus_ring.width/offset silently uncovered) - that finding was fixed by naming the two specific keys in TIER_C_SKIPS, not by making the enumeration mechanism genuinely exhaustive for those two sections, so the next field added to either section falls through the same way. AC#3 requires everything the tool cannot see to be named so a pass is never read as more than it is; for themes[] and focus_ring, a future field is not named and not refused.
+
+What I verified clean, with my own negative controls (via --data-file scratch copies and in-worktree page mutations, all reverted; worktree left clean):
+- CI green on PR #54 at head 8626dc6 (gh pr checks: pass, 2m43s); `uv run --project tools pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q`: 50 passed, at this same head.
+- Parser regression: renaming "Used for" to "Used For" in a working-copy edit of the real Tokens.dc.html (reverted via git checkout) breaks both colour tables' header match and correctly triggers the EXPECTED_SHAPES refusal ("found 0 colours rows, expected at least 18") rather than a silent pass; the script-block-only colour (`off`) fixture is still excluded by construction (rendered_body never includes the script tag).
+- Size/approval: size-2, "Plan approved by @bruk (d2f87de12c3c, size-2)" present and digest matches "Built per the approved plan (digest d2f87de12c3c)".
+- Private reader (_read_data_file): TASK-1.94 (PR 52) is still "changes-requested"/In Progress on origin/main, so the shim is still correctly in place; marked for removal in its own docstring and the PR body.
+
+Nit:
+
+[Compliance, Nit] TASK-1.93's branch (PR 55, head d919cf4) generates crates/ui/src/foundations/generated.rs with both `artifact_version` baked into its header comment (generated.rs:2, "1794791991-5d11") and fill.quiet's stale "use" text baked into a per-field doc comment (generated.rs:211, "progress track"), both of which this task's data-file change supersedes (1794796789-1b13; "Key caps, a button under the pointer" - confirmed by reading generated.rs at that head). The task's own notes record only that TASK-1.93 "hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs" - a textual-conflict check - not that a semantic regeneration will be required once either branch lands second. No action is needed from this task: TASK-1.93's own `is_stale` check (tools/src/steg_tools/foundations_generate.py) will refuse and force a regeneration when it rebases onto main after this merges, and this task does not touch that generator or generated.rs. Flagging only so whoever merges either PR knows to expect that check to fire on the other.
+
+Plan-matched: no, by the mechanical rule (the plan's "Module shape" file list names design_pages.py/pyproject.toml/justfile/tests - never Tokens.dc.html, foundations.json, or either README) - but the task's notes and task comments #2/#3 fully explain the departure (the engineer's decisions after plan approval), so per review policy this is not itself a finding.
+
+Unmet: none of AC#1/AC#2's requirements - all reproduced. AC#3 is not fully met: the enumeration mechanism (unaccounted_names) does not live up to its own documented claim for themes[]/focus_ring, per the Important finding above.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:55:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T04:06:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Third review (after @bruk.r1 at dcbeaf2, @bruk.r5 at 8626dc6). Reviewed PR #54 at its pushed head 320b9d7 (matches the task's recorded `just check` and `gh pr view`'s statusCheckRollup SUCCESS at headRefOid 320b9d785a969d04706f5ed66f8a6dc8fbe32b53; I also reran `just check` myself in the review worktree at this head: clean). Verdict: changes requested.
+
+Round 2's finding (unaccounted_names enumerated themes[]/focus_ring from a fixed tuple) is genuinely fixed for that literal reproduction, and I reproduced the fix: a new top-level key, a new sizes key, a new theme field, a new focus_ring field, and a new colour_aliases entry are all correctly refused by unaccounted_names. The data file's diff against main is still exactly the version line and fill.quiet.use; Tokens.dc.html, the tab.width swap, and the radius-corner swap all still refuse correctly (I reran both swaps myself: tab.width.usual/min and radius.surface/radius.track, both refused naming the tied word). 60 unit+adapter tests pass. The tool's passing stdout matches the PR description byte for byte.
+
+New Important finding, found by my own negative controls against the real data file through the actual CLI (`steg-design-check --data-file <scratch>`), not reasoning alone:
+
+[Bugs/Compliance, Important] tools/src/steg_tools/design_pages.py:547-554 (`_is_accounted_for`) matches "dotted descendant" by plain string prefix, not by whole path segments - and the data file's own keys routinely contain a literal "." inside one segment (`font.ui`, `nav.side`, `radius.surface`, `ramp`/`ramp.extended`). A new sizes/type key, or a new list entry, whose name textually extends an already-registered name is swallowed as if it were a field nested inside that name, and reaches no check at all. Confirmed with four scratch `--data-file` runs against the real file, each exiting 0 "ok" with the new key entirely unverified and unmentioned:
+- sizes["palette.footer"] = 10 (new sibling sizes key, textually extends registered "sizes.palette")
+- type["terminal.bold"] = {...} (extends registered "type.terminal")
+- sizes["nav.side.extra"] = 7 (extends registered "sizes.nav.side")
+- ramps.append({"name": "ramp.secondary", "use": "...", "stops": [...]}) - a plausible future ramp, following the file's own existing naming (ramp, ramp.extended); extends registered "ramps.ramp" because `_entry_path`'s self-prefix check only strips the plural "ramps." (the list's own path), leaving the entry's own name free to collide with the sibling "ramp"/"ramp.extended" registrations
+This directly falsifies the claim stated in the module docstring, crates/ui/design/README.md, and the PR description ("a genuinely new key - at any level that isn't already inside a checked whole value - cannot fall through both silently"): each of the four is a new key, not nested inside an already-covered whole value, yet falls through silently. My prefix-collision probes that lacked an internal dot (sizes["radius.surface2"], sizes["nav.sidekick"], sizes["palettex"]) were correctly refused - which is what made the bug look like whole-segment matching at first; it is specifically names containing their own "." that collide.
+The property-style tests added this round (test_property_removing_any_declared_unseen_entry_flags_every_leaf_it_alone_covered / ..._checked_entry...) cannot catch this class of defect by construction: their universe of leaves is generated by `design_pages._leaf_paths(data, "")` itself, the same function that has the bug, so a leaf the walker absorbs under the wrong ancestor never enters the universe either test iterates over - and the adapter's `unaccounted_names(data) == ()` assertion is checking the registry against the walk, never the walk against the file. This is round 2's finding one level removed: a mechanism documented as exhaustive, tested only against its own output.
+
+[Compliance, Important] A new field added to an existing colour entry is checked by nothing, in either direction: `colour_mismatches` (Tier A) reads only entry["dark"]/entry["light"], never the whole entry, and `unaccounted_names` treats any field under a registered colour name as an accounted-for descendant regardless. Confirmed: data["colours"][0]["contrast"] = 1.5 on a scratch copy of the real file -> exits 0 "ok", output otherwise identical to the real file's. `_is_accounted_for`'s own docstring and crates/ui/design/README.md justify absorbing a descendant leaf by "the checking function that name stands for already recurses the whole value (_numbers_in sees every number under it)" - true for Tier B, false for Tier A, and this specific gap is not disclosed anywhere: the README's one stated "accepted gap" is scoped to a non-numeric field inside an already-checked sizes group, and separately claims colours are checked "exactly" with no caveat. I also ran the one case this reasoning predicts is safe, to confirm rather than assume: a brand-new ansi colour added to a theme (themes[0]["ansi"]["bright_pink"] = "#ff00ff") is excluded from the leaf walk (_NOT_A_LEAF_PATH includes "ansi") but is independently caught by `ansi_mismatches`, which iterates theme["ansi"].items() directly from the data rather than a fixed name list - confirmed refused via main(), exit 1, naming "steg dark.bright_pink". So the ansi exclusion is sound; the colour-field gap is not.
+
+What I verified clean, reproduced myself: the fixed themes[]/focus_ring enumeration (5 new-field cases above), the tab.width field-swap and radius-corner-swap negative controls, the real data file's diff against main (version + one description line), 60 tests passing, `just check` green at head 320b9d7, CI SUCCESS at the same head via `gh pr view --json statusCheckRollup`, the tool's passing stdout matching the PR body, and the new-ansi-key case (correctly refused, not a gap).
+
+Plan-matched: no, same basis as round 2 (the plan's file list never named Tokens.dc.html/foundations.json/either README) - explained on the task by comments #2/#3, so not itself a finding, per policy.
+
+Unmet: AC#3 again - the registry/walk pair still does not live up to its own documented exhaustiveness claim, now for a different and broader class of key (any dotted-name collision in sizes/type/ramps, not just themes[]/focus_ring) than round 2 found.
 
 ---
 <!-- COMMENTS:END -->

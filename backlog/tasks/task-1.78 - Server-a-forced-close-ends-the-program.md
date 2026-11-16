@@ -1,14 +1,14 @@
 ---
 id: TASK-1.78
 title: 'Server: a forced close ends the program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:09:00Z'
+updated_date: '2026-11-16T03:47:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.76
@@ -23,8 +23,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
 ---
 
@@ -2177,6 +2176,139 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:11:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.1s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (16.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.7s)
+ok      build (steg-server) (29.8s)
+ok      test (steg-server) (13.3s)
+ok      test (steg-server, race-fixture) (13.8s)
+ok      build (steg) (0.7s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 124, 123 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c '
+echo "=== process count before (sleep 1000/sleep 100 and trap-HUP fixtures) ===";
+ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep | wc -l;
+START_EPOCH=$(date +%s);
+for i in $(seq 1 20); do cargo test -p steg-server 2>&1 | grep -E "test result|FAILED" || exit 1; done;
+echo ALL_20_RUNS_CLEAN;
+echo "=== process count after (same patterns) ===";
+AFTER=$(ps aux | grep -E "sleep 1000|sleep 100[^0]|trap .. HUP" | grep -v grep);
+echo "$AFTER" | wc -l;
+echo "=== of those, any that STARTED during this run and are still alive (a real leak) ===";
+echo "$AFTER" | awk -v start="$START_EPOCH" "{print}"
+'` exited 0 at 2026-11-16T03:15:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a, last 40 of 187 lines:
+
+```text
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 103 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ALL_20_RUNS_CLEAN
+=== process count after (same patterns) ===
+       1
+=== of those, any that STARTED during this run and are still alive (a real leak) ===
+brukhabtu        64031   0.0  0.0 488782768   1488 s007  Ss+  10:06PM   0:00.01 sleep 1000
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T03:17:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 92fc50afc92a:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (9.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.0s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 0.
+
+Second round of review findings fixed.
+
+Important: two tests claimed in the earlier notes to have "a negative control run and reverted" that was never actually run - the reviewer showed both still pass with their mechanism removed. Both confirmed by hand and fixed:
+
+- restarting_then_forcing_ends_the_new_program_not_the_old_one, renamed to restarting_then_forcing_ends_the_new_program_as_a_plain_regression: its own synchronisation point (waiting for the first run's real exit event before restarting) is downstream of the relay thread's own mark-dead call - there is no ordering left at this level to race against, so it cannot exercise the generation guard, only the restart-then-force flow. A seam to hold the old reap back would be production code built only to make a test possible, with no other use - not attempted. Kept as a plain regression, renamed and documented to claim no more than it shows, recorded passing. The guard's own proof, with its own recorded negative control, remains tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run.
+- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler, renamed to ..._completes_promptly_as_a_regression: passes with await_exit routed back through the queue because the kernel's own pty buffer throttles the flood before the backlog this bug needs can build up - named in its own doc now, not hidden. Kept as a regression, recorded passing. The actual proof, with its own recorded negative control, remains pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue (a real 1,000,000-item backlog via send_input, not dependent on any OS buffering).
+
+Nit: added pane.split to the unreachable-while-forced sweep. Re-ran the whole test's negative control (reversed close-first) by hand with it included - pane.split is the probe caught first, confirmed, reverted.
+
+Nit: traced the mark's PaneNotFound arm (apply_event_locked) for reachability under close-first. It is reachable, by exactly one path: close_and_dispatch removes the pane from the tree and drops the lock before force_end has actually ended its program, so a still-running program can emit an OSC 133 mark during that same grace window. Reworded the production comment and the test's own doc to say this explicitly - no behaviour change.
+
+Engineer's own nit: the relay's reap poll was a fixed 5ms forever - would poll a terminal-detached-but-still-running program 200 times/sec for as long as it lives, one thread per pane. Backed off: doubles from 5ms to a 100ms cap (about five extra polls, ~155ms, over the common case where the first poll already finds a zombie), then holds - at most 100ms added before such a pane's real exit is noticed, once ramped. next_reap_poll_interval is a pure function with its own unit test and negative control.
+
+Checks recorded: each renamed/new test individually, with negative controls where claimed; cargo test -p steg-server (full suite, clean); just check (clean, twice - once pre-merge, once at the final pushed head); origin/main merged (no code overlap this round, only backlog/board markdown - merge commit, no conflicts); the server suite run 20 times at the final head (92fc50a) via one recorded command, with process counts taken before and after by pid/start-time (not only a raw count) - 0 leaked processes, the one survivor pre-dates the run and is unrelated to anything this task touches; CI green at 92fc50a via gh pr checks 47 --watch in the foreground. Review response posted to PR #47 as a comment.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2275,6 +2407,59 @@ Negative controls I repeated myself, all reverted: (1) force_end pass 3 (signal_
 Checked and sound, not repeated as controls beyond the above: shared N-pane deadline (tab_close_with_force_ends_every_program_in_scope_within_one_grace_window, with its own recorded negative control); the idle-handle fix (recorded negative control); no unsafe anywhere in the diff (grep confirmed); a restart gives the new run its own generation (traced in pane::start/restart and RunGate::begin_run); TASK-1.77's api.call entry point and TASK-1.45's constructor signature are both reached correctly from the merge. Process leak check: ran cargo test -p steg-server 5 times myself (ps count for sleep/steg processes before and after: 2 -> 1, no growth) - consistent with, though fewer runs than, the task's own recorded 20/20-clean, no-leaked-process run at this head; this machine runs many concurrent agents, so ps counts alone are noisy corroboration, not independent proof.
 
 plan-matched: no, as review 1 also recorded - RunGate replaces the plan's own Arc<AtomicU64>, force_end gained passes 5/6, and join_worker was split into settle_worker+join_worker, all explained in the notes as the review 1 fix, not findings on their own, but a real departure from the plan's own §1/§2 text.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T03:18:00Z
+
+---
+
+@bruk.r4 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r4
+created: 2026-11-16T03:38:00Z
+
+---
+
+Review by @bruk.r4 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Reviewed at PR #47 head 92fc50afc92a7b628a29a22cd215553857f64552 (just check clean at this oid, reproduced myself 11-16, ~2min; PR CI green on the same oid via gh pr checks 47).
+
+Round-3 diff is the ~145-line change since a4fb5d0 across crates/server/src/pane.rs, runtime.rs and tests/runtime.rs, answering round 2's two findings and the orchestrator's own backoff nit.
+
+1. The two renamed tests (restarting_then_forcing_ends_the_new_program_as_a_plain_regression; await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue) now claim no more than they show, and both name the real proof tests in their own docs. I repeated both controls myself, each in a scratch edit reverted after: removing the generation guard (clear_if_current unconditional) makes a_stale_generations_own_mark_dead_never_clobbers_a_newer_run fail (left: None, right: Some(200)) - the guard's own real proof holds. Routing await_exit through settle_worker (the queue path) makes await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue fail (settle_worker 6.4ms vs await_exit 6.8ms, "must actually be slowed" assertion trips) - this mechanism's own real proof holds too. The declined test-only seam for the restart test is the right call: clear_if_current is a pure predicate over (self.generation, generation), its only two callers are spawn_relay's two reap branches passing the generation captured at begin_run, and the unit test already constructs the exact out-of-order race directly - a seam would only re-exercise the same comparison through more machinery, no new logic coverage.
+
+2. The reap poll backoff (5ms doubling to a 100ms cap): read spawn_relay in full. The loop is entered fresh, with poll_interval reset to REAP_POLL_INITIAL_INTERVAL, every single time a run's own read loop breaks (once per run, not once per pane's lifetime) - so an ordinary exit sees ~0 added delay versus before (first try_wait almost always already finds the zombie, as the existing comment says), and the ramp only matters for a program that closes its pty slave while still actually running, where it climbs to the 100ms cap over ~155ms and holds there for the remainder of that run's life. Worst added delay before noticing a real exit: negligible for an ordinary exit, up to 100ms (previously 5ms) for the long-after-EOF case. Checked against every bound this latency could threaten: FORCE_GRACE_DEFAULT (2s) has ~1900ms of margin; the test suite's own TEST_GRACE (30ms, tests/runtime.rs and runtime.rs) is smaller than the 100ms cap in isolation, but every test using it either asserts only eventual death (not "no escalation needed"), or uses a much larger grace (500ms/3s) specifically because it is timing-sensitive - ESCALATE_CONFIRM_TIMEOUT and FORCE_JOIN_TIMEOUT (2s each) absorb the gap either way, and a spurious extra SIGKILL on an already-dead pid is harmless (ESRCH ignored) and not asserted against by any test I found. Lock is still dropped before the sleep (only the Ok(None) arm changed); the reap-and-clear critical section is otherwise untouched this round. The doubling's own unit test has a real recorded control: the FAILED run at 2026-11-16T03:05:52 shows the constant-5ms behavior ([5,5,5,5,5,5,5,5,5]) that this test was written to catch, fixed moments later.
+
+3. pane.split is in the sweep and its own doc names it. I reproduced the sweep's negative control myself: a scratch edit reordering close_and_dispatch back to force-before-close (reverted after) makes a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it fail with "pane.split must find the pane being forced unreachable, not act on it as if nothing were happening" - pane.split is indeed the probe caught, as claimed.
+
+4. The mark-for-a-gone-pane trace (apply_event_locked, CommandOutputStarted/Ended's PaneNotFound arm): the reachability trace is right - close_and_dispatch pops the pane's handle out of state.panes (into to_force) and drops the lock before force_end has actually ended the program, so a still-running program can emit a mark during that same grace window, landing on this arm. Nothing is left behind: the handle is owned throughout by force_end's own to_force/loop (not state.panes) and is still properly signalled, awaited, possibly escalated and joined by force_end's own later passes regardless of any marks arriving in between - this is a real no-op, correctly tested. [Bugs, Nit] The comment's own retained first half ("removing the handle here would drop its only Sender clone, ending the worker loop and leaking...") is stale for the one path its second half now names: on that path state.panes has already had the handle popped by close_and_dispatch's step 3, so there is nothing there for this arm to remove either way - the danger the comment describes cannot occur on its own one named path. Not a behaviour bug (removing an absent key is a no-op, so the code is correct either way), but a reader could come away believing state.panes might still hold a live handle here, which it structurally cannot once close-first has run. This is the same comment round 2 flagged (a different angle: not revisited after a merge); this round's rewrite traces reachability correctly but still leaves the stale half of its own reasoning unreconciled with what it just traced.
+
+5. Ran cargo test -p steg-server 20 times myself at this head: 0 failures. ps checked for the fixture patterns (sleep 1000/sleep 100[^0]/trap HUP) before (0 matches) and after (0 matches) - no leaked or pre-existing process at all in my run, consistent with the worker's own 20/20-clean, no-leak claim (their one survivor pid 64031 predated their run and is absent in mine). just check reproduced clean at 92fc50a (~2min). Escalation's own control repeated by hand (force_end pass 3's signal_kill disabled, reverted): pane_close_with_force_ends_a_program_that_traps_the_polite_signal fails by its bound exactly as both prior rounds recorded - still sound. No unsafe anywhere in the diff (grep confirmed over the full origin/main...HEAD diff, only comments mention the word). The reaped-pid critical section (RunGate, clear_if_current, the try_wait-under-lock pattern) is untouched this round except for the Ok(None) arm's sleep/backoff - confirmed by the diff itself.
+
+6. Plan's own §9 proof table: every row still has a test or is named as dropped, as both prior rounds found; this round's own two fixes (honest test names/docs, pane.split addition) close the only two gaps either prior round left open. No new proof-step gap introduced by the backoff or the comment rewrite - both are covered by their own tests (next_reap_poll_interval's unit test; the existing mark-for-a-gone-pane test, unchanged in behaviour, doc reworded).
+
+No Important findings. plan-matched: no, as both prior rounds also recorded - RunGate/settle_worker/extra passes and now the backoff are real departures from the plan's own §1/§2 text, each explained in the notes as the review's own fix, not hidden.
+
+---
+
+created: 2026-11-16T03:47:00Z
+
+---
+
+Item 1 (nit) done and pushed: reworded apply_event_locked's CommandOutputStarted arm, which said removing a handle here "would drop its only Sender clone" - untrue on the one reachable path (close_and_dispatch already takes the handle out of state.panes before force_end ends its program, so there is no handle here to drop either way). Now says what is true: the mark is ignored; the handle is already with force_end, which ends the program and joins its threads. Updated the unit test's own doc comment to the same effect (it keeps the handle in panes only to prove this arm doesn't touch it, not to claim the real path has it there too). Comment-only, no behaviour change.
+
+Not run through asdlc record-check/finish, since the board won't take either after a clean review - ran plainly instead:
+- cargo test -p steg-server: 103 lib + 61 dispatch + 13 handshake + 5 program + 7 real_pty + 29 runtime + 8 shutdown + 1 socket_mode, all ok, 0 failed.
+- just check: every recipe ok (format, lint, boundaries, licences, tests-every-crate, build/test for sdk/kernel/server/steg/ui/app, tool tests, architecture, recipe names).
+- Pushed to e7cc551; gh pr checks 47 --watch green at that exact head (watched in the foreground, run 43799786237).
+
+Waiting on your word for item 2 (TASK-1.45/PR 50 merging first).
 
 ---
 <!-- COMMENTS:END -->

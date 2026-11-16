@@ -35,17 +35,43 @@ use steg_sdk::{
 
 /// The defaults a request's target falls back to when its own `target`
 /// parameter is left out (doc-2 section 4's context fallback), passed in
-/// explicitly rather than read off a connection — there is no connection
-/// yet (TASK-1.44/1.45), and the kernel's own `Tree::resolve_tab_path`/
-/// `resolve_pane_path` already take their defaults the same way.
+/// explicitly rather than read off a connection. `None` means this
+/// connection has no default of that kind at all (TASK-1.45 §1): nothing
+/// on the wire supplies a session, tab or pane today - the hello (decision-2
+/// §7, doc-14 "Clients") carries only `kind`/`label`, and `STEG_SESSION`/
+/// `TAB`/`PANE` (doc-2 §4) are environment variables the server puts into a
+/// *pane's own program's* environment, never sent by a client. A `Context`
+/// naming a real-looking id nobody gave would be a false statement, so
+/// absence is represented, not filled with a placeholder id - see
+/// [`Context::none`] and `dispatch/lookup.rs`'s `target_session`/
+/// `target_tab`/`target_pane`, which refuse rather than guess when a
+/// default is needed and missing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Context {
-    /// The session a request with no session part of its target acts on.
-    pub default_session: SessionId,
-    /// The tab a request with no tab part of its target acts on.
-    pub default_tab: TabId,
-    /// The pane a request with no pane part of its target acts on.
-    pub default_pane: PaneId,
+    /// The session a request with no session part of its target acts on,
+    /// or `None` when this connection has no session context at all.
+    pub default_session: Option<SessionId>,
+    /// The tab a request with no tab part of its target acts on, or `None`.
+    pub default_tab: Option<TabId>,
+    /// The pane a request with no pane part of its target acts on, or `None`.
+    pub default_pane: Option<PaneId>,
+}
+
+impl Context {
+    /// A connection with nothing to fall back on at all (TASK-1.45 §1):
+    /// every target-less request, and every partial target that would need
+    /// a default this connection does not have, is refused with
+    /// `ErrorCode::BadRequest` (doc-2 section 4/6's own "no context" case
+    /// at the CLI, enforced here too) rather than resolved against an
+    /// invented value.
+    #[must_use]
+    pub const fn none() -> Self {
+        Self {
+            default_session: None,
+            default_tab: None,
+            default_pane: None,
+        }
+    }
 }
 
 /// Every `(noun, verb)` pair this task dispatches, built from every

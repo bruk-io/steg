@@ -11,12 +11,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread;
 
 use crate::arbiter::{self, Arbitration};
 use crate::config::ServerConfig;
 use crate::connection::{self, ConnectionEvent};
 use crate::error::Error;
+use crate::runtime::Runtime;
 
 /// What [`serve`] reports once it has a final answer.
 #[derive(Debug)]
@@ -139,6 +140,37 @@ fn wake_accept(socket_path: &std::path::Path) {
     let _ = UnixStream::connect(socket_path);
 }
 
+/// What [`reap_finished`] needs from either kind of join handle std
+/// gives - a plain `JoinHandle<()>` (this module's own tests) or a
+/// `thread::ScopedJoinHandle<'_, ()>` ([`run`]'s own connections, spawned
+/// inside its `thread::scope` so `runtime` can be borrowed rather than
+/// `Arc`'d - TASK-1.45 §1). No trait in std covers both, so this one
+/// does.
+trait Joinable {
+    fn is_finished(&self) -> bool;
+    fn join(self) -> std::thread::Result<()>;
+}
+
+impl Joinable for thread::JoinHandle<()> {
+    fn is_finished(&self) -> bool {
+        thread::JoinHandle::is_finished(self)
+    }
+
+    fn join(self) -> std::thread::Result<()> {
+        thread::JoinHandle::join(self)
+    }
+}
+
+impl Joinable for thread::ScopedJoinHandle<'_, ()> {
+    fn is_finished(&self) -> bool {
+        thread::ScopedJoinHandle::is_finished(self)
+    }
+
+    fn join(self) -> std::thread::Result<()> {
+        thread::ScopedJoinHandle::join(self)
+    }
+}
+
 /// Removes every connection whose thread has already finished on its
 /// own (a client that closed, was refused, or timed out) from
 /// `connections`, joining each - `is_finished` already guarantees the
@@ -147,14 +179,14 @@ fn wake_accept(socket_path: &std::path::Path) {
 /// connection is accepted and before it is pushed: found necessary
 /// while building this, not assumed - without it `connections` only
 /// ever grows, holding a real file descriptor (the `try_clone`d
-/// shutdown handle) and a `JoinHandle` for every connection the server
+/// shutdown handle) and a join handle for every connection the server
 /// has ever accepted, for as long as it runs. With this, the tracked
 /// set holds exactly the connections still open plus whatever finished
 /// since the last accept - bounded by how many connections are
 /// concurrently live, never by how many have come and gone over the
 /// server's lifetime (proved by
 /// `many_short_connections_do_not_grow_the_tracked_set`, `shutdown.rs`).
-fn reap_finished(connections: &mut Vec<(UnixStream, JoinHandle<()>)>) {
+fn reap_finished<J: Joinable>(connections: &mut Vec<(UnixStream, J)>) {
     let mut i = 0;
     while i < connections.len() {
         if connections[i].1.is_finished() {
@@ -224,13 +256,37 @@ pub fn run(
 ) -> Result<(), Error> {
     stop.bind_socket_path(socket_path);
 
+    // One `Runtime` per server process (TASK-1.45 §1), built from
+    // `config`'s own launcher/login - never behind an `Arc`: every
+    // connection thread spawned below borrows it instead of cloning a
+    // reference-counted handle, which is what lets `runtime.stop()`,
+    // near the end of this function, be a property the compiler itself
+    // enforces rather than one this comment merely asserts - it cannot
+    // even type-check while a `scope.spawn`ed closure might still hold
+    // `&runtime`, and `thread::scope` guarantees none does by the time
+    // it returns.
+    let mut runtime = Runtime::new(
+        Arc::clone(&config.launcher),
+        config.login.clone(),
+        crate::runtime::FORCE_GRACE_DEFAULT,
+    );
+
+    // Split apart before the loop, not destructured after it as before:
+    // `listener` has to be owned *inside* the `thread::scope` below (so
+    // it can be dropped there, closing it before the final join loop -
+    // see that comment, carried over unchanged), while `lock` has to
+    // survive untouched until after the socket file is removed, well
+    // outside the scope. Splitting them here, rather than moving the
+    // whole `handle` in and trying to get `lock` back out later, keeps
+    // both lifetimes honest from the start.
+    let arbiter::ServerHandle { listener, lock } = handle;
+
     // No early return (`?`) inside this loop, on purpose: an I/O error
     // from `accept` or `try_clone` is an error branch like any other,
     // and the cleanup below - shutting down and joining every
     // connection already spawned - has to run on that path too, not
     // only when the loop ends by `stop` being called. The error, if
     // any, is carried past the loop and returned after cleanup runs.
-    let mut connections: Vec<(UnixStream, JoinHandle<()>)> = Vec::new();
     let loop_result: Result<(), Error> = if stop.should_stop() {
         // Already told to stop before this function ever got as far as
         // calling `accept()` - never enters the loop at all, rather
@@ -238,62 +294,76 @@ pub fn run(
         // the line just above ran.
         Ok(())
     } else {
-        loop {
-            let (stream, _addr) = match handle.listener.accept() {
-                Ok(accepted) => accepted,
-                Err(err) => break Err(err.into()),
-            };
-            reap_finished(&mut connections);
-            if stop.should_stop() {
-                drop(stream);
-                break Ok(());
-            }
-            let shutdown_handle = match stream.try_clone() {
-                Ok(cloned) => cloned,
-                Err(err) => {
+        let runtime_ref = &runtime;
+        thread::scope(move |scope| {
+            let mut connections: Vec<(UnixStream, thread::ScopedJoinHandle<'_, ()>)> = Vec::new();
+            let accept_result = loop {
+                let (stream, _addr) = match listener.accept() {
+                    Ok(accepted) => accepted,
+                    Err(err) => break Err(err.into()),
+                };
+                reap_finished(&mut connections);
+                if stop.should_stop() {
                     drop(stream);
-                    break Err(err.into());
+                    break Ok(());
                 }
+                let shutdown_handle = match stream.try_clone() {
+                    Ok(cloned) => cloned,
+                    Err(err) => {
+                        drop(stream);
+                        break Err(err.into());
+                    }
+                };
+                let handshake_timeout = config.handshake_timeout;
+                let events = events.clone();
+                let join = scope.spawn(move || {
+                    connection::handle(stream, handshake_timeout, events, runtime_ref);
+                });
+                connections.push((shutdown_handle, join));
             };
-            let handshake_timeout = config.handshake_timeout;
-            let events = events.clone();
-            let join = thread::spawn(move || connection::handle(stream, handshake_timeout, events));
-            connections.push((shutdown_handle, join));
-        }
+
+            // Shutdown order, each step only after the last: stop
+            // accepting (the loop above already has, on every path out
+            // of it), close the listener, shut down and join every
+            // connection still open - both still inside this same scope,
+            // see below for why - then (outside it) stop the runtime,
+            // remove the socket file, release the lock last - never
+            // before the path is fully vacated.
+            //
+            // **The listener closes here, immediately after the loop
+            // above stops accepting, rather than after the join below**
+            // - a review of this task found an earlier version left a
+            // window open between the two, during which the listener
+            // was still bound while this function was busy shutting
+            // down and joining already-open connections (a step that,
+            // for many open connections, is not instant). A client
+            // whose `connect()` landed in that window would have been
+            // queued by the kernel into the listener's own backlog -
+            // accepted at the OS level, but never reaching this code's
+            // own `accept()` again - and then reset once the listener
+            // eventually closed, rather than refused outright. Closing
+            // the listener first closes that window entirely: dropping
+            // it here affects only *new* connection attempts (immediately
+            // refused, nothing queues after this), never the
+            // already-accepted connections being joined just below,
+            // which live on their own, independent file descriptors the
+            // listener never touches.
+            drop(listener);
+
+            for (shutdown_handle, join) in connections {
+                let _ = shutdown_handle.shutdown(Shutdown::Both);
+                let _ = join.join();
+            }
+            accept_result
+        })
     };
 
-    // Shutdown order, each step only after the last: stop accepting
-    // (the loop above already has, on every path out of it), close the
-    // listener, shut down and join every connection still open, remove
-    // the socket file, release the lock last - never before the path
-    // is fully vacated. Destructured rather than one `drop(handle)`: a
-    // struct's fields drop in declaration order, which would release
-    // the lock in the same step as closing the listener, before the
-    // file is removed - the exact gap this ordering exists to avoid.
-    //
-    // **The listener closes here, immediately after the loop above
-    // stops accepting, rather than after the join below** - a review
-    // of this task found an earlier version left a window open between
-    // the two, during which the listener was still bound while this
-    // function was busy shutting down and joining already-open
-    // connections (a step that, for many open connections, is not
-    // instant). A client whose `connect()` landed in that window would
-    // have been queued by the kernel into the listener's own backlog -
-    // accepted at the OS level, but never reaching this code's own
-    // `accept()` again - and then reset once the listener eventually
-    // closed, rather than refused outright. Closing the listener first
-    // closes that window entirely: dropping it here affects only *new*
-    // connection attempts (immediately refused, nothing queues after
-    // this), never the already-accepted connections being joined just
-    // below, which live on their own, independent file descriptors the
-    // listener never touches.
-    let arbiter::ServerHandle { listener, lock } = handle;
-    drop(listener);
-
-    for (shutdown_handle, join) in connections {
-        let _ = shutdown_handle.shutdown(Shutdown::Both);
-        let _ = join.join();
-    }
+    // Every connection thread has, by construction, already been joined
+    // above (`thread::scope` does not return until every thread it
+    // spawned has ended) - `runtime` has no outstanding borrow left at
+    // this point, which this line itself proves: it would not compile
+    // otherwise.
+    runtime.stop();
 
     let _ = std::fs::remove_file(socket_path);
     drop(lock);

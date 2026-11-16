@@ -3,6 +3,16 @@ revision = 3
 requires-python = ">=3.15"
 
 [[package]]
+name = "ast-grep-py"
+version = "0.51.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d6/84/513c561d7f73c04836d627719ac68cf9c84f7de1bb8e19055d96fd75d441/ast_grep_py-0.51.2.tar.gz", hash = "sha256:41af0f07d3208637acca372a1a808b2bd542207c154cd672bcf2c79917bfbce5", size = 171201, upload-time = "2026-11-11T05:19:33.442Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a1/2d/948cb1ec5f5ca6e38052fa54c0700eedc87b2f3433c898b8d698f38ac7a3/ast_grep_py-0.51.2-cp315-cp315-macosx_10_12_x86_64.whl", hash = "sha256:6111f4a1fb0143052015ed0b372691faf7ad7d24dbd33cca8636552fc4487413", size = 5643057, upload-time = "2026-11-11T05:19:29.931Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/9d/481bbe850e1436bf145ef577d844cca31206e637b49bd1a7c5c09ed633c2/ast_grep_py-0.51.2-cp315-cp315-macosx_11_0_arm64.whl", hash = "sha256:53af9e433f7a4d70aa5d76688cca8afd2cf9b1853a7eba656aa0e1e0e1b64a0f", size = 5812091, upload-time = "2026-11-11T05:19:31.937Z" },
+]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -67,6 +77,9 @@ wheels = [
 name = "steg-tools"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "ast-grep-py" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -74,6 +87,7 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "ast-grep-py", specifier = ">=0.51,<0.52" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]

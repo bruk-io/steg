@@ -25,6 +25,7 @@ mod dispatch;
 mod env;
 mod error;
 mod listen;
+mod outbound;
 mod pane;
 mod paths;
 mod program_param;

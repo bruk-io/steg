@@ -321,6 +321,14 @@ OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 18 size 
 ```
 
 Commits since the review: 0.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-colour-check.py crates/ui/design/foundations.json design/canvas/project/Tokens.dc.html` exited 0 at 2026-11-16T01:54:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: all 18 colours' names and both hex values found in design/canvas/project/Tokens.dc.html
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

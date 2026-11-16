@@ -762,6 +762,15 @@ test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Correction to the build-load note above: it was wrong, and I withdraw its conclusion. Reproducing the "6 of 10 iterations killed by an outer 60s timeout" result in isolation found it was not cargo-scheduling delay - it was a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung genuinely hanging, every time it failed, with every other test in the same binary finishing in under a second regardless. The test itself had two real, unbounded waits:
+
+1. The client's own write loop set no write timeout at all. Once the server stops reading (which is exactly what this test provokes), write_all can block forever on a full OS send buffer that nothing is draining.
+2. The drain loop afterward bounded only each individual read (5s), not its own total running time - the same shape TASK-1.44's own review found and fixed in the handshake's per-read timeout, reintroduced here by me.
+
+Fixed both: a 2s write timeout on the client stream, treated the same as a closed connection; one overall 10s deadline on the drain loop, checked every iteration, not just per-read. Extracted the same one-deadline shape into a shared read_n_replies helper used by every multi-reply wait in routing.rs. Verified: 10/10 repeated runs of the flood test alone and 10/10 of the whole file, all now passing in 0-3s each, against 6 reproduced hangs past 60s before the fix. Recorded via record-check both the failing (timeout, exit 124) and the fixed, repeated-passing runs.
+
+The load this surfaced under (several other workers' cargo builds running concurrently on this machine, load average 9-12) is real and worth keeping in mind for future work on this task, but it was the trigger that made a pre-existing bug in my own test visible, not the cause of a false failure - the underlying wait really was unbounded regardless of load.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

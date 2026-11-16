@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:20:00Z'
+updated_date: '2026-11-16T07:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1782,6 +1783,15 @@ Reviewed at head ed80ab8 (PR #56, CI green at this head). Evidence: the task's o
 [Bugs, Nit] crates/server/src/login_env.rs's module doc on capture_login_environment documents the process-group kill (and its one accepted gap) only against the timeout path; on the success path, a backgrounded grandchild that does not hold stdout open is left running (harmless to this function's own bound, but an undocumented possibility next to the timeout-path note).
 
 Checked and found sound, not repeated as findings: the four nits from the first review (grandchild group-kill - except the doc gap above, dynamic per-call marker, the .zshrc/.zprofile limit now documented in login_env.rs and crates/server/CLAUDE.md, widened 5s/10s bounds to 20s where parsing-correctness not timing is under test). The merge of 3e4594e: `git merge-tree --write-tree 6e1082e 3e4594e` reproduces the worker's own three conflicting hunks exactly (lib.rs, listen.rs, runtime.rs); diffing that tree against the actual merge commit's tree (291 lines total, read in full) shows exactly the hand resolutions the worker's notes describe and nothing else - the pane.rs ending_tests fix and the tests/runtime.rs login_for_force_tests() consolidation of 7 call sites, no undocumented decision. TASK-1.78's own stop/force-close behaviour is untouched by this task's diff. Ran the server+steg suites 10x each: one flake, crates/server/tests/shutdown.rs's a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop (1/20 combined runs), passed in isolation and in 19/20 other runs; confirmed shutdown.rs is untouched by either task's diff between 6e1082e and 3e4594e (not in that diff's file list at all) and by TASK-1.87's own diff against main - a pre-existing, unrelated flake, not the TASK-1.82 arbiter flake named in the brief but equally not counted against this task. Re-confirmed the fixture binaries are absent from a default build at ed80ab8 itself (not just at the worker's earlier recorded cc3e1f0+uncommitted check). `just check` passes clean at ed80ab8 on my own run.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T07:22:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 2m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

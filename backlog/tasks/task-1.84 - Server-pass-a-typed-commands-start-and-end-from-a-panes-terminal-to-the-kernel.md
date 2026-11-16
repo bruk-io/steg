@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:36:00Z'
+updated_date: '2026-11-16T00:37:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -111,6 +111,8 @@ Each of these is run once by hand while writing the tests, not left in the suite
 
 <!-- SECTION:NOTES:BEGIN -->
 Carried from TASK-1.83's planning (2026-11-15): pane.show's wire field 'status' is built today from the program's status (running or ended), in crates/server/src/dispatch/pane.rs, not from the display status the kernel now keeps (running, finished, failed, with its ending rules). This task is where the server first has a clock reading to ask the kernel for the display status, so its plan says what pane show and the tab's shown status report over the API, against doc-2 and doc-11, and whether the field's meaning changes or a second field is needed; name any description change for the engineer.
+
+Plan checked against doc-11 (R50, R82, R83), decision-7, doc-15 and doc-16 by @bruk.o: ok. Marks are drained on the pane's own worker after each write to its terminal and sent as events on the channel the pane's exit already uses, so one sender orders a mark before that pane's exit; the runtime applies each under its lock with one clock reading as a Moment; a mark for a pane the tree no longer holds does nothing and leaves the handle to the path that closes the pane. Nothing is reported over the API here (TASK-1.89). Proof is with real programs in real ptys printing the marks, with three negative controls that remove the mechanism. One point for the build, not the plan: the drain after a resize cannot be reached (a resize queues no mark) and so cannot be tested; leave it out, since any mark is drained by the next write.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

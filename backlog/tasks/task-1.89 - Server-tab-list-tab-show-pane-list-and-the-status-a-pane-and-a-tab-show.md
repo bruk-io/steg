@@ -498,6 +498,51 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
+
+Check FAILED: `cargo test -p steg-server --test dispatch -- an_idle_shell_panes_program_status_and_status_disagree a_finished_status_expires_through_dispatch_at_the_ten_minute_mark` exited 101 at 2026-11-16T05:05:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes, last 40 of 42 lines:
+
+```text
+  --> crates/server/src/dispatch/pane.rs:83:66
+   |
+83 | fn record_for(tree: &Tree, tab_id: steg_sdk::TabId, pane: &Pane, now: Moment) -> PaneRecord {
+   |                                                                  ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-a3fcf474f697b99f)
+
+running 2 tests
+test an_idle_shell_panes_program_status_and_status_disagree ... FAILED
+test a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not ... FAILED
+
+failures:
+
+---- an_idle_shell_panes_program_status_and_status_disagree stdout ----
+
+thread 'an_idle_shell_panes_program_status_and_status_disagree' (24013158) panicked at crates/server/tests/dispatch.rs:983:5:
+assertion `left == right` failed
+  left: String("running")
+ right: Null
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not stdout ----
+
+thread 'a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not' (24013157) panicked at crates/server/tests/dispatch.rs:1128:5:
+assertion `left == right` failed: R83: finished ends after ten minutes
+  left: String("finished")
+ right: Null
+
+
+failures:
+    a_finished_status_expires_through_dispatch_at_the_ten_minute_mark_while_program_status_does_not
+    an_idle_shell_panes_program_status_and_status_disagree
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 71 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

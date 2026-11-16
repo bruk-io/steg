@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:14:00Z'
+updated_date: '2026-11-16T03:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -30,6 +30,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1369,6 +1370,15 @@ Merge of main: `crates/steg/src/main.rs` builds `ServerConfig::default()` and ca
 [Compliance, Nit] Review #1's third finding (closing the queue on a broken write) has only a unit-level test (`outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`); no integration test in `routing.rs` confirms a real connection's reader actually sees its next `enqueue_control` fail and the connection close with both threads joined when the peer has dropped its read side. I confirmed this by reading the code (connection.rs's `match` arm already returns on that error), not by a recorded run - this is the same "two parts" gap the plan's own AC #3 convention names for `Outbound`-level claims but does not apply here.
 
 No findings on: the segment-count/sentinel removal itself (verified against the kernel's own `resolve_tab_path`/`resolve_pane_path`); the broken-write production wiring; the merge's handling of TASK-1.77/1.84; AC #1/#2/#4 (unchanged since review #1, still sound); boundaries, licences, unsafe (none touched).
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:15:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.45: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

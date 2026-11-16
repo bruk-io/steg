@@ -3,11 +3,11 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Review
+status: Done
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T02:11:00Z'
+updated_date: '2026-11-16T02:18:00Z'
 labels:
   - size-2
   - review-passed

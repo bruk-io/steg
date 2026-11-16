@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:30:00Z'
+updated_date: '2026-11-16T00:40:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -780,6 +780,51 @@ ok      test (steg-app) (0.2s)
 ok      tool tests (0.9s)
 ok      architecture (1.0s)
 ok      recipe names (0.0s)
+```
+
+Check FAILED: `cargo test -p steg-server --lib signal::` exited 101 at 2026-11-16T00:40:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes, last 40 of 49 lines:
+
+```text
+22 | use nix::sys::signal::{Signal, killpg};
+   |                                ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `nix::unistd::Pid`
+  --> crates/server/src/signal.rs:23:5
+   |
+23 | use nix::unistd::Pid;
+   |     ^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 2 warnings (run `cargo fix --lib -p steg-server --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.01s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 2 tests
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... FAILED
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... FAILED
+
+failures:
+
+---- signal::tests::send_reaches_a_real_process_with_the_named_signal stdout ----
+
+thread 'signal::tests::send_reaches_a_real_process_with_the_named_signal' (15974998) panicked at crates/server/src/signal.rs:77:56:
+the signalled process must exit
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- signal::tests::send_reaches_the_whole_process_group_not_only_the_leader stdout ----
+
+thread 'signal::tests::send_reaches_the_whole_process_group_not_only_the_leader' (15974999) panicked at crates/server/src/signal.rs:108:56:
+the signalled shell must exit
+
+
+failures:
+    signal::tests::send_reaches_a_real_process_with_the_named_signal
+    signal::tests::send_reaches_the_whole_process_group_not_only_the_leader
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 83 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

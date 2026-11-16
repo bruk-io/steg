@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:55:00Z'
+updated_date: '2026-11-16T01:05:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -481,6 +481,51 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::a_panic_while_holding` exited 101 at 2026-11-16T01:05:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 8d3e2643d1d0 with uncommitted changes, last 40 of 122 lines:
+
+```text
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:576:43
+  33:        0x102fa068c - std[5d97c59e5e5fafcc]::panicking::catch_unwind::<core[663bb9e1522ba5ef]::result::Result<(), alloc[cc4db322bb1ac55d]::string::String>, core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<test[4aa3eea2f4983582]::run_test_in_process::{closure#0}>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:544:19
+  34:        0x102fa068c - std[5d97c59e5e5fafcc]::panic::catch_unwind::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<test[4aa3eea2f4983582]::run_test_in_process::{closure#0}>, core[663bb9e1522ba5ef]::result::Result<(), alloc[cc4db322bb1ac55d]::string::String>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panic.rs:359:14
+  35:        0x102fa068c - test[4aa3eea2f4983582]::run_test_in_process
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:747:27
+  36:        0x102fa068c - test[4aa3eea2f4983582]::run_test::{closure#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:668:43
+  37:        0x102f9b56c - test[4aa3eea2f4983582]::run_test::{closure#1}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/test/src/lib.rs:698:41
+  38:        0x102f9b56c - std[5d97c59e5e5fafcc]::sys::backtrace::__rust_begin_short_backtrace::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/sys/backtrace.rs:166:18
+  39:        0x102fa2b54 - std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/thread/lifecycle.rs:70:13
+  40:        0x102fa2b54 - <core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}> as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panic/unwind_safe.rs:275:9
+  41:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panicking::catch_unwind::do_call::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:576:43
+  42:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panicking::catch_unwind::<(), core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panicking.rs:544:19
+  43:        0x102fa2b54 - std[5d97c59e5e5fafcc]::panic::catch_unwind::<core[663bb9e1522ba5ef]::panic::unwind_safe::AssertUnwindSafe<std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}::{closure#0}>, ()>
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/panic.rs:359:14
+  44:        0x102fa2b54 - std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked::<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/thread/lifecycle.rs:68:26
+  45:        0x102fa2b54 - <std[5d97c59e5e5fafcc]::thread::lifecycle::spawn_unchecked<test[4aa3eea2f4983582]::run_test::{closure#1}, ()>::{closure#1} as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once::{shim:vtable#0}
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/ops/function.rs:250:5
+  46:        0x1031477cc - <alloc[cc4db322bb1ac55d]::boxed::Box<dyn core[663bb9e1522ba5ef]::ops::function::FnOnce<(), Output = ()> + core[663bb9e1522ba5ef]::marker::Send> as core[663bb9e1522ba5ef]::ops::function::FnOnce<()>>::call_once
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/alloc/src/boxed.rs:2319:9
+  47:        0x1031477cc - <std[5d97c59e5e5fafcc]::sys::thread::unix::Thread>::new::thread_start
+                               at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/std/src/sys/thread/unix.rs:123:17
+  48:        0x199ecdd00 - __pthread_exit
+
+thread 'runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call' (16535826) panicked at /rustc/48a229ceaefd4985c50990b14116b6d856af0985/library/core/src/panicking.rs:233:5:
+panic in a destructor during cleanup
+thread caused non-unwinding panic. aborting.
+error: test failed, to rerun pass `-p steg-server --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45/target/debug/deps/steg_server-75c81fd969602d6a 'runtime::tests::a_panic_while_holding'` (signal: 6, SIGABRT: process abort signal)
 ```
 <!-- SECTION:NOTES:END -->
 

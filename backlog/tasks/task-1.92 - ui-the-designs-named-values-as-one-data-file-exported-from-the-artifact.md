@@ -1,14 +1,14 @@
 ---
 id: TASK-1.92
 title: 'ui: the design''s named values as one data file, exported from the artifact'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:48:00Z'
+updated_date: '2026-11-16T02:06:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-4
 dependencies: []
 references:
@@ -22,8 +22,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b3ded099a9d8'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
 ---
 
@@ -313,6 +312,59 @@ Checks recorded on this task (all exit 0):
 The tested tool that checks the data file against the saved pages by name and value, with a negative control, is TASK-1.96 (not this task) — noted in the plan and in the PR description, not built here.
 
 CI green on the final head (dc9f98533d16): gh pr checks 49 --watch, 'check' passed in 3m11s.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-shape-check.py crates/ui/design/foundations.json` exited 0 at 2026-11-16T01:54:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 18 size entries, 1 motion entries, 2 themes)
+```
+
+Commits since the review: 0.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-colour-check.py crates/ui/design/foundations.json design/canvas/project/Tokens.dc.html` exited 0 at 2026-11-16T01:54:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: all 18 colours' names and both hex values found in design/canvas/project/Tokens.dc.html
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:54:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 91d4e877b240:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.5s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
+
+Commits since the review: 30, 29 without the Asdlc-Worker trailer.
+
+Review findings fixed (@bruk.r3, 1 Important, 2 nits). Plan section untouched.
+
+1. [Important, fixed] Removed sizes.overlay.layout.max_height_percent_of_window: 60. doc-10's not-yet-confirmed list bundles the overlay's max-height-as-percent-of-window with its 40px-clear-below-720px rule as one bullet, not two settled values; I'd correctly left out the 40px half but exported the 60% half as settled anyway, breaking AC#2 and departing from the plan's own instruction to point at doc-10's list rather than re-decide it. Re-read doc-10's whole not-yet-confirmed list against the data file line by line as asked: the smallest pane (200x110), the pane header's three breakpoints (360/260/200), the status bar's roll-out (250ms), the failure flakes' count/timing, and the pressed state's darkening are all absent from the data file, as they should be - nothing else from that list had slipped in.
+
+2. [Nit, fixed] Every reference now uses the uniform wrapped form {"ref": "<name>"}: colour_aliases' ref field, both ramps' stops[].colour, status.ring.track_colour, scrim.light.colour, track.layout.fill.colour, track.layout.radius_outer/radius_inner. bg_inactive already used this form. Added crates/ui/design/README.md stating the rule once: a reference is always {"ref": "<name>"} naming any colour, size key, or tint in the file; the two exceptions are a bare hex literal and the literal "session". Extended the ad hoc shape check to assert every {"ref": ...} anywhere resolves to a name that exists, and that every colour-position field (colour/track_colour/cursor) is one of exactly those three forms - sanity-tested by corrupting one ref and confirming the check fails before trusting it to pass.
+
+3. [Nit, fixed] Added sizes.radius.round: {"shape": "round"} for the radii card's fourth swatch (999px "fully round: chips of colour, bars", Tokens.dc.html/gen_system.py:372) that was drawn but had no data-file entry; noted in the file that the name radius.round is the orchestrator's choice, which the engineer may change. Checked every other card on the three foundations pages the same way (Type's specimens - all already in type{}; the ramp/extended-ramp gradient bars; both terminal themes' 16-colour samples and base text; the focus ring's interactive states) for a captioned value with no entry: found none beyond this one.
+
+Checks re-recorded after the fixes: the two ad hoc checks (shape, colours-in-page) against the corrected file, and just check at the final head (91d4e877b240) after merging origin/main (branch was already pushed, so merged rather than rebased; TASK-1.91's crates/ui work still hadn't merged to main, so no overlap - diff stayed disjoint). CI green on that same head (gh pr checks 49 --watch, 2m13s). PR 49's description updated with the corrected section-by-section counts (colours 18, sizes 18 now with radius.round, etc).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -395,6 +447,42 @@ Everything else checked independently and found correct, at head dc9f98533d16 (m
 - No image needed: this task adds data and documents only, nothing the app draws.
 
 plan-matched is "no": the focus_ring.radius_formula -> corner_radius_addition departure is a real, correctly-explained departure, but it is still a departure from the approved digest's literal schema.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T01:58:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.92: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T02:01:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second review, same-machine, at head 91d4e877b240 (matches the task's recorded `just check` and PR 49's headRefOid; CI "check" is SUCCESS on this head). Reviewed the whole diff against main, with particular attention to the three fixes and the new README.
+
+No findings.
+
+1. doc-10's not-yet-confirmed list, checked item by item against foundations.json: the pressed-state darkening, the button's 72px icon-only threshold, the pane header's three breakpoints (360/260/200), the smallest pane (200x110), the status bar's 250ms roll-out, the failure flakes' count/timing, and the overlay's 40px-clear/60%-height rule are all absent from the data file - none snuck back in, and overlay.layout.max_height_percent_of_window is gone, replaced by a `use` note pointing at doc-10's bullet. (The 72px in tab.width.min and the 200ms in motion.status-fade are different, independently-settled values, not the unconfirmed items re-appearing under another name - confirmed by rereading the plan's own settled tables.)
+
+2. References: wrote and ran my own script against the whole file (not the worker's), independent of the recorded checks. Found exactly 19 `{"ref": ...}` objects, all resolving to an existing name (a colours[] name, a sizes key, or `tint`). Found zero bare-string leftovers anywhere outside the three permitted colour forms (hex literal, the literal "session", or a `{"ref": ...}` object) - scrim.dark.colour is the one hex literal, "session" appears exactly at themes[].cursor (both themes), focus_ring.colour and tint.colour and nowhere else, matching the README's own count. crates/ui/design/README.md's "How a reference is written, everywhere" section states this rule once and it matches the file exactly, including naming the field-name exceptions (`track_colour`, `radius_outer`, the `ref` field on `colour_aliases`, etc) that make the rule non-obvious from the key name alone.
+
+3. radius.round is present as `{"shape": "round", "use": "..."}` - a structured shape, not the literal 999 standing in for a value. Spot-checked two cards in design/canvas/project/Tokens.dc.html myself: the radii card (14/10/8/999px "fully round: chips of colour, bars") matches radius.surface/track/inner/round exactly, and the colour-table captions (name/dark/light/used-for headers, all 17+track colours by name) match colours[]. Found no other captioned value missing beyond radius.round.
+
+4. Diff to foundations.json since the first-round head (dc9f985) is exactly the 38 lines described: the unconfirmed value's removal, the ref-wrapping, and the new radius.round entry - nothing else. All colours (18, both hex forms, full ramp names), both ramps, all 16 ANSI colours by name/position in both themes, sizes, scrim, and the one duration are untouched by this diff, so the first round's independent verification of those still holds.
+
+5. crates/ui/design/README.md and design/canvas/README.md don't contradict each other: the first documents the structured export's schema and reference rule, the second documents the working/history files and the artifact-vs-working-copy corrections; each points at the other and at the artifact as the source, and neither claims to be the source itself.
+
+Evidence: `just check` recorded on the task at 91d4e877b240 matches this head; CI "check" on PR 49 is SUCCESS at headRefOid 91d4e877b240, confirmed directly via `gh pr checks 49`.
 
 ---
 <!-- COMMENTS:END -->

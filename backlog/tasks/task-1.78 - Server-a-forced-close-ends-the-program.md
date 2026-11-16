@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:52:00Z'
+updated_date: '2026-11-16T02:25:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1503,6 +1503,366 @@ Checks: just check clean at the final head (68d10a8, matching PR #47's green CI)
 Named, not fixed: an interactive shell's own job-control reassignment of a backgrounded job to a new process group, which the group signal does not reach (killpg targets the pgid portable-pty's setsid() establishes at exec, which an interactive shell's own job control can move a background job out of afterward); a process stuck in an uninterruptible kernel sleep, where SIGKILL is delivered but delivery is not completion, which no userspace mechanism can force - the caller still gets Response::Ok either way (no error code exists for "could not confirm"), and the worker/relay pair is dropped unjoined if this ever actually happens.
 
 Two items were the engineer's at plan time and were decided then: the AC #1 reorder (approved, criterion reworded to match) and the idle-handle fix (told to include it).
+
+Check FAILED: `cargo test -p steg-server --lib pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run` exited 101 at 2026-11-16T02:10:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run ... FAILED
+
+failures:
+
+---- pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run stdout ----
+
+thread 'pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run' (18697434) panicked at crates/server/src/pane.rs:935:9:
+assertion `left == right` failed: a stale generation's own mark-dead must never clobber a newer run's live pid
+  left: None
+ right: Some(200)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run` exited 0 at 2026-11-16T02:10:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler` exited 0 at 2026-11-16T02:12:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: method `await_dead` is never used
+   --> crates/server/src/pane.rs:180:8
+    |
+136 | impl RunGate {
+    | ------------ method in this implementation
+...
+180 |     fn await_dead(&self, timeout: Duration) -> bool {
+    |        ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.01s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue -- --nocapture` exited 101 at 2026-11-16T02:14:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: method `await_dead` is never used
+   --> crates/server/src/pane.rs:180:8
+    |
+136 | impl RunGate {
+    | ------------ method in this implementation
+...
+180 |     fn await_dead(&self, timeout: Duration) -> bool {
+    |        ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.73s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+
+thread 'pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue' (18746961) panicked at crates/server/src/pane.rs:1256:9:
+settle_worker (3.334µs) must actually be slowed by the same backlog await_exit (2.116375ms) was unaffected by - otherwise this test is not proving the two mechanisms differ at all
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... FAILED
+
+failures:
+
+failures:
+    pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue -- --nocapture` exited 101 at 2026-11-16T02:14:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+error[E0425]: cannot find type `PaneHandle` in this scope
+    --> crates/server/src/pane.rs:1235:41
+     |
+1235 |         fn flooded_handle(pane: u64) -> PaneHandle {
+     |                                         ^^^^^^^^^^ not found in this scope
+     |
+help: consider importing this struct through its public re-export
+     |
+ 953 +     use crate::PaneHandle;
+     |
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `steg-server` (lib test) due to 1 previous error
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue -- --nocapture` exited 101 at 2026-11-16T02:15:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: method `await_dead` is never used
+   --> crates/server/src/pane.rs:180:8
+    |
+136 | impl RunGate {
+    | ------------ method in this implementation
+...
+180 |     fn await_dead(&self, timeout: Duration) -> bool {
+    |        ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+
+thread 'pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue' (18767573) panicked at crates/server/src/pane.rs:1274:9:
+settle_worker (4.621834ms) must actually be slowed by the same backlog await_exit (4.299791ms) was unaffected by - otherwise this test is not proving the two mechanisms differ at all
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... FAILED
+
+failures:
+
+failures:
+    pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.18s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue -- --nocapture` exited 0 at 2026-11-16T02:15:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.16s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 0 at 2026-11-16T02:19:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+kill: 81580: No such process
+kill: 81578: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 81579: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 5.05s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 101 at 2026-11-16T02:19:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+
+failures:
+
+---- a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812146) panicked at crates/server/tests/runtime.rs:1074:9:
+pane.set must find the pane being forced unreachable, not act on it as if nothing were happening
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812148) panicked at crates/server/tests/runtime.rs:1145:9:
+tab.set must find the tab being forced unreachable, not act on it as if nothing were happening
+
+---- a_session_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_session_being_forced_is_unreachable_by_every_method_that_can_name_it' (18812147) panicked at crates/server/tests/runtime.rs:1217:9:
+session.show must find the session being forced unreachable, not act on it as if nothing were happening
+
+
+failures:
+    a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it
+    a_session_being_forced_is_unreachable_by_every_method_that_can_name_it
+    a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it
+
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 0 at 2026-11-16T02:20:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+kill: 83887: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 83886: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 83888: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 5.05s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server` exited 0 at 2026-11-16T02:20:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes, last 40 of 293 lines:
+
+```text
+kill: 87842: No such process
+kill: 87849: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 87788: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 87795: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 87792: No such process
+kill: 87798: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server -p steg-kernel -p steg` exited 0 at 2026-11-16T02:25:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at c7c751c59813 with uncommitted changes, last 40 of 645 lines:
+
+```text
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+kill: 7562: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 7572: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.08s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-3e485a295dc08c8a)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-794b69be98f698ad)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

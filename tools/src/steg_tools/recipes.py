@@ -16,7 +16,10 @@ from dataclasses import dataclass
 from steg_tools import workspace
 
 # Extended by editing this set, never by skipping the check below.
-ALLOWED_VERBS = frozenset({"check", "test", "build", "fmt", "lint", "run", "setup", "deny", "show"})
+# "capture" (TASK-1.91): `capture-gallery` writes the gallery's rendered window to an
+# image file - a genuinely new action, distinct from `build` (compiles, never runs
+# anything) and `run` (opens a window for a person, produces no file).
+ALLOWED_VERBS = frozenset({"check", "test", "build", "fmt", "lint", "run", "setup", "deny", "show", "capture"})
 
 
 @dataclass(frozen=True)

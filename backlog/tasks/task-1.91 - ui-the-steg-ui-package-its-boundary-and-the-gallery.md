@@ -1,11 +1,11 @@
 ---
 id: TASK-1.91
 title: 'ui: the steg-ui package, its boundary, and the gallery'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:52:00Z'
+updated_date: '2026-11-16T02:05:00Z'
 labels:
   - size-3
   - review-passed
@@ -464,6 +464,41 @@ Checked live, not assumed:
 [Bugs, Nit] justfile:224 - `window_id="$(swift crates/ui/gallery/window_id.swift "$pid" | head -1 | cut -d' ' -f1)"` has no `|| true`. window_id.swift has its own non-zero exit path (window_id.swift:19-22, `CGWindowListCopyWindowInfo returned nothing` -> exit 1), and with `set -euo pipefail`, that propagates through the pipe into this plain (non-`local`) assignment and aborts the script on iteration 1 of the retry loop - skipping the remaining ~10s budget and the recipe's own named message at justfile:229 ("the gallery never opened a window within 10s"), replaced by just's generic "failed with exit code 1". Confirmed live by forcing that exact exit path. Not Important: process cleanup still holds on this path (checked with ps, no leftover gallery process), and the path isn't exercised in the tested/normal run (the unmodified lookup never errors when a window is already open or not-yet-open, only when CoreGraphics itself returns nothing).
 
 plan-matched: no. The plan's file list doesn't include tools/src/steg_tools/gallery.py, tools/pyproject.toml, tools/tests/conftest.py, tools/tests/{unit,functional}/test_gallery*.py, or tools/tests/adapter/test_affected_real_workspace.py. The notes explain each (orchestrator's recorded agreement for the gallery checker; the Cargo.toml-members race for the adapter test) - not a Compliance finding, just a mechanical flag since the touched files depart from the plan's list.
+
+---
+
+created: 2026-11-16T01:59:00Z
+
+---
+
+Post-review nit fix (reviewer caught it live, team-lead relayed): capture-gallery's
+window-id retry loop assigned `window_id="$(swift ... | head -1 | cut ...)"` as an
+unguarded top-level command. Under `set -euo pipefail`, a lookup attempt that failed
+(the window not yet on screen - the ordinary first-attempt case) exited the whole
+recipe right there, skipping every remaining retry and the function's own "never
+opened a window" message.
+
+Fix, scoped to that one line: `|| window_id=""` after the assignment, so a failed
+attempt is retried instead of aborting the script.
+
+Proved with two scratch stubs standing in for crates/ui/gallery/window_id.swift
+(never committed - swapped in, exercised, swapped back; `git diff` confirmed the
+restored file is byte-identical to what's committed):
+
+- Fails its first 3 calls, then delegates to the real script. Without the guard
+  (reverted temporarily to confirm): the recipe aborted after exactly 1 attempt, no
+  named message, generic `just` failure only. With the guard: `just capture-gallery`
+  completed both captures successfully, 5 lookup attempts total (3 simulated
+  failures + 2 real successes) - the fix actually recovers, not just "doesn't crash
+  on this specific input".
+- Always fails. The recipe runs out its ~10s budget, prints "capture-gallery
+  (light): the gallery never opened a window within 10s", and exits non-zero. `ps
+  aux`/`pgrep` confirmed no gallery process left running either way - the `trap ...
+  EXIT` fires regardless of how `set -e` ends the script.
+
+just check passes at the merged head (e35559c -> see commit on branch). Commit
+0c58c24 is the fix; merged origin/main on top of it afterward (board-only changes:
+TASK-1.92 finished to review, housekeeping tasks, no code - no conflicts).
 
 ---
 <!-- COMMENTS:END -->

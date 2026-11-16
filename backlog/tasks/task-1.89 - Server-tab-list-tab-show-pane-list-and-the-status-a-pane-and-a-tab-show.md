@@ -639,6 +639,51 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
+
+Check passed: `cargo test -p steg-server --test dispatch` exited 0 at 2026-11-16T05:06:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes, last 40 of 81 lines:
+
+```text
+test an_override_is_still_there_for_a_fresh_tree_and_context_over_the_same_settings ... ok
+test api_call_reaches_setting_unset_with_its_required_target ... ok
+test api_call_with_a_non_text_method_is_a_bad_request ... ok
+test setting_list_returns_every_registered_setting_with_its_current_value ... ok
+test session_show_with_an_unknown_target_is_no_such_target ... ok
+test api_list_returns_every_method ... ok
+test session_move_rejects_a_zero_position_without_touching_the_tree ... ok
+test setting_show_an_unknown_name_is_no_such_target ... ok
+test setting_unset_an_unknown_name_is_no_such_target ... ok
+test setting_show_returns_one_setting_in_full ... ok
+test session_new_creates_a_plain_shell_session ... ok
+test setting_set_rejects_an_unknown_name_with_no_such_target ... ok
+test setting_set_changes_the_value_the_next_read_sees ... ok
+test setting_set_rejects_a_value_outside_the_closed_set_with_bad_request ... ok
+test split_set_label_then_close_the_session ... ok
+test tab_close_removes_it ... ok
+test setting_unset_reverts_to_the_default ... ok
+test tab_focus_makes_it_current ... ok
+test tab_list_with_an_unknown_session_is_no_such_target ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test tab_list_returns_every_tab_of_the_session_in_order ... ok
+test tab_move_with_position_reorders ... ok
+test tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus ... ok
+test tab_new_with_no_focus_leaves_the_original_tab_current ... ok
+test tab_new_with_no_position_appends_at_the_end_as_before ... ok
+test tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first ... ok
+test tab_new_with_position_zero_is_refused_and_creates_nothing ... ok
+test tab_new_with_position_one_places_the_new_tab_first ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test tab_show_with_an_unknown_target_is_no_such_target ... ok
+test tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order ... ok
+test tab_show_returns_the_tabs_record ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:27:00Z'
+updated_date: '2026-11-16T17:32:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -671,6 +671,51 @@ help: provide the argument
      |
 
 error: could not compile `steg-server` (lib test) due to 10 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:32:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 32a4b6b1945d, last 40 of 47 lines:
+
+```text
+   --> crates/server/src/connection.rs:840:28
+    |
+840 |             let _cleanup = ConnectionCleanup {
+    |                            ^^^^^^^^^^^^^^^^^ missing `events`
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates/server/src/listen.rs:752:23
+    |
+752 |           let runtime = crate::runtime::Runtime::new(
+    |  _______________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+753 | |             std::sync::Arc::new(crate::pty::RealLauncher),
+754 | |             crate::runtime::LoginShell::default(),
+755 | |             Duration::from_millis(1),
+756 | |         );
+    | |_________- argument #4 of type `std::time::Duration` is missing
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:269:12
+    |
+269 |     pub fn new(
+    |            ^^^
+...
+273 |         attach_tick: Duration,
+    |         ---------------------
+help: provide the argument
+    |
+752 |         let runtime = crate::runtime::Runtime::new(
+...
+755 |             Duration::from_millis(1),
+756 ~             /* std::time::Duration */,
+757 ~         );
+    |
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/steg)
+Some errors have detailed explanations: E0061, E0063.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
 ```

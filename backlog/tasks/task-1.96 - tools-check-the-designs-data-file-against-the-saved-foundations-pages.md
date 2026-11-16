@@ -1,14 +1,13 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T04:24:00Z'
+updated_date: '2026-11-16T04:29:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -579,6 +578,26 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 13, 8 without the Asdlc-Worker trailer.
+
+Review findings addressed (@bruk.r1, round 3, 2 Important, PR 54):
+
+1. "Accounted for" compared joined strings, and the data file's own keys contain literal dots (font.ui, nav.side, radius.surface, ramp and ramp.extended) - a new key that merely extends a registered one as a string was swallowed unchecked. The reviewer's four reproductions: sizes["palette.footer"], type["terminal.bold"], sizes["nav.side.extra"], and a ramp literally named "ramp.secondary" all printed "ok" before this fix.
+
+Fixed: a path is now a tuple of segments as the JSON has them, never joined for comparison. Skipped.name is a tuple (display() joins with "." for printing only); _leaf_paths returns tuple[str,...]; _is_accounted_for compares whole segments (path[:len(name)] == name), never a substring. _entry_path's old self-prefix special case for motion's self-prefixed name is gone entirely - every list of named entries now just appends the entry's own name as one segment, uniformly, with no section-specific logic.
+
+2. A new field on an existing colour ("contrast": 1.5) was checked by nothing and declared nowhere, because a blanket whole-entry ancestor ("colours", name) silently covered it - contradicting the README's claim that colours are checked exactly. Fixed: every colour, colour alias, opacity and ramp is now registered field by field, never as a whole-entry ancestor - a colour's dark/light; an alias's ref; an opacity's dark/light; a ramp's stops and, on "ramp" only, caption_opacity. TIER_C_SKIPS's colour_aliases/opacities/ramps/motion entries became 3-segment field-level entries (the same shape themes[] already used after round 2's fix) instead of 2-segment whole-entry blankets.
+
+Checks (recorded on the task):
+- Negative control, recorded not claimed: a committed snapshot of the pre-this-round design_pages.py (string-prefix matching), run against the real data file with all four of the reviewer's mutations applied, silently misses every one (exit 1).
+- Unit+adapter: 67 tests (up from 60) - new: the four dotted-name-collision reproductions against both a minimal fixture and the real file; the stray-field test covering colours/aliases/opacities/ramps together; two property-style tests whose leaves now come from an enumeration written independently of the tool's own walker (a separate few-line recursion in the test file itself), per the review's explicit requirement that the test and the tool cannot share a blind spot.
+- just check at the final head (a304d37), after fetching and merging origin/main three times in this round. The last merge brought in TASK-1.94 (PR 52), which merged to main while this task was being built: resolved a textual conflict on justfile's check: line (kept both check-design and check-ui-levels/check-ui-colours).
+- CI green on PR 54 at head a304d37: gh pr checks 54 --watch, check passed in 4m18s.
+
+TASK-1.94's shared steg_tools.foundations.read() (now merged) covers colours/opacity_names only (R120's colour-literal check is its whole AC#2 scope) - not type/sizes/themes/motion/ramps/colour_aliases/tint/focus_ring, which this task's Tier B, mapped checks and unaccounted_names all need as raw JSON. Importing it for colours alone would mean reading the file twice down two different paths for no real gain, so _read_data_file stays the one read of the whole document - documented in the module docstring as a decision made once TASK-1.94's actual shape was known, not an unfinished follow-up. Said plainly per the team lead's ask.
+
+Tool's own output unchanged in its counts (ok, 18 colours, 19 type/size entries, 32 ANSI colours checked) - only the printed field-level breakdown for colour_aliases/opacities/ramps changed; full text in the PR description.
+
+PR: https://github.com/bruk-io/steg/pull/54 (head a304d37, CI green).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

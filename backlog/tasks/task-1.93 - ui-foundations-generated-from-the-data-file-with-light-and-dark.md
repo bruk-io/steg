@@ -1,14 +1,13 @@
 ---
 id: TASK-1.93
 title: 'ui: foundations generated from the data file, with light and dark'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T05:53:00Z'
+updated_date: '2026-11-16T05:54:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.91
@@ -1169,6 +1168,263 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Built the generator, the Theme type and the gallery; PR #55, CI green at the final head.
+`just check` recorded clean throughout, through review #4 (@bruk.r2, 6 Important + 1 nit)
+and review #5 (@bruk.r2, 1 Important + 2 nits + 1 from the engineer) - addressed finding by
+finding below, each re-verified against the real images and real checks, not just the code.
+
+## Response to review #4 (@bruk.r2)
+1. `gallery_theme()`'s `rgb(0x000000)` bootstrap literal - fixed with `foundations::
+   default_session(appearance)` at the time, later replaced entirely by `Theme::
+   with_default_session` (review #5, below) once the engineer found that function was
+   itself the same category of violation.
+2. Ramps drawn as hard bands, not gradients. Fixed: `ramp_gradient` draws each adjacent
+   pair of stops as its own two-stop `gpui::linear_gradient` (gpui 0.2.2 takes exactly two
+   stops at a time - `color.rs`'s `LinearColorStop`, a fixed `[_; 2]`), sized to its own
+   share of the bar, with a percentage legend beneath marking every stop.
+3. The third "Other named values" column clipped by the window's edge. Fixed: every column
+   now has a fixed width (`other_column_width`), so a long value wraps onto a second line
+   within its own column instead of running past the window.
+4. Colour-bearing "other" values printed as `{:?}` debug tuples (`tint`, `scrim`,
+   `status.ring`'s `track_colour`, `track.layout`'s `fill`). Fixed: `tint` and `scrim`
+   moved into the main colour swatches (`colour_entries`), each with its own hex;
+   `status.ring`/`track.layout`/`focus_ring`'s one themed colour field each now names the
+   already-shown colour it equals ("track colour = track") instead of printing a debug
+   tuple. Every other plain group's `{:?}` dump replaced by a generated `_DESCRIPTION`
+   const in the design's own words.
+5. "steg dark"/"steg light" never appearing as literal text. Fixed: `terminal_theme_row`
+   labels each row with its own design name directly above its swatches.
+6. No image on the PR at all. The reviewer was right: I had searched and not found an
+   upload path via `gh`/REST, said so in the PR body and in two messages asking the
+   engineer, and only learned of `gh pr comment --attach` from the engineer's reply (which
+   named the exact flag). Used it; both `user-attachments` URLs read back and confirmed
+   rendering in the PR body before this was called done.
+
+Nit (base colours generated but not shown): also fixed, not just noted -
+`terminal_theme_row` shows `bg`/`bg_inactive`/`fg`/`cursor (session)`/`selection`
+alongside each theme's 16 ANSI swatches, 21 per row.
+
+## Response to review #5 (@bruk.r2) and the engineer's own fourth point
+1. Important - `default_session(Appearance) -> Hsla` (added to fix review #4's finding 1)
+   was itself a public free function returning a bare colour with no `Theme` in hand -
+   exactly what R123 and this crate's own doc comment claim can't exist. The reviewer
+   called it from a scratch test outside `foundations` and it compiled. Fixed by
+   construction, not by convention: replaced with `Theme::with_default_session(appearance)
+   -> Self`, which hands out a `Theme`; there is no longer any public function in the crate
+   returning a bare `Hsla` outside a `Theme` method.
+
+   Added the compile-level proof the claim deserves, since Rust's own type system doesn't
+   prove it on its own: `tools/src/steg_tools/foundations_public_surface.py`, now part of
+   `just check` (`check-foundations-public-surface`). It scans every `.rs` file under
+   `crates/ui/src/**` and `crates/ui/gallery/**` (the whole crate, not just `foundations` -
+   the claim is about the crate, and review #5's own finding was in `foundations/mod.rs`
+   itself) for a `pub fn ... -> Hsla` that falls outside every brace-matched `impl Theme`
+   block, by regex over the raw source text. What it cannot see, stated in its own
+   docstring: a function returning `Hsla` wrapped in another type (a tuple, `Option<Hsla>`,
+   a struct field - `hex_of`, `tint()` and `scrim()` all do this legitimately, invisible by
+   design since R123 is about a *bare* colour); a multi-line signature whose parameter list
+   itself contains a `)` (none exist in this crate today - a real limitation, not a design
+   choice).
+
+   Two negative controls, both re-run after a regex fix (below): restoring the old
+   `default_session` free function fails, naming it and R123 (recorded, exit 1); reverted,
+   passes (recorded, exit 0). A second control, added once the check was widened to the
+   whole crate, planted the same shape of violation in `gallery/main.rs` specifically
+   (not `foundations`) - also caught (recorded, exit 1); reverted, passes (recorded, exit 0).
+
+   One thing the second control found by accident, not reasoned about in advance: my first
+   attempt at that control used `-> gpui::Hsla` (fully qualified) and passed silently - the
+   regex only matched the bare, unqualified spelling, which is how this crate writes it
+   everywhere today (not a live hole), but a real gap for a future file that writes it the
+   other way. Widened the regex to accept either spelling, added a unit test for the
+   qualified form, and re-ran both controls against the fixed regex (the ones recorded
+   against the original regex are superseded by these).
+
+2. Nit - `tint`/`scrim`'s own opacity (18%; 60% dark / 28% light) wasn't shown anywhere
+   once the debug-tuple text went. Fixed: each swatch's label now states it inline
+   (`tint @ 18%`, `scrim @ 60%`/`28%`) rather than drawing the swatch at reduced alpha,
+   which the lead offered as the alternative - full-opacity keeps the hex itself legible
+   against the window background, and the label still says plainly which colour and at
+   what opacity.
+
+3. Nit - no `just capture-gallery` recorded on the task after the fix commit. Fixed:
+   recorded at the final head, with the process count after (0, confirmed clean).
+
+4. From the engineer, so TASK-1.94's gallery exemption can simply be deleted once both
+   merge: ran `steg-ui-colours` from TASK-1.94's own branch (PR #52) against this task's
+   tree, in a scratch worktree, with the gallery's exemption line removed from
+   `EXEMPT_PREFIXES` entirely (not just disabled) - exit 0, nothing flagged (recorded).
+   This is true specifically because `hex_of` and its two round-trip tests moved out of
+   the gallery into `foundations/mod.rs` (see judgement call, below) - without that move,
+   those two tests' literal hexes would still be the one thing left to flag.
+
+## A judgement call, named as one
+`hex_of` is a display formatter (`Hsla -> String`), not itself a named design value or a
+function from one - doc-17 defines `foundations` as "a value, or a function from values to
+a value," and a formatter returning text about a colour is arguably neither. It's placed in
+`foundations/mod.rs` anyway, on the engineer's own suggestion in review #5's findings,
+for two reasons stated in its own doc comment: formatting one of this crate's own colours
+belongs with them, not in the gallery; and `crates/ui/src/foundations/**` is the one path
+TASK-1.94's colour-literal check always exempts, which is what lets its own round-trip
+tests keep a literal hex without needing a carve-out from anyone. If a future reviewer
+disagrees with the placement, the fix is moving it to a sibling module, not redesigning
+anything - it doesn't change what R123 or AC#2 mean, only where one formatting helper lives.
+
+## AC#1 (generator + staleness)
+`tools/src/steg_tools/foundations_generate.py` writes `crates/ui/src/foundations/generated.rs`
+deterministically from `crates/ui/design/foundations.json`, carrying the design's names through
+as `/// Design name: "..."` doc comments. `just generate-foundations` writes it; `just
+check-foundations` (now in `just check`) regenerates into a temp file, runs it through `rustfmt
+--edition 2024`, and compares bytes - failing with a message naming `just generate-foundations`
+on a mismatch. 45 unit/adapter tests for the generator itself (identifiers incl. collision, the
+three-way colour discrimination, the alias double-wrap, the two-hop `track.layout.fill.colour ->
+tint -> session` chain and scrim's directional light->text resolution - proven on the renderer's
+own output rather than a separate resolver, since the renderer delegates by name through `Theme`
+methods at each single hop rather than pre-resolving multi-hop chains in Python; determinism; the
+generated `_DESCRIPTION` strings being plain words, not Rust syntax; AC#4's count), plus 9 more
+for the new public-surface check. Negative control: one value edited in
+`crates/ui/design/foundations.json` in an uncommitted scratch change, `just check-foundations`
+failed naming the fix (recorded, exit 1), reverted, passed again (recorded, exit 0).
+
+Note for whoever touches this next: `check-foundations` compares against a fresh `rustfmt
+--edition 2024` run, so the committed `generated.rs` is tied to a rustfmt *version*, not only to
+the data file. CI's rustfmt matched this machine's (1.9.0-stable) on every run recorded here.
+
+## AC#2 (Theme-gated pairs, plain consts, radius.round)
+Every light/dark-paired value is reached only through a `Theme` method; there's no public
+function anywhere in the crate returning a bare form (R123) - now a build failure, checked by
+`check-foundations-public-surface` (see review #5 above), not a convention. `"session"` never
+appears as a generated constant; it enters only through `Theme::new`/`Theme::with_default_session`
+and the two terminal-theme constructors.
+
+Doc-17's open question (the form of a pairless value): a plain `pub const`/struct in
+`foundations::generated`, never routed through `Theme`. Each such group also generates a
+`pub const <IDENT>_DESCRIPTION: &str` in the design's own words - added during review #4, after
+the first capture's debug-struct text proved unreadable against the design's own page.
+
+`radius.round`: checked gpui 0.2.2's own source first - `corner_radii` takes
+`Corners<AbsoluteLength>`, `Pixels` or `Rems` only, no "fully round" primitive. Built as the
+*same* `Pixels` type as the other three radii, at a conventional 999px - the plan's one real
+departure in shape (it proposed a `FullyRound` marker type), recorded as a task comment and
+restated here.
+
+## AC#3 (gallery image)
+Both `target/gallery/{light,dark}.png` captured via `just capture-gallery`, no person at the
+screen, no leftover `gallery` process after (`ps` confirmed clean, recorded at every round).
+Window: 1240x1050 - height is this machine's own hard ceiling (`WindowBounds::centered` clamps
+to it regardless of what's requested, confirmed empirically). What review #4's six findings and
+review #5's two nits changed in the image is itemised above; no automated, pixel-level check for
+column overflow was built for review #4's finding 3 - the fixed-width columns are the structural
+mitigation, not a test, said plainly rather than claimed as one.
+
+Net result: 36 of the 54 names draw as a swatch/bar/sample (23 colours incl. `tint`/`scrim`, 2
+ramps, `space`, 4 radii, 4 type samples, 2 terminal theme row labels), the other 18 as a
+`name: value` row in "Other named values", five columns, each a fixed width so a long value
+wraps rather than running off the window.
+
+`capture-gallery`'s own image check is at `(8, 60)`: x=8 stays inside the root's own padding for
+any row; y=60 clears the OS titlebar the captured window image includes above GPUI's content.
+Checked against `surface.ground`'s own resolved hex per appearance.
+
+## AC#4 (names, counted)
+54 names in the data file, 54 generated markers, all 54 findable by name in the gallery image -
+36 as a swatch/bar/sample, 18 in "Other named values". Full per-section breakdown is in the PR
+body's table.
+
+A self-check prompted by a draft rule that landed on `main` mid-build (DRAFT-1, about TASK-1.96's
+own leaf-accounting tool sharing a blind spot with the check it was proving exhaustive): confirmed
+this task's own 54/54 equality isn't the same failure mode. `design_entries()` (a generic
+list/dict-of-groups/lone-object shape-walk) and the per-section renderers that actually emit the
+`Design name:` markers (`render_colours`, `render_sizes`, etc., each independently iterating the
+same raw JSON by its own section-specific logic) are separately-written traversals - a bug in one
+wouldn't silently agree with a bug in the other the way DRAFT-1 describes; the one case it could
+still miss (a malformed top-level section both pieces of code refuse to handle) raises loudly
+rather than passing quietly, since `design_entries`' own fallback is `raise ValueError`, not a
+silent skip.
+
+## Other departures from the plan
+- `resolve_for_appearance`, the multi-hop resolver the plan named, isn't in the generator - see
+  AC#1 above.
+- TASK-1.94 and TASK-1.96 (PRs #52, #54) are still open as of this task's final head, so this
+  task's own JSON parsing stays private to `foundations_generate.py`, and `foundations.json`'s
+  `artifact_version` is unchanged from what TASK-1.96 would update - nothing to regenerate.
+- The generator module is `foundations_generate.py`, not the plan's `foundations.py` - directed
+  by the engineer's own phase-2 brief (avoiding the TASK-1.94 name collision), not my rename;
+  recorded as a task comment once review #4 filed it as an unexplained departure.
+
+## This round: a CI hang investigated, and TASK-1.94's merge reconciled
+A CI run on the previous head (51c1659) hung 28+ minutes past the 30-minute job limit and
+was cancelled. Investigated before doing anything else, per the engineer's instruction:
+- The hang was in `test (steg-server, race-fixture)` - the log shows `ok test
+  (steg-server) (12.3s)` then nothing until the cancellation; that's the very next step
+  in `check-packages`'s loop. `steg-ui`'s own build/test never started.
+- `crates/server` had zero diff anywhere in this task at that point (`git diff
+  701fc4a..51c1659 -- crates/server` empty), and this task's own new check
+  (`check-foundations-public-surface`) completed in its usual <1s on that same run -
+  ruling out both "something of mine changed server code" and "something of mine hangs."
+- Reran the identical commit's CI job and watched it in the foreground: passed clean in
+  under 3 minutes, with that exact step - `ok test (steg-server, race-fixture) (10.6s)`
+  this time.
+- Checked the last 100 CI runs for this repo: no prior occurrence. The one other run that
+  showed as cancelled around the same time (PR #53, unrelated) had zero jobs ever start -
+  a routine GitHub concurrency-group auto-cancel from a newer push, not evidence of
+  shared-runner contention with this one.
+
+Conclusion, reported to the engineer before any further work: a one-off, transient flake
+on that specific CI run, in a pre-existing integration test (`crates/server/tests/
+race.rs`) that spawns 8 real OS processes racing for a Unix socket - inherently
+timing-sensitive, untouched by this task. Not fixed here (out of this task's scope);
+flagged to the engineer as worth the server side's own attention.
+
+Separately, TASK-1.94 (PR #52) merged to `main` while review #5 was still open. Brought
+in with `git merge --no-edit origin/main` (one real conflict, in `justfile`'s `check:`
+line - resolved by keeping both sides' recipes). Once in:
+- Removed the gallery's own exemption from `tools/src/steg_tools/ui_colours.py`'s
+  `EXEMPT_PREFIXES` (its own comment said "whichever of the two tasks merges second ends
+  this exemption" - that's this one). `GALLERY` stays as a file-discovery root (the
+  gallery's colours are still *checked*, just no longer skipped) - only removed from the
+  exemption tuple itself.
+- Updated the two unit tests that asserted the old behaviour
+  (`test_is_exempt_for_the_gallery_path`, `test_violations_skips_a_literal_inside_the_
+  gallery_path`) to assert the new one, and the adapter test's stale docstring (it
+  described the gallery as still exempt and foundations as still empty, both no longer
+  true). All 40 of `ui_colours`'s tests pass, including the real-tree adapter test -
+  this is the actual, no-exemption-anywhere confirmation the engineer asked for, run
+  directly rather than only in a scratch worktree.
+- TASK-1.94 also merged its own shared `steg_tools.foundations` reader. Checked whether
+  this task's generator could now reuse it instead of its own `json.loads`: no - that
+  module's own docstring says it deliberately reads only `colours[]` and opacity names
+  ("sizes, type, motion, themes and the focus ring are otherwise unread"), where this
+  task's generator has to turn every section into Rust. Nothing to reconcile beyond
+  confirming that, noted in `foundations_generate.py`'s own docstring so a reviewer
+  doesn't wonder why the merged reader goes unused.
+- TASK-1.96 (PR #54) is still open as of this task's final head; `foundations.json` is
+  unchanged from what it was at the start of this task, so nothing needed regenerating.
+- Full `cargo build --workspace` and `just check` both run clean at the merged head
+  (31c799f) - `check-packages`'s `test (steg-server, race-fixture)` step, the one that
+  hung before, passed in under 10s on every run since the investigation above.
+
+## Other notes
+- One recorded check early in this task, `bash -c 'cat /tmp/just-check-final.out'`, is superseded
+  by the real `just check` recorded immediately after it with the same result - an artifact of
+  waiting on a backgrounded run, not a second check.
+- A `steg-sdk` `local_socket` test failed once with `AddrInUse` inside one recorded `just check`
+  run - unrelated crate, transient, passed clean in isolation and on every other run this task
+  recorded.
+- Mid-fix, a `git checkout -- crates/ui/src/foundations/mod.rs`, meant to revert a scratch
+  negative-control edit, instead reverted every uncommitted fix in that file back to the
+  pre-review committed state (the scratch edit wasn't the only uncommitted change there) - caught
+  immediately (the file's own `grep` showed the old `default_session` back), and the fixes were
+  rewritten from scratch rather than patched back piecemeal. A reviewer diffing intermediate
+  commits may see `default_session` appear, read correctly, then need to be told this is why -
+  stated here so it doesn't look like an unexplained flicker.
+- The capture-check's own wrong-colour negative control is TASK-1.91's
+  (`test_a_capture_of_the_wrong_thing_fails_and_names_screen_recording`, already committed), not
+  something re-run here.
+- The pull request's images: attached via `gh pr comment 55 --attach`, read back from the comment,
+  and confirmed actually rendering in the PR body before this was called done - twice, once per
+  review round, since the gallery's rendering changed between them (the opacity labels).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

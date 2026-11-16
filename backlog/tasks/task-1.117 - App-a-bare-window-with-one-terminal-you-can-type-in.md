@@ -430,6 +430,37 @@ test metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds 
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_wide_runs_columns_are_twice_its_own_grapheme_count'` exited 101 at 2026-11-16T17:23:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... FAILED
+
+failures:
+
+---- model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count stdout ----
+
+thread 'model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count' (44441731) panicked at crates/app/src/model.rs:194:9:
+assertion `left == right` failed
+  left: 2
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T00:44:00Z'
+updated_date: '2026-11-16T00:45:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -871,6 +871,20 @@ Check passed: `cargo test -p steg-server --lib signal::` exited 0 at 2026-11-16T
 running 2 tests
 test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
 kill: 44839: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 0.01s
+```
+
+Check passed: `cargo test -p steg-server --lib signal::` exited 0 at 2026-11-16T00:45:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 2 tests
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+kill: 47774: No such process
 test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 0.01s

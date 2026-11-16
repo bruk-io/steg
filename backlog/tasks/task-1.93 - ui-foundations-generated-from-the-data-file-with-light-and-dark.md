@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:27:00Z'
+updated_date: '2026-11-16T03:39:00Z'
 labels:
   - size-3
   - changes-requested
@@ -739,6 +739,37 @@ By section: colours 18, colour_aliases 3, opacities 1, ramps 2, tint 1, type 7, 
   `gh`/REST path found to the `github.com/user-attachments/...` URLs PR #48's images carry under
   the same team rule. Both images are captured, pass their own check, and sit at
   `target/gallery/{light,dark}.png` in the worktree; asked the lead how #48 got its URLs.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check'` exited 0 at 2026-11-16T03:39:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (7.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.6s)
+ok      test (steg-server, race-fixture) (4.7s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (2.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.1s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

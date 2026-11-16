@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T06:30:00Z'
+updated_date: '2026-11-16T06:50:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -84,6 +84,14 @@ created: 2026-11-16T06:30:00Z
 ---
 
 2026-11-16, @bruk.o: the arbiter's socket test failed once more under full-suite parallelism in TASK-1.87's worktree (passed alone and in five further full runs). Third sighting of that test.
+
+---
+
+created: 2026-11-16T06:50:00Z
+
+---
+
+2026-11-16, @bruk.o: one failure in crates/server/tests/shutdown.rs during the second review of TASK-1.87 (ten runs of the server suite at ed80ab8); neither that task nor TASK-1.78's merge touches the file. Output not kept by the reviewer.
 
 ---
 <!-- COMMENTS:END -->

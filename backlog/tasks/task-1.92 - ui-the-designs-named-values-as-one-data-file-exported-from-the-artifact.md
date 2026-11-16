@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:29:00Z'
+updated_date: '2026-11-16T01:31:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -225,6 +225,29 @@ ok      test (steg-app) (1.0s)
 ok      tool tests (2.2s)
 ok      architecture (1.2s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `sh -c '
+SRC_BACKUP="/Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-canvas-backup-2026-11-15"
+SRC_PAGES="/Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794791991-5d11"
+fail=0
+check() { a=$(shasum -a 256 "$1" | cut -d" " -f1); b=$(shasum -a 256 "$2" | cut -d" " -f1); if [ "$a" = "$b" ]; then echo "ok $2"; else echo "MISMATCH $2 ($a vs $b)"; fail=1; fi; }
+check "$SRC_BACKUP/foundations.json" design/canvas/foundations.json
+check "$SRC_BACKUP/gen_system.py" design/canvas/gen_system.py
+check "$SRC_BACKUP/rebuild_main.py" design/canvas/rebuild_main.py
+check "$SRC_PAGES/Tokens.dc.html" design/canvas/project/Tokens.dc.html
+check "$SRC_PAGES/Layout.dc.html" design/canvas/project/Layout.dc.html
+check "$SRC_PAGES/Details.dc.html" design/canvas/project/Details.dc.html
+exit $fail
+'` exited 0 at 2026-11-16T01:31:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 1c9f374426a1 with uncommitted changes:
+
+```text
+ok design/canvas/foundations.json
+ok design/canvas/gen_system.py
+ok design/canvas/rebuild_main.py
+ok design/canvas/project/Tokens.dc.html
+ok design/canvas/project/Layout.dc.html
+ok design/canvas/project/Details.dc.html
 ```
 <!-- SECTION:NOTES:END -->
 

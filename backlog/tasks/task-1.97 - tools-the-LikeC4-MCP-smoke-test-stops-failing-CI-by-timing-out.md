@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:18:00Z'
+updated_date: '2026-11-16T03:19:00Z'
 labels:
   - size-2
   - changes-requested
@@ -169,6 +169,49 @@ tools/tests/functional/test_likec4_mcp.py:28: AssertionError
 FAILED tools/tests/functional/test_likec4_mcp.py::test_a_stall_before_any_reply_names_the_start_up_phase
 FAILED tools/tests/functional/test_likec4_mcp.py::test_a_stall_after_the_first_reply_names_the_mid_exchange_phase
 ============================== 2 failed in 15.26s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 2 at 2026-11-16T03:19:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (5.5s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (4.3s)
+ok      test (steg-server, race-fixture) (4.6s)
+ok      build (steg) (0.4s)
+ok      test (steg) (0.3s)
+ok      test (steg, fixtures) (2.7s)
+ok      build (steg-ui) (0.6s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+FAILED  tool tests (exit 2, 0.2s)
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/unit/test_likec4_mcp.py ________________
+import file mismatch:
+imported module 'test_likec4_mcp' has this __file__ attribute:
+  /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools/tests/functional/test_likec4_mcp.py
+which is not the same as the test file we want to collect:
+  /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools/tests/unit/test_likec4_mcp.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+=========================== short test summary info ============================
+ERROR tools/tests/unit/test_likec4_mcp.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.09s
+full output: .quiet/tool-tests.log
+error: recipe `test-tools` failed on line 92 with exit code 2
 ```
 
 Commits since the review: 58, 58 without the Asdlc-Worker trailer.

@@ -3,13 +3,14 @@ id: TASK-1.84
 title: >-
   Server: pass a typed command's start and end from a pane's terminal to the
   kernel
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:28:00Z'
+updated_date: '2026-11-16T01:43:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.79
@@ -27,9 +28,8 @@ asdlc_plan_approved_hash: '33f0386d0f53'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["review"]
+asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -657,6 +657,29 @@ created: 2026-11-16T01:28:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.84: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T01:43:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review, testing-rust. The diff does not match the plan.
+
+Review by @bruk.r2 (same-machine), second round. Head reviewed: c495468451b06859b18464fd2839d734614ca46a (matches the task's recorded `just check` tree and the pull request's green CI check run on this head).
+
+Independently reproduced: a fresh detached worktree at c495468; `just check` exit 0 (all 19 steps ok, including `tests (-p steg -p steg-kernel -p steg-server)`, `test (steg-server)`, `test (steg-server, race-fixture)`, `architecture`, `recipe names`); the fixed test, `a_command_panes_own_program_printing_marks_does_not_change_its_status`, run 20/20 with no flakiness; the full `runtime::tests` module (18 tests) passing before and after my own controls. Both of the fix's own negative controls reproduced in scratch edits, reverted afterward: (a) commenting out the `drain_command_marks` call in `crates/server/src/pane.rs`'s `PtyBytes` arm - the test fails, the sibling shell-pane control itself timing out waiting for `Failed { exit_code: 3 }`; (b) bypassing the kernel's command-pane guard (`if true`/`if false` in place of `self.closes_on_exit()` in both `Pane::note_command_output_started` and `Pane::note_command_ended`, `crates/kernel/src/pane.rs`) - the test fails at its `Some(Status::Running)` assertion, reading `Failed { exit_code: 3 }` instead. The fix genuinely repairs the Important finding from the first review (the test could not fail before): it is now sensitive in both directions.
+
+The 20x repeat count covers only the one test the commit since the last review changed; the six mark tests as a group were already run 20/20 by the first review at 7f6ab3a, and the code producing them (`pane.rs`, `terminal.rs`, and `apply_event_locked`'s two new arms) is untouched since - re-confirmed by `git diff --stat 7f6ab3a..c495468`, which touches only `crates/server/src/runtime.rs`'s test module, board-only files aside.
+
+[Bugs, Important] crates/server/src/runtime.rs:1899-1910, `a_command_panes_own_program_printing_marks_does_not_change_its_status`: the fixed test proves its D mark arrived for the *sibling shell pane*, not for the command pane the assertion is actually about, then infers the command pane's identical, near-simultaneous mark has also had time to land using a bare `thread::sleep(Duration::from_millis(100))` - not an event wait. `.claude/rules/testing-rust.md`: "No test sleeps to wait for something; it waits on the event." The shared `events_rx`/drain thread gives FIFO delivery only per sender (the plan's own §1 argument, and the code comment on `drain_command_marks`); nothing orders the command pane's worker thread's send relative to the shell pane's, since they are two independently scheduled real processes and two independent worker threads. The 100ms margin is the one thing standing between "the mark landed" and "the mark had not yet landed" for the pane under test, with no bound tied to any event of the command pane's own. If the kernel's command-pane guard were broken, but the command pane's worker thread were descheduled past the shell pane's run for longer than that margin (plausible, not just theoretical, under load - e.g. CI), the test would pass despite the bug: a silent vacuous pass, the same class of defect the first review found here, now hiding behind a timing assumption rather than unreachable code. My own 20/20 and the two controls ran on an otherwise-idle machine and cannot rule this out; a deterministic negative result there does not prove the assumption holds under load. Fix needs a real event to wait on for the command pane specifically - for example asserting on the command pane's own mark having been drained from the terminal (`Terminal::take_command_marks` returning empty, polled) before checking its status, or an in-crate hook that is not test-only instrumentation on `Runtime` itself, rather than inferring timing from a different pane.
+
+[Compliance, Nit] crates/server/src/runtime.rs:1842-1866: the 25-line `///` doc comment narrates this review's own history (reviewer name, finding, date) ahead of the test it attaches to. Useful today, but reads like a comment that will go stale exactly the way the first review's own nit (on the pane-not-found test) did once this round is old news - the "why" (vacuous-pass risk, two negative controls) is durable and belongs in the comment; the "who reviewed it and when" does not.
+
+Other items re-checked at this head, unchanged from the first review's findings: `apply_event_locked`'s two new arms, the `PaneNotFound` no-op, `unreachable!` arms, kernel diff confined to the one doc comment on `terminal.rs`, no `unsafe`, no new dependency, `--plan-matched no` reflecting the already-accepted resize departure (still the only departure). `Runtime::stop` (called from `Drop`) iterates every pane in `state.panes`, so the test's newly added second real pty child (the sibling shell pane) is reaped the same way the command pane is - no new leak from the fix (AC #3 holds). CI is green on c495468 (PR #46's head). No open draft in `asdlc board draft list` covers this or the prior finding; filing none, since the earlier Important finding was fixed rather than repeated.
 
 ---
 <!-- COMMENTS:END -->

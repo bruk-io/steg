@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:55:00Z'
+updated_date: '2026-11-16T14:00:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -181,6 +181,25 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T14:00:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 0fde255eb1c0 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk/src/description/methods.rs:1810:
+     fn unset_s_label_is_a_switch_not_a_value_taking_flag() {
+         let api = description();
+         for dotted in ["session.unset", "tab.unset", "pane.unset"] {
+[31m-            let method = api.method(dotted).unwrap_or_else(|| panic!("{dotted} is not described"));
+(B[m[32m+            let method = api
+(B[m[32m+                .method(dotted)
+(B[m[32m+                .unwrap_or_else(|| panic!("{dotted} is not described"));
+(B[m             let label = method
+                 .params
+                 .iter()
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

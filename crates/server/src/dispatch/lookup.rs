@@ -239,8 +239,8 @@ pub(crate) fn wire_position_to_index(position: i64) -> Result<usize, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use super::wire_position_to_index;
-    use steg_sdk::ErrorCode;
+    use super::{any_pane_running, wire_position_to_index};
+    use steg_sdk::{ErrorCode, PaneId};
 
     #[test]
     fn wire_position_converts_one_based_to_zero_based() {
@@ -258,5 +258,19 @@ mod tests {
             wire_position_to_index(-1).unwrap_err().code,
             ErrorCode::BadRequest
         );
+    }
+
+    /// `any_pane_running`'s own documented edge case (TASK-1.78's review,
+    /// one more nit): a pane id that cannot be looked up at all counts as
+    /// not running, not an error - never expected in practice (every id
+    /// it is ever given comes straight from `panes_in_close_scope` over
+    /// the same `tree`), but exercised directly here rather than left
+    /// untested, as the review asked.
+    #[test]
+    fn a_pane_id_that_cannot_be_found_counts_as_not_running() {
+        let tree = steg_kernel::Tree::new();
+        let nonexistent = PaneId::from_raw(999_999);
+
+        assert!(!any_pane_running(&tree, &[nonexistent]));
     }
 }

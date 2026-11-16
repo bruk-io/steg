@@ -704,8 +704,10 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
 /// stated bound; takes no lock of its own and must be called with none
 /// held, since its own waits are real (bounded, but real).
 fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
-    // Pass 1: signal every pane at once. `signal_hangup` reads a shared
-    // atomic directly (no channel), so this loop costs microseconds
+    // Pass 1: signal every pane at once. `signal_hangup` goes straight
+    // through `RunGate` (a `Mutex`, held only for the length of the
+    // signal call itself - review finding 1), never through the
+    // worker's own command queue, so this loop costs microseconds
     // regardless of how backed up any one pane's own worker is with its
     // own run's `PtyBytes`.
     for (_, handle) in &handles {
@@ -714,6 +716,10 @@ fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
 
     // Pass 2: wait against one shared deadline, not N deadlines - one
     // thread per pane so N panes share the deadline, not N * it.
+    // `await_exit` is also `RunGate`-based (a `Condvar` wait, never the
+    // worker's queue), which is what makes this a real "has the process
+    // ended" check rather than "has the worker drained its backlog far
+    // enough to notice" (the misclassification finding 1 found).
     let deadline = Instant::now() + grace;
     let stragglers: Vec<PaneId> = thread::scope(|scope| {
         let jobs: Vec<_> = handles
@@ -728,15 +734,15 @@ fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
         jobs.into_iter()
             .map(|job| {
                 job.join()
-                    .expect("await_exit is channel ops with bounded timeouts only, never panics")
+                    .expect("await_exit only waits on a Condvar with a bound, never panics")
             })
             .filter(|(_, ended)| !ended)
             .map(|(pane, _)| pane)
             .collect()
     });
 
-    // Pass 3: escalate only the stragglers - same direct-atomic reasoning
-    // as pass 1.
+    // Pass 3: escalate only the stragglers - same direct-`RunGate`
+    // reasoning as pass 1.
     for (pane, handle) in &handles {
         if stragglers.contains(pane) {
             handle.signal_kill();
@@ -745,10 +751,8 @@ fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
 
     // Pass 4: confirm the escalated ones actually died (`SIGKILL` cannot
     // be trapped, so this bound is a safety margin, not a real wait for
-    // cooperation), and give each of their own workers the `AwaitExit`
-    // it needs to break its loop at all (§1 of this task's own fix) - a
-    // pane that already ended during pass 2 got that already, so this
-    // only re-visits the stragglers.
+    // cooperation) - a pane that already ended during pass 2 is not
+    // re-visited here.
     thread::scope(|scope| {
         for pane in &stragglers {
             if let Some((_, handle)) = handles.iter().find(|(p, _)| p == pane) {
@@ -759,11 +763,31 @@ fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
         }
     });
 
-    // Pass 5: join every worker thread, bounded - sequential, not
+    // Pass 5: settle every worker thread *in parallel* - telling each
+    // one its own run has ended, via `PaneHandle::settle_worker`, and
+    // waiting for its reply, costs up to `FORCE_JOIN_TIMEOUT` in total
+    // regardless of how many panes are in `handles`, because this runs
+    // all of them at once rather than one after another. Folding this
+    // into `join_worker` itself instead (settle-then-join, called once
+    // per handle in the sequential pass below) was rejected during
+    // review: that would have put the exact N-pane-multiplication risk
+    // this task's own `force_end` exists to remove back into the one
+    // place a worker's own queue can still be genuinely backed up (a
+    // flooding run's `PtyBytes`) even after `RunGate` has already
+    // confirmed, promptly, that the process itself is dead.
+    thread::scope(|scope| {
+        for (_, handle) in &handles {
+            scope.spawn(|| {
+                handle.settle_worker(FORCE_JOIN_TIMEOUT);
+            });
+        }
+    });
+
+    // Pass 6: join every worker thread, bounded - sequential, not
     // scoped: `join_worker` consumes `self` by value, and by this point
-    // every handle's own `AwaitExit` has already been answered (pass 2,
-    // or pass 4 for a straggler), so each join is expected to return
-    // almost at once, never block on another pane's own wait.
+    // every handle's own worker has already been told to stop and
+    // settled (pass 5), so each join is expected to return almost at
+    // once, never block on another pane's own wait.
     for (_, handle) in handles {
         let _ = handle.join_worker(FORCE_JOIN_TIMEOUT);
     }

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:10:00Z'
+updated_date: '2026-11-16T02:12:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1546,6 +1546,33 @@ running 1 test
 test pane::tests::a_stale_generations_own_mark_dead_never_clobbers_a_newer_run ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler` exited 0 at 2026-11-16T02:12:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+warning: method `await_dead` is never used
+   --> crates/server/src/pane.rs:180:8
+    |
+136 | impl RunGate {
+    | ------------ method in this implementation
+...
+180 |     fn await_dead(&self, timeout: Duration) -> bool {
+    |        ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_flooding_program_that_exits_by_itself_mid_grace_is_not_misclassified_as_a_straggler ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 25 filtered out; finished in 0.01s
 ```
 
 Commits since the review: 0.

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:32:00Z'
+updated_date: '2026-11-16T02:33:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -516,6 +516,15 @@ FAILED  ui levels (exit 1, 0.0s)
 crates/ui/src/foundations/mod.rs:9: `use crate::atoms::Icon;` reaches into atoms from foundations, which doc-17 R119 refuses (a level uses only the levels before it: foundations < atoms < molecules < organisms).
 full output: .quiet/ui-levels.log
 error: recipe `check-ui-levels` failed on line 258 with exit code 1
+```
+
+Check FAILED: `just check-ui-colours` exited 1 at 2026-11-16T02:33:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+FAILED  ui colours (exit 1, 0.1s)
+crates/ui/src/atoms/mod.rs:8: `0x1c1b21` is a colour literal, which doc-17 R120 refuses outside foundations. This value matches surface.raised (dark) - use that named value instead.
+full output: .quiet/ui-colours.log
+error: recipe `check-ui-colours` failed on line 262 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

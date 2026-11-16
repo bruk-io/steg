@@ -421,6 +421,13 @@ FAILED tests/unit/test_ui_levels.py::test_crate_root_exports_resolves_a_plain_pu
 FAILED tests/unit/test_ui_levels.py::test_crate_root_exports_resolves_an_aliased_pub_use
 2 failed, 7 passed, 28 deselected in 0.02s
 ```
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_levels.py tests/adapter/test_ui_levels_real_repo.py'` exited 0 at 2026-11-16T02:31:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes:
+
+```text
+........................................                                 [100%]
+40 passed in 0.04s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -30,19 +30,25 @@ serde_json = "1"
 # only (`Command`/`Arg`/`PossibleValue`), never `#[derive(Parser)]` - a derive
 # would name every command by hand in a struct, exactly what "nothing names a
 # method by hand" forbids. Pinned to the exact version decision-1's own
-# licence table measured (4.6.7), and the version this task's own plan
-# verified `clap::builder::Str`/`clap::Id` both implement `From<String>`
-# against (docs.rs, checked directly) - so no leaking to `'static` is needed
-# anywhere in the generator; a later patch is not assumed to keep that true
-# without re-checking.
+# licence table measured (4.6.7). Checked directly against clap_builder's
+# own Cargo.toml (not assumed, and not docs.rs's own always-every-feature
+# build, which is misleading here): `Str`/`Id`'s `From<String>` impls are
+# gated behind clap's own "string" feature (`string = []` in clap_builder's
+# manifest - no extra dependency, pure conditional compilation), off by
+# default, which is why decision-1's own finding ("Str and Id have no
+# From<String>") holds for an ordinary build and this task turns "string"
+# on explicitly rather than leaking every name to `'static` the way the
+# decision-1 spike did.
 # `deny-features` for `clap` in `boundaries.toml` denies its "default"
 # feature outright (the check's own documented behaviour whenever a crate
 # has any `deny-features` entry), so this spells out exactly the features
-# clap's own `default` draws together (its Cargo.toml, checked directly) -
-# never "derive", which was never a default feature and is the one this
-# task's `deny-features` entry exists to keep out explicitly too.
+# clap's own `default` draws together (its Cargo.toml, checked directly),
+# plus "string" above - never "derive", which was never a default feature
+# and is the one this task's `deny-features` entry exists to keep out
+# explicitly too.
 clap = { version = "=4.6.7", default-features = false, features = [
     "std",
+    "string",
     "color",
     "help",
     "usage",

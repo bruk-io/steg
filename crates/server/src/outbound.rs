@@ -445,6 +445,33 @@ mod tests {
     /// will ever send, up to `CONTROL_CAP`, before anything noticed. A
     /// peer that has dropped its own end makes the very next write fail
     /// immediately, with no thread or wait needed to prove it.
+    ///
+    /// **Why this stays a direct `Outbound`/`run_writer` test, with no
+    /// routing-level counterpart over a real connection** (a second
+    /// review of this task asked for one, or this reason): the obvious
+    /// way to make a real connection's own write fail without the
+    /// reader also seeing an immediate close - the client half-closing
+    /// only its own read side - does not do that on this platform,
+    /// confirmed directly rather than assumed (a standalone repro:
+    /// `UnixStream::pair()`, one side `shutdown(Shutdown::Read)`, the
+    /// other side writes 2MB with every single `write()` call
+    /// succeeding - a half-closed read side here never makes the
+    /// peer's own writes fail or block). A real connection's client
+    /// fully disconnecting instead - the only reliable way left to make
+    /// the write fail - *also* makes the reader's own, already-existing
+    /// `Ok(0)`/error handling in `run_post_handshake`'s read loop close
+    /// the connection at the same moment, independently of whether this
+    /// fix exists at all (confirmed by reading `connection.rs`: that
+    /// path needs nothing from `Outbound` to decide to close). A
+    /// routing-level test built that way could not tell "the writer's
+    /// own broken-write handling ended this" apart from "the reader's
+    /// own, unrelated EOF handling already would have" - it would pass
+    /// identically with this fix removed, which is exactly the "test
+    /// that still passes with its mechanism removed proves nothing"
+    /// case `review.md`'s own Evidence pass warns against. This test
+    /// drives `run_writer` directly, with no reader and no connection
+    /// at all in the way, specifically so it isolates the one thing the
+    /// routing-level shape cannot.
     #[test]
     fn a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails() {
         let outbound = Outbound::new();

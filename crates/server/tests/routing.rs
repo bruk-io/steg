@@ -14,16 +14,25 @@
 )]
 
 use std::io::{Read, Write};
+use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+// `nix::libc` (re-exported, unconditionally - `nix-0.28.0/src/lib.rs`'s
+// own `pub use libc;`), not a new dependency: `steg-server` already
+// depends on `nix` for the arbiter's lock and owner checks, and this is
+// the same crate's own raw `getsockopt`/`ioctl` surface, used only by
+// this file's own test below to read real socket buffer sizes and poll
+// `FIONREAD` - nothing production reaches.
+use nix::libc;
 use serde_json::{Map, Value, json};
 use steg_sdk::{
-    CONTROL_STREAM, ClientHello, ClientKind, Connection, Control, Decoder, Frame, Incoming,
-    PROTOCOL_VERSION, Response, WireRole as Role, description, encode_frame, parse_server_hello,
+    CONTROL_STREAM, ClientHello, ClientKind, Connection, Control, Decoder, ErrorCode, Frame,
+    Incoming, PROTOCOL_VERSION, Response, WireRole as Role, description, encode_frame,
+    parse_server_hello,
 };
 use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve};
 
@@ -347,6 +356,40 @@ fn several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_repl
     stop_server(&stop, handle);
 }
 
+/// The plan's own proof section said `Context::none()` and the
+/// missing-target refusal are proved over a real socket - this is that
+/// proof, over a session, a tab and a pane method, not only
+/// `dispatch/lookup.rs`'s own unit tests (which exercise the same
+/// decision without a connection at all). `target` is an optional
+/// parameter on every one of these three methods (`validate` lets a
+/// target-less request through), so a `BadRequest` reaching the client
+/// here can only have come from dispatch's own missing-context
+/// refusal, not the client- or server-side `validate` check.
+#[test]
+fn a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    for method in ["session.show", "tab.focus", "pane.show"] {
+        let (_, response) = call_and_read_reply(&mut stream, &mut connection, method, Map::new());
+        match response {
+            Response::Error(error) => {
+                assert_eq!(error.code, ErrorCode::BadRequest, "{method}: {error:?}");
+                assert!(
+                    error.message.contains("context"),
+                    "{method}: expected a missing-context message, got {}",
+                    error.message
+                );
+            }
+            Response::Ok(value) => {
+                panic!("{method} with no target and no context must not succeed: {value}")
+            }
+        }
+    }
+
+    stop_server(&stop, handle);
+}
+
 // --- AC #1: a frame over the cap, post-handshake --------------------------
 
 #[test]
@@ -461,6 +504,69 @@ fn data_on_a_stream_never_opened_closes_the_connection() {
         .unwrap();
 
     assert_closes(&mut stream, Duration::from_secs(2));
+    stop_server(&stop, handle);
+}
+
+/// Real-stack coverage for the broken-write fix (`outbound.rs`'s own
+/// `a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`
+/// is what isolates the mechanism itself, and says in its own doc why a
+/// routing-level test cannot do that instead): several replies queued,
+/// then the client vanishes entirely before reading any of them - the
+/// connection must still end cleanly and promptly, reported over the
+/// events channel, with nothing stuck.
+#[test]
+fn a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly() {
+    let socket_path = unique_socket_path();
+    let config = ServerConfig {
+        socket_path: Some(socket_path.clone()),
+        handshake_timeout: Duration::from_secs(5),
+        ..ServerConfig::default()
+    };
+    let stop = Stopper::new();
+    let (tx, rx) = mpsc::channel::<ConnectionEvent>();
+    let handle = {
+        let config = config.clone();
+        let stop = stop.clone();
+        std::thread::spawn(move || {
+            let _ = serve(&config, &stop, Some(tx));
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if UnixStream::connect(&socket_path).is_ok() {
+            break;
+        }
+        assert!(Instant::now() < deadline, "server never started accepting");
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Connected
+    );
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Disconnected
+    );
+
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Connected
+    );
+
+    for _ in 0..5 {
+        let (_, bytes) = connection.call("session.list", Map::new()).unwrap();
+        stream.write_all(&bytes).unwrap();
+    }
+    drop(stream); // the client is simply gone - never read a single reply
+
+    assert_eq!(
+        rx.recv_timeout(Duration::from_secs(5)).unwrap(),
+        ConnectionEvent::Disconnected,
+        "the connection must still end promptly once the client has vanished, even with \
+         replies still queued for it"
+    );
+
     stop_server(&stop, handle);
 }
 
@@ -635,6 +741,118 @@ fn the_server_stops_promptly_with_a_connection_mid_request() {
     );
 }
 
+/// The plan's own section 9 proof, named explicitly rather than only
+/// implied: `listen::run`'s shutdown order (join every connection, stop
+/// the `Runtime` - ending every real program - then remove the socket
+/// file, then release the arbiter lock) proved end to end, with a real
+/// pane's real program, through a real connection and a real `stop()` -
+/// not `Runtime::stop()` called directly, which `runtime.rs`'s own
+/// `stop_tests` module already proves on its own. The ordering itself is
+/// structurally guaranteed by `run`'s own sequential, synchronous body
+/// (confirmed by reading it: each step is a plain statement after the
+/// last, nothing racing); what this test adds is that the *real stack*
+/// (a real `session.new`, a real pty, a real `stop()` through a real
+/// connection) really does end a real process, not only that
+/// `Runtime::stop()` does in isolation.
+#[test]
+fn stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    // A real program that writes its own pid to a file, then sleeps -
+    // the same technique `runtime.rs`'s own `stop_tests` module already
+    // uses, since no API method reports a pane's pid directly.
+    let pid_file = std::env::temp_dir().join(format!(
+        "steg-routing-stop-test-{}-{}.pid",
+        std::process::id(),
+        line!()
+    ));
+    let _ = std::fs::remove_file(&pid_file);
+    let mut params = Map::new();
+    params.insert(
+        "program".to_string(),
+        json!([
+            "sh",
+            "-c",
+            format!("echo $$ > {} ; exec sleep 100", pid_file.display())
+        ]),
+    );
+    let (_, response) = call_and_read_reply(&mut stream, &mut connection, "session.new", params);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let pid: u32 = loop {
+        if let Ok(text) = std::fs::read_to_string(&pid_file)
+            && let Ok(pid) = text.trim().parse()
+        {
+            break pid;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "never saw a pid written to {pid_file:?}"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let _ = std::fs::remove_file(&pid_file);
+    assert!(
+        process_exists(pid),
+        "the real program must be running before this test stops the server"
+    );
+
+    stop.stop();
+    handle.join().expect("the server thread should not panic");
+
+    assert!(
+        !process_exists(pid),
+        "stopping through a real connection must end the real program listen::run's own \
+         Runtime owned, the same way Runtime::stop() does on its own"
+    );
+    assert!(
+        !socket_path.exists(),
+        "the socket file must be removed once run() has returned"
+    );
+
+    // The lock really was released, not merely the fd leaked and
+    // eventually reclaimed: a fresh serve() at the same path becomes the
+    // server again, which the arbiter would refuse if anything still
+    // held it.
+    let config = ServerConfig {
+        socket_path: Some(socket_path.clone()),
+        ..ServerConfig::default()
+    };
+    let second_stop = Stopper::new();
+    let second_handle = {
+        let config = config.clone();
+        let second_stop = second_stop.clone();
+        std::thread::spawn(move || {
+            let _ = serve(&config, &second_stop, None);
+        })
+    };
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        if UnixStream::connect(&socket_path).is_ok() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "a second serve() never started accepting - the first run() may not have released \
+             the lock"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    stop_server(&second_stop, second_handle);
+}
+
+/// Whether a process with this id still exists, reaped or not - the same
+/// `kill -0` probe `runtime.rs`'s own `stop_tests` module already uses.
+fn process_exists(pid: u32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .status()
+        .expect("kill(1) is on PATH on every platform this runs on")
+        .success()
+}
+
 /// `ConnectionEvent::Disconnected` actually arrives for a connection this
 /// task's own new routing closes (not just one TASK-1.44's handshake
 /// phase already covered) - the one seam a later idle counter
@@ -752,21 +970,117 @@ fn a_reply_delivered_one_byte_at_a_time_still_decodes_correctly() {
     stop_server(&stop, handle);
 }
 
+/// `stream`'s own kernel-reported buffer size (`SO_SNDBUF`/`SO_RCVBUF`,
+/// `which`) - read from the real socket rather than assumed, so a test
+/// that needs to exceed it can size itself from the actual number on
+/// whatever machine runs it, not a guessed constant.
+///
+/// # Panics
+/// If `getsockopt` itself fails - never in practice for these two,
+/// always-supported options on an open, connected socket.
+fn socket_buffer_size(stream: &UnixStream, which: libc::c_int) -> usize {
+    let mut value: libc::c_int = 0;
+    let mut len = libc::socklen_t::try_from(size_of::<libc::c_int>()).expect("a small constant");
+    // SAFETY: `stream.as_raw_fd()` names a real, open socket for the
+    // duration of this call (`stream` is only borrowed, not consumed);
+    // `value` and `len` are a correctly sized, initialised `c_int` and
+    // its own byte length, which is exactly the shape SO_SNDBUF/
+    // SO_RCVBUF (always a plain `c_int` option on every platform this
+    // runs on) write back through.
+    let result = unsafe {
+        libc::getsockopt(
+            stream.as_raw_fd(),
+            libc::SOL_SOCKET,
+            which,
+            std::ptr::addr_of_mut!(value).cast(),
+            &mut len,
+        )
+    };
+    assert_eq!(
+        result,
+        0,
+        "getsockopt failed: {}",
+        std::io::Error::last_os_error()
+    );
+    usize::try_from(value).unwrap_or(0)
+}
+
+/// Bytes sitting in `stream`'s own receive buffer right now, not yet
+/// read (`FIONREAD`) - queried without consuming them, so a test can
+/// watch whether more keep arriving without draining what is already
+/// there.
+///
+/// # Panics
+/// If the `ioctl` itself fails - never in practice for `FIONREAD` on an
+/// open socket.
+fn bytes_available_to_read(stream: &UnixStream) -> usize {
+    let mut available: libc::c_int = 0;
+    // SAFETY: `stream.as_raw_fd()` names a real, open socket for the
+    // duration of this call; `FIONREAD` writes exactly one `c_int`
+    // through the pointer given, which `available` is.
+    let result = unsafe { libc::ioctl(stream.as_raw_fd(), libc::FIONREAD, &mut available) };
+    assert_eq!(
+        result,
+        0,
+        "ioctl(FIONREAD) failed: {}",
+        std::io::Error::last_os_error()
+    );
+    usize::try_from(available).unwrap_or(0)
+}
+
+/// Waits, bounded, until `stream`'s own [`bytes_available_to_read`] is
+/// positive and reads the same on two consecutive polls, 20ms apart -
+/// the one fact that can only hold once whatever is writing to the other
+/// end has written something and then genuinely stopped (blocked on a
+/// full buffer, or finished), never a fixed sleep standing in for
+/// "probably by now". No OS primitive blocks on an exact byte count
+/// staying put, so this is a bounded poll, the same shape this crate's
+/// own `runtime.rs` tests already use for a fact with no event of its
+/// own (e.g. waiting for a real OSC 7 to land) - the sleep between polls
+/// is pacing, not the wait itself; the wait is the condition checked
+/// before it.
+///
+/// # Panics
+/// If the bound passes before two consecutive, positive, equal readings
+/// are seen.
+fn wait_until_bytes_available_plateaus(stream: &UnixStream, bound: Duration) -> usize {
+    let deadline = Instant::now() + bound;
+    let mut last = bytes_available_to_read(stream);
+    loop {
+        assert!(
+            Instant::now() < deadline,
+            "bytes available to read never plateaued above zero within {bound:?} \
+             (last seen: {last})"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+        let now = bytes_available_to_read(stream);
+        if now > 0 && now == last {
+            return now;
+        }
+        last = now;
+    }
+}
+
 /// The headline bug this task found and fixed (`connection.rs`'s
 /// `ConnectionCleanup`): a writer thread blocked inside `write_all` on a
 /// full OS send buffer never sees `Outbound::close()`'s own condvar
 /// notify - only `shutdown(Both)` forces a blocked write to fail.
 ///
-/// Makes the writer genuinely block, not merely slow: `api.list`'s own
-/// reply is ~30KB (measured directly), comfortably over this platform's
-/// own default send buffer for a Unix-domain socket (confirmed ~8KB
-/// during this task's own earlier work), so even the *first* of ten such
-/// calls cannot be written in full before anything is read - no socket
-/// option needs tuning for this to be reliable. This connection's own
-/// close is then triggered from the inside (a hostile frame), not a
-/// server-wide `stop()` - `listen.rs`'s own, separate shutdown mechanism
-/// would also unblock a stuck writer and could mask this exact bug, so
-/// this test must never call `stop()` before the assertion below.
+/// Makes the writer genuinely block, not merely slow, and *proves* it
+/// (a review of this task found an earlier version of this test only
+/// slept 300ms and assumed it): reads this connection's own real
+/// `SO_SNDBUF`/`SO_RCVBUF` from the kernel, sends enough `api.list`
+/// calls (each large, ~30KB, measured directly) that their total
+/// comfortably exceeds both buffers' sum with a wide margin, then calls
+/// [`wait_until_bytes_available_plateaus`] (bounded) for the bytes
+/// already delivered to stop growing at a value above zero, which can
+/// only happen once the writer has written something and then stopped
+/// (blocked, since nothing on this side has read anything yet). This
+/// connection's own close is then triggered from the inside (a hostile
+/// frame), not a server-wide `stop()` - `listen.rs`'s own, separate
+/// shutdown mechanism would also unblock a stuck writer and could mask
+/// this exact bug, so this test must never call `stop()` before the
+/// assertion below.
 #[test]
 fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs() {
     let socket_path = unique_socket_path();
@@ -809,20 +1123,38 @@ fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_
         ConnectionEvent::Connected
     );
 
-    // Ten ~30KB replies (~300KB) is a wide margin over any plausible
-    // buffer size without needing to tune one - sent, never read.
-    const LARGE_CALLS: usize = 10;
-    const REPLY_BYTES_FLOOR: usize = 20_000; // conservative: the real reply measured ~30KB
-    for _ in 0..LARGE_CALLS {
-        let (_, bytes) = connection.call("api.list", Map::new()).unwrap();
+    // Sized from the real kernel, not assumed: this connection's own
+    // SO_SNDBUF and SO_RCVBUF, read directly, are what actually bounds
+    // how much the server can have in flight before its own write
+    // blocks - a fixed guess would be wrong on a machine with unusually
+    // large buffers.
+    let send_buf = socket_buffer_size(&stream, libc::SO_SNDBUF);
+    let recv_buf = socket_buffer_size(&stream, libc::SO_RCVBUF);
+    let margin_target = (send_buf + recv_buf) * 3;
+
+    // `api.list`'s own *reply* (not the tiny request this connection
+    // sends to ask for it) is what has to exceed `margin_target` - a
+    // measured, documented floor, not read live each time: the reply's
+    // size is this codebase's own API description, deterministic and
+    // under this repository's own control, not the OS's. Measured
+    // directly (one run, `cargo test -- --nocapture` on this exact
+    // call): 30181 bytes; 25000 is a conservative floor under that.
+    const REPLY_BYTES_FLOOR: usize = 25_000;
+    let calls_needed = (margin_target / REPLY_BYTES_FLOOR) + 2;
+    let mut sent_calls = 0_usize;
+    let mut sent_ids = Vec::new();
+    while sent_calls < calls_needed {
+        let (id, bytes) = connection.call("api.list", Map::new()).unwrap();
         stream.write_all(&bytes).unwrap();
+        sent_ids.push(id);
+        sent_calls += 1;
     }
 
-    // Gives the server's own reader and writer threads time to reach
-    // the state this test needs: every call enqueued, and the writer
-    // genuinely stuck partway through writing the first large reply -
-    // nothing on this side has read anything at all yet.
-    std::thread::sleep(Duration::from_millis(300));
+    // Waits for the one fact that can only hold once the writer has
+    // genuinely written something and then stopped - no sleep standing
+    // in for "probably by now" (a review of this task found the earlier
+    // version of this test did exactly that).
+    let plateaued_at = wait_until_bytes_available_plateaus(&stream, Duration::from_secs(5));
 
     stream
         .write_all(&encode_frame(&Frame::control(CONTROL_STREAM, b"garbage".to_vec())).unwrap())
@@ -837,12 +1169,12 @@ fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_
          connection's own close runs"
     );
 
-    // Confirms the writer really was cut off mid-delivery, not merely
-    // unobserved: drains whatever did arrive and checks it is less than
-    // the full amount every call's own reply would have sent had
-    // nothing ever blocked - the actual evidence that this test
-    // exercised a genuinely stuck write, not a fast one that finished
-    // on its own before the close ever reached it.
+    // Confirms what the plateau already established, now from the
+    // client's own total: some bytes genuinely arrived (the writer did
+    // write), and not all of them did (the writer really was cut off
+    // mid-delivery, not merely unobserved) - drains whatever is left and
+    // adds it to what the plateau check already read off the socket
+    // without consuming it.
     stream
         .set_read_timeout(Some(Duration::from_secs(2)))
         .unwrap();
@@ -854,12 +1186,23 @@ fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_
             Ok(n) => received += n,
         }
     }
+    let total_sent: usize = sent_calls * REPLY_BYTES_FLOOR;
     assert!(
-        received < LARGE_CALLS * REPLY_BYTES_FLOOR,
-        "the writer must have been cut off mid-delivery (received {received} bytes of at least \
-         {}); if every reply fully arrived, this test never actually exercised a blocked write",
-        LARGE_CALLS * REPLY_BYTES_FLOOR
+        plateaued_at > 0,
+        "the plateau wait already requires this, restated here for a single clear assertion \
+         alongside the one below"
     );
+    assert!(
+        received > 0,
+        "the writer must have written something before this connection's own close ran"
+    );
+    assert!(
+        received < total_sent,
+        "the writer must have been cut off mid-delivery (received {received} bytes of at least \
+         {total_sent} sent, across {sent_calls} calls); if every reply fully arrived, this test \
+         never actually exercised a blocked write"
+    );
+    let _ = sent_ids; // kept only for a human reading a failure, not asserted on
 
     stop_server(&stop, handle);
 }

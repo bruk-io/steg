@@ -4,13 +4,14 @@ title: 'CLI: act on the terminal it runs in'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-16T13:51:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.49
   - TASK-1.40
+  - TASK-1.119
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg

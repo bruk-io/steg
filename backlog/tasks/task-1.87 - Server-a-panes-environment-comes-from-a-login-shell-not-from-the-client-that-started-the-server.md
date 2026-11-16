@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T07:01:00Z'
+updated_date: '2026-11-16T07:12:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1416,6 +1416,44 @@ running 1 test
 test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c '
+echo "process count before:"; ps aux | grep -iE "target/(debug|release)/(steg|fixture_server|env_leak_client|autostart_client|already_a_group_leader)\b" | grep -v grep | wc -l
+fail=0
+for i in $(seq 1 10); do cargo test -p steg-server --quiet 2>&1 | grep -q "FAILED" && { echo "server run $i FAILED"; fail=1; } || echo "server run $i ok"; done
+for i in $(seq 1 10); do cargo test -p steg --features fixtures --quiet 2>&1 | grep -q "FAILED" && { echo "steg run $i FAILED"; fail=1; } || echo "steg run $i ok"; done
+echo "process count after:"; ps aux | grep -iE "target/(debug|release)/(steg|fixture_server|env_leak_client|autostart_client|already_a_group_leader)\b" | grep -v grep | wc -l
+exit $fail
+'` exited 0 at 2026-11-16T07:12:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ed80ab89ca26 with uncommitted changes:
+
+```text
+process count before:
+       0
+server run 1 ok
+server run 2 ok
+server run 3 ok
+server run 4 ok
+server run 5 ok
+server run 6 ok
+server run 7 ok
+server run 8 ok
+server run 9 ok
+server run 10 ok
+steg run 1 ok
+steg run 2 ok
+steg run 3 ok
+steg run 4 ok
+steg run 5 ok
+steg run 6 ok
+steg run 7 ok
+steg run 8 ok
+steg run 9 ok
+steg run 10 ok
+process count after:
+       0
 ```
 
 Commits since the review: 0.

@@ -801,6 +801,34 @@ error: test failed, to rerun pass `-p steg --test server_start`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start no_on_demand_given_after_on_demand_wins` exited 101 at 2026-11-16T15:46:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 1 test
+test no_on_demand_given_after_on_demand_wins ... FAILED
+
+failures:
+
+---- no_on_demand_given_after_on_demand_wins stdout ----
+
+thread 'no_on_demand_given_after_on_demand_wins' (43577232) panicked at crates/steg/tests/server_start.rs:764:21:
+expected no message, got "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    no_on_demand_given_after_on_demand_wins
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

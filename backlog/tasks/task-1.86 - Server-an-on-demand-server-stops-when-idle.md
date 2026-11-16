@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T11:39:00Z'
+updated_date: '2026-11-16T11:40:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -478,6 +478,12 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `just test-all` exited 0 at 2026-11-16T11:40:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699:
+
+```text
+ok      tests (every crate) (58.2s)
 ```
 <!-- SECTION:NOTES:END -->
 

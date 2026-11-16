@@ -1,14 +1,13 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand and detach, from the steg entry point'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
 updated_date: '2026-11-16T01:39:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -1279,6 +1278,8 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 101, 101 without the Asdlc-Worker trailer.
+
+Fixed both Important findings and the nit: a Drop-based guard now finds and kills a test's indirectly-spawned server via lsof on its arbiter lock file (not the socket path - bind_with_mode's rename breaks lsof's own path tracking for the socket, confirmed directly), proved with a recorded suite-level zero-leak check and its negative control; two new real-binary tests reach exit statuses 4 and 1; an unrecognised server start variant now exits 2. just check green at the final merged head (b5e2aa6); PR #44 CI green after one more confirmed occurrence of the already-tracked LikeC4 MCP flake (TASK-1.82). Full writeup in the task's comments.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

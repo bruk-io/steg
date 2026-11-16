@@ -3,7 +3,7 @@ id: doc-11
 title: 'Spec: program status'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T01:24:00Z'
+updated_date: '2026-11-16T11:54:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -38,7 +38,7 @@ What steg knows about the program in a pane and how long it keeps knowing it: ru
 - R51 (M3). A waiting or failed status can raise a macOS notification naming the session
   and pane, only while steg is in the background and not more than once per pane per
   state. Finished does not notify. Each is switchable on its own (the design artifact, doc-10).
-- R52 (M2). Status changes are events, and the CLI can list a pane's status records.
+- R52 (M1 for the events, M2 for the listing). Status changes are events: a pane's and a tab's shown status changing is reported to subscribers in M1, because R82 and R83 are M1 and a client cannot show a status it is not told about (decided by Bruk on 2026-11-16 with TASK-1.46's plan; the label read M2 before). The CLI listing a pane's status records stays M2.
 
 ## Open questions
 

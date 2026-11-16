@@ -476,6 +476,51 @@ test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_control_frame_on_the_open_stream_arrives_as_an_update'` exited 101 at 2026-11-16T17:24:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 56 lines:
+
+```text
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sender`
+   --> crates/app/src/client.rs:100:39
+    |
+100 | fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> bool {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_sender`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `update`
+   --> crates/app/src/client.rs:102:13
+    |
+102 |         let update = match incoming {
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_update`
+
+warning: `steg-app` (bin "steg-app" test) generated 3 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... FAILED
+
+failures:
+
+---- client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update stdout ----
+
+thread 'client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update' (44445816) panicked at crates/app/src/client.rs:186:9:
+assertion failed: matches!(event, Some(ClientEvent::Update(ScreenUpdate::Unchanged)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

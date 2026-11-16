@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:23:00Z'
+updated_date: '2026-11-16T00:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -850,6 +850,31 @@ correctly.
 Rewritten plan for the first piece checked against doc-8 (R3, R98, R99), doc-2 section 6, doc-16 and decision-2 section 7 by @bruk.o: ok. The server process the sdk's provider spawns detaches itself with one safe setsid call (a feature added to the nix dependency the crate already has), so there is no fork, no descriptor passing and no unsafe; the steg entry point composes attempt, the printed line, detach for an on-demand start, and run, with no server logic of its own (R98). An explicit start runs in the foreground and is not detached (R3, R99); an interrupt is left at its default for this piece, with what it leaves behind stated, and the new server-stop task decides whether to handle it. A start that cannot detach because it is already a process-group leader carries on attached with a message, with a test. 'started' is printed only after the socket is bound. This task constructs no Runtime: TASK-1.45 creates and stops it inside run from ServerConfig. Stated plainly as left for TASK-1.86 and TASK-1.87: an on-demand server here never stops by itself, and panes still inherit the starting client's environment.
 
 Plan updated after the check above (interrupt consequences stated in full, a test that a fresh start replaces a killed server's socket through the real binary, the ServerConfig merge order with TASK-1.45): re-read by @bruk.o, still ok; the plan constructs no Runtime. The digest to approve is the one asdlc mine shows after this update.
+
+Check passed: `just check` exited 0 at 2026-11-16T00:29:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 221ef18c07f7:
+
+```text
+ok      format check (0.2s)
+ok      lint (90.7s)
+ok      boundaries (0.2s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.2s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (45.5s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (50.3s)
+ok      test (steg-server) (5.0s)
+ok      test (steg-server, race-fixture) (5.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (18.4s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (1.5s)
+ok      architecture (1.0s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

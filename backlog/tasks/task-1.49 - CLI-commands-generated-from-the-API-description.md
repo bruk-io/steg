@@ -4,7 +4,7 @@ title: 'CLI: commands generated from the API description, in the steg package'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:35:00Z'
+updated_date: '2026-11-16T11:34:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -31,6 +31,7 @@ doc-2, sections 2 to 6 and 8: R32, R34. decision-4. Nothing in the CLI names a m
 - [ ] #4 `steg version`, `steg completion <shell>` and `--help` work with no server running; `--no-autostart` exits 4 without starting one
 - [ ] #5 A list is tab-separated with full identifiers, no header and no alignment, the same piped or not
 - [ ] #6 The CLI lives in the `steg` package and reaches the server only through the sdk (doc-16 R98, R101)
+- [ ] #7 A client whose connection is accepted and then closed before a hello arrives treats that the same as no server being there, and arbitrates again once; shown with real processes against a server stopping as the client connects (moved from TASK-1.86's fourth criterion, whose plan the engineer approved on 2026-11-16: nothing built before this task reads a hello)
 <!-- AC:END -->
 
 ## Implementation Notes

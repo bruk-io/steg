@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:48:00Z'
+updated_date: '2026-11-16T01:54:00Z'
 labels:
   - size-3
   - changes-requested
@@ -313,6 +313,14 @@ Checks recorded on this task (all exit 0):
 The tested tool that checks the data file against the saved pages by name and value, with a negative control, is TASK-1.96 (not this task) — noted in the plan and in the PR description, not built here.
 
 CI green on the final head (dc9f98533d16): gh pr checks 49 --watch, 'check' passed in 3m11s.
+
+Check passed: `python3 -I /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1.92-shape-check.py crates/ui/design/foundations.json` exited 0 at 2026-11-16T01:54:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at dc9f98533d16 with uncommitted changes:
+
+```text
+OK: shape check passed (18 colours, 3 aliases, 2 ramps, 7 type entries, 18 size entries, 1 motion entries, 2 themes)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

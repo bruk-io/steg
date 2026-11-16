@@ -610,6 +610,35 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test dispatch`
 ```
+
+Check FAILED: `cargo test -p steg-server --test dispatch -- pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order` exited 101 at 2026-11-16T05:06:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-a3fcf474f697b99f)
+
+running 1 test
+test pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order ... FAILED
+
+failures:
+
+---- pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order stdout ----
+
+thread 'pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order' (24070010) panicked at crates/server/tests/dispatch.rs:1062:5:
+assertion `left == right` failed: second was split to the Left of first, so it reads first in R112's order
+  left: String("00000002")
+ right: String("00000003")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_list_returns_every_pane_of_the_tab_in_r112s_layout_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

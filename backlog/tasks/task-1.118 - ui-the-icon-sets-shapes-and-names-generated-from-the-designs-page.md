@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.118
 title: 'ui: the icon set''s shapes and names, generated from the design''s page'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T13:08:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

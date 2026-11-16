@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.120
 title: 'CLI: output formats: plain text, --json and -q'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T13:35:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.49
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

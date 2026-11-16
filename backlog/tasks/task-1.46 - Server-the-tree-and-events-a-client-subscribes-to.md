@@ -1,14 +1,13 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:02:00Z'
+updated_date: '2026-11-16T15:04:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -1365,6 +1364,40 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 63, 62 without the Asdlc-Worker trailer.
+
+Each of the 5 Important findings and 2 nits, addressed:
+
+1. The real bug (pane.close/tab.close discarding the kernel's own cascade): fixed by threading the kernel's own ClosedPane/TabClosed through, not re-deriving it. dispatch::pane::close/tab::close now return new Outcome::PaneClosed(ClosedPane)/Outcome::TabClosed(TabClosed) (still Value::Null on the wire - no contract change). dispatch::dispatch split into a thin wrapper plus dispatch_raw (pub(crate), returns the typed Outcome); close_and_dispatch calls dispatch_raw directly and reads the cascade off its result. CloseCascade renamed ClosePre, simplified to carry only what the kernel's own return value cannot (the scoping session id; for session.close only, since Tree::close_session reports no structured cascade at all, its own tabs/panes grouped from a pre-close read). emit_close_events rewritten to read closed.tab/closed.session/closed.session_now_empty straight from the Outcome. New tests: pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order, tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session - each with its own recorded negative control (temporarily reverted both the pane.close and tab.close arms of emit_close_events back to the exact pre-review bug; all three new tests plus the rebuilt session_close test failed correctly for the right reason; reverted, just test clean again).
+
+2/3/4. Missing controls, recorded now: session-scope filter in isolation (disabled scope_ok alone in Filter::matches, leaving name_ok untouched - a_filter_by_session_excludes_another_sessions_events failed, a_filter_by_name_keeps_only_that_event still passed, proving the two are independently covered); creation-cascade order (removed the TabCreated broadcast in emit_creation_events's session.new arm - session_new_emits_session_created_tab_created_and_pane_created_in_order failed on the right assertion); exit-driven cascade order (removed the TabClosed broadcast in emit_close_cascade - a_shell_panes_exit_emits_the_whole_cascade_in_order failed on the right assertion). All three reverted; just test clean.
+
+5. session_close_emits_the_whole_cascade_innermost_first rebuilt over two tabs, two panes each (the plan's own §10 wording), draining 7 events in the grouped order (both of tab A's panes, tab A, both of tab B's panes, tab B, then the session) - the single-tab version could not distinguish correct per-tab interleaving from "every pane.closed, then every tab.closed." Recorded control: same bug-fix control as #1 above (both the pane.close and tab.close arms disabled) - but this test is wired through session.close/emit_close_events's own Session arm, which the review found already correct from reading, so I additionally reran it with the fix fully intact to confirm the 2x2 shape passes as rebuilt (it does).
+
+Nits: the real overstated doc comment was broadcast's own (runtime.rs) - "nothing here ever writes to a socket while state's lock is held" is false now that a failed enqueue calls subscriber.shutdown.shutdown(Both) right there, under the lock (non-blocking in practice, the same idiom ConnectionCleanup already uses - not a bug, just understated honestly now instead of overstated). Rewritten. I also found and fixed a second, separate overstatement while auditing: pane::close's own doc comment (and tab::close's/session::close's cross-references to it) claimed a running program is ended before tree.close_pane runs; it's actually ended after, by close_and_dispatch, once the kernel's own cascade is known (force_end runs after dispatch_raw, not before) - corrected in all three files.
+
+Signature departure from the plan's own sketch: Connection::watch's for_ parameter is Option<&str>, not the plan's &[&str] - caught during the first build round (ValueKind::Choice only validates a single string value, not an array), noted in code at the time but not called out here until now.
+
+Full proof table (plan's §10, this revision plus earlier ones), proof item / test / recorded control:
+- Atomicity (reply precedes any event, real race) / the_snapshots_reply_always_precedes_any_event_under_a_real_race / recorded earlier this task (reply moved outside the lock, widened with a sleep)
+- Slow subscriber closed, not resynced / a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full / recorded earlier this task
+- pane.close/tab.close/session.close cascades, innermost first / session_close_emits_the_whole_cascade_innermost_first (now 2 tabs x 2 panes), pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too, pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order, tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session / recorded this round (the bug-fix control, all four)
+- Filter by name / a_filter_by_name_keeps_only_that_event / recorded earlier this task
+- Filter by session (isolated) / a_filter_by_session_excludes_another_sessions_events / recorded this round
+- Creation cascade order / session_new_emits_session_created_tab_created_and_pane_created_in_order / recorded this round
+- Exit-driven cascade order / a_shell_panes_exit_emits_the_whole_cascade_in_order / recorded this round
+- tab.focus/pane.focus emits the whole path / tab_focus_emits_tab_focused_with_the_whole_path / recorded this round
+- pane.exited (Stayed outcome) / a_command_panes_exit_emits_pane_exited / recorded this round
+- pane.status_changed / a_typed_commands_start_and_end_emit_pane_status_changed / recorded this round
+- An unfiltered (not-yet-subscribed) connection receives nothing / an_unfiltered_subscriber_receives_nothing / recorded this round
+- Tree snapshot nests panes under their own tab / a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab, every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes / recorded this round
+- Snapshot is exactly the tree at the moment of subscribing / subscribing_to_a_fresh_server_replies_with_an_empty_tree, an_empty_tree_snapshots_to_no_sessions / no further mechanism to disable beyond the shape controls above
+- Ending a subscription is disconnecting, no panic / disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast / no recorded control - disabling deregistration leaves a stale entry whose own enqueue_control already fails silently (the ordinary disconnected-peer case), with no distinct symptom this test could catch; named rather than invented
+- No periodic wake-up / a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event / none, by design - there is no poll loop to toggle off (the plan's own original note)
+- No thread or child left / every test's own join() calls / not a separate test, enforced by every test's own cleanup
+
+Checks: just check clean at head ffd6f32 (before this round's fix), and again at the final head after the origin/main merge; just test clean throughout. gh pr checks 63 --watch reports no checks configured on this repo's PRs (empty rollup) - nothing to wait on.
+
+TASK-1.86 (in review) adds its own SessionCountChanged notify inside the same apply_event_locked PaneEvent::Exited arm this task restructures, not only connection.rs/listen.rs as this task's own Risks section said - whoever merges second should fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping scope captured before record_exit.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

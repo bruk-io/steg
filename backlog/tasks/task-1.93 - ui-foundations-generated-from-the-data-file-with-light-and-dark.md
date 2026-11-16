@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T05:54:00Z'
+updated_date: '2026-11-16T06:02:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -1536,6 +1536,23 @@ created: 2026-11-16T05:17:00Z
 ---
 
 2026-11-16, @bruk.o: TASK-1.96 (pull request 54) has passed review and is about to merge. It changes two lines of crates/ui/design/foundations.json (artifact_version to 1794796789-1b13; fill.quiet's description, which loses 'progress track') and replaces the saved Tokens page. When it is on main: merge main, run just generate-foundations, commit whatever changes in generated.rs, and re-capture the gallery if the description shows there.
+
+---
+
+created: 2026-11-16T06:02:00Z
+
+---
+
+Absorbed TASK-1.96's reviewed head (PR #54, c5b48cb) ahead of its merge, so this review covers the final code, per the engineer's request. New head: 23759ee.
+
+What I ran, in order:
+1. `git fetch origin`, then `git merge c5b48cbcbed3b7c46bcc2d3c8a307bbd16a4a881` (no --no-edit flag needed since no text editor opened in this environment; commit db3c654). One conflict, in `justfile`: both branches added a line to `check:`'s dependency list and a new recipe block. Resolved by keeping every recipe from both sides - `check:` now runs `check-foundations`, `check-foundations-public-surface` and `check-design` all three, alongside everything already there - and keeping both new recipe bodies (`check-foundations`/`check-foundations-public-surface`/`generate-foundations` from this task, `check-design` from TASK-1.96) as separate blocks, none dropped.
+2. `just generate-foundations`. Diff in `generated.rs` was exactly the two lines the engineer named, nothing more: line 2's artifact version (`1794791991-5d11` -> `1794796789-1b13`), and `fill.quiet`'s doc comment losing "progress track, " (its `use` text in the data file changed the same way). Committed as 23759ee.
+3. Checked whether the gallery needed re-capturing: it shows every colour's name and hex, never its `use`/description text, so `fill.quiet`'s wording change doesn't appear anywhere in the image - confirmed by grep, not assumed. No re-capture.
+4. `just check-design` alone first (ok, 0.1s), then the full `just check` - all 28 steps pass, including `test (steg-server, race-fixture)` (the step that hung on an earlier CI run, now consistently fast) and the newly-merged `design pages`, `ui levels`, `ui colours` steps.
+5. Pushed 23759ee; `gh pr checks 55 --watch` in the foreground (watched directly, not backgrounded) - CI green in ~4.3 minutes, every `just check` step confirmed in the run's own log.
+
+Plan section untouched.
 
 ---
 <!-- COMMENTS:END -->

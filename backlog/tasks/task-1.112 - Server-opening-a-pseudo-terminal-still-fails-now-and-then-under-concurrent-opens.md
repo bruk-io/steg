@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:58:00Z'
+updated_date: '2026-11-16T13:10:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -282,6 +282,18 @@ test pty::tests::succeeds_first_time_needs_no_retry ... ok
 test pty::tests::fails_every_time_surfaces_after_exactly_the_bound ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture --test openpty_race cross_process_opens_at_the_shipped_default_never_fail` exited 0 at 2026-11-16T13:10:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at e0ecb19a24c2 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_at_the_shipped_default_never_fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 7.08s
 ```
 <!-- SECTION:NOTES:END -->
 

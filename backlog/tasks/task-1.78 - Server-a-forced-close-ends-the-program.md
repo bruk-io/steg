@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:06:00Z'
+updated_date: '2026-11-16T03:07:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2082,6 +2082,22 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.09s
 
 error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it` exited 0 at 2026-11-16T03:07:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+kill: 65152: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 5.05s
 ```
 
 Commits since the review: 0.

@@ -1,12 +1,12 @@
 //! The `pane` noun's dispatch arms (doc-2 section 8).
 
-use steg_kernel::{Error, Tree};
-use steg_sdk::{ApiError, Direction, PaneKind, PaneRecord, Program, ProgramStatus, Request};
+use steg_kernel::{Error, Moment, Pane, Tree};
+use steg_sdk::{ApiError, Direction, PaneKind, PaneRecord, Program, ProgramStatus, Request, Size};
 
 use super::outcome::Outcome;
 use super::{
     Context, bad_request, find_tab, map_kernel_error, not_implemented_yet, pane_mut, param_bool,
-    param_present, param_str, resolve_pane_str, target_pane,
+    param_present, param_str, resolve_pane_str, target_pane, target_tab,
 };
 
 /// Every `pane.*` method this module matches on, checked against
@@ -32,22 +32,25 @@ pub(super) fn dispatch(
     context: &Context,
     request: &Request,
     verb: &str,
+    now: Moment,
 ) -> Result<Outcome, ApiError> {
     match verb {
-        "list" => Err(not_implemented_yet(
-            "Records for every pane of a tab (TASK-1.76 only built pane.show)",
-        )),
-        "show" => show(tree, context, request),
+        "list" => list(tree, context, request, now),
+        "show" => show(tree, context, request, now),
         "split" => split(tree, context, request),
         "close" => close(tree, context, request),
         "move" => move_(tree, context, request),
         "set" => set(tree, context, request),
         "unset" => unset(tree, context, request),
         "focus" => focus(tree, context, request),
-        "resize" => Err(not_implemented_yet("Tab::size() (TASK-1.42)")),
+        "resize" => Err(not_implemented_yet(
+            "TASK-1.110, \"Server: pane resize\" - Tree::resize_pane takes a ratio, not a \
+             cell delta, and Tab::size() can be unknown",
+        )),
         "swap" => swap(tree, context, request),
         "send" | "capture" | "wait" => Err(not_implemented_yet(
-            "Tree::start_program/record_exit/restart_program and a program on Pane (TASK-1.40)",
+            "TASK-1.90 - dispatch has no I/O by design; these need a Runtime-level wrapper, \
+             not a dispatch arm",
         )),
         _ => unreachable!("HANDLED names every verb this match covers"),
     }
@@ -67,25 +70,21 @@ fn parse_direction(word: &str) -> Direction {
     }
 }
 
-/// `pane.show` (AC #2): the running program and, once it has ended, its
-/// exit code - pure, since `Program`/`ProgramStatus` already live on the
-/// kernel's own `Pane` (`crates/kernel/src/pane.rs`), not behind a
-/// `PaneHandle`. `title` is always `None` (`PaneRecord`'s own doc: that
-/// needs the terminal's live OSC title, which is I/O this function does
-/// not reach).
-fn show(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
-    let id = target_pane(tree, context, request)?;
-    let tab_id = tree
-        .tab_of_pane(id)
-        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
-    let pane = find_tab(tree, tab_id)
-        .and_then(|tab| tab.pane(id))
-        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
-
-    Ok(Outcome::PaneRecord(PaneRecord {
-        id,
+/// Builds the `PaneRecord` for `pane`, in the tab `tab_id` names, as of
+/// `now` (AC #2; TASK-1.89) - pure, since `Program`/`ProgramStatus`/
+/// `Status` already live on the kernel's own `Pane`
+/// (`crates/kernel/src/pane.rs`), not behind a `PaneHandle`. `title` is
+/// always `None` (`PaneRecord`'s own doc: that needs the terminal's live
+/// OSC title, which is I/O this function does not reach). `size` is
+/// `None` whenever the tab holds no declared size yet (R91) -
+/// `pane_size` below reads `Tree::tab_layout`/`Tab::size` the same way
+/// `tab::record_for` reads `tab_layout` for `TabRecord.layout`.
+fn record_for(tree: &Tree, tab_id: steg_sdk::TabId, pane: &Pane, now: Moment) -> PaneRecord {
+    PaneRecord {
+        id: pane.id(),
         label: pane.label().map(str::to_string),
         title: None,
+        kind: pane.kind(),
         cwd: pane
             .program()
             .map(Program::cwd)
@@ -96,8 +95,61 @@ fn show(tree: &Tree, context: &Context, request: &Request) -> Result<Outcome, Ap
             Some(ProgramStatus::Ended { exit_code }) => Some(exit_code),
             _ => None,
         },
-        status: pane.program_status().map(status_text),
-    }))
+        program_status: pane.program_status().map(status_text),
+        status: pane.status(now),
+        size: pane_size(tree, tab_id, pane.id()),
+    }
+}
+
+/// A pane's terminal size in whole cells, if its tab has one (R91):
+/// `Tab::size()` combined with `Tree::tab_layout`'s own `Layout::leaf_sizes`,
+/// found by this pane's id - `None` whenever the tab's size is unknown,
+/// never a guess.
+fn pane_size(tree: &Tree, tab_id: steg_sdk::TabId, pane_id: steg_sdk::PaneId) -> Option<Size> {
+    let tab = find_tab(tree, tab_id)?;
+    let total = tab.size()?;
+    let layout = tree.tab_layout(tab_id).ok()?;
+    layout
+        .leaf_sizes(total)
+        .into_iter()
+        .find(|(id, _)| *id == pane_id)
+        .map(|(_, size)| size)
+}
+
+/// `pane.show` (AC #2): one pane, in full, through [`record_for`].
+fn show(
+    tree: &Tree,
+    context: &Context,
+    request: &Request,
+    now: Moment,
+) -> Result<Outcome, ApiError> {
+    let id = target_pane(tree, context, request)?;
+    let tab_id = tree
+        .tab_of_pane(id)
+        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+    let pane = find_tab(tree, tab_id)
+        .and_then(|tab| tab.pane(id))
+        .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
+
+    Ok(Outcome::PaneRecord(record_for(tree, tab_id, pane, now)))
+}
+
+/// `pane.list` (AC #1): every pane of a tab, in R112's order, each through
+/// [`record_for`].
+fn list(
+    tree: &Tree,
+    context: &Context,
+    request: &Request,
+    now: Moment,
+) -> Result<Outcome, ApiError> {
+    let tab_id = target_tab(tree, context, request)?;
+    let tab = find_tab(tree, tab_id).ok_or_else(|| map_kernel_error(Error::TabNotFound(tab_id)))?;
+    let records = tab
+        .panes()
+        .iter()
+        .map(|pane| record_for(tree, tab_id, pane, now))
+        .collect();
+    Ok(Outcome::PaneRecords(records))
 }
 
 /// `pane.show`'s `program` field, as a short word a person reads: the
@@ -177,25 +229,19 @@ fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
 /// nothing. This is a dispatch-level policy over the kernel's own
 /// `Pane::program_status()`, because the kernel's `close_pane` has no concept of
 /// "refuse" (TASK-1.40's own plan rejected threading a force flag through
-/// its signature, the same reasoning this plan's own §5 repeats).
-/// `--force` on a pane whose program is running stays exactly as it is
-/// today: an unconditional close that does not touch the program at all
-/// (the gap §5 names, until the task that forces the program itself to
-/// end).
+/// its signature, the same reasoning this plan's own §5 repeats). With
+/// `--force`, this always proceeds (whether anything is running or not) -
+/// `Runtime::close_and_dispatch` (TASK-1.78 §5) is what ends a running
+/// program *before* calling this, under the same lock, so by the time this
+/// unconditional `tree.close_pane` runs there is nothing left to force.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_pane(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
 
-    if !force {
-        let tab_id = tree
-            .tab_of_pane(id)
-            .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
-        let pane = find_tab(tree, tab_id)
-            .and_then(|tab| tab.pane(id))
-            .ok_or_else(|| map_kernel_error(Error::PaneNotFound(id)))?;
-        if matches!(pane.program_status(), Some(ProgramStatus::Running)) {
-            return Err(super::program_running());
-        }
+    if !force
+        && super::any_pane_running(tree, &super::panes_in_close_scope(tree, context, request)?)
+    {
+        return Err(super::program_running());
     }
 
     tree.close_pane(id).map_err(map_kernel_error)?;

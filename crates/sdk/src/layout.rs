@@ -124,7 +124,11 @@ impl<'de> Deserialize<'de> for Ratio {
 /// A terminal's size in whole cells (R91, R100): columns and rows, never
 /// pixels — the kernel does no I/O and reads no screen, so this is always
 /// a plain value a caller hands in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// Crosses the API as `PaneRecord.size`/doc-14's tab row (TASK-1.89): a
+/// plain `{columns, rows}` object, nothing to validate on the way in, the
+/// same reasoning every other plain-data shape in this module gives.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Size {
     columns: u16,
     rows: u16,
@@ -672,6 +676,15 @@ mod tests {
 
     fn pane(raw: u64) -> PaneId {
         PaneId::from_raw(raw)
+    }
+
+    #[test]
+    fn size_serde_round_trips_as_a_plain_object() {
+        let size = Size::new(80, 24);
+
+        let value = serde_json::to_value(size).unwrap();
+        assert_eq!(value, serde_json::json!({"columns": 80, "rows": 24}));
+        assert_eq!(serde_json::from_value::<Size>(value).unwrap(), size);
     }
 
     #[test]

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:13:00Z'
+updated_date: '2026-11-16T01:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1197,6 +1197,31 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 24 filtered out; finished in 5.04s
 
 error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T01:15:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (12.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (11.9s)
+ok      test (steg-server, race-fixture) (12.6s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.3s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

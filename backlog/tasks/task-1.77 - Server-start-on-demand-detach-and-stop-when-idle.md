@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:59:00Z'
+updated_date: '2026-11-16T01:00:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1114,6 +1114,16 @@ created: 2026-11-16T00:59:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.77: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+created: 2026-11-16T01:00:00Z
+
+---
+
+PR #44's CI failed once, on run 43782519189 attempt 1 (head 3fbdf09, the same head it later passed on re-run). Read in full, not just the failure excerpt: `gh api repos/bruk-io/steg/actions/jobs/133022695848/logs --allow-escape-sequences`. Every one of this task's own steps passed in that attempt - `test (steg)`, `test (steg, fixtures)` (this task's own new tests), `test (steg-server, race-fixture)` all `ok`. The one failure was the `tool tests` step (exit 1), specifically `tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server`, with `TimeoutError: likec4 mcp did not answer within 30.0s`.
+
+This is not this task's: `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` shows nothing, and the failure is inside `tools/src/steg_tools/likec4_mcp.py`'s own MCP client, unrelated to anything `server start`/`detach` touches. It is also not new: TASK-1.82 (opened by @bruk.o, 2026-11-15) already names this exact test - "the LikeC4 MCP smoke test in tools/ has timed out in CI on two unrelated pull requests (TASK-1.40's and TASK-1.76's), green on re-run each time" - and asks for it to be bounded or fixed. This run is a third, independent occurrence of the same tracked flake, not a new finding: reran via `gh run rerun 43782519189 --failed`, green at the same head on the first re-run.
 
 ---
 <!-- COMMENTS:END -->

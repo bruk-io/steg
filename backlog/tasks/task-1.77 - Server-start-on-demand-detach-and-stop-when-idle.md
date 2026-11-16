@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:58:00Z'
+updated_date: '2026-11-16T00:59:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -21,6 +21,8 @@ asdlc_branch: task-1.77-server-start-on-demand-detach-and-stop
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd29c62060a8b'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1103,6 +1105,15 @@ Coverage, clause by clause:
 - AC #6 (every spawned child/thread accounted for; what the client holds; no unsafe): `a_losing_racers_dropped_child_is_a_zombie_until_reaped` proves the zombie-until-reaped property directly (a real `ps -o stat=` check asserting a non-empty result containing `Z`, failing loudly rather than silently passing on an already-reaped pid) - built with a test-owned `Command` since the sdk's own `connect()` hides the pid entirely. Zero `unsafe` anywhere in the diff - confirmed by reading every new/changed file; `setsid` (via `detach()`) and `Command::exec()` (the group-leader fixture) are both safe calls, and no `fork`, `pre_exec`, `FromRawFd`, signal handler, or `std::env::set_var`/`set_current_dir` was added.
 
 `just check` green at the final head (3fbdf09); PR #44's CI green at the same head after a confirmed-unrelated flake and rerun.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T00:59:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.77: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

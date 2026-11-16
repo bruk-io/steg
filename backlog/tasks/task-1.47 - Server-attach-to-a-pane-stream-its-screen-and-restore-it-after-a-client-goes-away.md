@@ -1242,6 +1242,27 @@ error: could not compile `steg-sdk` (lib test) due to 6 previous errors
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-sdk --lib screen::tests` exited 0 at 2026-11-16T14:11:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at a44410556662 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 7 tests
+test screen::tests::screen_update_unchanged_round_trips ... ok
+test screen::tests::every_cursor_shape_round_trips ... ok
+test screen::tests::screen_update_delta_round_trips ... ok
+test screen::tests::screen_update_full_round_trips ... ok
+test screen::tests::a_screen_with_every_cell_style_round_trips ... ok
+test screen::tests::every_cell_style_combination_round_trips ... ok
+test screen::tests::pane_attached_round_trips_and_carries_both_fields_in_one_object ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 156 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

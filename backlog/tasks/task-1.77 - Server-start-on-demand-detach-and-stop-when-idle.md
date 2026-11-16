@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:39:00Z'
+updated_date: '2026-11-16T01:58:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.44
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd29c62060a8b'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_findings: 'important=0,nit=3'
 asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r5
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1389,6 +1389,37 @@ created: 2026-11-16T01:39:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.77: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T01:58:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. Cites: review. The diff matches the plan.
+
+Reviewed at head b5e2aa6d1e593728fda195c94809634342958a8d (PR #44), a merge of 178f768 (origin/main) plus the fix commit. This matches the task's own recorded final checks and PR #44's green CI head (confirmed via `gh pr view 44 --json headRefOid`).
+
+Verification performed independently, in a fresh worktree:
+- `just check` reran green at b5e2aa6 (lint 48.8s, tests all ok, boundaries ok, architecture ok).
+- PR #44's CI: `gh pr checks 44` shows `pass` at the same head.
+- `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` is empty, confirming the task's own claim that it touches nothing related to the unrelated, already-tracked LikeC4 MCP flake (TASK-1.82/TASK-1.97).
+- Process-leak check (the first review's finding): ran the full new `server_start.rs` suite (`cargo test -p steg --features fixtures --test server_start`) 10 times, then 20 more times on its own, at default parallelism, counting `pgrep -f target/debug/steg` before and after each run - 0 before, 0 after, every time (30/30 runs clean).
+- Negative control, repeated myself: disabled `ServerAtSocket`'s `Drop` body (a reverted scratch edit) and reran `the_client_being_sigkilled_does_not_end_the_server`/`the_clients_process_group_being_sighupd_does_not_end_the_server` - 2 real `steg server start --on-demand` processes were left running, matching the task's own recorded count exactly. Killed them, reverted the edit, confirmed the diff was clean again.
+- Guard soundness: `find_server_pid`'s lock-path targeting (not the socket path) is confirmed correct by reading `bind.rs`'s rename-after-bind and the fact the lock is created directly at its final name (`arbiter::try_lock`). Lock paths are unique per test (`unique_socket_path` keys on `process::id()` + a per-binary atomic counter), so the guard cannot find or kill a different test's server, and the arbiter's lock is exclusive (`FlockArg::LockExclusiveNonblock`) so at most one process normally holds it. `_server_guard`'s declaration-before-`client` ordering was verified to behave as documented (Rust drops locals in reverse declaration order), including surviving a panic via unwind.
+- `running_out_of_file_descriptors_exits_1` and `the_clients_process_group_being_sighupd_does_not_end_the_server`: each run 20 times on their own - no flake. The lowered `ulimit -n 16` is confirmed not to leak into the parent shell (checked `ulimit -n` before/after - unaffected), consistent with it being set inside the `sh -c` subprocess the server itself execs into.
+- Exit-status behaviour (brief point 2): whether a started server should survive a failed `accept()` (the fd-exhaustion case) rather than exit entirely is not settled by decision-2 (the wire-protocol decision; silent on accept-loop recovery) or by doc-8 R99 (covers detach, environment and idle-stop, not accept-loop resilience). The accept-loop's own `break Err(err.into())` on any `accept()` error is pre-existing code from TASK-1.44's `listen.rs`, unchanged by this diff; this task only adds the status-1 mapping in `main.rs` and a test reaching that pre-existing branch through the real binary for the first time, which is what the first review's own finding asked for. Flagging this as a decision for the engineer (should a resource-exhausted server refuse one connection and recover, rather than exit?) rather than a finding against this task or its test.
+- Confirmed no `unsafe` anywhere in the diff (grepped), and that boundaries.toml's claim of exactly `Flock`/`FlockArg`, `geteuid`, `setsid` as the only `nix` uses in `crates/server/src` is accurate (grepped `nix::` across the crate).
+- Nothing regressed from the first review's clean points: `started_is_printed_only_after_the_socket_already_accepts`, `typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message`, and `four_simultaneous_starts_converge_on_one_server` all passed clean across the 30 full-suite runs above.
+
+[Bugs, Nit] crates/steg/tests/server_start.rs:623 - `the_clients_process_group_being_sighupd_does_not_end_the_server` sets `client.done = true` after the SIGHUP, skipping `KillOnDrop`'s own reap. Confirmed by instrumenting the test (printed the client's pid and slept 5s after the signal): the client fixture sits as a `Z <defunct>` zombie, confirmed via `ps`, for the rest of the test binary's run - reaped only once the test process itself exits, the same bounded fate as the documented `a_losing_racers_dropped_child_is_a_zombie_until_reaped` case, not a permanent orphan like the processes the first review found. Still inconsistent with this task's own stated discipline (plan section 10: "every process a test starts is ended and waited on") and with the sibling SIGKILL test's `client.kill_now()`, which does wait. A plain `client.child.wait()` (bounded - the process is already dead) would close this.
+
+[Bugs, Nit] crates/steg/tests/server_start.rs:381-384 - `running_out_of_file_descriptors_exits_1`'s final `server.child.wait()` has no timeout. Ran reliably 20/20 times here, but if the chosen fd count/limit ever fails to exhaust the accept loop on a different machine, this call blocks indefinitely rather than failing promptly - the same hazard this file's own `read_one_line_bounded` doc comment says a test "must not" have.
+
+[Evidence, Nit] crates/steg/tests/server_start.rs:69-83 - `find_server_pid` silently no-ops (via `.ok()?`) when `lsof` is absent or errors, and reads only the first line if `lsof` ever reports more than one pid for the lock path. Neither condition arises in this suite today (lock paths are unique per test; the arbiter's lock is exclusive), but on a machine without `lsof` the leak-prevention guard this task added would regress to the pre-fix leaking behaviour with no test failure to signal it.
 
 ---
 <!-- COMMENTS:END -->

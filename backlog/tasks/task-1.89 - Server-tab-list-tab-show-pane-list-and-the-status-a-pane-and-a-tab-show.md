@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:38:00Z'
+updated_date: '2026-11-16T06:05:00Z'
 labels:
   - size-3
   - review-passed
@@ -830,6 +830,47 @@ Overlap with PR #47 (TASK-1.78, about to merge), for whoever resolves it:
 - TASK-1.46 nesting: `TabRecord.layout`'s leaves already name every pane's id, so embedding `Vec<PaneRecord>` alongside the embedded `TabRecord` repeats pane identity once in `layout` and once per `PaneRecord.id` - mildly awkward but not a defect.
 
 Posted the same findings on PR #57.
+
+---
+
+created: 2026-11-16T06:05:00Z
+
+---
+
+Merged TASK-1.78's forced close (its head, 3e4594e) into this branch, as asked, then added the three ambiguous-target tests from nit #1. Final pushed head: 93973fd (merge commit e92e8fb plus the ambiguous-target test commit a91e403, then one more origin/main pull of backlog-only changes). CI green at that head: https://github.com/bruk-io/steg/actions/runs/43813864510
+
+**The one literal conflict, and its resolution**
+
+`crates/server/src/dispatch/mod.rs`: the `pub(crate) use lookup::{...}` re-export block. HEAD (mine) had `tab_position` added; 3e4594e had `any_pane_running`/`panes_in_close_scope` added. Resolved by keeping all three, alphabetised: `any_pane_running, find_tab, pane_mut, panes_in_close_scope, param_bool, param_i64, param_present, param_str, resolve_pane_str, resolve_tab_str, tab_mut, tab_position, target_pane, target_session, target_tab, wire_position_to_index`. Nothing else in that file conflicted.
+
+**Changes outside the literal conflict, and why each was needed**
+
+Git auto-merged the rest of the files, but three spots needed a hand edit after the merge because they are exactly the "two tasks touch the same lines for unrelated reasons" seam named in this task's own plan risks, and git's textual merge can't know that a *semantic* gap remains even where it found no conflicting lines:
+
+1. `crates/server/src/runtime.rs`, `Runtime::close_and_dispatch` (new in 3e4594e, for pane.close/tab.close/session.close): its own call to `dispatch::dispatch` still had the pre-this-task five-argument form (no conflict marker, since this function didn't exist on my side to conflict against). Added the same `let now = Moment::new(Instant::now().duration_since(state.clock_origin));` computation `handle`/`start_and_dispatch` already have, and passed it as the sixth argument - so a forced close's reply is built against the same clock every other method's is, per your own instruction.
+2. `crates/server/src/runtime.rs`, my own two new tests (`a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle`, `a_command_panes_exit_reaches_pane_show_through_runtime_handle`, added on this branch before 3e4594e existed): both called `Runtime::new` with the old two-argument form. Added `TEST_GRACE` (this module's own constant, the same one 3e4594e's own tests in this module use) as the third argument.
+3. `crates/server/tests/runtime.rs`, `pane_close_on_an_already_ended_pane_succeeds_without_force` (added on 3e4594e's branch, after this task's rename existed only on my side): polled `shown["status"] == json!("ended")`. `status` no longer carries that word at all (it's doc-11's `Status` now; `"ended"` only ever appeared on `program_status`) - the poll hung for the full 20s bound and failed, caught by running the full server suite once after the merge. Changed to `shown["program_status"]`, the field this test was always actually about (the clock-free fact, R97).
+
+No other file's merge needed a hand edit; everything else (the Cargo.toml dependency bump, lib.rs/listen.rs/pane.rs/signal.rs, the bulk of tests/runtime.rs) is 3e4594e's own content, unmodified by me.
+
+**What I ran, and in order**
+
+- `cargo build -p steg-server --tests` after resolving the mod.rs conflict and before the three hand-edits above - compiled, so the hand-edits above were found by running the suite, not by a second compiler pass.
+- `cargo test -p steg-server` (whole crate, all test binaries) - one failure (item 3 above); fixed; reran clean: 130+76+13+5+7+22+29+8+1+0 = all passed, 0 failed, across every test binary.
+- `cargo test -p steg-server` **ten times in a row**, with a process count before (`ps -eo pid= | wc -l`: 870) and after (867) - no growth, every run green.
+- `cargo test -p steg -p steg-sdk -p steg-kernel` and `cargo test -p steg --features fixtures` - all green.
+- `just check` - green, including `lint` (clippy, deny-level) and `architecture` (the LikeC4 model), at every intermediate head and again at the final one.
+- Pushed; `gh pr checks 57 --watch` in the foreground to a green `pass` each time (three pushes total: the merge itself, the ambiguous-target tests, and one more origin/main pull with no code in it).
+
+**Nit #1, the rest of it**
+
+Added the three ambiguous-target tests the plan's proof promised: `tab_list_with_an_ambiguous_session_target_is_ambiguous_target`, `tab_show_with_an_ambiguous_target_is_ambiguous_target`, `pane_list_with_an_ambiguous_target_is_ambiguous_target`, in `crates/server/tests/dispatch.rs`. Each needs two things sharing a label (labels are never required to be unique, `crates/kernel/src/label.rs`'s own doc, which is what makes a target ambiguous rather than merely unknown) - two sessions for `tab.list`'s own session target, two tabs of one session for `tab.show`/`pane.list`'s own tab target.
+
+**Nit #2, acknowledged, cannot be undone**
+
+The mechanical `moment(...)` threading through `tests/dispatch.rs`'s ~79 existing calls landed in the same commit as the real `tab.list`/`tab.show`/`pane.list` implementation, not disclosed as its own commit at the time - a departure from the plan's own order-of-work step 11, which asked for it separately. Noting it here since the history can't be split after the fact.
+
+Could not run this through `asdlc record-check` or `asdlc finish` - both refuse once a task has passed review. This comment is the record instead, as you asked.
 
 ---
 <!-- COMMENTS:END -->

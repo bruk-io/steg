@@ -16,7 +16,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
-use steg_kernel::{ExitOutcome, Moment, Settings, SizeChanged, Tree};
+use steg_kernel::{
+    CommandEnded, CommandOutputStarted, ExitOutcome, Moment, Settings, SizeChanged, Tree,
+};
 use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
 
 use crate::dispatch::{self, Context};
@@ -79,6 +81,17 @@ struct State {
     // converted at the one place `apply_event_locked` calls
     // `record_exit`, never read by the kernel itself).
     clock_origin: Instant,
+    /// How many `PaneEvent::CommandOutputStarted`/`CommandEnded` events
+    /// `apply_event_locked` has applied for each pane (TASK-1.84 review):
+    /// test-only, since nothing outside a test needs it. A mark the
+    /// kernel correctly ignores has no other outside effect by design,
+    /// so a test proving that has nothing else to wait on - this is the
+    /// one fact that is true exactly when this pane's own marks have
+    /// been applied, whatever the kernel then did with them, read under
+    /// the same lock `apply_event_locked` updates it under, never
+    /// inferred from a sleep or from a different pane's own marks.
+    #[cfg(test)]
+    applied_marks: HashMap<PaneId, u64>,
 }
 
 /// Owns the kernel's tree and every pane's real runtime, and is the one
@@ -117,6 +130,8 @@ impl Runtime {
             panes: HashMap::new(),
             settings: Settings::new(),
             clock_origin: Instant::now(),
+            #[cfg(test)]
+            applied_marks: HashMap::new(),
         }));
 
         let drain_state = Arc::clone(&state);
@@ -531,6 +546,19 @@ fn rollback_mint(tree: &mut Tree, method: &str, new_pane: PaneId) {
     }
 }
 
+/// Records that `apply_event_locked` has applied one of `pane`'s own
+/// `CommandOutputStarted`/`CommandEnded` events (TASK-1.84 review): a
+/// no-op in production, so the item-level `#[cfg(test)]` split, rather
+/// than one on this call's own statement (unstable on expressions), is
+/// what keeps `State::applied_marks` itself test-only.
+#[cfg(test)]
+fn note_mark_applied(state: &mut State, pane: PaneId) {
+    *state.applied_marks.entry(pane).or_insert(0) += 1;
+}
+
+#[cfg(not(test))]
+fn note_mark_applied(_state: &mut State, _pane: PaneId) {}
+
 /// Applies one [`PaneEvent`] to the tree (§1), taking an already-locked
 /// `State` - what the real drain thread calls in a loop, and what a test
 /// can call directly with a hand-built [`PaneEvent`] for a deterministic,
@@ -569,6 +597,53 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
                 }
             }
         }
+        PaneEvent::CommandOutputStarted { pane } => {
+            note_mark_applied(state, pane);
+            match state.tree.note_command_output_started(pane) {
+                Ok(CommandOutputStarted::Started | CommandOutputStarted::NotAShellPane) => {
+                    // No client event stream exists yet to forward either
+                    // outcome to (R52 is M2, TASK-1.46's own gap) - the
+                    // kernel's own state is already updated by the call
+                    // above; nothing further to do here today.
+                }
+                Err(steg_kernel::Error::PaneNotFound(_)) => {
+                    // Unlike `Exited`'s own `PaneNotFound` arm above, a
+                    // mark arriving for a pane the tree no longer holds
+                    // must not remove this pane's `PaneHandle`: the
+                    // program it owns may still be running (a forced
+                    // close raced this mark), and removing the handle
+                    // here would drop its only `Sender` clone, ending
+                    // the worker loop and leaking the relay thread and
+                    // an unkilled child - worse than the race being
+                    // guarded against.
+                }
+                Err(other) => unreachable!(
+                    "Tree::note_command_output_started documents only Error::PaneNotFound \
+                     as a possible error; {other} is not that"
+                ),
+            }
+        }
+        PaneEvent::CommandEnded { pane, exit_code } => {
+            note_mark_applied(state, pane);
+            let now = Moment::new(Instant::now().duration_since(state.clock_origin));
+            match state.tree.note_command_ended(pane, exit_code, now) {
+                Ok(
+                    CommandEnded::Ended(_)
+                    | CommandEnded::EndedWithNoExitCode
+                    | CommandEnded::Ignored,
+                ) => {
+                    // Same as `CommandOutputStarted`'s own arm: nothing
+                    // to forward to a client event stream yet.
+                }
+                Err(steg_kernel::Error::PaneNotFound(_)) => {
+                    // Same reasoning as `CommandOutputStarted`'s own arm.
+                }
+                Err(other) => unreachable!(
+                    "Tree::note_command_ended documents only Error::PaneNotFound as a \
+                     possible error; {other} is not that"
+                ),
+            }
+        }
     }
 }
 
@@ -599,11 +674,12 @@ fn reapply_every_sized_tab(state: &mut State) {
 mod tests {
     use std::collections::HashMap;
     use std::sync::mpsc;
+    use std::thread;
     use std::time::{Duration, Instant};
 
-    use steg_sdk::{Program, ProgramStatus, Size};
+    use steg_sdk::{Program, ProgramStatus, Size, Status};
 
-    use super::{LoginShell, Runtime, State, apply_event_locked};
+    use super::{LoginShell, Moment, Runtime, State, apply_event_locked};
     use crate::pane::{PaneEvent, PaneHandle};
     use crate::pty::RealLauncher;
 
@@ -628,6 +704,7 @@ mod tests {
             panes,
             settings: steg_kernel::Settings::new(),
             clock_origin: Instant::now(),
+            applied_marks: HashMap::new(),
         }
     }
 
@@ -1457,6 +1534,410 @@ mod tests {
             1,
             "the terminal was cropped, not refused"
         );
+    }
+
+    // --- typed command marks (TASK-1.84) ----------------------------------
+    //
+    // Every test below drives a real `Runtime` - its own drain thread and
+    // event channel, not a hand-built `apply_event_locked` call - with a
+    // real pty program that prints real OSC 133 sequences directly (no
+    // shell integration exists yet; that is TASK-1.85's own job, so each
+    // script here stands in for a shell that already has it). Every wait
+    // is bounded; nothing here adds a new thread or a new process of its
+    // own (AC #3) - marks ride the `events` channel and drain thread
+    // `Runtime::new` already starts, and every test lets `Drop` (or an
+    // explicit `stop()`) end whatever real program it started.
+
+    const MARK_TIMEOUT: Duration = Duration::from_secs(20);
+
+    fn moment_now(state: &State) -> Moment {
+        Moment::new(Instant::now().duration_since(state.clock_origin))
+    }
+
+    fn find_pane(tree: &steg_kernel::Tree, pane: steg_sdk::PaneId) -> Option<&steg_kernel::Pane> {
+        tree.sessions()
+            .iter()
+            .find_map(|session| session.tabs().iter().find_map(|tab| tab.pane(pane)))
+    }
+
+    fn pane_status(runtime: &Runtime, pane: steg_sdk::PaneId) -> Option<Status> {
+        let state = runtime.state.lock().unwrap();
+        let now = moment_now(&state);
+        find_pane(&state.tree, pane).and_then(|p| p.status(now))
+    }
+
+    fn pane_program_status(runtime: &Runtime, pane: steg_sdk::PaneId) -> Option<ProgramStatus> {
+        let state = runtime.state.lock().unwrap();
+        find_pane(&state.tree, pane).and_then(steg_kernel::Pane::program_status)
+    }
+
+    fn tree_next_status_deadline(runtime: &Runtime) -> Option<Moment> {
+        let state = runtime.state.lock().unwrap();
+        let now = moment_now(&state);
+        state.tree.next_status_deadline(now)
+    }
+
+    /// Bounded, polling (never a bare wait): there is no event a test can
+    /// wait on instead - a status read is a value, not an event stream
+    /// (R52's own gap, TASK-1.46) - the same reasoning every other real-
+    /// process wait in this crate already gives.
+    fn wait_for_pane_status(runtime: &Runtime, pane: steg_sdk::PaneId, expected: Option<Status>) {
+        let start = Instant::now();
+        loop {
+            let found = pane_status(runtime, pane);
+            if found == expected {
+                return;
+            }
+            assert!(
+                start.elapsed() < MARK_TIMEOUT,
+                "pane {pane} never reached status {expected:?}; last seen {found:?}"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// Bounded, polling the one fact (TASK-1.84 review) that is true
+    /// exactly when `apply_event_locked` has applied `expected` of this
+    /// pane's own `CommandOutputStarted`/`CommandEnded` events - read
+    /// under the same lock `apply_event_locked` itself holds while
+    /// updating it, so observing `expected` here means that call has
+    /// already fully returned, not merely that a sleep has elapsed.
+    fn wait_for_applied_mark_count(runtime: &Runtime, pane: steg_sdk::PaneId, expected: u64) {
+        let start = Instant::now();
+        loop {
+            let found = {
+                let state = runtime.state.lock().unwrap();
+                state.applied_marks.get(&pane).copied().unwrap_or(0)
+            };
+            if found >= expected {
+                return;
+            }
+            assert!(
+                start.elapsed() < MARK_TIMEOUT,
+                "pane {pane} never reached {expected} applied marks; last seen {found}"
+            );
+            thread::sleep(Duration::from_millis(5));
+        }
+    }
+
+    fn send_input(runtime: &Runtime, pane: steg_sdk::PaneId, bytes: &[u8]) {
+        let state = runtime.state.lock().unwrap();
+        state.panes[&pane].send_input(bytes.to_vec()).unwrap();
+    }
+
+    /// Builds a fresh session/tab/pane on `runtime`'s own tree, started as
+    /// `program` (a `Program::Shell` or `Program::Command` - R97's own
+    /// hinge on whether a typed-command mark can ever change this pane's
+    /// status at all), and spawns `argv` as its *real* process through
+    /// `runtime`'s own event channel and drain thread - not a hand-built
+    /// `apply_event_locked` call, so every test using this is exercising
+    /// the real wiring §1's own ordering argument describes, not a
+    /// simulation of it. `program` and `argv` are independent on purpose,
+    /// the same decoupling `fresh_state_with_one_pane` already relies on
+    /// elsewhere in this file: the kernel's own `Program` is bookkeeping
+    /// metadata, never read by anything that decides what real process
+    /// `crate::pane::start` actually runs.
+    fn start_real_pane(
+        runtime: &Runtime,
+        program: Program,
+        argv: Vec<&str>,
+    ) -> (steg_sdk::SessionId, steg_sdk::TabId, steg_sdk::PaneId) {
+        let (session_id, tab_id, pane) = {
+            let mut state = runtime.state.lock().unwrap();
+            let session_id = state.tree.new_session(None).unwrap();
+            let pane = state.tree.session(session_id).unwrap().tabs()[0].panes()[0].id();
+            let tab_id = state.tree.tab_of_pane(pane).unwrap();
+            state.tree.start_program(pane, program).unwrap();
+            (session_id, tab_id, pane)
+        };
+        let events = runtime
+            .events
+            .clone()
+            .expect("runtime just built for this test");
+        let handle = crate::pane::start(
+            crate::pty::LaunchSpec {
+                argv: argv.into_iter().map(str::to_string).collect(),
+                cwd: "/tmp".to_string(),
+                env: Vec::new(),
+                size: (80, 24),
+            },
+            pane,
+            std::sync::Arc::new(RealLauncher),
+            events,
+        )
+        .unwrap();
+        runtime.state.lock().unwrap().panes.insert(pane, handle);
+        (session_id, tab_id, pane)
+    }
+
+    fn login_for_marks() -> LoginShell {
+        LoginShell {
+            argv0: "/bin/sh".to_string(),
+            home: "/tmp".to_string(),
+        }
+    }
+
+    /// Criterion 2's first shape, and criterion 1's own wording: the
+    /// kernel's status for the pane, and the tab's shown status read
+    /// through the kernel, both reflect a typed command that succeeds.
+    #[test]
+    fn a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let (_, tab_id, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "printf '\\033]133;C\\007'; sleep 0.5; printf '\\033]133;D;0\\007'; sleep 100",
+            ],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+        wait_for_pane_status(&runtime, pane, Some(Status::Finished));
+
+        let state = runtime.state.lock().unwrap();
+        let now = moment_now(&state);
+        assert_eq!(
+            state.tree.tab_shown_status(tab_id, now).unwrap(),
+            Some(pane),
+            "the tab's shown status must reflect the typed command, read through the kernel \
+             (criterion 1)"
+        );
+    }
+
+    #[test]
+    fn a_typed_command_that_fails_is_failed_with_its_exit_code() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let (_, _, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "printf '\\033]133;C\\007'; sleep 0.5; printf '\\033]133;D;3\\007'; sleep 100",
+            ],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+        wait_for_pane_status(&runtime, pane, Some(Status::Failed { exit_code: 3 }));
+    }
+
+    #[test]
+    fn a_typed_command_still_running_stays_running_until_told_otherwise() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let (_, _, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "printf '\\033]133;C\\007'; read line; printf '\\033]133;D;0\\007'; sleep 100",
+            ],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+
+        // This half is what makes the assertion above not vacuous: a
+        // still-running test that only ever checks `Running` cannot tell
+        // "the `CommandOutputStarted` arm works" from "nothing on this
+        // path was ever reached". Telling the script to finish, from
+        // this test, and watching the status actually move away from
+        // `Running`, proves the wiring is live.
+        send_input(&runtime, pane, b"\n");
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Finished));
+    }
+
+    #[test]
+    fn a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let (_, _, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec![
+                "sh",
+                "-c",
+                "read line; printf '\\033]133;C\\007'; sleep 100",
+            ],
+        );
+
+        // Bounded, not a race against nothing: every field R82/R83 govern
+        // stays exactly as a shell idling at its own prompt starts out,
+        // for as long as nothing has reported a mark.
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_millis(300) {
+            assert_eq!(
+                pane_program_status(&runtime, pane),
+                Some(ProgramStatus::Running),
+                "a shell pane's own program status is unaffected either way"
+            );
+            assert_eq!(
+                pane_status(&runtime, pane),
+                None,
+                "idle at its own prompt (R82/R83's own baseline): no mark has arrived yet"
+            );
+            assert_eq!(
+                tree_next_status_deadline(&runtime),
+                None,
+                "nothing is scheduled to end on its own either"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+
+        // The control named in the plan: the same harness, the same
+        // pane, does detect a change once a mark actually arrives - so
+        // the three "unchanged" assertions above were reading a
+        // mechanism that can change, not one this test could never have
+        // failed regardless of whether marks were wired up at all.
+        send_input(&runtime, pane, b"\n");
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+    }
+
+    #[test]
+    fn a_mark_then_the_shells_own_real_exit_cascades_with_no_panic() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+        let (session_id, _, pane) = start_real_pane(
+            &runtime,
+            Program::Shell {
+                cwd: "/tmp".to_string(),
+            },
+            vec!["sh", "-c", "printf '\\033]133;C\\007'; sleep 0.3; exit 7"],
+        );
+
+        wait_for_pane_status(&runtime, pane, Some(Status::Running));
+
+        // The shell pane's own real exit, right behind the mark on the
+        // same channel (§1's own ordering argument: the worker drains a
+        // mark from `PtyBytes` before it ever reaches a later `Exited`
+        // command, so both land on `events` in that order too) - R97's
+        // cascade (a shell pane closes when its program exits) must run
+        // exactly as `apply_event_closes_a_shell_pane_through_the_same_
+        // cascade_as_a_manual_close` already proves with no mark at all,
+        // not be disturbed by a `CommandOutputStarted` just ahead of it.
+        let start = Instant::now();
+        loop {
+            let gone = {
+                let state = runtime.state.lock().unwrap();
+                state.tree.session(session_id).is_none() && !state.panes.contains_key(&pane)
+            };
+            if gone {
+                break;
+            }
+            assert!(
+                start.elapsed() < MARK_TIMEOUT,
+                "the session never closed through the real exit cascade"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic() {
+        // Same shape as `apply_event_on_a_pane_the_tree_no_longer_holds_
+        // removes_the_stale_handle_without_panicking`: the tree never
+        // gets this pane at all, standing in for any pane whose own real
+        // program may still be running after its tree entry is already
+        // gone - whatever the real reason, today only a forced close
+        // that does not yet end the program (that sibling test's own
+        // comment names the gap) - but a real, still-running
+        // `PaneHandle` for it is in `panes`.
+        let tree = steg_kernel::Tree::new();
+        let gone = steg_sdk::PaneId::from_raw(999);
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = crate::pane::start(
+            crate::pty::LaunchSpec {
+                argv: vec!["sh".to_string(), "-c".to_string(), "sleep 100".to_string()],
+                cwd: "/tmp".to_string(),
+                env: Vec::new(),
+                size: (80, 24),
+            },
+            gone,
+            std::sync::Arc::new(RealLauncher),
+            events_tx,
+        )
+        .unwrap();
+        let mut state = test_state(tree, HashMap::from([(gone, handle)]));
+
+        apply_event_locked(&mut state, PaneEvent::CommandOutputStarted { pane: gone });
+        apply_event_locked(
+            &mut state,
+            PaneEvent::CommandEnded {
+                pane: gone,
+                exit_code: Some(0),
+            },
+        );
+
+        assert!(
+            state.panes.contains_key(&gone),
+            "unlike `Exited`, a mark's `PaneNotFound` must not remove the handle - the \
+             program it owns may still be running"
+        );
+
+        // The handle this test built is real (a real spawned `sleep
+        // 100`) - ending it here is the same cleanup path the orphan
+        // would get for real, either from its own eventual exit (the
+        // sibling test's own `Exited`-driven removal) or from
+        // `Runtime::stop` ending every pane when the whole server
+        // stops; this test has neither a tree pane nor a `Runtime`
+        // around it to give it one automatically.
+        state.panes.remove(&gone).unwrap().stop();
+    }
+
+    /// A command pane's own program printing OSC 133 (R97): both marks
+    /// are applied by the runtime - waited on through `applied_marks`,
+    /// never a sleep or a different pane's own marks - and change
+    /// nothing, since the `D` mark's own exit code (3) differs from the
+    /// real exit this script ends with (0): a wrongly-applied mark would
+    /// read `Failed { exit_code: 3 }`, a value the real exit path alone
+    /// can never produce. Only the later, real exit drives `Finished`.
+    #[test]
+    fn a_command_panes_own_program_printing_marks_does_not_change_its_status() {
+        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login_for_marks());
+
+        let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
+                       sleep 0.3; exit 0";
+        let (_, _, pane) = start_real_pane(
+            &runtime,
+            Program::Command {
+                argv: vec!["sh".to_string(), "-c".to_string(), script.to_string()],
+                cwd: "/tmp".to_string(),
+            },
+            vec!["sh", "-c", script],
+        );
+
+        // `start_program` already set this the moment the program did
+        // (kernel `Pane::start_program`'s own doc) - independent of
+        // anything the real process has printed yet.
+        assert_eq!(pane_status(&runtime, pane), Some(Status::Running));
+
+        // Both of this pane's own marks (`C`, then `D;3`) have now been
+        // applied by the runtime's drain thread.
+        wait_for_applied_mark_count(&runtime, pane, 2);
+
+        assert_eq!(
+            pane_status(&runtime, pane),
+            Some(Status::Running),
+            "a command pane's own program always wins over a mark (R97)"
+        );
+        assert_eq!(
+            pane_program_status(&runtime, pane),
+            Some(ProgramStatus::Running)
+        );
+
+        // Only the program's own real exit (`record_exit`), never `note_
+        // command_ended`, moves it from here - and it reads `Finished`
+        // (the real exit's own code, 0), never `Failed` (the mark's own
+        // code, 3).
+        wait_for_pane_status(&runtime, pane, Some(Status::Finished));
     }
 }
 

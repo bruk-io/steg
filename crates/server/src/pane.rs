@@ -48,7 +48,7 @@ use std::sync::mpsc::{self, Sender};
 use std::thread;
 use std::time::Duration;
 
-use steg_kernel::Terminal;
+use steg_kernel::{CommandMark, Terminal};
 use steg_sdk::{PaneId, Screen};
 
 use crate::error::Error;
@@ -117,6 +117,21 @@ pub enum PaneEvent {
         pane: PaneId,
         /// The exit code the program ended with.
         exit_code: i32,
+    },
+    /// A typed command started producing output in `pane` (OSC 133 `C`;
+    /// [`CommandMark::OutputStarted`]; TASK-1.84).
+    CommandOutputStarted {
+        /// The pane whose terminal reported the mark.
+        pane: PaneId,
+    },
+    /// A typed command ended in `pane` (OSC 133 `D`; `CommandMark::Ended`;
+    /// TASK-1.84), with `exit_code` exactly as the mark carried it (`None`
+    /// for a bare `D`, or one the engine's own parser could not read).
+    CommandEnded {
+        /// The pane whose terminal reported the mark.
+        pane: PaneId,
+        /// The command's exit code, if the shell reported one.
+        exit_code: Option<i32>,
     },
 }
 
@@ -431,7 +446,10 @@ fn worker_loop(
                     relay_handle,
                 });
             }
-            PaneCommand::PtyBytes(bytes) => terminal.write(&bytes),
+            PaneCommand::PtyBytes(bytes) => {
+                terminal.write(&bytes);
+                drain_command_marks(&mut terminal, pane, &events);
+            }
             PaneCommand::Exited(exit_code) => {
                 if let Some(running) = current.take() {
                     // Bounded, not a bare `join`: by the time this run's
@@ -465,6 +483,36 @@ fn worker_loop(
                 }
             }
         }
+    }
+}
+
+/// Turns every [`CommandMark`] [`Terminal::take_command_marks`] has queued
+/// since the last drain into a [`PaneEvent`], sent on the same `events`
+/// channel [`PaneEvent::Exited`] already uses (TASK-1.84 §1) - not a new
+/// command `Runtime` would have to poll for (the shape
+/// [`PaneCommand::Cwd`] uses), which would give a mark no ordering
+/// relationship to this pane's own eventual `Exited` at all. Because this
+/// pane's one worker thread is the sole sender of every `PaneEvent` it
+/// ever produces, and [`spawn_relay`] only ever sends `Exited` after its
+/// own `PtyBytes` forwarding has ended, mpsc's per-sender FIFO order means
+/// a mark drained here can never reach the other end of the channel after
+/// that pane's own exit.
+///
+/// Called only from the `PtyBytes` arm, after [`Terminal::write`] - never
+/// after [`Terminal::resize`], even though `resize` also calls the
+/// engine's own event drain internally: `resize` only ever queues
+/// `Event::PtyWrite` (an in-band size report), never `Event::
+/// SemanticPrompt`, which only ever comes from parsing a program's
+/// *written* bytes. So a resize can never produce a `CommandMark`, and
+/// any mark a preceding `write` produced is already drained by the very
+/// next call here regardless of whether a resize runs in between.
+fn drain_command_marks(terminal: &mut Terminal, pane: PaneId, events: &Sender<PaneEvent>) {
+    for mark in terminal.take_command_marks() {
+        let event = match mark {
+            CommandMark::OutputStarted => PaneEvent::CommandOutputStarted { pane },
+            CommandMark::Ended { exit_code } => PaneEvent::CommandEnded { pane, exit_code },
+        };
+        let _ = events.send(event);
     }
 }
 

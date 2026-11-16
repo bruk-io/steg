@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1084,6 +1085,15 @@ New Important finding, found live, not in the prior round: for `rgba(0x1c1b21ff)
 Nits: none at the cap; plugins/bruk-io-steg/rules/tools.md (ast-grep-py vs "standard library only") remains correctly untouched here (plugin changes aren't a worker's to make); rust_source.py remains an undisclosed-in-the-plan file, now explicitly disclosed in the notes (addressed as a nit already, not re-raised as one here, but recorded as --plan-matched no per policy: "no for any departure, even one the notes explain").
 
 Verified as working, not just as claimed (unchanged from the first review, re-confirmed): plain/grouped/glob/aliased use, fully-qualified expression path counted once, crate-root pub use re-export loophole, super:: as documented no-op beyond one hop, unplaced-file refusal, nested submodule attribution, both path exemptions, cfg(test) literal refused, comment/string/short-hex correctly passed, arithmetic-built colour silently passed as disclosed. New this round: the macro-argument blind spot is now named in ui_levels.py's own docstring and backed by test_violations_does_not_see_a_crossing_path_written_inside_a_macros_arguments (confirmed empirically: zero scoped_identifier nodes found inside a macro's token_tree).
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T03:32:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.94: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

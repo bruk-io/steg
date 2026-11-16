@@ -31,16 +31,29 @@ const POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// window closed" scheduling noise, not evidence.
 const TEST_GRACE: Duration = Duration::from_millis(30);
 
+/// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
+/// `.env_clear()` means a `base_env` with none cannot resolve a relative
+/// program name like `"sh"` - this test file's own ambient `PATH` is
+/// fine to read here (a test, not production code). Shared by every
+/// `LoginShell` this file builds (`runtime()`'s own call, and TASK-1.78's
+/// own force-close tests below, each of which needs its own `Runtime`
+/// built with its own `force_grace`, not the shared `runtime()` helper's
+/// `TEST_GRACE`).
+fn login_for_force_tests() -> LoginShell {
+    LoginShell {
+        argv0: "/bin/sh".to_string(),
+        home: "/tmp".to_string(),
+        user: None,
+        base_env: vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )],
+    }
+}
+
 fn runtime() -> (Runtime, Description) {
     (
-        Runtime::new(
-            Arc::new(RealLauncher),
-            LoginShell {
-                argv0: "/bin/sh".to_string(),
-                home: "/tmp".to_string(),
-            },
-            TEST_GRACE,
-        ),
+        Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), TEST_GRACE),
         description(),
     )
 }
@@ -615,14 +628,7 @@ fn a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_reg
     // proof, with its own recorded negative control; this one is kept as
     // a realistic end-to-end regression only, named for exactly that.
     let grace = Duration::from_secs(3);
-    let runtime = Runtime::new(
-        Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
-        grace,
-    );
+    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace);
     let api = description();
     // Floods a real backlog (20,000 lines through the pty, not a file -
     // confirmed by hand to take well under a second for a shell's own
@@ -688,14 +694,7 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
     // enough to separate "one window" from "four windows" needs a
     // window wide enough that scheduling noise cannot close the gap.
     let grace = Duration::from_millis(500);
-    let runtime = Runtime::new(
-        Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
-        grace,
-    );
+    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace);
     let api = description();
 
     // The marker file's own content is the pid (`echo $$`, not a bare
@@ -948,10 +947,7 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
     // real evidence rather than scheduling noise.
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
+        login_for_force_tests(),
         Duration::from_secs(5),
     );
     let api = description();
@@ -1028,10 +1024,7 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
 fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
+        login_for_force_tests(),
         Duration::from_secs(5),
     );
     let api = description();
@@ -1116,10 +1109,7 @@ fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
 fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
+        login_for_force_tests(),
         Duration::from_secs(5),
     );
     let api = description();
@@ -1193,10 +1183,7 @@ fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
 fn a_session_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
+        login_for_force_tests(),
         Duration::from_secs(5),
     );
     let api = description();
@@ -1286,10 +1273,7 @@ fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
     // here depends on which lock-holding order produces it.
     let runtime = Runtime::new(
         Arc::new(RealLauncher),
-        LoginShell {
-            argv0: "/bin/sh".to_string(),
-            home: "/tmp".to_string(),
-        },
+        login_for_force_tests(),
         Duration::from_secs(2),
     );
     let (session_id, tab_id, pid) =

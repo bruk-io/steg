@@ -875,7 +875,15 @@ mod tests {
         LaunchSpec {
             argv: argv.into_iter().map(str::to_string).collect(),
             cwd: std::env::temp_dir().to_str().unwrap().to_string(),
-            env: Vec::new(),
+            // A working `PATH` is required (TASK-1.87):
+            // `RealLauncher::spawn`'s own `.env_clear()` means an empty
+            // `env` cannot resolve a relative program name like `"sh"` -
+            // this test's own ambient `PATH` is fine to read here (a
+            // test, not production code).
+            env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
             size: (80, 24),
         }
     }
@@ -1070,7 +1078,15 @@ mod ending_tests {
         LaunchSpec {
             argv: argv.into_iter().map(str::to_string).collect(),
             cwd: std::env::temp_dir().to_str().unwrap().to_string(),
-            env: Vec::new(),
+            // A working `PATH` is required (TASK-1.87):
+            // `RealLauncher::spawn`'s own `.env_clear()` means an empty
+            // `env` cannot resolve a relative program name like `"sh"` -
+            // this test's own ambient `PATH` is fine to read here (a
+            // test, not production code).
+            env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
             size: (80, 24),
         }
     }
@@ -1304,7 +1320,12 @@ mod ending_tests {
             .restart(crate::pty::LaunchSpec {
                 argv: vec!["sh".to_string(), "-c".to_string(), "sleep 1000".to_string()],
                 cwd: std::env::temp_dir().to_str().unwrap().to_string(),
-                env: Vec::new(),
+                // A working `PATH` is required (TASK-1.87): see
+                // `real_spec`'s own comment in this module, above.
+                env: vec![(
+                    std::ffi::OsString::from("PATH"),
+                    std::env::var_os("PATH").unwrap_or_default(),
+                )],
                 size: (80, 24),
             })
             .unwrap();

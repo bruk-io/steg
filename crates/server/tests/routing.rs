@@ -34,12 +34,32 @@ use steg_sdk::{
     Incoming, PROTOCOL_VERSION, Response, WireRole as Role, description, encode_frame,
     parse_server_hello,
 };
-use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve};
+use steg_server::{ConnectionEvent, LoginShell, ServerConfig, Stopper, serve};
 
 fn unique_socket_path() -> PathBuf {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{}-routing-{suffix}.sock", std::process::id()))
+}
+
+/// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
+/// `.env_clear()` means `LoginShell::default()`'s own empty `base_env`
+/// cannot resolve a relative program name like `"sh"` - this file's own
+/// `stopping_through_a_real_connection_ends_a_real_programs_process_and_
+/// frees_the_socket` is the one test here that actually starts a real
+/// program through `session.new`, over the real socket. This test
+/// file's own ambient `PATH` is fine to read here (a test, not
+/// production code).
+fn test_login() -> LoginShell {
+    LoginShell {
+        argv0: "/bin/sh".to_string(),
+        home: std::env::temp_dir().to_str().unwrap().to_string(),
+        user: None,
+        base_env: vec![(
+            std::ffi::OsString::from("PATH"),
+            std::env::var_os("PATH").unwrap_or_default(),
+        )],
+    }
 }
 
 /// Same shape as `handshake.rs`'s own `start_server`, with a generous,
@@ -50,6 +70,7 @@ fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
+        login: test_login(),
         ..ServerConfig::default()
     };
     let stop = Stopper::new();

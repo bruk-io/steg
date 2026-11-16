@@ -17,6 +17,14 @@ steg-server = { path = "../server" }
 # turning it on here costs nothing production-side, since it only adds code
 # behind the feature, never changes what is already built.
 steg-sdk = { path = "../sdk", features = ["local-socket"] }
+# TASK-1.87's own `env_leak_client` fixture (a `[[bin]]`, below - fixture
+# binaries only ever see `[dependencies]`, never `[dev-dependencies]`,
+# since they are not test targets) builds a `session.new` request's params
+# by hand: the sdk's own `Connection::call` takes `serde_json::
+# Map<String, Value>` directly, the same shape `crates/server/tests/
+# routing.rs` already builds, and `steg-sdk` does not re-export either
+# type. Not used by `crates/steg/src/main.rs` itself.
+serde_json = "1"
 
 [features]
 # Gates `server_start.rs`'s own two fixture binaries and the integration test
@@ -48,6 +56,28 @@ name = "autostart_client"
 path = "tests/fixtures/autostart_client.rs"
 required-features = ["fixtures"]
 
+# `env_leak_client` (TASK-1.87, AC #1): the whole of a "real client" for
+# `login_environment.rs`'s own end-to-end proof - autostarts a real server
+# (so it inherits this fixture's own ambient environment, the leak vector
+# AC #1 is about), starts a real session whose shell writes `TERM`/
+# `STEG_SERVER`/`PATH` to a file the test reads back (there is no
+# `pane.capture`-style API yet to read a pane's screen over the wire).
+[[bin]]
+name = "env_leak_client"
+path = "tests/fixtures/env_leak_client.rs"
+required-features = ["fixtures"]
+
+# `fixture_server` (TASK-1.87, AC #1, review finding): the real server
+# code (`attempt`/`detach`/`build_login_shell`/`run`), given a login
+# identity from this fixture's own environment instead of the real
+# password database - so `login_environment.rs`'s own end-to-end test
+# can point it at a throwaway home with its own `.zprofile`, never this
+# machine's real one. Does not exist in the shipped binary at all.
+[[bin]]
+name = "fixture_server"
+path = "tests/fixtures/fixture_server.rs"
+required-features = ["fixtures"]
+
 # Declared explicitly (autodiscovery alone cannot carry `required-features`)
 # so this one test file is skipped, not built, without `fixtures` - the same
 # reason the two binaries above are gated, and the same shape `steg-server`'s
@@ -55,4 +85,9 @@ required-features = ["fixtures"]
 [[test]]
 name = "server_start"
 path = "tests/server_start.rs"
+required-features = ["fixtures"]
+
+[[test]]
+name = "login_environment"
+path = "tests/login_environment.rs"
 required-features = ["fixtures"]

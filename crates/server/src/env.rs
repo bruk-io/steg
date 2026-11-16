@@ -1,18 +1,25 @@
 //! A pane's environment: the five variables, and the server's own
 //! directory first on `PATH` (doc-2 section 4).
 //!
-//! This is this task's part of the seam with TASK-1.44: the five variables
-//! and prepending `STEG_BIN_DIR` to `PATH`, here. Where the server's own
-//! *base* environment comes from (R99's login shell) is TASK-1.44's part,
-//! and it never has to change this function - `server` (how to reach the
-//! server) and `bin_dir` are data a caller passes in, never computed
-//! inside it, and the one thing this function reads from the environment
-//! it is about to modify - the current `PATH`, to prepend to - is passed
-//! in too (`current_path`), rather than read live, so this stays a plain
-//! function with a plain unit test. `portable_pty::CommandBuilder` seeds
-//! every other inherited variable on its own (it reads the current
-//! process's environment when it is built), so this only ever has to
-//! return the *overrides*.
+//! This is this task's part of the seam with login-shell capture
+//! (TASK-1.87): the five variables and prepending `STEG_BIN_DIR` to
+//! `PATH`, here. Where the server's own *base* environment comes from
+//! (R99's login shell) is TASK-1.87's part, and it never has to change
+//! this function - `server` (how to reach the server) and `bin_dir` are
+//! data a caller passes in, never computed inside it, and the one thing
+//! this function reads from the environment it is about to modify - the
+//! current `PATH`, to prepend to - is passed in too (`current_path`),
+//! rather than read live, so this stays a plain function with a plain
+//! unit test.
+//!
+//! **This function's own return value is no longer the pane's whole set
+//! of overrides on top of an ambient environment - that ambient seeding
+//! is gone (TASK-1.87, `crate::pty::RealLauncher::spawn`'s own
+//! `.env_clear()`).** What this function returns is still exactly the
+//! five `STEG_*` variables and `PATH`; the caller
+//! (`crate::runtime::Runtime::launch_spec`) is what now composes them
+//! with the captured login shell's own environment underneath, and
+//! `TERM` on top, into the pane's whole environment.
 
 use std::ffi::{OsStr, OsString};
 use std::path::Path;

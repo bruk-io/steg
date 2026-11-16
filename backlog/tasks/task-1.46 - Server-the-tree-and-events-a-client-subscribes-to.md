@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:52:00Z'
+updated_date: '2026-11-16T14:53:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1208,6 +1208,53 @@ failures:
     runtime::tests::an_unfiltered_subscriber_receives_nothing
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib dispatch::event::tests'` exited 101 at 2026-11-16T14:53:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes, last 40 of 46 lines:
+
+```text
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 9 tests
+test dispatch::event::tests::a_filter_narrowed_by_name_refuses_every_other_name ... ok
+test dispatch::event::tests::a_filter_narrowed_by_session_refuses_every_other_session ... ok
+test dispatch::event::tests::a_filter_with_no_name_and_no_session_matches_anything ... ok
+test dispatch::event::tests::an_empty_tree_snapshots_to_no_sessions ... ok
+test dispatch::event::tests::resolve_filter_with_no_target_and_no_context_refuses ... ok
+test dispatch::event::tests::resolve_filter_with_all_skips_resolving_a_target_session_entirely ... ok
+test dispatch::event::tests::resolve_filter_reads_the_for_name ... ok
+test dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes ... FAILED
+test dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab ... FAILED
+
+failures:
+
+---- dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes stdout ----
+
+thread 'dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes' (41820291) panicked at crates/server/src/dispatch/event.rs:246:13:
+layout names 00000002, not among this tab's own panes []
+
+---- dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab stdout ----
+
+thread 'dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab' (41820289) panicked at crates/server/src/dispatch/event.rs:223:9:
+assertion `left == right` failed: both panes are nested under their tab
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    dispatch::event::tests::a_session_with_a_split_tab_snapshots_with_both_panes_nested_under_their_tab
+    dispatch::event::tests::every_layout_leaf_names_a_pane_that_is_in_the_tabs_own_panes
+
+test result: FAILED. 7 passed; 2 failed; 0 ignored; 0 measured; 150 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```

@@ -2,12 +2,17 @@
 //! binary this task adds - each test is named for the acceptance criterion
 //! clause it proves, mapped in full in the task's own notes.
 
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
+
+use serde_json::{Map, json};
+use steg_sdk::{
+    ClientKind, Connection, Incoming, Response, WireRole as Role, description, parse_server_hello,
+};
 
 /// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
 /// (`crates/server/src/bind.rs`'s own doc comment found this matters).
@@ -375,29 +380,121 @@ fn an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason() {
     let _ = std::fs::remove_file(&not_a_socket);
 }
 
-/// AC #5's exit-status table, the "ran and failed" row: `run`'s own accept
-/// loop returns `Err` (and `main` maps that to status 1) when `accept`
-/// itself fails - reached here by starting the server under a lowered
-/// open-file limit and then opening real connections until it runs out,
-/// confirmed empirically before writing this test (a scratch shell/Python
-/// experiment, deleted after): a handful of connections against a limit of
-/// 16 reliably exhausts it on this machine, varying exactly which
-/// connection trips it run to run (scheduling, not a bug) but always
-/// tripping within the first twenty - the real connection count here (40)
-/// is deliberately generous past that observed range, not tuned to the
-/// exact number.
+/// Real handshake over a real socket, with the sdk's own `Connection` -
+/// the shape every real client (CLI, app, plugin) actually uses, not a
+/// hand-rolled stand-in. Duplicated from `crates/server/tests/routing.rs`'s
+/// own helper of the same name and shape: test helpers are not shared
+/// across crates, and this file has never needed one before.
+fn connect_and_handshake(socket_path: &std::path::Path) -> (UnixStream, Connection) {
+    let mut stream =
+        UnixStream::connect(socket_path).expect("connecting to the server should succeed");
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .expect("setting a read timeout on a fresh connection should not fail");
+    let hello_bytes = Connection::send_hello("server-start-test-client", ClientKind::Cli, None);
+    stream
+        .write_all(&hello_bytes)
+        .expect("writing the hello should not fail");
+
+    let mut connection = Connection::new(Role::Client, description());
+    let hello_reply = loop {
+        if let Some(incoming) = connection.poll() {
+            match incoming {
+                Incoming::Hello(payload) => break payload,
+                other @ (Incoming::Request { .. }
+                | Incoming::Reply { .. }
+                | Incoming::Event { .. }
+                | Incoming::UnknownEvent { .. }
+                | Incoming::StreamControl { .. }
+                | Incoming::Data { .. }
+                | Incoming::UnknownStream { .. }
+                | Incoming::Malformed(_)) => {
+                    panic!("expected the server's hello reply, got {other:?}")
+                }
+            }
+        }
+        let mut buf = [0_u8; 4096];
+        let n = stream
+            .read(&mut buf)
+            .expect("reading the server's hello reply");
+        assert!(n > 0, "server closed before replying to the hello");
+        connection.receive(&buf[..n]);
+    };
+    parse_server_hello(&hello_reply).expect("a matching protocol version should be accepted");
+    (stream, connection)
+}
+
+/// Writes a validated call and reads back its matching reply - the same
+/// shape `routing.rs`'s own `call_and_read_reply` uses.
+fn call_and_read_reply(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    method: &str,
+    params: Map<String, serde_json::Value>,
+) -> Response {
+    let (id, bytes) = connection.call(method, params).expect("a valid call");
+    stream
+        .write_all(&bytes)
+        .expect("writing the call should not fail");
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(Incoming::Reply {
+            id: reply_id,
+            response,
+        }) = connection.poll()
+        {
+            assert_eq!(reply_id, id, "the reply must carry the id this call minted");
+            return response;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for a reply to {method}"
+        );
+        let mut buf = [0_u8; 65536];
+        let n = stream.read(&mut buf).expect("reading the reply");
+        assert!(n > 0, "server closed before replying");
+        connection.receive(&buf[..n]);
+    }
+}
+
+/// TASK-1.98 AC #3, replacing `running_out_of_file_descriptors_exits_1`
+/// (named here, as the task's own notes require, since this reverses that
+/// test's own expectation): that test proved the server used to die the
+/// instant `accept()` failed under a lowered descriptor limit - this one
+/// proves the opposite is now true for the recoverable kinds AC #1 names.
+/// Descriptor exhaustion (`EMFILE`/`ENFILE`) is one of them, so the exact
+/// same lowered-`ulimit`-and-hold-connections technique that test used
+/// (kept for the same isolation reason: the limit must apply to the real
+/// server's own *child* process, never this test binary's own) now shows
+/// the server surviving it instead.
+///
+/// The `-n` value (128) is not inherited from the old test's own 16 -
+/// confirmed empirically while building this task that this scenario needs
+/// much more headroom than that one did. Measured, not guessed: at 90, the
+/// very first client's own handshake already fails ("server closed before
+/// replying to the hello") before any connection is deliberately held open
+/// at all; at 120, every run passes; 128 leaves a small margin above that
+/// observed threshold without being as generous as this task's own first,
+/// untested guess of 256. The server's own baseline cost is real here in a
+/// way the old test's never had to account for: besides the socket, the
+/// lock, and now one live session's own pty, TASK-1.87 (merged while this
+/// task was being built) makes every real `server start` spawn a real
+/// login shell and capture its environment before the accept loop even
+/// starts, which itself needs several descriptors of its own.
 #[test]
-fn running_out_of_file_descriptors_exits_1() {
+fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers() {
+    const RLIMIT_NOFILE: &str = "128";
+    const HELD_CONNECTIONS: usize = 100;
+
     let socket_path = unique_socket_path();
-    // `ulimit` is a shell builtin, not a program - the lowered limit has to
-    // be set in the same shell that then `exec`s the real binary, so it
-    // actually applies to *that* process rather than only to a subshell
-    // `sh` itself, which `exec` here replaces in place.
+    // Same `sh -c 'ulimit -n N; exec ...'` wrapper the old test used, and
+    // for the same reason: the lowered limit has to apply to the real
+    // server process this `exec`s into, never to a subshell `sh` itself.
     let mut server = KillOnDrop::new(
         Command::new("sh")
             .arg("-c")
             .arg(format!(
-                "ulimit -n 16; exec {} server start",
+                "ulimit -n {RLIMIT_NOFILE}; exec {} server start",
                 steg_binary().display()
             ))
             .env("STEG_SOCKET_PATH", &socket_path)
@@ -409,33 +506,118 @@ fn running_out_of_file_descriptors_exits_1() {
     );
     wait_for_socket(&socket_path, Duration::from_secs(5));
 
-    // Real connections, left open (never read from, never sent a hello) so
+    // One real, handshaken client, held open through the whole exhaustion
+    // window - its own `session.new` is the live session/program AC #1's
+    // own "every session and program is untouched" and AC #3's "existing
+    // connections still get replies" are both checked against, below.
+    let (mut client, mut connection) = connect_and_handshake(&socket_path);
+    let session = match call_and_read_reply(
+        &mut client,
+        &mut connection,
+        "session.new",
+        json!({"program": ["sh", "-c", "sleep 100"]})
+            .as_object()
+            .unwrap()
+            .clone(),
+    ) {
+        Response::Ok(value) => value,
+        Response::Error(error) => panic!("session.new failed: {error:?}"),
+    };
+
+    // Real connections, left open (never handshaken, never read from) so
     // each keeps consuming the server's own file descriptors rather than
-    // being reaped - exactly what drives `accept`'s own fd allocation to
-    // fail. Ignoring a failed connect here is deliberate: once the server
-    // dies, later attempts in this same loop are expected to fail too, and
-    // the real assertion is the server's own exit status below, not how
-    // many connections this loop itself manages to open.
+    // being reaped - the same technique `running_out_of_file_descriptors_
+    // exits_1` used. Ignoring a failed connect here is deliberate: once
+    // descriptors are genuinely exhausted, later attempts in this same
+    // loop are expected to fail too, and the real assertions are below,
+    // not how many connections this loop itself manages to open.
     let mut held = Vec::new();
-    for _ in 0..40 {
+    for _ in 0..HELD_CONNECTIONS {
         if let Ok(stream) = UnixStream::connect(&socket_path) {
             held.push(stream);
         }
     }
 
-    // Bounded, not a bare `wait()` - a review nit found that on a machine
-    // where this test's own file-descriptor-exhaustion assumption does not
-    // hold, an unbounded wait here would hang instead of failing promptly
-    // with a message saying so.
-    let status = wait_bounded(&mut server.child, Duration::from_secs(5));
-    server.done = true;
-    assert_eq!(
-        status.code(),
-        Some(1),
-        "expected the server to exit 1 once its accept loop failed, got {status:?}"
+    // The server is still running, not dead the instant accept() first
+    // failed (the whole point of this test, replacing the old one's own
+    // opposite expectation).
+    assert!(
+        server
+            .child
+            .try_wait()
+            .expect("try_wait should not fail")
+            .is_none(),
+        "the server should still be running through the exhaustion window, not dead"
     );
 
+    // "Existing connections still get replies": the already-handshaken
+    // client from before the storm can still complete a real round trip -
+    // `session.list` needs no new fd of its own, so this proves the
+    // connection/dispatch path survived, independent of whatever `pane.
+    // split`-style fd pressure a new program start would add.
+    match call_and_read_reply(&mut client, &mut connection, "session.list", Map::new()) {
+        Response::Ok(value) => assert_eq!(
+            value.as_array().map(Vec::len),
+            Some(1),
+            "the session started before the storm should still be listed, got {value:?}"
+        ),
+        Response::Error(error) => panic!("session.list failed during the exhaustion window: {error:?}"),
+    }
+
+    // "Every session and program is untouched": the same session's own
+    // pane, by a fully-qualified target (doc-2 section 4's own
+    // `"session/tab/pane"` grammar - R94 guarantees a freshly-minted
+    // session has exactly one tab and one pane, each at position 1, so
+    // this needs no connection-level default context at all), still shows
+    // its program running, not merely that *a* session exists.
+    let session_id = session["id"].as_str().expect("session.new returns an id");
+    match call_and_read_reply(
+        &mut client,
+        &mut connection,
+        "pane.show",
+        json!({"target": format!("{session_id}/1/1")})
+            .as_object()
+            .unwrap()
+            .clone(),
+    ) {
+        Response::Ok(value) => {
+            assert_eq!(
+                value.get("program_status"),
+                Some(&json!("running")),
+                "the session's program should still be running, got {value:?}"
+            );
+        }
+        Response::Error(error) => panic!(
+            "pane.show on the session started before the storm failed: {error:?}"
+        ),
+    }
+
+    // Freeing roughly half the held connections is enough to let a fresh
+    // accept() succeed again - more than that is not needed to prove
+    // recovery, only that it happens at all once some descriptor frees.
+    held.truncate(HELD_CONNECTIONS / 2);
+
+    // "A new client connects once descriptors are freed": a fresh
+    // handshake completes within a bound - this is also the backlog-
+    // queued-client case (AC #3's own notes): this `connect()` may well
+    // have been queued *during* the storm above, by the kernel, and only
+    // actually accepted now that a descriptor is free - `connect_and_
+    // handshake` itself blocks until that happens, bounded by its own
+    // read timeout.
+    let (mut fresh_client, mut fresh_connection) = connect_and_handshake(&socket_path);
+    match call_and_read_reply(&mut fresh_client, &mut fresh_connection, "session.list", Map::new())
+    {
+        Response::Ok(_) => {}
+        Response::Error(error) => panic!("a fresh client's own session.list failed: {error:?}"),
+    }
+
+    // The server does not die on its own - that is the point of this
+    // test - so it is ended explicitly, same as any other test here.
+    server.kill_now();
+
     drop(held);
+    drop(client);
+    drop(fresh_client);
     let _ = std::fs::remove_file(&socket_path);
     let mut lock_path = socket_path.into_os_string();
     lock_path.push(".lock");

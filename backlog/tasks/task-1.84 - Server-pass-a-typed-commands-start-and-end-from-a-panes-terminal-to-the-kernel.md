@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T00:47:00Z'
+updated_date: '2026-11-16T00:48:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -143,6 +143,40 @@ ok      recipe names (0.1s)
 ```
 
 Check passed: `sh -c 'cargo check -p steg-server --tests 2>&1 | tail -30'` exited 0 at 2026-11-16T00:47:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84/crates/server)
+error[E0004]: non-exhaustive patterns: `PaneEvent::CommandOutputStarted { .. }` and `PaneEvent::CommandEnded { .. }` not covered
+   --> crates/server/src/runtime.rs:543:11
+    |
+543 |     match event {
+    |           ^^^^^ patterns `PaneEvent::CommandOutputStarted { .. }` and `PaneEvent::CommandEnded { .. }` not covered
+    |
+note: `PaneEvent` defined here
+   --> crates/server/src/pane.rs:113:10
+    |
+113 | pub enum PaneEvent {
+    |          ^^^^^^^^^
+...
+123 |     CommandOutputStarted {
+    |     -------------------- not covered
+...
+130 |     CommandEnded {
+    |     ------------ not covered
+    = note: the matched value is of type `PaneEvent`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern, a match arm with multiple or-patterns as shown, or multiple match arms
+    |
+571 ~         },
+572 +         PaneEvent::CommandOutputStarted { .. } | PaneEvent::CommandEnded { .. } => todo!()
+    |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `steg-server` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (lib test) due to 1 previous error
+```
+
+Check FAILED: `cargo check -p steg-server --tests` exited 101 at 2026-11-16T00:48:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 75387af8c49a with uncommitted changes:
 
 ```text
     Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84/crates/server)

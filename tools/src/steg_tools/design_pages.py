@@ -28,8 +28,12 @@ name's row on `design/canvas/project/Tokens.dc.html` or `Details.dc.html`, by th
 - Tier C (`TIER_C_SKIPS`): every other named value in the file is declared out of this
   tool's reach, each with its own reason - printed by `main()` itself on every passing run,
   so a clean exit is never read as "every value checked" (AC#3). `unaccounted_names`
-  enumerates the data file's own leaf keys and refuses if one is neither checked nor in
-  `TIER_C_SKIPS` - a key added to the file later cannot fall through both silently.
+  walks the data file's own structure generically (`_leaf_paths` - no section's field
+  names are written into this module as a list, a review finding fixed on this task: the
+  first version enumerated `themes[]`/`focus_ring` from a fixed tuple, invisible to a
+  field not already in it) and refuses if a leaf has no covering name in `checked` or
+  `TIER_C_SKIPS` - a key added to the file later, at any level, cannot fall through both
+  silently.
 
 Only the rendered body is read - everything between `</helmet>` and the page's own
 `<script type="text/x-dc">` block - never that script block itself: it holds the page's
@@ -391,9 +395,13 @@ TIER_C_SKIPS: tuple[Skipped, ...] = (
     Skipped("colour_aliases.done", "a reference to ramp.6 green, never drawn under its own name"),
     Skipped("colour_aliases.error", "a reference to ramp.3 red, never drawn under its own name"),
     Skipped("opacities.faint", "drawn only in each page's own script-block colour variables (0.3/0.45), never under its own name"),
-    Skipped("ramps.ramp", "the gradient is drawn; its per-stop percentages are only in the page's own script block"),
+    Skipped(
+        "ramps.ramp",
+        "the gradient is drawn; its per-stop percentages, and its caption_opacity's 50%/40%, are only in the "
+        "page's own script block and Rules prose respectively, neither under a name column (covers "
+        "ramps.ramp.caption_opacity too - a leaf under this ancestor, not a separate entry)",
+    ),
     Skipped("ramps.ramp.extended", "the gradient is drawn; its per-stop percentages are only in the page's own script block"),
-    Skipped("ramps.ramp.caption_opacity", "50%/40% is in Rules prose with no name column"),
     Skipped(
         "tint",
         'drawn as Layout.dc.html\'s Track card row named "fill", not under the name "tint" - '
@@ -405,11 +413,20 @@ TIER_C_SKIPS: tuple[Skipped, ...] = (
     Skipped("focus_ring.offset", "2px clear of the control is in the Focus ring section's prose, no name column"),
     Skipped("focus_ring.colour", "the literal sentinel \"session\" (R26): the active session's own colour, assigned at runtime, not a fixed page form"),
     Skipped("focus_ring.corner_radius_addition", "derived (12px corner minus 8px corner); 4 never appears as a number on the page"),
-    Skipped("themes[].bg", "a trailing prose line per theme, not a named row"),
-    Skipped("themes[].fg", "a trailing prose line per theme, not a named row"),
-    Skipped("themes[].bg_inactive", "a trailing prose line per theme, not a named row"),
-    Skipped("themes[].selection", "a trailing prose line per theme, not a named row"),
-    Skipped("themes[].cursor", "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
+    # Per theme instance, not a "themes[]" wildcard: a generic leaf walk (unaccounted_names)
+    # has no way to collapse two theme instances into one pattern without re-introducing
+    # the per-section field list this registry exists to avoid - so each of the two
+    # themes' five prose-only fields has its own entry.
+    Skipped("themes.steg dark.bg", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg dark.fg", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg dark.bg_inactive", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg dark.selection", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg dark.cursor", "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
+    Skipped("themes.steg light.bg", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg light.fg", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg light.bg_inactive", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg light.selection", "a trailing prose line per theme, not a named row"),
+    Skipped("themes.steg light.cursor", "the literal sentinel \"session\" (R26), the same as focus_ring.colour - no fixed page form"),
     # sizes.radius.surface/track/inner were here until the engineer asked for a small,
     # reviewed name map instead (RADIUS_MAP below): each now checks its own number
     # against Tokens.dc.html's one merged "radius" row (14/10/8).
@@ -419,7 +436,7 @@ TIER_C_SKIPS: tuple[Skipped, ...] = (
     Skipped("sizes.track.layout", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.split.layout", "only on Layout.dc.html, out of scope entirely"),
     Skipped("sizes.overlay.layout", "only on Layout.dc.html, out of scope entirely"),
-    Skipped("session_colour", "a top-level pointer to the literal sentinel \"session\" (R26), not a fixed page form - same sentinel as themes[].cursor and focus_ring.colour"),
+    Skipped("session_colour", "a top-level pointer to the literal sentinel \"session\" (R26), not a fixed page form - same sentinel as each theme's cursor and focus_ring.colour"),
 )
 
 
@@ -470,63 +487,112 @@ TIER_B_NAMES = (
 )
 
 
+# Fields that describe the value beside them rather than being one, or that another
+# mechanism already checks structurally - a small, universal, stated rule, applied by
+# `_leaf_paths` to every dict at every level; no section's field names are written into
+# this module as a list.
+_NOT_A_LEAF_PATH = frozenset(
+    {
+        "name",  # identifies the entry whose own name the path already carries
+        "use",  # prose describing the value beside it, never itself a value
+        "unit",  # the measurement unit of a number beside it, never itself a value
+        "ansi",  # each theme's 16 ANSI colours - checked structurally by
+        # `ansi_mismatches` (Tier A), not by this name-based registry
+        "artifact_version",  # this export's own provenance, not a design value
+        "artifact_url",  # same
+    }
+)
+
+
+def _entry_path(list_path: str, name: str) -> str:
+    """The path for one named entry of a list reached at `list_path`: the entry's own
+    `name`, qualified by `list_path` unless `name` already carries that qualification
+    itself (`motion`'s entries are self-prefixed, `"motion.status-fade"`; every other
+    list's entries are bare, `"blocked"`, `"ramp"`) - data-driven, not a per-section rule.
+    """
+    prefix = f"{list_path}."
+    return name if name.startswith(prefix) else f"{prefix}{name}"
+
+
+def _leaf_paths(value: object, path: str) -> list[str]:
+    """Every leaf path under `value`, walked generically from the data itself:
+
+    - a dict's keys become `path.key` (skipping `_NOT_A_LEAF_PATH`, which also drops a
+      list entry's own `name` once `_entry_path` has used it to build `path`);
+    - a non-empty list whose items are all dicts carrying their own `name` is a list of
+      named entries: one path per entry (`_entry_path`), recursing into that entry's
+      whole dict the same way;
+    - anything else reached this way - a scalar, a `{"ref": ...}` object, a plain list of
+      numbers or strings, or a list of un-named dicts - is one leaf at `path`: it is
+      consumed as a whole by whatever already checks `path`'s own covering name (Tier
+      A/B's own number-walking already looks inside it), not descended into further here.
+    """
+    if isinstance(value, dict):
+        found = []
+        for key, sub in value.items():
+            if key in _NOT_A_LEAF_PATH:
+                continue
+            found.extend(_leaf_paths(sub, f"{path}.{key}" if path else key))
+        return found
+    if isinstance(value, list) and all(isinstance(item, dict) and "name" in item for item in value):
+        # `all()` on an empty list is vacuously true - an empty list of named entries
+        # has zero of them, not one leaf for the empty container itself.
+        found = []
+        for item in value:
+            found.extend(_leaf_paths(item, _entry_path(path, item["name"])))
+        return found
+    return [path]
+
+
+def _is_accounted_for(path: str, registered: frozenset[str]) -> bool:
+    """`path` is accounted for if it equals, or is a dotted descendant of, some name in
+    `registered`. A descendant is accounted for because the checking functions that name
+    stands for already recurse the whole value its own name covers (`_numbers_in` sees
+    every number under it, `ansi_mismatches` every ANSI colour) - only a path with no
+    covering ancestor at all is new.
+    """
+    return any(path == name or path.startswith(f"{name}.") for name in registered)
+
+
 def unaccounted_names(
     data: dict,
     skipped: frozenset[str] = frozenset(skip.name for skip in TIER_C_SKIPS),
     checked: frozenset[str] = frozenset(TIER_B_NAMES) | frozenset(RADIUS_MAP),
 ) -> tuple[str, ...]:
-    """Every named value in `data` that `skipped` doesn't declare unseen and `checked`
-    doesn't cover - empty when every leaf key is accounted for, one way or the other
-    (a key added to the real data file later and left off both lists shows up here).
+    """Every leaf path in `data` with no covering name in `checked` or `skipped` - empty
+    when every leaf key is accounted for, one way or the other (a key added to the real
+    data file later and left off both shows up here, named exactly).
 
-    Walks the data file's own sections by hand, matching this module's existing naming
-    scheme: colours are all Tier A today (`SKIPPED_COLOURS` is empty, so nothing to check
-    here - a future exception would need its own `colours.<name>` entry in `skipped`, the
-    same shape this function already expects for the other sections); colour_aliases/
-    opacities/ramps entries are named "<section>.<name>"; motion entries already carry
-    their own prefix (`"motion.status-fade"`); `type`/`sizes` keys are bare, matched
-    against `checked` first and `"sizes.<key>"` in `skipped` second; `themes[]` and
-    `focus_ring` fields are named `"themes[].<field>"`/`"focus_ring.<field>"`.
-    `artifact_version`/`artifact_url` are this export's own metadata, not a design value,
-    and are never enumerated.
+    Discovery is generic: `_leaf_paths` walks `data` itself, so a field this module has
+    never heard of (a review finding on this task: `themes[]`/`focus_ring` used to be
+    enumerated from a fixed field tuple, invisible to a field not already in it) is found
+    regardless. Accounting stays the explicit, reviewed registry this module already
+    keeps (`TIER_B_NAMES`/`RADIUS_MAP`/`TIER_C_SKIPS`, plus every non-exempt colour, since
+    all of Tier A is unconditional): `checked`'s bare `type`/`sizes` keys are translated to
+    their section's full path by checking which of `data["type"]`/`data["sizes"]` actually
+    holds that key - read from the data, not asserted.
+
+    A leaf *inside* an already-covered whole value (e.g. a new number added inside
+    `sizes.nav.side`) is accounted for by that covering name (`_is_accounted_for`'s
+    ancestor rule), not flagged here, since the checking function that name stands for
+    already recurses the whole value - nothing numeric there goes uninspected. A new
+    *non-numeric* field added the same way is not inspected by `_numbers_in` either, and
+    this function does not catch that case: a known, accepted gap of the same shape as
+    Tier B's own field-blindness, not a silent one (crates/ui/design/README.md).
     """
-    found = []
+    registered: set[str] = set(skipped)
+    for name in checked:
+        if name in data.get("type", {}):
+            registered.add(f"type.{name}")
+        if name in data.get("sizes", {}):
+            registered.add(f"sizes.{name}")
+    for colour in data.get("colours", []):
+        if colour["name"] not in SKIPPED_COLOURS:
+            registered.add(f"colours.{colour['name']}")
+    registered_frozen = frozenset(registered)
 
-    for entry in data.get("colour_aliases", []):
-        if f"colour_aliases.{entry['name']}" not in skipped:
-            found.append(f"colour_aliases.{entry['name']}")
-    for entry in data.get("opacities", []):
-        if f"opacities.{entry['name']}" not in skipped:
-            found.append(f"opacities.{entry['name']}")
-    for entry in data.get("ramps", []):
-        if f"ramps.{entry['name']}" not in skipped:
-            found.append(f"ramps.{entry['name']}")
-        if "caption_opacity" in entry and "ramps.ramp.caption_opacity" not in skipped:
-            found.append("ramps.ramp.caption_opacity")
-    if "tint" in data and "tint" not in skipped:
-        found.append("tint")
-    for entry in data.get("motion", []):
-        if entry["name"] not in skipped:
-            found.append(entry["name"])
-    for key in data.get("type", {}):
-        if key not in checked:
-            found.append(f"type.{key}")
-    for key in data.get("sizes", {}):
-        if key in checked or f"sizes.{key}" in skipped:
-            continue
-        found.append(f"sizes.{key}")
-    if data.get("themes"):
-        for field in ("bg", "fg", "bg_inactive", "selection", "cursor"):
-            if f"themes[].{field}" not in skipped:
-                found.append(f"themes[].{field}")
-    if "focus_ring" in data:
-        for field in ("width", "offset", "colour", "corner_radius_addition"):
-            if f"focus_ring.{field}" not in skipped:
-                found.append(f"focus_ring.{field}")
-    if "session_colour" in data and "session_colour" not in skipped:
-        found.append("session_colour")
-
-    return tuple(found)
+    leaves = _leaf_paths(data, "")
+    return tuple(path for path in leaves if not _is_accounted_for(path, registered_frozen))
 
 
 # ---------------------------------------------------------------------------

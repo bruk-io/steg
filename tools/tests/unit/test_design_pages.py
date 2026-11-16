@@ -409,15 +409,21 @@ def test_a_file_key_matched_on_only_one_page_is_not_ambiguous() -> None:
 
 
 MINIMAL_DATA = {
-    "colours": [],
-    "colour_aliases": [{"name": "blocked"}],
-    "opacities": [{"name": "faint"}],
-    "ramps": [{"name": "ramp", "caption_opacity": {"dark": 0.5, "light": 0.4}}, {"name": "ramp.extended"}],
-    "tint": {"name": "tint"},
-    "type": {"font.ui": {}},
-    "sizes": {"nav.side": {}, "radius.surface": {}, "radius.round": {}},
-    "motion": [{"name": "motion.status-fade"}],
-    "themes": [{"name": "steg dark"}],
+    "colours": [{"name": "track", "dark": "#000000", "light": "#ffffff", "use": "x"}],
+    "colour_aliases": [{"name": "blocked", "ref": {"ref": "ramp.5 amber"}, "use": "x"}],
+    "opacities": [{"name": "faint", "dark": 0.3, "light": 0.45, "use": "x"}],
+    "ramps": [
+        {"name": "ramp", "use": "x", "stops": [{"stop": 0}], "caption_opacity": {"dark": 0.5, "light": 0.4}},
+        {"name": "ramp.extended", "use": "x", "stops": [{"stop": 0}]},
+    ],
+    "tint": {"name": "tint", "colour": "session", "opacity": 0.18, "use": "x"},
+    "type": {"font.ui": {"family": "system", "role": "ui"}},
+    "sizes": {"nav.side": {"width": 232, "unit": "px"}, "radius.surface": {"value": 14}, "radius.round": {"shape": "round"}},
+    "motion": [{"name": "motion.status-fade", "duration": 200, "unit": "ms", "use": "x"}],
+    "themes": [
+        {"name": "steg dark", "bg": "#1", "fg": "#2", "bg_inactive": {"ref": "surface.pane"}, "selection": "#3", "cursor": "session", "ansi": {"black": "#4"}},
+        {"name": "steg light", "bg": "#5", "fg": "#6", "bg_inactive": {"ref": "surface.pane"}, "selection": "#7", "cursor": "session", "ansi": {"black": "#8"}},
+    ],
     "focus_ring": {"width": 2, "offset": 2, "colour": "session", "corner_radius_addition": 4},
     "session_colour": "session",
 }
@@ -428,15 +434,19 @@ MINIMAL_SKIPPED = frozenset(
         "opacities.faint",
         "ramps.ramp",
         "ramps.ramp.extended",
-        "ramps.ramp.caption_opacity",
         "tint",
         "sizes.radius.round",
         "motion.status-fade",
-        "themes[].bg",
-        "themes[].fg",
-        "themes[].bg_inactive",
-        "themes[].selection",
-        "themes[].cursor",
+        "themes.steg dark.bg",
+        "themes.steg dark.fg",
+        "themes.steg dark.bg_inactive",
+        "themes.steg dark.selection",
+        "themes.steg dark.cursor",
+        "themes.steg light.bg",
+        "themes.steg light.fg",
+        "themes.steg light.bg_inactive",
+        "themes.steg light.selection",
+        "themes.steg light.cursor",
         "focus_ring.width",
         "focus_ring.offset",
         "focus_ring.colour",
@@ -453,9 +463,18 @@ def test_unaccounted_names_is_empty_when_every_leaf_key_is_accounted_for() -> No
 
 
 def test_unaccounted_names_flags_a_key_on_neither_list() -> None:
-    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "a.new.size": {}}}
+    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "a.new.size": {"value": 5, "unit": "px"}}}
     found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
-    assert found == ("sizes.a.new.size",)
+    assert found == ("sizes.a.new.size.value",)
+
+
+def test_unaccounted_names_an_entirely_empty_value_has_nothing_to_account_for() -> None:
+    # A new key whose value is an empty dict or list has no leaves at all - vacuously
+    # accounted for, not a false positive on the container key itself. Real data never
+    # does this (every entry has at least one scalar or a `name`), but the walker's own
+    # rule should hold regardless.
+    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "empty.size": {}}}
+    assert unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED) == ()
 
 
 def test_unaccounted_names_negative_control_removing_a_declared_unseen_entry_fails_naming_it() -> None:

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T03:20:00Z'
+updated_date: '2026-11-16T03:21:00Z'
 labels:
   - size-2
   - changes-requested
@@ -259,6 +259,47 @@ collected 2 items
 tools/tests/functional/test_likec4_mcp_phased_timeout.py ..              [100%]
 
 ============================== 2 passed in 10.45s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp_phased_timeout.py -v'` exited 1 at 2026-11-16T03:21:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp3kQ7gM` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py FF              [100%]
+
+=================================== FAILURES ===================================
+____________ test_a_stall_before_any_reply_names_the_start_up_phase ____________
+
+    def test_a_stall_before_any_reply_names_the_start_up_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(to start\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(to start\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 5.0s'
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py:23: AssertionError
+_______ test_a_stall_after_the_first_reply_names_the_mid_exchange_phase ________
+
+    def test_a_stall_after_the_first_reply_names_the_mid_exchange_phase() -> None:
+>       with pytest.raises(TimeoutError, match=r"\(mid-exchange\) within 0\.2s"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: '\\(mid-exchange\\) within 0\\.2s'
+E         Actual message: 'likec4 mcp did not answer within 0.2s'
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_likec4_mcp_phased_timeout.py::test_a_stall_before_any_reply_names_the_start_up_phase
+FAILED tools/tests/functional/test_likec4_mcp_phased_timeout.py::test_a_stall_after_the_first_reply_names_the_mid_exchange_phase
+============================== 2 failed in 15.26s ==============================
 ```
 
 Commits since the review: 58, 58 without the Asdlc-Worker trailer.

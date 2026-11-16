@@ -245,6 +245,23 @@ ok      recipe names (0.1s)
 ```
 
 Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && uv run --project tools pytest -q tools/tests/functional/test_likec4_mcp_phased_timeout.py -v'` exited 0 at 2026-11-16T03:20:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 44c6b2caac3d with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpEoHak6` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+============================= test session starts ==============================
+platform darwin -- Python 3.15.0, pytest-9.2.0, pluggy-1.7.0
+rootdir: /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97/tools
+configfile: pyproject.toml
+collected 2 items
+
+tools/tests/functional/test_likec4_mcp_phased_timeout.py ..              [100%]
+
+============================== 2 passed in 10.45s ==============================
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

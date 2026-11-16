@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T02:35:00Z'
+updated_date: '2026-11-16T02:39:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -181,6 +181,14 @@ created: 2026-11-16T02:32:00Z
 ---
 
 Decided by the engineer on 2026-11-15, after approving the plan ('a name map yes, and add track'): (1) the corners are checked through a small reviewed name map from the file's radius keys to the page's one merged radius row, so 14, 10 and 8 are checked against that row's numbers; the fully round corner has no number on the page and stays declared unseen. (2) The design artifact now names the track colour: @bruk.o added a row to the Tokens page's first colours table, after outline (track, #3d3b45 dark, #cfcbc5 light, 'The grey track behind a progress ring or bar'), and made that board 40px taller; the artifact's version is now 1794796322-6d8e and nothing else changed. The Tokens page as it is in that version is saved at /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794796322-6d8e/Tokens.dc.html . This task therefore also carries the re-export that follows from it (doc-17 R122: a change arrives as a pull request whose diff shows what changed): replace design/canvas/project/Tokens.dc.html with that file, set artifact_version in crates/ui/design/foundations.json to 1794796322-6d8e, update the READMEs' mention of the version, and move track from the declared exceptions to the exactly checked colours (18 of 18). No value in the data file changes.
+
+---
+
+created: 2026-11-16T02:39:00Z
+
+---
+
+2026-11-15, one more correction to the design, at the engineer's word (he took @bruk.o's recommendation): fill.quiet's description said 'Key caps, progress track, a button under the pointer', but every progress bar and ring in the design's pages is drawn with track and none with fill.quiet (checked across all the pages: 48 bars on track, none on fill.quiet), so 'progress track' was stale. The Tokens page now reads 'Key caps, a button under the pointer'. The artifact's version is now 1794796789-1b13, which supersedes 1794796322-6d8e from the comment above: the page to commit is /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/design-artifact-pages-1794796789-1b13/Tokens.dc.html , artifact_version is 1794796789-1b13, and fill.quiet's use text in crates/ui/design/foundations.json changes to match. Colour values are unchanged; the data file's diff is the version line and that one description.
 
 ---
 <!-- COMMENTS:END -->

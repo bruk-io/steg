@@ -34,8 +34,8 @@ mod wire;
 pub use client_kind::ClientKind;
 pub use colour::Colour;
 pub use description::{
-    ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param,
-    Request, Response, Returns, Role, ValueKind, Version, description, validate,
+    ApiError, Description, ErrorCode, ErrorRecord, Event, Field, Follows, Method, MethodName,
+    Param, Request, Response, Returns, Role, ValueKind, Version, description, validate,
 };
 pub use ids::{ClientId, PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};

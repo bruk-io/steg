@@ -10,8 +10,8 @@
 
 use serde_json::json;
 use steg_sdk::{
-    ClientId, ClientKind, Connection, Description, Event, Handshake, Incoming, Method, MethodName,
-    Response, Returns, Version, WireRole, parse_server_hello,
+    ClientId, ClientKind, Connection, Description, Event, Follows, Handshake, Incoming, Method,
+    MethodName, Response, Returns, Version, WireRole, parse_server_hello,
 };
 
 /// One method (`pane.split`, no required params) and one event
@@ -30,6 +30,7 @@ fn description_with_one_method_and_one_event() -> Description {
             details: String::new(),
             params: Vec::new(),
             returns: Returns::Identifier { of: "pane".into() },
+            follows: Follows::Nothing,
             errors: Vec::new(),
             since: Version { major: 1, minor: 0 },
         }],

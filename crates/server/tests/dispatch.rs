@@ -254,7 +254,10 @@ fn declared_fields(api: &Description, dotted: &str) -> Vec<String> {
         }
         other @ (steg_sdk::Returns::Nothing
         | steg_sdk::Returns::Identifier { .. }
-        | steg_sdk::Returns::Text) => panic!("{dotted}'s returns is not a record: {other:?}"),
+        | steg_sdk::Returns::Text
+        | steg_sdk::Returns::Nested { .. }) => {
+            panic!("{dotted}'s returns is not a record: {other:?}")
+        }
     }
 }
 

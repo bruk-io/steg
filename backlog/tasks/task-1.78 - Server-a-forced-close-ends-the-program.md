@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:03:00Z'
+updated_date: '2026-11-16T01:07:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -984,6 +984,34 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T01:07:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 61369d880a6d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+FAILED  lint (exit 101, 0.9s)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/steg)
+error: redundant redefinition of a binding `context`
+   --> crates/server/tests/runtime.rs:884:9
+    |
+884 |         let context = context;
+    |         ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: `context` is initially defined here
+   --> crates/server/tests/runtime.rs:874:9
+    |
+874 |     let context = Context {
+    |         ^^^^^^^
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#redundant_locals
+    = note: `-D clippy::redundant-locals` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::redundant_locals)]`
+
+error: could not compile `steg-server` (test "runtime") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

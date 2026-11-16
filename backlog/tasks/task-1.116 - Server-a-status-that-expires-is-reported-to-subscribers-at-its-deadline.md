@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.116
 title: 'Server: a status that expires is reported to subscribers at its deadline'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T12:11:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.46
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

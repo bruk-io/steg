@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:05:00Z'
+updated_date: '2026-11-16T01:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -527,6 +527,10 @@ error: test failed, to rerun pass `-p steg-server --lib`
 Caused by:
   process didn't exit successfully: `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45/target/debug/deps/steg_server-75c81fd969602d6a 'runtime::tests::a_panic_while_holding'` (signal: 6, SIGABRT: process abort signal)
 ```
+
+Build load note (not a code finding): the server crate's own real-socket test run time is fast on its own - every `tests/routing.rs` run that completed finished in 0.71-0.73s internally, every time. What is slow is `cargo test` itself getting scheduled at all: with this machine's load average around 9-11 (several other workers' own `cargo build`/`cargo test` running concurrently in sibling worktrees), repeating `cargo test -p steg-server --test routing` 10 times under a 60s-per-iteration timeout, 6 of the 10 iterations were killed by that timeout with no output at all - not a test failure, cargo never got far enough to print anything, including "Compiling"/"Finished". Only 4 of 10 iterations actually ran, and all 4 passed (17/17 each time, ~0.72s). No evidence this is my own code hanging: when the test binary itself runs, it is fast and deterministic.
+
+This is a real risk worth naming, not dismissing: this file's own tests use wall-clock bounds (2s for most "must close promptly" assertions, 5s for a few, matching this crate's existing convention in handshake.rs/shutdown.rs). Those bounds measure real time inside the test PROCESS once it is running, not the time to get scheduled in the first place - so they are at risk from CPU contention inside the process itself (a writer or reader thread not getting scheduled promptly), not from the kind of outer scheduling delay seen here (which is cargo/process-level, before the test binary even starts). I have not seen one of these in-process bounds actually trip under this load in any of the runs so far. This machine's load right now comes specifically from several asdlc workers building in parallel in sibling worktrees, not from anything inherent to this task; CI runs on its own dedicated runner and would not see this specific contention pattern. Recorded here rather than silently assumed fine either way.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

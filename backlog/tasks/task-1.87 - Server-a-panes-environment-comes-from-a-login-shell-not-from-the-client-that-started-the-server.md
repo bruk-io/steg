@@ -3,16 +3,19 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T05:14:00Z'
+updated_date: '2026-11-16T05:18:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.77
+references:
+  - task-1.87-server-a-pane-s-environment-comes-from-a
+  - https://github.com/bruk-io/steg/pull/56
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -904,6 +907,121 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built exactly as planned, with the changes below noted since they departed from
+the plan's own text (plan section left unedited, per instruction).
+
+## Coverage, clause by clause
+
+AC #1 (environment from a login shell, not the client; shell and command pane;
+real on-demand server, real client): proven two ways. End to end, through the
+real binary, a real on-demand server (autostart) and a real client fixture
+(crates/steg/tests/login_environment.rs + tests/fixtures/env_leak_client.rs):
+a unique marker set only in the launching client's own environment is absent
+from the pane, and the pane's own PATH carries a path_helper-specific entry
+(/System/Cryptexes/App/usr/bin) that only a real capture produces, never the
+fallback - proving a real capture happened, not merely "didn't crash". The
+shell-pane half is proven separately and directly, not only by construction,
+at the Runtime level (runtime.rs's a_shell_pane_not_only_a_command_pane_gets_
+the_same_composed_environment): a session.new with no program at all, real
+input sent to the real login shell, same TERM override confirmed.
+
+One stated departure, documented in login_environment.rs's own module doc:
+identity resolution reads the real password database by design (R99 forbids
+$SHELL/$HOME from the environment), so this end-to-end test cannot redirect it
+to a fabricated shell/home the way login_env.rs's own unit tests do. Mutating
+a real account's own ~/.zprofile (even temporarily) was rejected outright - a
+crashed test would leave a developer's shell configuration corrupted. Seeding
+ZDOTDIR was explored and confirmed empirically to work (zsh honours it for
+dotfile lookup while leaving $HOME itself untouched) but rejected too: the
+only way to reach it from the real binary is either an ambient-env passthrough
+in production code (itself a new leak vector - a client could point ZDOTDIR
+at an attacker-controlled directory) or a test-only hook in the shipped
+binary (this team's own convention disfavours one). The throwaway-home-
+specific proof - that a login shell's own start-up *file* is sourced, not an
+interactive one - stays at the unit level instead
+(capture_login_environment_sources_the_login_profile_not_the_interactive_one),
+with a fabricated shell/home pair no production code path can reach ambiently.
+
+AC #2 (bounded; stated fallback; never the client's environment unscrubbed;
+every child waited on): two separate bounds (login_identity_timeout, 2s;
+login_environment_timeout, 3s), proven in login_env.rs's own tests with a real
+fake shell that hangs/exits non-zero/exits missing - each falls back to a
+named, fixed environment built from the identity alone (fallback_env), never
+derived from the server's own inherited environment (a deliberate, stated
+departure from TASK-1.44's stale draft, which fell back to "inherited minus
+STEG_*" - still a leak). Every child is waited on: the reader thread owns the
+whole Child and does read-then-wait as one unit sent over one channel, so one
+recv_timeout bounds both; on timeout the caller kills by pid (via a plain
+`kill` subprocess, the same technique crates/steg/tests/server_start.rs
+already uses, not a new nix feature) and the abandoned thread still reaps it.
+
+AC #3 (STEG_* and TERM set by server regardless of login shell; cwd rule
+unchanged): proven with a fabricated base_env exporting conflicting TERM/
+STEG_SERVER values - the server's own override always wins
+(steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_
+own_base_env), with its own negative control (ordering reversed, recorded
+failing, reverted). TERM=xterm-256color, matching this repository's own
+existing precedent (spikes/task-1.2-wire-protocol/probe-server/src/pty.rs),
+not invented - ghostty-vt's own xterm-ghostty terminfo entry is flagged in
+runtime.rs's own doc comment as a better-but-larger follow-up, out of this
+task's scope (would need writing a terminfo cache directory and setting
+TERMINFO). resolve_default_cwd (rule B) is untouched.
+
+AC #4 (the plan weighs the three ways with reasons; what each means for a
+command pane): weighed in the plan itself (capture once, chosen; routing every
+pane through a login shell, rejected - repeated profile-sourcing cost and a
+new shell-quoting surface neither needed before); the "command pane needs
+nothing different" half is proven by construction (launch_spec's own env
+composition never branches on Program::Shell vs Program::Command) and now
+also directly, per the shell-pane test above.
+
+## Departures from the plan's own text
+
+- capture_login_environment's timeout handling changed from "kill the Child
+  directly on the caller's stack" (what the plan described) to "the reader
+  thread owns the whole Child, doing read-then-wait as one unit; on timeout
+  the caller kills by pid via a plain `kill` subprocess." The plan's own
+  version had a real bug: wait() on the caller's side, after a successful
+  read, was unbounded (a child that backgrounds a process of its own could
+  let the read finish before the shell itself exits). Caught before building
+  against it, not after.
+- Capture::Fallback now carries the built environment (Fallback(reason, env))
+  instead of callers reconstructing a LoginIdentity by hand to call
+  fallback_env a second time - avoids a round trip where a future identity
+  field could silently be dropped.
+- The two new timeout constants (DEFAULT_LOGIN_IDENTITY_TIMEOUT,
+  DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT) live in config.rs, matching
+  DEFAULT_HANDSHAKE_TIMEOUT/DEFAULT_ARBITRATION_TIMEOUT's own existing
+  placement, not in login_env.rs as an earlier draft had them.
+- crates/server/tests/program.rs needed no PATH fix: it only ever drives a
+  FakeLauncher, never RealLauncher, so env_clear() does not touch it -
+  verified by running it, not assumed; removed from the plan's own file list
+  in substance (the plan listed it; it did not need touching).
+- crates/steg/Cargo.toml's serde_json ended up in [dependencies], not
+  [dev-dependencies] as first drafted: a fixture is a [[bin]] target, which
+  only ever sees [dependencies]. boundaries.toml's [steg] entry updated to
+  allow it, with the reason stated there.
+- One test added beyond the plan's own proof list: the shell-pane half of
+  AC #1/#4, found worth proving directly rather than leaving it to
+  construction alone (above).
+
+## Checks recorded
+
+Every check below is on the task, each against the commit/branch state at the
+time: `cargo test -p steg-server --lib login_env::` (new module, standalone);
+the pre-fix failing runs this task's own env_clear() change caused
+(`cargo test -p steg-server --lib` exit 101, `--test real_pty` exit 101,
+naming "Unable to resolve the PATH") and the fixed, passing re-runs; the three
+negative controls (launcher env_clear() removed; capture's own env_clear()
+removed; override ordering reversed), each applied as a scratch edit, run
+failing, reverted, re-run passing; `cargo test -p steg --features fixtures
+--test login_environment` (the end-to-end proof); `just check`, final run at
+the pushed, CI-green head (cc3e1f0).
+
+PR #56, CI green at the final head. `crates/steg/tests/server_start.rs`'s own
+suite (the leftover-process discipline) still passes unchanged - no new
+leftover server or output file across repeated runs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

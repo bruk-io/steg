@@ -1,13 +1,14 @@
 ---
 id: TASK-1.96
 title: 'tools: check the design''s data file against the saved foundations pages'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:23:00Z'
+updated_date: '2026-11-16T03:31:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.92
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd2f87de12c3c'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
+asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -432,6 +432,43 @@ created: 2026-11-16T03:23:00Z
 ---
 
 @bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:31:00Z
+
+---
+
+Review by @bruk.r5 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Reviewed PR #54 at its pushed head 8626dc6 (matches the task's recorded `just check` and PR CI green, 2m43s - confirmed again via `gh pr checks 54`). Verdict: changes requested.
+
+This is the second review (after @bruk.r1's changes-requested at dcbeaf2). All three of that review's findings are now fixed and verified by my own reproduction:
+- The engineer's decisions (comments #2/#3) are in the pushed head: design/canvas/project/Tokens.dc.html is byte-for-byte the saved page at artifact version 1794796789-1b13 (checksum 765c9e4e535e2af92d16d403ed9cd61751bc0c3b79e8b36adeacae85712bac4d confirmed both sides); the data file's diff against main is exactly artifact_version and fill.quiet.use, no colour changed; Layout.dc.html and Details.dc.html are unchanged (still an earlier artifact version, and both READMEs say so plainly); track has a row on Tokens.dc.html and is Tier A (18/18, EXPECTED_SHAPES minimum 17->18); both READMEs updated.
+- The corner map: radius.surface/track/inner each check against the merged "radius" row via RADIUS_MAP/RADIUS_WORD_MAP. I changed each corner individually in a scratch copy of foundations.json: each refused, naming the value and the tied word. I swapped radius.surface/track's values: both refused (field-tied mismatch). radius.round stays in TIER_C_SKIPS with a reason; REVERSE_ALLOW_LIST is empty, "radius" is matched through RADIUS_MAP.values(), not a separate exemption.
+- Field tightening: read FIELD_WORD_MAPS/RADIUS_WORD_MAP against the real page text for every Tier B sizes row (nav.side, nav.top, tab.width, pane.gap, palette, status.ring, radius) - each tightened field's word correctly follows its number in a single-number clause of the page's own sentence; every field left on the weak check has its word either preceding its number or sharing a clause with another number (e.g. nav.top's tab_height/track_inset, nav.side's row_height/tab_indent, pane.gap's grabbed), matching what the code and its comments claim. I reproduced the swap of tab.width's usual/min (refused), swapped radius.surface/track (refused), and swapped nav.side's two untightened fields row_height/tab_indent (passes, as documented - field-blind by design for fields the sentence doesn't let you tie cleanly). The tool's own passing stdout and crates/ui/design/README.md both state which fields are tightened and which stay weak, matching the plan's instruction. `_word_tied_number` returns None (falls back to the weak check, not a mismatch) when no single-number clause contains the word, so a reordered sentence degrades gracefully rather than producing a false refusal - checked by reasoning through every FIELD_WORD_MAPS/RADIUS_WORD_MAP entry against the real page text, no case where a correct file would be refused.
+- Completeness (AC#3): I enumerated every leaf key of the real crates/ui/design/foundations.json by hand (colours: 18, colour_aliases: 3, opacities: 1, ramps: 2 + caption_opacity, tint, motion: 1, type: 7, sizes: 18, themes[0]: ansi/name structural + 5 fields, focus_ring: 4 fields + unit, session_colour) and compared against TIER_B_NAMES/RADIUS_MAP (checked) plus TIER_C_SKIPS (declared unseen): every key is accounted for today, including focus_ring.width/offset (the first review's finding #3), now in TIER_C_SKIPS along with focus_ring.colour, themes[].cursor and session_colour. Adding an unknown sizes key to a scratch copy (sizes.new_thing) is correctly refused by name.
+
+New Important finding, found by my own negative control, not reasoning alone:
+
+[Compliance, Important] tools/src/steg_tools/design_pages.py:518-525 (`unaccounted_names`) enumerates `themes[]` and `focus_ring` leaf keys from a fixed field tuple (`("bg","fg","bg_inactive","selection","cursor")` / `("width","offset","colour","corner_radius_addition")`), never from the data file's own keys the way `type`/`sizes`/`colour_aliases`/`opacities`/`ramps`/`motion` are (those walk `data.get(...)` directly). I added `focus_ring["glow"] = 3` and `themes[0]["underline"] = "#fff"` to a scratch copy of the real foundations.json and ran `steg-design-check --data-file <scratch>`: it printed "ok (18 colours, 19 type/size entries, 32 ANSI colours checked)" and exited 0, silently missing both new keys. This directly contradicts what is committed: crates/ui/design/README.md's new section says the test "enumerates every leaf key of this file and asserts each one is either checked or in that declared list, so a key added here later cannot fall through both silently"; the module's own docstring and the PR description make the same claim. It is also the same category of gap @bruk.r1's finding #3 on this same task already caught (focus_ring.width/offset silently uncovered) - that finding was fixed by naming the two specific keys in TIER_C_SKIPS, not by making the enumeration mechanism genuinely exhaustive for those two sections, so the next field added to either section falls through the same way. AC#3 requires everything the tool cannot see to be named so a pass is never read as more than it is; for themes[] and focus_ring, a future field is not named and not refused.
+
+What I verified clean, with my own negative controls (via --data-file scratch copies and in-worktree page mutations, all reverted; worktree left clean):
+- CI green on PR #54 at head 8626dc6 (gh pr checks: pass, 2m43s); `uv run --project tools pytest tests/unit/test_design_pages.py tests/adapter/test_design_pages_real_workspace.py -q`: 50 passed, at this same head.
+- Parser regression: renaming "Used for" to "Used For" in a working-copy edit of the real Tokens.dc.html (reverted via git checkout) breaks both colour tables' header match and correctly triggers the EXPECTED_SHAPES refusal ("found 0 colours rows, expected at least 18") rather than a silent pass; the script-block-only colour (`off`) fixture is still excluded by construction (rendered_body never includes the script tag).
+- Size/approval: size-2, "Plan approved by @bruk (d2f87de12c3c, size-2)" present and digest matches "Built per the approved plan (digest d2f87de12c3c)".
+- Private reader (_read_data_file): TASK-1.94 (PR 52) is still "changes-requested"/In Progress on origin/main, so the shim is still correctly in place; marked for removal in its own docstring and the PR body.
+
+Nit:
+
+[Compliance, Nit] TASK-1.93's branch (PR 55, head d919cf4) generates crates/ui/src/foundations/generated.rs with both `artifact_version` baked into its header comment (generated.rs:2, "1794791991-5d11") and fill.quiet's stale "use" text baked into a per-field doc comment (generated.rs:211, "progress track"), both of which this task's data-file change supersedes (1794796789-1b13; "Key caps, a button under the pointer" - confirmed by reading generated.rs at that head). The task's own notes record only that TASK-1.93 "hadn't merged tools/pyproject.toml, justfile, or crates/ui/src/foundations/generated.rs" - a textual-conflict check - not that a semantic regeneration will be required once either branch lands second. No action is needed from this task: TASK-1.93's own `is_stale` check (tools/src/steg_tools/foundations_generate.py) will refuse and force a regeneration when it rebases onto main after this merges, and this task does not touch that generator or generated.rs. Flagging only so whoever merges either PR knows to expect that check to fire on the other.
+
+Plan-matched: no, by the mechanical rule (the plan's "Module shape" file list names design_pages.py/pyproject.toml/justfile/tests - never Tokens.dc.html, foundations.json, or either README) - but the task's notes and task comments #2/#3 fully explain the departure (the engineer's decisions after plan approval), so per review policy this is not itself a finding.
+
+Unmet: none of AC#1/AC#2's requirements - all reproduced. AC#3 is not fully met: the enumeration mechanism (unaccounted_names) does not live up to its own documented claim for themes[]/focus_ring, per the Important finding above.
 
 ---
 <!-- COMMENTS:END -->

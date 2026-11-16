@@ -3,13 +3,14 @@ id: TASK-1.87
 title: >-
   Server: a pane's environment comes from a login shell, not from the client
   that started the server
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:30:00Z'
+updated_date: '2026-11-16T06:48:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -24,10 +25,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '03e926f72daf'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1496,6 +1496,25 @@ created: 2026-11-16T06:30:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.87: a same-machine review: it waited 21m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T06:48:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed at head ed80ab8 (PR #56, CI green at this head). Evidence: the task's own `just check` is recorded at 6e1082e; the merge to ed80ab8 after it is covered by the worker's own comment (#4), by CI green at ed80ab8, and by my own run of `just check` at ed80ab8 (passed) - the board refuses a recorded check once a task is handed over, so this is not itself a finding.
+
+[Bugs/Evidence, Important] crates/steg/tests/login_environment.rs:278-282 + tests/fixtures/env_leak_client.rs:63-71: the end-to-end test's own "leak absence" assertion for AC #1 is vacuous. env_leak_client's shell command echoes only four named variables (TERM, STEG_SERVER, PATH, MARK_ZPROFILE) to the output file the test reads; STEG_TEST_LEAK_MARKER ("a variable set only in the launching client's own environment") is never among them, so `assert!(!text.contains(&marker_value))` cannot fail whether or not the server's ambient environment leaks into the pane. Verified by a reverted scratch edit: commenting out `command.env_clear();` in crates/server/src/pty.rs's RealLauncher::spawn - restoring the exact leak this task exists to close - and `cargo test -p steg --features fixtures --test login_environment` still passes. AC #1's own wording ("...is absent from a new pane...shown with a real server started on demand by a real client") is therefore not proven end to end; only the unit-level real_pty.rs test (a_real_programs_environment_never_leaks_this_processs_own_ambient_variables, which does have a working, twice-repeated negative control) proves leak-absence for real. The companion control (capture_login_environment forced to FallbackReason::SpawnFailed) does fail as expected when reverted the same way, confirming the "a real capture happened, not the fallback" half is sound - only the leak-absence half of this end-to-end test is broken, and it is the one half the first review's Important finding was specifically about.
+
+[Bugs, Nit] crates/server/src/login_env.rs's module doc on capture_login_environment documents the process-group kill (and its one accepted gap) only against the timeout path; on the success path, a backgrounded grandchild that does not hold stdout open is left running (harmless to this function's own bound, but an undocumented possibility next to the timeout-path note).
+
+Checked and found sound, not repeated as findings: the four nits from the first review (grandchild group-kill - except the doc gap above, dynamic per-call marker, the .zshrc/.zprofile limit now documented in login_env.rs and crates/server/CLAUDE.md, widened 5s/10s bounds to 20s where parsing-correctness not timing is under test). The merge of 3e4594e: `git merge-tree --write-tree 6e1082e 3e4594e` reproduces the worker's own three conflicting hunks exactly (lib.rs, listen.rs, runtime.rs); diffing that tree against the actual merge commit's tree (291 lines total, read in full) shows exactly the hand resolutions the worker's notes describe and nothing else - the pane.rs ending_tests fix and the tests/runtime.rs login_for_force_tests() consolidation of 7 call sites, no undocumented decision. TASK-1.78's own stop/force-close behaviour is untouched by this task's diff. Ran the server+steg suites 10x each: one flake, crates/server/tests/shutdown.rs's a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop (1/20 combined runs), passed in isolation and in 19/20 other runs; confirmed shutdown.rs is untouched by either task's diff between 6e1082e and 3e4594e (not in that diff's file list at all) and by TASK-1.87's own diff against main - a pre-existing, unrelated flake, not the TASK-1.82 arbiter flake named in the brief but equally not counted against this task. Re-confirmed the fixture binaries are absent from a default build at ed80ab8 itself (not just at the worker's earlier recorded cc3e1f0+uncommitted check). `just check` passes clean at ed80ab8 on my own run.
 
 ---
 <!-- COMMENTS:END -->

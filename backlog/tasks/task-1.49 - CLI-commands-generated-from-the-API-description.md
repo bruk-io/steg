@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:12:00Z'
+updated_date: '2026-11-16T15:13:00Z'
 labels:
   - size-4
   - changes-requested
@@ -435,6 +435,41 @@ Check passed: `just check-boundaries` exited 0 at 2026-11-16T15:12:23+00:00 in /
 
 ```text
 ok      boundaries (0.1s)
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` exited 101 at 2026-11-16T15:13:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.20s
+     Running tests/cli_run_placeholder.rs (target/debug/deps/cli_run_placeholder-1518af872534748d)
+
+running 1 test
+test every_described_method_parses_and_reaches_the_not_yet_connected_placeholder ... FAILED
+
+failures:
+
+---- every_described_method_parses_and_reaches_the_not_yet_connected_placeholder stdout ----
+
+thread 'every_described_method_parses_and_reaches_the_not_yet_connected_placeholder' (42150501) panicked at crates/steg/tests/cli_run_placeholder.rs:87:9:
+assertion `left == right` failed: session.list: expected the placeholder's exit 1, stderr was "steg: session list is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+  left: Some(0)
+ right: Some(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_described_method_parses_and_reaches_the_not_yet_connected_placeholder
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.19s
+
+error: test failed, to rerun pass `-p steg --test cli_run_placeholder`
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.

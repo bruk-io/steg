@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:12:00Z'
+updated_date: '2026-11-16T12:20:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -483,6 +483,83 @@ Check passed: `just test` exited 0 at 2026-11-16T12:12:01+00:00 in /Users/brukha
 
 ```text
 ok      tests (every crate) (16.3s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T12:18:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at e79616624a3c, last 40 of 64 lines:
+
+```text
+             Some(1),
+             "the session started before the storm should still be listed, got {value:?}"
+         ),
+[31m-        Response::Error(error) => panic!("session.list failed during the exhaustion window: {error:?}"),
+(B[m[32m+        Response::Error(error) => {
+(B[m[32m+            panic!("session.list failed during the exhaustion window: {error:?}")
+(B[m[32m+        }
+(B[m     }
+ 
+     // "Every session and program is untouched": the same session's own
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98/crates/steg/tests/server_start.rs:587:
+                 "the session's program should still be running, got {value:?}"
+             );
+         }
+[31m-        Response::Error(error) => panic!(
+(B[m[31m-            "pane.show on the session started before the storm failed: {error:?}"
+(B[m[31m-        ),
+(B[m[32m+        Response::Error(error) => {
+(B[m[32m+            panic!("pane.show on the session started before the storm failed: {error:?}")
+(B[m[32m+        }
+(B[m     }
+ 
+     // Freeing roughly half the held connections is enough to let a fresh
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98/crates/steg/tests/server_start.rs:605:
+     // handshake` itself blocks until that happens, bounded by its own
+     // read timeout.
+     let (mut fresh_client, mut fresh_connection) = connect_and_handshake(&socket_path);
+[31m-    match call_and_read_reply(&mut fresh_client, &mut fresh_connection, "session.list", Map::new())
+(B[m[31m-    {
+(B[m[32m+    match call_and_read_reply(
+(B[m[32m+        &mut fresh_client,
+(B[m[32m+        &mut fresh_connection,
+(B[m[32m+        "session.list",
+(B[m[32m+        Map::new(),
+(B[m[32m+    ) {
+(B[m         Response::Ok(_) => {}
+         Response::Error(error) => panic!("a fresh client's own session.list failed: {error:?}"),
+     }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T12:20:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at e79616624a3c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.5s)
+ok      boundaries (0.2s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (every crate) (13.7s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.2s)
+ok      test (steg-server, race-fixture) (15.3s)
+ok      test (steg-server, accept-backoff-fixture) (15.6s)
+ok      build (steg) (0.8s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

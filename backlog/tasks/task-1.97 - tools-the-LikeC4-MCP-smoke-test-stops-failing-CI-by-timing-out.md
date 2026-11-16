@@ -127,6 +127,14 @@ tools/src/steg_tools/likec4_mcp.py:169: TimeoutError
 FAILED tools/tests/adapter/test_likec4_mcp_smoke.py::test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server
 1 failed in 65.04s (0:01:05)
 ```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && HTTP_PROXY=http://127.0.0.1:1 HTTPS_PROXY=http://127.0.0.1:1 uv run --project tools pytest -q tools/tests/adapter/test_likec4_mcp_smoke.py'` exited 0 at 2026-11-16T02:39:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 108747d79566 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpjxnyYn` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.65s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

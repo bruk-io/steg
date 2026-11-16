@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:40:00Z'
+updated_date: '2026-11-16T15:46:00Z'
 labels:
   - size-4
   - changes-requested
@@ -772,6 +772,35 @@ All seven controls named in the plan, recorded through asdlc record-check as a f
 Full table (proof item / test / recorded control) is in this task's comments. boundaries.toml's [steg] reason now names clap's "string" feature and why - correcting the plan's own claim that Str/Id implement From<String> unconditionally (it's gated behind that feature; checked against clap_builder's own Cargo.toml, not docs.rs's always-every-feature build, which is what misled the plan). No leaking to 'static was ever needed either way.
 
 just check recorded green on the final head (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours). CI green on the pushed head (~5m17s). Branch merged with origin/main three times across this session (board-only changes each time, no code conflicts).
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach` exited 101 at 2026-11-16T15:46:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 1 test
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... FAILED
+
+failures:
+
+---- server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach stdout ----
+
+thread 'server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach' (43575177) panicked at crates/steg/tests/server_start.rs:764:21:
+expected no message, got "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.26s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

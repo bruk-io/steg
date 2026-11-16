@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:57:00Z'
+updated_date: '2026-11-16T13:58:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -782,6 +782,32 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 1.03s
 
 error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full'` exited 101 at 2026-11-16T13:58:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full ... FAILED
+
+failures:
+
+---- runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full stdout ----
+
+thread 'runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full' (37931197) panicked at crates/server/src/runtime.rs:2046:29:
+expected a clean close, got Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

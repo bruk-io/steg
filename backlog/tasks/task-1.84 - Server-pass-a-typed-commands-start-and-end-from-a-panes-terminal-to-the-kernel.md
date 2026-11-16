@@ -19,6 +19,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.84-server-pass-a-typed-command-s-start-and
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '33f0386d0f53'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -123,6 +126,15 @@ created: 2026-11-16T00:33:00Z
 ---
 
 Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps passing the marks to the kernel. Reporting the display status over the API moved to a new draft with the list and show methods nobody owned (tab show and tab list are still answered NotImplementedYet, and reading a status needs the clock passed into dispatch, which TASK-1.45 is rewriting now). Criterion 1 reworded to match; criteria 2 and 3 unchanged.
+
+---
+
+author: @bruk
+created: 2026-11-16T00:37:00Z
+
+---
+
+Plan approved by @bruk (33f0386d0f53, size-2): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

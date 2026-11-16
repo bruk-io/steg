@@ -857,6 +857,35 @@ error: test failed, to rerun pass `-p steg --test server_start`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg --features fixtures --test server_start` exited 0 at 2026-11-16T15:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 15 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test server_start_help_prints_the_generated_help_and_starts_nothing ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test on_demand_given_after_no_on_demand_wins ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... ok
+test no_on_demand_given_after_on_demand_wins ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

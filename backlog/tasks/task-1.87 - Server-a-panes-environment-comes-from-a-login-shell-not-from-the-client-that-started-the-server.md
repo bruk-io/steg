@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T04:39:00Z'
+updated_date: '2026-11-16T04:40:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -420,6 +420,51 @@ failures:
 test result: FAILED. 123 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
 
 error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `cargo test -p steg-server --test real_pty` exited 101 at 2026-11-16T04:40:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes, last 40 of 56 lines:
+
+```text
+thread 'a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again' (22653532) panicked at crates/server/tests/real_pty.rs:166:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home stdout ----
+
+thread 'a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home' (22653534) panicked at crates/server/tests/real_pty.rs:303:6:
+a bad cwd alone does not fail start() - portable-pty substitutes home and spawns: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- a_shell_panes_real_exit_reaches_the_kernels_cascade stdout ----
+
+thread 'a_shell_panes_real_exit_reaches_the_kernels_cascade' (22653537) panicked at crates/server/tests/real_pty.rs:224:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- a_real_program_runs_in_the_given_working_directory stdout ----
+
+thread 'a_real_program_runs_in_the_given_working_directory' (22653535) panicked at crates/server/tests/real_pty.rs:79:6:
+called `Result::unwrap()` on an `Err` value: Pty(Unable to spawn sh because:
+Unable to resolve the PATH)
+
+---- many_threads_opening_a_real_pty_at_once_never_fails stdout ----
+
+thread 'many_threads_opening_a_real_pty_at_once_never_fails' (22653538) panicked at crates/server/tests/real_pty.rs:407:31:
+round 0/10, thread 0/32: RealLauncher::spawn failed under concurrent opens: the pseudo-terminal failed: Unable to spawn sh because:
+Unable to resolve the PATH
+
+
+failures:
+    a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again
+    a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home
+    a_real_program_runs_in_the_given_working_directory
+    a_shell_panes_real_exit_reaches_the_kernels_cascade
+    many_threads_opening_a_real_pty_at_once_never_fails
+
+test result: FAILED. 2 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `-p steg-server --test real_pty`
 ```
 <!-- SECTION:NOTES:END -->
 

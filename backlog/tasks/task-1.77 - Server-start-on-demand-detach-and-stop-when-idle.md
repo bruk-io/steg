@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:37:00Z'
+updated_date: '2026-11-16T00:38:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -888,6 +888,33 @@ test the_client_being_sigkilled_does_not_end_the_server ... ok
 test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.19s
+```
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start -- the_clients_process_group_being_sighupd_does_not_end_the_server the_client_being_sigkilled_does_not_end_the_server` exited 101 at 2026-11-16T00:38:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 221ef18c07f7 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 2 tests
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... FAILED
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+failures:
+
+---- the_clients_process_group_being_sighupd_does_not_end_the_server stdout ----
+
+thread 'the_clients_process_group_being_sighupd_does_not_end_the_server' (16064104) panicked at crates/steg/tests/server_start.rs:72:9:
+the server should still be answering after its client's whole process group was SIGHUPed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_clients_process_group_being_sighupd_does_not_end_the_server
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.11s
+
+error: test failed, to rerun pass `-p steg --test server_start`
 ```
 <!-- SECTION:NOTES:END -->
 

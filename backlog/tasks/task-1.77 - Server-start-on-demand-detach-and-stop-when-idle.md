@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:06:00Z'
+updated_date: '2026-11-16T00:07:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -585,4 +585,157 @@ Carried from TASK-1.70 (2026-11-15): the sdk exports run_fake_server_for_tests a
 Carried from TASK-1.44's review (2026-11-15), for this task's plan: (1) the arbiter's liveness probe connects to a running server and is reported on the ConnectionEvent seam as a client arriving and leaving, so the idle rule must not let probes hold an idle server up, or must tell them apart. (2) Stop the server only through the one stop function TASK-1.44 leaves public after its review fix (the first version had a stop() that set the flag without waking accept, which would have hung an idle server: exactly this task's case). (3) On shutdown there is a window while connection threads are joined in which the listener is still bound; see TASK-1.44's notes for what a connecting client sees.
 
 Split on 2026-11-15 under the engineer's standing decision to split by default, into the three pieces the worker's plan proposed. This task is now the first: the entry point, starting on demand, detaching, and two clients converging. The idle stop and the server's login-shell environment are drafts under TASK-1. The plan on this task was written for all three and is to be rewritten for this piece only.
+
+For TASK-1.86 (the idle stop), worked out while planning this task, not built here:
+
+A pure predicate, time and the session count both passed in, never read from a clock or
+a counter the predicate owns itself (`.claude/rules/testing-rust.md`: "Time... come[s]
+in as parameters... No test sleeps to wait for something"):
+
+```rust
+struct IdlePredicate {
+    live_clients: i64,
+    empty_since: Option<Instant>,
+}
+
+impl IdlePredicate {
+    fn on_event(&mut self, event: ConnectionEvent, now: Instant) {
+        match event {
+            ConnectionEvent::Connected => {
+                self.live_clients += 1;
+                self.empty_since = None; // a client just arrived; not idle right now
+            }
+            ConnectionEvent::Disconnected => {
+                self.live_clients -= 1;
+                // empty_since is (re)started on the next tick(), not here, so a
+                // session that is still open at this instant correctly keeps it None.
+            }
+        }
+    }
+
+    /// `now` and `session_count` are both given, never read by this function.
+    fn tick(&mut self, now: Instant, session_count: usize, idle_timeout: Duration) -> bool {
+        if self.live_clients > 0 || session_count > 0 {
+            self.empty_since = None;
+            return false;
+        }
+        let since = *self.empty_since.get_or_insert(now);
+        now.duration_since(since) >= idle_timeout
+    }
+}
+```
+
+Unit tests (literal `Instant`s, no sleeping, same technique as `connection.rs`'s own
+`time_remaining` tests): empty from construction and ticking past `idle_timeout` returns
+`true`; a `Connected` with no matching `Disconnected` yet never returns `true` no matter
+how far `now` moves (AC #2's "a client mid-handshake counts"); a session count that is
+non-zero never fires regardless of clients; a `Connected`/`Disconnected` pair arriving
+and leaving within the same tick (the arbiter-probe shape) does not reset `empty_since`
+to a *later* instant than the one already recorded (`get_or_insert`'s own behaviour -
+check this directly, not assumed, it is the one line the probe-caveat guarantee rests
+on). The driving loop holds the channel's `Receiver<ConnectionEvent>`, the `Stopper`,
+and a `session_count: impl Fn() -> usize + Send + 'static`.
+
+That closure's own shape is open, not settled here, because the `Runtime` it reads from
+no longer lives where this was first sketched: TASK-1.45's own plan has `listen::run`
+construct and own the one `Runtime`, not a value this task passed around. What this
+predicate needs from it is unchanged - a cheap, independently-cloneable way to read the
+live session count, callable repeatedly from the checker's own thread long after any
+single borrow of `Runtime` could last (the same reason `Runtime`'s own drain thread
+clones its internal `Arc<Mutex<State>>` into its closure rather than borrowing `self`).
+Whether that is a method on `Runtime` itself (`session_counter(&self) -> impl Fn() ->
+usize + Send + 'static`) or something `listen::run` builds and hands to the checker
+directly is TASK-1.86's own call, made against whatever `listen::run` actually looks
+like once TASK-1.45 lands - not guessed at here.
+
+The arbiter's probe (`connection.rs:27-42`, already documented as a caveat) connects and
+disconnects within milliseconds, never sending a hello - it resets `empty_since` and
+restarts the clock from very close to where it was, costing at most a few seconds during
+active arbitration, never an indefinite hold, since nothing about an idle, already
+-decided server calls `probe()` again.
+
+"A client that connects every 29 seconds and sends nothing": decided, not a bug. Any
+connection - complete, incomplete, or never completing until `handshake_timeout` force
+-closes it - resets `empty_since` to `None` the instant it is accepted (AC #2's own
+wording: a client counts from acceptance, not a completed handshake). A connection every
+29 seconds is force-closed by the handshake timeout (10s default) well before the next
+one arrives, leaving roughly 19 idle seconds between closes - under the 30-second
+threshold every time, so such a server never idle-stops for as long as that pattern
+continues. Accepted: the predicate cannot distinguish a hostile reconnector from a real,
+well-behaved periodic health check without a signal the wire protocol does not carry
+(the same limit already named for the arbiter's own probe).
+
+The relationship with `arbitration_timeout`: a client's `connect()` failing against a
+stopping server makes the sdk spawn a fresh attempt, which finds the socket file still
+present with its lock still held by the stopping server, and retries for up to
+`arbitration_timeout` (5s default) before giving up. For the idle-stop case specifically
+this window is close to instant - the predicate only fires `stop()` when `live_clients ==
+0`, so the listener's own tracked connections are already empty (or very nearly so) at
+that moment, meaning there is nothing of substance to join before the lock is released -
+5 seconds is comfortably enough. Named here as the relationship, not left for a timing
+-dependent test failure to discover later.
+
+A gap this task found and TASK-1.77's own notes are also recording, carried here since
+TASK-1.86 is what makes it reachable in normal use (the person splitting this work is
+recording it on this task directly too): `listen.rs`'s accept loop can `accept()` a
+connection and then see the stop flag true before the handshake code ever runs, dropping
+it with zero reply. From the client's side that is `connect()` succeeding followed by
+end of file - not `ConnectionRefused`/`NotFound` - a third outcome TASK-1.44's own
+shutdown-ordering notes do not cover. Whatever drives a client-side handshake (TASK-1.49
+or wherever the sdk's own `Connection::new(Role::Client, ...)` first gets a real caller)
+needs to treat this the same as a refusal - try starting a fresh one - not as a protocol
+failure to report to the person.
+
+For TASK-1.87 (the login environment), worked out while planning this task, not built
+here - and worth stating plainly first: what follows resolves an *identity* (which
+shell, which home, which user) from the password database, which TASK-1.87's own
+acceptance criteria already say is necessary but not sufficient - R99 asks for the
+environment a login shell gives (PATH above all), not only who that shell is. Read
+TASK-1.44's own first plan (before its split) for its earlier design capturing the
+environment itself with a cleared, seeded child and a bounded wait, which is closer to
+what's actually required; what's below is only the identity half of it:
+
+```rust
+pub struct LoginIdentity {
+    pub shell: PathBuf,
+    pub home: PathBuf,
+    pub user: String,
+}
+
+pub fn resolve_login_identity(timeout: Duration) -> LoginIdentity {
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let result = nix::unistd::User::from_uid(nix::unistd::geteuid());
+        let _ = tx.send(result); // dropped silently if the receiver already gave up
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(Ok(Some(user))) => LoginIdentity { shell: user.shell, home: user.dir, user: user.name },
+        Ok(Ok(None)) | Ok(Err(_)) | Err(_) => fallback(), // no passwd entry, a real
+                                                           // errno, or the timeout
+    }
+}
+```
+
+`nix::unistd::User::from_uid` is already **safe** (the `unsafe` is inside `nix` itself
+around `getpwuid_r`, `nix-0.28.0/src/unistd.rs:3393-3402`), already behind the `"user"`
+feature `steg-server` already declares (`nix-0.28.0/src/unistd.rs:3131-3132`), and
+returns `.shell`/`.dir`/`.name` directly - zero new `unsafe`. On macOS, `getpwuid_r`
+resolves through the directory service (`opendirectoryd`), which can in principle be
+slow or stall on a machine whose accounts are bound to a network directory - the bounded
+wait's own reason, same as R99's "cannot hang the server" language, even though this is
+not literally sourcing a shell's `.zprofile`. On the timeout path the worker thread is
+*not* joined - joining it would reintroduce the exact unbounded hang the bound exists to
+prevent; this is not the same kind of leak a child *process* left unreaped is, since a
+dropped `JoinHandle` lets the OS thread finish and reclaim its own resources on its own,
+holding nothing open in the meantime.
+
+Rejected, considered first: mutating this process's own environment table (`std::env::
+set_var` for `SHELL`/`HOME`/`USER`) so `portable_pty::CommandBuilder`'s own ambient-env
+read would pick it up for free. Wrong for two reasons: `set_var` is an `unsafe fn` (the
+documented hazard is exactly concurrent access from another thread), and the bounded
+-wait thread above does not join on its timeout path, so "nothing else is running yet"
+would not actually be true by the time the call happened; and `Runtime`'s own `login`
+field (TASK-1.45's addition to `ServerConfig`) already *is* the real seam - data flowing
+in through a field, not an ambient table every future call site has to happen to read
+correctly.
 <!-- SECTION:NOTES:END -->

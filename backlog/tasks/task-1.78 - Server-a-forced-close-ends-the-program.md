@@ -28,7 +28,7 @@ Part two of the split of TASK-1.76 (2026-11-15). doc-2 section 9 (--force on the
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 pane close, tab close and session close with --force end every running program in scope, observe each exit, and then close; for a program that is producing output and for one that prints nothing (the case TASK-1.40 left: a silent program kept the relay blocked in read and the child alive)
+- [ ] #1 pane close, tab close and session close with --force close the pane, tab or session at once, then end every running program in scope and observe each exit, answering the caller only when that is done; for a program that is producing output and for one that prints nothing (the case TASK-1.40 left: a silent program kept the relay blocked in read and the child alive)
 - [ ] #2 A program that ignores a polite signal is ended after a bounded wait; the bound and the signals used are stated, and the mechanism is established from portable-pty's own source and a real-process experiment recorded as the first step of the build
 - [ ] #3 After a forced close no child is left unreaped and no relay or worker thread is left running, on every path including a program that dies by itself while being forced; shown by tests with real programs and bounded waits
 - [ ] #4 A forced close of one pane does not stall requests for other panes for the length of the wait, and a pane being forced cannot be reached by another request meanwhile
@@ -742,6 +742,14 @@ created: 2026-11-16T00:24:00Z
 ---
 
 Plan approved by @bruk (d681d6fe44b5, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T00:24:00Z
+
+---
+
+Criterion 1 reworded by @bruk.o on 2026-11-15 to the order the approved plan (d681d6fe44b5) builds: close first, then end the programs, answering when they have ended. The engineer approved the plan with this change stated at its top; the earlier wording was 'end every running program in scope, observe each exit, and then close'. The other four criteria are unchanged.
 
 ---
 <!-- COMMENTS:END -->

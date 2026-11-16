@@ -5249,6 +5249,7 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "steg-sdk",
+ "steg-ui",
 ]
 
 [[package]]
@@ -5276,6 +5277,13 @@ dependencies = [
  "serde_json",
  "steg-kernel",
  "steg-sdk",
+]
+
+[[package]]
+name = "steg-ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]

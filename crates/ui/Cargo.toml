@@ -1,0 +1,21 @@
+[package]
+name = "steg-ui"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui.workspace = true
+
+# TASK-1.91: the gallery (R124) is a program in this package, not an example and not a
+# separate crate - doc-17's own tree puts `gallery/` as a sibling of `src/`, and doc-16's
+# package table has exactly one UI package. It is the only thing in this crate that calls
+# `gpui::Application::run`; `src/` never opens a window. A path dependency only ever pulls
+# in a crate's `lib` target, so this `[[bin]]` costs nothing to `steg-app`'s own build -
+# only a direct build of `steg-ui` itself (`-p steg-ui`, or `--workspace`) compiles it too.
+[[bin]]
+name = "gallery"
+path = "gallery/main.rs"

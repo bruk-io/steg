@@ -9,6 +9,7 @@ dependencies = []
 [project.scripts]
 steg-affected = "steg_tools.affected:main"
 steg-boundaries = "steg_tools.boundaries:main"
+steg-gallery-check = "steg_tools.gallery:main"
 steg-quiet = "steg_tools.quiet:main"
 steg-recipes = "steg_tools.recipes:main"
 

@@ -33,6 +33,10 @@ allow = ["steg-kernel", "steg-sdk", "portable-pty", "serde_json", "nix"]
 reason = "the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own"
 allow = ["steg-sdk", "steg-server"]
 
+[steg-ui]
+reason = "the ui package is the app's components and the design's named values, pure interface with nothing of steg's domain in it and no I/O of its own (doc-17 R117, R118); gpui is the one external dependency, since the components are built on it directly with no library between (decision-11)"
+allow = ["gpui"]
+
 [steg-app]
-reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101)"
-allow = ["steg-sdk", "gpui"]
+reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101); steg-ui is where the server's records become what a component is given (doc-17)"
+allow = ["steg-sdk", "steg-ui", "gpui"]

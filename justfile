@@ -114,7 +114,7 @@ check-packages: zig-deps-seeded
     set -euo pipefail
     if [ "{{rust}}" = no ]; then echo "skip    check-packages: no Rust workspace yet"; exit 0; fi
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
-    for pkg in steg-sdk steg-kernel steg-server steg steg-app; do
+    for pkg in steg-sdk steg-kernel steg-server steg steg-ui steg-app; do
         {{quiet}} "build ($pkg)" -- cargo build -p "$pkg"
         {{quiet}} "test ($pkg)" -- cargo test -p "$pkg"
         if [ "$pkg" = steg-sdk ]; then
@@ -183,6 +183,58 @@ run: zig-deps-seeded
     if [ "{{rust}}" = no ]; then echo "skip    run: no Rust workspace yet"; exit 0; fi
     if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
     cargo run --package steg-app
+
+# open the gallery for a person to look at (doc-17 R124); STEG_GALLERY_THEME=dark opens it
+# in the other state, `t` toggles live - both are the placeholder TASK-1.93's real
+# foundations replace
+run-gallery: zig-deps-seeded
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{rust}}" = no ]; then echo "skip    run-gallery: no Rust workspace yet"; exit 0; fi
+    if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
+    cargo run --package steg-ui --bin gallery
+
+# capture the gallery to target/gallery/{light,dark}.png with no person at the screen
+# (TASK-1.91's plan, doc-17 R124/AC#3) - both states, so the pull request can carry both.
+# Needs the invoking terminal to already hold a one-time, interactive Screen Recording
+# permission grant (crates/ui/CLAUDE.md); fails outright, naming that permission, rather
+# than attach a blank or wrong image, since `screencapture` exits 0 either way. Never part
+# of `just check`: GPUI 0.2.2 has no way to read a window's pixels except through OS screen
+# capture, which GitHub's hosted macOS runner cannot grant (crates/ui/CLAUDE.md) - `just
+# check` only ever compiles the gallery, never runs it.
+capture-gallery: zig-deps-seeded
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{rust}}" = no ]; then echo "skip    capture-gallery: no Rust workspace yet"; exit 0; fi
+    if [ -n "{{zig}}" ]; then export ZIG="{{zig}}"; fi
+    {{quiet}} "build (gallery)" -- cargo build -p steg-ui --bin gallery
+    mkdir -p target/gallery
+    pids=()
+    # Ends every gallery process this recipe starts, on every path - a failed capture or a
+    # failed check must not leave a window running.
+    trap 'for pid in "${pids[@]:-}"; do [ -n "${pid:-}" ] && kill "$pid" 2>/dev/null; done; wait 2>/dev/null || true' EXIT
+
+    capture_one() {
+        local theme="$1" r="$2" g="$3" b="$4"
+        STEG_GALLERY_THEME="$theme" ./target/debug/gallery &
+        local pid=$!
+        pids+=("$pid")
+        local window_id=""
+        for _ in $(seq 1 40); do
+            window_id="$(swift crates/ui/gallery/window_id.swift "$pid" 2>/dev/null | head -1 | cut -d' ' -f1)"
+            [ -n "$window_id" ] && break
+            sleep 0.25
+        done
+        if [ -z "$window_id" ]; then
+            echo "error   capture-gallery ($theme): the gallery never opened a window within 10s" >&2
+            return 1
+        fi
+        /usr/sbin/screencapture -x -o -l "$window_id" "target/gallery/$theme.png"
+        {{quiet}} "gallery image ($theme)" -- uv run --quiet --project tools steg-gallery-check "target/gallery/$theme.png" 20 50 "$r" "$g" "$b"
+    }
+
+    capture_one light 252 238 230
+    capture_one dark 26 20 32
 
 # which crates this change affects: all, none, or the -p flags `just test` passes to cargo
 show-affected:

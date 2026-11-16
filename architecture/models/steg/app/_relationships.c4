@@ -4,5 +4,6 @@
 model {
   extend steg.app {
     appPkg -> sdk 'depends on'
+    appPkg -> ui 'depends on'
   }
 }

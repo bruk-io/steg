@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T00:38:00Z'
+updated_date: '2026-11-16T00:45:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -301,6 +301,51 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --lib outbound` exited 101 at 2026-11-16T00:45:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at c42025242d19 with uncommitted changes, last 40 of 49 lines:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 10 tests
+test outbound::tests::a_full_control_queue_refuses_rather_than_growing_without_bound ... ok
+test outbound::tests::enqueue_data_on_a_closed_stream_is_refused_the_same_way ... ok
+test outbound::tests::enqueue_refuses_once_closed ... ok
+test outbound::tests::enqueue_data_on_a_never_opened_stream_is_refused ... ok
+test outbound::tests::closing_drains_what_is_already_queued_then_the_writer_returns ... ok
+test outbound::tests::a_stream_with_nothing_queued_is_skipped_not_given_an_empty_turn ... ok
+test outbound::tests::data_streams_are_drained_round_robin_one_frame_at_a_time ... ok
+test outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first ... FAILED
+test outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply ... FAILED
+test outbound::tests::a_full_data_queue_drops_the_new_frame_rather_than_growing_or_blocking ... ok
+
+failures:
+
+---- outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first stdout ----
+
+thread 'outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first' (16171111) panicked at crates/server/src/outbound.rs:295:9:
+assertion `left == right` failed
+  left: [100, 97, 116, 97, 45, 102, 105, 114, 115, 116, 99, 111, 110, 116]
+ right: [99, 111, 110, 116, 114, 111, 108, 45, 115, 101, 99, 111, 110, 100]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply stdout ----
+
+thread 'outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply' (16171108) panicked at crates/server/src/outbound.rs:511:9:
+assertion `left == right` failed
+  left: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+ right: [99, 111, 110, 116, 114, 111, 108, 45, 117, 110, 100, 101, 114, 45, 102, 108, 111, 111, 100]
+
+
+failures:
+    outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply
+    outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first
+
+test result: FAILED. 8 passed; 2 failed; 0 ignored; 0 measured; 91 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

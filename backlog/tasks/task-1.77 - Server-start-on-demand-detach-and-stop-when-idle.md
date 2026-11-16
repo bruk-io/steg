@@ -1,11 +1,11 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand and detach, from the steg entry point'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T02:11:00Z'
+updated_date: '2026-11-16T02:18:00Z'
 labels:
   - size-3
   - review-passed

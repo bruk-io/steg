@@ -40,7 +40,9 @@ use steg_server::{Arbitration, ConnectionEvent, ServerConfig, Stopper, attempt, 
 const DEFAULT_RLIMIT_NOFILE: rlim_t = 48;
 
 fn env_u64(name: &str) -> Option<u64> {
-    std::env::var(name).ok().and_then(|value| value.parse().ok())
+    std::env::var(name)
+        .ok()
+        .and_then(|value| value.parse().ok())
 }
 
 fn main() {

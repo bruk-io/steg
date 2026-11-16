@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T12:10:00Z'
+updated_date: '2026-11-16T12:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -44,24 +44,67 @@ names (all TASK-1.109's, not this task's — see §5); a slow subscriber's
 connection is closed; R52 corrected (M1 for status events). The pane-identity
 question is answered in §2, not reopened.
 
-Three more things, found while fixing the five points raised, need your
-confirmation before I build against them:
+Two more things, found while fixing the five points raised, need your
+confirmation before I build against them (a third, on the same point, is
+recorded below as a finding rather than a question — it was split off into
+its own task):
 
-1. **The description's vocabulary for a reply-then-stream method (§2).** `Returns`
-   gains one variant, `Snapshot { of: String }` — a nested value too shaped to
-   flatten into fields, named in prose (the same honesty `ValueKind::Text`
-   already has for `layout`/`status`, one level up). `Method` gains
-   `stream_item: Option<Returns>` — when `Some`, this method's single,
-   id-matched reply is followed by further items with no id, shaped as the
-   given `Returns`. `event.watch`'s own `returns` becomes `Snapshot{of: "the
-   tree..."}`,  `stream_item` becomes `Some(Records{fields:[event,data]})` (what
-   it used to declare as `returns`, since that described the stream, not the
-   reply). TASK-1.47 has been told to follow this for attach (`returns:
-   Snapshot{of: "a pane's screen"}`, `stream_item: Some(Snapshot{of: "a screen
-   update"})`, since a delta is nested too). This breaks the existing
-   exhaustive `match` over `Returns` in `record.rs`'s own tests (by design —
-   `rust.md`'s own reason for refusing a `_` arm) — named in Files below, not
-   hidden.
+1. **The description's vocabulary, named precisely for TASK-1.47 to cite (§2).**
+   Two separate things, not one, because a method's own reply and what
+   follows it are two different questions:
+   - **A nested reply.** `Returns` gains one variant, naming the reply's own
+     sdk type rather than describing nothing: `Nested { of: String, summary:
+     String }` — `of` is the type's name (`"TreeSnapshot"`), the same role
+     `Identifier{of}` already plays for naming what kind of id a reply is,
+     applied here to naming what kind of value it is instead of a fields
+     table (the same honesty `ValueKind::Text` already has for `layout`/
+     `status`, one level up, but naming the real type instead of falling
+     back to prose alone). `api show` prints "a nested value of type `<of>`
+     — `<summary>`" in place of a fields table. A generated CLI's `--json`
+     prints the server's own JSON unchanged — already well-formed, needing
+     no reshaping, and its field names are the named sdk type's own serde
+     names, the single real definition (decision-1), not re-declared here a
+     second time. Plain-text rendering has no flat default for this case
+     (the same shape of exception doc-2 §6 already allows for `Text`
+     returns, e.g. `pane.capture`) — left to TASK-1.50 to decide, not
+     settled here. `event.watch`'s own `returns` becomes `Nested{of:
+     "TreeSnapshot", summary: "every session, with its tabs, each with its
+     panes, as of the moment this subscription began"}`.
+   - **A reply followed by a stream — a bare `opens_stream: bool` describes
+     too little: it cannot say whether what follows is id-less events on
+     this same control stream (decision-2 §3: "an event carries no id") or
+     a brand-new stream whose id a generated client has to read out of the
+     reply first (decision-2 §3: "every other stream id belongs to one
+     attachment, and the server hands it out in the attach result") — and a
+     generated client behaves differently in the two cases.** `Method`
+     gains one field, `follows: Follows`, a closed enum:
+     ```rust
+     pub enum Follows {
+         /// This reply is the end of it — every method but the two below.
+         Nothing,
+         /// Further items with no id, on the control stream this reply
+         /// itself travelled on. `event.watch`'s own case.
+         Events(Returns),
+         /// Further items with no id, on a new stream, whose id is named
+         /// by `stream_id_field` — one field of *this* reply. TASK-1.47's
+         /// attach.
+         Attachment { item: Returns, stream_id_field: String },
+     }
+     ```
+     `event.watch`: `follows: Follows::Events(Returns::Records{fields:
+     [event, data]})` — unchanged from what `returns` used to carry, moved
+     to where it actually belongs, since it described the stream, not the
+     reply. `Method` has no `Default`, so every one of the 41 other methods
+     gains one mechanical line, `follows: Follows::Nothing,` — the same
+     size of change TASK-1.47's own `opens_stream: bool` already costs,
+     for a type that says enough to act on. Both additions break the
+     existing exhaustive `match` over `Returns` in `record.rs`'s own tests
+     (by design — `rust.md`'s own reason for refusing a `_` arm) — named in
+     Files below, not hidden. TASK-1.47's own `pane.attach` is expected to
+     use `Nested{of: "PaneScreen", ...}` and `Follows::Attachment{item:
+     Nested{of: "ScreenUpdate", ...}, stream_id_field: "stream"}` (naming
+     its own reply's field that carries the new stream's id) — its plan to
+     confirm exactly, not this one's to invent for it.
 2. **"A subscription... can be ended" (AC #3) reads as "ended by disconnecting,"
    with no separate end-subscription method.** The alternative: an explicit
    `event.unwatch`-shaped method that ends a subscription on a connection that
@@ -72,24 +115,22 @@ confirmation before I build against them:
    subscribing once for the life of the connection, never pausing. My
    recommendation: disconnect-ends-it for M1, revisit if TASK-1.52 finds it
    actually needs to pause without reconnecting.
-3. **The tension your own point 4 runs into, found while answering it, not
-   silently resolved either way.** Your preferred fix — `pane.status_changed`
-   and the snapshot's own records carry a moment so a client derives expiry
-   itself, no timer in the server — reverses an already-merged, deliberate
-   decision in `crates/sdk/src/status.rs` (TASK-1.41): *"Carries no timing data
-   on purpose: this crosses the API... and `std::time::Instant`... has no
-   serde implementation and means nothing off the process that made it, so
-   nothing timing-shaped can ever appear here. Every status's 'since', and
-   Finished's 10-minute deadline, live only inside the kernel's own `Pane`...
-   never on the wire."* That comment reads as considered, not incidental.
-   §6 below recommends your second option instead — an event fired by one
-   armed deadline, never a poll — because the kernel already has the exact
-   primitive built for it (`Tree::next_status_deadline`, whose own doc already
-   says: *"Lets a caller with a real clock (the server) sleep until this
-   moment, or until something else happens first, instead of polling every
-   pane on an interval"*) and because reversing `status.rs`'s own stated
-   decision is a bigger change than this task's own criteria ask for. Flagged
-   for you to confirm rather than silently picking either.
+**Recorded finding, not a question — checked by the engineer directly and
+settled, then split off:** the tension §6 found between your preferred fix
+(carry a moment so a client derives expiry itself, no timer in the server)
+and `crates/sdk/src/status.rs`'s own already-merged, deliberate decision
+("nothing timing-shaped can ever appear here... never on the wire") is
+resolved in favour of keeping that decision: an event fired by one armed
+deadline, built from the kernel's own `Tree::next_status_deadline`, never a
+poll. Building the deadline thread itself is **its own task** (DRAFT-1,
+"Server: a status that expires is reported to subscribers at its deadline,"
+depending on this one), because this plan had already grown past this task's
+own size before this piece — the subscription and its atomic reply, typed sdk
+shapes, new description vocabulary, cascades on every path, and a background
+thread with its own lifecycle are five separable things, and the engineer's
+own standing rule is to split rather than carry them as one. §6 below keeps
+its full analysis, unbuilt here — DRAFT-1 is pointed at it directly rather
+than repeating it.
 
 ## 1. What's merged since the first draft (unchanged from the previous revision)
 
@@ -132,9 +173,12 @@ for the live, mutable structure; this is its wire photograph, a different
 thing, in a different crate, and a reviewer should never have to ask "which
 Tree." Each gets the round-trip test the other records have; the
 fields-versus-description cross-check the others have does **not** apply here
-(§1's "For the engineer": a `Snapshot`-returning method is named in prose, the
-same exemption `api.show`'s own `Method`/`Description` values already get, for
-the same reason — there is no flat field list to check against).
+(§1's "For the engineer": a `Nested`-returning method names its own type by
+`of`, the same exemption `api.show`'s own `Method`/`Description` values
+already get, for the same reason — there is no flat field list to check
+against; a completeness test instead confirms `of` names a real sdk type by
+checking it against a small, explicit allow-list this task adds to, so a typo
+in `of` fails the build rather than silently describing nothing).
 
 **The pane-identity question, answered, not left open:** `TabRecord.layout`
 (`crates/sdk/src/layout.rs`) is a tree of splits whose leaves are `PaneId` — it
@@ -316,6 +360,20 @@ current `origin/main`, confirmed again on this re-read.
 
 ## 6. Status that changes with no request and no tree mutation (AC #2)
 
+**This section is analysis, not this task's own build.** The mechanism below
+is built by DRAFT-1, "Server: a status that expires is reported to
+subscribers at its deadline," split off and depending on this task (§1's
+"For the engineer" has the recorded finding and why). It is kept here in
+full because that task is pointed at this section directly rather than
+repeating the design. **Until DRAFT-1 lands, a subscribed client sees a
+`Finished` status stay as last reported — it does not expire on its own from
+that client's point of view — until the next event for that pane** (a fresh
+command starting or ending, a close, or any other `pane.status_changed` this
+task's own §5 already fires), which carries the true, freshly-computed value
+and corrects it. Stated plainly rather than left implicit: this is the one
+named gap this task's own plan leaves in AC #2's "a pane's status changing
+are events," for the span between this task landing and DRAFT-1's own build.
+
 **Only `Finished` ever has a timer (doc-11 R83: "waiting and failed never on
 a timer; finished after 10 minutes... Opening a tab clears nothing") — `Failed`
 has none, and "a key press or click" clearing either has no dispatch path to
@@ -326,10 +384,11 @@ kernel with no caller — the same shape of gap as `pane.cwd_changed`/
 So the one real case this task's own criteria reach is: a `Finished` status
 expiring on its own, ten minutes after it was set.
 
-**Recommended (§1's "For the engineer", item 3): one armed deadline, never a
-poll**, using the kernel's own `Tree::next_status_deadline(now)` — built, by
-its own doc, for exactly this ("sleep until this moment, or until something
-else happens first, instead of polling every pane on an interval"). A new
+**Recommended, and settled per §1's "For the engineer" recorded finding: one
+armed deadline, never a poll**, using the kernel's own
+`Tree::next_status_deadline(now)` — built, by its own doc, for exactly this
+("sleep until this moment, or until something else happens first, instead of
+polling every pane on an interval"). DRAFT-1's own worker builds a new
 background thread, owned by `Runtime`, the same shape as the existing `drain`
 thread:
 
@@ -390,10 +449,12 @@ fresh snapshot instead.
 ## 9. What's offered through the sdk vs. built in the server — updated for §2
 
 `TreeSnapshot`/`SessionTree`/`TabTree`/`TreeEvent` and `Connection::watch` are
-now real sdk additions (§2), not a details sentence. Everything else —
-`State.subscribers`, `broadcast`, the registration-timing fix, the status
--expiry thread — stays server-side scheduling, no I/O or runtime type
-crossing into `steg-sdk`, re-checked against `.claude/rules/sdk.md`.
+now real sdk additions (§2), not a details sentence. Everything else this
+task itself builds — `State.subscribers`, `broadcast`, the registration
+-timing fix — stays server-side scheduling, no I/O or runtime type crossing
+into `steg-sdk`, re-checked against `.claude/rules/sdk.md`. (The status-expiry
+thread, §6, is DRAFT-1's own build, not this task's — the same boundary
+applies there too, unchanged, when that task plans it.)
 
 ## 10. Proof — carried forward from the previous revision, plus:
 
@@ -413,26 +474,16 @@ crossing into `steg-sdk`, re-checked against `.claude/rules/sdk.md`.
   and assert `pane.exited` precedes the same ordered closure. Negative
   control for each: remove one level's own broadcast call (e.g. the per-pane
   loop) — the test then sees a cascade missing an event it asserted on.
-- **The status-expiry thread fires once, at the real deadline, and does not
-  poll**: set a short, injected expiry threshold (the same kind of
-  test-only override `force_grace`/`idle_timeout` already use elsewhere in
-  this crate) so the test does not wait ten real minutes; set a command
-  pane's status to `Finished`; assert nothing is broadcast for a bounded,
-  generous window shorter than the threshold, then exactly one
-  `pane.status_changed{status: null}` arrives within a bound right after the
-  threshold passes. Negative control: remove the wake-on-mutation sends, or
-  shrink the thread's own `recv_timeout` artificially to a tight fixed
-  interval — the first makes the deadline never re-arm correctly on a
-  freshly-set status (a second status set after the thread's first sleep
-  began would be missed or delayed past its own real deadline); the second
-  is itself the shape of a periodic poll, and is named here as what this
-  design explicitly is not, not merely asserted to not be one.
+The status-expiry thread's own proof (it fires once, at the real deadline,
+and does not poll) is DRAFT-1's own, not built or tested here — §6 names what
+a subscriber sees in the meantime instead.
 
 Every item the brief's own proof list could ask for is a test above, in the
 previous revision, or named as dropped (subscription narrowing after the
 fact — no method exists, §1 item 2; cwd/title events and a key press/click
 clearing a status — no dispatch producer exists yet, §5/§6; a tab's shown
-status changing — TASK-1.109's, §6).
+status changing — TASK-1.109's, §6; a finished status expiring on its own —
+DRAFT-1's, §6).
 
 ## Files that change
 
@@ -449,31 +500,39 @@ status changing — TASK-1.109's, §6).
   routes to `not_implemented_yet` for anything that is *not* `event.watch`,
   since `event.watch` itself no longer reaches `dispatch::dispatch` at all).
 - `crates/server/src/runtime.rs` — `State.subscribers`; `register_subscriber`/
-  `deregister_subscriber`; `broadcast`; `subscribe` (§4); the status-expiry
-  thread and its `wake_tx` (§6); one `broadcast`/`wake_tx.send` pair added at
-  each §5/§6 site, still under the lock each site already holds.
+  `deregister_subscriber`; `broadcast`; `subscribe` (§4); one `broadcast`
+  call added at each §5 site, still under the lock each site already holds.
+  (The status-expiry thread and its own wake channel, §6, are DRAFT-1's own
+  addition to this same file, not this task's.)
 - `crates/server/src/connection.rs` — `run_post_handshake` calls
   `register_subscriber`, resolves `api.call` to check for `event.watch` and
   routes to `Runtime::subscribe` when it matches (§4); `ConnectionCleanup::
   drop` calls `deregister_subscriber`.
-- `crates/sdk/src/description/shapes.rs` — `Returns::Snapshot{of}`;
-  `Method.stream_item: Option<Returns>` (§1 item 1).
-- `crates/sdk/src/description/methods.rs` — `event.watch`'s own `returns`/
-  `stream_item` (§2).
+- `crates/sdk/src/description/shapes.rs` — `Returns::Nested{of, summary}`;
+  `Follows` (`Nothing`/`Events`/`Attachment`); `Method.follows: Follows` (§1
+  item 1).
+- `crates/sdk/src/description/methods.rs` — every one of the 41 other
+  methods gains `follows: Follows::Nothing,`; `event.watch`'s own `returns`
+  becomes `Nested{..}` and gains `follows: Follows::Events(..)` (what
+  `returns` used to carry) (§2).
 - `crates/sdk/src/record.rs` (or a new `crates/sdk/src/tree.rs`,
   re-exported) — `TreeSnapshot`, `SessionTree`, `TabTree`; `crates/sdk/src/
   wire/connection.rs` — `Connection::watch`; a new small module or an
   addition to an existing one for `TreeEvent` and its `parse`.
 - `crates/sdk/src/record.rs`'s own test module — every exhaustive match over
-  `Returns` gains a `Snapshot{..}` arm (compiler-enforced by `rust.md`'s own
-  no-wildcard rule, named here so it is expected, not a surprise diff).
+  `Returns` gains a `Nested{..}` arm (compiler-enforced by `rust.md`'s own
+  no-wildcard rule, named here so it is expected, not a surprise diff); one
+  new completeness test, that every `Nested{of, ..}` in the description
+  names a real sdk type, against a small explicit allow-list this task adds
+  `"TreeSnapshot"` to (§2).
 - Test-only: new integration tests under `crates/server/tests/`.
 
 ## Order of work
 
-1. `Returns::Snapshot`/`Method.stream_item` in the sdk, with the exhaustive
-   -match fallout fixed at each of its own existing call sites; `event.watch`'s
-   own description entry updated. `just check` clean before anything else.
+1. `Returns::Nested`/`Follows`/`Method.follows` in the sdk, with the
+   exhaustive-match fallout fixed at each of its own existing call sites and
+   the one mechanical line added to every other method; `event.watch`'s own
+   description entry updated. `just check` clean before anything else.
 2. `TreeSnapshot`/`SessionTree`/`TabTree` in the sdk, with their round-trip
    tests; record builders made `pub(super)`; `dispatch/event.rs`'s
    `tree_snapshot` function, proven against a hand-built nested tree (no
@@ -485,25 +544,24 @@ status changing — TASK-1.109's, §6).
    reply, with nothing else on the wire yet.
 5. `broadcast`, one call per §5's creation/closure tables, each proven with
    its own cascade-order test before the next is added.
-6. The status-expiry thread (§6), proven on its own against a hand-advanced
-   clock before being wired into the real `apply_event_locked`/dispatch call
-   sites.
-7. The race (§4), filter-by-session, and no-poll tests (§10), last.
-8. `Connection::watch`/`TreeEvent` in the sdk, with their own tests, used by
+6. The race (§4) and filter-by-session tests (§10), last.
+7. `Connection::watch`/`TreeEvent` in the sdk, with their own tests, used by
    every test above instead of raw `Connection::call`/`poll` once they exist
    (an ordering choice, not a correctness one — earlier steps can use the raw
    calls and be ported once the typed wrapper lands, whichever reads easier
    when building).
-9. `just check` at each numbered step.
+8. `just check` at each numbered step. (The status-expiry thread, §6, is
+   DRAFT-1's own order of work, built once this task has merged.)
 
 ## Risks
 
-- The status-expiry thread (§6) is the single largest net-new mechanism this
-  plan adds — a background thread with its own wake channel, not asked for
-  by the original brief's own enumeration of production sites, but required
-  once R83's own timer rule is taken seriously for a subscribed client.
-  Flagged in "For the engineer" as needing confirmation precisely because of
-  its size and because it runs against your own first-choice fix.
+- The status-expiry thread (§6) is split off to DRAFT-1 rather than built
+  here — it was the single largest net-new mechanism this plan had added,
+  a background thread with its own wake channel, separable from everything
+  else in this task. Until it lands, a subscriber sees a `Finished` status
+  stay as last reported past its own ten-minute deadline (§6's own stated
+  gap) — named so this task is not mistaken for closing AC #2 completely on
+  its own.
 - `dispatch/event.rs`'s `tree_snapshot` still walks every session/tab/pane on
   every `event.watch` call (unchanged risk note from before) — fine at M1
   scale, named so it isn't mistaken for an oversight.
@@ -514,6 +572,12 @@ status changing — TASK-1.109's, §6).
   functions, no shared type (§7), a real textual merge expected, not a design
   conflict.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (4ee3881365b0) checked against the four acceptance criteria, decision-2, doc-11 (R52 as corrected, R82, R83), doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised at the orchestrator's request: the reply carrying the tree is queued inside the locked step that registers the subscription, so no event can precede it on the wire (tested for order as well as exactly-once); the tree and the events are typed shapes in the sdk; the description gains Returns::Nested and Method.follows (Nothing, Events, Attachment), which TASK-1.47 uses; one rule for cascades on every path; a test for the filter by session. The event at a finished status's expiry is split into its own task (drafted): status.rs keeps timing off the wire by a merged decision, so the server reports the expiry from one armed deadline. For the engineer: the description's new vocabulary, and reading 'a subscription can be ended' as ended by disconnecting.
+<!-- SECTION:NOTES:END -->
 
 ## Comments
 

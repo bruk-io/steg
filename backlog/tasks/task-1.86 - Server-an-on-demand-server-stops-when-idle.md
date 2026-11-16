@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T12:03:00Z'
+updated_date: '2026-11-16T12:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -739,6 +739,105 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T12:21:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 87d978fb1c0a with uncommitted changes, last 40 of 409 lines:
+
+```text
+kill: 42846: No such process
+test pane_close_with_force_ends_a_program_that_traps_the_polite_signal ... ok
+kill: 42920: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+kill: 42842: No such process
+kill: 42918: No such process
+kill: 42921: No such process
+kill: 42922: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 42827kill: 42831: No such process
+kill: 42829: No such process
+: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 42828: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop a_genuinely_idle_server_stops_itself_within_a_bound` exited 101 at 2026-11-16T12:22:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test a_genuinely_idle_server_stops_itself_within_a_bound ... FAILED
+
+failures:
+
+---- a_genuinely_idle_server_stops_itself_within_a_bound stdout ----
+
+thread 'a_genuinely_idle_server_stops_itself_within_a_bound' (27620936) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_genuinely_idle_server_stops_itself_within_a_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker` exited 101 at 2026-11-16T12:23:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker ... FAILED
+
+failures:
+
+---- closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker stdout ----
+
+thread 'closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker' (27625538) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
 ```
 <!-- SECTION:NOTES:END -->
 

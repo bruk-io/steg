@@ -1,17 +1,20 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T12:12:00Z'
+updated_date: '2026-11-16T12:22:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.77
+references:
+  - task-1.98-server-the-accept-loop-survives-an-error
+  - https://github.com/bruk-io/steg/pull/59
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -19,6 +22,8 @@ asdlc_branch: task-1.98-server-the-accept-loop-survives-an-error
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -484,6 +489,101 @@ Check passed: `just test` exited 0 at 2026-11-16T12:12:01+00:00 in /Users/brukha
 ```text
 ok      tests (every crate) (16.3s)
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T12:18:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at e79616624a3c, last 40 of 64 lines:
+
+```text
+             Some(1),
+             "the session started before the storm should still be listed, got {value:?}"
+         ),
+[31m-        Response::Error(error) => panic!("session.list failed during the exhaustion window: {error:?}"),
+(B[m[32m+        Response::Error(error) => {
+(B[m[32m+            panic!("session.list failed during the exhaustion window: {error:?}")
+(B[m[32m+        }
+(B[m     }
+ 
+     // "Every session and program is untouched": the same session's own
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98/crates/steg/tests/server_start.rs:587:
+                 "the session's program should still be running, got {value:?}"
+             );
+         }
+[31m-        Response::Error(error) => panic!(
+(B[m[31m-            "pane.show on the session started before the storm failed: {error:?}"
+(B[m[31m-        ),
+(B[m[32m+        Response::Error(error) => {
+(B[m[32m+            panic!("pane.show on the session started before the storm failed: {error:?}")
+(B[m[32m+        }
+(B[m     }
+ 
+     // Freeing roughly half the held connections is enough to let a fresh
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98/crates/steg/tests/server_start.rs:605:
+     // handshake` itself blocks until that happens, bounded by its own
+     // read timeout.
+     let (mut fresh_client, mut fresh_connection) = connect_and_handshake(&socket_path);
+[31m-    match call_and_read_reply(&mut fresh_client, &mut fresh_connection, "session.list", Map::new())
+(B[m[31m-    {
+(B[m[32m+    match call_and_read_reply(
+(B[m[32m+        &mut fresh_client,
+(B[m[32m+        &mut fresh_connection,
+(B[m[32m+        "session.list",
+(B[m[32m+        Map::new(),
+(B[m[32m+    ) {
+(B[m         Response::Ok(_) => {}
+         Response::Error(error) => panic!("a fresh client's own session.list failed: {error:?}"),
+     }
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T12:20:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at e79616624a3c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.5s)
+ok      boundaries (0.2s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (every crate) (13.7s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (13.2s)
+ok      test (steg-server, race-fixture) (15.3s)
+ok      test (steg-server, accept-backoff-fixture) (15.6s)
+ok      build (steg) (0.8s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built exactly as planned, with three plan-review findings addressed during build (not plan changes - the plan's own design, confirmed and in one case strengthened, during implementation):
+
+1. Stop path: confirmed by reading shutdown.rs that Stopper::stop() wakes a blocked accept() with a real connect(), never a shutdown()/close() of the listener - the ECONNABORTED-from-shutdown scenario named in review does not apply here. But the review's instinct was right for a different reason: the loop's only should_stop() check was on the success path, so a stop() during a sustained EMFILE/ENFILE storm (which does not clear on its own) could go unnoticed indefinitely under this task's own new continue-and-retry handling. Fixed: both recoverable-error arms check should_stop() before classifying at all. Proof: a_stop_asked_mid_exhaustion_ends_the_server_promptly in accept_backoff.rs, negative control run once (check removed, test timed out as expected) and reverted (git diff --stat confirmed identical to before).
+
+2. AC#2 proven for real, not dropped: confirmed with a standalone probe during planning that dup2-ing an open /dev/null onto a UnixListener's own raw fd makes its next accept() fail with ENOTSOCK immediately, no unsafe code needed (nix::unistd::dup2 is a safe fn). Built as a_fatal_accept_error_ends_the_server_and_cleans_up: the fixture dup2's once it has seen one recoverable retry - safe specifically because the test keeps every exhausting connection held through the injection, so the loop is provably mid-backoff, never blocked in a live accept(), when it runs. Negative control (classifier also treats ENOTSOCK as recoverable) run once, confirmed the fixture then never exits, reverted.
+
+3. Reporting: switched from the plan's first draft (a feature-gated static counter) to ConnectionEvent::AcceptRetried over the existing events channel, per review - no global state, and the fixture just builds its own channel rather than needing a reader API. Confirmed no exhaustive match on ConnectionEvent exists anywhere in the crate, so the new variant was a clean addition.
+
+4. AC#3's negative control redone as a scratch edit against the test as built (classifier forced to return None for descriptor exhaustion), not a claim about old main's behaviour - run once, confirmed the new test then fails because the server exits, reverted.
+
+Also found and fixed during build, not in the plan: try_clone() (a dup(2)) can independently fail with EMFILE/ENFILE under the same exhaustion accept() hits, so both call sites in the loop needed the classifier, not just accept()'s own. The AC#4 bound/spin tests needed a continuously-connecting background flood (not a one-shot batch of held connections) to sustain exhaustion across the whole 500ms measurement window - a one-shot batch only produced a brief burst, long enough for the stop/fatal tests (which only need one retry) but not for a rate measured over time.
+
+Checks recorded on the task: just check (full) green after every meaningful step, most recently at 27b553db. just test and the feature-gated steg-server/steg suites also recorded along the way. All four negative controls (the three above plus AC#1's pure classifier tests, which are mutually their own control) were run for real and reverted cleanly.
+
+The -n limits in both real-binary tests were picked empirically, not guessed: 128 for crates/steg's own test (needs headroom for a live session's pty and TASK-1.87's own login-shell capture, which merged into this branch mid-build), 48 for the in-process fixture (which starts no session).
+
+PR: https://github.com/bruk-io/steg/pull/59
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -495,6 +595,15 @@ created: 2026-11-16T11:33:00Z
 ---
 
 Plan approved by @bruk (040e19a11fea, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T12:22:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -3,7 +3,7 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
@@ -18,6 +18,9 @@ dependencies:
   - TASK-1.74
   - TASK-1.76
   - TASK-1.46
+references:
+  - task-1.47-server-attach-to-a-pane-stream-its
+  - https://github.com/bruk-io/steg/pull/62
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -1042,6 +1045,8 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built the approved plan in full: the worker-thread tick (ServerConfig.attach_tick, arms only when output is pending and an attachment exists), PaneCommand::Attach/Arm/Detach with per-tick fan-out and bounded-queue back-pressure (drop-and-resync, never block), pane.attach/pane.detach as described API methods on TASK-1.46's merged Returns::Nested/Follows vocabulary, connection.rs's interception before the generic dispatch path implementing decision-2 section 3's ordering rule, and a ConnectionCleanup sweep for attachments left open on disconnect. Checks recorded: just check green before and after the final rebase onto origin/main (format, lint, boundaries, licences, all affected crate tests, tool tests, architecture model, recipe names). New integration suite crates/server/tests/attach.rs (5 tests) plus 11 unit tests in pane.rs's attach_tests and extended sdk vocabulary/completeness tests - every proof has a negative control run by hand and reverted, including two real test-harness confounds found and fixed (a silently-swallowed Incoming::UnknownStream, and queue/OS-buffer saturation masking a disabled detach mechanism). PR: https://github.com/bruk-io/steg/pull/62
 <!-- SECTION:NOTES:END -->
 
 ## Comments

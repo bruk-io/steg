@@ -482,3 +482,114 @@ fn an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle() {
     stop.stop();
     join_within(server_thread, Duration::from_secs(5));
 }
+
+/// A [`ProgramLauncher`] whose `spawn` always panics - the test-only seam
+/// review finding 1 asked for ("a connection whose handler panics after
+/// the handshake"), not a production path that can panic on request: the
+/// injection point (`ServerConfig.launcher`) already exists for ordinary
+/// reasons, this is only an unusual implementation of it, supplied by the
+/// test, the same way `FakeLauncher` above is.
+struct PanickingLauncher;
+
+impl ProgramLauncher for PanickingLauncher {
+    fn spawn(&self, _spec: &LaunchSpec) -> Result<SpawnedProgram, Error> {
+        panic!(
+            "deliberate test panic (TASK-1.86 review finding 1): a request handler panicking \
+             after the handshake must still report ConnectionEvent::Disconnected"
+        );
+    }
+}
+
+/// Review finding 1: `connection::handle` sent `Connected` on entry but
+/// only sent the matching `Disconnected` as a plain statement at the very
+/// end - skipped by a panic's unwind, since nothing below a panic ever
+/// runs. One panic in a request handler left the idle checker's live-
+/// client count one too high for the rest of the server's life, so an
+/// on-demand server never stopped when idle again - silently, since
+/// nothing else depends on that count. Fixed in `connection.rs`:
+/// `ConnectionCleanup` (the guard that already ran on every path out of
+/// `run_post_handshake`, including an unwind) now holds the sender too,
+/// and sends `Disconnected` from its own `Drop`.
+///
+/// **Why this test force-closes a session it never meant to create.**
+/// `PanickingLauncher::spawn` panics *inside* `Runtime::start_and_
+/// dispatch`'s own match on `pane::start`'s result - a panic there skips
+/// that function's own `rollback_mint` the same way the bug above skipped
+/// `Disconnected`, a related but separate gap (named here, not fixed -
+/// `pane::start`/`start_and_dispatch` are TASK-1.76's own code, and this
+/// task's own criteria are about the idle checker, not that pairing).
+/// Left alone, the panicking `session.new` leaves a real session in the
+/// tree with no pane handle behind it (confirmed by reading `close_and_
+/// dispatch`: a scope pane missing from `state.panes` is silently
+/// filtered out of what gets force-ended, never an error), which would
+/// keep `session_count()` above zero forever and confound this test's own
+/// proof - closing it explicitly isolates the one thing this test is
+/// actually about: the live-client count, not the mint/rollback pairing.
+#[test]
+fn a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out() {
+    let socket_path = unique_socket_path();
+    let config = session_config(socket_path, Some(IDLE_TIMEOUT), Arc::new(PanickingLauncher));
+    let (socket_path, _stop, server_thread) = start_server(config);
+
+    // Connection A: triggers the panic. Nothing ever answers this
+    // request - the connection thread dies mid-dispatch - so this only
+    // writes the call and then confirms the connection actually closed
+    // (a real, bounded read that must see EOF or an error, never hang
+    // waiting for a reply that is never coming).
+    {
+        let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+        let (_id, bytes) = connection
+            .call("session.new", Map::new())
+            .expect("a valid call");
+        std::io::Write::write_all(&mut stream, &bytes)
+            .expect("writing the call should not fail before the panic unwinds the connection");
+        stream
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut buf = [0_u8; 16];
+        match stream.read(&mut buf) {
+            Ok(0) => {}  // closed with no reply - expected
+            Err(_) => {} // reset or similar - also expected
+            Ok(n) => panic!("expected the connection to close with no reply, got {n} bytes"),
+        }
+    }
+
+    // Force-close the orphaned session (see this test's own doc comment)
+    // over a fresh, ordinary connection - its own Connected/Disconnected
+    // pair is unaffected by any of this, proven by every other test in
+    // this file.
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+    let response = call_and_read_reply(&mut stream, &mut connection, "session.list", Map::new());
+    let session_id = match response {
+        Response::Ok(value) => value
+            .as_array()
+            .and_then(|sessions| sessions.first())
+            .and_then(|session| session.get("id"))
+            .expect("the orphaned session should still be listed")
+            .as_str()
+            .expect("the id is a string")
+            .to_string(),
+        Response::Error(error) => panic!("session.list failed: {error:?}"),
+    };
+    let response = call_and_read_reply(
+        &mut stream,
+        &mut connection,
+        "session.close",
+        Map::from_iter([
+            ("target".to_string(), json!(session_id)),
+            ("force".to_string(), json!(true)),
+        ]),
+    );
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "force-closing the orphaned session should succeed: {response:?}"
+    );
+    drop(stream);
+
+    // No sessions left, and - with the fix - no live clients either:
+    // connection A's own `Disconnected` was sent by `ConnectionCleanup`'s
+    // `Drop` despite the panic, connection B's own was sent normally.
+    // Without the fix, connection A's `Connected` has no match, ever, so
+    // `live_clients` never returns to zero and this never returns.
+    join_within(server_thread, IDLE_TIMEOUT + MARGIN);
+}

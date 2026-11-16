@@ -332,12 +332,19 @@ mod tests {
         // established idiom this crate's own tests already use to prove
         // an absence (never a bare sleep followed by a guess). A reverted
         // periodic-poll design would show up here as an early, spurious
-        // `Wait::Forever` observation instead of a timeout.
+        // `Wait::Forever` observation instead of a timeout. Matched
+        // against the `Timeout` variant specifically, not `.is_err()`:
+        // a review nit found the checker thread ending early (dropping
+        // its own sender, disconnecting this channel) would also make
+        // this `Err`, passing the assertion for the wrong reason - the
+        // one outcome this line should never quietly accept.
         assert!(
-            observed_rx
-                .recv_timeout(Duration::from_millis(300))
-                .is_err(),
-            "no observation should arrive while the checker is blocked with no timeout"
+            matches!(
+                observed_rx.recv_timeout(Duration::from_millis(300)),
+                Err(mpsc::RecvTimeoutError::Timeout)
+            ),
+            "no observation should arrive while the checker is blocked with no timeout - and \
+             the checker thread itself must still be running, not merely gone"
         );
         // Now disconnect - the checker wakes from its untimed `recv()`,
         // updates, and loops back to a *fresh* full `Wait::Until`.

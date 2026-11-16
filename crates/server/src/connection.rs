@@ -299,6 +299,18 @@ struct ConnectionCleanup<'a> {
     shutdown_handle: UnixStream,
     runtime: &'a Runtime,
     client_id: ClientId,
+    /// TASK-1.86 review finding: a review found this guard already runs
+    /// on every path out of `run_post_handshake` (a normal return, an
+    /// early return, *or* an unwind) but did not hold the sender that
+    /// reports `ConnectionEvent::Disconnected` - `handle`'s own plain
+    /// statement at its very end, doing that, is skipped by an unwind,
+    /// since a panic never reaches a line below it. A panic in a request
+    /// handler (`Runtime::handle`, dispatched from this guard's own
+    /// scope) left the idle checker's live-client count one too high for
+    /// the rest of the server's life - R99 silently never fires again.
+    /// Fixed by giving this guard the sender too, so the one send that
+    /// matters is on the one path that already runs unconditionally.
+    events: Option<Sender<ConnectionEvent>>,
 }
 
 impl Drop for ConnectionCleanup<'_> {
@@ -309,6 +321,15 @@ impl Drop for ConnectionCleanup<'_> {
             let _ = writer.join();
         }
         self.runtime.disconnect_client(self.client_id);
+        // Last, after this guard's own pre-existing duties keep their
+        // exact order (unchanged above) - `Drop` runs exactly once, so
+        // this needs no idempotency guard of its own, only the ordering
+        // the review asked for: after `Connected` (trivially true - this
+        // guard cannot exist before `handle`'s own first line sends it)
+        // and after this struct's other cleanup, not before it.
+        if let Some(events) = &self.events {
+            let _ = events.send(ConnectionEvent::Disconnected);
+        }
     }
 }
 
@@ -336,6 +357,7 @@ fn run_post_handshake(
     connection: &mut Connection,
     runtime: &Runtime,
     client_id: ClientId,
+    events: Option<Sender<ConnectionEvent>>,
 ) {
     // Three independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
@@ -345,9 +367,14 @@ fn run_post_handshake(
         (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
         _ => {
             // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so there is nothing to join; the client this
-            // function was given still has to be disconnected.
+            // ever spawned, so `ConnectionCleanup` is never built on this
+            // path either - both of its duties (disconnecting the client,
+            // reporting `Disconnected`) are done directly here instead,
+            // in the same order the guard would have used.
             runtime.disconnect_client(client_id);
+            if let Some(events) = &events {
+                let _ = events.send(ConnectionEvent::Disconnected);
+            }
             return;
         }
     };
@@ -359,6 +386,7 @@ fn run_post_handshake(
         shutdown_handle,
         runtime,
         client_id,
+        events,
     };
 
     let context = Context::none();
@@ -406,7 +434,7 @@ fn run_post_handshake(
 pub fn handle(
     mut stream: UnixStream,
     handshake_timeout: Duration,
-    events: Option<Sender<ConnectionEvent>>,
+    mut events: Option<Sender<ConnectionEvent>>,
     runtime: &Runtime,
 ) {
     if let Some(sender) = events.as_ref() {
@@ -447,7 +475,13 @@ pub fn handle(
                 // client that has finished it and then sits idle is
                 // never closed for that (AC #4's second clause).
                 let _ = stream.set_read_timeout(None);
-                run_post_handshake(&mut stream, &mut connection, runtime, client_id);
+                // Moves `events` in, rather than lending it: from this
+                // point on, `run_post_handshake` (through `ConnectionCleanup`'s
+                // Drop) is the one place `Disconnected` is sent, on every
+                // path out of it including a panic - `handle`'s own final
+                // check below finds `None` here and sends nothing a
+                // second time.
+                run_post_handshake(&mut stream, &mut connection, runtime, client_id, events.take());
             }
         }
         FirstFrame::NotAHello(reason) => {
@@ -473,6 +507,13 @@ pub fn handle(
     // indefinitely instead of closed).
     let _ = stream.shutdown(std::net::Shutdown::Both);
 
+    // Only reached with `events: Some(_)` on the paths that never called
+    // `run_post_handshake` at all (no complete frame, not a hello, or a
+    // refused handshake) - none of them run untrusted dispatch code, so
+    // there is nothing here that panics and skips this. The accepted
+    // path already sent `Disconnected` through `ConnectionCleanup`'s own
+    // `Drop`, on every path out of it including a panic, and left `None`
+    // behind here (`events.take()`, above) so this never sends twice.
     if let Some(events) = events {
         let _ = events.send(ConnectionEvent::Disconnected);
     }

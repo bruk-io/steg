@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T01:05:00Z'
-updated_date: '2026-11-16T03:22:00Z'
+updated_date: '2026-11-16T03:23:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r5
 ---
 
 ## Description
@@ -422,6 +423,15 @@ What I verified clean, with my own negative controls (via --data-file scratch co
 - Repeated both of the plan's own required negative controls myself (changed value refused naming both forms; removed value reported missing) - both reproduced.
 
 Unmet: AC#1 (track and the three corners, per the engineer's decisions), AC#3 (focus_ring.width/offset silently uncovered; the README caveat never added). AC#2's tests/negative-controls/CI wiring are all present and I reproduced them.
+
+---
+
+author: @bruk.r5
+created: 2026-11-16T03:23:00Z
+
+---
+
+@bruk.r5 is reviewing TASK-1.96: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

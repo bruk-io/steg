@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:12:00Z'
+updated_date: '2026-11-16T01:20:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1069,6 +1069,29 @@ ok      recipe names (0.1s)
 ```
 
 Built per the approved plan (digest d29c62060a8b): steg_server::detach() (safe setsid wrapper) wired into crates/steg's entry point alongside attempt/run, both acceptance-criteria-named negative controls recorded matching the plan's own predictions, just check green at the final head, PR #44 CI green (one unrelated flake, reran). Full coverage writeup and the one build-time decision (process_group(0) for the SIGHUP test) are in the task's comments.
+
+Check passed: `sh -c 'cargo test -p steg --features fixtures --test server_start && count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " ") && echo "lingering steg processes from this worktree: $count" && test "$count" -eq 0'` exited 0 at 2026-11-16T01:20:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 8 tests
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+lingering steg processes from this worktree: 0
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -660,6 +660,35 @@ test many_threads_opening_a_real_pty_at_once_never_fails ... ok
 
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
 ```
+
+Check FAILED: `cargo test -p steg-server --lib login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment` exited 101 at 2026-11-16T04:47:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87 on task-1.87-server-a-pane-s-environment-comes-from-a at ae10f11951f8 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.87/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-8563ad9cc9013408)
+
+running 1 test
+test login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment stdout ----
+
+thread 'login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment' (22988126) panicked at crates/server/src/login_env.rs:417:9:
+assertion `left == right` failed: a variable set only in the calling process's own environment must not reach the captured login shell's environment
+  left: Some("steg-server")
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    login_env::tests::capture_login_environment_never_leaks_a_variable_set_only_in_the_callers_own_environment
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 123 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

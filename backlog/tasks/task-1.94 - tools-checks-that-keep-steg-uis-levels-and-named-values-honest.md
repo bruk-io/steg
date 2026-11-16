@@ -906,6 +906,17 @@ FAILED tests/unit/test_ui_colours.py::test_violations_has_an_alpha_but_no_match_
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2026-11-16T03:26:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes:
+
+```text
+........................................................................ [ 47%]
+........................................................................ [ 95%]
+.......                                                                  [100%]
+151 passed in 0.86s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

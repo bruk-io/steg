@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:25:00Z'
+updated_date: '2026-11-16T01:29:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -201,6 +201,31 @@ Short note only, so the thinking isn't lost: a new entry point under `tools/src/
 
 <!-- SECTION:NOTES:BEGIN -->
 Rewritten plan checked against doc-17 (R121, R122) and decisions 10 and 11 by @bruk.o: ok. The data file is exported from the saved pages of the artifact's version 1794791991-5d11 and records that version; every sentence-shaped value gets a structured form; the engineer's seven decisions are carried in; off is not exported because nothing draws it after the correction; a colour that means the active session's colour is the one reference the schema allows in place of a value. The working data and scripts for the three foundations pages go under design/canvas with a README that says they are how the pages were first drawn and no longer reproduce the Tokens page exactly. The checking tool is TASK-1.96's. One point for the build, not the plan: the focus ring's radius is written as a formula in a string, which is the kind of thing a program must parse out of prose that criterion 2 rules out; give it a structured form (for example the amount added to the control's radius) and say so in the notes.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:29:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.92 on task-1.92-ui-the-design-s-named-values-as-one-data at 1c9f374426a1:
+
+```text
+ok      format check (0.2s)
+ok      lint (88.0s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (44.7s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (45.1s)
+ok      test (steg-server) (6.1s)
+ok      test (steg-server, race-fixture) (6.7s)
+ok      build (steg) (0.3s)
+ok      test (steg) (0.4s)
+ok      build (steg-app) (23.7s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (2.2s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

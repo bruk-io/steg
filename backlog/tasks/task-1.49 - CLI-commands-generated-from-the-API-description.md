@@ -430,6 +430,14 @@ error: recipe `check-boundaries` failed on line 161 with exit code 1
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `just check-boundaries` exited 0 at 2026-11-16T15:12:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+ok      boundaries (0.1s)
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:14:00Z'
+updated_date: '2026-11-16T02:18:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.94-tools-checks-that-keep-steg-ui-s-levels
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '43523b8d5452'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -244,3 +247,16 @@ distinguish from "the ordering rule is broken" generally.
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-17 (R119, R120, R126) by @bruk.o: ok, with two things that are the engineer's in approving it. (1) It adds ast-grep-py to tools/pyproject.toml, the tools' first runtime dependency: a real parse of Rust (so comments, strings and grouped or aliased use lists are read correctly) in place of regular expressions; the worker confirmed a prebuilt wheel exists for CI's runner and Python and installs with no build step. (2) A colour literal inside a cfg(test) block is refused like any other. The level check follows re-exports through lib.rs and names what it cannot see (a glob re-export, a path built by a macro, a colour behind a trait); the colour check names what it cannot see (a value built by arithmetic, a constant defined outside foundations). Both leave crates/ui/gallery out: right for the level check, since the gallery uses every level; for the colour check it is right only while the gallery's colours are a placeholder, so the exemption is to end when TASK-1.93 makes the gallery draw from foundations (noted on TASK-1.93). Every case in the proof has a test tied to a negative control.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T02:18:00Z
+
+---
+
+Plan approved by @bruk (43523b8d5452, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

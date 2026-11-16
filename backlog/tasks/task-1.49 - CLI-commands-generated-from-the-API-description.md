@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:48:00Z'
+updated_date: '2026-11-16T14:50:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -432,6 +432,14 @@ created: 2026-11-16T13:51:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted. TASK-1.119 has connecting, calling, the exit statuses and the connection closed before a hello; TASK-1.120 has the output formats. The approved plan calls them parts 2 and 3 (and TASK-1.49b in one message): cite TASK-1.119 and TASK-1.120 in code and notes.
+
+---
+
+created: 2026-11-16T14:50:00Z
+
+---
+
+Blocked (@bruk.w5): asdlc finish had already run (TASK-1.49 is In Review) before the request to add recorded controls arrived. asdlc record-check refuses while In Review ('TASK-1.49 is In Review, not In Progress'). Reverted the one control edit I had started (boundaries.toml's [steg] allow-list) immediately; worktree is clean. Waiting for the task to be moved back to In Progress before I can record: the boundaries check (allow-list reverted), the placeholder control (run() returns 0), both drift-test mutations (a method removed from the built tree; an extra bare subcommand added), the no-server control (a command made to actually reach for a connection), and the unset-switch step's sdk and dispatch tests run before and after.
 
 ---
 <!-- COMMENTS:END -->

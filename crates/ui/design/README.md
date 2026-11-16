@@ -86,19 +86,36 @@ in both directions. Its own passing output lists what it did not check and why
   `bg_inactive`/`selection`/`cursor`, and every `sizes` key that lives only on
   Layout.dc.html - is declared out of this tool's reach, each with its own reason, not
   silently passed over.
-- This is enforced generically, not by a list of field names written into the tool: a
-  review finding on this task found `themes[]`/`focus_ring` enumerated from a fixed
-  tuple, invisible to a field not already in it (adding `focus_ring.glow` or a new field
-  to one theme passed silently). `unaccounted_names` now walks the data file's own
-  structure (`design_pages.py`'s `_leaf_paths`) to find every leaf, and a leaf *inside*
-  an already-checked whole value (say, a new number added inside `sizes.nav.side`) is
-  accounted for by that covering name, not flagged separately - `sentence_mismatches`'
-  own number-walk already recurses the whole value, so nothing numeric there goes
-  uninspected. A new *non-numeric* field added the same way is **not** inspected either
-  way - a known, accepted gap of the same shape as the field-blindness above, not a
-  silent one. A test enumerates every leaf path of the real file this way and asserts
-  each one is checked or declared unseen, so a genuinely new key - at any level that
-  isn't already inside a checked whole value - cannot fall through both silently.
+- This is enforced generically, not by a list of field names written into the tool - two
+  review findings fixed this, the second after the first: `unaccounted_names` used to
+  enumerate `themes[]`/`focus_ring` from a fixed tuple, invisible to a field not already
+  in it (adding `focus_ring.glow` or a new field to one theme passed silently); and once
+  that was fixed, "accounted for" still compared *joined* dotted strings, which this
+  file's own keys defeat - `font.ui`, `nav.side`, `radius.surface` and `ramp.extended`
+  are each one real key that happens to contain a literal dot, so `sizes["palette.
+  footer"]`, `sizes["nav.side.extra"]`, a new `type["terminal.bold"]`, and a ramp
+  literally named `"ramp.secondary"` all passed as "covered by" an unrelated registered
+  name. `unaccounted_names` now walks the data file's own structure
+  (`design_pages.py`'s `_leaf_paths`) as tuples of segments, comparing whole segments
+  only, never a joined string - printing still joins with "." for people to read, never
+  for the comparison that found the gap.
+- A leaf *inside* an already-checked `type`/`sizes` whole value (say, a new number added
+  inside `sizes.nav.side`) is accounted for by that covering name, not flagged
+  separately - `sentence_mismatches`' own number-walk already recurses the whole value,
+  so nothing numeric there goes uninspected. A new *non-numeric* field added the same way
+  is **not** inspected either way - a known, accepted gap of the same shape as the
+  field-blindness above, not a silent one. This does **not** extend to colours, colour
+  aliases, opacities or ramps: a third review finding found a blanket whole-entry
+  ancestor (`("colours", name)`) silently covering a stray field nothing actually checks
+  (`contrast` on a colour, say) - each of these is registered field by field instead
+  (a colour's `dark`/`light`; an alias's `ref`; an opacity's `dark`/`light`; a ramp's
+  `stops` and, on `"ramp"` only, `caption_opacity`), so a field beyond those is
+  unaccounted even though the entry's own name is known.
+- Tests enumerate every leaf path of the real file this way, from an enumeration written
+  independently of the tool's own walker (so a bug in one cannot be masked by the other
+  sharing it), and assert each one is checked or declared unseen, so a genuinely new key
+  - at any level, under any name, however it happens to spell - cannot fall through both
+  silently.
 - Agreement between this file and a page proves nothing about whether a value is part
   of the *confirmed* design (see "What is deliberately not here", above) - this tool is
   a consistency check between two documents, not a substitute for reading doc-10.

@@ -289,10 +289,10 @@ def test_radius_map_a_page_row_absent_is_a_mismatch() -> None:
 
 def test_the_fully_round_corner_is_not_in_the_map_and_stays_declared_unseen() -> None:
     assert "radius.round" not in RADIUS_MAP
-    assert any(skip.name == "sizes.radius.round" for skip in TIER_C_SKIPS)
-    assert not any(skip.name.startswith("sizes.radius.surface") for skip in TIER_C_SKIPS)
-    assert not any(skip.name.startswith("sizes.radius.track") for skip in TIER_C_SKIPS)
-    assert not any(skip.name.startswith("sizes.radius.inner") for skip in TIER_C_SKIPS)
+    assert any(skip.name == ("sizes", "radius.round") for skip in TIER_C_SKIPS)
+    assert not any(skip.name[:2] == ("sizes", "radius.surface") for skip in TIER_C_SKIPS)
+    assert not any(skip.name[:2] == ("sizes", "radius.track") for skip in TIER_C_SKIPS)
+    assert not any(skip.name[:2] == ("sizes", "radius.inner") for skip in TIER_C_SKIPS)
 
 
 def test_ansi_mismatch_is_scoped_to_its_own_theme() -> None:
@@ -430,28 +430,30 @@ MINIMAL_DATA = {
 
 MINIMAL_SKIPPED = frozenset(
     {
-        "colour_aliases.blocked",
-        "opacities.faint",
-        "ramps.ramp",
-        "ramps.ramp.extended",
-        "tint",
-        "sizes.radius.round",
-        "motion.status-fade",
-        "themes.steg dark.bg",
-        "themes.steg dark.fg",
-        "themes.steg dark.bg_inactive",
-        "themes.steg dark.selection",
-        "themes.steg dark.cursor",
-        "themes.steg light.bg",
-        "themes.steg light.fg",
-        "themes.steg light.bg_inactive",
-        "themes.steg light.selection",
-        "themes.steg light.cursor",
-        "focus_ring.width",
-        "focus_ring.offset",
-        "focus_ring.colour",
-        "focus_ring.corner_radius_addition",
-        "session_colour",
+        ("colour_aliases", "blocked", "ref"),
+        ("opacities", "faint", "dark"),
+        ("opacities", "faint", "light"),
+        ("ramps", "ramp", "stops"),
+        ("ramps", "ramp", "caption_opacity"),
+        ("ramps", "ramp.extended", "stops"),
+        ("tint",),
+        ("sizes", "radius.round"),
+        ("motion", "motion.status-fade", "duration"),
+        ("themes", "steg dark", "bg"),
+        ("themes", "steg dark", "fg"),
+        ("themes", "steg dark", "bg_inactive"),
+        ("themes", "steg dark", "selection"),
+        ("themes", "steg dark", "cursor"),
+        ("themes", "steg light", "bg"),
+        ("themes", "steg light", "fg"),
+        ("themes", "steg light", "bg_inactive"),
+        ("themes", "steg light", "selection"),
+        ("themes", "steg light", "cursor"),
+        ("focus_ring", "width"),
+        ("focus_ring", "offset"),
+        ("focus_ring", "colour"),
+        ("focus_ring", "corner_radius_addition"),
+        ("session_colour",),
     }
 )
 
@@ -480,9 +482,26 @@ def test_unaccounted_names_an_entirely_empty_value_has_nothing_to_account_for() 
 def test_unaccounted_names_negative_control_removing_a_declared_unseen_entry_fails_naming_it() -> None:
     # The required negative control: a declared-unseen entry removed from `skipped` must
     # make that exact key show up as unaccounted, not fall through silently.
-    without_focus_ring_width = MINIMAL_SKIPPED - {"focus_ring.width"}
+    without_focus_ring_width = MINIMAL_SKIPPED - {("focus_ring", "width")}
     found = unaccounted_names(MINIMAL_DATA, skipped=without_focus_ring_width, checked=MINIMAL_CHECKED)
     assert found == ("focus_ring.width",)
+
+
+def test_unaccounted_names_a_dotted_key_is_never_mistaken_for_a_child_of_an_unrelated_name() -> None:
+    # The review's own four reproductions, against the minimal fixture: a name that
+    # merely shares a *string* prefix with a registered one (because a real JSON key can
+    # itself contain a dot) must not be swallowed by it.
+    data = {**MINIMAL_DATA, "sizes": {**MINIMAL_DATA["sizes"], "nav.side.extra": {"value": 1, "unit": "px"}}}
+    found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
+    assert found == ("sizes.nav.side.extra.value",)
+
+
+def test_unaccounted_names_a_new_colour_field_nothing_checks_is_unaccounted() -> None:
+    # A review finding: colours were registered as a whole-entry ancestor, so a stray
+    # field nothing checks (only "dark"/"light" are) was silently swallowed.
+    data = {**MINIMAL_DATA, "colours": [{**MINIMAL_DATA["colours"][0], "contrast": 1.5}]}
+    found = unaccounted_names(data, skipped=MINIMAL_SKIPPED, checked=MINIMAL_CHECKED)
+    assert found == ("colours.track.contrast",)
 
 
 def test_unaccounted_names_default_arguments_cover_the_real_modules_own_registries() -> None:

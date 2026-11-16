@@ -2056,6 +2056,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 102 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test runtime -- a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it` exited 101 at 2026-11-16T03:06:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... FAILED
+
+failures:
+
+---- a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it stdout ----
+
+thread 'a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it' (20139811) panicked at crates/server/tests/runtime.rs:1091:9:
+pane.split must find the pane being forced unreachable, not act on it as if nothing were happening
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

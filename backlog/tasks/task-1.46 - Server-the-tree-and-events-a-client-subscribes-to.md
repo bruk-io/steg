@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:51:00Z'
+updated_date: '2026-11-16T14:52:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1150,6 +1150,34 @@ note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
 failures:
     runtime::tests::a_command_panes_exit_emits_pane_exited
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_typed_commands_start_and_end_emit_pane_status_changed'` exited 101 at 2026-11-16T14:52:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed ... FAILED
+
+failures:
+
+---- runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed stdout ----
+
+thread 'runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed' (41812460) panicked at crates/server/src/runtime.rs:1749:43:
+reading the broadcast event: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed
 
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.00s
 

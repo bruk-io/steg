@@ -1,17 +1,20 @@
 ---
 id: TASK-1.89
 title: 'Server: tab list, tab show, pane list, and the status a pane and a tab show'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:14:00Z'
+updated_date: '2026-11-16T05:18:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.84
+references:
+  - task-1.89-server-tab-list-tab-show-pane-list-and
+  - https://github.com/bruk-io/steg/pull/57
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -748,6 +751,20 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built per the approved plan (digest a99a69b5fa87), no departures from it besides a cargo fmt pass after the first just check run (recorded, see commit 1356fa2 - purely formatting, no behaviour change).
+
+Coverage by acceptance criterion:
+- AC #1 (tab.list/tab.show/pane.list): built. TabRecord added to the sdk with exactly tab_fields()'s seven fields. Positive and negative-control tests in tests/dispatch.rs; a real-socket test in tests/routing.rs; real-pty tests in tests/runtime.rs proving a typed command's status and a tab's shown_status both reach these methods through Runtime::handle.
+- AC #2 (PaneRecord's status field, Moment through dispatch): built. status renamed to program_status (ProgramStatus's words, unchanged); status now carries the sdk's Status type. dispatch() gains a sixth parameter, now: Moment, computed once per request in Runtime::handle/start_and_dispatch the same way apply_event_locked already does; the kernel reads no clock. Also closed a pre-existing gap: PaneRecord gained kind and size (doc-2's pane show note listed both; pane_fields() had neither).
+- AC #3 (remaining methods): every not_implemented_yet citation in the session/tab/pane nouns pointing at a Done task is reworded to name its real owner - the two drafts split from this task ("Server: pane resize"; "Kernel and server: move a tab to another session", cited by title since neither has an id yet), TASK-1.90 (pane.send/capture/wait, already accepted before this task started), and the events task split from TASK-1.46 (session.focus). None still cites TASK-1.39/1.40/1.41/1.42.
+- AC #4 (fields match the description; tests): matches_the_fields_tab_show_and_tab_list_declare and the pane equivalent both pass. Every method has a test through dispatch/Runtime::handle. A typed command's status reaches pane.show and tab.show through a real pty (tests/runtime.rs).
+
+Mechanisms verified by a recorded failing run with the mechanism removed, then restored (asdlc record-check on each): the clock reaching dispatch; status built from the kernel's own Pane::status rather than derived from program_status; a tab's shown_status from the kernel's own ranking rather than the first pane; a pane's size from the tab's layout rather than always none; pane.list's order rather than a reversal of it.
+
+Checks recorded on the task: cargo test -p steg-sdk -p steg-kernel -p steg-server (multiple green runs through the build), cargo test -p steg-server --test dispatch/--test runtime/--test routing (each green, plus the five failing-control runs above), just check green twice (once before the fmt fix, exit 0 again after, at the final pushed head 1356fa2, which is also the commit CI passed on).
+
+Overlap: rebased cleanly onto origin/main (no code changes there yet - TASK-1.78/TASK-1.87 haven't merged). TASK-1.46's own plan now depends on this task for TabRecord/PaneRecord's shape; nothing here needs updating for that dependency, only kept stable.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

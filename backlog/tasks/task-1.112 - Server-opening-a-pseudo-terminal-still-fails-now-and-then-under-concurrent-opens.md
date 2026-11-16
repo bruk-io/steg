@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:54:00Z'
+updated_date: '2026-11-16T19:49:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -499,6 +499,50 @@ ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:56:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 577ed2a6ae69:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.3s)
+ok      tests (every crate) (16.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (13.0s)
+ok      test (steg-server, race-fixture) (15.6s)
+ok      test (steg-server, pty-race-fixture) (20.9s)
+ok      build (steg) (0.6s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+## CI's OWN NUMBERS (temporary workflow step, pull request 61, now removed)
+
+Ran on GitHub's hosted macOS runner, via a temporary CI step since removed (reverted in a follow-up commit before this pull request merges, per the engineer's instruction).
+
+Shipped-default test (5 attempts, 3,200 opens), 5 runs: all 5 passed, wall time 2.6s-4.7s per run.
+
+Ignored no-retry control (`max_open_attempts = 1`), 3 runs: all 3 reproduced the race. Opens until first failure on the worker that saw it: 1, 9, 1. Total opens across all workers before the control stopped them: 879, 793, 557. Wall time: 1.1s-1.4s per run.
+
+Reading this against the dev-machine table above: CI's runner reproduced faster and more consistently (3/3, each within under 1,000 total opens) than this shared dev machine did at the same bound (3/3 there too, but one run needed 60,491 opens and 110s) - consistent with this task's own finding that the rate depends on ambient pty activity elsewhere on the machine, which a dedicated CI runner has far less of than this heavily-shared dev machine. No miss recorded on either machine at the 100,000-open bound.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

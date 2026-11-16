@@ -64,6 +64,26 @@ fn main() {
                 );
             }
 
+            // This fixture always mirrors the on-demand path (this file's
+            // own doc comment above) - the same R99 idle-timeout line
+            // `run_server_start(true)` has, plus one test-only override so
+            // a real-process test can inject a short period without a
+            // hook in the shipped binary (`main.rs` has no such override;
+            // this fixture, which does not exist in the shipped binary at
+            // all, is where it belongs).
+            config.idle_timeout = Some(
+                std::env::var("STEG_TEST_IDLE_TIMEOUT_MS")
+                    .ok()
+                    .map(|millis| {
+                        std::time::Duration::from_millis(
+                            millis
+                                .parse()
+                                .expect("STEG_TEST_IDLE_TIMEOUT_MS should be a plain integer"),
+                        )
+                    })
+                    .unwrap_or(steg_server::DEFAULT_IDLE_TIMEOUT),
+            );
+
             let stopper = steg_server::Stopper::new();
             match steg_server::run(handle, &socket_path, &config, &stopper, None) {
                 Ok(()) => 0,

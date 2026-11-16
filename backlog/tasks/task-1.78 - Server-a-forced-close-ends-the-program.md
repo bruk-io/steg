@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:35:00Z'
+updated_date: '2026-11-16T01:36:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -21,6 +21,8 @@ asdlc_branch: task-1.78-server-a-forced-close-ends-the-program
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd681d6fe44b5'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1517,6 +1519,15 @@ created: 2026-11-16T00:24:00Z
 ---
 
 Criterion 1 reworded by @bruk.o on 2026-11-15 to the order the approved plan (d681d6fe44b5) builds: close first, then end the programs, answering when they have ended. The engineer approved the plan with this change stated at its top; the earlier wording was 'end every running program in scope, observe each exit, and then close'. The other four criteria are unchanged.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T01:36:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.78: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

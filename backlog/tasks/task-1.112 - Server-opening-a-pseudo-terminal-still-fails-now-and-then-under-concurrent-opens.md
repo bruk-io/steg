@@ -30,9 +30,9 @@ Seen on 2026-11-16 (UTC) on main at d06ab92 (the merge of pull request 52, which
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 The cause of the failure seen in CI is established, not assumed: openpty returned 'Device not configured' (ENXIO) in many_threads_opening_a_real_pty_at_once_never_fails while the process-wide lock around openpty was held, so the race is not only between two openpty calls in one process. The plan finds what else it races with (the spawn that follows and opens the slave, a close of another pty's descriptors on another thread, another process on the machine, a limit) by experiment on macOS, and says which
-- [ ] #2 The fix addresses that cause: for example the lock covering what the experiment shows it must cover, or a bounded retry of the open on this one error if the cause is outside the process and cannot be excluded; a retry is stated with its bound and its evidence, and is not a blanket retry of any error
-- [ ] #3 A pane whose pseudo-terminal cannot be opened after that still fails cleanly with the error doc-2 gives, leaving no half-made pane, thread or child
-- [ ] #4 Shown by repeated runs: the test passes N times in a row locally under load and on CI (a temporary workflow that repeats it, removed before merge), with N justified against the failure rate seen; and a negative control: with the fix removed, the experiment that reproduces the failure does so
+- [ ] #2 A pane whose pseudo-terminal cannot be opened after that still fails cleanly with the error doc-2 gives, leaving no half-made pane, thread or child
+- [ ] #3 Shown by repeated runs: the test passes N times in a row locally under load and on CI (a temporary workflow that repeats it, removed before merge), with N justified against the failure rate seen; and a negative control: with the fix removed, the experiment that reproduces the failure does so
+- [ ] #4 The fix addresses that cause: a bounded retry of the open step alone (not of starting the program), on any failure of that step, because the library discards the structured error and the code was seen with both signs; the bound and its evidence are stated, each retry is counted and reported, and when every attempt fails the last error surfaces with the number of attempts (reworded on 2026-11-16 when the engineer approved the plan; it read: on this one error, not a blanket retry)
 <!-- AC:END -->
 
 ## Implementation Plan

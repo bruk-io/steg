@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:06:00Z'
+updated_date: '2026-11-16T05:08:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -683,6 +683,40 @@ test every_described_method_gets_a_response_with_no_panic ... ok
 test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
 
 test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Check passed: `cargo test -p steg-server --test routing` exited 0 at 2026-11-16T05:08:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/routing.rs (target/debug/deps/routing-b6f2d180ae7f55f5)
+
+running 22 tests
+test data_on_a_stream_never_opened_closes_the_connection ... ok
+test an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection ... ok
+test a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly ... ok
+test a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error ... ok
+test a_reply_shaped_frame_from_the_client_closes_the_connection ... ok
+test a_non_json_control_payload_post_handshake_closes_the_connection ... ok
+test the_server_stops_promptly_with_a_connection_mid_request ... ok
+test an_unknown_kind_tag_post_handshake_closes_the_connection ... ok
+test the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitly_closed ... ok
+test an_event_from_the_client_closes_the_connection ... ok
+test a_reply_delivered_one_byte_at_a_time_still_decodes_correctly ... ok
+test a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id ... ok
+test a_second_hello_after_the_handshake_closes_the_connection ... ok
+test a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method ... ok
+test a_hostile_post_handshake_close_still_reports_disconnected ... ok
+test several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies ... ok
+test tab_list_tab_show_and_pane_list_answer_over_a_real_socket ... ok
+test two_requests_sharing_one_id_both_get_correctly_matched_independent_replies ... ok
+kill: 28692: No such process
+test stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket ... ok
+test a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs ... ok
+test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... ok
+test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
 ```
 <!-- SECTION:NOTES:END -->
 

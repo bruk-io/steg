@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:31:00Z'
+updated_date: '2026-11-16T02:32:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -427,6 +427,51 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_le
 ```text
 ........................................                                 [100%]
 40 passed in 0.04s
+```
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_ui_colours.py tests/adapter/test_ui_colours_real_repo.py'` exited 1 at 2026-11-16T02:32:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes, last 40 of 138 lines:
+
+```text
+E         
+E         Right contains one more item: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='0x1c1b21', matches=(('surface.raised', 'dark'),))
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:104: AssertionError
+_____ test_violations_lists_every_matching_name_when_more_than_one_matches _____
+
+    def test_violations_lists_every_matching_name_when_more_than_one_matches() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() -> u32 { 0x3d3b45 }\n")
+        found = violations((file,), COINCIDING_INDEX)
+>       assert found[0].matches == (("outline", "dark"), ("track", "dark"))
+               ^^^^^^^^
+E       IndexError: tuple index out of range
+
+tests/unit/test_ui_colours.py:110: IndexError
+_ test_violations_has_no_matches_when_the_literal_matches_no_foundations_value _
+
+    def test_violations_has_no_matches_when_the_literal_matches_no_foundations_value() -> None:
+        file = RustFile("crates/ui/src/atoms/button.rs", "fn f() -> u32 { 0xabcdef }\n")
+        found = violations((file,), SURFACE_RAISED_INDEX)
+>       assert found == (Violation(file.path, 1, "0xabcdef", ()),)
+E       AssertionError: assert () == (Violation(pa... matches=()),)
+E         
+E         Right contains one more item: Violation(path='crates/ui/src/atoms/button.rs', line=1, text='0xabcdef', matches=())
+E         Use -v to get more diff
+
+tests/unit/test_ui_colours.py:116: AssertionError
+=========================== short test summary info ============================
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_bare_hex_integer
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_hex_colour_string
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_named_constructor_call
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_qualified_named_constructor_call
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_an_hsla_struct_literal
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_catches_a_qualified_rgba_struct_literal
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_does_not_double_count_a_hex_argument_already_inside_a_constructor_call
+FAILED tests/unit/test_ui_colours.py::test_literal_colours_still_catches_a_bare_hex_that_is_never_wrapped_in_a_call
+FAILED tests/unit/test_ui_colours.py::test_violations_reports_the_same_literal_outside_either_exempt_path
+FAILED tests/unit/test_ui_colours.py::test_violations_lists_every_matching_name_when_more_than_one_matches
+FAILED tests/unit/test_ui_colours.py::test_violations_has_no_matches_when_the_literal_matches_no_foundations_value
+11 failed, 13 passed in 0.05s
 ```
 <!-- SECTION:NOTES:END -->
 

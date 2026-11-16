@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:08:00Z'
+updated_date: '2026-11-16T05:14:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -717,6 +717,36 @@ test a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed ... o
 test a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung ... ok
 
 test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.01s
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T05:14:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 1356fa2f08e9:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (5.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.6s)
+ok      test (steg-server, race-fixture) (6.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -1,10 +1,11 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T20:05:00Z'
+updated_date: '2026-11-16T04:20:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -16,6 +17,7 @@ parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-16
+asdlc_branch: task-1.46-server-the-tree-and-events-a-client
 ---
 
 ## Description

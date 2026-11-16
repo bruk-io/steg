@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T03:53:00Z'
+updated_date: '2026-11-16T04:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.87-server-a-pane-s-environment-comes-from-a
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '03e926f72daf'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -337,3 +340,16 @@ Every control below is a scratch edit, recorded and reverted immediately
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-8 (R3, R98, R99), doc-2 section 4 and doc-16 by @bruk.o: ok, with one decision that is the engineer's and one ordering constraint. The environment is captured once, after the socket is bound and before requests are served, by running the account's login shell from a cleared environment seeded with HOME, USER, LOGNAME and a minimal PATH, with a marker before the dump so start-up noise cannot corrupt it and a bound of about three seconds; on any failure the server starts with a small fixed environment, never the starting client's. A pane's program gets the captured environment plus TERM and the STEG_ variables set by the server. No unsafe, no new dependency. The decision for the engineer: the capture runs the shell as a login shell and not as an interactive one, so on zsh it reads .zprofile and not .zshrc; a shell pane still reads .zshrc itself when it starts, but a command pane started through the API or the CLI gets only what .zprofile gives, and many people set PATH and tool managers in .zshrc. The alternative is to capture from an interactive login shell, as some editors do, at the cost of slower and noisier start-up files running in the capture; the bound and the fallback are the same either way. Ordering: criterion 1 is proved through a real client and a real server, which needs TASK-1.45 merged; the build starts after it merges.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T04:22:00Z
+
+---
+
+Plan approved by @bruk (03e926f72daf, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

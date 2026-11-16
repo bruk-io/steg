@@ -4,6 +4,7 @@ title: 'ui: the steg-ui package, its boundary, and the gallery'
 status: Draft
 assignee: []
 created_date: '2026-11-16T00:52:00Z'
+updated_date: '2026-11-16T00:52:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -25,3 +26,9 @@ doc-17 (R117, R124), decision-11, doc-16's package tables as changed on 2026-11-
 - [ ] #3 A just recipe captures the gallery to an image file without a person at the screen, or the plan says why that cannot be done on this GPUI version and what a pull request shows instead; the pull request for this task carries that image (team rule: a UI pull request shows an image)
 - [ ] #4 The architecture model, the affected-crates tool and just check know the new package: the LikeC4 model has it with its one allowed dependency, and a change under crates/ui selects its tests and the app's
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Read first: GPUI's README, https://github.com/zed-industries/zed/blob/main/crates/gpui/README.md (the engineer: 'a really good intro to it'), then the examples; accessibility examples are a11y.rs, focus_visible.rs and tab_stop.rs.
+<!-- SECTION:NOTES:END -->

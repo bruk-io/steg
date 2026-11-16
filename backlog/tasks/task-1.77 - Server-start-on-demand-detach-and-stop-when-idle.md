@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:07:00Z'
+updated_date: '2026-11-16T00:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -111,17 +111,58 @@ death by any means, including this one (TASK-1.44's own proven property, `attemp
 takes_over_a_stale_socket_left_by_a_dead_server`), so a raw kill never corrupts the
 arbiter's own state for the next `attempt()`.
 
-**An interrupt during start-up leaves no socket file or lock behind - what this claim
-actually rests on, since nothing here catches the signal either.** With no handler, the
-process can be killed at any instruction boundary, including mid-`attempt()`. `bind_
-with_mode` (TASK-1.44, unchanged) only ever creates the *final* socket path by `rename`
-onto it after binding under a temporary name and setting its mode - a process killed
-before that rename completes leaves, at worst, an orphaned temporary file
-(`.steg-tmp-<pid>-<n>`) beside the final path, never a file *at* the final path a later
-`attempt()` would have to trust or refuse (pre-existing TASK-1.44 behaviour, not changed
-here - named rather than re-proven). The lock itself is never left stale by an
-interrupt: released on process death regardless of when, by the kernel, the same
-property named above.
+**What an interrupt leaves behind, stated exactly, not softened - two cases, since "when"
+matters.** With no handler (section 2's own decision), the process can be killed at any
+instruction boundary, and what is left differs by when:
+
+- **Mid-startup, before `bind_with_mode`'s own rename onto the final path completes.**
+  At worst, an orphaned temporary file (`.steg-tmp-<pid>-<n>`) beside the final path -
+  never a file *at* the final path a later `attempt()` would have to trust or refuse
+  (pre-existing TASK-1.44 behaviour, unchanged here, named rather than re-proven).
+- **Once the server is already running, killed outright.** **The socket file stays at
+  its final path** - nothing unlinks it; only `listen::run`'s own graceful shutdown
+  sequence does that, and a raw kill never reaches it. **The lock is released** - the
+  kernel does this on process death regardless, by any means (TASK-1.44's own proven
+  property, `attempt_takes_over_a_stale_socket_left_by_a_dead_server`). **Once a
+  `Runtime` exists** (not in this piece's own code, TASK-1.45's - named here because
+  the consequence is real even though nothing in this task can trigger it yet): **every
+  pane's program gets a hangup.** All of this process's file descriptors, including
+  every pane's pty, close unconditionally on process death - a pty's master side closing
+  delivers `SIGHUP` to whatever is attached to its slave side. A program with the
+  default disposition for `SIGHUP` (most) ends from it; one that traps or ignores it
+  (`trap '' HUP`, or anything run under something like `nohup`) survives as an orphan
+  with nothing managing it - and **nothing forces it to end**, because there is no
+  graceful shutdown code running on a raw kill at all. This is categorically different
+  from `Runtime::stop`'s own graceful `SIGHUP`-by-pid mechanism (TASK-1.76), which only
+  runs on a *controlled* stop; a raw kill never reaches it either.
+
+**A fresh `steg server start` replaces the stale socket and prints "started" - proved
+through the real binary, not only at the library level TASK-1.44 already proved it at.**
+
+```rust
+// crates/steg/tests/server_start.rs
+fn a_fresh_start_replaces_the_socket_of_a_server_killed_outright() {
+    let socket_path = unique_temp_socket_path();
+    let mut first = KillOnDrop::new(spawn_steg_server_start(&socket_path, /* on_demand */ false));
+    wait_for_socket(&socket_path, Duration::from_secs(5)); // §10's one named exception
+    first.kill_now(); // bounded (§10) - kills, reaps, marks itself done so this
+                       // guard's own `Drop` does not repeat the kill/wait pointlessly
+    // The old listener is gone the instant the kernel tears it down with the
+    // process; this is not waiting for anything to happen later, only for
+    // `kill_now`'s own bounded `wait()` above to have already returned.
+    let second = KillOnDrop::new(spawn_steg_server_start_capturing_stdout(&socket_path, false));
+    let first_line = read_one_line_bounded(&second.child, Duration::from_secs(5));
+    assert_eq!(first_line, "started a new server"); // not "a server is already
+                                                      // running" - proves the stale
+                                                      // socket was replaced, not
+                                                      // mistaken for a live one
+}
+```
+
+Reuses `arbiter::decide`'s already-proven branch (`ExistingFile::OursAndASocket`,
+`Probe::Refused`, lock free → `Became`) - this test is new in what it exercises (the
+real `steg` binary and its own printed line), not in the underlying mechanism, which
+TASK-1.44 already proved at the library level.
 
 ## 3. `setsid` fails when the caller is already a process-group leader - both cases, with a test for each
 
@@ -365,7 +406,7 @@ fn four_simultaneous_starts_converge_on_one_server() {
         .map(|_| { /* spawn past the barrier, as close together as four threads can
                       manage; see §10 for KillOnDrop */ })
         .collect();
-    wait_for_socket(&socket_path, Duration::from_secs(5)); // bounded poll, a real event
+    wait_for_socket(&socket_path, Duration::from_secs(5)); // §10's one named exception
     let (winners, losers) = partition_by_try_wait(&children); // polls `try_wait`
                                                                 // repeatedly, bounded;
                                                                 // never a bare `wait()`
@@ -430,15 +471,40 @@ it) is TASK-1.45's own plan to settle, not asserted here - not this task's code,
 not `start.rs`/`serve_on_demand`-style wrapper functions this plan's earlier drafts
 proposed (removed). `runtime.rs` is untouched by this piece.
 
-**What this task puts in `ServerConfig`: nothing beyond `::default()`.** `run_server_
-start` (section 5) constructs `ServerConfig::default()` exactly as it would if `launcher`
-and `login` did not exist yet - and when TASK-1.45 adds them, this call site needs no
-edit at all, because `Default` fills in whatever is new. TASK-1.87 will later change
-what `login`'s own default *is* (from today's stand-in to a real login-shell-sourced
-value) without this call site changing either. This is the "touch the struct in a way
-that merges cleanly" property stated directly: three tasks (this one, TASK-1.45,
-TASK-1.87) each add or consume one field of `ServerConfig`, and none of the three needs
-to edit another's call site to do it.
+**What this task puts in `ServerConfig`, exactly, for each order the two branches could
+land in - read directly against TASK-1.45's own plan, not guessed at.** TASK-1.45's own
+plan text, as it stood when read for this plan (its "Who owns `Runtime`, and how it is
+stopped" section, read 2026-11-15 - that task's own plan is still with the engineer and
+may change before approval, so this quote is accurate as of when it was written, not
+asserted to still match whatever TASK-1.45 is approved with), already names this exact
+call site: "TASK-1.77's own entry point... passes `login` resolved from the password
+database as R99 asks, and can leave `launcher` at its default." That
+expectation predates the split - this task no longer resolves a login identity at all
+(section 9, TASK-1.87's now) - so it needs correcting here rather than left to collide
+quietly at review time:
+
+- **As this task is built today** (`ServerConfig` has neither field yet, since
+  TASK-1.45 has not merged): `run_server_start` (section 5) constructs `ServerConfig::
+  default()` with nothing extra set, because there is nothing yet to set.
+- **If TASK-1.45 merges first**, this task's own worker, rebasing onto it, adds one
+  explicit line before calling `attempt`: `config.login = steg_server::LoginShell::
+  from_process_env();` - the *same* value `login`'s own default already gives (TASK-1.45:
+  "`LoginShell::from_process_env()`"), so this changes nothing about what the server
+  does. It is written explicitly anyway, not left to the default, for one reason: it is
+  the one line TASK-1.87 needs to find and swap for its own real resolver, and a line
+  that is not there to find is a worse hand-off than a redundant one that is.
+  `launcher` is left at its own default - TASK-1.45's own text already says this task
+  has no reason to touch it.
+- **If this task merges first**, TASK-1.45's own worker is the one adapting at that
+  point, not this plan - its own call site for `ServerConfig`'s two new fields' defaults
+  is its design to make, and this task's `run_server_start` has nothing to change on its
+  side regardless of which way the race goes, since `::default()` already compiles
+  against either shape.
+
+This is the "touch the struct in a way that merges cleanly" property stated directly:
+three tasks (this one, TASK-1.45, TASK-1.87) each add, default, or later override one
+field of `ServerConfig`, and whichever lands second only ever *adds* a line at a call
+site, never edits one that already exists.
 
 **If this task merges before TASK-1.45, the server process simply has no `Runtime` at
 all - said plainly, not implied.** A server this task starts completes real handshakes
@@ -479,17 +545,52 @@ assertion partway through, leaking the process. Every multi-process test in this
 wraps each spawned `Child` in:
 
 ```rust
-struct KillOnDrop(std::process::Child);
+struct KillOnDrop {
+    child: std::process::Child,
+    done: bool, // set once `kill_now` has already reaped it, so `Drop` is a no-op -
+                // without this, a test that deliberately kills mid-test (section 2's
+                // own stale-socket test does exactly this) would otherwise `kill`/
+                // `wait` an already-reaped child a second time from `Drop`
+}
+
+impl KillOnDrop {
+    fn new(child: std::process::Child) -> Self {
+        Self { child, done: false }
+    }
+
+    /// Kills and reaps now, for a test that needs the process gone *before* the end
+    /// of the function, not only at teardown - marks itself done so `Drop` finds
+    /// nothing left to do.
+    fn kill_now(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait(); // bounded: a killed process's wait() returns promptly
+        self.done = true;
+    }
+}
+
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait(); // bounded: a killed process's wait() returns promptly
+        if !self.done {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+        }
     }
 }
 ```
 
 so a failing assertion still cleans up via the unwind, the same guarantee `?` and an
 early return already get from normal control flow, extended to a panic.
+
+**`wait_for_socket` is this piece's one named exception to "no sleeps as
+synchronisation" - stated as one, not left to contradict the claim below.** A socket
+appearing at a path is a filesystem change this process has no notification for (no
+`inotify`-equivalent is used here, and adding one for a handful of tests would be a
+disproportionate answer); every one of this section's multi-process tests that waits
+for a freshly spawned server's socket to exist does so with a short, bounded poll
+(`UnixStream::connect` retried on a short interval, up to a stated deadline), the same
+shape TASK-1.44's own sdk-side `connect()` retry loop already uses for the identical
+reason. Named here exactly once, the way TASK-1.44's own plan named its own single
+sleep exception, rather than claimed away.
 
 **Repeated runs, at this project's actual default test parallelism, with counts.**
 Every test in sections 3, 6 and 7 that touches a real process, a real socket or real
@@ -549,7 +650,9 @@ set_var`/`set_current_dir`.
   accepts - a real, biting assertion (nothing in this task's own code *could* stop it,
   and this proves that remains true rather than reading the code for it). Section 2's
   own "no signal handler" reasoning and its exit-status table cover "runs in the
-  foreground."
+  foreground," and its own `a_fresh_start_replaces_the_socket_of_a_server_killed_
+  outright` test covers exactly what an interrupt leaves behind through the real
+  binary, not only at the library level.
 - **AC #2** (on-demand survives the client, shown with real processes): the SIGKILL test
   (section 7).
 - **AC #3** (two/several real clients, one server): section 6's four-wide test, the
@@ -570,10 +673,12 @@ set_var`/`set_current_dir`.
   piece's own code to account for beyond it; section 11's own accounting for zero
   `unsafe`.
 
-**No sleeps as synchronisation, anywhere in this piece.** Every wait is on a real event:
-a socket accepting, `try_wait()`/`wait()` on a real process, a pipe actually producing
-the expected line, or a bounded poll on an externally observable state change. Section
-10's negative controls are the one place a scratch edit stands in for "what if this
+**No sleeps as synchronisation, with the one named exception section 10 states as
+one.** Every other wait is on a real event: `try_wait()`/`wait()` on a real process, a
+pipe actually producing the expected line, or `ps`'s own output. `wait_for_socket`
+(section 10) is a bounded poll, not a blocking wait on a notification - there is none
+to block on - named there rather than folded silently into "a real event." Section 10's
+negative controls are the one other place a scratch edit stands in for "what if this
 mechanism were missing," reverted immediately after being recorded.
 <!-- SECTION:PLAN:END -->
 

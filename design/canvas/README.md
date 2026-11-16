@@ -32,10 +32,13 @@ edited by hand to keep it in sync.
   canvas after this generator last ran, so re-running it now would reproduce the
   pre-resize layout and lose that edit. Keep reading these scripts to understand how a
   value became a drawn page; don't run them expecting today's output.
-- `project/Tokens.dc.html`, `project/Layout.dc.html`, `project/Details.dc.html` — the
-  three foundations pages as saved at artifact version `1794791991-5d11`, after the
-  correction below. This is the reference copy `crates/ui/design/foundations.json` was
-  exported from and is checked against, and the reference copy for TASK-1.96's tool.
+- `project/Layout.dc.html`, `project/Details.dc.html` — saved at artifact version
+  `1794791991-5d11`, after the correction below; `project/Tokens.dc.html` — saved at
+  artifact version `1794796789-1b13`, two corrections later (TASK-1.96: the track
+  colour was added to the first colours table, and `fill.quiet`'s description dropped
+  a stale mention of `track`, which it never drew). This is the reference copy
+  `crates/ui/design/foundations.json` was exported from and is checked against, and
+  the reference copy for TASK-1.96's tool.
 
 ## What changed since the working `foundations.json` and the scripts above
 

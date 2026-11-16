@@ -1,11 +1,11 @@
 ---
 id: TASK-1.89
 title: 'Server: tab list, tab show, pane list, and the status a pane and a tab show'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T06:16:00Z'
+updated_date: '2026-11-16T11:52:00Z'
 labels:
   - size-3
   - review-passed
@@ -887,6 +887,22 @@ created: 2026-11-16T06:16:00Z
 ---
 
 Correction to comment #6: two words were eaten by shell quoting. It should read "...never read now at all..." and "...doc-11s new status field serializes...". No change to the verdict or findings.
+
+---
+
+created: 2026-11-16T11:44:00Z
+
+---
+
+Merged origin/main into this branch as asked - no hand edits, plain `git fetch origin` then `git merge origin/main`. Completed with no conflict: only backlog/ files came in (board docs, two drafts promoted to tasks, nothing under crates/, tools/ or justfile). New head: de9c913.
+
+What I ran: `cargo test -p steg-server` (whole crate, every test binary) green (130+76+13+5+7+22+29+8+1+0, 0 failed); `just check` green (format, lint, boundaries, licences, every package built and tested alone, tools, architecture, recipe names, ui levels/colours). Pushed (no force); `gh pr checks 57 --watch` in the foreground to green: https://github.com/bruk-io/steg/actions/runs/43859847786
+
+`gh pr view 57 --json mergeable,mergeStateStatus`: MERGEABLE / CLEAN, at head de9c913.
+
+`git diff 93973fd HEAD --stat -- crates tools justfile`: empty - confirms nothing of mine changed, only what main brought.
+
+Could not run this through asdlc record-check or finish (board locked after a clean review); this comment is the record.
 
 ---
 <!-- COMMENTS:END -->

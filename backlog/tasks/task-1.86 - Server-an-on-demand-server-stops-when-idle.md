@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T11:33:00Z'
+updated_date: '2026-11-16T12:03:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -449,6 +449,297 @@ No `Cargo.toml` dependency change, no `boundaries.toml` change, no `unsafe`.
 Carried from TASK-1.77's planning (2026-11-15): when a server is stopping, a connection the accept loop takes in the instant it sees the stop flag is dropped with no reply, so the client sees connect succeed and then end of file, a third outcome beside refused and not found. The idle stop is what makes that instant reachable in ordinary use: this task's fourth criterion (a client connecting as the server stops starts a fresh one) must cover it, either by closing that window in the server or by proving the client's handling.
 
 Plan (7161104a6d7b) checked against the four acceptance criteria, doc-8 R3 and R99, doc-16 and the team's testing rules by @bruk.o, 2026-11-16: ok, with one decision for the engineer. Revised twice at the orchestrator's request: no periodic wake-up (the checker blocks while a client or a session exists and waits exactly to the deadline otherwise); one thread and one channel (the Runtime notifies the checker when a session closes with no client connected, which the kernel's cascade on a pane's exit can do); the join bound derived from where each sender is dropped, with a test and its control. For the engineer: criterion 4's exact-instant case (a connection accepted and then closed before a hello) cannot be observed by anything built yet; the plan proves the ordinary case with real processes and proposes the rest as a criterion on TASK-1.49, the first client that reads a hello. Nit for the build: SessionCountChanged is not a connection's event; a name for the enum that covers both is worth a line.
+
+Check passed: `just check` exited 0 at 2026-11-16T11:39:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 73e8491d45df:
+
+```text
+ok      format check (0.3s)
+ok      lint (92.6s)
+ok      boundaries (0.2s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (43.6s)
+ok      test (steg-kernel) (1.6s)
+ok      build (steg-server) (48.6s)
+ok      test (steg-server) (10.7s)
+ok      test (steg-server, race-fixture) (10.7s)
+ok      build (steg) (2.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (3.5s)
+ok      build (steg-ui) (24.9s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.7s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just test-all` exited 0 at 2026-11-16T11:40:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699:
+
+```text
+ok      tests (every crate) (58.2s)
+```
+
+Check passed: `cargo test -p steg-server --lib idle::` exited 0 at 2026-11-16T11:46:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 41 lines:
+
+```text
+  --> crates/server/src/config.rs:51:11
+   |
+51 | pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+   |           ^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_checker` is never used
+  --> crates/server/src/idle.rs:95:15
+   |
+95 | pub(crate) fn run_checker(
+   |               ^^^^^^^^^^^
+
+warning: methods `session_counter` and `set_idle_notifier` are never used
+   --> crates/server/src/runtime.rs:421:19
+    |
+236 | impl Runtime {
+    | ------------ methods in this implementation
+...
+421 |     pub(crate) fn session_counter(&self) -> impl Fn() -> usize + Send + 'static {
+    |                   ^^^^^^^^^^^^^^^
+...
+442 |     pub(crate) fn set_idle_notifier(&self, notify: Sender<ConnectionEvent>) {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 3 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 8 tests
+test idle::tests::empty_from_construction_and_waiting_past_idle_timeout_expires ... ok
+test idle::tests::a_nonzero_session_count_never_fires_regardless_of_clients ... ok
+test idle::tests::a_connected_client_with_no_matching_disconnect_never_fires_no_matter_how_far_time_moves ... ok
+test idle::tests::a_client_reconnecting_every_29_seconds_never_fires ... ok
+test idle::tests::a_connect_then_disconnect_within_one_tick_restarts_the_full_period ... ok
+test idle::tests::wait_at_29_30_and_31_seconds_of_idleness ... ok
+test idle::tests::wait_until_is_exact_not_approximate ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.06s
+```
+
+Check FAILED: `cargo test -p steg-server --lib --test shutdown` exited 101 at 2026-11-16T11:47:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 191 lines:
+
+```text
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 6795: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 7073: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 6791: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server stdout ----
+
+thread 'arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server' (26979889) panicked at crates/server/src/arbiter.rs:416:17:
+expected Became, got something else: AlreadyRunning
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_server
+
+test result: FAILED. 153 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-16T11:48:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 176 lines:
+
+```text
+test runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+test runtime::tests::login_shell_resolve_identity_never_panics_and_is_never_empty ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::a_command_panes_exit_reaches_pane_show_through_runtime_handle ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+kill: 8853: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... ok
+test runtime::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test pane::ending_tests::restarting_then_forcing_ends_the_new_program_as_a_plain_regression ... ok
+test runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 8677: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 8956: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 8675: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 154 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+```
+
+Check passed: `cargo test -p steg-server --test idle_stop --test shutdown --lib` exited 0 at 2026-11-16T11:57:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 202 lines:
+
+```text
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 65666: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 65380: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 154 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 5 tests
+test every_sender_dropping_is_what_lets_run_return_after_stop ... ok
+test a_genuinely_idle_server_stops_itself_within_a_bound ... ok
+test closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker ... ok
+test an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle ... ok
+test a_session_that_exists_prevents_the_idle_stop ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.24s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T12:00:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        socket_path,
+(B[m[32m+        Some(Duration::from_secs(30)),
+(B[m[32m+        Arc::new(launcher),
+(B[m[32m+    );
+(B[m     let (socket_path, stop, server_thread) = start_server(config);
+ 
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/tests/idle_stop.rs:416:
+     let response = call_and_read_reply(&mut stream, &mut connection, "session.new", Map::new());
+[31m-    assert!(matches!(response, Response::Ok(_)), "session.new failed: {response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(response, Response::Ok(_)),
+(B[m[32m+        "session.new failed: {response:?}"
+(B[m[32m+    );
+(B[m     let driver = drivers
+         .recv_timeout(Duration::from_secs(5))
+         .expect("the fake launcher should have been asked to spawn the shell pane");
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/tests/idle_stop.rs:456:
+             ("force".to_string(), json!(true)),
+         ]),
+     );
+[31m-    assert!(matches!(response, Response::Ok(_)), "session.close failed: {response:?}");
+(B[m[32m+    assert!(
+(B[m[32m+        matches!(response, Response::Ok(_)),
+(B[m[32m+        "session.close failed: {response:?}"
+(B[m[32m+    );
+(B[m     drop(stream);
+ 
+     // No wait at all: there is no `idle_timeout` to wait out. A fresh
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/steg/tests/idle_stop.rs:87:
+ 
+ #[test]
+ fn an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one()
+[31m- {
+(B[m[32m+{
+(B[m     let socket_path = unique_socket_path();
+     let mut server = KillOnDrop::new(
+         Command::new(fixture_server_binary())
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T12:03:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 313e4e8d7699 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (29.7s)
+ok      boundaries (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (23.3s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.5s)
+ok      test (steg-server) (20.1s)
+ok      test (steg-server, race-fixture) (21.0s)
+ok      build (steg) (0.7s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (3.4s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

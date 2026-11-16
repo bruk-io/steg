@@ -41,7 +41,7 @@ pub use ids::{ClientId, PaneId, SessionId, TabId};
 pub use layout::{Direction, Layout, Orientation, Ratio, Size};
 pub use pane_kind::PaneKind;
 pub use program::{Program, ProgramStatus};
-pub use record::{PaneRecord, SessionRecord, SettingRecord};
+pub use record::{PaneRecord, SessionRecord, SettingRecord, TabRecord};
 pub use screen::{
     CellStyle, Cursor, CursorShape, Page, Rgb, Row, RowId, Run, Screen, Underline, Update, Wide,
 };

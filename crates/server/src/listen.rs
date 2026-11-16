@@ -329,6 +329,14 @@ pub fn run(
     // even type-check while a `scope.spawn`ed closure might still hold
     // `&runtime`, and `thread::scope` guarantees none does by the time
     // it returns.
+    //
+    // `config.login.base_env` is assumed already resolved by this
+    // point (TASK-1.87): capturing it is this crate's caller's own job
+    // (`crates/steg/src/main.rs`'s `run_server_start`, after the socket
+    // is bound and before `run` is ever called), not this function's -
+    // this crate prints nothing (no `eprintln!`/`println!` appears
+    // anywhere in `crates/server/src`, a line this task keeps true), and
+    // a fallback worth reporting needs a caller able to print about it.
     let mut runtime = Runtime::new(
         Arc::clone(&config.launcher),
         config.login.clone(),

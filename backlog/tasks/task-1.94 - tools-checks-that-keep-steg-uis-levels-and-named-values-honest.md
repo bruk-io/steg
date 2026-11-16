@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:18:00Z'
+updated_date: '2026-11-16T02:29:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -246,6 +246,51 @@ distinguish from "the ordering rule is broken" generally.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-17 (R119, R120, R126) by @bruk.o: ok, with two things that are the engineer's in approving it. (1) It adds ast-grep-py to tools/pyproject.toml, the tools' first runtime dependency: a real parse of Rust (so comments, strings and grouped or aliased use lists are read correctly) in place of regular expressions; the worker confirmed a prebuilt wheel exists for CI's runner and Python and installs with no build step. (2) A colour literal inside a cfg(test) block is refused like any other. The level check follows re-exports through lib.rs and names what it cannot see (a glob re-export, a path built by a macro, a colour behind a trait); the colour check names what it cannot see (a value built by arithmetic, a constant defined outside foundations). Both leave crates/ui/gallery out: right for the level check, since the gallery uses every level; for the colour check it is right only while the gallery's colours are a placeholder, so the exemption is to end when TASK-1.93 makes the gallery draw from foundations (noted on TASK-1.93). Every case in the proof has a test tied to a negative control.
+
+Check FAILED: `sh -c 'cd tools && uv run --quiet pytest -q tests/unit/test_foundations.py tests/unit/test_rust_source.py tests/unit/test_ui_levels.py tests/unit/test_ui_colours.py'` exited 2 at 2026-11-16T02:29:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 2606f48300ea with uncommitted changes, last 40 of 49 lines:
+
+```text
+tests/unit/test_foundations.py:5: in <module>
+    from steg_tools.foundations import Foundations, NamedColour, hex_index, normalise_hex, read
+E   ModuleNotFoundError: No module named 'steg_tools.foundations'. Did you mean: 'steg_tools.boundaries'?
+_______________ ERROR collecting tests/unit/test_rust_source.py ________________
+ImportError while importing test module '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94/tools/tests/unit/test_rust_source.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/brukhabtu/.local/share/mise/installs/python/3.15.0/lib/python3.15/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_rust_source.py:5: in <module>
+    from steg_tools.rust_source import RustFile, rust_files
+E   ModuleNotFoundError: No module named 'steg_tools.rust_source'
+________________ ERROR collecting tests/unit/test_ui_levels.py _________________
+ImportError while importing test module '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94/tools/tests/unit/test_ui_levels.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/brukhabtu/.local/share/mise/installs/python/3.15.0/lib/python3.15/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_ui_levels.py:5: in <module>
+    from steg_tools.rust_source import RustFile
+E   ModuleNotFoundError: No module named 'steg_tools.rust_source'
+________________ ERROR collecting tests/unit/test_ui_colours.py ________________
+ImportError while importing test module '/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94/tools/tests/unit/test_ui_colours.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Users/brukhabtu/.local/share/mise/installs/python/3.15.0/lib/python3.15/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/unit/test_ui_colours.py:3: in <module>
+    from steg_tools.rust_source import RustFile
+E   ModuleNotFoundError: No module named 'steg_tools.rust_source'
+=========================== short test summary info ============================
+ERROR tests/unit/test_foundations.py
+ERROR tests/unit/test_rust_source.py
+ERROR tests/unit/test_ui_levels.py
+ERROR tests/unit/test_ui_colours.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 4 errors during collection !!!!!!!!!!!!!!!!!!!!
+4 errors in 0.05s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

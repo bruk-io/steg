@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T14:28:00Z'
+updated_date: '2026-11-16T14:38:00Z'
 labels:
   - size-2
   - changes-requested
@@ -728,6 +728,42 @@ Both of the task's own scratch-edit negative controls were re-run against the ch
 4. Nit fixed: AC#3's own descriptor limit (crates/steg/tests/server_start.rs) is now derived, not merely widened. Measured the server's real steady-state cost (15 fds: one session, one client, via lsof -p <pid> against an unrestricted run) and the empirical bracket where the login-shell-capture startup spike actually bites (fails at -n 90, every run passes at -n 120 - the true peak sits somewhere in that bracket, not narrowed further since doing so needs no new information this test's own proof depends on). Chose 180: 1.5x the known-passing value for headroom against a runner with a slower login-shell spawn, and stated in the doc comment why it cannot pass vacuously regardless of the real baseline on any given runner (HELD_CONNECTIONS=100 all succeeding would need 180+200 descriptors, comfortably past 180 for any plausible baseline, which is what forces real EMFILE rather than quiet success). Reproduced 100 runs, no failures.
 
 PR: https://github.com/bruk-io/steg/pull/59
+
+Check passed: `just check` exited 0 at 2026-11-16T14:38:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at d2ab50c46927 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (20.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.4s)
+ok      test (steg-server) (14.9s)
+ok      test (steg-server, race-fixture) (14.8s)
+ok      test (steg-server, accept-backoff-fixture) (16.6s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.9s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

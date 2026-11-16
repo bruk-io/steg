@@ -1,16 +1,19 @@
 ---
 id: TASK-1.77
 title: 'Server: start on demand and detach, from the steg entry point'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:47:00Z'
+updated_date: '2026-11-16T00:59:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.44
+references:
+  - task-1.77-server-start-on-demand-detach-and-stop
+  - https://github.com/bruk-io/steg/pull/44
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -18,6 +21,8 @@ asdlc_branch: task-1.77-server-start-on-demand-detach-and-stop
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd29c62060a8b'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1059,6 +1064,8 @@ ok      tool tests (1.1s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
 ```
+
+Built per the approved plan (digest d29c62060a8b): steg_server::detach() (safe setsid wrapper) wired into crates/steg's entry point alongside attempt/run, both acceptance-criteria-named negative controls recorded matching the plan's own predictions, just check green at the final head, PR #44 CI green (one unrelated flake, reran). Full coverage writeup and the one build-time decision (process_group(0) for the SIGHUP test) are in the task's comments.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1070,6 +1077,43 @@ created: 2026-11-16T00:23:00Z
 ---
 
 Plan approved by @bruk (d29c62060a8b, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T00:58:00Z
+
+---
+
+Built as planned (digest d29c62060a8b). Modified files: boundaries.toml, crates/server/Cargo.toml, crates/server/src/lib.rs, crates/server/src/listen.rs (resolve_socket_path made pub), crates/steg/Cargo.toml, crates/steg/src/main.rs, justfile. New: crates/server/src/detach.rs, crates/steg/tests/server_start.rs, crates/steg/tests/fixtures/already_a_group_leader.rs, crates/steg/tests/fixtures/autostart_client.rs.
+
+One decision this build made that the plan did not, recorded as it came up: the SIGHUP test needs to signal the client's whole process group without also hitting the test harness's own group - `.process_group(0)` (a safe std API, `std::os::unix::process::CommandExt`) gives the client fixture its own, fresh group for this reason. Not in the plan's own prose, but necessary for the test to be safe to run at all.
+
+Two negative controls, both matching the plan's own prediction:
+
+1. `detach()`'s call disabled (`if false && on_demand` in main.rs, reverted after): `the_clients_process_group_being_sighupd_does_not_end_the_server` failed exactly as expected (the server died with its client's group); `the_client_being_sigkilled_does_not_end_the_server` did not fail, confirmed as the correct outcome per the plan's own reasoning (that property never depended on detaching). Both runs recorded.
+2. The "started" print moved before `attempt()` resolves (reverted after): `started_is_printed_only_after_the_socket_already_accepts` failed on all 15 consecutive runs - deterministically, not merely intermittently as the plan's own prose guessed (stated honestly: this machine's timing makes the race lose every time, a stronger result than predicted, not a weaker one). Recorded.
+
+Checks recorded, in order: baseline `just check` (green, before any change); the SIGHUP/SIGKILL pair with detach() disabled (one failure, one pass, as above); the same pair restored (both pass); 15 consecutive runs of the print-timing test with the print moved early (all fail); the same test restored and the full 8-test suite (pass); 10 consecutive full-suite runs at `cargo test`'s actual default parallelism (no flake); `just check` at 221ef18 (pre-rebase, green); rebase onto origin/main (clean, no conflicts - TASK-1.45 had not merged by then, confirmed by grep: `ServerConfig` still has no `launcher`/`login` fields, so no login-line adaptation was needed); `just check` at the final head 3fbdf09 (green). PR #44's CI failed once on a rerun-confirmed flake (`test_a_session_can_list_this_repositorys_views_and_elements_through_the_mcp_server`, a 30s timeout talking to the LikeC4 MCP server - unrelated to this task's own diff, confirmed by `git diff --stat origin/main...HEAD -- tools/ architecture/ .mcp.json` showing nothing); reran and CI passed green at the same head.
+
+Coverage, clause by clause:
+
+- AC #1 (first client autostarts through the sdk's provider; explicit stays up with no clients, runs in the foreground): the sdk's own `connect()` is unchanged (TASK-1.70); `explicit_start_stays_up_with_no_client_ever_connecting` proves the foreground half with a real, biting assertion (not an appeal to construction - nothing in the explicit path holds a reachable `Stopper`, and the test actually waits and checks rather than reading the code for it); `a_fresh_start_replaces_the_socket_of_a_server_killed_outright` proves a fresh start replaces a killed one's stale socket, through the real binary (TASK-1.44 already proved the underlying mechanism at the library level).
+- AC #2 (on-demand survives the client that started it, shown with real processes): `the_client_being_sigkilled_does_not_end_the_server` (SIGKILL to the client's own pid - true "for free," not from detaching) and `the_clients_process_group_being_sighupd_does_not_end_the_server` (SIGHUP to the client's whole group - the test that actually exercises `detach()`, confirmed by negative control #1 above). Both now use a bounded-poll `assert_stays_reachable` rather than a single immediate check, after an early run showed a single check races ahead of signal delivery and can pass for the wrong reason in both the positive and negative-control cases alike - found while running the negative control, not assumed correct from a single green run.
+- AC #3 (two/several real clients converge on one server): `four_simultaneous_starts_converge_on_one_server`, four real, test-owned `steg server start --on-demand` processes racing for one socket; exactly one still running, the other three exited 0 ("already running").
+- AC #4 (client's part stays thin; nothing added to the sdk): `crates/sdk` is untouched (confirmed by `git diff --stat origin/main...HEAD -- crates/sdk` showing nothing); `run_fake_server_for_tests` left exactly where TASK-1.70 built it, per the plan's own reasoning (the sdk's own tests need a dependency-free stand-in and cannot depend on `steg-server`/`steg`).
+- AC #5 (both forms print their outcome; doc-2's exit statuses; no test-only hook): `started_is_printed_only_after_the_socket_already_accepts` proves the print-after-bind ordering (and its own negative control, above); the group-leader message is proved by `typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message`. No env var or flag in `main.rs`/`detach.rs` exists only for a test to control - `STEG_SOCKET_PATH` is the one override, already pre-existing and shared with real debugging.
+- AC #6 (every spawned child/thread accounted for; what the client holds; no unsafe): `a_losing_racers_dropped_child_is_a_zombie_until_reaped` proves the zombie-until-reaped property directly (a real `ps -o stat=` check asserting a non-empty result containing `Z`, failing loudly rather than silently passing on an already-reaped pid) - built with a test-owned `Command` since the sdk's own `connect()` hides the pid entirely. Zero `unsafe` anywhere in the diff - confirmed by reading every new/changed file; `setsid` (via `detach()`) and `Command::exec()` (the group-leader fixture) are both safe calls, and no `fork`, `pre_exec`, `FromRawFd`, signal handler, or `std::env::set_var`/`set_current_dir` was added.
+
+`just check` green at the final head (3fbdf09); PR #44's CI green at the same head after a confirmed-unrelated flake and rerun.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T00:59:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.77: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

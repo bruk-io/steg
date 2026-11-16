@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:04:00Z'
+updated_date: '2026-11-16T04:05:00Z'
 labels:
   - size-3
   - changes-requested
@@ -980,6 +980,17 @@ Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktree
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpmHwwXo` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 ........
 8 passed in 0.01s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just check-foundations-public-surface'` exited 1 at 2026-11-16T04:05:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 701fc4acd8f4 with uncommitted changes:
+
+```text
+FAILED  foundations public surface (exit 1, 0.0s)
+crates/ui/src/foundations/mod.rs: pub fn default_session(...) -> Hsla is outside impl Theme - doc-17 R123 refuses a public function that hands out a bare light-or-dark colour; give it through a Theme method instead.
+full output: .quiet/foundations-public-surface.log
+error: recipe `check-foundations-public-surface` failed on line 174 with exit code 1
 ```
 
 Commits since the review: 0.

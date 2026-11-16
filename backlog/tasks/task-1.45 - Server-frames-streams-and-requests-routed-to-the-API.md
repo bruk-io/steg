@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T02:31:00Z'
+updated_date: '2026-11-16T02:32:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1108,6 +1108,14 @@ ok      test (steg-app) (0.9s)
 ok      tool tests (1.0s)
 ok      architecture (1.1s)
 ok      recipe names (0.1s)
+```
+
+Commits since the review: 69, 58 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'fail=0; for i in $(seq 1 20); do out=$(cargo test -p steg-server --test routing 2>&1); if ! echo "$out" | grep -q "test result: ok. 18 passed"; then fail=$((fail+1)); echo "iteration $i FAILED"; fi; done; echo "failures: $fail of 20"; test "$fail" -eq 0'` exited 0 at 2026-11-16T02:32:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at 611fa8c66986:
+
+```text
+failures: 0 of 20
 ```
 
 Commits since the review: 69, 58 without the Asdlc-Worker trailer.

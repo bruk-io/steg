@@ -917,6 +917,17 @@ Check passed: `sh -c 'cd tools && uv run --quiet pytest -q tests'` exited 0 at 2
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `just check-ui-colours` exited 1 at 2026-11-16T03:26:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.94 on task-1.94-tools-checks-that-keep-steg-ui-s-levels at 4cb9adafe691 with uncommitted changes:
+
+```text
+FAILED  ui colours (exit 1, 0.1s)
+crates/ui/src/atoms/mod.rs:9: `gpui::rgba(0x1c1b2180)` is a colour literal, which doc-17 R120 refuses outside foundations. It is the colour of surface.raised (dark) at 50% opacity, not that colour itself - foundations holds opacity as its own named values too (faint, tint, the ramp's caption_opacity, scrim), so name both the colour and an opacity, or add a new named value to the design - never the bare literal.
+full output: .quiet/ui-colours.log
+error: recipe `check-ui-colours` failed on line 270 with exit code 1
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

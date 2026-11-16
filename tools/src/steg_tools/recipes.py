@@ -19,7 +19,13 @@ from steg_tools import workspace
 # "capture" (TASK-1.91): `capture-gallery` writes the gallery's rendered window to an
 # image file - a genuinely new action, distinct from `build` (compiles, never runs
 # anything) and `run` (opens a window for a person, produces no file).
-ALLOWED_VERBS = frozenset({"check", "test", "build", "fmt", "lint", "run", "setup", "deny", "show", "capture"})
+# "generate" (TASK-1.93): `generate-foundations` writes crates/ui/src/foundations/
+# generated.rs from the design data file - distinct from `build` (compiles existing
+# source, writes nothing under src/) and from `check-foundations` (already legal
+# under "check", reads but never writes).
+ALLOWED_VERBS = frozenset(
+    {"check", "test", "build", "fmt", "lint", "run", "setup", "deny", "show", "capture", "generate"}
+)
 
 
 @dataclass(frozen=True)

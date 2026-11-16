@@ -32,8 +32,8 @@ zig := `mise which zig 2>/dev/null || true`
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, this file's own recipe names, the design's data file against the saved pages, and steg-ui's levels and named values (doc-17 R119, R120)
-check: check-fmt lint check-boundaries check-design deny test check-packages test-tools check-architecture check-recipes check-ui-levels check-ui-colours
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, this file's own recipe names, the design's data file against the saved pages, and steg-ui's levels and named values (doc-17 R119, R120, R121, R122, R123)
+check: check-fmt lint check-boundaries check-foundations check-foundations-public-surface check-design deny test check-packages test-tools check-architecture check-recipes check-ui-levels check-ui-colours
 
 # Seeds Zig's own package cache (`ZIG_GLOBAL_CACHE_DIR`, .cargo/config.toml) from the
 # committed, read-only tarballs in third_party/ghostty-vt-zig-deps/p/, so a real build never
@@ -160,6 +160,19 @@ deny:
 check-boundaries:
     @if [ "{{rust}}" = no ]; then echo "skip    boundaries: no Rust workspace yet"; else {{quiet}} "boundaries" -- uv run --quiet --project tools steg-boundaries; fi
 
+# write crates/ui/src/foundations/generated.rs from crates/ui/design/foundations.json (doc-17 R121), then format it - run this, then commit, whenever the data file changes
+generate-foundations:
+    @uv run --quiet --project tools steg-generate-foundations
+    @cargo fmt -p steg-ui -- crates/ui/src/foundations/generated.rs
+
+# fail if generated.rs doesn't match foundations.json (doc-17 R121) - naming `just generate-foundations` as the fix
+check-foundations:
+    @if [ "{{rust}}" = no ]; then echo "skip    foundations: no Rust workspace yet"; else {{quiet}} "foundations" -- uv run --quiet --project tools steg-generate-foundations --check; fi
+
+# fail if a pub fn anywhere in the steg-ui crate (not just foundations) is declared to return a bare Hsla outside impl Theme (doc-17 R123) - see the check's own docstring for exactly what it matches and its stated limits
+check-foundations-public-surface:
+    @if [ "{{rust}}" = no ]; then echo "skip    foundations public surface: no Rust workspace yet"; else {{quiet}} "foundations public surface" -- uv run --quiet --project tools steg-foundations-public-surface; fi
+
 # check crates/ui/design/foundations.json against the saved foundations pages' rendered
 # markup, by name and value (doc-17, R121, R122; TASK-1.96) - not gated on `rust`: the
 # data file and the saved pages are committed regardless of whether the Rust workspace
@@ -200,8 +213,7 @@ run: zig-deps-seeded
     cargo run --package steg-app
 
 # open the gallery for a person to look at (doc-17 R124); STEG_GALLERY_THEME=dark opens it
-# in the other state, `t` toggles live - both are the placeholder TASK-1.93's real
-# foundations replace
+# in the other state, `t` toggles live - drawn entirely from foundations (TASK-1.93)
 run-gallery: zig-deps-seeded
     #!/usr/bin/env bash
     set -euo pipefail
@@ -250,11 +262,18 @@ capture-gallery: zig-deps-seeded
             return 1
         fi
         /usr/sbin/screencapture -x -o -l "$window_id" "target/gallery/$theme.png"
-        {{quiet}} "gallery image ($theme)" -- uv run --quiet --project tools steg-gallery-check "target/gallery/$theme.png" 20 50 "$r" "$g" "$b"
+        {{quiet}} "gallery image ($theme)" -- uv run --quiet --project tools steg-gallery-check "target/gallery/$theme.png" 8 60 "$r" "$g" "$b"
     }
 
-    capture_one light 252 238 230
-    capture_one dark 26 20 32
+    # (8, 60): x=8 stays inside the gallery's own root padding (24px) for any row, so
+    # nothing ever draws content there; y=60 clears the OS-drawn titlebar the captured
+    # window image includes above GPUI's own content, which y=8 did not (observed
+    # while building this task - it landed inside the titlebar chrome instead).
+    # Checked against surface.ground's own resolved hex for each appearance
+    # (crates/ui/design/foundations.json), not a swatch: a swatch's own position would
+    # move with any layout change, this corner never does.
+    capture_one light 241 239 236
+    capture_one dark 14 13 16
 
 # which crates this change affects: all, none, or the -p flags `just test` passes to cargo
 show-affected:

@@ -13,9 +13,24 @@ request shows.
   molecules use atoms and foundations; atoms use foundations; foundations use nothing of
   this crate (R119). Not yet a check `just check` runs - TASK-1.94 adds it.
 - Every colour, size, radius, duration and font a *component* uses is a named value from
-  foundations, never a literal (R120). The gallery's own chrome is not a component of the
-  four levels and is exempt - its literals are placeholders TASK-1.93's real foundations
-  replace, marked as such where they appear.
+  foundations, never a literal (R120). The gallery is not a component of the four levels,
+  but since TASK-1.93 it draws everything it shows - every swatch, ramp, type sample,
+  spacing bar and corner - from `foundations` by name as well, the same as any real
+  component would, and has no colour literal of its own, test or otherwise: `Theme::
+  with_default_session` reaches the default session colour through a `Theme`, never a
+  bare `Hsla`. `check-foundations-public-surface`
+  (`tools/src/steg_tools/foundations_public_surface.py`, part of `just check`) enforces
+  this: it refuses a `pub fn` outside `impl Theme` whose declared return type is spelled
+  `Hsla` or `gpui::Hsla` - stated limits, not assumed complete: a `pub const` of the
+  colour type, a renamed import of it, or a type alias for it all reach a bare colour
+  unseen, since the check matches on spelling, not on what the type actually is. And
+  `hex_of` (display only, `foundations::hex_of`)
+  lives in `foundations` along with its own round-trip tests, which do need a literal hex
+  to assert against - `crates/ui/src/foundations/**` is the one path TASK-1.94's
+  colour-literal check always exempts, so this needs no carve-out from anyone later.
+  Confirmed directly, not assumed: `steg-ui-colours` run from TASK-1.94's own branch
+  against this crate's tree with the gallery's temporary exemption removed entirely finds
+  nothing (recorded on TASK-1.93).
 - Tests: `just test` runs this crate's tests when a change touches it; `just check-packages`
   builds and tests every package alone, including this one (both its `src/` lib and its
   `gallery` binary - compiling the binary is cheap and proves nothing opens a window by

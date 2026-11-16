@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:31:00Z'
+updated_date: '2026-11-16T02:39:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -283,6 +283,14 @@ E   ModuleNotFoundError: No module named 'steg_tools.foundations_generate'
 ERROR tools/tests/unit/test_foundations_generate.py
 !!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
 1 error in 0.04s
+```
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && uv run --project tools pytest -q tools/tests/unit/test_foundations_generate.py'` exited 0 at 2026-11-16T02:39:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 488a8b0c3355 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnSO5gM` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.................................                                        [100%]
+33 passed in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

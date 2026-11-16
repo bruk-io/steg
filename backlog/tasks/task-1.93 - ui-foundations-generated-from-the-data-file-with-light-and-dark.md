@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:21:00Z'
+updated_date: '2026-11-16T02:23:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.93-ui-foundations-generated-from-the-data
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '6a1e03383d92'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -260,3 +263,16 @@ From TASK-1.94's plan check (2026-11-15, @bruk.o): TASK-1.94's colour-literal ch
 
 Plan checked against doc-17 (R120, R121, R123, R124) and decision-11 by @bruk.o: ok, with two decisions that are the engineer's in approving it. (1) doc-17's open question: a value with no light and dark pair (type, sizes, the duration, the focus ring's measurements) is a plain constant and does not go through the theme; R123 binds only values that have a pair. (2) radius.round, which has no pixel value, is proposed as a marker type. A tool in tools/ writes src/foundations/generated.rs from the data file and formats it; just check regenerates and compares, failing with how to regenerate. Every paired colour is reached only through the Theme, which holds the appearance and the session colour, so a component cannot take one form directly: R123 is enforced by what is public, not by convention. The session colour is never a generated constant. The gallery draws only from foundations and shows every colour by name, the ramps, type, spacing, corners and both terminal themes; the capture's own image check moves to the window's ground colour for the appearance in force. One point for the build, not the plan: weigh a single Radius type for all four corners (three pixel sizes and fully round) against a separate marker type for the round one, so a component applies any corner the same way; say in the notes which was built and why.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T02:23:00Z
+
+---
+
+Plan approved by @bruk (6a1e03383d92, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

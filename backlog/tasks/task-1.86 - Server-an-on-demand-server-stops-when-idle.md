@@ -1,14 +1,13 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T15:04:00Z'
+updated_date: '2026-11-16T15:09:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -1542,6 +1541,22 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Review findings fixed (full review by @bruk.r3, 1 Important + 3 nit).
+
+[Bugs, Important] Fixed: connection.rs's ConnectionCleanup (the one guard already running on every path out of run_post_handshake, including an unwind) now also holds the ConnectionEvent sender and sends Disconnected from its own Drop, after its pre-existing cleanup steps keep their exact order. handle() moves events into run_post_handshake (events.take()) only on the accepted path; its own trailing send only fires for the paths that never reach that guard (no complete frame, not a hello, a refused handshake), so nothing ever sends twice. New test: a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out (crates/server/tests/idle_stop.rs), using a test-only PanickingLauncher - an unusual implementation of the existing ServerConfig.launcher injection point, not a new production path that can panic on request. It force-closes the orphaned session the panic leaves behind (pane::start's own rollback_mint is skipped by the same panic - a related, pre-existing gap named in the test's own doc comment, not fixed here, since it's TASK-1.76's own pairing, not this task's idle-checker criteria) to isolate what this test actually proves: the live-client count. Negative control recorded and reverted: with the fix removed, this test fails bounded (1s), not a hang.
+
+[Bugs, Nit] Fixed: the_checker_blocks_with_no_timeout_...'s 300ms absence assertion now matches Err(RecvTimeoutError::Timeout) specifically, not .is_err() generally (which would also pass if the observer channel disconnected for an unrelated reason).
+
+[Evidence, Nit] and [Compliance, Nit]: both addressed in a separate task comment (the corrected reasoning for why the five negative controls didn't need re-running, and the checker_tx.or(events) touch to TASK-1.98's listen.rs lines stated explicitly as a departure from the plan).
+
+Merged TASK-1.98's newest head (25696d14, its own "confirm exhaustion before asserting survival" fix, on top of d2ab50c which this branch already had) - clean, no conflicts; checker_tx.or(events) carried through unchanged (confirmed by grep).
+
+Checks recorded, all exit 0: cargo test -p steg-server --tests, cargo test -p steg --features fixtures, just check (including accept-backoff-fixture, 24.0s, no stall). No leftover processes from this worktree before or after.
+
+Checked before finishing: gh pr view 59 --json state,reviewDecision,headRefOid shows OPEN, no reviewDecision, head 25696d14 - matches what's merged into this branch. TASK-1.98's own board task carries no changes-requested label. No adverse finding to wait on.
+
+Pushed (head cbe0f15). CI run 43892367040 confirmed SUCCESS via gh pr view --json statusCheckRollup, watched to completion in the foreground (4m47s) - no stall, nothing to cancel. One operational note: after pushing, no CI run appeared for ~20 minutes (gh run list/gh api showed nothing for this branch past an older, already-completed run) before 43892367040 was created and ran normally - flagged to the engineer at the time; no code or configuration issue found, and the run that eventually started passed cleanly, so not pursued further.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

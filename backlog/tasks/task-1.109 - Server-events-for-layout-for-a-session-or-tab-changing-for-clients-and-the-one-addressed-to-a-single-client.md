@@ -6,6 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-16T04:32:00Z'
+updated_date: '2026-11-16T08:39:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -30,3 +31,15 @@ Split from TASK-1.46 on 2026-11-15. TASK-1.46's plan (its sections 2 and 4) has 
 - [ ] #3 session focus is built: it asks one client to show a session, as an event delivered to that client alone and to no other, never part of a subscription and never filtered; decision-5 says what focus means without a window, and the plan says what the server does when the client named is not connected
 - [ ] #4 The API description gains these events under names the engineer has confirmed, the completeness tests cover them, and the event watch filter accepts them; doc-2 and doc-14 are brought up to date through the board where they list events
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-16T08:39:00Z
+
+---
+
+2026-11-16, @bruk.o: TASK-1.46's plan named TASK-1.47 as the natural owner of detecting a pane's working directory or title changing (pane.cwd_changed, pane.title_changed); TASK-1.47's plan declines it (no criterion of its asks for it, and it is already split three ways). It must not fall between the two: this task, which owns the remaining events, decides whether it builds that detection or a task of its own is drafted. TASK-1.47 adds a per-pane tick on the pane's worker thread, which is where the detection would sit.
+
+---
+<!-- COMMENTS:END -->

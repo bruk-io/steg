@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T04:32:00Z'
+updated_date: '2026-11-16T12:10:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -36,434 +36,483 @@ doc-8 R38 and doc-14. A client asks for the tree once and then receives changes.
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-## Split this into two reviewable changes — proposed at the top, not asked
+## For the engineer
 
-This task's own AC #1-5 need: (A) a snapshot-then-events mechanism (atomic subscribe,
-ordering, fan-out, back-pressure) and (B) several API-description additions this
-mechanism has no producer for today (layout changes, client events, the one-client
--addressed event). Building B's event *kinds* needs A's delivery machinery to exist
-first, but A can ship and be proven complete against the handful of events that
-already have a clear kernel-level producer (created/closed/focused/exited/
-status_changed). Recommended split, filed as two drafts once this plan is approved:
+Decisions made 2026-11-16, recorded as settled (unchanged from the previous
+revision): the tree travels as `event.watch`'s own reply; the confirmed event
+names (all TASK-1.109's, not this task's — see §5); a slow subscriber's
+connection is closed; R52 corrected (M1 for status events). The pane-identity
+question is answered in §2, not reopened.
 
-- **TASK-1.46 (this task, narrowed to AC #1, #2's first half, #5):** the tree
-  snapshot, `event.watch` as subscribe, atomicity, ordering, fan-out to every
-  subscribed connection's writer, back-pressure, `--for` filtering. Proven against
-  session/tab/pane created, closed, focused, pane.exited and pane.status_changed —
-  every event already in the description with a real producer in the tree today.
-- **TASK-1.46b (new, depends on 1.46):** AC #2's "layout... whole" clause, AC #3
-  (client connect/leave/view events), AC #4 (the one-client-addressed event,
-  `session.focus`'s own dispatch arm). Adds the new `Event` records this needs
-  (none exist today — see "Events the description is missing" below), and wires
-  every dispatch call site that changes a tab's layout or a client's view set.
+Three more things, found while fixing the five points raised, need your
+confirmation before I build against them:
 
-If the engineer would rather keep it as one task, say so and I build it as one;
-everything below still applies, just not as two PRs.
+1. **The description's vocabulary for a reply-then-stream method (§2).** `Returns`
+   gains one variant, `Snapshot { of: String }` — a nested value too shaped to
+   flatten into fields, named in prose (the same honesty `ValueKind::Text`
+   already has for `layout`/`status`, one level up). `Method` gains
+   `stream_item: Option<Returns>` — when `Some`, this method's single,
+   id-matched reply is followed by further items with no id, shaped as the
+   given `Returns`. `event.watch`'s own `returns` becomes `Snapshot{of: "the
+   tree..."}`,  `stream_item` becomes `Some(Records{fields:[event,data]})` (what
+   it used to declare as `returns`, since that described the stream, not the
+   reply). TASK-1.47 has been told to follow this for attach (`returns:
+   Snapshot{of: "a pane's screen"}`, `stream_item: Some(Snapshot{of: "a screen
+   update"})`, since a delta is nested too). This breaks the existing
+   exhaustive `match` over `Returns` in `record.rs`'s own tests (by design —
+   `rust.md`'s own reason for refusing a `_` arm) — named in Files below, not
+   hidden.
+2. **"A subscription... can be ended" (AC #3) reads as "ended by disconnecting,"
+   with no separate end-subscription method.** The alternative: an explicit
+   `event.unwatch`-shaped method that ends a subscription on a connection that
+   stays open — which the app's own single, long-lived connection (TASK-1.52)
+   might eventually want, if it ever needs to stop watching without dropping
+   its only channel to the server. Nothing in doc-2's grammar or this task's
+   own criteria asks for it, and the app's own plan (TASK-1.52) reads as
+   subscribing once for the life of the connection, never pausing. My
+   recommendation: disconnect-ends-it for M1, revisit if TASK-1.52 finds it
+   actually needs to pause without reconnecting.
+3. **The tension your own point 4 runs into, found while answering it, not
+   silently resolved either way.** Your preferred fix — `pane.status_changed`
+   and the snapshot's own records carry a moment so a client derives expiry
+   itself, no timer in the server — reverses an already-merged, deliberate
+   decision in `crates/sdk/src/status.rs` (TASK-1.41): *"Carries no timing data
+   on purpose: this crosses the API... and `std::time::Instant`... has no
+   serde implementation and means nothing off the process that made it, so
+   nothing timing-shaped can ever appear here. Every status's 'since', and
+   Finished's 10-minute deadline, live only inside the kernel's own `Pane`...
+   never on the wire."* That comment reads as considered, not incidental.
+   §6 below recommends your second option instead — an event fired by one
+   armed deadline, never a poll — because the kernel already has the exact
+   primitive built for it (`Tree::next_status_deadline`, whose own doc already
+   says: *"Lets a caller with a real clock (the server) sleep until this
+   moment, or until something else happens first, instead of polling every
+   pane on an interval"*) and because reversing `status.rs`'s own stated
+   decision is a bigger change than this task's own criteria ask for. Flagged
+   for you to confirm rather than silently picking either.
 
-## 1. The tree snapshot (AC #1)
+## 1. What's merged since the first draft (unchanged from the previous revision)
 
-**Open design question, the engineer's to decide — I have not worked around it.**
-doc-14 says "the tree snapshot, returned by one request." Read literally (and it
-has to be literal: the atomicity this brief asks for — "a snapshot then events with
-nothing lost between" — cannot be built across three separate round trips to
-`session.list`/`tab.list`/`pane.list`, because the tree can change between them and
-there is no lock to hold across a client's own three requests), this is a method no
-`Returns` variant and no entry in doc-2 section 8's 42-method table currently covers:
-`methods.rs`'s own `the_method_set_is_exactly_doc_2_section_8s_42_pairs` test fails
-the moment anything new is added. Three ways to give AC #1 its literal reading,
-none of which I am choosing silently:
+TASK-1.45/1.78/1.87/1.89 merged; TASK-1.98/1.86 in progress, named by overlap in
+§7; TASK-1.47 being planned, coordinating on §1 above and §8's back-pressure
+wording. `dispatch/session.rs`'s own `"focus"` arm already cites TASK-1.109 by
+name — the split held.
 
-- **(a) `event.watch`'s own `Response` carries the snapshot.** No new method —
-  `event.watch` already exists, already is "the only stream in M1" (doc-2 §9), and
-  decision-2 §3's reply/event split ("events carry no id... a reply... travels
-  staying matched to its own id") already gives a natural home for a one-time,
-  id-matched answer before the id-less events start. Cost: `event.watch`'s
-  described `returns: Records{fields:[event,data]}` currently describes the
-  *stream*, not this one-time reply — the CLI's own `event watch` prints "one
-  record per line" (doc-2 §8), and a nested session/tab/pane tree does not fit a
-  tab-separated row. The description's shape would need a dedicated field for the
-  one-time reply, separate from what streams after it, which today's `Returns`
-  enum has no vocabulary for either.
-- **(b) A new method, e.g. a `tree` noun with `tree.show`.** Breaks the 42-pair
-  completeness test on purpose, needs the engineer to accept it as doc-2 §3's
-  table growing by one noun, and needs a `Returns` case for a nested value (every
-  existing `Record`/`Records` variant is flat fields, matching the CLI's own
-  tab-separated row model — the existing `tab.layout`/`pane.status` fields are
-  already `ValueKind::Text` placeholders for "a JSON shape I can't declare
-  structurally yet," precedent for doing the same here, not a clean fit).
-- **(c) Keep `session.list`/`tab.list`/`pane.list` as the only way to read the
-  tree, and make AC #1's "one request" mean "one coherent read," not "one wire
-  round trip"** — i.e. loosen the literal reading. This is the one option that
-  needs no sdk change, but it directly conflicts with the atomicity this brief
-  asks the plan to settle, so I am not picking it either.
+## 2. The tree snapshot: typed in the sdk, not a server-built `Value` (AC #4)
 
-**My recommendation, for the engineer to confirm or overrule:** (a). It adds no
-method and reuses the one stream doc-2 already fixed; the `Returns` wording gap is
-small (one sentence saying the request's own reply is the tree, distinct from what
-follows) and is a description-only change, not a protocol change.
+**Criterion 4 says the tree is offered through the sdk; a `serde_json::Value`
+assembled in `dispatch` is neither defined once (R101) nor typed for a caller
+outside this crate.** New sdk types, beside the existing records
+(`crates/sdk/src/record.rs`, or a new `tree.rs` re-exported alongside them —
+build-time choice, not a design one):
 
-Snapshot shape, regardless of which option is chosen: nested — every session with
-its tabs embedded, every tab with its panes embedded (doc-14's three-row sketch,
-nested rather than three flat lists the client has to stitch back together, which
-is the whole reason "nothing lost between" needs one read, not three). Field names
-match `SessionRecord`/`TabRecord`/`PaneRecord` exactly, so nothing here invents a
-second vocabulary for the same data — which is why this task cannot start building
-the snapshot's tab-level fields until **TASK-1.89 merges** (it is building
-`TabRecord` and the richer `Status` shape right now; today there is no tab record
-type in the sdk at all, confirmed by reading `crates/sdk/src/record.rs`). Flagged
-as a hard dependency, not a nice-to-have: this plan does not duplicate `TabRecord`.
+```rust
+/// One session with its tabs embedded — the shape `event.watch`'s own
+/// reply carries (AC #1), and the sdk's one definition of it (R101).
+pub struct SessionTree {
+    #[serde(flatten)]
+    pub session: SessionRecord,
+    pub tabs: Vec<TabTree>,
+}
 
-## 2. Events the description is missing (AC #2, #3, #4 — for the engineer)
+pub struct TabTree {
+    #[serde(flatten)]
+    pub tab: TabRecord,
+    pub panes: Vec<PaneRecord>,
+}
 
-`crates/sdk/src/description/methods.rs`'s `events()` has fourteen records, each
-with its own doc comment: "doc-8 R38's M1 events... Fourteen records; TASK-1.46
-fills in behaviour, not this list." That line is stale against this task's own
-acceptance criteria and against doc-14, both written after it. Checked one by one
-against every event this task's ACs and doc-14 actually need:
+/// The whole tree, as `event.watch`'s own reply.
+pub struct TreeSnapshot {
+    pub sessions: Vec<SessionTree>,
+}
+```
 
-| What's needed | In the 14 today? | Producer in the tree today? |
+Named `TreeSnapshot`, not `Tree` — `steg_kernel::Tree` already owns that name
+for the live, mutable structure; this is its wire photograph, a different
+thing, in a different crate, and a reviewer should never have to ask "which
+Tree." Each gets the round-trip test the other records have; the
+fields-versus-description cross-check the others have does **not** apply here
+(§1's "For the engineer": a `Snapshot`-returning method is named in prose, the
+same exemption `api.show`'s own `Method`/`Description` values already get, for
+the same reason — there is no flat field list to check against).
+
+**The pane-identity question, answered, not left open:** `TabRecord.layout`
+(`crates/sdk/src/layout.rs`) is a tree of splits whose leaves are `PaneId` — it
+says *where* each pane sits, a structural reference, the same role
+`SessionRecord.current_tab`/`TabRecord.current_pane` already play: naming a
+sibling by id, not embedding its data. `TabTree.panes` is the one place that
+pane's actual data lives. A client resolves a `layout` leaf's id against that
+same tab's own `panes`, exactly as it already resolves `current_pane`/
+`current_tab` against sibling arrays today — one existing convention, one
+level deeper, nothing stated twice.
+
+**Who builds it:** `crates/server/src/dispatch/event.rs` (new), reusing the
+record builders TASK-1.89 already wrote — `session::record_at`,
+`tab::record_for`, `pane::record_for` — made `pub(super)` (no behaviour
+change), never redefining any of the three records a second time.
+
+**The sdk's own client side (R101, criterion 4: the CLI and the app read the
+tree and its events through the sdk, not by hand):**
+
+```rust
+impl Connection {
+    /// Subscribes (`event.watch`): the id to match against the reply, and
+    /// the bytes to write — the same shape `call` already has. The caller
+    /// reads the matching `Incoming::Reply`'s `Response::Ok` as a
+    /// `TreeSnapshot` (`serde_json::from_value`), then every
+    /// `Incoming::Event` afterward as a `TreeEvent` (below) — no further
+    /// request needed to keep them coming.
+    pub fn watch(&mut self, target: Option<&str>, for_: &[&str], all: bool)
+        -> Result<(u64, Vec<u8>), ApiError> { /* = self.call("event.watch", ...) */ }
+}
+
+/// One of this task's own events, typed by name (TASK-1.109 adds its own
+/// variants to this same enum, not a second one).
+pub enum TreeEvent {
+    SessionCreated { id: SessionId, label: Option<String> },
+    SessionClosed { id: SessionId },
+    SessionFocused { session: SessionId, tab: TabId, pane: PaneId },
+    TabCreated { id: TabId, session: SessionId, label: Option<String> },
+    TabClosed { id: TabId },
+    TabFocused { session: SessionId, tab: TabId, pane: PaneId },
+    PaneCreated { id: PaneId, tab: TabId, label: Option<String> },
+    PaneClosed { id: PaneId },
+    PaneFocused { session: SessionId, tab: TabId, pane: PaneId },
+    PaneExited { pane: PaneId, exit_code: i32 },
+    PaneStatusChanged { pane: PaneId, status: Option<Status> },
+}
+impl TreeEvent {
+    pub fn parse(name: &str, body: Value) -> Result<Self, serde_json::Error> { /* match on name */ }
+}
+```
+
+Fields exactly as `description/methods.rs`'s own `events()` already declares
+them — mechanical, not new design; a completeness test checks every variant's
+fields against its own `Event` record, the same cross-check the other records
+get (unlike `TreeSnapshot`, event bodies stay flat, so this one *is*
+checkable).
+
+## 3. Subscribing, narrowing, ending (AC #1, #3)
+
+`event.watch` is the subscribe operation; `--for`/`target`/`--all` are read
+once, at subscribe time, and kept as this connection's own filter. Ending a
+subscription is disconnecting (§1's "For the engineer", item 2 — a reading,
+not yet confirmed).
+
+## 4. Atomicity, fixed by construction (AC #1)
+
+**The race your review found, read back precisely:** registering the filter
+and reading the snapshot happen under the lock; the lock is released; *only
+then*, back in `connection.rs`'s own reader loop, does this connection's
+thread build and enqueue the reply. Between release and that enqueue, another
+thread's mutation can take the lock, broadcast, and enqueue an event onto this
+same connection's queue first — the event arrives on the wire before the
+reply it is supposed to follow.
+
+**Fix: the reply is enqueued inside the same locked section that registers the
+filter**, not after the lock is released, since `enqueue_control` is
+lock-free and does no I/O (`outbound.rs:164` — already true today, used the
+same way by every `broadcast` call in §5). Concretely, `event.watch` does not
+go through the generic `Runtime::handle`/`Connection::reply`-afterward path at
+all:
+
+- `connection.rs`'s own reader loop, on `Incoming::Request{id, request}`,
+  resolves `api.call` wrapping first if present (`dispatch::resolve_api_call`,
+  already `pub(crate)`, called here the same way `Runtime::handle` already
+  calls it internally — a second, cheap, I/O-free resolution, the same
+  "harmless, cheap: it has to run here first too" reasoning `start_and_
+  dispatch`'s own existing comment already gives for its own second
+  `validate` call) to find the *resolved* method name, **without** otherwise
+  changing how the non-`event.watch` path is handled (`runtime.handle` is
+  still called with the *original*, unresolved `request`, exactly as today,
+  and resolves `api.call` again itself — redundant resolution, not redundant
+  behaviour).
+- If the resolved method is `"event.watch"`: a new `Runtime::subscribe(&self,
+  description, context, request /* resolved */, client_id, request_id) ->
+  Result<(), ApiError>`. Internally: lock, validate (on failure, return
+  `Err` — nothing registered, nothing enqueued, the caller builds and
+  enqueues the ordinary error reply, no race to guard since nothing changed);
+  look up `state.subscribers[&client_id]` (present since `register_subscriber`
+  already ran before any request could arrive, §7 — `.expect(...)`, not a
+  possible `None`); set its filter from the request's params; build the
+  `TreeSnapshot` (§2); encode `Connection::reply(request_id, Response::Ok(..))`;
+  call `subscriber.outbound.enqueue_control(bytes)` directly, still under the
+  lock (ignore its own `Err` — the connection is already tearing down
+  concurrently if it fails, nothing more to do); return `Ok(())`.
+- `connection.rs`'s caller: on `Ok(())`, nothing further — the reply is
+  already on the wire. On `Err(error)`, build and enqueue the error reply the
+  ordinary way.
+
+A client reaching `event.watch` *through* `api.call` is still routed here,
+since the resolution runs before the method-name check — the one path this
+fix does not special-case differently is `api.call` itself failing to resolve
+(malformed `method` selector), which already has its own error path untouched.
+
+**Proof, sharpened per your own wording:** many repetitions of the race in
+§9's own test, asserting **wire order** (the reply carrying the snapshot is
+the first frame this subscribing connection ever reads, before any event, in
+and across many repetitions) *and* **exactly-once** (the race's own mutation
+is in the snapshot or is exactly one event, never both, never neither).
+Negative control: revert to the previous shape (register under the lock,
+build and enqueue the reply after it is released, the design this section
+replaces) — the race test then shows an event arriving before the reply, or
+the mutation doubled or dropped, across repetitions.
+
+## 5. Where every event fires: one rule for cascades (AC #2)
+
+**One rule, not two, as asked: everything created or closed gets its own
+event, on every path, creation outermost-first, closure innermost-first,
+all delivered inside the one lock acquisition that performs the change — no
+other thread's broadcast can land inside this cascade, since nothing else can
+take the lock while this thread holds it.** Every id needed is already
+available with **no kernel change**: `ClosedPane{pane, tab, session}` (from
+`close_pane`/`record_exit`'s own `ExitOutcome::Closed`) already gives the
+whole cascade for the exit-driven path; for the request-driven paths,
+`close_and_dispatch` captures what it needs *before* calling `dispatch::
+dispatch` (the same pattern it already uses for `panes_in_close_scope`), and
+confirms what actually cascaded *after*, by checking what the tree no longer
+holds — never by threading a new return shape through `dispatch::tab::close`/
+`session::close`, which stay exactly as TASK-1.89 left them.
+
+**Creation** (`start_and_dispatch`, after `Response::Ok` is final, same
+placement as before — after the real spawn, never at the earlier, still
+-rollback-able mint):
+
+| Request | Events, in order |
+|---|---|
+| `session.new` | `session.created{id,label}`, `tab.created{id,session,label}`, `pane.created{id,tab,label}` |
+| `tab.new` | `tab.created{...}`, `pane.created{...}` |
+| `pane.split` | `pane.created{...}` |
+
+Ids for the new tab/pane come from the existing `new_pane_from`/`tree.tab_of_
+pane` the function already has in scope; nothing new to look up.
+
+**Closure** (`close_and_dispatch`, inside the lock, after `dispatch::dispatch`
+returns `Ok`, before `force_end` runs — unchanged placement, consistent with
+TASK-1.78's own plan, which already assumed this timing):
+
+| Request | Captured *before* dispatch | Events *after* `Ok`, in order |
 |---|---|---|
-| session/tab/pane created, closed | yes | yes (every `new_*`/`close_*` kernel call) |
-| session/tab/pane focused (whole path) | yes | yes (`Focused { session, tab, pane }`, already carries all three — `tree.rs:37`) |
-| pane cwd/title changed | yes | **no** — nothing in the server today notices a live cwd or title change to fire from; `PaneHandle::cwd()` is read on demand (`resolve_default_cwd`), never diffed against its last value. No AC of this task names cwd/title, so I am leaving this one unfired — flagged as a gap for whichever task adds per-tick terminal polling (TASK-1.47 is the natural owner: it already reads live terminal state every tick for the screen) rather than building a second polling loop here |
-| pane exited | yes | yes (`ExitOutcome`/`record_exit`, in `apply_event_locked`) |
-| pane status changed | yes | yes — `dispatch/pane.rs` already computes the two-word status per pane; this task adds the event, doesn't invent the fact |
-| **a tab's layout changed, whole (AC #2)** | **no** | would be — `split_pane`/`close_pane`/`move_pane_to_tab`/`swap_panes`/`fill_pane`/`unfill_pane`/`resize_pane` all touch `Tab::layout()` |
-| **a session or tab "changed" generally — label, position (AC #2's own word)** | **no** | would be — `session.set`/`unset`, `session.move`, `tab.set`/`unset`, `tab.move` |
-| **client connected / left / started viewing / stopped viewing (AC #3)** | **no** | would be — `Runtime::connect_client`/`disconnect_client`, `Tree::view_pane`/`stop_viewing` (TASK-1.42's own, not yet reached by any dispatch method) |
-| **one event addressed to a single client, for `session focus` (AC #4)** | **no, and no per-client delivery path exists at all** | would be — `session.focus`'s own dispatch arm, which is `not_implemented_yet` today (`dispatch/session.rs:39`) |
+| `pane.close` | the target pane id (already resolved) | `pane.closed{id}` |
+| `tab.close` | the target tab id; its owning session id (`target_tab`, then the session that holds it — both already resolvable the same way `panes_in_close_scope` resolves the tab); its panes, in layout order (`panes_in_close_scope`, reused, unchanged) | one `pane.closed{id}` per pane, in order; then `tab.closed{id}`; then — only if `state.tree.session(session_id).is_none()` afterward, confirming R94's own cascade actually ran — `session.closed{id}` |
+| `session.close` | the target session id; its tabs, in order, each with its own panes, in order (one read of `tree.session(id).tabs()`, before the close removes it) | for each tab in order: each of its panes' `pane.closed{id}`, then that tab's `tab.closed{id}`; after every tab, `session.closed{id}` |
 
-Every missing row is proposed above as **TASK-1.46b** (§0's split), not invented
-silently. Names proposed for the engineer to confirm or rename, following the
-existing `noun.past_participle` convention: `tab.layout_changed` (fields:
-`tab`, `layout`); `session.changed`/`tab.changed` (fields: the full
-`SessionRecord`/`TabRecord`, so a client never has to know which sub-field moved —
-the same whole-record-not-a-diff reasoning decision-2 §3 already uses for
-`tab.layout_changed`); `client.connected`/`client.left`/`client.started_viewing`/
-`client.stopped_viewing` (fields per doc-14's "Clients" section: id, kind, label,
-session); and for AC #4, **not an entry in `events` at all** — doc-14 says this one
-"is an event on stream 0 delivered only to that client," i.e. it is never
-subscribed to and never filtered by `--for`, so it does not belong in the same list
-`event.watch`'s `--for` draws its closed set from (`event_watch_for_is_drawn_
-from_the_event_names`, `methods.rs`). Proposed as its own thing: `Connection::
-emit_event` already takes a bare name and body with no list membership check at
-the `Connection` level (only `description.event(name)` classifies known/unknown for
-*incoming* frames) — so the server can emit `session.focus_requested` (or
-whatever name the engineer prefers) straight onto the one addressed connection's
-queue with no description entry required, as long as a client reading it
-unprompted doesn't choke (R38/decision-2's forward-compat promise: "an unknown
-field in an otherwise valid hello is ignored" — the same tolerance doc-14 implies
-for an unknown event name reaching `event.watch --for`-filtered clients that never
-asked for it). Flagged for the engineer because it is the one event in this whole
-set that is not really a subscription event at all, and §3/§4 below assume it is
-not.
+**Exit-driven** (`apply_event_locked`, `PaneEvent::Exited`): `pane.exited
+{pane, exit_code}` always, first (it is the causal fact; the closure, if
+any, is its consequence); then, from `ClosedPane` directly, the same
+innermost-first order: `pane.closed{id: pane}`; if `tab.is_some()`,
+`tab.closed{id: tab}`; if `session.is_some()`, `session.closed{id:
+session}`. `CommandOutputStarted`/`CommandEnded` (unchanged from the previous
+revision): `pane.status_changed`.
 
-R52 (doc-11, "status changes are events" — labelled M2) versus R82/R83 (doc-11,
-M1, running/finished/failed) and this task's own AC #2/#3 (which plainly want
-`pane.status_changed` now): treated here as R52's M2 label being stale against the
-task that was actually scoped after it — `pane.status_changed` ships in M1 as part
-of this task, and I'm not blocking on it; said here so the conflict isn't silent.
+**Focus** (unchanged): `tab.focus`/`pane.focus` each emit their own
+`*.focused`, whole path, from the kernel's own `Focused`/`FocusMove` — no
+cascade question here, nothing else is created or closed.
 
-## 3. Subscribing, narrowing, and what a client gets first (AC #1, #5)
+**What's still explicitly not in this task**: layout, session/tab label or
+position "changed," and every client event — TASK-1.109, unchanged from the
+previous revision; `events()` is still exactly its original fourteen on
+current `origin/main`, confirmed again on this re-read.
 
-No `event.subscribe`/`unsubscribe` method exists or is proposed: `event.watch`
-*is* the subscribe operation, matching doc-2 §9's "`event watch` is the only
-stream in M1." Unsubscribing is disconnecting — nothing in doc-2's grammar or this
-task's ACs asks for narrowing an existing subscription without starting a new
-connection, so none is built. `--for` (already described, `ValueKind::Choice` of
-the event names) and `--all` (every session, not just the target's — `target` is
-also already described) are read once, when the request arrives, and kept as the
-connection's own filter for every event emitted afterward.
+## 6. Status that changes with no request and no tree mutation (AC #2)
 
-**Atomicity.** Registering the subscription and reading the snapshot happen in the
-same critical section, under `Runtime`'s one `Mutex<State>` — the same lock every
-mutation already takes (`runtime.rs`'s own `State`). Concretely: `event.watch`'s
-dispatch arm takes the lock, (1) registers this connection's filter and `Outbound`
-handle in a new table on `State` (§5), (2) reads the snapshot, (3) releases the
-lock, (4) the snapshot becomes the `Response`. Step (1) before (2) is what decision
--2 §3's own ordering rule generalises to events: a change that lands on another
-thread between (1) and (2) is *included* in the snapshot (the lock serialises it
-before this thread's read), so there is no window where a change is neither in the
-snapshot nor delivered as an event after it — every mutating dispatch call already
-runs under the same lock (`Runtime::handle`), so "registered, then read" inside one
-lock acquisition is sufficient; no second rule like decision-2's "queue the attach
-result first, register the queue second" is needed here, because (unlike
-`Outbound::open_stream`, which is a separate call the writer races against) steps
-(1) and (2) are two statements inside one already-held lock, not two defeat
--able-by-reordering calls.
+**Only `Finished` ever has a timer (doc-11 R83: "waiting and failed never on
+a timer; finished after 10 minutes... Opening a tab clears nothing") — `Failed`
+has none, and "a key press or click" clearing either has no dispatch path to
+reach yet at all** (`pane.send`/an acknowledge method are both still
+`not_implemented_yet`; `Tree::acknowledge_pane`/`note_input` exist in the
+kernel with no caller — the same shape of gap as `pane.cwd_changed`/
+`pane.title_changed`, named, not built, left to whichever task wires input).
+So the one real case this task's own criteria reach is: a `Finished` status
+expiring on its own, ten minutes after it was set.
 
-## 4. Where every event is produced (every tree-changing site, read one by one)
+**Recommended (§1's "For the engineer", item 3): one armed deadline, never a
+poll**, using the kernel's own `Tree::next_status_deadline(now)` — built, by
+its own doc, for exactly this ("sleep until this moment, or until something
+else happens first, instead of polling every pane on an interval"). A new
+background thread, owned by `Runtime`, the same shape as the existing `drain`
+thread:
 
-Everything below runs with `Runtime`'s lock already held — events are *computed*
-there (cheap: the typed `Outcome`/kernel-return value is already in hand) and
-*enqueued* there (`Outbound::enqueue_control`, which does no I/O — `outbound.rs:
-164` — so this never blocks on a socket while holding the lock), and only
-*written* later, off-lock, by each connection's own writer thread. This is what
-makes "no runtime lock held while writing" true by construction, not by care.
+```
+loop:
+  now = clock
+  deadline = { lock; tree.next_status_deadline(now) }   // released immediately after
+  match deadline:
+    None => block on wake_rx.recv() (no timer armed at all; woken only by a
+            mutation that might have set one)
+    Some(d) => match wake_rx.recv_timeout(d - now):
+      Ok(())        => loop (woken early — something changed; recompute)
+      Timeout        => { lock; diff every pane's status(now) against a
+                           per-pane cache the thread itself owns, broadcast
+                           pane.status_changed for each difference, update
+                           the cache } ; loop (next iteration re-arms)
+      Disconnected   => return (Runtime is stopping)
+```
 
-| Call site | Tree change | Event(s) | Split |
-|---|---|---|---|
-| `dispatch/session.rs`: `new` | mints session+tab+pane | `session.created` | A (but see below: `session.new` is intercepted by `Runtime::start_and_dispatch`, not plain `dispatch`) |
-| `dispatch/session.rs`: `close` | closes session, cascading tabs/panes | `session.closed` (one), **not** a `tab.closed`/`pane.closed` per child — see note below | A |
-| `dispatch/session.rs`: `move`/`set`/`unset` | position/label | `session.changed` | B |
-| `dispatch/session.rs`: `focus` (not yet built — also TASK-1.89's to resolve, see §6) | none to the tree; addresses one client | the one-client event | B |
-| `dispatch/tab.rs`: `new` | mints tab+pane | `tab.created` | A (via `start_and_dispatch`) |
-| `dispatch/tab.rs`: `close` | closes tab, cascading panes | `tab.closed` | A |
-| `dispatch/tab.rs`: `move`/`set`/`unset` | position/label/session | `tab.changed` | B |
-| `dispatch/tab.rs`: `focus` | sets `current_tab` | `tab.focused` | A |
-| `dispatch/pane.rs`: `split` | mints pane, changes layout | `pane.created`, `tab.layout_changed` | A for created (via `start_and_dispatch`), B for layout |
-| `dispatch/pane.rs`: `close` | closes pane, changes layout | `pane.closed`, `tab.layout_changed` | A for closed, B for layout |
-| `dispatch/pane.rs`: `move`/`swap`/`set --zoomed`/`unset --zoomed` | layout | `tab.layout_changed` | B |
-| `dispatch/pane.rs`: `set`/`unset` (label only) | — | nothing (no "pane.changed" exists either — not asked for by any AC; flagged, not built) | — |
-| `dispatch/pane.rs`: `focus` | sets `current_pane`(+`current_tab`) | `pane.focused` (whole path, per decision-5 — same event whether or not the session's `current_tab` also moved) | A |
-| `Runtime::start_and_dispatch` (`runtime.rs:332`) | the real mint for `session.new`/`tab.new`/`pane.split` | emitted **after** `Response::Ok` is final (after the real program starts, after the rollback-on-spawn-failure branch is past) — never at the pure-`dispatch` mint, which can still be rolled back (`rollback_mint`, `runtime.rs:556`) a few lines later | A |
-| `apply_event_locked`, `PaneEvent::Exited` (`runtime.rs:607`) | `record_exit` → `ExitOutcome::Closed`/`Stayed` | `pane.exited` always; `pane.closed`/`tab.closed`/`session.closed` **additionally** when `Closed` cascades (one real exit can produce up to four events — the shell-pane-is-its-tab's-only-pane-is-its-session's-only-tab case, `runtime.rs:787`, closes pane+tab+session in one call) | A |
-| `apply_event_locked`, `CommandOutputStarted`/`CommandEnded` (`runtime.rs:637`,`663`) | `note_command_output_started`/`note_command_ended` → pane status | `pane.status_changed` — these two arms' own comments ("no client event stream exists yet," "TASK-1.46's own gap") are exactly what this task closes | A |
-| `Runtime::connect_client`/`disconnect_client` (`runtime.rs:254`,`271`) | client set | `client.connected`/`client.left` | B |
-| `Tree::view_pane`/`stop_viewing` (no dispatch method reaches these yet — TASK-1.42's own gap, unchanged by this task) | viewing set | `client.started_viewing`/`client.stopped_viewing` — **no producer exists to call from today**; named so B doesn't silently skip it, but nothing to wire until a `client.*` dispatch method exists | B, blocked |
+A `wake_tx: Sender<()>` clone is sent one `()` from every §5 call site that
+can set or clear a status (command start/end, program exit, close) — cheap,
+unit payloads, no backpressure concern; the loop's own re-entry recomputes
+the deadline from scratch each time, so a stale wake is harmless. This is
+**not** a periodic wake-up: every wait is either unbounded (nothing timed) or
+bounded to the one real deadline the kernel itself computed: confirmed by the
+proof in §10.
 
-**`session.close`'s cascade emits one event, not three per level**, because
-`Tree::close_session` already removes every tab and pane in one call with no
-intermediate state a client could observe anyway — the choice is between "one
-`session.closed` naming the session" (what's proposed) and "a `session.closed` plus
-a synthetic `tab.closed`/`pane.closed` per child, manufactured after the fact." The
-second gives a client that was *only* watching one of those child tabs (not
-subscribed to the session) a way to notice without re-deriving it from
-`session.closed` — but nothing in `event.watch`'s own target model subscribes
-below the session level (`--for` filters by event *name*, `target`/`--all` by
-*session*, doc-2 §8), so no subscriber can be watching a tab without watching its
-session too. One event, named here so a reviewer doesn't wonder why the fan-out
-code doesn't walk the closed subtree.
+**Tab shown-status changing (R52 as corrected: "a pane's and a tab's shown
+status changing is reported to subscribers")**: `Tab::shown_status` is a pure
+function of its panes' own statuses, computed server-side specifically so "the
+app, the CLI and a plugin cannot disagree" (doc-14) — a client must **not**
+re-derive it locally from `pane.status_changed`, which would contradict that.
+But reporting it needs `tab.changed` (or whichever event TASK-1.109 settles
+on for "a tab's own fields changed"), which does not exist until that task
+lands. **Named as a gap, the same honest shape as cwd/title**: every site in
+this task that can move a tab's shown status (every §5/§6 status change) is
+where TASK-1.109's own producer call belongs once it exists; until then, a
+tab's shown status changing is not reported to a subscriber at all. Quoted in
+full so it is not missed: doc-11 R83's own text is above; R52 now reads "a
+pane's and a tab's shown status changing is reported to subscribers" per the
+engineer's correction.
 
-## 5. Delivering an event to every subscribed connection (AC #1, the brief's "how
-events reach each client")
+## 7. Delivering an event to every subscribed connection (unchanged design,
+re-confirmed against current `origin/main`)
 
-**Structural gap, first step of the build, before any event logic:** `Runtime` has
-no way to reach any connection's writer today. `Outbound` is created inside
-`connection::handle`'s `run_post_handshake` (`connection.rs:318`) and never handed
-anywhere `Runtime` can see. `Runtime::connect_client` is called at `connection.rs:
-402`, **before** `run_post_handshake` creates the `Outbound` at all — so client
-registration (in the tree) and writer registration (for events) happen at two
-different times, with a real window between them during which an event for this
-newly-minted client would have nowhere to go. Fixed by:
+`Runtime::register_subscriber`/`deregister_subscriber`, `State.subscribers`,
+`broadcast` — as the previous revision, re-read against the merged
+`connection.rs`/`runtime.rs` and still accurate: `Outbound` is still created
+inside `run_post_handshake`, still after `connect_client` already ran: the
+structural gap is unchanged, and the fix is unchanged. Lock order unchanged
+(`Runtime`'s state lock always before `Outbound`'s own).
 
-- `run_post_handshake` (not `connection::handle`'s earlier hello-reply step) calls
-  a new `Runtime::register_subscriber(client_id, outbound: Arc<Outbound>, filter)`
-  **right after** `Arc::clone(&outbound)`/`spawn_writer`, before entering the
-  read loop — and deregisters it in `ConnectionCleanup::drop` (the same guard that
-  already calls `outbound.close()`/`runtime.disconnect_client`, extended with one
-  more call), so a client is never fanned-out-to after its writer is gone and
-  never fans out into a closed `Outbound` (whose own `enqueue_control` already
-  refuses once closed, `outbound.rs:164` — belt and suspenders, not load-bearing on
-  its own: deregistering is what stops the broadcast loop from doing pointless
-  work, the existing `Closed` check is what stops it from being wrong if the
-  timing is ever off).
-- This is **not** the subscription itself (§3's `event.watch` request) — a
-  connection is registered for fan-out the moment it is usable at all (every
-  connected client can receive the one-client-addressed event or, later, be told
-  about sessions it hasn't explicitly watched yet, matching decision-5's "a client
-  can know about every session... and views zero or more of them"); the `--for`/
-  target filter from `event.watch` narrows what actually reaches it, read at
-  delivery time, not at registration time, so a client is never silently dropped
-  from the registry — only ever filtered.
-- `State` gains `subscribers: HashMap<ClientId, Subscriber>` where `Subscriber`
-  holds the `Arc<Outbound>` and whatever `event.watch` last declared (target
-  session(s)/`--for` set/`--all`) — `None` until `event.watch` is called at all,
-  since a connection that has never called it is registered (for the one-client
-  event) but filters out every subscribable event.
-- A new `fn broadcast(state: &State, name: &str, body: Value, scope: Scope)` (one
-  function, called from every site in §4's table) walks `subscribers`, applies
-  each one's own filter against `scope` (which session(s) this event is "in," for
-  the target/`--all` rule) and `name` (for `--for`), and calls `enqueue_control`
-  on every match — still under the same lock every §4 call site already holds,
-  since `enqueue_control` is lock-free I/O-free bookkeeping (§3's own argument,
-  restated).
-- **Lock order, stated as an invariant**: `Runtime`'s state lock is always taken
-  before any `Outbound`'s own internal lock (`enqueue_control` takes `Outbound`'s
-  lock *inside* `broadcast`, which already holds `State`'s) — never the reverse,
-  and nothing in this plan ever needs the reverse, since a writer thread never
-  touches `State` at all.
+## 8. Back-pressure for a slow subscriber (AC #3) — unchanged, stated beside
+TASK-1.47's own data-queue policy as before: a full control queue closes the
+connection; a full data queue (TASK-1.47's own, different queue) means a
+fresh snapshot instead.
 
-## 6. Overlaps, named explicitly
+## 9. What's offered through the sdk vs. built in the server — updated for §2
 
-- **TASK-1.89** (in progress, `@bruk.w5`): owns `TabRecord`, the richer `Status`
-  shape, and may build or re-point `session.focus`'s dispatch arm (its own AC #3
-  lists "session focus" among the leftover `NotImplementedYet` methods it will
-  "either build... or name with the task that owns them"). **Collision risk**:
-  both tasks could try to implement `session.focus`. Flagging for the lead to
-  settle before either build starts — my own reading is that TASK-1.46b should own
-  it (the dispatch arm's only real behaviour *is* emitting the one-client event),
-  and TASK-1.89 should name TASK-1.46b rather than building it. This task also
-  cannot start building the snapshot's tab fields until TASK-1.89's `TabRecord`
-  merges (§1).
-- **TASK-1.78** (in review, `pull/47`): rewrites `Runtime::stop` and the close
-  paths into `close_and_dispatch`, and its own plan (§6) already reasons through
-  this exact task: "a future tree-change event (TASK-1.46) fire[s] before the
-  program is dead... correctly, by construction" — confirms the close-event
-  timing this plan uses (§4's table: emitted at the tree mutation, under the lock,
-  before any forced-close signalling happens outside it) is exactly what TASK-1.78
-  already assumes. No conflict; cited so the reviewer of this task doesn't have to
-  re-derive it. One mechanical note: TASK-1.78 adds `Runtime::handle`'s own
-  `"pane.close" | "tab.close" | "session.close"` intercepted branch
-  (`close_and_dispatch`) — this task's close events fire *inside* that function
-  now, not inside plain `dispatch::dispatch`'s callers, once 1.78 merges first (it
-  is further along — in review — so this task should rebase onto it, not the
-  reverse).
-- **TASK-1.87** (in progress, `@bruk.w1`): changes `Runtime::new`'s own
-  constructor (adds `base_env`) and touches `LoginShell`. No overlap in
-  *behaviour*, but `runtime.rs` is being edited by three tasks at once
-  (1.78's `force_grace`, 1.87's `base_env`, this task's `subscribers` field) —
-  named so whichever merges last expects a real, substantive merge conflict in
-  `State`'s own struct literal and `Runtime::new`'s signature, not a sign of a
-  design problem.
-- **TASK-1.47** (attach/screen streams, not started): the natural owner of
-  `pane.cwd_changed`/`pane.title_changed` detection (§2) and of the per-tick
-  cadence that would drive it; also the task whose own `Outbound::open_stream`/
-  `enqueue_data` this task's `enqueue_control` sits beside — no shared state
-  between them (data streams vs. the control stream), but worth the next worker
-  reading §5 before building attach, since both tasks grow `Outbound`'s callers.
-- **TASK-1.50/1.52**: CLI `event watch` and the app's own tree-holding are
-  explicitly left to them — this task proves the mechanism with the sdk's own
-  test client (per the brief), not a CLI or GPUI client.
+`TreeSnapshot`/`SessionTree`/`TabTree`/`TreeEvent` and `Connection::watch` are
+now real sdk additions (§2), not a details sentence. Everything else —
+`State.subscribers`, `broadcast`, the registration-timing fix, the status
+-expiry thread — stays server-side scheduling, no I/O or runtime type
+crossing into `steg-sdk`, re-checked against `.claude/rules/sdk.md`.
 
-## 7. Back-pressure for a slow subscriber (AC per the brief; decision-2 §6's
-*principle*, not its mechanism)
+## 10. Proof — carried forward from the previous revision, plus:
 
-decision-2 §6 is about attachment (data-stream) back-pressure and does not answer
-this directly — stated plainly rather than claimed otherwise. An event is a
-control-kind frame on stream 0 (`Connection::emit_event`/`Control::Event`,
-already built in the sdk), so it goes through `Outbound::enqueue_control`, capped
-at `CONTROL_CAP` (256, `outbound.rs:32`) — the same queue a reply shares. A
-subscriber that falls behind fills that queue; the next `enqueue_control` (for an
-event, or for that connection's own next request's reply) returns
-`EnqueueControlError::Full`. **Decision: the connection is closed**, the same
-outcome TASK-1.45 §3 already chose for "a client that keeps sending requests while
-never reading any reply" — decision-2 §6's underlying *principle* (never grow a
-queue without bound, never block the producer) is honoured by reusing the existing
-cap and the existing closing behaviour, rather than inventing a resync-style
-recovery for events the way §6's own mechanism does for a data stream (there is no
-"fresh snapshot" to resend here that would be cheaper than what's already queued —
-unlike a screen, an event queue's backlog has no single compacted replacement).
-Proven, not just asserted (§9).
+- **Wire order, not just exactly-once** (§4): sharpened as described there,
+  with its own negative control.
+- **Filter by session, not just by name**: subscribe two connections, one
+  `--for pane.created` with `target` naming session A, one with `--all`;
+  cause a `pane.created` in session A and another in session B; assert the
+  first connection sees only A's, the second sees both. Negative control:
+  remove the scope check inside `broadcast` — the first connection then also
+  sees B's.
+- **The cascade order, both paths, each with its own negative control**:
+  drive `session.new` and assert the three creation events arrive in the
+  stated order; drive `session.close` over two tabs with two panes each and
+  assert every `pane.closed` precedes its own tab's `tab.closed`, and every
+  `tab.closed` precedes `session.closed`; drive the shell-pane-exit cascade
+  and assert `pane.exited` precedes the same ordered closure. Negative
+  control for each: remove one level's own broadcast call (e.g. the per-pane
+  loop) — the test then sees a cascade missing an event it asserted on.
+- **The status-expiry thread fires once, at the real deadline, and does not
+  poll**: set a short, injected expiry threshold (the same kind of
+  test-only override `force_grace`/`idle_timeout` already use elsewhere in
+  this crate) so the test does not wait ten real minutes; set a command
+  pane's status to `Finished`; assert nothing is broadcast for a bounded,
+  generous window shorter than the threshold, then exactly one
+  `pane.status_changed{status: null}` arrives within a bound right after the
+  threshold passes. Negative control: remove the wake-on-mutation sends, or
+  shrink the thread's own `recv_timeout` artificially to a tight fixed
+  interval — the first makes the deadline never re-arm correctly on a
+  freshly-set status (a second status set after the thread's first sleep
+  began would be missed or delayed past its own real deadline); the second
+  is itself the shape of a periodic poll, and is named here as what this
+  design explicitly is not, not merely asserted to not be one.
 
-## 8. What is offered through the sdk (R101) vs. built in the server
+Every item the brief's own proof list could ask for is a test above, in the
+previous revision, or named as dropped (subscription narrowing after the
+fact — no method exists, §1 item 2; cwd/title events and a key press/click
+clearing a status — no dispatch producer exists yet, §5/§6; a tab's shown
+status changing — TASK-1.109's, §6).
 
-Everything the brief lists already exists in `steg-sdk`'s `wire` module with no
-change needed: `Connection::emit_event`, `Incoming::Event`/`UnknownEvent`,
-`Control::Event`. This task adds **no new sdk wire-layer code** — only new `Event`
-records in `description/methods.rs` (data, not logic; TASK-1.46b, §2) and, if
-option (a) in §1 is chosen, a one-sentence doc change to `event.watch`'s own
-`details`. Everything else (the subscriber table, filtering, broadcast, the
-registration-timing fix) is server-side scheduling over a socket it owns, the same
-boundary `outbound.rs`'s own module doc already draws for the reply/data queues —
-confirmed against `doc-16` R101/R102 and `.claude/rules/sdk.md` before writing this
-(no I/O, no GPUI type, no runtime type crosses into `steg-sdk`).
+## Files that change
 
-## 9. Proof (TASK-1.46, part A; TASK-1.46b gets its own proof once split off)
-
-Built over `steg-sdk`'s own client machinery (`Connection`) driving a real
-`Runtime` behind a real `UnixStream::pair()` or a real socket — no mocking crate,
-real processes where a pane needs one, every wait bounded on a real event per
-`testing-rust.md`. Each test below gets a recorded failing run (its own mechanism
-disabled or reverted) before being offered as proof, per the team's testing rule;
-listed here as what each negative control is, not yet run.
-
-- **Each described event caused by a real change, observed by the test client**:
-  one test per row in §4's table that is in split A (`session.created/closed`,
-  `tab.created/closed/focused`, `pane.created/closed/focused/exited/
-  status_changed`) — drive the real request or real exit, assert the exact event
-  name and body arrive on the subscriber's `Connection::poll()`. Negative control:
-  comment out the one `broadcast` call for that site — the test fails (no event
-  arrives within the bound).
-- **Snapshot-then-events, nothing lost or doubled, under a real race**: subscribe
-  on one connection; from a second thread, race a tree-mutating request against
-  the subscribe call (a `Barrier`, the same pattern `outbound.rs`'s own flood test
-  already uses) so the mutation genuinely can land before, during or after
-  registration; assert the mutation appears **exactly once** — either inside the
-  snapshot (if the lock serialised it first) or as exactly one event after it
-  (never both, never neither). Negative control: swap the registration/snapshot
-  order in §3 (read snapshot, then register) — the test flakes, occasionally
-  losing the race's own mutation entirely.
-- **A slow subscriber**: a subscriber that never reads, fed events until
-  `CONTROL_CAP` is reached by a real flood of real tree changes (not a synthetic
-  queue fill — this has to go through real `broadcast` calls); assert the
-  connection closes (reader's next `poll`/the writer's own exit) rather than
-  blocking the thread that produced the flood. Negative control: raise
-  `CONTROL_CAP` to something enormous for this one test — it then fails to close
-  within the bound, proving the test is actually exercising the cap, not an
-  unrelated timeout.
-- **Unsubscribe == disconnect**: close a subscribed connection; assert no further
-  `broadcast` call panics or blocks on it, and `subscribers` no longer holds it
-  (a test-only accessor, or the absence of any observable effect — matching this
-  crate's existing style, e.g. `outbound.rs`'s own dead-handle tests).
-- **A disconnect while events are queued**: queue several events on a connection
-  mid-flood, then disconnect it (drop the stream) before they are written; assert
-  the writer thread ends and nothing panics (same shape as
-  `a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`,
-  `outbound.rs`).
-- **No thread or child left**: every test above checked for a leaked thread via
-  this crate's existing join-and-bound convention; no new process class is
-  introduced by this part of the task (events carry no pty).
-- **A negative control for the filter (`--for`)**: subscribe with `--for
-  session.created` only; cause a `tab.created` too; assert only the first
-  arrives. Negative control: remove the filter check in `broadcast` — the second
-  event arrives too, proving the test catches an unfiltered broadcast.
-
-Each test's own recorded failing run (with its stated mechanism removed) is
-captured on the task before this is offered as done, per `team:testing`.
-
-## Files that change (part A)
-
-- `crates/sdk/src/description/methods.rs` — `event.watch`'s `details` (if §1(a)),
-  no new events in this part.
-- `crates/server/src/runtime.rs` — `State.subscribers`; `Runtime::
-  register_subscriber`/`deregister_subscriber`; `broadcast`; the `event.watch`
-  dispatch arm itself (moved from `("event", _) => not_implemented_yet` into a
-  real handler in `dispatch/mod.rs` or a new `dispatch/event.rs`, following the
-  existing per-noun module shape); every §4 call site gains one `broadcast` call
-  after its own mutation, still under the lock.
+- `crates/server/src/dispatch/session.rs`, `tab.rs`, `pane.rs` — record
+  builders made `pub(super)` (unchanged from before); no change to
+  `Outcome`/return shapes for any close/new arm (§5 reads tree state before
+  and after instead, see there for why).
+- `crates/server/src/dispatch/event.rs` (new) — `TreeSnapshot` assembly
+  (calling into the sdk type, §2), `event.watch`'s validation/filter
+  resolution (called by `Runtime::subscribe`, not through the generic
+  `dispatch::dispatch` match — `event.watch` is removed from any per-noun
+  `HANDLED` list and handled entirely through the new path).
+- `crates/server/src/dispatch/mod.rs` — `("event", _)` unaffected (still
+  routes to `not_implemented_yet` for anything that is *not* `event.watch`,
+  since `event.watch` itself no longer reaches `dispatch::dispatch` at all).
+- `crates/server/src/runtime.rs` — `State.subscribers`; `register_subscriber`/
+  `deregister_subscriber`; `broadcast`; `subscribe` (§4); the status-expiry
+  thread and its `wake_tx` (§6); one `broadcast`/`wake_tx.send` pair added at
+  each §5/§6 site, still under the lock each site already holds.
 - `crates/server/src/connection.rs` — `run_post_handshake` calls
-  `register_subscriber`; `ConnectionCleanup::drop` calls `deregister_subscriber`.
-- `crates/server/src/dispatch/mod.rs` — the `("event", _)` arm's `NotImplemented
-  Yet` citation removed for `event.watch` only (`client.*` stays pointed at
-  TASK-1.42/TASK-1.46b as appropriate).
-- Possibly `crates/server/src/outbound.rs` — no change expected (`enqueue_control`
-  already does everything needed); named in case `broadcast`'s own filtering
-  surfaces a need `pop_next`'s existing control-then-round-robin order doesn't
-  already satisfy (it does, on current reading).
-- Test-only: new integration tests under `crates/server/tests/` (this crate's own
-  convention for anything driving a real `Runtime`+socket, per
-  `testing-rust.md`).
+  `register_subscriber`, resolves `api.call` to check for `event.watch` and
+  routes to `Runtime::subscribe` when it matches (§4); `ConnectionCleanup::
+  drop` calls `deregister_subscriber`.
+- `crates/sdk/src/description/shapes.rs` — `Returns::Snapshot{of}`;
+  `Method.stream_item: Option<Returns>` (§1 item 1).
+- `crates/sdk/src/description/methods.rs` — `event.watch`'s own `returns`/
+  `stream_item` (§2).
+- `crates/sdk/src/record.rs` (or a new `crates/sdk/src/tree.rs`,
+  re-exported) — `TreeSnapshot`, `SessionTree`, `TabTree`; `crates/sdk/src/
+  wire/connection.rs` — `Connection::watch`; a new small module or an
+  addition to an existing one for `TreeEvent` and its `parse`.
+- `crates/sdk/src/record.rs`'s own test module — every exhaustive match over
+  `Returns` gains a `Snapshot{..}` arm (compiler-enforced by `rust.md`'s own
+  no-wildcard rule, named here so it is expected, not a surprise diff).
+- Test-only: new integration tests under `crates/server/tests/`.
 
 ## Order of work
 
-1. Confirm §1's design choice and §2's split with the engineer before writing
-   code (both change the shape of everything after them).
-2. Rebase onto TASK-1.78 once it merges (close-path call sites move).
-3. `State.subscribers`, `register_subscriber`/`deregister_subscriber`, wired into
-   `connection.rs` — proven with no events yet (just that registration/
-   deregistration happens at the right times, via a test-only accessor).
-4. `broadcast`, and the `event.watch` dispatch arm (snapshot shape depends on
-   TASK-1.89's `TabRecord` — block here if it hasn't merged, per §1).
-5. One `broadcast` call per §4 row, in the order the table lists them, each with
-   its own test before the next is added.
-6. The slow-subscriber and race tests (§9), last, since they exercise every call
-   site at once.
-7. `just check` at each numbered step.
+1. `Returns::Snapshot`/`Method.stream_item` in the sdk, with the exhaustive
+   -match fallout fixed at each of its own existing call sites; `event.watch`'s
+   own description entry updated. `just check` clean before anything else.
+2. `TreeSnapshot`/`SessionTree`/`TabTree` in the sdk, with their round-trip
+   tests; record builders made `pub(super)`; `dispatch/event.rs`'s
+   `tree_snapshot` function, proven against a hand-built nested tree (no
+   subscription machinery yet).
+3. `State.subscribers`, `register_subscriber`/`deregister_subscriber`, wired
+   into `connection.rs` — proven with a test-only accessor only.
+4. `Runtime::subscribe` (§4), routed from `connection.rs` — proven first for
+   the ordinary (no-race) case: a subscribe gets exactly the snapshot, in
+   reply, with nothing else on the wire yet.
+5. `broadcast`, one call per §5's creation/closure tables, each proven with
+   its own cascade-order test before the next is added.
+6. The status-expiry thread (§6), proven on its own against a hand-advanced
+   clock before being wired into the real `apply_event_locked`/dispatch call
+   sites.
+7. The race (§4), filter-by-session, and no-poll tests (§10), last.
+8. `Connection::watch`/`TreeEvent` in the sdk, with their own tests, used by
+   every test above instead of raw `Connection::call`/`poll` once they exist
+   (an ordering choice, not a correctness one — earlier steps can use the raw
+   calls and be ported once the typed wrapper lands, whichever reads easier
+   when building).
+9. `just check` at each numbered step.
 
-## Risks / for the engineer
+## Risks
 
-- §1's design choice (how the snapshot travels) is the one decision that has to
-  be made before any code is written — everything else in this plan is written
-  to be correct either way, but the snapshot's own shape is not.
-- The split (§0) is proposed, not assumed; if rejected, TASK-1.46b's scope above
-  becomes this task's own §10-and-beyond instead, same content.
-- `session.focus`'s dispatch arm is claimed for TASK-1.46b but TASK-1.89 is
-  already in flight and may reach it first — needs the lead's call before either
-  worker builds it, not discovered by a merge conflict.
-- `pane.cwd_changed`/`pane.title_changed` are named as a real gap with no owner
-  today (§2) — not blocking this task, but should not be forgotten once TASK-1.47
-  starts.
+- The status-expiry thread (§6) is the single largest net-new mechanism this
+  plan adds — a background thread with its own wake channel, not asked for
+  by the original brief's own enumeration of production sites, but required
+  once R83's own timer rule is taken seriously for a subscribed client.
+  Flagged in "For the engineer" as needing confirmation precisely because of
+  its size and because it runs against your own first-choice fix.
+- `dispatch/event.rs`'s `tree_snapshot` still walks every session/tab/pane on
+  every `event.watch` call (unchanged risk note from before) — fine at M1
+  scale, named so it isn't mistaken for an oversight.
+- `session.focus`'s dispatch arm is TASK-1.109's, confirmed by the merged
+  code's own `not_implemented_yet` message.
+- TASK-1.98/1.86 both touch `connection.rs`/`listen.rs`/`ConnectionEvent`
+  concurrently with this task's own edits to `connection.rs` — different
+  functions, no shared type (§7), a real textual merge expected, not a design
+  conflict.
 <!-- SECTION:PLAN:END -->
 
 ## Comments
@@ -474,6 +523,14 @@ created: 2026-11-16T04:32:00Z
 ---
 
 Split on 2026-11-15 by @bruk.o under the engineer's standing decision to split by default: the worker's plan found two changes. This task keeps the tree, subscribing, delivery to every subscribed client, narrowing, and the events that already have a producer in the tree (created, closed, focused, exited, status changed). The events the API description does not have yet (a tab's layout changed, a session or tab changed, clients connecting, leaving and viewing, and the one event addressed to a single client for session focus) moved to a new draft, with session focus itself. Criteria reworded to match. Depends on TASK-1.89 for the tab record.
+
+---
+
+created: 2026-11-16T11:54:00Z
+
+---
+
+2026-11-16, @bruk.o: the engineer decided all four as recommended: the tree is the reply to event watch; the event names as proposed; a subscriber that does not read has its connection closed; status-change events are M1 (R52's label corrected in doc-11). The plan is being rewritten once for part A.
 
 ---
 <!-- COMMENTS:END -->

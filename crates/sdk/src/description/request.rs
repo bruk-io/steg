@@ -150,7 +150,8 @@ mod tests {
 
     use super::{ApiError, Request, validate};
     use crate::description::shapes::{
-        Description, ErrorCode, Method, MethodName, Param, Returns, Role, ValueKind, Version,
+        Description, ErrorCode, Follows, Method, MethodName, Param, Returns, Role, ValueKind,
+        Version,
     };
 
     fn request(method: &str, pairs: Vec<(&str, serde_json::Value)>) -> Request {
@@ -200,6 +201,7 @@ mod tests {
                     param("args", ValueKind::Argv, false),
                 ],
                 returns: Returns::Identifier { of: "pane".into() },
+                follows: Follows::Nothing,
                 errors: vec![ErrorCode::BadRequest],
                 since: Version { major: 1, minor: 0 },
             }],

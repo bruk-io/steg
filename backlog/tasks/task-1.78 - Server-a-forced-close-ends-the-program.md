@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T03:07:00Z'
+updated_date: '2026-11-16T03:08:00Z'
 labels:
   - size-3
   - changes-requested
@@ -2113,6 +2113,20 @@ running 1 test
 test pane::ending_tests::restarting_then_forcing_ends_the_new_program_as_a_plain_regression ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 102 filtered out; finished in 0.02s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_regression` exited 0 at 2026-11-16T03:08:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at a4fb5d0b6a6d with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 1 test
+test a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_regression ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.01s
 ```
 
 Commits since the review: 0.

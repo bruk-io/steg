@@ -1,17 +1,20 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:20:00Z'
+updated_date: '2026-11-16T13:36:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.77
   - TASK-1.45
+references:
+  - task-1.86-server-an-on-demand-server-stops-when
+  - https://github.com/bruk-io/steg/pull/60
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -1128,6 +1131,58 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:25:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at d6c7ad92ba23:
+
+```text
+ok      format check (0.2s)
+ok      lint (6.1s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (26.7s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (29.8s)
+ok      test (steg-server) (20.7s)
+ok      test (steg-server, race-fixture) (21.7s)
+ok      test (steg-server, accept-backoff-fixture) (23.3s)
+ok      build (steg) (0.8s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.3s)
+ok      build (steg-ui) (1.4s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built per the approved plan. Summary:
+
+- IdlePredicate (crates/server/src/idle.rs): pure function of counts and a given time, returns Wait::Forever/Until(remaining)/Expired - no periodic wake. 9 unit tests (29/30/31s boundary, mid-handshake counting, arbiter-probe shape with the corrected "full period not a few seconds" claim, 29s reconnector, exact-wait durations, the exact-wait loop's own observer-driven proof, and AcceptRetried not counted as a client - added after merging TASK-1.98).
+- ConnectionEvent gains SessionCountChanged (connection.rs); Runtime gains session_counter/set_idle_notifier and one new arm in apply_event_locked's PaneEvent::Exited match, one new line in Runtime::stop() (runtime.rs).
+- listen::run wires one checker thread via build_idle_wiring, gated on config.idle_timeout.is_some(). Join happens once, after runtime.stop(), with the bound derived against every sender into the channel (the closure's own clone, every per-connection clone, Runtime's own clone) and every path out of run - confirmed by a dedicated test with its own negative control.
+- ServerConfig.idle_timeout: Option<Duration>, default None; crates/steg/src/main.rs sets it explicitly only for on_demand; fixture_server.rs mirrors it with a STEG_TEST_IDLE_TIMEOUT_MS override.
+- Merged, in order: origin/main (PRs 47/57/56/54), then TASK-1.98's two successive heads (4e4006d5, then fcfc798c after its own review). Found and fixed a real wiring bug while merging: TASK-1.98's two AcceptRetried send sites read the raw `events` parameter (always None in production), never reaching the idle checker - fixed by computing one effective sender once (checker_tx.or(events)) and having all three send sites in the loop read it; this also fixed a second bug my first attempt introduced (a stray clone of checker_tx left alive in run()'s own outer scope would have kept the checker's channel from ever disconnecting). Added a test confirming AcceptRetried doesn't count as a client arriving. Reported both the fix and an unrelated pre-existing test failure (running_out_of_file_descriptors_exits_1, since replaced on TASK-1.98's final head) to the engineer as I found them.
+
+Checks recorded on the task throughout, including:
+- just check: exit 0 (several times; final run included foundations/design-pages checks from an unrelated later main merge, and accept-backoff-fixture with no stall)
+- cargo test -p steg-server --tests: exit 0
+- cargo test -p steg --features fixtures: exit 0
+- Five negative controls, each recorded failing then reverted: idle_timeout: None instead of Some; the session-close notify line removed from apply_event_locked; the notify-clear line removed from Runtime::stop(); the exact-wait loop's Forever arm reverted to a 100ms poll (first attempt didn't bite - the test's own script left no real window to observe it, fixed with a genuine 300ms recv_timeout().is_err() window before re-recording); the fixture's STEG_TEST_IDLE_TIMEOUT_MS reading disabled.
+
+AC #4's exact-instant race (a client connecting in the same accept-loop iteration the stop flag becomes true) is proven for the ordinary-timing case only, through the real binary and the sdk's own unmodified autostart - the engineer approved this reading and is adding the exact-instant case as a criterion on TASK-1.49 instead, per the plan's own "For the engineer" section.
+
+Reviewer: please check PR #60 includes the merges of origin/main and TASK-1.98's branch cleanly (no leftover conflict markers), and that the one-effective-sender change to listen.rs (TASK-1.98's own file) reads correctly in context.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1139,6 +1194,25 @@ created: 2026-11-16T11:33:00Z
 ---
 
 Plan approved by @bruk (7161104a6d7b, size-3): its worker may build it.
+
+---
+
+created: 2026-11-16T13:36:00Z
+
+---
+
+Per the engineer's note that fcfc798c's accept-backoff tests can intermittently hang: ran this task's own four test targets 50 times each, in the foreground, each individual run bounded with `timeout 30`. 200 runs total, 0 failures. Checked for leftover processes from this worktree after each batch and after the full set: none.
+
+- `cargo test -p steg-server --lib idle::` x50 - 0 failures
+- `cargo test -p steg-server --lib listen::` x50 - 0 failures
+- `cargo test -p steg-server --test idle_stop` x50 - 0 failures
+- `cargo test -p steg --features fixtures --test idle_stop` x50 - 0 failures
+
+None of these touch the `accept-backoff-fixture` feature at all (that is TASK-1.98's own gated test file, a different one), so they were never exposed to the specific hang the engineer described - run anyway, as asked, to rule out anything in this task's own tests independently.
+
+Checked the exact-wait test's own 300ms absence window (`idle.rs`'s `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`) for margin under machine load, as asked - what would make something arrive late into it or after it:
+
+Nothing legitimate can. The checker is in `Wait::Forever` for the whole window because `live_clients > 0` makes `wait()` return `Forever` unconditionally, regardless of how much time has elapsed - this does not depend on `idle_timeout` (50ms in this test) or on timing precision at all. The window's own boundaries are entirely test-controlled, not racing a background timer: it starts only after the test's own blocking (untimed) `.recv()` for the second observation has already returned, and the test does not send `Disconnected` - the only thing that could end the window - until after the window's own `recv_timeout` call has already returned. So there is no clock for machine load to make something arrive "late" into or after this window; the only way anything can appear inside it is a real implementation regression (a reverted periodic-poll design), which the committed negative control already confirmed bites, cleanly, at a bounded 300ms - about 3x the 100ms poll interval that regression used.
 
 ---
 <!-- COMMENTS:END -->

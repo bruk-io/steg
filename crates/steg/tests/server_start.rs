@@ -468,22 +468,45 @@ fn call_and_read_reply(
 /// server's own *child* process, never this test binary's own) now shows
 /// the server surviving it instead.
 ///
-/// The `-n` value (128) is not inherited from the old test's own 16 -
-/// confirmed empirically while building this task that this scenario needs
-/// much more headroom than that one did. Measured, not guessed: at 90, the
-/// very first client's own handshake already fails ("server closed before
-/// replying to the hello") before any connection is deliberately held open
-/// at all; at 120, every run passes; 128 leaves a small margin above that
-/// observed threshold without being as generous as this task's own first,
-/// untested guess of 256. The server's own baseline cost is real here in a
-/// way the old test's never had to account for: besides the socket, the
-/// lock, and now one live session's own pty, TASK-1.87 (merged while this
-/// task was being built) makes every real `server start` spawn a real
-/// login shell and capture its environment before the accept loop even
-/// starts, which itself needs several descriptors of its own.
+/// The `-n` value (180) is not inherited from the old test's own 16, and is
+/// derived, not merely widened past a thin margin (a review of this task
+/// found the first chosen value, 128, measured on this machine alone and
+/// never exercised on CI, too close to its own observed failure point to
+/// trust on a runner with a different baseline):
+///
+/// - **Measured, not guessed, this server's own real descriptor cost**: a
+///   real `server start`, steady state, with one session and one connected
+///   client, holds 15 open descriptors on this machine (`lsof -p <pid>`
+///   against an unrestricted run). Before `run`'s own accept loop is even
+///   reached, TASK-1.87 (merged into this branch while this task was being
+///   built) also spawns a real login shell and captures its environment,
+///   a real child process with its own pipes - a transient cost on top of
+///   that steady-state number, not included in it, since the shell has
+///   already exited and its own fds closed by the time this measurement
+///   runs.
+/// - **Measured, not guessed, where that transient cost actually bites**:
+///   at `-n 90`, the very first client's own handshake already fails
+///   ("server closed before replying to the hello") before this test ever
+///   deliberately holds a connection open; at `-n 120`, every run passes.
+///   The true peak sits somewhere in that bracket - not pinned down
+///   further, since narrowing it needs no new information this test's own
+///   proof depends on.
+/// - **The chosen value, and why it cannot pass vacuously on a different
+///   runner**: 180 is 1.5x the empirically-passing 120, for headroom
+///   against a runner with a slower or differently-timed login-shell
+///   spawn. It still guarantees real exhaustion occurs, by construction,
+///   not by luck: `HELD_CONNECTIONS` below costs two descriptors each if
+///   fully accepted, so all of them succeeding would need `180 +
+///   2*HELD_CONNECTIONS` descriptors - comfortably past 180 for any
+///   baseline this server could plausibly have, which is what forces at
+///   least some of them to hit `EMFILE` rather than all succeeding
+///   quietly. `HELD_CONNECTIONS` itself stays well under this platform's
+///   128-deep listen backlog (`crates/server/tests/accept_backoff.rs`'s
+///   own module doc explains why that specific margin matters - the same
+///   reasoning applies to this file's own one-shot batch, below).
 #[test]
 fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers() {
-    const RLIMIT_NOFILE: &str = "128";
+    const RLIMIT_NOFILE: &str = "180";
     const HELD_CONNECTIONS: usize = 100;
 
     let socket_path = unique_socket_path();

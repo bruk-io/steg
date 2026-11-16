@@ -91,6 +91,14 @@ fn main() {
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         accept_error_backoff,
+        // Long and explicit, not the production default
+        // (`DEFAULT_HANDSHAKE_TIMEOUT`, 10s): what actually keeps
+        // exhaustion sustained for the whole of a test's own measurement
+        // window is every *accepted*, never-handshaken connection's own
+        // two fds staying held until this fires - a value this fixture
+        // states for itself, not one it inherits from a constant another
+        // task owns and could change independently of this one.
+        handshake_timeout: Duration::from_secs(60),
         ..ServerConfig::default()
     };
 

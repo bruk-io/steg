@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T13:14:00Z'
+updated_date: '2026-11-16T13:50:00Z'
 labels:
   - size-2
   - changes-requested
@@ -587,6 +587,87 @@ Checks recorded on the task: just check (full) green after every meaningful step
 The -n limits in both real-binary tests were picked empirically, not guessed: 128 for crates/steg's own test (needs headroom for a live session's pty and TASK-1.87's own login-shell capture, which merged into this branch mid-build), 48 for the in-process fixture (which starts no session).
 
 PR: https://github.com/bruk-io/steg/pull/59
+
+Check FAILED: `just check` exited 101 at 2026-11-16T13:46:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at fcfc798c6936 with uncommitted changes, last 40 of 81 lines:
+
+```text
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... FAILED
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+failures:
+
+---- an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason stdout ----
+
+thread 'an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason' (37470977) panicked at crates/steg/tests/server_start.rs:355:52:
+writing the plain file should succeed: Os { code: 102, kind: Unsupported, message: "Operation not supported on socket" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason
+
+test result: FAILED. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.36s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+full output: .quiet/test-steg-fixtures.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T13:50:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.98 on task-1.98-server-the-accept-loop-survives-an-error at fcfc798c6936 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (10.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (30.0s)
+ok      test (steg-server) (14.5s)
+ok      test (steg-server, race-fixture) (14.3s)
+ok      test (steg-server, accept-backoff-fixture) (11.0s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.8s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.5s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.5s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

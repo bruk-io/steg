@@ -818,11 +818,7 @@ mod tests {
     fn runtime_new_does_not_panic_and_starts_empty() {
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let context = crate::dispatch::Context {
-            default_session: steg_sdk::SessionId::from_raw(0),
-            default_tab: steg_sdk::TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let context = crate::dispatch::Context::none();
         let response = runtime.handle(
             &description,
             &context,
@@ -855,15 +851,11 @@ mod tests {
     /// inheritance at all.
     #[test]
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
-        use steg_sdk::{Request, SessionId, TabId};
+        use steg_sdk::{Request, SessionId};
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         let live_cwd =
             std::env::temp_dir().join(format!("steg-live-cwd-{}-{}", std::process::id(), line!()));
@@ -931,9 +923,9 @@ mod tests {
             state.tree.tab_of_pane(source_pane).unwrap()
         };
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: source_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(source_pane),
         };
 
         let split = match runtime.handle(
@@ -982,15 +974,11 @@ mod tests {
     /// exactly as if the source pane had reported no cwd at all.
     #[test]
     fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
-        use steg_sdk::{Request, SessionId, TabId};
+        use steg_sdk::{Request, SessionId};
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         let vanished = std::env::temp_dir().join(format!(
             "steg-vanishing-cwd-{}-{}",
@@ -1068,9 +1056,9 @@ mod tests {
             state.tree.tab_of_pane(source_pane).unwrap()
         };
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: source_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(source_pane),
         };
 
         let split = match runtime.handle(
@@ -1142,11 +1130,7 @@ mod tests {
 
         let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login());
         let description = steg_sdk::description();
-        let no_context = crate::dispatch::Context {
-            default_session: SessionId::from_raw(0),
-            default_tab: TabId::from_raw(0),
-            default_pane: steg_sdk::PaneId::from_raw(0),
-        };
+        let no_context = crate::dispatch::Context::none();
 
         fn polling_program() -> Vec<&'static str> {
             vec!["sh", "-c", "while :; do stty size; sleep 0.05; done"]
@@ -1297,9 +1281,9 @@ mod tests {
         assert_eq!(terminal_rows(&runtime, first_pane), 20);
 
         let context = crate::dispatch::Context {
-            default_session: session_id,
-            default_tab: tab_id,
-            default_pane: first_pane,
+            default_session: Some(session_id),
+            default_tab: Some(tab_id),
+            default_pane: Some(first_pane),
         };
 
         // Split right: two panes.
@@ -1331,9 +1315,9 @@ mod tests {
         let split_down = match runtime.handle(
             &description,
             &crate::dispatch::Context {
-                default_session: session_id,
-                default_tab: tab_id,
-                default_pane: first_pane,
+                default_session: Some(session_id),
+                default_tab: Some(tab_id),
+                default_pane: Some(first_pane),
             },
             &Request {
                 method: "pane.split".to_string(),

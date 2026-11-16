@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T01:19:00Z'
+updated_date: '2026-11-16T01:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1254,6 +1254,33 @@ Check passed: `sh -c 'fail=0; for i in $(seq 1 10); do echo "=== run $i ==="; ou
 === run 9 ===
 === run 10 ===
 TOTAL FAILURES: 0 / 10
+```
+
+Check FAILED: `cargo test -p steg-server --lib runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle` exited 101 at 2026-11-16T01:23:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at b7e872af7f6b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... FAILED
+
+failures:
+
+---- runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle stdout ----
+
+thread 'runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle' (16997020) panicked at crates/server/src/runtime.rs:1137:9:
+the plain close must remove the now-pointless idle handle, not leave it (and its worker thread) running forever
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 90 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T08:49:00Z'
+updated_date: '2026-11-16T11:33:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.98-server-the-accept-loop-survives-an-error
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '040e19a11fea'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -434,3 +437,16 @@ immediately after, which showed nothing changed. It did not touch
 <!-- SECTION:NOTES:BEGIN -->
 Plan (040e19a11fea) checked against the four acceptance criteria, doc-8 R1 and R99 and the team's testing rules by @bruk.o, 2026-11-16: ok. Revised once at the orchestrator's request: the stop flag is checked in both recoverable arms before classifying (a stop during an exhaustion storm ends the server within one backoff), with its own proof and control; criterion 2 is proven with a real fatal error (the listener's descriptor replaced by a non-socket in the fixture's own process, ENOTSOCK, shown feasible by a probe) and is no longer dropped unless that fails once built; a recoverable error is reported as a ConnectionEvent variant, with no static counter; criterion 3's control is a recorded run against the test as built. For the engineer: the reporting choice (event, recommended, or a test-only counter), and that nothing is printed until the binary consumes events.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T11:33:00Z
+
+---
+
+Plan approved by @bruk (040e19a11fea, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

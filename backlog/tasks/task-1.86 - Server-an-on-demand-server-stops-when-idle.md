@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T12:21:00Z'
+updated_date: '2026-11-16T12:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -784,6 +784,33 @@ running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test idle_stop a_genuinely_idle_server_stops_itself_within_a_bound` exited 101 at 2026-11-16T12:22:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test a_genuinely_idle_server_stops_itself_within_a_bound ... FAILED
+
+failures:
+
+---- a_genuinely_idle_server_stops_itself_within_a_bound stdout ----
+
+thread 'a_genuinely_idle_server_stops_itself_within_a_bound' (27620936) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_genuinely_idle_server_stops_itself_within_a_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
 ```
 <!-- SECTION:NOTES:END -->
 

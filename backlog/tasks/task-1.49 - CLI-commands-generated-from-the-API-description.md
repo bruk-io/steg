@@ -4,7 +4,7 @@ title: 'CLI: commands generated from the API description, in the steg package'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-15T23:53:00Z'
+updated_date: '2026-11-16T00:35:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -41,4 +41,6 @@ Dependency added by @bruk.o 2026-11-15: TASK-1.77 adds the steg entry point for 
 Carried from TASK-1.75's build (2026-11-15), for this task's plan to settle against doc-2: (1) pane.move calls Tree::move_pane_to_tab, which needs a direction that doc-2 section 8 gives pane move no parameter for; dispatch defaults to the right. (2) unset --label requires a value to be sent that dispatch then discards (the description declares the parameter with a value). (3) the api.call target collision is its own draft task.
 
 Carried from TASK-1.77's planning (2026-11-15): when a server is stopping, a connection the accept loop takes in the instant it sees the stop flag is dropped with no reply, so the client sees connect succeed and then end of file, a third outcome beside refused and not found. The CLI's client must treat end of file before a server hello as no server there, and start one, exactly as it treats a refusal; say whether that belongs in the sdk's local-socket provider (which today only waits for the socket) or in the handshake's caller.
+
+TASK-1.89 (tab list, tab show, pane list) and TASK-1.88 (server and client methods) were accepted on 2026-11-15 for methods the generated commands will call; this task's own tests should use methods that exist when it is built and need not wait for those.
 <!-- SECTION:NOTES:END -->

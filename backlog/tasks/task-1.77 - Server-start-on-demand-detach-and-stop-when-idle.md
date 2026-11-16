@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:29:00Z'
+updated_date: '2026-11-16T00:37:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -874,6 +874,20 @@ ok      test (steg-app) (0.8s)
 ok      tool tests (1.5s)
 ok      architecture (1.0s)
 ok      recipe names (0.1s)
+```
+
+Check passed: `cargo test -p steg --features fixtures --test server_start -- the_clients_process_group_being_sighupd_does_not_end_the_server the_client_being_sigkilled_does_not_end_the_server` exited 0 at 2026-11-16T00:37:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 221ef18c07f7 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 2 tests
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.19s
 ```
 <!-- SECTION:NOTES:END -->
 

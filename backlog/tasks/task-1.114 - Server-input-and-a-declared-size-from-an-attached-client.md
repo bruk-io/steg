@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T15:04:00Z'
+updated_date: '2026-11-16T16:49:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'ec385ef4d563'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -43,6 +46,7 @@ Split from TASK-1.47 by its plan (2026-11-16). doc-15 R91, doc-9, decision-2 sec
 5. **The doc-2 §8 completeness test's own count moves again, and the exact number must be re-checked at build time, not carried forward from this plan.** On `1ce276d` it is `the_method_set_is_exactly_doc_2_section_8s_44_pairs` asserting `len() == 44` (TASK-1.47's own bump from 42). TASK-1.47 is `In Progress`/`changes-requested` and may move again before this task builds on it. Before writing this test's own next number, run `git -C <worktree> grep -n "the_method_set_is_exactly" crates/sdk/src/description/methods.rs` against the actual branch head you are building against, not this plan's text.
 6. **A size of zero is a narrower risk than R100's floor, and worth refusing even though R100 explicitly allows small.** `Tree::declare_size`'s own doc says its size is applied "with no floor check, ever (R100's last clause)" — R100 (doc-15) deliberately lets a window shrink below 20x4 ("a pane may go under the floor that way, and its terminal is cropped"), so this plan does not add a floor the kernel's own design just rejected. But `columns: 0` or `rows: 0` is a different, degenerate case R100 never addresses, and `ghostty_vt::Terminal::resize`'s behaviour at 0 is unverified. Recommend: `Runtime::declare_size` refuses `columns == 0 || rows == 0` with `ErrorCode::BadRequest`, before the kernel or the engine ever sees it — cheap, and the one place in this task close to an untested engine edge.
 7. **A resize that changes the terminal's size without marking any cell dirty must still be reported — the engine's `Dirty` and "did the size change" are not the same question, and nothing already built checks this.** See §2 below for the exact mechanism and the fix; flagged here because it is the one piece of kernel-level behaviour this task adds that is not a mechanical field addition.
+8. **A real, named limit this task accepts rather than fixes: one pane's screen freezes while its own program refuses to read its input, until that program reads, ends on its own, or is force-closed.** §1 below traces this precisely — every `PaneCommand` for that pane (not only more input, but the relay thread's own `PtyBytes`, and any `Attach`/`Detach`/`Resize` for that same pane) queues up behind the one stuck `write_all`, so that pane's own screen stops updating and its own attach/detach/resize all wait, for as long as the program refuses to read. §5's new proof item below confirms this never violates a stated bound elsewhere (the connection stays responsive, other panes keep updating, and a forced close or a full server stop both still return within their own documented bound) — the limit is scoped to this one pane's own responsiveness, not to anything this task's acceptance criteria promise. Accepted here, not fixed, because fixing it properly is a change to how every pane's worker handles input, not only how this task's new callers reach it: giving each pane's own pty write a thread of its own (so `PaneCommand::Input`'s handling in `worker_loop` hands bytes to a second, per-run thread that blocks on `write_all` alone, leaving the worker free to keep ticking and keep serving `Attach`/`Resize`/`Snapshot`), or making the write non-blocking with its own small bounded buffer and the same drop-and-signal shape decision-2 §6 already uses for a slow *reader*. My own estimate: small on its own (a few hours against this one function, `PaneCommand::Input`'s arm and `Running`'s own fields), but it touches `pane.rs`'s own concurrency shape precisely enough that it deserves its own plan and its own review, not a late addition to this one — proposed as a follow-up task, for the engineer to size and place.
 
 ## 1. Input (AC #1)
 
@@ -89,7 +93,13 @@ pub(crate) fn send_input(&self, client: ClientId, pane: PaneId, bytes: Vec<u8>) 
 
 `Tree::note_input` (`crates/kernel/src/tree.rs:1442`) is R91's other half of "latest" ("the last one to send input to it or be resized") and already clears the pane's `Finished`/`Failed` status (doc-11 R83) and reapplies whatever size the now-latest client last declared, with no clock read anywhere — `Tree::tick()` is the kernel's own counter (`crates/kernel/src/tree.rs:154`), not wall time, which is what lets AC #1's "count as that client's input... without the kernel reading a clock" hold with no new code.
 
-**Why the reader never blocks on a slow program.** `Runtime::send_input` only ever (a) takes the `Mutex` guarding `State` — the same lock every other request already takes, held for a kernel call plus two `HashMap` lookups, no I/O; and (b) calls `PaneHandle::send_input`, which is `self.commands.send(PaneCommand::Input(bytes))` on an **unbounded** `mpsc::Sender` (`crates/server/src/pane.rs:448`) — a non-blocking enqueue, never a write to the pty. The pty write itself happens later, inside the pane's own worker thread, in the `PaneCommand::Input` arm (`pane.rs:837-841`): `running.writer.write_all(&bytes)`. A pty nobody is reading can block that call for real, but it blocks only that one pane's own worker thread — a different OS thread per pane (module doc: "one OS thread per pane... created once and alive until shutdown") — never the connection's reader thread (which already returned once the mpsc `send` succeeded), never the connection's writer thread or its other streams (`Outbound`'s queues are untouched by this path), and never another pane's worker (each owns its own channel and its own thread). The one real cost is pane-local: more `PaneCommand::Input` piling up behind a stuck `write_all` on that pane's own queue, the identical, already-accepted shape `PtyBytes` already has on the same channel (`pane.rs`'s own module doc: "a flooding run's own backlog of `PtyBytes` on the worker's command queue"; `:430`: "a flooding run's own backlog of `PtyBytes` on that same queue"). This task adds no new bounding because none of this is new: it is the same channel, the same thread-per-pane isolation, TASK-1.40/1.47 already built and documented.
+**Why the reader never blocks on a slow program.** `Runtime::send_input` only ever (a) takes the `Mutex` guarding `State` — the same lock every other request already takes, held for a kernel call plus two `HashMap` lookups, no I/O; and (b) calls `PaneHandle::send_input`, which is `self.commands.send(PaneCommand::Input(bytes))` on an **unbounded** `mpsc::Sender` (`crates/server/src/pane.rs:448`) — a non-blocking enqueue, never a write to the pty. The pty write itself happens later, inside the pane's own worker thread, in the `PaneCommand::Input` arm (`pane.rs:837-841`): `running.writer.write_all(&bytes)`. A pty nobody is reading can block that call for real, but it blocks only that one pane's own worker thread — a different OS thread per pane (module doc: "one OS thread per pane... created once and alive until shutdown") — never the connection's reader thread (which already returned once the mpsc `send` succeeded), never the connection's writer thread or its other streams (`Outbound`'s queues are untouched by this path), and never another pane's worker (each owns its own channel and its own thread).
+
+**Say what that costs this one pane, not only that it is contained.** Every `PaneCommand` for this pane — not only more `Input`, but `PtyBytes` (the relay thread keeps reading the program's own output and keeps enqueuing it; nothing stops that), `Attach`, `Arm`, `Detach`, `Resize`, `Snapshot`, `Cwd` — goes through this same one `mpsc::Sender` (`worker_loop`'s single `commands_rx.recv()`/`recv_timeout()` match, `pane.rs:816-834`), so all of them queue up behind the stuck `write_all` too. Concretely, while this pane's worker is blocked: its screen stops updating (the bytes it already received sit in the queue, unread by `terminal.write`, so no tick ever sees them as dirty); a client trying to attach, detach or declare a size *for this pane* waits behind the same backlog; and the queue itself grows without any bound of its own for as long as this lasts. This is the identical, already-accepted shape `PtyBytes` alone already had on this channel before this task (`pane.rs`'s own module doc: "a flooding run's own backlog of `PtyBytes` on the worker's command queue"; `:430`: "a flooding run's own backlog of `PtyBytes` on that same queue") — this task does not add a new kind of jam, it adds a second way to cause the one that was already possible.
+
+**What ends it.** Either the program reads (the ordinary case: a pty's own kernel input buffer is finite, but a program that reads its stdin at all drains it, and `write_all` returns), or the program ends — naturally, or forced. Forcing bypasses this pane's own stuck queue entirely: `PaneHandle::signal_hangup`/`signal_kill` (`pane.rs:639-647`) go straight to the OS through `RunGate`, "never through `commands`... so a backlog of `PtyBytes` the worker has not drained yet... cannot delay this" (the method's own doc, already written for exactly this reason by TASK-1.78) — the stuck worker thread is never on the path a forced signal takes. Read `Runtime::force_end` (`runtime.rs:1160-1248`, used by both `Runtime::stop` and `pane.close --force`'s own wrapper) pass by pass against this: pass 1 (`signal_hangup`) and pass 3 (`signal_kill`, if pass 2 times out) are `RunGate`-only, unaffected by the stuck worker; pass 2/4 (`await_exit`, waiting for the process to actually die) are also `RunGate`-only (a `Condvar`, not `commands`) — the relay thread, a *separate* thread from the stuck worker, is the one that reaps the child and clears the gate, and reading the pty's output is not blocked by the worker being stuck writing to it, so this still completes once the process is actually dead; only pass 5 (`settle_worker`, telling the worker its run ended) and pass 6 (`join_worker`) go back through `commands`/the worker thread itself, and both are independently bounded (`FORCE_JOIN_TIMEOUT`, run via `thread::scope` in parallel across every pane in `handles`) — so **`force_end`, and therefore both `Runtime::stop` and a forced `pane.close`, return within their already-documented bound (`grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT`) regardless of whether this pane's worker ever actually unblocks** — confirmed by reading the code, not assumed: nothing in any of `force_end`'s six passes waits on the stuck worker thread past a stated timeout.
+
+What is expected to make `write_all` itself return, once the signaled process (and, per TASK-1.78, its whole process group) is dead: every file descriptor onto the pty's slave side closes with it, and a pending write to the master side of a pty with no open reader on the slave returns an error (`EIO`) rather than blocking forever — the write-side half of the identical kernel guarantee this codebase already relies on for the *read* side (`crates/server/src/pty.rs:140-141`: "dropping the slave is what lets the program's own exit reach the reader as end-of-file... the pty's slave side only closes once [the program and everything it started are gone]"). This is inferred by symmetry with an already-relied-upon guarantee, not independently verified elsewhere in this codebase — §5's new proof item below is what actually checks it, empirically, rather than leaving it assumed.
 
 **Ordering.** `connection.rs`'s read loop is the sole sender of this connection's own `PaneCommand::Input` values for a given pane (one reader thread per connection), and `mpsc` guarantees per-sender FIFO delivery — the identical argument `pane.rs`'s own `drain_command_marks`/`spawn_relay` comments already make for `PtyBytes`/`Exited` ordering, cited rather than re-derived. Bytes therefore reach the program in the order the client sent them, with nothing between the connection's `poll()` loop and the worker's `write_all` that could reorder two `Input` frames from the same stream.
 
@@ -198,8 +208,9 @@ Over a real socket (`crates/server/tests/`, the shape TASK-1.47's own `attach.rs
 | 6 | A client that calls `pane.detach` releases its claim; the survivor's terminal returns to *its own* declared size, and the survivor is told **on its own stream**, not merely that the kernel recomputed | Remove `forget_attachment`/the `detach_pane` call: the test fails to observe the survivor's stream reporting the reapplied size |
 | 7 | A client whose connection is dropped hard (a real killed client process, or the socket half closed from under it — not a polite `pane.detach`) releases its claim the same way | Remove `ConnectionCleanup::drop`'s `disconnect_client`/`forget_attachment` calls: the test fails the same way as #6 |
 | 8 | A program that never reads its stdin (or is `SIGSTOP`ped) does not stall: flood input to its pane, then prove a control call on the *same* connection still answers, and a second, unrelated pane's own attachment still receives updates, both on bounded waits on the event | No mechanism to remove here (nothing new bounds this — see §1's own reasoning); the control is a negative one: assert the second pane's update arrives within one tick's bound while the first pane's own `PaneCommand::Input` queue is still backed up, proving thread isolation rather than a limit this task added |
-| 9 | A frame on a stream this connection never opened, or already detached, closes the connection (decision-2's "refused") | Already covered by TASK-1.47's own `Incoming::UnknownStream` behaviour — this task adds one test sending `Incoming::Data` *after* `pane.detach`, confirming the existing mechanism still applies once this task's new `Incoming::Data` arm exists beside it |
-| 10 | A declared size of `0` is refused with `BadRequest`, never reaching `Tree::declare_size` or the engine | Remove the range check in connection.rs's `tab.declare_size` arm: the test fails |
+| 9 | **A program that never reads its stdin at all** (e.g. `sleep`, which never touches it), flooded with more bytes than the pty's own kernel input buffer holds, so this pane's own worker is genuinely, verifiably stuck in `write_all`: prove, all on bounded waits, that (a) another request on the *same* connection still answers, (b) a second pane on the same connection still receives updates, (c) `pane.close --force` on the *stuck* pane returns within `force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT`, and (d) stopping the server with this pane still stuck returns within its own documented bound too | If (a)/(b) fail: the stuck worker is somehow blocking the connection or another pane — a real regression, not named as a limit anywhere in this plan, and must be fixed before this task is done, not merely written down. If (c)/(d) time out: `force_end` is waiting on the stuck worker somewhere past a stated bound — contrary to this plan's own reading of its six passes (§1 above) — also a bug to fix here, not a limit to accept. Only the pane's own screen freezing while stuck (named in "For the engineer" point 8) is the accepted limit; this test's job is to confirm nothing *else* rides along with it |
+| 10 | A frame on a stream this connection never opened, or already detached, closes the connection (decision-2's "refused") | Already covered by TASK-1.47's own `Incoming::UnknownStream` behaviour — this task adds one test sending `Incoming::Data` *after* `pane.detach`, confirming the existing mechanism still applies once this task's new `Incoming::Data` arm exists beside it |
+| 11 | A declared size of `0` is refused with `BadRequest`, never reaching `Tree::declare_size` or the engine | Remove the range check in connection.rs's `tab.declare_size` arm: the test fails |
 
 Every item above gets a test or is named as dropped; none is.
 
@@ -209,3 +220,55 @@ TASK-1.46 and TASK-1.47 are both `In Progress` (1.47 `changes-requested`); this 
 
 This stays one task: input, the declared size, and the size carried on every update are one coherent change — what an attached client sends, and what it is told back — and AC #2's own proof is unprovable without AC #1's routing already in place (the sdk's own `send_input`/`open_stream` sequencing is identical for both). No split proposed.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (ec385ef4d563) checked against the four acceptance criteria, decision-2 section 3, doc-14 and doc-15 R91, doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Built on TASK-1.47's branch (not merged) and to merge after it. Revised once at the orchestrator's request: the full cost of a program that does not read its input is stated (that pane's worker is blocked, so its screen stops updating and its commands wait), with a proof item on a real program that never reads (the connection stays responsive, another pane keeps updating, a forced close and a server stop return within their bounds), and that a failure there is a bug to fix in this task. For the engineer: the new method tab.declare_size (a row in doc-2; the method count moves to 45); a size with zero columns or rows is refused; and the accepted limit that one pane's own screen freezes while its program refuses input, with a follow-up proposed.
+
+Check passed: `just check` exited 0 at 2026-11-16T16:49:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c:
+
+```text
+ok      format check (0.3s)
+ok      lint (86.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (62.2s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (43.2s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (46.6s)
+ok      test (steg-server) (14.7s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (2.4s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.2s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.7s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T16:43:00Z
+
+---
+
+Plan approved by @bruk (ec385ef4d563, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

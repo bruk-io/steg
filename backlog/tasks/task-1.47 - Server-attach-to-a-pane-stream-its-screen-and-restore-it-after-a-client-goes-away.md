@@ -3,11 +3,11 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: To Do
 assignee:
-  - '@bruk.w4'
+  - '@bruk'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:18:00Z'
+updated_date: '2026-11-16T15:10:00Z'
 labels:
   - size-5
   - changes-requested
@@ -34,6 +34,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reserved_for_author: bruk
 ---
 
 ## Description
@@ -1712,6 +1713,14 @@ Narrow Evidence-only pass (handover was too early for a full review): the code i
 [Compliance, Important] The diff under review is not this task's own. The implementation notes assert the work was built "on TASK-1.46's merged Returns::Nested/Follows vocabulary," but TASK-1.46 is still In Progress, not completed and not on origin/main. Two of the four commits on this branch - "sdk: Returns::Nested and Method.follows for a reply followed by a stream" and "sdk: TreeSnapshot, SessionTree, TabTree and a typed TreeEvent, with Connection::watch" - are TASK-1.46's own commits, rebased onto this branch, confirmed absent from `git log origin/main..origin/<branch>` being the only place they appear.
 
 What is needed before this comes back: every control the plan names, recorded through `asdlc record-check` as a failing run (mechanism removed/reverted) and a passing run, against the tests as they stand; the pull request's CI green on the final head; and the task rebuilt on main after TASK-1.46 has actually merged, so its diff is its own.
+
+---
+
+created: 2026-11-16T15:10:00Z
+
+---
+
+2026-11-16, @bruk.o: released to free a slot, not abandoned: the work is built and pushed (1ce276d), its controls are recorded, and it can do nothing more until TASK-1.46 merges to main. Reclaim as bruk.w4 then: merge main (TASK-1.46's commits come from main and the rebased copies drop out), re-run, CI green, finish.
 
 ---
 <!-- COMMENTS:END -->

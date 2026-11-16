@@ -171,6 +171,24 @@ pub struct ServerHandle {
     pub(crate) lock: Flock<File>,
 }
 
+/// Test-only introspection for TASK-1.98's own `accept-backoff-attempt`
+/// fixture (AC #2): it needs the listener's raw fd *before* handing this
+/// whole `ServerHandle` to `listen::run`, to `dup2` a non-socket over it
+/// once the accept loop is confirmed mid-exhaustion-storm, proving a
+/// genuinely fatal `accept()` error (`ENOTSOCK`) through the real loop with
+/// no unsafe code of its own and no trait seam over `UnixListener`. Gated
+/// behind the same feature that gates the fixture itself, so an ordinary
+/// build never sees this: `listener`'s own field stays `pub(crate)`
+/// otherwise, for the reason stated on it above.
+#[cfg(feature = "accept-backoff-fixture")]
+impl ServerHandle {
+    #[must_use]
+    pub fn listener_raw_fd(&self) -> std::os::fd::RawFd {
+        use std::os::fd::AsRawFd;
+        self.listener.as_raw_fd()
+    }
+}
+
 /// Tries to connect to `path` to tell "a live server of ours" apart from
 /// "a stale file" - only ever called once `paths::existing_file` has
 /// already confirmed the path is a socket this process owns.

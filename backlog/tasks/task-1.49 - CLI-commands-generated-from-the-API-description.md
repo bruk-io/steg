@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T14:52:00Z'
+updated_date: '2026-11-16T15:54:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -23,6 +23,11 @@ asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -413,6 +418,515 @@ Checks recorded on the task via asdlc record-check: just check green at every st
 Tests, all through the real binary or the built tree directly, never this machine's own server: tests/cli_drift.rs (criterion #1, a set comparison never a method count, both directions, with negative controls proving it catches a missing/extra command), tests/cli_no_server.rs (criterion #3, with a real listener bound at STEG_SOCKET_PATH proving these commands never attempt a connection, not merely that they happen to succeed anyway), tests/cli_run_placeholder.rs (criterion #4, every described method - server.start excluded as the hand-written exception already proved by tests/server_start.rs). All pre-existing tests (server_start.rs, login_environment.rs, dispatch.rs, runtime.rs, the sdk's own description tests) still pass unchanged.
 
 CI on the PR is green (just check, ~6m30s).
+
+Check FAILED: `just check-boundaries` exited 1 at 2026-11-16T15:12:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+FAILED  boundaries (exit 1, 0.1s)
+steg depends on clap, which is not on its allow list in boundaries.toml (the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own; serde_json is here only for TASK-1.87's own end-to-end fixture binary (crates/steg/tests/fixtures/env_leak_client.rs), which builds a session.new request's params the same way crates/server/tests/routing.rs already does - a fixture is a [[bin]] target, which only ever sees [dependencies], never [dev-dependencies] - crates/steg/src/main.rs itself never imports it; clap and clap_complete (TASK-1.49) build the CLI's whole command tree at run time from steg-sdk's own API description (decision-1 sections 2, 6 and 7: nothing names a method, a flag or a value kind by hand) - clap's builder API, never its derive feature, so no proc-macro or Unicode-3.0 dependency is pulled in beyond what the workspace's own serde_derive already needs; clap_complete generates the completion subcommand's shell scripts from that same tree).
+steg depends on clap_complete, which is not on its allow list in boundaries.toml (the steg package holds the CLI and the entry point that starts a server, and ships them as one binary with the server (doc-16 R98, doc-13 R61); it holds no server logic of its own; serde_json is here only for TASK-1.87's own end-to-end fixture binary (crates/steg/tests/fixtures/env_leak_client.rs), which builds a session.new request's params the same way crates/server/tests/routing.rs already does - a fixture is a [[bin]] target, which only ever sees [dependencies], never [dev-dependencies] - crates/steg/src/main.rs itself never imports it; clap and clap_complete (TASK-1.49) build the CLI's whole command tree at run time from steg-sdk's own API description (decision-1 sections 2, 6 and 7: nothing names a method, a flag or a value kind by hand) - clap's builder API, never its derive feature, so no proc-macro or Unicode-3.0 dependency is pulled in beyond what the workspace's own serde_derive already needs; clap_complete generates the completion subcommand's shell scripts from that same tree).
+full output: .quiet/boundaries.log
+error: recipe `check-boundaries` failed on line 161 with exit code 1
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `just check-boundaries` exited 0 at 2026-11-16T15:12:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+ok      boundaries (0.1s)
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` exited 101 at 2026-11-16T15:13:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.20s
+     Running tests/cli_run_placeholder.rs (target/debug/deps/cli_run_placeholder-1518af872534748d)
+
+running 1 test
+test every_described_method_parses_and_reaches_the_not_yet_connected_placeholder ... FAILED
+
+failures:
+
+---- every_described_method_parses_and_reaches_the_not_yet_connected_placeholder stdout ----
+
+thread 'every_described_method_parses_and_reaches_the_not_yet_connected_placeholder' (42150501) panicked at crates/steg/tests/cli_run_placeholder.rs:87:9:
+assertion `left == right` failed: session.list: expected the placeholder's exit 1, stderr was "steg: session list is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+  left: Some(0)
+ right: Some(1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_described_method_parses_and_reaches_the_not_yet_connected_placeholder
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.19s
+
+error: test failed, to rerun pass `-p steg --test cli_run_placeholder`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` exited 0 at 2026-11-16T15:13:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running tests/cli_run_placeholder.rs (target/debug/deps/cli_run_placeholder-1518af872534748d)
+
+running 1 test
+test every_described_method_parses_and_reaches_the_not_yet_connected_placeholder ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.30s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 101 at 2026-11-16T15:13:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... FAILED
+
+failures:
+
+---- every_described_method_has_a_generated_command_and_nothing_else stdout ----
+
+thread 'every_described_method_has_a_generated_command_and_nothing_else' (42154611) panicked at crates/steg/tests/cli_drift.rs:63:5:
+methods with no generated command: [("pane", "split")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_described_method_has_a_generated_command_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --test cli_drift`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 0 at 2026-11-16T15:13:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 101 at 2026-11-16T15:13:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... FAILED
+
+failures:
+
+---- every_described_method_has_a_generated_command_and_nothing_else stdout ----
+
+thread 'every_described_method_has_a_generated_command_and_nothing_else' (42167622) panicked at crates/steg/tests/cli_drift.rs:67:5:
+generated commands with no method: [("pane", "bogus")]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    every_described_method_has_a_generated_command_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --test cli_drift`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` exited 0 at 2026-11-16T15:14:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+     Running tests/cli_drift.rs (target/debug/deps/cli_drift-35b31267cec10c3a)
+
+running 1 test
+test every_described_method_has_a_generated_command_and_nothing_else ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_no_server version_contacts_no_server` exited 101 at 2026-11-16T15:14:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running tests/cli_no_server.rs (target/debug/deps/cli_no_server-5e7f4e1a1e58a8d1)
+
+running 1 test
+test version_contacts_no_server ... FAILED
+
+failures:
+
+---- version_contacts_no_server stdout ----
+
+thread 'version_contacts_no_server' (42178987) panicked at crates/steg/tests/cli_no_server.rs:54:21:
+a connection was accepted; the command reached for the server
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    version_contacts_no_server
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.17s
+
+error: test failed, to rerun pass `-p steg --test cli_no_server`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_no_server version_contacts_no_server` exited 0 at 2026-11-16T15:14:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running tests/cli_no_server.rs (target/debug/deps/cli_no_server-5e7f4e1a1e58a8d1)
+
+running 1 test
+test version_contacts_no_server ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.69s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` exited 101 at 2026-11-16T15:14:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag ... FAILED
+
+failures:
+
+---- description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag stdout ----
+
+thread 'description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag' (42184057) panicked at crates/sdk/src/description/methods.rs:1821:13:
+assertion `left == right` failed: session.unset's label role
+  left: Flag
+ right: Switch
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 142 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` exited 0 at 2026-11-16T15:14:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::unset_s_label_is_a_switch_not_a_value_taking_flag ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 142 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` exited 101 at 2026-11-16T15:15:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+warning: unused import: `param_present`
+ --> crates/server/src/dispatch/session.rs:9:5
+  |
+9 |     param_present, param_str, target_session, wire_position_to_index,
+  |     ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.34s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given ... FAILED
+
+failures:
+
+---- unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given stdout ----
+
+thread 'unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given' (42188830) panicked at crates/server/tests/dispatch.rs:467:9:
+assertion `left == right` failed: session: --no-label should also clear
+  left: Some("y")
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --test dispatch`
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` exited 0 at 2026-11-16T15:15:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests/dispatch.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 76 filtered out; finished in 0.00s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:18:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at d2cc62a8f848 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (5.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (20.4s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (1.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (35.1s)
+ok      test (steg-server) (12.9s)
+ok      test (steg-server, race-fixture) (15.6s)
+ok      build (steg) (1.6s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (8.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (1.1s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.1s)
+ok      architecture (1.6s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 58, 58 without the Asdlc-Worker trailer.
+
+All seven controls named in the plan, recorded through asdlc record-check as a failing run then a passing run against the tests as they stand, git status confirmed clean after each revert (none needed a test fix - every one failed exactly as the plan predicted):
+
+1. Boundaries (crit #2/#6): just check-boundaries, [steg] allow-list/deny-features reverted -> failed naming clap/clap_complete; restored -> passed.
+2. Placeholder (crit #4): cli_run_placeholder's completeness test, run() returning 0 -> failed on session.list; reverted -> passed.
+3. Drift, missing command (crit #1): cli_drift's completeness test, pane.split skipped in the tree -> failed, missing: [(pane,split)]; reverted -> passed.
+4. Drift, extra command (crit #1): same test, an extra pane bogus subcommand added -> failed, extra: [(pane,bogus)]; reverted -> passed.
+5. No-server (crit #3): cli_no_server's version test, a stray connection added to version's arm -> failed (assert_never_accepted panicked); reverted -> passed.
+6. unset --label switch, sdk (decision 3): the sdk's own role test, switch() reverted to flag() -> failed (role Flag, expected Switch); re-applied -> passed.
+7. unset --label switch, dispatch (decision 3): the dispatch test, param_present changed to param_bool(...)==Some(true) -> failed on --no-label; reverted -> passed.
+
+Full table (proof item / test / recorded control) is in this task's comments. boundaries.toml's [steg] reason now names clap's "string" feature and why - correcting the plan's own claim that Str/Id implement From<String> unconditionally (it's gated behind that feature; checked against clap_builder's own Cargo.toml, not docs.rs's always-every-feature build, which is what misled the plan). No leaking to 'static was ever needed either way.
+
+just check recorded green on the final head (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours). CI green on the pushed head (~5m17s). Branch merged with origin/main three times across this session (board-only changes each time, no code conflicts).
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach` exited 101 at 2026-11-16T15:46:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 1 test
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... FAILED
+
+failures:
+
+---- server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach stdout ----
+
+thread 'server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach' (43575177) panicked at crates/steg/tests/server_start.rs:764:21:
+expected no message, got "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.26s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start no_on_demand_given_after_on_demand_wins` exited 101 at 2026-11-16T15:46:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 1 test
+test no_on_demand_given_after_on_demand_wins ... FAILED
+
+failures:
+
+---- no_on_demand_given_after_on_demand_wins stdout ----
+
+thread 'no_on_demand_given_after_on_demand_wins' (43577232) panicked at crates/steg/tests/server_start.rs:764:21:
+expected no message, got "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    no_on_demand_given_after_on_demand_wins
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg --features fixtures --test server_start on_demand_given_after_no_on_demand_wins` exited 101 at 2026-11-16T15:46:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 1 test
+test on_demand_given_after_no_on_demand_wins ... FAILED
+
+failures:
+
+---- on_demand_given_after_no_on_demand_wins stdout ----
+
+thread 'on_demand_given_after_no_on_demand_wins' (43579698) panicked at crates/steg/tests/server_start.rs:807:5:
+expected the carry-on-attached message (on-demand should have won and attempted to detach), got "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    on_demand_given_after_no_on_demand_wins
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.22s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg --features fixtures --test server_start` exited 0 at 2026-11-16T15:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 15 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test server_start_help_prints_the_generated_help_and_starts_nothing ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test on_demand_given_after_no_on_demand_wins ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test running_out_of_file_descriptors_exits_1 ... ok
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... ok
+test no_on_demand_given_after_on_demand_wins ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:48:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (14.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (28.2s)
+ok      test (steg-server) (11.6s)
+ok      test (steg-server, race-fixture) (10.6s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (7.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Review fix: the Important finding (main.rs matching server start's literal argv, letting --no-on-demand/other switch orderings fall through to the placeholder) is fixed - one parser (the generated tree) for every invocation, server.start's parsed result handed to run_server_start instead of its literal argv. Three new tests through the already_a_group_leader fixture (now parameterised by its own argv instead of a hardcoded --on-demand), plus a server start --help test, each with its own recorded control (the pre-fix literal-matching main.rs restored via git show, confirmed failing, fix restored, confirmed passing - git status clean after each). All 15 pre-existing server_start tests and the sdk's own local_socket tests (steg server start --on-demand, run for real) still pass unchanged. Full proof-table addendum is in the task's comments.
+
+Nit: noted as a gap for the description, not worked around in the CLI - doc-2 section 3's own Nouns table does give each noun a one-line summary, so a per-noun summary field belongs in the description, not hand-written here. Left for your own draft, per your message.
+
+just check recorded green on the final head. CI green (~4m32s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -458,6 +972,127 @@ Prepared (@bruk.w5), to run the moment this is back In Progress - each as a reco
 7. unset --label switch, dispatch (decision 3): `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` with session.rs's unset changed from param_present to param_bool(...)==Some(true) - expect fail on --no-label.
 
 Also in the same sitting: correct boundaries.toml's [steg] reason text to name the "string" feature and why (From<String> for clap's Str/Id needs it; no extra dependency); build the proof table (item/test/recorded control) in the notes; just check once more on the final head; CI green; read inbox; finish.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:10:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 21m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:11:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review, testing. The diff does not match the plan.
+
+Narrow first pass, Evidence only: the code has not been reviewed yet; a full review follows once this returns. Do not read this as a judgement of the work itself.
+
+[Evidence, Important] No recorded failing run exists for any of the seven negative controls the approved plan (comment #1/#2, plan 37c4dd0b7f74) and the worker's own comment #4 name as needed: the boundaries check with [steg]'s edit reverted, the placeholder made to return 0 unconditionally, the drift test with a method left out of the tree, the drift test with an extra bare subcommand added, the no-server tests with STEG_SOCKET_PATH pointed at a listening socket, and the unset --label switch's sdk and dispatch tests run before/after the description change. The task's only recorded checks (the "Check passed"/"Check FAILED" lines) are seven runs of `just check` as a whole; two failed, but both are ordinary development failures (a format-check diff, a clippy lint) caught and fixed mid-build, not negative controls of any of the above mechanisms. The worker's notes additionally describe two controls as "performed by hand and reverted before committing" (dispatch's unset changed to param_bool(...)==Some(true); cli::run changed to return 0) - these were never recorded through `asdlc record-check`, so there is no recorded failing run behind them either, only a narrative description after the fact. Comment #3 explains why: `asdlc finish` ran and moved the task to In Review before the request to add recorded controls arrived, and `asdlc record-check` refuses while a task is In Review. Comment #4 lists all seven controls, prepared and ready, "to run the moment this is back In Progress" - explicitly not yet run.
+
+What is needed before this comes back: each of the seven controls named in comment #4 recorded through `asdlc record-check` as a failing run followed by a passing run, against the tests as they stand on the final head; a table in the notes (proof item, test, recorded control) tying each one to its acceptance criterion or mechanism; and the pull request's CI green on that final head.
+
+Plan-matched: not assessed in this pass - the diff was not read, per instruction for this narrow Evidence-only check.
+
+---
+
+created: 2026-11-16T15:16:00Z
+
+---
+
+Proof table (@bruk.w5) - each row recorded on this task via asdlc record-check as a failing run (mechanism removed/fault planted) immediately followed by a passing run (reverted, git status confirmed clean), against the tests as they stand now:
+
+| Proof item | Test | Recorded control |
+|---|---|---|
+| Criterion #2/#6, crate boundaries | `just check-boundaries` | [steg]'s allow-list/deny-features reverted to pre-task -> fails naming clap and clap_complete; restored -> passes |
+| Criterion #4, the placeholder seam | `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` | `cli/run.rs`'s `run()` returns 0 instead of 1 -> fails on session.list (left: 0, right: 1); reverted -> passes |
+| Criterion #1, a method with no command | `cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else` | `pane.split` skipped in `tree.rs`'s `noun_command` -> fails, missing: [(pane, split)]; reverted -> passes |
+| Criterion #1, a command with no method | same test | an extra bare `pane bogus` subcommand added in `tree.rs` -> fails, extra: [(pane, bogus)]; reverted -> passes |
+| Criterion #3, no-server commands never reach for a connection | `cargo test -p steg --test cli_no_server version_contacts_no_server` | a stray `UnixStream::connect` added to `version`'s own arm in `main.rs` -> fails (`assert_never_accepted` panics: "a connection was accepted"); reverted -> passes |
+| Engineer decision 3, unset --label is a switch (sdk) | `cargo test -p steg-sdk --lib unset_s_label_is_a_switch_not_a_value_taking_flag` | the three `switch("label", ...)` calls in `methods.rs` reverted to `flag(..., ValueKind::Text, false, ...)` -> fails (role is Flag, expected Switch); re-applied -> passes |
+| Engineer decision 3, unset --label is discarded regardless of its value (dispatch) | `cargo test -p steg-server --test dispatch unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given` | `dispatch/session.rs`'s `unset` changed from `param_present` to `param_bool(...) == Some(true)` -> fails on --no-label (left: Some("y"), right: None); reverted -> passes |
+
+Correction: this task's plan claimed `clap::builder::Str`/`Id` implement `From<String>` unconditionally (checked against docs.rs, which builds every feature). That was wrong: the impl is gated behind clap's own "string" feature, confirmed directly against `clap_builder`'s own Cargo.toml (`string = []`, no extra dependency). `boundaries.toml`'s `[steg]` reason text now says so and why. No leaking to 'static was ever needed either way, as the plan intended - only the feature flag was missing from the plan's own claim, not from the build.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:28:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:40:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Full review (first full pass; an earlier evidence-only pass sent this back for missing controls, now recorded and verified - see below). Head reviewed: 97d873c (matches the PR's head, CI green on that head: the "check" workflow run completed SUCCESS). just check run fresh in a detached review worktree at this head: green (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours).
+
+[Bugs, Important] crates/steg/src/main.rs:27-28 vs the generated `server.start` command (crates/sdk/src/description/methods.rs:930-946, mapped by crates/steg/src/cli/tree.rs): the hand-written interception only matches the literal argv `["server","start"]` and `["server","start","--on-demand"]`. `server.start`'s own description declares `on_demand` as a `Switch`, and doc-2 section 5 requires both `--on-demand` and `--no-on-demand` to always be accepted with the same meaning. `--no-on-demand` (equivalent in meaning to plain `server start`) and `--on-demand --no-on-demand` (last-wins = off) are not matched by the hand-written arms, so they fall through to `run_generated`, parse successfully against the generated `server start` subcommand (it is valid usage, not a usage error), and reach the placeholder: exit 1, "steg: server start is valid, but connecting to a server is not built yet (TASK-1.119)" - a real, already-working command made to look unbuilt, under a documented, locally-valid flag spelling. Verified by hand against the built binary: `server start` and `server start --on-demand` actually start a server; `server start --no-on-demand` and `server start --on-demand --no-on-demand` both hit the placeholder instead. main.rs's own comment ("Any other variant of server start... reaches the generated server start subcommand here too... clap's own usage error (status 2) or --help (status 0)... answers it") is itself wrong for this case: `--no-on-demand` is not bad usage, so no usage error is produced, and no doc-2 status fits "a working command silently doing nothing." Not covered by any test: cli_run_placeholder.rs explicitly excludes server.start from its per-method loop, since it is only proved by tests/server_start.rs, which exercises just the two hand-matched invocations. This was a bug in the approved plan's own stated assumption about main.rs's routing, not a departure from the plan - the diff matches the plan's files and order of work.
+
+[Bugs, Nit] crates/steg/src/cli/tree.rs noun_command: a noun-level `Command` gets no `.about()` (only verb-level commands do, from `method.summary`), so `steg --help` lists `session`, `tab`, `pane`, etc. with blank descriptions. This is not a generator bug - `Description` carries no noun-level summary field to draw from, only per-method summary/details - so there is nothing for the mapping to read; flagged as a nit since top-level `--help` reads emptier than the subcommand help does.
+
+Verified myself, in a detached worktree, git status clean before and after each:
+- Drift control: `pane.split` skipped in `tree.rs`'s `noun_command` loop -> `cli_drift`'s completeness test failed, "methods with no generated command: [(\"pane\", \"split\")]"; reverted -> passed.
+- Placeholder control: `cli/run.rs`'s `run()` changed to return 0 -> `cli_run_placeholder`'s completeness test failed on session.list (left: 0, right: 1); reverted -> passed.
+Both match the task's own recorded controls exactly, run fresh against the tests as they stand on this head.
+
+Checked by hand through the real binary, STEG_SOCKET_PATH pointed at a non-existent path: `session new -- htop -d 5 --cwd /tmp` parses and reaches the placeholder (program-after-`--` and a flag together); `pane split --direction bogus` -> clap usage error, exit 2, listing the closed set; `pane resize --by abc` -> exit 2, invalid integer; `pane unset --label --no-label` / `--no-label --label` (own test already proves this, re-run and confirmed) - last given wins; `session show` with no target reaches the placeholder (target is `required: false` in the description, matching doc-2's "defaults to the current session" and the engineer's accepted recommendation on `api.show`); `steg`/`steg <noun>` alone list and exit 0 with STEG_SOCKET_PATH pointed at a real listener that never saw a connection (repeated the no-server tests' own control by hand too). `completion zsh` prints a real completion script with no server contacted, generated from the same tree `build()` returns. All ten runs of the new tests (cli_drift, cli_no_server, cli_run_placeholder, the sdk switch-role test, the dispatch switch test) passed with no flakiness. `ps` after finishing shows nothing left from this review's worktree.
+
+Nothing names a method, noun, verb or flag by hand outside version/completion (tree.rs's own NON_METHOD_COMMANDS) and the one stated exception, server start (main.rs:27-28) - grepped the whole crate for every noun/verb/flag literal.
+
+Dependencies: clap pinned exactly at =4.6.7 (builder API only, "string" feature named and explained, derive denied via boundaries.toml's deny-features), clap_complete pinned at =4.6.11, both newly allowed in boundaries.toml's [steg] with a reason naming decision-1 and this task; Cargo.lock's other new entries (anstream, anstyle, clap_lex, strsim, etc.) are clap's own transitive deps for the features actually enabled, nothing unexplained. Licence check passes.
+
+doc-2's own flag table (section 5, "Flags that recur") still writes a single row `--label <text> | new, set, unset` - now wrong for `unset` on session/tab/pane, where label is a switch (`--label`/`--no-label`, no value). For the orchestrator: that row should split into `--label <text> | new, set` and a second line (or a note) covering `--label`/`--no-label` | `unset`.
+
+Plan-matched: yes - the diff touches exactly the plan's named files in the stated order (boundaries.toml, methods.rs's three unset params, the new crates/steg/src/cli/* modules, main.rs's routing, the three new test files, Cargo.toml/Cargo.lock), and the switch step, the placeholder seam and the drift test all match the approved plan's own design section.
+
+---
+
+created: 2026-11-16T15:49:00Z
+
+---
+
+Review fix (@bruk.w5), Important finding on pull request 64:
+
+main.rs matched server start's literal argv before the generated tree ever parsed it, so steg server start --no-on-demand (and --on-demand --no-on-demand) fell through to the placeholder instead of starting a server, parsed as valid, exit 1. Fixed: the generated tree parses every invocation, including server.start's own; only after parsing is server.start's parsed result (never its literal argv) handed to run_server_start instead of the placeholder - on_demand read via extract_params the same way every other switch already is (absent means off, last given wins).
+
+Proof table addendum:
+
+| Proof item | Test | Recorded control |
+|---|---|---|
+| server start --no-on-demand starts the explicit kind | `cargo test -p steg --features fixtures --test server_start server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach` | pre-fix literal-matching main.rs restored (git show) -> fails (placeholder message on stderr instead of silence); fix restored -> passes |
+| --on-demand after --no-on-demand wins | `cargo test -p steg --features fixtures --test server_start on_demand_given_after_no_on_demand_wins` | same pre-fix main.rs -> fails (placeholder message instead of the carry-on-attached message); fix restored -> passes |
+| --no-on-demand after --on-demand wins | `cargo test -p steg --features fixtures --test server_start no_on_demand_given_after_on_demand_wins` | same pre-fix main.rs -> fails (placeholder message instead of silence); fix restored -> passes |
+| server start --help prints the generated help, starts nothing | `cargo test -p steg --features fixtures --test server_start server_start_help_prints_the_generated_help_and_starts_nothing` | new coverage, not a regression test - no control needed, passes against the fix |
+
+All 15 pre-existing server_start tests (the --on-demand test, an_unrecognised_server_start_variant_exits_2, the four simultaneous starts, SIGKILL/SIGHUP, etc.) still pass unchanged, and the sdk's own local_socket tests (which run `steg server start --on-demand` for real via connect()) still pass unchanged. just check recorded green on the final head.
+
+Nit: steg --help lists nouns with no text beside them, since the description has no per-noun summary field - doc-2 section 3's own Nouns table does give each noun a one-line "What it is" (session: "A named, long-lived workspace on one host"; tab: "An ordered page within a session"; etc.), so per your second option: the description should carry that line, not this crate hand-writing it. Leaving it as this gap, not implementing a workaround here, since you said you'd draft it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:54:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T15:04:00Z'
+updated_date: '2026-11-16T16:47:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,8 +24,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '040e19a11fea'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_plan_matched: no
 ---
 
@@ -938,6 +938,46 @@ Reproduced myself (30x sequential, 30x default-parallel, 15x under background CP
 [Compliance, Nit] arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture line in check-packages remain outside the plan's own "Files that change" list in the diff against main (unchanged since fcfc798c). This round's notes now name and explain both (addressing round 1's nit about the board being silent on them), but per policy plan-matched stays "no": these are still touched files the plan never named, even though the notes now explain them.
 
 Not re-litigated (unchanged since the first review, per the brief): the classification, both guarded points, and the stop check's own correctness as code, all judged sound in round 1.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:11:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.98: a same-machine review: it waited 7m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-16T15:27:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. The diff does not match the plan.
+
+Reviewed d2ab50c..25696d1 only, as scoped. Production code (classification, both guarded points, the stop check, the fatal path, the event) stood through two prior rounds and is not re-litigated.
+
+1. wait_for_descriptor_exhaustion is a sound fix for the vacuous-pass finding from the second review. Verified myself, not just read:
+   - just check: clean, foreground, in my own review worktree at 25696d1 (5m28s).
+   - CI confirmed independently (not just the worker's claim): gh pr checks 59 shows run 43889556289 passed in 5m58s; pulled its log directly and confirmed both `ok test (steg-server, accept-backoff-fixture) (31.7s)` and `ok test (steg, fixtures) (6.0s)` lines are present and finished, not skipped.
+   - Control, run myself in a scratch edit (classify_accept_error forced to drop the descriptor-exhaustion arm), reverted after (git diff --stat clean): 20/20 runs of surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers FAIL, every one on "last observed 0 - exhaustion was never established" (the server dies before the poll ever samples a nonzero count) - matching the task's own recorded control and this review's own expectation for this form of the test.
+   - Restored: 20/20 pass individually, plus 3/3 full-suite runs of both accept_backoff.rs (4 tests) and server_start.rs (11 tests), all clean, all sub-3s. ps checked before/after every batch; no process left from this review's own worktree at any point.
+   - Checked the margin/overcount question directly: a one-off scratch print showed wait_for_descriptor_exhaustion returning 183 against a configured limit of 180 (lsof's -p output counts cwd/txt rows beyond true fds, inflating the count slightly) - harmless in practice, confirmed by the control above: with the fix absent the real server saturates and dies well before the poll's 20ms granularity or 5-wide margin ever matter, so the overcount does not produce an early, vacuous pass.
+   - EINTR/ECONNABORTED untouched by this round's diff; not re-examined.
+
+2. Read accept_backoff.rs and its fixture myself: accept_errors_back_off_instead_of_spinning and its negative control both call CountReader::wait_for_first before max_within; a_stop_asked_mid_exhaustion_ends_the_server_promptly and a_fatal_accept_error_ends_the_server_and_cleans_up rely on the fixture's own STOP_AFTER_RETRIES/DUP2_AFTER_RETRIES, confirmed in accept_backoff_attempt.rs to be gated on `if let ConnectionEvent::AcceptRetried(_) = event` having fired first. None of the four measures or acts before that.
+
+3. Nits confirmed by reading: wait_until_accepting now uses connect_bounded; the module doc states what is confirmed (CountReader::drop's unbounded join; the fixture's stdout only closing on exit) versus what is retracted (the full-backlog-blocks-connect theory, with its own retraction probe described); the two files outside the plan's list (arbiter.rs::listener_raw_fd, the justfile line) are named in the first round's notes, unchanged this round.
+
+[Bugs, Nit] crates/steg/tests/server_start.rs, open_fd_count: Command::new("lsof").output() is unbounded - the bound in wait_for_descriptor_exhaustion only applies between invocations, so one hung lsof call blocks inside it with no timeout, in a test file whose sibling (accept_backoff.rs) was rewritten this same task specifically because an unbounded wait caused a 26-minute CI hang. Not reachable in any of my own runs (lsof returned promptly every time, including process-exited and still-running cases), and CI confirms this head is green - so not blocking, but it is the literal answer to "is lsof's use bounded."
+
+plan-matched stays "no", unchanged from both prior rounds: arbiter.rs's listener_raw_fd() and the justfile's accept-backoff-fixture check-packages line remain outside the plan's own "Files that change" list in the diff against main. The notes explain both; a departure the notes explain is still a departure under policy, and a clean verdict on this round's own fix does not revisit that judgement.
+
+No Important findings this round. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

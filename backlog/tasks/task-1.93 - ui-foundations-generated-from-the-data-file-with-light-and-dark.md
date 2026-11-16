@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T04:11:00Z'
+updated_date: '2026-11-16T05:17:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1069,6 +1069,17 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpgdhMbZ` does not 
 ```
 
 Commits since the review: 30, 28 without the Asdlc-Worker trailer.
+
+Check passed: `bash -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 && just capture-gallery && echo GALLERY_PROCESSES_AFTER: $(ps aux | grep '"'"'[t]arget/debug/gallery'"'"' | wc -l)'` exited 0 at 2026-11-16T04:13:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.93 on task-1.93-ui-foundations-generated-from-the-data at 51c165974ac8:
+
+```text
+ok      build (gallery) (0.3s)
+ok      gallery image (light) (0.5s)
+ok      gallery image (dark) (0.5s)
+GALLERY_PROCESSES_AFTER: 0
+```
+
+Commits since the review: 37, 33 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1172,6 +1183,14 @@ Independently confirmed this round, by direct testing rather than reading the no
 Not a finding, left as information for whoever lands second: TASK-1.96 (PR #54, still In Progress/changes-requested, not merged) changes `foundations.json`'s `artifact_version` and one `use` text (fill.quiet). Whichever of TASK-1.93/TASK-1.96 merges second must run `just generate-foundations` and commit the result as part of landing its own change to the data file - a plain merge of foundations.json without regenerating leaves `check-foundations` red, which is the staleness mechanism working as designed, not a gap either task needs to pre-empt.
 
 plan-matched: no - same explained departures as review #4 (module named `foundations_generate.py` not the plan's `foundations.py`; `radius.round` built as a plain `Pixels` const, not the plan's marker type; the plan's `resolve_for_appearance` multi-hop resolver doesn't exist, delegation happens one hop at a time through `Theme` methods) plus this round's own new, explained additions (`default_session`, the `_DESCRIPTION` consts, the five-column layout) - policy's --plan-matched is literal about any departure, explained or not.
+
+---
+
+created: 2026-11-16T05:17:00Z
+
+---
+
+2026-11-16, @bruk.o: TASK-1.96 (pull request 54) has passed review and is about to merge. It changes two lines of crates/ui/design/foundations.json (artifact_version to 1794796789-1b13; fill.quiet's description, which loses 'progress track') and replaces the saved Tokens page. When it is on main: merge main, run just generate-foundations, commit whatever changes in generated.rs, and re-capture the gallery if the description shows there.
 
 ---
 <!-- COMMENTS:END -->

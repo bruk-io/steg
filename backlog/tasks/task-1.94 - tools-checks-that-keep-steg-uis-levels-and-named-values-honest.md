@@ -1,11 +1,11 @@
 ---
 id: TASK-1.94
 title: 'tools: checks that keep steg-ui''s levels and named values honest'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T03:58:00Z'
+updated_date: '2026-11-16T04:22:00Z'
 labels:
   - size-2
   - review-passed

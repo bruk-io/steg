@@ -32,8 +32,8 @@ zig := `mise which zig 2>/dev/null || true`
 default:
     @just --list
 
-# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, and this file's own recipe names
-check: check-fmt lint check-boundaries check-foundations check-foundations-public-surface deny test check-packages test-tools check-architecture check-recipes
+# what a change must pass before it is called done: format, lint, boundaries, licences, the affected tests, every package alone, the tools' own tests, the architecture model, this file's own recipe names, and steg-ui's levels and named values (doc-17 R119, R120, R121, R123)
+check: check-fmt lint check-boundaries check-foundations check-foundations-public-surface deny test check-packages test-tools check-architecture check-recipes check-ui-levels check-ui-colours
 
 # Seeds Zig's own package cache (`ZIG_GLOBAL_CACHE_DIR`, .cargo/config.toml) from the
 # committed, read-only tarballs in third_party/ghostty-vt-zig-deps/p/, so a real build never
@@ -279,3 +279,11 @@ check-architecture:
 # a recipe's name starts with a verb on the list kept in tools/src/steg_tools/recipes.py (.claude/rules/just-recipes.md)
 check-recipes:
     @{{quiet}} "recipe names" -- uv run --quiet --project tools steg-recipes
+
+# refuse an import inside crates/ui/src that reaches from one of the four levels into a level that comes after it (doc-17 R119)
+check-ui-levels:
+    @{{quiet}} "ui levels" -- uv run --quiet --project tools steg-ui-levels
+
+# refuse a colour literal inside crates/ui outside foundations (doc-17 R120)
+check-ui-colours:
+    @{{quiet}} "ui colours" -- uv run --quiet --project tools steg-ui-colours

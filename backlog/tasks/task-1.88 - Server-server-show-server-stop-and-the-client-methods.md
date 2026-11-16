@@ -4,7 +4,7 @@ title: 'Server: server show, server stop, and the client methods'
 status: To Do
 assignee: []
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-16T00:01:00Z'
+updated_date: '2026-11-16T04:52:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -36,4 +36,6 @@ Found on 2026-11-15 while checking TASK-1.77's plan: no task owned the server no
 
 <!-- SECTION:NOTES:BEGIN -->
 The client noun's two methods had no owner either (dispatch answers NotImplementedYet, citing TASK-1.42, which built the kernel side only); they are included here as the same kind of gap. If the plan finds the server methods and the client methods are two reviewable changes, split them.
+
+From the independent read of TASK-1.78's merge (2026-11-15): the forced close's grace period (FORCE_GRACE_DEFAULT, 2s) is a constant read directly in listen.rs and is not a field of ServerConfig beside handshake_timeout and arbitration_timeout. server stop uses that mechanism: put the grace period in ServerConfig here, with its default, so it can be set like the other timeouts.
 <!-- SECTION:NOTES:END -->

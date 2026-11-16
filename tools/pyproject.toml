@@ -4,7 +4,14 @@ version = "0.1.0"
 description = "The deterministic tools behind steg's justfile: which tests a change affects, and quiet output"
 license = "MIT"
 requires-python = ">=3.15"
-dependencies = []
+# ast-grep-py: the first runtime dependency this package has ever taken (TASK-1.94). A
+# real tree-sitter parse of crates/ui's Rust source for ui_levels/ui_colours, not a
+# regex scan - checked against this exact pin before it was added: PyPI publishes a
+# cp315-cp315-macosx_11_0_arm64 wheel for 0.51.2, installing clean under `uv run
+# --python 3.15` with no build step, matching CI's runner (macos-26, arm64) and Python
+# pin (3.15.2) exactly - no new mise pin, no new binary toolchain, cached the same way
+# `uv sync` already caches every other dependency.
+dependencies = ["ast-grep-py>=0.51,<0.52"]
 
 [project.scripts]
 steg-affected = "steg_tools.affected:main"
@@ -14,6 +21,8 @@ steg-generate-foundations = "steg_tools.foundations_generate:main"
 steg-foundations-public-surface = "steg_tools.foundations_public_surface:main"
 steg-quiet = "steg_tools.quiet:main"
 steg-recipes = "steg_tools.recipes:main"
+steg-ui-colours = "steg_tools.ui_colours:main"
+steg-ui-levels = "steg_tools.ui_levels:main"
 
 [dependency-groups]
 dev = ["pytest>=8"]

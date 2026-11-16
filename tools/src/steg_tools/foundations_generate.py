@@ -1,10 +1,15 @@
 """Write `crates/ui/src/foundations/generated.rs` from `crates/ui/design/foundations.json`
 (TASK-1.93's plan; doc-17 R121).
 
-A separate module from `steg_tools.foundations` (TASK-1.94's shared reader) on purpose -
-that module's job is checking crates/ui's own source against the data file; this one's
-job is turning the data file into Rust. Whichever of the two lands second in `tools/`
-reconciles any overlap in parsing; until then this module reads the file on its own.
+A separate module from `steg_tools.foundations` (TASK-1.94's shared reader, merged to
+`main` while this task's own review was still open) on purpose, confirmed rather than
+assumed once it landed: that module's own `Foundations` deliberately reads only
+`colours[]` and opacity names (its own docstring: "Sizes, type, motion, themes and the
+focus ring are otherwise unread" - R120's colour-only AC#2 needed no more), where this
+module has to turn *every* section of the file into Rust, including all of those. Its
+`read()` offers nothing this module could call instead of its own `json.loads` without
+losing most of the document, so no reconciliation was possible beyond confirming that -
+stated here so a reviewer doesn't wonder why the merged shared reader goes unused.
 
 The pure core (everything down to `main`) takes plain data and returns plain data - no
 file I/O, no subprocess. `main` is the one thin shell: it reads the data file, renders,

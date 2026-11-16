@@ -1,11 +1,11 @@
 ---
 id: TASK-1.45
 title: 'Server: frames, streams, and requests routed to the API'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T03:29:00Z'
+updated_date: '2026-11-16T04:20:00Z'
 labels:
   - size-3
   - review-passed

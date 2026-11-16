@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:06:00Z'
+updated_date: '2026-11-16T12:12:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -37,13 +37,17 @@ Seen on 2026-11-16 (UTC) on main at d06ab92 (the merge of pull request 52, which
 <!-- SECTION:PLAN:BEGIN -->
 ## For the engineer
 
-Three things need your call before this is built, all flagged inline below too:
+1. **The retry bound and its parameter.** Retry on *any* error from the open step (not a specific error - see "why not match the error" below), up to `max_open_attempts` attempts total, no sleep between them; the last error surfaces with the attempt count in its message. Default 3, as a field on `RealLauncher`'s own constructor (`RealLauncher::default()` = 3, `RealLauncher::new(n)` for a test), not a new `ServerConfig` field - `ServerConfig::launcher` is already `Arc<dyn ProgramLauncher>`, and a bound that only means something for the real launcher belongs on it, not duplicated on `ServerConfig` where a fake launcher would ignore it. A test (unit or fixture) builds `RealLauncher::new(1)` directly to force "no retry". From the measured rate (worst local figure, ~0.4% failing per open under 16 hammering processes): the chance all 3 attempts fail, treating each as independent, is `0.004³ ≈ 6.4×10⁻⁸` - about one in 15.6 million opens at that same density. I have not proven independence across attempts a few microseconds apart; stated as the approximation it is.
+2. **Why not match the error's text** (reversing this plan's first draft): the sign already disagreed between two sightings (`-6` reproduced directly through this exact dependency; `6` in the task's own description of the CI incident) and `portable-pty` discards the structured `io::Error` before it reaches us (`unix.rs:46`: `bail!("failed to openpty: {:?}", io::Error::last_os_error())` - a formatted string inside an `anyhow::Error`, confirmed by reading the source, not assumed). Retrying on any error instead costs a genuine, non-transient failure (the system's own pty limit, a real permission problem) only a few extra syscalls before it is reported exactly as it is today, just with the attempt count added - nothing is masked, and nothing depends on a string that could stop matching on a dependency bump. I don't see a reason to narrow this further; say so if you do.
+3. **The proof test's shape**, two layers, each below with its own control - confirm before I build either:
+   - A deterministic unit test behind a small seam in `pty.rs` (no process, no real pty) - see "Proof, layer (a)".
+   - A statistical test across real, separate processes, reusing the already-reviewed `race-fixture`/`race-attempt` pattern in this crate - see "Proof, layer (b)". Its fixture calls a new, crate-internal "open only" step (the real lock, the real retry, no `spawn_command`) so its density matches the bare-libc probe that actually reproduces this, not the full path I could not make fail in the time I had.
+4. **Observability**: see "What's reported" below - a new `PaneEvent::OpenRetried` variant, the same shape TASK-1.98 is adding `ConnectionEvent::AcceptRetried` for. Read TASK-1.98's plan yourself before either lands, since both are touching `crate::pane`'s/`crate::listen`'s sibling event enums around the same time and I don't want to presume which of the two merges first.
+5. **The lock stays.** See "What stays of TASK-1.76's lock" below.
 
-1. **The retry bound.** I recommend 1 retry (2 attempts total), no sleep. Every recovery in ~68,000 synthetic cross-process opens needed exactly 1 retry; 0 were still failing after 1 even with up to 3 allowed. A 2nd retry (3 attempts) costs nothing measurable and is a free margin if you'd rather have it - your call, stated with the same "no sleep" reasoning either way.
-2. **How the retry recognises "this one error".** `portable-pty` throws away the structured `io::Error` before it reaches us (`unix.rs:46`, read directly: `bail!("failed to openpty: {:?}", io::Error::last_os_error())` - a formatted string inside an `anyhow::Error`, not something `.downcast_ref::<io::Error>()` can reach). So the predicate has to match the error's own *rendered text* for a `code` of magnitude 6 together with `kind: Uncategorized` - fragile against a `portable-pty`/OS wording change, but its failure mode is safe (stops retrying, reverts to today's behaviour, never retries the wrong thing). The bigger fix - vendoring a patched `portable-pty` that preserves the real `io::Error`, the same way `third_party/ghostty-vt-patched` is already vendored (decision-3) - is sized out of this task; flag it as a follow-up if you want it done now instead.
-3. **The new cross-process proof test's shape.** I'm proposing a `pty-race-fixture` Cargo feature plus a `[[bin]]` fixture and a `[[test]]`, mirroring the already-reviewed `race-fixture`/`race-attempt` pattern in this same crate (`Cargo.toml`, `tests/fixtures/race_attempt.rs`, `tests/race.rs`) exactly, because a cross-process race cannot be proved any other way (the same reasoning `race.rs`'s own module comment already gives). Confirm you're fine with a second instance of that pattern rather than something lighter.
+## Why this is not only a test problem
 
-Also: this task's own temporary CI loop (AC #4) needs a real pull request number to attach to and gets removed before merge - I've written where it goes below, but the exact removal commit happens once the numbers are in, which is this task's own last step, not something to pre-judge here.
+A real `steg-server` is one process per person per machine (`crates/server/CLAUDE.md`), but a real pane's `openpty()` still shares this platform's pty subsystem with whatever *else* is running on that same machine at that moment - another terminal app, `tmux`, a second person's own `steg-server`, the OS's own activity. None of those would ever honour a lock file steg wrote for itself. So this is not a fix that only quiets a test's own self-inflicted load: it is the same collision a real pane can meet, just far less often, because nothing else on an ordinary machine opens ptys anywhere near as densely as this task's own fixture does on purpose.
 
 ## Cause, and the evidence for it
 
@@ -61,98 +65,134 @@ Reproduced directly, isolated from everything steg-specific: a bare `ctypes` cal
 
 Closing the fds is not required for the race (a variant that only opens, never closes, reproduces it too, at a comparable rate) - it is concurrent *opens* across processes that race, not a close interacting with an open. `kern.tty.ptmx_max` is 511; at most ~22 ptys were ever alive during any of this - the same ceiling TASK-1.76's own review already ruled out for the in-process case, confirmed again here, not assumed carried over.
 
-The identical failure, through steg's own real dependency (not a bare libc stand-in): calling `portable_pty::native_pty_system().openpty()` directly, from 32 threads of **one process**, with `OPENPTY_LOCK` bypassed (not production code - the point was to capture the exact rendered text this dependency produces on this exact race, on this machine), reproduced the error on 7 of 8 tries, every time rendering as:
+The identical failure, through steg's own real dependency (not a bare libc stand-in): calling `portable_pty::native_pty_system().openpty()` directly, from 32 threads of **one process**, with `OPENPTY_LOCK` bypassed (not production code - the point was only to capture the exact rendered text this dependency produces on this exact race, on this machine), reproduced the error on 7 of 8 tries, every time rendering as:
 
 ```
 failed to openpty: Os { code: -6, kind: Uncategorized, message: "Unknown error: -6" }
 ```
 
-This is the literal text, from this crate's own dependency, not a guess. The task's own description quotes the original CI incident as `Os { code: 6, Device not configured }` - a different sign, and missing the `kind`/`message` fields my own reproduction always shows. I could not resolve that discrepancy (the raw CI output is not preserved, correctly, per policy) - treat both signs as the same signature until proven otherwise; the predicate below checks the magnitude, not the sign.
+This is the literal text, from this crate's own dependency, not a guess - and the reason the fix below does not try to match it (see "For the engineer", #2).
 
 **What's ruled out, not assumed:**
 
-- **In-process contention under the current lock, even sustained, even doing the real work (not bare opens).** 32 threads in one process, for 4 continuous seconds (not one synchronised round), each doing a full `RealLauncher::spawn` - lock held only for the `openpty()` call exactly as production does, real `spawn_command`, real child, real `wait()` all outside the lock: 2,405 real spawns, 0 failures. A matching sanity check with no lock at all reproduced a failure in the same harness (1 in 1,277), confirming the harness itself can catch the race when it's actually exposed - the locked run's zero is not "the harness can't see it".
+- **In-process contention under the current lock, even sustained, even doing the real work (not bare opens).** 32 threads in one process, for 4 continuous seconds (not one synchronised round), each doing a full `RealLauncher::spawn` - lock held only for the `openpty()` call exactly as production does, real `spawn_command`, real child, real `wait()` all outside the lock: 2,405 real spawns, 0 failures. A matching sanity check with no lock at all, same harness: 1 failure in 1,277 - confirming the harness itself can catch the race when it's actually exposed, so the locked run's zero is not "the harness can't see it" (see "What stays of the lock" below for what this one number is for).
 - `real_pty.rs` run alone, repeatedly: 8/8 clean (matches TASK-1.76's own review finding).
-- The full `real_pty.rs` binary run as several genuinely separate OS processes at once (8, then 16 concurrent copies, 3 rounds each): 0 failures across 64 runs (~20,000+ real opens through the actual `RealLauncher` path). This is an honest negative result, not a disproof - production's per-op cost (a real `fork`+`exec` of a shell) is far higher than a bare syscall, so the same narrow race window is sampled far less often per second of wall clock than the bare-libc probe above, which is consistent with how rare the one recorded CI occurrence was.
+- The full `real_pty.rs` binary run as several genuinely separate OS processes at once (8, then 16 concurrent copies, 3 rounds each): 0 failures across 64 runs (~20,000+ real opens through the actual `RealLauncher` path). This is an honest negative result, not a disproof - production's per-op cost (a real `fork`+`exec` of a shell) is far higher than a bare syscall, so the same narrow race window is sampled far less often per second of wall clock than the bare-libc probe above, which is consistent with how rare the one recorded CI occurrence was. This is exactly why the statistical proof test (layer (b) below) drives the open step alone, not the full spawn.
 
 **The real mechanism, confirmed in this repository, not hypothesised:** `cargo test -p steg-server` - the exact command `just test`/`just check`'s "test" step and CI both run - launches more than one of this crate's test binaries **concurrently, as separate OS processes**. Sampled directly (`ps` polled every 30ms through a real run): `real_pty`'s own binary and `runtime.rs`'s binary (TASK-1.76's own "18 tests, most real-pty") were both alive at once in several samples; `routing` and `handshake` each overlapped with `runtime` too. Each test binary is its own process, so each has its **own** `OPENPTY_LOCK` - `real_pty`'s lock cannot serialise against an open happening in `runtime`'s process, or vice versa. This is "CI runs test binaries in parallel" as a measured fact about this exact crate's own test suite, not a guess about a shared machine.
 
-**Conclusion for AC #1:** the residual race is across OS process boundaries - demonstrated mechanically (the bare-libc, zero-steg-code reproduction) and demonstrated as reachable in exactly this project's own test run (sibling test binaries of this same crate, concurrent, each with an independent lock). It is not reproduced at will through the slower, real `RealLauncher` path in the volume I could generate here, which is a rate-of-sampling gap, not a reason to doubt the mechanism. AC #2's own wording - "a bounded retry of the open on this one error if the cause is outside the process and cannot be excluded" - is exactly this case: a real server is one process (`crates/server/CLAUDE.md`), so it cannot coordinate with whatever else, if anything, opens a pty on the same machine at the same instant, and the evidence says that collision is rare but real.
+**Conclusion for AC #1:** the residual race is across OS process boundaries - demonstrated mechanically (the bare-libc, zero-steg-code reproduction) and demonstrated as reachable in exactly this project's own test run (sibling test binaries of this same crate, concurrent, each with an independent lock). The same mechanism reaches a real server too, against unrelated programs on the same machine (see "Why this is not only a test problem" above) - rarer there, because nothing ordinary opens ptys as densely as this task's own tests do on purpose, but not excludable, which is exactly AC #2's own condition for a bounded retry.
 
 ## The fix
 
-Keep `OPENPTY_LOCK` exactly as `pty.rs` has it today - it still removes this process's own contribution, and TASK-1.76's reviewed invariant (nothing under it waits on anything) does not change. Add a bounded retry **around the one call to `pty_system.openpty(...)` only**, still inside the lock, matching a specific rendered-error signature:
+Keep `OPENPTY_LOCK` exactly as `pty.rs` has it today (see "What stays of the lock", below). Wrap the one call to `pty_system.openpty(...)` in a bounded retry, still entirely inside the lock, on *any* error (not a specific one - see "For the engineer", #2):
 
 ```rust
-/// Recognises the one platform race this retries (TASK-1.112): portable_pty's
-/// own openpty() wraps a failed libc::openpty() as a formatted string inside
-/// an anyhow::Error (unix.rs:46 - `bail!("failed to openpty: {:?}",
-/// io::Error::last_os_error())`), discarding the structured io::Error before
-/// it reaches us, so this is the only way left to recognise *this* failure
-/// rather than any other reason the open could fail. Matches a `code` of
-/// magnitude 6 (ENXIO; both `6` and `-6` have been seen for the identical
-/// race on this platform - see the task's own notes) together with
-/// `kind: Uncategorized`. Anything else is a real, non-transient failure and
-/// is not retried.
-fn is_the_cross_process_openpty_race(cause: &(dyn std::error::Error + Send + Sync)) -> bool {
-    let text = format!("{cause:?}");
-    text.contains("kind: Uncategorized")
-        && extract_os_code(&text).is_some_and(|code| code.abs() == 6)
+impl RealLauncher {
+    pub fn new(max_open_attempts: u32) -> Self { ... } // asserts >= 1
 }
+impl Default for RealLauncher {
+    fn default() -> Self { Self::new(3) }
+}
+
+// inside RealLauncher::spawn, still under OPENPTY_LOCK:
+let (pair, attempts) = open_with_retry(self.max_open_attempts, || {
+    pty_system.openpty(portable_pty::PtySize { rows, cols, pixel_width: 0, pixel_height: 0 })
+})?;
 ```
 
-(`extract_os_code` is a small, private parse of `Os { code: <n>,` - not a crate, this is one field of one fixed format.)
-
-The call site becomes a bounded loop, still entirely inside the existing `OPENPTY_LOCK` guard, replacing the single `pty_system.openpty(...).map_err(...)?`:
+`open_with_retry` (new, private, the seam layer (a)'s unit tests drive directly) takes the bound and a closure for the open call itself - not a mock of `portable_pty`, a plain function parameter:
 
 ```rust
-let _guard = OPENPTY_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-let mut attempt = 0;
-loop {
-    attempt += 1;
-    match pty_system.openpty(portable_pty::PtySize { rows, cols, pixel_width: 0, pixel_height: 0 }) {
-        Ok(pair) => break pair,
-        Err(cause) if attempt <= OPENPTY_MAX_RETRIES && is_the_cross_process_openpty_race(cause.as_ref()) => continue,
-        Err(cause) => return Err(Error::Pty(cause.into())),
+fn open_with_retry<T, E>(
+    max_attempts: u32,
+    mut try_open: impl FnMut() -> Result<T, E>,
+) -> Result<(T, u32), (E, u32)> {
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match try_open() {
+            Ok(value) => return Ok((value, attempt)),
+            Err(e) if attempt < max_attempts => continue,
+            Err(e) => return Err((e, attempt)),
+        }
     }
 }
 ```
 
-No sleep between attempts - the evidence (every one of ~68,000 synthetic opens that failed once succeeded on the very next bare call, 0 needing a second retry even when up to 3 were allowed) says none is needed, and the lock's own stated cost ("held only across that one call") stays true in spirit - now "across that one call, retried a bounded number of times," still no indefinite wait, nothing that can block on another thread.
+On exhaustion, the attempt count goes into `Error::Pty`'s message (e.g. `"failed to openpty after {attempts} attempts: {cause}"`) - checked against every current test that asserts on this error (`grep -rn "failed to openpty" crates/server`): none assert exact text today, only `matches!(_, Err(Error::Pty(_)))` or the `ErrorCode`, so this is additive.
 
-## What a real server needs, apart from what only the test's load needs
+## What's reported when a retry happens
 
-A real `steg-server` is **one process per person per machine** (`crates/server/CLAUDE.md`'s own words). In ordinary operation its only exposure to this race is against some *other*, unrelated program on the same machine also opening a pty at that exact instant (another terminal app, a second person's own `steg-server`, the OS's own activity) - never against another copy of itself, and nothing it could coordinate with via a lock file, since an unrelated program would never know to honour one. A cross-process lock file was considered and is not the fix for that reason: it adds real cost (contention between any of this machine's own `steg-server` processes, which do not otherwise need to know about each other) for a case it cannot even cover (a program that isn't steg). The bounded retry is the only candidate that helps both: a real server's rare, genuine collision with something else, and this task's own test, which manufactures the same collision far more densely, on purpose, to prove it.
+A server that retries silently hides exactly the condition this task found. New `PaneEvent::OpenRetried { pane: PaneId, attempts: u32 }` (same `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` `PaneEvent` already has - `PaneId` is a plain `Copy` newtype, confirmed by reading `crates/sdk/src/ids.rs:44`), the same shape TASK-1.98 is adding `ConnectionEvent::AcceptRetried` for - read that task's own plan before building either, since they land around the same time on sibling enums.
 
-## Files that change
+Wiring: `pane::start` already has `events: Sender<PaneEvent>` in scope exactly where it calls `launcher.spawn(&spec)?` (`pane.rs:565`) - if the returned `SpawnedProgram` carries its own `open_attempts: u32` (1 = no retry), `start` sends `OpenRetried` right there when it's `> 1`, before anything else. `PaneHandle::restart` (`pane.rs:441`) calls the same `launcher.spawn` but has no `events` sender on `self` - its existing `PaneCommand::Resume` gains the same `open_attempts: u32` field, and `worker_loop` (which already holds `events`) sends `OpenRetried` when it handles `Resume`, instead of plumbing a second sender through `PaneHandle`. No printing: `crates/server/src` prints nothing today (confirmed true as of TASK-1.87), and nothing here changes that - the count is observable on the channel the moment some task wires a consumer, the same gap TASK-1.98's own plan names for its own new variant.
 
-- `crates/server/src/pty.rs` - the retry loop, the predicate, updated doc comments citing this investigation (replacing/extending the existing `OPENPTY_LOCK` doc comment, not rewriting TASK-1.76's own reasoning).
-- `crates/server/Cargo.toml` - new feature `pty-race-fixture` (off by default, mirroring `race-fixture` exactly), a new `[[bin]] openpty-race-attempt`, a new `[[test]] openpty_race`, both `required-features = ["pty-race-fixture"]`.
-- `crates/server/tests/fixtures/openpty_race_attempt.rs` (new) - loops real `RealLauncher::spawn` calls some fixed number of times, reaping each child (`child.wait()`) before the next iteration, exits non-zero the first time an open fails (prints `fail:<message>` first) so the parent test can tell from the exit status alone which copies raced.
-- `crates/server/tests/openpty_race.rs` (new) - spawns several real copies of the fixture at once (`ReapOnDrop`-style guard copied from `tests/race.rs`, so a panicking assertion still kills and waits every child), waits for all, asserts every exit status is success.
-- `.github/workflows/ci.yml` - a temporary step (or temporary workflow file, whichever this project's own convention prefers - check `TASK-1.82`'s own housekeeping notes for precedent before choosing) that runs the new test some N times, deleted in a later commit of this same pull request once the CI-side numbers are recorded on the task.
-- No change to `crates/server/tests/real_pty.rs`'s existing `many_threads_opening_a_real_pty_at_once_never_fails` - it still proves the in-process half of this and stays exactly as TASK-1.76 left it; at most a doc-comment note pointing at the new cross-process test as where the other half is proved, so a future reader does not wonder why this one test's own scope stops at one process.
+## What stays of TASK-1.76's lock, and why
 
-## Order of work
-
-1. Add the retry and predicate to `pty.rs`, with the doc comment. Run `just test` for `steg-server` to confirm nothing existing regresses.
-2. Add the `Cargo.toml` feature/bin/test declarations, write the fixture binary and `openpty_race.rs`, following `race_attempt.rs`/`race.rs` line for line where the shape matches (bounded waits, `ReapOnDrop`, real exit-status checks).
-3. **Before** the fix is applied to `pty.rs` (or with it reverted locally for this one step): record, via `asdlc record-check`, repeated runs of the new `openpty_race` test and/or a denser bare-syscall-shaped variant if the fixture-level test proves too rare to fail in reasonable time - whichever actually reproduces at a measurable rate becomes the number cited as the negative control. Keep only the one error line, never full output, per policy.
-4. Apply the fix. Record the same test repeated (N chosen against the rate found in step 3) via `asdlc record-check`: 0 failures.
-5. Add the temporary CI loop, gather its own numbers on the task, then remove it in a follow-up commit of the same pull request before merge - recording that removal commit's own `just check` as clean.
-6. `just check` and `just test-all` recorded clean once more at the final commit.
-
-## Risks
-
-- The error-matching predicate is a string match against a third-party crate's own formatted text, not a structured error - it can silently stop matching if `portable-pty` or the OS wording changes. Its failure mode is safe (falls back to today's un-retried behaviour), not silent wrong behaviour, which is why this is an accepted risk rather than a blocker - flagged above for the engineer to confirm.
-- The new cross-process test is inherently probabilistic: my own attempts to reproduce the failure through the real `RealLauncher` path, even at 16 concurrent processes across 64 runs, did not succeed in the time available. The proof in step 3 needs to find a shape and a density that actually reproduces locally before the negative control can be recorded honestly; if none is found within reasonable effort, that itself is recorded on the task (what was tried, what rate if any), not glossed over, and the fix still ships on the strength of the bare-libc mechanism evidence plus AC #2's own allowance for a cause that "cannot be excluded."
-- Retrying still happens under `Runtime`'s single `state` lock (`runtime.rs`) - confirmed bounded and non-blocking (no sleep anywhere in the retry), so TASK-1.76's own reviewed invariant ("nothing under the lock blocks on another thread's progress") still holds.
+The no-lock sanity check above failed 1 time in 1,277 real opens under sustained in-process load - a case the new retry would also absorb, since it's the same kind of transient open failure. Keeping `OPENPTY_LOCK` anyway: it is already reviewed, costs nothing (serialises one call per process, never waits on anything else), and removes that entire in-process cause *deterministically* rather than leaving its (small, but nonzero) probability to compete with the cross-process case for the same finite retry budget. Removing a free, already-accepted fix for no evidentiary gain - the retry existing does not make the lock wrong, it makes the lock's job narrower (in-process only) and gives the retry a cross-process-only job, which is a cleaner division than one mechanism covering both less reliably.
 
 ## Proof
 
-- **Negative control**: the test/shape found in step 3 above, run repeated times with the fix absent (or the retry bound set to 0), failing at the measured rate - cited as a count out of a count (e.g., "N failures in M attempted opens"), never as pasted test output.
-- **With the fix**: the same test, same shape, run repeatedly via `asdlc record-check` (count chosen so the expected number of "chances" at the measured per-open rate is comfortably in the hundreds, e.g. if the rate is ~0.3% per open and one run drives a few thousand opens, 20-30 runs is already tens of thousands of chances) - 0 failures across all of them.
-- The temporary CI loop's own numbers (AC #4's "and on CI"), recorded on the task before its removal.
-- Every wait bounded: the new fixture reaps (`child.wait()`) every process it spawns before its own next iteration and before exit; the new test's guard kills and waits every copy it started on every path, including a panicking assertion (copied from `tests/race.rs`'s own `ReapOnDrop`) - no leaked process, thread, or socket on any path, matching AC #3's own requirement extended to this task's new test code, not only production code.
-- `just check` and `just test-all` both recorded clean at the final commit, after the temporary CI loop is removed.
+### Layer (a): deterministic, behind the seam, no real pty
+
+Unit tests beside `open_with_retry` in `pty.rs`'s own `#[cfg(test)]` module (`.claude/rules/testing-rust.md`: unit tests prove logic, no doubles - this is a plain function parameter, not a mock of `portable_pty`):
+
+- `fails_once_then_succeeds_counts_one_retry`: a closure that errors on its first call, then returns `Ok(())` - asserts `Ok((_, 2))`.
+- `fails_every_time_surfaces_after_exactly_the_bound`: a closure that always errors - with `max_attempts = 3`, asserts `Err((_, 3))` and that the count `3` reached the closure exactly 3 times (a counter inside the closure).
+- `succeeds_first_time_needs_no_retry`: a closure that always succeeds - asserts `Ok((_, 1))`, and that the closure was only called once (so a passing "retries" test isn't secretly retrying every time).
+- **Control**: with the retry loop reverted to a single call (`open_with_retry`'s body replaced by `try_open().map(|v| (v, 1))`), `fails_once_then_succeeds_counts_one_retry` fails - recorded via `asdlc record-check` both ways.
+
+### Layer (b): statistical, across real processes
+
+New feature `pty-race-fixture` (off by default), mirroring `race-fixture` exactly: a `[[bin]] openpty-race-attempt` (`tests/fixtures/openpty_race_attempt.rs`) and a `[[test]] openpty_race` (`tests/openpty_race.rs`), both `required-features = ["pty-race-fixture"]`.
+
+The fixture calls a new, crate-visible function that is **only** the locked, retried open step - no `spawn_command`, closing the pair immediately after a successful open so fds don't accumulate across its own loop - so its density matches the bare-libc probe's, which is the one shape that has actually reproduced this. It loops that call a fixed number of times (an argument from the environment, the same convention `race_attempt.rs` already uses - no path or count on argv), counting failures, and prints `done:<failures>:<n>` at the end.
+
+**Synchronised start, no periodic wake-up**: the test spawns all `N` fixture processes first, each blocking on reading one byte from its own inherited stdin before entering its loop (not a sleep-based rendezvous, not polling) - then releases all `N` within the same instant by writing to each. Every spawned process is wrapped in the same `ReapOnDrop` guard `tests/race.rs` already has (kill + wait on drop, including the panicking path), so nothing is left running, bounded, or orphaned regardless of which assertion fails.
+
+**The numbers, from the measured rate (worst local figure, ~0.4% per open, treated as independent per open)**:
+
+- Total opens needed so a **no-retry control** (`max_open_attempts = 1`, same as today) has a chance of showing *zero* failures below one in ten thousand: solving `(1-0.004)^n < 10⁻⁴` gives `n > 2,297`. Chosen: `N = 16` processes × `200` opens each = 3,200 total - `(0.996)^3200 ≈ 2.8×10⁻⁶`, comfortably under the bar.
+- The **same 3,200 opens, with the shipped default (3 attempts)**: chance of at least one open exhausting all 3 is `1 - (1 - 0.004³)^3200 ≈ 3200 × 6.4×10⁻⁸ ≈ 2.0×10⁻⁴` - about one run in five thousand flakes on its own, at this worst-case measured rate. Stated plainly, not hidden: if this is too flaky a budget for a CI test the engineer wants green every time, the knob to pull is the shipped default (4 attempts instead of 3 cuts this to ~8×10⁻⁷), not the test's own density - the density is what the control's own bound requires.
+- **Permanent control** (mirrors TASK-1.98's own zero-backoff control): the identical fixture and test, `max_open_attempts` forced to 1, must show at least one failure - this is what actually proves the race is real and the fixture reaches it, not merely that the fixed version happens to pass.
+
+**If CI's own runner does not reproduce the control's failure on the first several runs**: that is read as a finding about CI's own hardware/contention density relative to this dev machine, recorded on the task with the numbers from both places side by side - not a reason to delete or weaken the control. The fix ships either way, on the strength of the bare-libc mechanism evidence and AC #2's own allowance for a cause that cannot be excluded; what changes is only how convincing the *local* proof of the control is on that specific runner, which gets written down honestly rather than papered over.
+
+### Both layers together
+
+- `just check`/`just test-all` clean at the final commit, `pty-race-fixture` off by default so an ordinary `cargo build -p steg-server` builds no extra binary (mirrors `race-fixture`'s own stated reason).
+- A temporary CI step/job (location: wherever `TASK-1.82`'s own housekeeping notes show the project's convention for a temporary loop, checked before choosing) runs `openpty_race` some number of times with `--features pty-race-fixture`, its numbers recorded on the task, then removed in a follow-up commit of this same pull request before merge (AC #4).
+- Every fixture process bounded (its own loop count, no indefinite wait), killed and reaped on every path (`ReapOnDrop`), no leaked process, thread, or socket - matching AC #3's own requirement extended to this task's new test code.
+
+## Files that change
+
+- `crates/server/src/pty.rs` - `RealLauncher` gains `max_open_attempts: u32` and `new`/`Default`; `open_with_retry` and its unit tests; the call site; the error message gains the attempt count; `SpawnedProgram` gains `open_attempts: u32`; a new crate-visible open-only function for the fixture; updated doc comments (what the lock still covers and why, citing this task).
+- `crates/server/src/pane.rs` - `PaneEvent::OpenRetried { pane, attempts }`; `start` sends it; `PaneCommand::Resume` gains `open_attempts: u32`; `worker_loop` sends it for a restart.
+- `crates/server/Cargo.toml` - `pty-race-fixture` feature, `[[bin]] openpty-race-attempt`, `[[test]] openpty_race`.
+- `crates/server/tests/fixtures/openpty_race_attempt.rs` (new).
+- `crates/server/tests/openpty_race.rs` (new).
+- `.github/workflows/ci.yml` (or a temporary workflow file, per the project's own convention) - temporary loop, removed before merge.
+- No change to `crates/server/tests/real_pty.rs`'s existing `many_threads_opening_a_real_pty_at_once_never_fails` - it still proves the in-process half and stays exactly as TASK-1.76 left it; at most a doc-comment pointing at `openpty_race.rs` as where the cross-process half is proved.
+
+## Order of work
+
+1. `pty.rs`: `RealLauncher::new`/`Default`, `open_with_retry` and its three unit tests plus the reverted-loop control, the call site, `SpawnedProgram::open_attempts`, the error message. Run `just test` for `steg-server`.
+2. `pane.rs`: `PaneEvent::OpenRetried`, the two send sites, `PaneCommand::Resume`'s new field.
+3. `Cargo.toml` feature/bin/test declarations; `tests/fixtures/openpty_race_attempt.rs`; `tests/openpty_race.rs`, including the permanent `max_open_attempts = 1` control.
+4. Record both the control and the fixed version via `asdlc record-check`, repeated, with the numbers above.
+5. Add the temporary CI loop, gather its own numbers on the task, remove it in a follow-up commit before merge.
+6. `just check`/`just test-all` clean at the final commit.
+
+## Risks
+
+- The statistical test's own false-failure budget (~1 in 5,000 at the shipped default, worst measured rate) is a real, stated number, not zero - flagged above for the engineer, with the knob (attempts) that moves it.
+- The seam (`open_with_retry`) is a plain generic function, not tied to `portable_pty`'s types, so layer (a)'s tests cost nothing and never touch a real pty - low risk.
+- Retrying still happens entirely inside `OPENPTY_LOCK`, still no sleep anywhere in it - TASK-1.76's own reviewed invariant ("nothing under the lock blocks on another thread's progress") is unchanged in kind, only "one call" becomes "one call, retried a bounded number of times".
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+A throwaway probe from this task's investigation (a Python `multiprocessing`-based cross-process `openpty()` hammer, run outside the worktree, never committed) was killed abruptly (`pkill`) while it still held open real ptys and real child processes, rather than being stopped by ending its own loop, closing its descriptors, and waiting on its children. One child (`sh -c true`, pid 4188 on this machine, reparented to pid 1) was left in uninterruptible kernel sleep - `kill -9` cannot reach a process in that state; it was not reaped by this investigation and may still be present on this machine. Nothing in the worktree or git state is affected by this. For the build phase: never end a probe abruptly while it holds ptys - stop the loop, close every descriptor, wait on every child, the same discipline `ReapOnDrop` already gives the real tests (`tests/race.rs`).
+<!-- SECTION:NOTES:END -->

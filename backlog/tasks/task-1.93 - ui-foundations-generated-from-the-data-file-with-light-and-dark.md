@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T06:29:00Z'
+updated_date: '2026-11-16T12:06:00Z'
 labels:
   - size-3
   - review-passed
@@ -1608,6 +1608,21 @@ Review #6's two nits, taken as comments and documentation only - no code logic t
 2. justfile's check-foundations-public-surface comment said the check covers foundations only; corrected - it's covered the whole crate since e4f757c.
 
 Ran: cargo build -p steg-ui and cargo doc -p steg-ui --no-deps (doc-comment syntax, no logic change, both clean); the two affected pytest files (9 tests, unchanged - docstring-only); cargo fmt --all; full just check (28 steps, all ok, including design pages, ui levels, ui colours, and test (steg-server, race-fixture) at 5.8s). Pushed 8b51027; gh pr checks 55 --watch in the foreground, CI green in ~3.7 minutes, confirmed step-by-step in the run's own log.
+
+Plan section untouched.
+
+---
+
+created: 2026-11-16T12:06:00Z
+
+---
+
+Merged origin/main (it had reached TASK-1.93's own head through its own merge commit, after TASK-1.96/47/56/57 landed - GitHub's conflicting report was that cross-history, not a real conflict). `git merge origin/main`: no conflict, no hand edit. New head: e87de00a.
+
+Ran: `just check` once (28 steps, all ok, including check-foundations/check-design and `test (steg-server, race-fixture)` at 23.9s - main's three server changes touch nothing of this crate). Pushed, no force. `gh pr checks 55 --watch` in the foreground - queued ~5 minutes, then ran clean in CI, all 28 just check steps confirmed in the run's own log.
+
+`gh pr view 55 --json mergeable,mergeStateStatus` -> MERGEABLE, CLEAN.
+`git diff 8b51027 HEAD --stat -- crates/ui tools/src/steg_tools/foundations_generate.py tools/src/steg_tools/foundations_public_surface.py` -> empty, confirmed: nothing of this task's own code changed.
 
 Plan section untouched.
 

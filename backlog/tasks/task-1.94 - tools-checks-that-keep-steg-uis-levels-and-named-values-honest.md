@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T02:13:00Z'
+updated_date: '2026-11-16T02:14:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -238,3 +238,9 @@ of every non-adjacent level crossing (foundations→organisms directly) - R119's
 makes the three adjacent crossings the only ones a negative control can meaningfully
 distinguish from "the ordering rule is broken" generally.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-17 (R119, R120, R126) by @bruk.o: ok, with two things that are the engineer's in approving it. (1) It adds ast-grep-py to tools/pyproject.toml, the tools' first runtime dependency: a real parse of Rust (so comments, strings and grouped or aliased use lists are read correctly) in place of regular expressions; the worker confirmed a prebuilt wheel exists for CI's runner and Python and installs with no build step. (2) A colour literal inside a cfg(test) block is refused like any other. The level check follows re-exports through lib.rs and names what it cannot see (a glob re-export, a path built by a macro, a colour behind a trait); the colour check names what it cannot see (a value built by arithmetic, a constant defined outside foundations). Both leave crates/ui/gallery out: right for the level check, since the gallery uses every level; for the colour check it is right only while the gallery's colours are a placeholder, so the exemption is to end when TASK-1.93 makes the gallery draw from foundations (noted on TASK-1.93). Every case in the proof has a test tied to a negative control.
+<!-- SECTION:NOTES:END -->

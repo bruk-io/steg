@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T01:20:00Z'
+updated_date: '2026-11-16T01:21:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1089,6 +1089,43 @@ test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
 
 lingering steg processes from this worktree: 0
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cargo test -p steg --features fixtures --test server_start -- the_client_being_sigkilled_does_not_end_the_server the_clients_process_group_being_sighupd_does_not_end_the_server && count=$(pgrep -f "/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/target/debug/steg" | wc -l | tr -d " ") && echo "lingering steg processes from this worktree: $count" && test "$count" -eq 0'` exited 1 at 2026-11-16T01:21:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77 on task-1.77-server-start-on-demand-detach-and-stop at 3fbdf09f023c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.77/crates/steg)
+warning: function `find_server_pid` is never used
+  --> crates/steg/tests/server_start.rs:69:4
+   |
+69 | fn find_server_pid(socket_path: &std::path::Path) -> Option<u32> {
+   |    ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `0` is never read
+   --> crates/steg/tests/server_start.rs:107:23
+    |
+107 | struct ServerAtSocket(PathBuf);
+    |        -------------- ^^^^^^^
+    |        |
+    |        field in this struct
+    |
+    = help: consider removing this field
+
+warning: `steg` (test "server_start") generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/server_start.rs (target/debug/deps/server_start-6d77ec59f682e657)
+
+running 2 tests
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 2.13s
+
+lingering steg processes from this worktree: 2
 ```
 
 Commits since the review: 0.

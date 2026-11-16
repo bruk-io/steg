@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:33:00Z'
-updated_date: '2026-11-16T05:00:00Z'
+updated_date: '2026-11-16T05:03:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -414,6 +414,51 @@ test tab_new_through_api_call_starts_a_real_program ... ok
 test pane_split_through_api_call_starts_a_real_program ... ok
 
 test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+Check passed: `cargo test -p steg-server --test dispatch` exited 0 at 2026-11-16T05:03:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.89 on task-1.89-server-tab-list-tab-show-pane-list-and at 24506572a88c with uncommitted changes, last 40 of 67 lines:
+
+```text
+test setting_list_returns_every_registered_setting_with_its_current_value ... ok
+test api_call_of_session_set_names_the_target_session_not_the_context_default ... ok
+test session_set_and_unset_change_and_clear_the_label ... ok
+test session_show_matches_exactly_the_fields_the_description_declares ... ok
+test setting_set_changes_the_value_the_next_read_sees ... ok
+test session_list_matches_exactly_the_fields_the_description_declares_per_record ... ok
+test setting_unset_an_unknown_name_is_no_such_target ... ok
+test session_move_converts_the_wire_position_before_calling_the_kernel ... ok
+test session_move_rejects_a_zero_position_without_touching_the_tree ... ok
+test api_call_with_a_non_text_method_is_a_bad_request ... ok
+test pane_swap_exchanges_two_panes ... ok
+test session_close_removes_it ... ok
+test tab_move_with_position_reorders ... ok
+test setting_unset_reverts_to_the_default ... ok
+test tab_new_with_a_middle_position_places_the_new_tab_there ... ok
+test setting_show_returns_one_setting_in_full ... ok
+test setting_set_rejects_an_unknown_name_with_no_such_target ... ok
+test split_set_label_then_close_the_session ... ok
+test api_call_of_tab_set_names_the_target_tab_not_the_context_default ... ok
+test tab_new_with_no_focus_leaves_the_original_tab_current ... ok
+test tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus ... ok
+test tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first ... ok
+test tab_close_removes_it ... ok
+test tab_new_makes_the_new_tab_current_by_default ... ok
+test api_call_of_pane_set_names_the_target_pane_not_the_context_default ... ok
+test tab_new_with_no_position_appends_at_the_end_as_before ... ok
+test api_call_of_pane_split_gives_the_same_response_a_direct_call_would ... ok
+test tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing ... ok
+test tab_new_with_no_focus_restores_the_previous_current_tab ... ok
+test tab_new_with_position_zero_is_refused_and_creates_nothing ... ok
+test tab_focus_makes_it_current ... ok
+test api_call_reaches_setting_show_with_its_required_target ... ok
+test tab_new_with_position_one_places_the_new_tab_first ... ok
+test api_list_returns_every_method ... ok
+test every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing ... ok
+test api_show_with_no_target_returns_the_whole_description ... ok
+test every_described_method_gets_a_response_with_no_panic ... ok
+test api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
+
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

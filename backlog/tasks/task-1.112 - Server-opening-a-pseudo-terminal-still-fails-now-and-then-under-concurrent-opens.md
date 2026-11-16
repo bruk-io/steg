@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T12:15:00Z'
+updated_date: '2026-11-16T12:47:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '4592947e385d'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -194,3 +197,16 @@ A throwaway probe from this task's investigation (a Python `multiprocessing`-bas
 
 Plan (4592947e385d) checked against the four acceptance criteria and the team's testing rules by @bruk.o, 2026-11-16: ok on the cause, the proof and the bound, with one departure the engineer must accept. Criterion 2 as written says the retry is on this one error and is not a blanket retry of any error. The plan retries any failure of the open step (the open alone, not the spawn), up to 5 attempts, counted and reported, because the library discards the structured error and the code was seen as both 6 and -6, so matching would rest on rendered text. The orchestrator asked for that change and recommends rewording criterion 2 to match; it was the orchestrator's own wording in the draft.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T12:47:00Z
+
+---
+
+Plan approved by @bruk (4592947e385d, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

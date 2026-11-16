@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T06:08:00Z'
+updated_date: '2026-11-16T06:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1370,6 +1370,122 @@ Repeated myself, as scratch edits immediately reverted: (1) removed RealLauncher
 Everything else checked out: the ~20 existing Runtime::new/LaunchSpec call sites fixed via test_base_env()/login()/login_for_marks() helpers, no expectation weakened; no `unsafe` anywhere in the diff; no new dependency/feature (serde_json moved to [dependencies] only for the fixture [[bin]], boundaries.toml updated with the reason stated); ServerConfig's two new timeouts have defaults; TERM=xterm-256color; capture happens once after bind, before accept (crates/steg/src/main.rs run_server_start), matching the plan and now reachable end-to-end since TASK-1.45 merged (listen::run builds the real Runtime from config.login). Overlap with PR #47 (TASK-1.78): the one shared line is listen.rs's Runtime::new(...) call - #47 adds a third `force_grace` argument, this task only changes what config.login.clone() now carries (richer LoginShell with user/base_env) - orthogonal in meaning, resolved by keeping both (three-arg call with the TASK-1.87-shaped LoginShell). #47's runtime.rs diff only changes Runtime::new's own signature/body (the grace field) and adds force_end/stop-test helpers; it never touches LoginShell's fields or launch_spec's environment composition, so there's no deeper semantic conflict beyond the many colliding call sites both tasks happen to touch in the shared test module - mechanical, not a design clash.
 
 plan-matched: no - the notes themselves record six stated departures from the plan's own text (the read-then-wait combining into one unit on timeout, Capture::Fallback carrying the built env, the two timeout constants living in config.rs not login_env.rs, program.rs needing no fix, serde_json in [dependencies] not [dev-dependencies], and the extra shell-pane test beyond the plan's own proof list) - each is explained, none is itself a finding, but the flag reflects the departure regardless.
+
+---
+
+created: 2026-11-16T06:29:00Z
+
+---
+
+Merged PR #47's reviewed head (3e4594e) into this branch, as asked, before
+the second review starts. New head: ed80ab8 (pushed, PR #56, CI green).
+
+## The three conflicting hunks, and how each was resolved
+
+1. `crates/server/src/lib.rs` - both sides added a `pub use runtime::{...}`
+   line naming different new symbols (mine: `build_login_shell`; #47's:
+   `FORCE_GRACE_DEFAULT`). Kept both in one line.
+
+2. `crates/server/src/listen.rs` - both sides touched the same
+   `Runtime::new(...)` call in `run()`. Mine added a doc comment above it
+   explaining why `config.login.base_env` is assumed already resolved by
+   that point; #47's added the third `force_grace` argument
+   (`crate::runtime::FORCE_GRACE_DEFAULT`). Kept my comment, used #47's
+   3-argument call underneath it - the comment's own claim (this crate
+   prints nothing, a fallback is reported by the caller) is still true
+   after the merge.
+
+3. `crates/server/src/runtime.rs`, two hunks in `mod tests`/`mod
+   stop_tests` - both sides added a helper/constant right after the same
+   line (`EVENT_TIMEOUT`/`POLL_TIMEOUT`). Mine: `test_base_env()` (a
+   working `PATH`, needed once `RealLauncher::spawn`'s `.env_clear()`
+   landed). #47's: `TEST_GRACE` (a short `force_grace` for `Runtime::new`'s
+   new third argument). Kept both, in the order each module already used
+   them.
+
+## Hand edits outside the conflicts, and why
+
+Found by running the suites, not by the compiler - these are the kind
+`git` does not flag, since each is a *semantically* broken literal that
+stayed *syntactically* valid after either branch's own change:
+
+- `crates/server/tests/runtime.rs`: seven of `#47`'s own new force-close
+  tests each built their own `LoginShell { argv0: "/bin/sh".to_string(),
+  home: "/tmp".to_string() }` literal - the two-field shape from before
+  this task added `user`/`base_env`. Compiled as a type error (missing
+  fields), so the compiler *did* catch this half. Fixed by factoring one
+  shared `login_for_force_tests()` helper (with a working `PATH`, same
+  reasoning `runtime()`'s own helper in this file already has) and
+  pointing all seven at it, rather than fixing each literal by hand -
+  smaller diff, one place to find next time this shape changes again.
+
+- `crates/server/src/pane.rs`: a second `real_spec` helper, in `#47`'s own
+  new `mod ending_tests`, still had `env: Vec::new()` - the pre-TASK-1.87
+  meaning (RealLauncher ambiently inherited the test process's own
+  environment, which does not happen any more). This is exactly what the
+  compiler could *not* catch: a `Vec<(OsString, OsString)>` is a valid
+  value whether or not it carries a working `PATH`, so nothing failed to
+  build - it would have failed to *run*, the first time a test using it
+  actually needed to resolve a relative command name against an empty
+  environment. Fixed the same way `mod tests`'s own `real_spec` in this
+  file was already fixed for TASK-1.87. One test in `mod ending_tests`
+  also built a `LaunchSpec` literal directly (for a `.restart()` call)
+  with the same `env: Vec::new()` - fixed the same way, inline.
+
+Confirmed the fix was real, not incidental: before fixing
+`ending_tests::real_spec` and the inline literal, both of this module's
+own tests that actually run the restarted/relayed program through
+`RealLauncher` would have failed the instant that program needed to
+resolve `"sh"` with no `PATH` at all (the identical failure mode this
+task's own earlier rounds already found and fixed in `crates/server/
+tests/real_pty.rs`/`routing.rs`) - caught here by running the suite
+*after* the merge, which is why this needed finding rather than being
+flagged.
+
+## Checked for the two interaction risks named, found none
+
+- **A shared process-group-kill path with #47's own forced close.**
+  `crate::signal::send` (#47, `killpg` on a *pane's* pid, used by
+  `PaneHandle::signal_hangup`/`signal_kill`, driven by `Runtime::
+  force_end`) and this task's `login_env::capture_login_environment`
+  (`.process_group(0)` + `kill -9 -<pgid>` on the *login-shell capture's
+  own, unrelated* child, spawned once at server start, before any pane
+  exists) are structurally independent: different process trees,
+  different trigger points, no shared code, no shared constant, no
+  possible pid/pgid collision (the OS never reuses a live pgid). `pty.rs`
+  itself (where a *pane's* process actually starts) was untouched by #47
+  at all - confirmed by diffing it between the two branches' common
+  ancestor and #47's own head, finding no change.
+
+- **Reads of a renamed thing.** `PaneHandle::stop` was removed by #47
+  (replaced by `signal_hangup`/`signal_kill`/`await_exit` through
+  `force_end`); nothing in this task's own code or comments called it -
+  `Runtime::stop` (a different method, unchanged in name, now calling
+  `force_end` internally per #47's own rewrite) is the only "stop" this
+  task's own code or comments ever named. `STOP_TIMEOUT` (removed by #47)
+  is referenced once, in a doc comment inside `#47`'s own rewritten
+  `Runtime::stop` doc, as history ("this used to be serial... 5s per
+  pane") - not a symbol this task's code reads, and the file still
+  compiles.
+
+## What was run
+
+`cargo build --workspace --all-targets --all-features` (clean);
+`cargo test -p steg-server --all-features` and `--lib` separately (one
+flake, `arbiter::tests::attempt_takes_over_a_stale_socket_left_by_a_dead_
+server`, failed once under the full lib suite's own parallelism, then
+passed in isolation and 5/5 more full-suite runs after - a pre-existing,
+socket-path-collision-shaped flake in a file neither this task nor #47
+touches, not a regression from this merge, named here rather than
+silently reasoned away); `cargo test -p steg --features fixtures`;
+`just check` (clean, twice - once before, once after the committed
+merge); the 10x sweep (`cargo test -p steg-server` x10, `cargo test -p
+steg --features fixtures` x10) with the real-process count at 0 both
+before and after - all 20 runs green, repeated once more at the exact
+committed, pushed head (ed80ab8) for the record below.
+
+Did not run `asdlc record-check`/`asdlc finish` - the task is not held by
+this worker for that purpose any more, per the brief for this step.
 
 ---
 <!-- COMMENTS:END -->

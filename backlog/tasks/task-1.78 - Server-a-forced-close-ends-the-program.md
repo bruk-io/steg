@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-15T19:42:00Z'
-updated_date: '2026-11-16T02:19:00Z'
+updated_date: '2026-11-16T02:20:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1746,6 +1746,26 @@ failures:
 test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 26 filtered out; finished in 0.09s
 
 error: test failed, to rerun pass `-p steg-server --test runtime`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test runtime -- every_method_that_can_name_it` exited 0 at 2026-11-16T02:20:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78 on task-1.78-server-a-forced-close-ends-the-program at 68d10a8032c0 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.78/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+
+running 3 tests
+kill: 83887: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 83886: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 83888: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 26 filtered out; finished in 5.05s
 ```
 
 Commits since the review: 0.

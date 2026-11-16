@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T19:23:00Z'
-updated_date: '2026-11-16T00:13:00Z'
+updated_date: '2026-11-16T00:23:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.77-server-start-on-demand-detach-and-stop
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'd29c62060a8b'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -848,3 +851,16 @@ Rewritten plan for the first piece checked against doc-8 (R3, R98, R99), doc-2 s
 
 Plan updated after the check above (interrupt consequences stated in full, a test that a fresh start replaces a killed server's socket through the real binary, the ServerConfig merge order with TASK-1.45): re-read by @bruk.o, still ok; the plan constructs no Runtime. The digest to approve is the one asdlc mine shows after this update.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T00:23:00Z
+
+---
+
+Plan approved by @bruk (d29c62060a8b, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

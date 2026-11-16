@@ -5,13 +5,12 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T16:43:00Z'
+updated_date: '2026-11-16T16:47:00Z'
 labels:
   - size-5
 milestone: m-4
 dependencies:
   - TASK-1.47
-  - TASK-1.114
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -30,11 +29,8 @@ A thin slice cut on 2026-11-16 at the engineer's request, to have something visi
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Running the app opens one window showing one terminal: it starts a server if none is running, makes a session, attaches to its pane, and draws the pane's rows, colours and cursor from the attachment's snapshot and updates, in the terminal theme the foundations give for the system's light or dark setting
-- [ ] #2 Typing reaches the program and its output is drawn: a shell prompt accepts a command and shows the result; keys that are text, Enter, Backspace, Tab, the arrows and Control combinations arrive as the bytes a terminal sends; resizing the window declares the new size and the program is told
-- [ ] #3 Closing the window leaves the session running on the server, and running the app again shows the same screen (the server owns the terminal: the app keeps no copy it treats as the truth)
-- [ ] #4 The app's own instrumentation records key to paint and key to frame for each keystroke and prints the 50th and 95th percentiles for a run; the numbers from a real run on this machine are in the notes beside doc-9 R19's budget, as a measurement and not yet as a pass or fail
-- [ ] #5 Printing a large amount of output does not freeze the window: what is drawn per frame is bounded, and the notes say what was measured and what is left for TASK-1.56
-- [ ] #6 The pull request carries an image of the window with a shell in it and a short recording of typing a command; a recipe starts the app; nothing in just check or CI opens a window; what can be tested without a window (key to bytes, a snapshot and updates to the rows to draw, the per-frame bound) has tests with their controls
+- [ ] #2 Closing the window shuts the connection down, joins its reader, and leaves the session running on the server; running the app again attaches to the same session and shows its screen
+- [ ] #3 The pull request carries an image of the window with a shell in it; a recipe starts the app; nothing in just check or CI opens a window; what can be tested without a window has tests with recorded controls
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -163,6 +159,14 @@ created: 2026-11-16T16:43:00Z
 ---
 
 Plan approved by @bruk (8551f6bb93b8, size-5): its worker may build it.
+
+---
+
+created: 2026-11-16T16:47:00Z
+
+---
+
+2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted: this task is the read-only window. TASK-1.121 has typing and resizing (and the recording); TASK-1.122 has the latency measurement and the per-frame bound. The approved plan calls them parts 2 and 3: cite TASK-1.121 and TASK-1.122 in code and notes. It no longer depends on TASK-1.114: it needs only attach.
 
 ---
 <!-- COMMENTS:END -->

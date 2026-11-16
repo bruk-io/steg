@@ -18,9 +18,13 @@ request shows.
   spacing bar and corner - from `foundations` by name as well, the same as any real
   component would, and has no colour literal of its own, test or otherwise: `Theme::
   with_default_session` reaches the default session colour through a `Theme`, never a
-  bare `Hsla` (checked by `tools/src/steg_tools/foundations_public_surface.py`, part of
-  `just check` - a public function in this crate returning `Hsla` outside `impl Theme` is
-  a build failure, not a convention), and `hex_of` (display only, `foundations::hex_of`)
+  bare `Hsla`. `check-foundations-public-surface`
+  (`tools/src/steg_tools/foundations_public_surface.py`, part of `just check`) enforces
+  this: it refuses a `pub fn` outside `impl Theme` whose declared return type is spelled
+  `Hsla` or `gpui::Hsla` - stated limits, not assumed complete: a `pub const` of the
+  colour type, a renamed import of it, or a type alias for it all reach a bare colour
+  unseen, since the check matches on spelling, not on what the type actually is. And
+  `hex_of` (display only, `foundations::hex_of`)
   lives in `foundations` along with its own round-trip tests, which do need a literal hex
   to assert against - `crates/ui/src/foundations/**` is the one path TASK-1.94's
   colour-literal check always exempts, so this needs no carve-out from anyone later.

@@ -34,12 +34,15 @@ impl Appearance {
 /// The design's values in force right now: which [`Appearance`] is showing, and the
 /// active session's own colour - R123's `"session"`, never a fixed value in
 /// `generated.rs`, always supplied here instead. Every value that has a light/dark
-/// pair in `crates/ui/design/foundations.json` is a method on `Theme` (generated); there
-/// is no public free function anywhere in this crate that returns a bare light-or-dark
-/// form (R123) - reaching one not through `Theme` is a compile error, not a convention,
-/// checked by `tools/src/steg_tools/foundations_public_surface.py` (review #5 of
-/// TASK-1.93 found this claim false once, for exactly the case a hand-reader expects
-/// to be the hardest to get right: `Theme`'s own bootstrap, below).
+/// pair in `crates/ui/design/foundations.json` is a method on `Theme` (generated). R123
+/// is enforced, not just intended, by `check-foundations-public-surface`
+/// (`tools/src/steg_tools/foundations_public_surface.py`, part of `just check`): it
+/// refuses a `pub fn` outside `impl Theme` whose *declared* return type is spelled
+/// `Hsla` or `gpui::Hsla`, which is what review #5 of TASK-1.93 found this crate once
+/// had (`Theme`'s own bootstrap, below). That check's own docstring names its stated
+/// limits - a `pub const` of the colour type, a renamed import of it, and a type alias
+/// for it all reach a bare colour out of this crate too, unseen by a check that matches
+/// on spelling, not on what the type actually is.
 ///
 /// A GPUI [`Global`] (`cx.set_global`/`cx.global::<Theme>()`); [`ActiveTheme`] below is
 /// the one spelling a component uses to reach it.

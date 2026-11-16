@@ -1,21 +1,29 @@
-"""The compile-level claim doc-17 R123 makes and `crates/ui/src/foundations/mod.rs`'s own
-doc comment repeats - "no public function returns a bare light-or-dark form outside a
-`Theme` method" - isn't something Rust's own type system proves on its own (nothing stops
-a *new* free function from being added returning `Hsla`), so this module checks it as text
-instead: review #5 of TASK-1.93 found exactly this claim false once (a public
-`default_session(Appearance) -> Hsla`, found by calling it from outside `foundations`) and
-asked for the check the claim deserves.
+"""Enforces doc-17 R123 ("no public function returns a bare light-or-dark colour outside
+a `Theme` method") as a check in `just check` (`check-foundations-public-surface`) -
+Rust's own type system doesn't prove this on its own (nothing stops a *new* free function
+from being added returning `Hsla`), and review #5 of TASK-1.93 found the claim false once
+(a public `default_session(Appearance) -> Hsla`, found by calling it from outside
+`foundations`) before this check existed.
 
-What this checks, precisely: every `pub fn ... -> Hsla` (qualified as `gpui::Hsla` or bare
-- found that way, not reasoned about in advance, when an early draft of this check's own
-negative control used the qualified spelling and passed silently) found by regex over the
-raw source text of every `.rs` file under `crates/ui/src/**` and `crates/ui/gallery/**`
-(the crate's whole public surface, not just `foundations` - the claim is about the crate;
-review #5's actual finding was `default_session` in `foundations/mod.rs` itself), that
-falls outside every brace-matched `impl Theme { ... }` block in that same file. A
-violation names the file and the function.
+What this checks, precisely, and no more than this: every `pub fn` whose *declared*
+return type is spelled `Hsla` or `gpui::Hsla` - matched as text, by regex, over the raw
+source of every `.rs` file under `crates/ui/src/**` and `crates/ui/gallery/**` (the
+crate's whole public surface, not just `foundations` - R123 is about the crate; review
+#5's actual finding was in `foundations/mod.rs` itself) - that falls outside every
+brace-matched `impl Theme { ... }` block in that same file. A violation names the file
+and the function.
 
-What this cannot see, named outright: a function returning `Hsla` wrapped in another type
+What this cannot see, named outright - review #6 of TASK-1.93 found all three by getting
+past the check with each in turn, not by inspection:
+- a `pub const` of the colour type (`pub const X: Hsla = ...;`) - this check only ever
+  looks at `fn` signatures, never a `const`'s declared type.
+- a renamed import of the type (`use gpui::Hsla as Colour;`, then `pub fn f() -> Colour`)
+  - the regex matches the literal text `Hsla`/`gpui::Hsla`, not whatever other name the
+    same type is imported under.
+- a `type` alias for it (`type ColourAlias = Hsla;`, then `pub fn f() -> ColourAlias`) -
+  same reason: the alias's own name is what appears in the signature, not `Hsla`.
+
+Also unseen, from before review #6: a function returning `Hsla` wrapped in another type
 (a tuple, `Option<Hsla>`, a struct with an `Hsla` field) - `hex_of`, `tint()` and `scrim()`
 all do this legitimately and are invisible to this check by design, since R123 is about
 handing out a *bare* colour, not merely touching one. A multi-line function signature whose

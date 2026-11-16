@@ -169,7 +169,7 @@ generate-foundations:
 check-foundations:
     @if [ "{{rust}}" = no ]; then echo "skip    foundations: no Rust workspace yet"; else {{quiet}} "foundations" -- uv run --quiet --project tools steg-generate-foundations --check; fi
 
-# fail if a public function in crates/ui/src/foundations outside impl Theme returns a bare Hsla (doc-17 R123) - the compile-level guarantee the module's own doc comment claims
+# fail if a pub fn anywhere in the steg-ui crate (not just foundations) is declared to return a bare Hsla outside impl Theme (doc-17 R123) - see the check's own docstring for exactly what it matches and its stated limits
 check-foundations-public-surface:
     @if [ "{{rust}}" = no ]; then echo "skip    foundations public surface: no Rust workspace yet"; else {{quiet}} "foundations public surface" -- uv run --quiet --project tools steg-foundations-public-surface; fi
 

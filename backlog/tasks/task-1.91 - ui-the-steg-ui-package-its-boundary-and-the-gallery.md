@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T00:52:00Z'
-updated_date: '2026-11-16T01:10:00Z'
+updated_date: '2026-11-16T01:15:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.91-ui-the-steg-ui-package-its-boundary-and
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'f7b4047abc0d'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -235,3 +238,16 @@ Read first: GPUI's README, https://github.com/zed-industries/zed/blob/main/crate
 
 Plan checked against doc-17 (R117, R124), decision-11 and doc-16 (R104, R108, R111) by @bruk.o: ok. steg-ui is a package allowed gpui and nothing of steg's, and the app is allowed steg-ui; the gallery is a binary of the package; the theme switch is a placeholder named as what TASK-1.93 replaces. The capture was established by experiment: gpui 0.2.2 offers no way to read back what it drew, so the image comes from the system's screen capture of the gallery's own window, which needs the invoking terminal to hold the Screen Recording permission, granted once by a person; CI's runner cannot hold it, so just check and CI only compile the gallery and the capture is a recipe a worker or a person runs. Orchestrator's answers to the two points raised: 'capture' is added to the recipe verbs; the permission is documented in the package's CLAUDE.md, and, for the build, the capture recipe itself checks that the image shows the gallery (a known colour at a known place) and fails with a message naming the Screen Recording permission when it does not, so that a blank or wrong capture can never be attached to a pull request as its image.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-16T01:15:00Z
+
+---
+
+Plan approved by @bruk (f7b4047abc0d, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

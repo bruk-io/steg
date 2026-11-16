@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w1'
 created_date: '2026-11-15T21:43:00Z'
-updated_date: '2026-11-16T01:16:00Z'
+updated_date: '2026-11-16T01:21:00Z'
 labels:
   - size-2
   - changes-requested
@@ -497,6 +497,36 @@ Coverage, clause by clause:
 Checks recorded on this task: a baseline `just check` (exit 0) before any change; a failing `cargo check -p steg-server --tests` (exit 101, non-exhaustive match) before apply_event_locked's new arms existed; a passing `cargo test -p steg-server --lib runtime::tests` (exit 0, 18 tests) once they did; three negative controls, each applied, confirmed failing, and restored - (a) the drain call after terminal.write removed (the three mark tests fail, exit 101), (b) the CommandEnded arm made a no-op (succeeds/fails fail, and still-running's own second half - sending the end mark itself and watching the status move - fails too, while its first half still passes; this is what makes that one test able to tell CommandOutputStarted's own arm from CommandEnded's), (c) the no-marks test's own built-in control (feeding one real mark at the end) also fails under (a)'s removed drain, confirmed separately; a final `just check` (exit 0) at the merged, pushed head.
 
 TASK-1.78 (forced close) was still In Progress, not merged, at every check above and again just before pushing - the mark-for-a-pane-already-gone test's own comment ("until TASK-1.78 lands") still matches the repository's current state; nothing to re-read against a merge that hasn't happened yet. origin/main moved twice while this was in flight (once before the first push - rebased cleanly, no code touched; once after - merged, board-only files, no code touched); `just check` was re-run and recorded clean at the final head before the final push, and CI is green on that same head (7f6ab3a).
+
+Check FAILED: `cargo test -p steg-server --lib a_command_panes_own_program` exited 101 at 2026-11-16T01:21:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.84 on task-1.84-server-pass-a-typed-command-s-start-and at 7f6ab3ae5a6e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-75c81fd969602d6a)
+
+running 1 test
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... FAILED
+
+failures:
+
+---- runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status stdout ----
+
+thread 'runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status' (16955249) panicked at crates/server/src/runtime.rs:1910:9:
+assertion `left == right` failed
+  left: Some(Failed { exit_code: 3 })
+ right: Some(Running)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.43s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:48:00Z'
+updated_date: '2026-11-16T15:49:00Z'
 labels:
   - size-4
   - changes-requested
@@ -1055,6 +1055,29 @@ Dependencies: clap pinned exactly at =4.6.7 (builder API only, "string" feature 
 doc-2's own flag table (section 5, "Flags that recur") still writes a single row `--label <text> | new, set, unset` - now wrong for `unset` on session/tab/pane, where label is a switch (`--label`/`--no-label`, no value). For the orchestrator: that row should split into `--label <text> | new, set` and a second line (or a note) covering `--label`/`--no-label` | `unset`.
 
 Plan-matched: yes - the diff touches exactly the plan's named files in the stated order (boundaries.toml, methods.rs's three unset params, the new crates/steg/src/cli/* modules, main.rs's routing, the three new test files, Cargo.toml/Cargo.lock), and the switch step, the placeholder seam and the drift test all match the approved plan's own design section.
+
+---
+
+created: 2026-11-16T15:49:00Z
+
+---
+
+Review fix (@bruk.w5), Important finding on pull request 64:
+
+main.rs matched server start's literal argv before the generated tree ever parsed it, so steg server start --no-on-demand (and --on-demand --no-on-demand) fell through to the placeholder instead of starting a server, parsed as valid, exit 1. Fixed: the generated tree parses every invocation, including server.start's own; only after parsing is server.start's parsed result (never its literal argv) handed to run_server_start instead of the placeholder - on_demand read via extract_params the same way every other switch already is (absent means off, last given wins).
+
+Proof table addendum:
+
+| Proof item | Test | Recorded control |
+|---|---|---|
+| server start --no-on-demand starts the explicit kind | `cargo test -p steg --features fixtures --test server_start server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach` | pre-fix literal-matching main.rs restored (git show) -> fails (placeholder message on stderr instead of silence); fix restored -> passes |
+| --on-demand after --no-on-demand wins | `cargo test -p steg --features fixtures --test server_start on_demand_given_after_no_on_demand_wins` | same pre-fix main.rs -> fails (placeholder message instead of the carry-on-attached message); fix restored -> passes |
+| --no-on-demand after --on-demand wins | `cargo test -p steg --features fixtures --test server_start no_on_demand_given_after_on_demand_wins` | same pre-fix main.rs -> fails (placeholder message instead of silence); fix restored -> passes |
+| server start --help prints the generated help, starts nothing | `cargo test -p steg --features fixtures --test server_start server_start_help_prints_the_generated_help_and_starts_nothing` | new coverage, not a regression test - no control needed, passes against the fix |
+
+All 15 pre-existing server_start tests (the --on-demand test, an_unrecognised_server_start_variant_exits_2, the four simultaneous starts, SIGKILL/SIGHUP, etc.) still pass unchanged, and the sdk's own local_socket tests (which run `steg server start --on-demand` for real via connect()) still pass unchanged. just check recorded green on the final head.
+
+Nit: steg --help lists nouns with no text beside them, since the description has no per-noun summary field - doc-2 section 3's own Nouns table does give each noun a one-line "What it is" (session: "A named, long-lived workspace on one host"; tab: "An ordered page within a session"; etc.), so per your second option: the description should carry that line, not this crate hand-writing it. Leaving it as this gap, not implementing a workaround here, since you said you'd draft it.
 
 ---
 <!-- COMMENTS:END -->

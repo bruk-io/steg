@@ -1,14 +1,13 @@
 ---
 id: TASK-1.97
 title: 'tools: the LikeC4 MCP smoke test stops failing CI by timing out'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
 updated_date: '2026-11-16T03:27:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -387,6 +386,8 @@ REVIEW FINDINGS FIXED (@bruk.r2's review, same-machine), branch task-1.97-tools-
 3. Nit fixed: `ci.yml`'s step installing Zig via mise is renamed "Install the pinned Zig and Node (mise.toml)" and its comment now says it installs the Node pin too, at no extra step/cost.
 
 All proof items for these fixes recorded via `asdlc record-check`; none skipped or claimed without a run.
+
+Fixed all 3 review findings. Important: added tools/tests/functional/test_likec4_mcp_phased_timeout.py with two deterministic tests (fake child process, not the real server) reaching both the 'to start' and 'mid-exchange' timeout branches, refactoring summary_from_command(argv, ...) out of read_project_summary to make this testable; negative control recorded (branch collapsed, both new tests fail for the right reason, then reverted, git status clean recorded). Nits: docstring now says the 70s figure predates the .npmrc fix; ci.yml's mise-install step renamed/commented to mention the Node pin it now also installs. just check green locally and on CI at head 34311bf (run 43797888831, 3m35s). Full corrected writeup appended to the task's notes.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

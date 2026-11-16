@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:46:00Z'
+updated_date: '2026-11-16T15:48:00Z'
 labels:
   - size-4
   - changes-requested
@@ -883,6 +883,41 @@ test the_client_being_sigkilled_does_not_end_the_server ... ok
 test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
 
 test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:48:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at 97d873cb0b63 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (14.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.7s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (28.2s)
+ok      test (steg-server) (11.6s)
+ok      test (steg-server, race-fixture) (10.6s)
+ok      build (steg) (0.9s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (7.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.7s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

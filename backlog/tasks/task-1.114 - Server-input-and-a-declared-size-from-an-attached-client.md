@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T08:39:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.47
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

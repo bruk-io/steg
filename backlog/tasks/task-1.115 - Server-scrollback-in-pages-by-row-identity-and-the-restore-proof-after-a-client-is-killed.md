@@ -1,9 +1,9 @@
 ---
-id: DRAFT-5
+id: TASK-1.115
 title: >-
   Server: scrollback in pages by row identity, and the restore proof after a
   client is killed
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T08:39:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.47
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

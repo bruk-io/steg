@@ -1,9 +1,9 @@
 ---
-id: DRAFT-1
+id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-16T04:53:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

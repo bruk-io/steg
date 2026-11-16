@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:36:00Z'
+updated_date: '2026-11-16T14:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -22,6 +22,11 @@ asdlc_branch: task-1.86-server-an-on-demand-server-stops-when
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1183,6 +1188,153 @@ Checks recorded on the task throughout, including:
 AC #4's exact-instant race (a client connecting in the same accept-loop iteration the stop flag becomes true) is proven for the ordinary-timing case only, through the real binary and the sdk's own unmodified autostart - the engineer approved this reading and is adding the exact-instant case as a criterion on TASK-1.49 instead, per the plan's own "For the engineer" section.
 
 Reviewer: please check PR #60 includes the merges of origin/main and TASK-1.98's branch cleanly (no leftover conflict markers), and that the one-effective-sender change to listen.rs (TASK-1.98's own file) reads correctly in context.
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T14:03:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc, last 40 of 409 lines:
+
+```text
+kill: 74638: No such process
+kill: 74703: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+kill: 74691: No such process
+kill: 74704: No such process
+kill: 74726: No such process
+kill: 74747: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 74639: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74641: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74690: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74696: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.09s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T14:03:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc, last 40 of 62 lines:
+
+```text
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-3e9d6d82b6885ce6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:07:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (53.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.1s)
+ok      test (steg-server) (20.8s)
+ok      test (steg-server, race-fixture) (23.3s)
+ok      test (steg-server, accept-backoff-fixture) (24.4s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Review findings fixed: PR #60's CI had been cancelled in the hanging accept-backoff step before any code review happened. Merged TASK-1.98's fixed head (d2ab50c - every wait in accept_backoff.rs's own tests is now bounded, the real-binary descriptor limit is 180). listen.rs itself was not touched by this merge (the fix was entirely in test helpers and fixtures), so my one-effective-sender change (checker_tx.or(events), all three send sites reading it) carried through unmodified - confirmed by grep after the merge.
+
+Re-ran both suites and just check in the foreground, each through asdlc record-check:
+- cargo test -p steg-server --tests: exit 0 (160+76+13+5+5+8+22+29+8+1 passed)
+- cargo test -p steg --features fixtures: exit 0 (includes server_start.rs's new surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers, replacing the old file-descriptor test)
+- just check: exit 0, including test (steg-server, accept-backoff-fixture) in 24.4s with no stall
+
+No leftover processes from this worktree before or after (checked via ps aux).
+
+None of my five recorded negative controls touch the files TASK-1.98's fix changed (accept_backoff.rs, accept_backoff_attempt.rs, server_start.rs), so none needed re-running.
+
+Pushed, watched gh pr checks 60 --watch in the foreground: passed at 8m4s (run 43882468307), confirmed via gh pr view --json statusCheckRollup (conclusion SUCCESS).
+
+Checked before finishing, per the engineer's instructions: gh pr view 59 --json state,reviewDecision shows OPEN with no reviewDecision set; TASK-1.98's own board task carries no changes-requested label. No adverse finding reported yet.
+
+Earlier CI run (43875669315) on this same PR, before TASK-1.98's fix, was confirmed to hang at test (steg-server, accept-backoff-fixture) exactly as the engineer described (log stops after race-fixture's own "ok" line, cancelled ~7m44s later, orphan-process cleanup names a leftover accept-backoff- process) - reported in full on the task's own comment thread with the earlier build notes.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1213,6 +1365,47 @@ None of these touch the `accept-backoff-fixture` feature at all (that is TASK-1.
 Checked the exact-wait test's own 300ms absence window (`idle.rs`'s `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`) for margin under machine load, as asked - what would make something arrive late into it or after it:
 
 Nothing legitimate can. The checker is in `Wait::Forever` for the whole window because `live_clients > 0` makes `wait()` return `Forever` unconditionally, regardless of how much time has elapsed - this does not depend on `idle_timeout` (50ms in this test) or on timing precision at all. The window's own boundaries are entirely test-controlled, not racing a background timer: it starts only after the test's own blocking (untimed) `.recv()` for the second observation has already returned, and the test does not send `Disconnected` - the only thing that could end the window - until after the window's own `recv_timeout` call has already returned. So there is no clock for machine load to make something arrive "late" into or after this window; the only way anything can appear inside it is a real implementation regression (a reverted periodic-poll design), which the committed negative control already confirmed bites, cleanly, at a bounded 300ms - about 3x the 100ms poll interval that regression used.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T13:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.86: a same-machine review: it waited 32m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Narrow first pass only: Evidence question, from gh and the task's notes alone. No worktree was made, no diff was read, no code was reviewed, and no suites were run. Nothing here is a judgement of the work - a full review follows once this comes back.
+
+[Evidence, Important] PR 60's only CI run has not passed on the branch's current head. Head d6c7ad92ba23950d0a88cc6ec71eeeaeedacdbde (task-1.86-server-an-on-demand-server-stops-when) has exactly one check, "CI / check", run 43875669315: started 2026-11-16T13:30:58Z, status COMPLETED, conclusion CANCELLED at 13:43:30Z (`gh run list` confirms no later run exists for this branch). Per the team's review.md Evidence pass: "Were the checks the worker recorded run on this branch, after its last change, and did they pass? A check recorded before the last commit, or not at all, is a finding." A cancelled run is not a passing run.
+
+Why it stalled: this branch merges TASK-1.98 at commit 0f38605 ("Server: the accept loop survives a recoverable accept() error"). `git log origin/main..origin/task-1.86-... -- crates/server/tests/accept_backoff.rs` returns exactly that one commit, and TASK-1.98's own fix commit (263d360, "Fix review findings: the accept-backoff test suite hangs", pushed to task-1.98-server-the-accept-loop-survives-an-error, head d2ab50c46927) is not an ancestor of 0f38605 (`git merge-base --is-ancestor` confirms). So this branch carries the pre-fix accept_backoff.rs / accept_backoff_attempt.rs that TASK-1.98's own review (PR 59, comment #3, 2026-11-16 13:12 UTC) already sent back for hanging CI: that review found a CI run stalled right after "ok test (steg-server, race-fixture)" and was killed by the 30-minute workflow timeout with an orphaned accept-backoff process. PR 60's cancelled run is consistent with the same unfixed hang (cancelled at ~12m41s into the job, after the same race-fixture step).
+
+What is needed before this returns to review: rebase/merge TASK-1.98's fixed head (not 0f38605) into this branch, run both suites and `just check` on the merged result, and get this pull request's own CI green on the final head.
+
+Plan match not assessed in this pass: no diff was read, so the positive "yes" condition (files match the plan, in order, building what it says) could not be verified. Recorded "no" per instructions for this case, not as a plan-departure finding.
+
+No earlier-review repeat found worth a rule-change draft: `review-done`'s own note that earlier reviews cited the same policy (review) points to TASK-1.98 (PR 59), but its Important finding was the hang itself (a mistake in the code/tests); this finding is that the task was sent to review before that fix reached this branch and before CI confirmed it - a different mistake, not a second instance of the same one. No draft filed.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:16:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,13 +5,17 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T13:35:00Z'
+updated_date: '2026-11-16T14:36:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.89
+references:
+  - task-1.46-server-the-tree-and-events-a-client
+  - https://github.com/bruk-io/steg/pull/63
 parent_task_id: TASK-1
 type: task
 project: bruk-io-steg
@@ -20,6 +24,10 @@ asdlc_branch: task-1.46-server-the-tree-and-events-a-client
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4ee3881365b0'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=5,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -724,6 +732,242 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-16T13:54:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 1e060c7a8116 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.3s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (13.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (13.4s)
+ok      test (steg-server, race-fixture) (12.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events the_snapshots_reply_always_precedes_any_event_under_a_real_race'` exited 101 at 2026-11-16T13:57:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.11s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test the_snapshots_reply_always_precedes_any_event_under_a_real_race ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37919283) panicked at crates/server/tests/events.rs:556:17:
+expected the reply first, got Event { name: "session.created", body: Object {"id": String("0000002f"), "label": Null} } instead
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 1.03s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --lib a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full'` exited 101 at 2026-11-16T13:58:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full ... FAILED
+
+failures:
+
+---- runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full stdout ----
+
+thread 'runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full' (37931197) panicked at crates/server/src/runtime.rs:2046:29:
+expected a clean close, got Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 158 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events session_close_emits_the_whole_cascade_innermost_first'` exited 101 at 2026-11-16T13:59:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+
+running 1 test
+test session_close_emits_the_whole_cascade_innermost_first ... FAILED
+
+failures:
+
+---- session_close_emits_the_whole_cascade_innermost_first stdout ----
+
+thread 'session_close_emits_the_whole_cascade_innermost_first' (37937938) panicked at crates/server/tests/events.rs:280:5:
+expected tab.closed second, got SessionClosed { id: SessionId(2) }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    session_close_emits_the_whole_cascade_innermost_first
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check FAILED: `sh -c 'cargo test -p steg-server --test events'` exited 101 at 2026-11-16T14:00:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes, last 40 of 47 lines:
+
+```text
+test a_filter_by_name_keeps_only_that_event ... FAILED
+test disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast ... ok
+test a_filter_by_session_excludes_another_sessions_events ... FAILED
+test session_close_emits_the_whole_cascade_innermost_first ... ok
+test tab_focus_emits_tab_focused_with_the_whole_path ... ok
+test a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event ... FAILED
+
+failures:
+
+---- the_snapshots_reply_always_precedes_any_event_under_a_real_race stdout ----
+
+thread 'the_snapshots_reply_always_precedes_any_event_under_a_real_race' (37965593) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_filter_by_name_keeps_only_that_event stdout ----
+
+thread 'a_filter_by_name_keeps_only_that_event' (37965585) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "pane.created", body: Object {"id": String("00000006"), "label": Null, "tab": String("00000005")} }
+
+---- a_filter_by_session_excludes_another_sessions_events stdout ----
+
+thread 'a_filter_by_session_excludes_another_sessions_events' (37965586) panicked at crates/server/tests/events.rs:465:13:
+expected nothing, got 207 bytes decoding to Some(Event { name: "tab.created", body: Object {"id": String("00000009"), "label": Null, "session": String("00000004")} })
+
+---- a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event stdout ----
+
+thread 'a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event' (37965587) panicked at crates/server/tests/events.rs:456:9:
+expected nothing, but connection already had this buffered: Event { name: "tab.created", body: Object {"id": String("00000003"), "label": Null, "session": String("00000002")} }
+
+
+failures:
+    a_filter_by_name_keeps_only_that_event
+    a_filter_by_session_excludes_another_sessions_events
+    a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event
+    the_snapshots_reply_always_precedes_any_event_under_a_real_race
+
+test result: FAILED. 5 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+error: test failed, to rerun pass `-p steg-server --test events`
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:05:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 84ab8324298c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (12.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (2.3s)
+ok      test (steg-server) (12.0s)
+ok      test (steg-server, race-fixture) (13.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T14:08:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.46 on task-1.46-server-the-tree-and-events-a-client at 18e00d0ece7f:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (13.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (13.1s)
+ok      test (steg-server, race-fixture) (13.5s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Built part A of TASK-1.46 (the tree, subscribing, atomicity, back-pressure, and the events with an existing producer); the remaining events are TASK-1.109.
+
+event.watch replies with the tree (TreeSnapshot, embedding SessionRecord/TabRecord/PaneRecord as they are) and registers the connection's own subscription filter atomically inside one lock acquisition, bypassing the generic reply-after-the-fact path entirely (Runtime::subscribe, called directly from connection.rs, which resolves api.call wrapping first so that path reaches it too). Every connection is registered for broadcast the moment it is usable, independent of whether it ever subscribes.
+
+Creation, closure (including the exit-driven cascade), focus, and a typed command's status changing all broadcast through one fn broadcast, under the lock the site already holds - creation outermost-first, closure innermost-first, built from what the kernel already returns (ClosedPane) plus reading tree state before and after a close, no kernel change needed.
+
+A subscriber whose queue is full is closed, not resynced: a structural gap found while building this (Outbound::close() alone never touches the socket, and the reader has no idle timeout) - each registered subscriber now also carries a clone of its own connection's socket, shut down on a failed enqueue.
+
+New sdk vocabulary for a reply followed by a stream (Returns::Nested, Method.follows: Follows) was pushed early (commit 3a79c06) for TASK-1.47's own attach to build against.
+
+Checks recorded on the task: just check clean at each milestone (sdk vocabulary, the snapshot and subscribing, the slow-subscriber fix, after each origin/main merge) and again at the final head. Four negative controls recorded as deliberate failing runs, each then reverted: the atomicity fix (reply built/enqueued after the lock was dropped, with a brief sleep to widen the window - reproduced the exact race, then reverted), the slow-subscriber shutdown (disabled, the unit test then timed out instead of seeing a clean close), the closure cascade order (one broadcast call removed, the real-socket test then saw the wrong event second), and the name filter (disabled, four tests then saw events they should not have - this also surfaced and fixed a real bug in my own test helper, assert_nothing_arrives_within, which checked only the raw socket for new bytes and missed a frame already sitting in the Connection's own decoder buffer from an earlier over-read; fixing that in turn surfaced a second, genuine bug in two of my own tests, which assumed session.new produces exactly one event when it legitimately produces three - both rewritten).
+
+Proof: crates/server/tests/events.rs (real socket, sdk's own Connection: the snapshot, creation/closure cascades in order, a whole-path focus event, filtering by name and by session, ending a subscription by disconnecting, a quiet window producing nothing, and the atomicity race at 20 repetitions) and runtime.rs's own unit tests (apply_event_locked's event production, an unfiltered subscriber, and the slow-subscriber overflow, deterministic with no writer thread draining it - the real-socket version of that last one was tried first and was flaky against a real writer thread and an unknown OS socket buffer size, named in the test file rather than kept).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -767,6 +1011,46 @@ created: 2026-11-16T13:01:00Z
 ---
 
 The first recorded check on this task (just check exited 101) raced my own in-progress edit to shapes.rs/methods.rs mid-run, not a real failure of the pre-existing codebase: the background process picked up a half-finished struct field addition while I was still editing. The next recorded check, after finishing that edit, is clean and is the true state at this step.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:13:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.46: a same-machine review: it waited 4m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:36:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 5 Important, 2 nit. Cites: review, testing. The diff does not match the plan.
+
+Reviewed at head 18e00d0 (matches the task's own recorded `just check` head; PR #63's CI is green on this commit). Ran `just check` myself (clean) and the server lib suite plus `--test events` 10x each with no flakiness and no leftover processes.
+
+Important findings:
+
+1. [Bugs/Compliance, AC #2] runtime.rs:1002-1020 `capture_close_cascade`'s `CloseCascade::Pane` arm (the `pane.close` request path) only ever captures/emits `pane.closed{id}` - it never checks whether closing that pane also closed its tab and session (R94's own cascade, which `Tree::close_pane` in crates/kernel/src/tree.rs does perform and reports via `ClosedPane{tab: Option, session: Option}`, the same struct the exit-driven path already reads those fields from). Reproduced directly: a session with one tab and one pane, subscribed with `--all`, `pane.close --force` on its only pane returns Ok and the subscriber receives only `pane.closed`, never `tab.closed`/`session.closed`, even though the tab and session are both gone from the tree afterward. A subscriber's own tree model is left referencing a tab and session the server has already discarded - AC #2's "Each is caused by every place the tree changes that way, whether from a request..." is unmet for this one path. The plan's own §5 table lists only `pane.closed{id}` for `pane.close`, so the worker built exactly what the plan said; the plan itself missed this case.
+
+2. [Evidence] No recorded negative control for the session-scope filter, which the plan's own §10 names explicitly ("Negative control: remove the scope check inside broadcast"). The four controls recorded in the task's notes (atomicity, slow-subscriber shutdown, closure-cascade order, name filter) don't clearly include one isolating `Filter::matches`'s `scope_ok` check. I repeated it myself (scratch-disabled `scope_ok` in crates/server/src/dispatch/event.rs): `a_filter_by_session_excludes_another_sessions_events` fails correctly, so the mechanism is real - the control is just not on the record.
+
+3. [Evidence] No recorded negative control for the creation-cascade order (`session_new_emits_session_created_tab_created_and_pane_created_in_order`), which §10 asks for ("drive session.new and assert the three creation events arrive in the stated order... negative control for each"). I repeated it myself (removed the `TabCreated` broadcast in `emit_creation_events`'s `session.new` arm): the test fails correctly, catching the dropped event. No recorded run for this one exists in the task's check history.
+
+4. [Evidence] No recorded negative control for the exit-driven cascade order (`a_shell_panes_exit_emits_the_whole_cascade_in_order`, runtime.rs unit test). Its own doc comment describes what a control would show but no recorded failing run for this specific test appears in the task's history (the one runtime.rs unit-test control on record is the slow-subscriber one).
+
+5. [Compliance] `session_close_emits_the_whole_cascade_innermost_first` exercises one tab with one pane; the plan's §10 asks for "two tabs with two panes each" specifically to prove every pane.closed precedes its own tab's tab.closed (per-tab interleaving). The single-tab case can't distinguish correct interleaving from "every pane.closed across every tab, then every tab.closed" - code review shows `emit_close_events`'s `Session` arm is correct, but the proof-list row isn't covered as specified.
+
+Nits (2, both minor):
+- `broadcast`'s own doc comment says "nothing here ever writes to a socket while state's lock is held," but `subscriber.shutdown.shutdown(Both)` is a socket syscall made under that lock (non-blocking in practice on a Unix socket, so not a bug - the comment overstates it).
+- `Connection::watch`'s signature (`for_: Option<&str>`) departs from the plan's own sketch (`for_: &[&str]`); justified inline (the API's own `for` is a single Choice value, not a list) but not called out in the task's notes.
+
+Not findings, confirmed working as designed: the slow-subscriber shutdown (shutdown() on a cloned socket from the broadcasting thread while holding the Runtime's lock is the same cross-thread-shutdown idiom TASK-1.45's own ConnectionCleanup already uses and is non-blocking; the unit test does prove the real socket closes, not just queue bookkeeping); TASK-1.47's own `pane.attach` does use `Follows::Attachment` as this task's description predicted usable. TASK-1.86 (in review) adds its own `SessionCountChanged` notify inside the exact same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures (not just connection.rs/listen.rs as this task's own Risks section says) - whoever merges second must fold 1.86's notify into this task's `if let ExitOutcome::Closed(closed) = &outcome` block, after the broadcasts, keeping this task's `scope` captured before `record_exit`.
 
 ---
 <!-- COMMENTS:END -->

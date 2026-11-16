@@ -473,6 +473,21 @@ error: test failed, to rerun pass `-p steg --test cli_run_placeholder`
 ```
 
 Commits since the review: 44, 44 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_run_placeholder every_described_method_parses_and_reaches_the_not_yet_connected_placeholder` exited 0 at 2026-11-16T15:13:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49 on task-1.49-cli-commands-generated-from-the-api at c515f6ce59c4:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.49/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+     Running tests/cli_run_placeholder.rs (target/debug/deps/cli_run_placeholder-1518af872534748d)
+
+running 1 test
+test every_described_method_parses_and_reaches_the_not_yet_connected_placeholder ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.30s
+```
+
+Commits since the review: 44, 44 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

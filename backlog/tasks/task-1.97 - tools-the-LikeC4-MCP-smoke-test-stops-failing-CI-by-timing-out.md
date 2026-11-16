@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T01:34:00Z'
-updated_date: '2026-11-16T02:43:00Z'
+updated_date: '2026-11-16T02:53:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -181,6 +181,34 @@ run 9: just test-tools passed in 20s wall (cold cache, 3-way concurrent contenti
 ok      tool tests (13.4s)
 run 10: just test-tools passed in 14s wall (cold cache, 3-way concurrent contention)
 all 10 runs passed
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 && just check'` exited 0 at 2026-11-16T02:53:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.97 on task-1.97-tools-the-likec4-mcp-smoke-test-stops at 1e63d7b907f0:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (5.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (4.4s)
+ok      test (steg-server, race-fixture) (4.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (2.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T01:49:00Z'
+updated_date: '2026-11-16T01:53:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -771,6 +771,31 @@ Correction to the build-load note above: it was wrong, and I withdraw its conclu
 Fixed both: a 2s write timeout on the client stream, treated the same as a closed connection; one overall 10s deadline on the drain loop, checked every iteration, not just per-read. Extracted the same one-deadline shape into a shared read_n_replies helper used by every multi-reply wait in routing.rs. Verified: 10/10 repeated runs of the flood test alone and 10/10 of the whole file, all now passing in 0-3s each, against 6 reproduced hangs past 60s before the fix. Recorded via record-check both the failing (timeout, exit 124) and the fixed, repeated-passing runs.
 
 The load this surfaced under (several other workers' cargo builds running concurrently on this machine, load average 9-12) is real and worth keeping in mind for future work on this task, but it was the trigger that made a pre-existing bug in my own test visible, not the cause of a false failure - the underlying wait really was unbounded regardless of load.
+
+Check passed: `just check` exited 0 at 2026-11-16T01:53:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.45 on task-1.45-server-frames-streams-and-requests at a7f69bfdc911 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (4.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (5.9s)
+ok      test (steg-server, race-fixture) (5.1s)
+ok      build (steg) (0.4s)
+ok      test (steg) (0.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (1.2s)
+ok      architecture (1.0s)
+ok      recipe names (0.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -892,6 +892,27 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 159 filtered out
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `cargo test -p steg-server --lib idle::` exited 0 at 2026-11-16T12:25:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a3ebd891939d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 9 tests
+test idle::tests::a_connected_client_with_no_matching_disconnect_never_fires_no_matter_how_far_time_moves ... ok
+test idle::tests::a_connect_then_disconnect_within_one_tick_restarts_the_full_period ... ok
+test idle::tests::empty_from_construction_and_waiting_past_idle_timeout_expires ... ok
+test idle::tests::wait_until_is_exact_not_approximate ... ok
+test idle::tests::wait_at_29_30_and_31_seconds_of_idleness ... ok
+test idle::tests::a_client_reconnecting_every_29_seconds_never_fires ... ok
+test idle::tests::a_nonzero_session_count_never_fires_regardless_of_clients ... ok
+test idle::tests::a_recoverable_accept_retry_does_not_count_as_a_client_arriving ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 151 filtered out; finished in 0.36s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

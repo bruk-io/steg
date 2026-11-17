@@ -243,16 +243,36 @@ pub(crate) fn join_with_bound(handle: thread::JoinHandle<()>, timeout: Duration)
     done_rx.recv_timeout(timeout).is_ok()
 }
 
-/// One client's attachment to this pane's screen (TASK-1.47): its stream
-/// id, the connection's own outbound queue once it is armed, and whether
-/// it holds every row the terminal has reported so far or needs a fresh,
-/// full resync before it can resume taking deltas (decision-2 section 6).
+/// Identifies one attachment, minted by the pane's own worker the moment
+/// it registers one (TASK-1.114) - never the connection-supplied `stream`
+/// number, which is only unique *within* the connection that minted it:
+/// two different connections attached to this same pane can (and, proven
+/// by TASK-1.114's own two-client test, did) both mint `stream == 1` for
+/// their own first attachment, and `PaneCommand::Arm`/`Detach` matching
+/// on the bare `stream` number alone found whichever entry happened to
+/// come first in `attachments`, regardless of which connection the
+/// message actually came from - silently arming (or detaching) the wrong
+/// one. A worker-local counter, starting at 0 and bumped on every
+/// `PaneCommand::Attach` for this pane's whole life, is unique across
+/// every connection that has ever attached here, which `stream` alone
+/// never promised.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct AttachmentId(u64);
+
+/// One client's attachment to this pane's screen (TASK-1.47): its own
+/// worker-local [`AttachmentId`], the stream id the frames it is sent are
+/// tagged with (connection-local; only ever read back by the connection
+/// that minted it), the connection's own outbound queue once it is armed,
+/// and whether it holds every row the terminal has reported so far or
+/// needs a fresh, full resync before it can resume taking deltas
+/// (decision-2 section 6).
 ///
 /// `outbound` starts `None` and is filled in by [`PaneCommand::Arm`],
 /// deliberately a later, separate step from [`PaneCommand::Attach`] - see
 /// that command's own doc for why, and [`run_tick`]'s own doc for what an
 /// unarmed attachment costs (nothing: it is skipped until armed).
 struct Attachment {
+    id: AttachmentId,
     stream: u32,
     outbound: Option<Arc<Outbound>>,
     caught_up_to: AttachState,
@@ -366,29 +386,33 @@ enum PaneCommand {
     /// command never blocks on that; it answers at once either way.
     Attach {
         /// The new attachment's stream id, already minted by the caller
-        /// (a connection concern, not this module's).
+        /// (a connection concern, not this module's) - connection-local
+        /// only; never used by this module to *identify* the attachment
+        /// again later (see [`AttachmentId`]'s own doc for why).
         stream: u32,
-        /// Where the pane's current screen is sent back.
-        reply: Sender<Result<Screen, Error>>,
+        /// Where the pane's current screen is sent back, alongside the
+        /// [`AttachmentId`] this worker itself mints for it - the caller's
+        /// own handle on this attachment for every later `Arm`/`Detach`.
+        reply: Sender<Result<(AttachmentId, Screen), Error>>,
     },
     /// Hands an already-registered attachment the `Outbound` it sends
     /// updates to, once the caller has queued the attach reply and opened
     /// the stream with the writer (decision-2 section 3's ordering rule;
-    /// see [`PaneCommand::Attach`]'s own doc). A no-op if `stream` is not
+    /// see [`PaneCommand::Attach`]'s own doc). A no-op if `id` is not
     /// currently registered (it was detached before this arrived, or the
     /// `Attach` it answers never reached this worker - `Error::PaneGone`
     /// already covers that case for the caller).
     Arm {
         /// The attachment to arm.
-        stream: u32,
+        id: AttachmentId,
         /// The connection's own outbound queue.
         outbound: Arc<Outbound>,
     },
-    /// Ends an attachment: no further update is computed or sent for
-    /// `stream`. A no-op if it is not currently registered.
+    /// Ends an attachment: no further update is computed or sent for it.
+    /// A no-op if `id` is not currently registered.
     Detach {
         /// The attachment to end.
-        stream: u32,
+        id: AttachmentId,
     },
     /// How many attachments this pane's own fan-out list currently holds,
     /// read back through this reply channel (TASK-1.47 review): test-only,
@@ -504,17 +528,22 @@ impl PaneHandle {
     }
 
     /// Registers a new attachment to this pane's screen and returns its
-    /// snapshot (TASK-1.47; AC #1, #7). The caller mints `stream` (a
-    /// connection concern) and must call [`PaneHandle::arm`] once it has
-    /// queued this reply and opened the stream with the writer -
-    /// decision-2 section 3's ordering rule; see [`PaneCommand::Attach`]'s
-    /// own doc for why attach and arm are two separate steps.
+    /// own [`AttachmentId`] alongside its snapshot (TASK-1.47; AC #1, #7).
+    /// The caller mints `stream` (a connection concern - the frame tag,
+    /// connection-local) but the `AttachmentId` returned here, not
+    /// `stream`, is what [`PaneHandle::arm`]/[`PaneHandle::detach`] must
+    /// be called with (TASK-1.114: `stream` alone is not unique across
+    /// different connections attached to the same pane - see
+    /// [`AttachmentId`]'s own doc). Call `arm` once this reply is queued
+    /// and the stream is opened with the writer - decision-2 section 3's
+    /// ordering rule; see [`PaneCommand::Attach`]'s own doc for why attach
+    /// and arm are two separate steps.
     ///
     /// # Errors
     ///
     /// Returns [`Error::PaneGone`] if the pane's worker thread is no
     /// longer there, or whatever the terminal itself failed with.
-    pub fn attach(&self, stream: u32) -> Result<Screen, Error> {
+    pub(crate) fn attach(&self, stream: u32) -> Result<(AttachmentId, Screen), Error> {
         let (reply_tx, reply_rx) = mpsc::channel();
         self.commands
             .send(PaneCommand::Attach {
@@ -536,24 +565,24 @@ impl PaneHandle {
     ///
     /// Returns [`Error::PaneGone`] if the pane's worker thread is no
     /// longer there.
-    pub(crate) fn arm(&self, stream: u32, outbound: Arc<Outbound>) -> Result<(), Error> {
+    pub(crate) fn arm(&self, id: AttachmentId, outbound: Arc<Outbound>) -> Result<(), Error> {
         self.commands
-            .send(PaneCommand::Arm { stream, outbound })
+            .send(PaneCommand::Arm { id, outbound })
             .map_err(|_| Error::PaneGone)
     }
 
     /// Ends an attachment (TASK-1.47): no further update is computed or
-    /// sent for `stream`. Not an error if it is already gone - detaching
-    /// twice, or detaching a stream the worker never armed, both leave
-    /// the pane exactly as the caller wanted it: nothing more sent there.
+    /// sent for it. Not an error if it is already gone - detaching twice,
+    /// or detaching an id the worker never armed, both leave the pane
+    /// exactly as the caller wanted it: nothing more sent there.
     ///
     /// # Errors
     ///
     /// Returns [`Error::PaneGone`] if the pane's worker thread is no
     /// longer there.
-    pub fn detach(&self, stream: u32) -> Result<(), Error> {
+    pub(crate) fn detach(&self, id: AttachmentId) -> Result<(), Error> {
         self.commands
-            .send(PaneCommand::Detach { stream })
+            .send(PaneCommand::Detach { id })
             .map_err(|_| Error::PaneGone)
     }
 
@@ -808,6 +837,11 @@ fn worker_loop(
     // own `seq` already uses, read back by `run_tick` below).
     let mut attachments: Vec<Attachment> = Vec::new();
     let mut tracked_seq: u64 = 0;
+    // TASK-1.114: this pane's own counter for minting `AttachmentId`s,
+    // unique for this pane's whole life - see `AttachmentId`'s own doc
+    // for why the connection-supplied `stream` number cannot serve this
+    // role on its own.
+    let mut next_attachment_id: u64 = 0;
     // `None` until a dirtying command arms it; see this function's own
     // doc for why this, not an unconditional `recv_timeout`, is what
     // makes an idle or unattached pane cost nothing.
@@ -911,29 +945,40 @@ fn worker_loop(
             }
             PaneCommand::Attach { stream, reply } => {
                 let screen = terminal.screen().map_err(Error::from);
-                if screen.is_ok() {
-                    // Registered as caught up to the worker's own
-                    // currently-tracked point, in this exact step - not
-                    // "caught up starting next tick": decision-2 section
-                    // 3's stream resumption ("snapshot.seq + 1") depends
-                    // on it. `outbound` stays `None` until `Arm` arrives;
-                    // nothing reads it before then.
-                    attachments.push(Attachment {
-                        stream,
-                        outbound: None,
-                        caught_up_to: AttachState::CaughtUp(tracked_seq),
-                    });
-                }
-                let _ = reply.send(screen);
+                let reply_value = match screen {
+                    Ok(screen) => {
+                        // Registered as caught up to the worker's own
+                        // currently-tracked point, in this exact step -
+                        // not "caught up starting next tick": decision-2
+                        // section 3's stream resumption ("snapshot.seq +
+                        // 1") depends on it. `outbound` stays `None`
+                        // until `Arm` arrives; nothing reads it before
+                        // then. `id` is this worker's own (TASK-1.114;
+                        // `AttachmentId`'s own doc) - `stream` alone is
+                        // not a safe key once a second connection can
+                        // attach the same pane.
+                        let id = AttachmentId(next_attachment_id);
+                        next_attachment_id += 1;
+                        attachments.push(Attachment {
+                            id,
+                            stream,
+                            outbound: None,
+                            caught_up_to: AttachState::CaughtUp(tracked_seq),
+                        });
+                        Ok((id, screen))
+                    }
+                    Err(error) => Err(error),
+                };
+                let _ = reply.send(reply_value);
             }
-            PaneCommand::Arm { stream, outbound } => {
-                if let Some(attachment) = attachments.iter_mut().find(|a| a.stream == stream) {
+            PaneCommand::Arm { id, outbound } => {
+                if let Some(attachment) = attachments.iter_mut().find(|a| a.id == id) {
                     attachment.outbound = Some(outbound);
                 }
                 maybe_arm_tick(&mut next_tick, attach_tick, &attachments);
             }
-            PaneCommand::Detach { stream } => {
-                attachments.retain(|a| a.stream != stream);
+            PaneCommand::Detach { id } => {
+                attachments.retain(|a| a.id != id);
             }
             #[cfg(test)]
             PaneCommand::AttachmentCount(reply) => {
@@ -1793,7 +1838,7 @@ mod attach_tests {
     use crate::outbound::{Outbound, run_writer};
     use crate::pty::{LaunchSpec, RealLauncher};
 
-    use super::{AttachState, Attachment, Terminal, maybe_arm_tick, run_tick, start};
+    use super::{AttachState, Attachment, AttachmentId, Terminal, maybe_arm_tick, run_tick, start};
 
     const TEST_TICK: Duration = Duration::from_millis(1);
 
@@ -1901,6 +1946,7 @@ mod attach_tests {
     fn an_unarmed_attachment_never_arms() {
         let mut next_tick = None;
         let attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 1,
             outbound: None,
             caught_up_to: AttachState::CaughtUp(0),
@@ -1918,6 +1964,7 @@ mod attach_tests {
     fn one_armed_attachment_arms_a_deadline_roughly_one_tick_away() {
         let mut next_tick = None;
         let attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 1,
             outbound: Some(Arc::new(Outbound::new())),
             caught_up_to: AttachState::CaughtUp(0),
@@ -1932,6 +1979,7 @@ mod attach_tests {
     #[test]
     fn an_already_armed_deadline_is_never_extended() {
         let attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 1,
             outbound: Some(Arc::new(Outbound::new())),
             caught_up_to: AttachState::CaughtUp(0),
@@ -1963,6 +2011,7 @@ mod attach_tests {
         let mut frames = FramePair::new();
         frames.outbound.open_stream(7);
         let mut attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
@@ -1990,6 +2039,7 @@ mod attach_tests {
         let mut frames = FramePair::new();
         frames.outbound.open_stream(7);
         let mut attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
@@ -2020,6 +2070,7 @@ mod attach_tests {
         let mut frames = FramePair::new();
         frames.outbound.open_stream(7);
         let mut attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
@@ -2065,6 +2116,7 @@ mod attach_tests {
         let outbound = Arc::new(Outbound::new());
         outbound.open_stream(7); // never drained: no writer thread at all
         let mut attachments = [Attachment {
+            id: AttachmentId(0),
             stream: 7,
             outbound: Some(Arc::clone(&outbound)),
             caught_up_to: AttachState::CaughtUp(0),
@@ -2156,7 +2208,7 @@ mod attach_tests {
         // Nothing has been sent yet - deterministically blank, no race to
         // synchronise with.
         let stream = 7;
-        let attached_screen = handle.attach(stream).unwrap();
+        let (attachment_id, attached_screen) = handle.attach(stream).unwrap();
         assert!(
             screen_text(&attached_screen).trim().is_empty(),
             "nothing was written yet: {:?}",
@@ -2165,7 +2217,9 @@ mod attach_tests {
 
         let mut frames = FramePair::new();
         frames.outbound.open_stream(stream);
-        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
 
         // The pty's own line discipline echoes this, and `cat` relays it
         // back too - either way, "hello" lands on the screen, possibly
@@ -2195,7 +2249,7 @@ mod attach_tests {
             );
         }
 
-        handle.detach(stream).unwrap();
+        handle.detach(attachment_id).unwrap();
         handle.send_input(b"more\r\n".to_vec()).unwrap();
         frames.assert_nothing_arrives(Duration::from_millis(200));
 
@@ -2223,7 +2277,7 @@ mod attach_tests {
         .unwrap();
 
         let stream = 3;
-        let _ = handle.attach(stream).unwrap();
+        let (attachment_id, _) = handle.attach(stream).unwrap();
 
         handle.send_input(b"before arm\n".to_vec()).unwrap();
         // Lets the worker's own tick (1ms) run several times over with
@@ -2237,7 +2291,9 @@ mod attach_tests {
         // Still nothing: arming happens on the next line, after this.
         frames.assert_nothing_arrives(Duration::from_millis(50));
 
-        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
         handle.send_input(b"after arm\n".to_vec()).unwrap();
         let _ = frames.next_update(Duration::from_secs(2));
 
@@ -2260,9 +2316,11 @@ mod attach_tests {
         )
         .unwrap();
         let stream = 9;
-        let _ = handle.attach(stream).unwrap();
+        let (attachment_id, _) = handle.attach(stream).unwrap();
         let frames = FramePair::new();
-        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
         handle.send_input(b"x".to_vec()).unwrap(); // arms the far-future deadline
 
         handle.shutdown();

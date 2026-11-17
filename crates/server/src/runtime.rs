@@ -511,10 +511,10 @@ impl Runtime {
         attaching: Attaching,
         request: &Request,
         outbound: &Arc<crate::outbound::Outbound>,
-    ) -> Result<PaneId, ApiError> {
+    ) -> Result<(PaneId, pane::AttachmentId), ApiError> {
         let Attaching { client, id, stream } = attaching;
         validate(description, request)?;
-        let (pane, screen) = {
+        let (pane, attachment_id, screen) = {
             let mut state = self.lock();
             let pane = dispatch::target_pane(&state.tree, context, request)?;
             state
@@ -527,8 +527,8 @@ impl Runtime {
                     "this pane has no running program to attach to",
                 )
             })?;
-            let screen = handle.attach(stream).map_err(map_pane_error)?;
-            (pane, screen)
+            let (attachment_id, screen) = handle.attach(stream).map_err(map_pane_error)?;
+            (pane, attachment_id, screen)
         };
         let attached = steg_sdk::PaneAttached {
             stream,
@@ -542,7 +542,7 @@ impl Runtime {
         // already tearing down concurrently, and there is nothing more to
         // do about it here.
         let _ = outbound.enqueue_control(bytes);
-        Ok(pane)
+        Ok((pane, attachment_id))
     }
 
     /// Hands an already-registered attachment the `Outbound` it sends
@@ -553,12 +553,12 @@ impl Runtime {
     pub(crate) fn arm_attachment(
         &self,
         pane: PaneId,
-        stream: u32,
+        attachment_id: pane::AttachmentId,
         outbound: Arc<crate::outbound::Outbound>,
     ) {
         let state = self.lock();
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.arm(stream, outbound);
+            let _ = handle.arm(attachment_id, outbound);
         }
     }
 
@@ -566,11 +566,16 @@ impl Runtime {
     /// (`Tree::stop_viewing`), reapplying any `SizeChanged` it reports
     /// (decision-6: detaching can change who is latest), and tells the
     /// pane's own worker to drop the attachment. Takes an already-resolved
-    /// `pane` and the caller's own `stream` (`connection.rs` looks both up
-    /// from its own bookkeeping before calling this - see
+    /// `pane` and the caller's own `attachment_id` (`connection.rs` looks
+    /// both up from its own bookkeeping before calling this - see
     /// [`Runtime::resolve_pane_target`]) rather than a `Request`, since
     /// "is this connection even attached to this pane" is connection
-    /// -local state the kernel and this `Runtime` know nothing about.
+    /// -local state the kernel and this `Runtime` know nothing about. The
+    /// worker's own `AttachmentId` (TASK-1.114), not the connection's own
+    /// stream number, is what identifies the attachment to end - see
+    /// `crate::pane::AttachmentId`'s own doc for why the stream number
+    /// alone is not safe once a second connection can attach the same
+    /// pane.
     ///
     /// Best-effort on both halves: `stop_viewing` failing (the client
     /// already gone, or never really viewing this pane) and the pane
@@ -578,7 +583,12 @@ impl Runtime {
     /// already confirmed its own attachment was real before calling this,
     /// so either case only means the state this was meant to release is
     /// already gone.
-    pub(crate) fn detach_pane(&self, client: ClientId, pane: PaneId, stream: u32) {
+    pub(crate) fn detach_pane(
+        &self,
+        client: ClientId,
+        pane: PaneId,
+        attachment_id: pane::AttachmentId,
+    ) {
         let mut state = self.lock();
         if let Ok(changes) = state.tree.stop_viewing(client, pane) {
             for change in &changes {
@@ -586,7 +596,7 @@ impl Runtime {
             }
         }
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.detach(stream);
+            let _ = handle.detach(attachment_id);
         }
     }
 
@@ -600,10 +610,10 @@ impl Runtime {
     /// and at worst race whichever of the two cleanup calls runs first.
     /// Only the pane worker's own in-memory fan-out list, which the kernel
     /// knows nothing about, still needs telling.
-    pub(crate) fn forget_attachment(&self, pane: PaneId, stream: u32) {
+    pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
         let state = self.lock();
         if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.detach(stream);
+            let _ = handle.detach(attachment_id);
         }
     }
 

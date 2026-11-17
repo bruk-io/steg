@@ -1693,6 +1693,32 @@ ok      tests (-p steg -p steg-app -p steg-server) (53.4s)
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T23:17:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 9.0s)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: method `is_composing` is never used
+  --> crates/app/src/ime.rs:48:19
+   |
+23 | impl ImeState {
+   | ------------- method in this implementation
+...
+48 |     pub(crate) fn is_composing(&self) -> bool {
+   |                   ^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `steg-app` (bin "steg-app") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

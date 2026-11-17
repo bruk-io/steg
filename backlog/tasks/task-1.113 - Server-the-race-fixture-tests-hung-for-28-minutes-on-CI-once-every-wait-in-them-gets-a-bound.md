@@ -418,6 +418,31 @@ error: test failed, to rerun pass `-p steg-server --test openpty_race`
 full output: .quiet/openpty-race-control.log
 error: recipe `test-openpty-race-control` failed on line 149 with exit code 101
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-17T04:08:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server/tests/openpty_race.rs:340:
+         // reader thread has already returned in the overwhelming
+         // majority of cases - bounded all the same, rather than a bare
+         // `join()` that could block indefinitely if it has not.
+[31m-        run_bounded(&format!("reader thread {worker} to end"), STOP_TIMEOUT, move || {
+(B[m[31m-            let _ = handle.join();
+(B[m[31m-        });
+(B[m[32m+        run_bounded(
+(B[m[32m+            &format!("reader thread {worker} to end"),
+(B[m[32m+            STOP_TIMEOUT,
+(B[m[32m+            move || {
+(B[m[32m+                let _ = handle.join();
+(B[m[32m+            },
+(B[m[32m+        );
+(B[m     }
+ 
+     let total_opens: u64 = done.iter().map(|d| d.map_or(0, |(t, _)| t)).sum();
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

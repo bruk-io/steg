@@ -996,6 +996,38 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app an_ended_panes_program_gets_a_fresh_tab_in_the_same_session'` exited 101 at 2026-11-17T00:15:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... FAILED
+
+failures:
+
+---- startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session stdout ----
+
+thread 'startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session' (45717399) panicked at crates/app/src/startup.rs:468:21:
+assertion `left != right` failed: the client side closed before sending the expected request
+  left: 0
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

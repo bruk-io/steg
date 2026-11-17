@@ -687,6 +687,51 @@ Check passed: `just test` exited 0 at 2026-11-17T00:21:18+00:00 in /Users/brukha
 ```text
 ok      tests (-p steg-app) (0.8s)
 ```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:21:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 41 lines:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-84c5e5a9e7a26d91)
+
+running 15 tests
+test ime::tests::marking_text_opens_the_composition_and_sends_nothing ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::marking_empty_text_closes_the_composition ... ok
+test ime::tests::unmarking_closes_the_composition ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... FAILED
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+
+failures:
+
+---- ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it stdout ----
+
+thread 'ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it' (46006094) panicked at crates/app/src/ime.rs:96:9:
+assertion failed: !state.is_composing()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,15 +3,14 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: In Review
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:13:00Z'
+updated_date: '2026-11-17T02:22:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -2642,6 +2641,8 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Review findings fixed: (1) Important - Runtime::attach_pane held the state lock across PaneHandle::attach's own unbounded wait for the worker's reply, stalling every other request behind one busy pane's own worker. Fixed with PaneHandle::attach_sender/AttachSender: the lock covers only resolving the target and cloning the pane's own command-channel sender, released before the (now unlocked) wait. arm_attachment/detach_pane/forget_attachment checked and documented as never waiting on the worker (unbounded mpsc sends). Proof: runtime.rs's attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock - floods a pane's own worker, attaches it on a detached thread, repeatedly samples an unrelated pane.show over several seconds with a per-sample bound. Recorded failing (lock held across the wait) then passing. (2) Nit - pane.detach failed at tree-based target resolution for an already-closed pane, leaking the connection's own stream. Fixed with a fallback in connection.rs: parse the target's own pane segment directly (PaneId's FromStr) when tree resolution fails, and use it only if this connection's own pane_streams still holds that id. Proof: attach.rs's detaching_a_pane_that_already_closed_still_releases_the_stream. Recorded failing (fallback dropped) then passing. Plan departures named per the review's own plan-matched-no flags: AttachmentId (TASK-1.114's real bug, reproduced by hand since their branch and mine were not separable) and the ConnectionCleanup sweep (a real leak the plan implied through correctness but never named). Re-recorded the ordering-rule and bad-request-on-unattached-detach controls against the edited code. just check green, head f91a8f27, PR https://github.com/bruk-io/steg/pull/62, CI green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

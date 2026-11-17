@@ -3,15 +3,14 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: In Review
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T01:05:00Z'
+updated_date: '2026-11-17T01:20:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -2419,6 +2418,8 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 319, 288 without the Asdlc-Worker trailer.
+
+AttachmentId fix (TASK-1.114's real bug, reproduced by hand with the same names/shapes: pane.rs's AttachmentId(u64), minted per-attachment by the worker, replacing bare stream-number matching in PaneCommand::Arm/Detach; runtime.rs's attach_pane/arm_attachment/detach_pane/forget_attachment follow; connection.rs's pane_streams now keys by (AttachmentId, u32)). Proof: two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other, with a recorded failing-then-passing control (stream-number matching restored). All twelve controls (the original eleven plus this one) re-recorded as failing-then-passing pairs through asdlc record-check after both the TASK-1.46 merge and the AttachmentId fix, against the code as it stands at the end - not run by hand. Merged origin/main three times as it moved (TASK-1.46's PR, TASK-1.112's and TASK-1.49's PRs, then two board-only commits); each merge rebuilt, retested, and re-ran only the controls its own diff touched. just check green at every merge point, recorded on the task throughout. Head 69680a39, PR https://github.com/bruk-io/steg/pull/62, CI green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

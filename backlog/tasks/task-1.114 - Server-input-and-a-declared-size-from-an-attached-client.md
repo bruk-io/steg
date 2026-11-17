@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T16:38:00Z'
+updated_date: '2026-11-17T16:43:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1605,6 +1605,34 @@ test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; fin
 ```
 
 Commits since the review: 105, 93 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 101 at 2026-11-17T16:43:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (52959816) panicked at crates/server/tests/attach.rs:1769:28:
+pane.detach for a pane that closed between attach and arm must not succeed - TASK-1.125's own 'silent stream' bug
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 5.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

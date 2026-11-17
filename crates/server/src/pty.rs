@@ -65,6 +65,12 @@ pub struct SpawnedProgram {
     pub resize: Box<dyn Fn(u16, u16) -> Result<(), Error> + Send>,
     /// A handle to wait for the program's exit code, or to kill it.
     pub child: Box<dyn portable_pty::Child + Send + Sync>,
+    /// How many attempts opening this pane's pseudo-terminal took
+    /// (TASK-1.112) - `1` means it succeeded on the first try, with no
+    /// retry. `crate::pane::start`/`PaneHandle::restart` read this to
+    /// report [`crate::pane::PaneEvent::OpenRetried`] when it is more
+    /// than `1`, so a retry is never silent.
+    pub open_attempts: u32,
 }
 
 /// Starts a program in a pseudo-terminal (doc-9 R13).
@@ -84,38 +90,219 @@ pub trait ProgramLauncher: Send + Sync {
 /// intermittently with the platform's own `Os { code: -6 }`, while the
 /// number of ptys actually alive stays well under any real ceiling (the
 /// task's own review record has the isolated reproduction). The open is
-/// not safe to call concurrently on this platform; nothing short of
-/// serialising it removes the race, so this is a lock around the call
-/// itself, not a retry (a retry would hide the race, not remove it).
+/// not safe to call concurrently *within one process* on this platform;
+/// nothing short of serialising it removes that part of the race, so
+/// this stays a lock around the call itself, deterministic and free,
+/// rather than left to the retry below to absorb along with everything
+/// else (TASK-1.112's own investigation: a sustained, lock-protected,
+/// otherwise-identical run still failed once in 1,277 opens with the
+/// lock removed, and zero times in several thousand with it in place -
+/// kept for that reason, not reopened).
 ///
-/// Held only for [`RealLauncher::spawn`]'s own `openpty` call, never
-/// across the spawn or anything that waits: `portable-pty`'s own
+/// Held only for the retried `openpty` call below, never across the
+/// spawn or anything that waits: `portable-pty`'s own
 /// `PtyPair::slave.spawn_command` is a separate call this lock does not
 /// need to cover, and nothing after the open blocks on I/O.
 static OPENPTY_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+/// Retries `try_open` on *any* error it returns, up to `max_attempts`
+/// attempts total, with no delay between them - a plain function
+/// parameter, not a mock of anything (`.claude/rules/testing-rust.md`),
+/// so this is driven directly by unit tests below with no real pty
+/// involved at all. Returns the attempt count alongside whichever
+/// `Result` the last call to `try_open` produced: `Ok((value, n))` where
+/// `n` is the attempt that finally succeeded (`1` means no retry was
+/// needed), `Err((error, max_attempts))` once every attempt has failed.
+fn open_with_retry<T, E>(
+    max_attempts: u32,
+    mut try_open: impl FnMut() -> Result<T, E>,
+) -> Result<(T, u32), (E, u32)> {
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match try_open() {
+            Ok(value) => return Ok((value, attempt)),
+            Err(_) if attempt < max_attempts => continue,
+            Err(error) => return Err((error, attempt)),
+        }
+    }
+}
+
+/// `OPENPTY_LOCK` plus the bounded retry (TASK-1.112): a real,
+/// *cross-process* race on this platform (measured directly - a bare
+/// `openpty()` from several separate, single-threaded OS processes,
+/// nothing shared between them, still fails intermittently at a rate
+/// that scales with how many processes are hammering at once) cannot be
+/// reached by any lock local to this process, and a real server is one
+/// process sharing this platform's pty subsystem with whatever else is
+/// running on the same machine at that moment. Retries on any error
+/// (not a specific one): `portable-pty` discards the structured
+/// `io::Error` before it reaches this crate (its own `unix.rs`:
+/// `bail!("failed to openpty: {:?}", io::Error::last_os_error())` - a
+/// formatted string, not something a `match` can reach), and the two
+/// sightings of this failure recorded on the task do not even agree on
+/// the error's sign, so there is nothing reliable left to match. No
+/// sleep between attempts - the race this retries clears on the very
+/// next call, not after a wait (see the task's own notes for the
+/// measurement this rests on).
+///
+/// Shared by [`RealLauncher::spawn`] and [`RealLauncher::open_only`]
+/// (test support, below) - the one path either ever opens a real pty
+/// through, so both call the real lock and the real retry, never a
+/// hand-rolled stand-in.
+fn open_pty(
+    max_open_attempts: u32,
+    cols: u16,
+    rows: u16,
+) -> (
+    Result<portable_pty::PtyPair, Box<dyn std::error::Error + Send + Sync>>,
+    u32,
+) {
+    let pty_system = portable_pty::native_pty_system();
+    let _guard = OPENPTY_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match open_with_retry(max_open_attempts, || {
+        pty_system.openpty(portable_pty::PtySize {
+            rows,
+            cols,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+    }) {
+        Ok((pair, attempts)) => (Ok(pair), attempts),
+        Err((cause, attempts)) => (Err(cause.into()), attempts),
+    }
+}
+
+/// What every attempt failing looks like once it crosses into
+/// [`Error::Pty`] (TASK-1.112 review, round 2): `attempts` and `cause`
+/// kept as fields, not folded into one formatted string, so
+/// `source()` below still reaches the real cause - `.claude/rules/
+/// rust.md`: "add context where an error crosses a boundary, never by
+/// turning it into a string." Every other `Error::Pty(cause.into())`
+/// call site in this file already does this; this is the one exhaustion
+/// path AC #4 itself asks to report the attempt count for, which is what
+/// first made it look like a `format!` was the easy way to do both at
+/// once - it is not, since that discards the source chain `source()`
+/// needs.
+#[derive(Debug)]
+struct OpenExhausted {
+    attempts: u32,
+    cause: Box<dyn std::error::Error + Send + Sync>,
+}
+
+impl std::fmt::Display for OpenExhausted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "failed to openpty after {} attempt(s): {}",
+            self.attempts, self.cause
+        )
+    }
+}
+
+impl std::error::Error for OpenExhausted {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.cause.as_ref())
+    }
+}
+
+/// Builds the error [`RealLauncher::spawn`] returns once every attempt
+/// has failed - kept as its own function, taking the already-boxed
+/// cause [`open_pty`] produced rather than a real pty's own error type,
+/// so the unit tests below drive it with a synthetic cause and no real
+/// I/O at all (TASK-1.112 review: the same seam-not-a-mock shape
+/// [`open_with_retry`]'s own tests already use).
+fn open_exhausted(attempts: u32, cause: Box<dyn std::error::Error + Send + Sync>) -> Error {
+    Error::Pty(Box::new(OpenExhausted { attempts, cause }))
+}
+
+/// How many times [`RealLauncher::default`] retries a failed `openpty()`
+/// call in total (TASK-1.112): from the measured cross-process rate
+/// (worst local figure, ~0.4% of opens failing under heavy concurrent
+/// contention, treated as independent per attempt - see the task's own
+/// notes for the measurement that checks that assumption instead of
+/// trusting it), the chance all 5 attempts fail at that same density is
+/// about `0.004⁵ ≈ 1×10⁻¹²` per open. An extra attempt costs a real
+/// server a few more syscalls only on the rare open that needed one at
+/// all; it is never on the path of an open that succeeds first try.
+const DEFAULT_OPENPTY_MAX_ATTEMPTS: u32 = 5;
+
 /// The real implementation, over `portable-pty`. Mirrors
 /// `spikes/task-1.2-wire-protocol/probe-server/src/pty.rs`'s own shape,
 /// which already proved this reads cleanly against this exact problem.
-#[derive(Debug, Default)]
-pub struct RealLauncher;
+#[derive(Debug, Clone, Copy)]
+pub struct RealLauncher {
+    max_open_attempts: u32,
+}
+
+impl RealLauncher {
+    /// `max_open_attempts` must be at least 1 (meaning "no retry") - a
+    /// test builds `RealLauncher::new(1)` directly to get today's
+    /// un-retried behaviour, for instance the race fixture's own
+    /// permanent negative control (TASK-1.112).
+    ///
+    /// # Panics
+    ///
+    /// Panics if `max_open_attempts` is `0`.
+    #[must_use]
+    pub fn new(max_open_attempts: u32) -> Self {
+        assert!(
+            max_open_attempts >= 1,
+            "max_open_attempts must be at least 1 (0 would mean \"never try to open\"), got {max_open_attempts}"
+        );
+        Self { max_open_attempts }
+    }
+
+    /// Test support only (TASK-1.112): exactly the locked, retried open
+    /// step [`RealLauncher::spawn`] itself uses - no `spawn_command`
+    /// after it, closing both sides immediately on success so a caller
+    /// looping this does not accumulate real file descriptors. `pub`
+    /// because the fixture that proves the cross-process race
+    /// (`tests/fixtures/openpty_race_attempt.rs`) is a separate
+    /// compilation unit in this same crate, the same reason
+    /// `race_attempt.rs` already calls several otherwise-internal
+    /// pieces of this crate directly; not meant for any other caller.
+    /// Returns how many attempts this one open took either way, so a
+    /// caller can tabulate the distribution across many opens (the
+    /// measurement named above, and the race fixture's own counts).
+    pub fn open_only(max_open_attempts: u32, size: (u16, u16)) -> (Result<(), String>, u32) {
+        let (cols, rows) = size;
+        match open_pty(max_open_attempts, cols, rows) {
+            (Ok(pair), attempts) => {
+                drop(pair);
+                (Ok(()), attempts)
+            }
+            (Err(cause), attempts) => (Err(cause.to_string()), attempts),
+        }
+    }
+
+    /// How many attempts this launcher retries a failed open before
+    /// giving up - the same bound `RealLauncher::new` was given, or
+    /// `Default`'s own shipped value. `pub` so the cross-process proof
+    /// test (`tests/openpty_race.rs`) can drive its fixture at exactly
+    /// production's own default, from one source, rather than
+    /// hardcoding the number a second time where it could drift out of
+    /// sync (TASK-1.112).
+    #[must_use]
+    pub fn max_open_attempts(&self) -> u32 {
+        self.max_open_attempts
+    }
+}
+
+impl Default for RealLauncher {
+    fn default() -> Self {
+        Self::new(DEFAULT_OPENPTY_MAX_ATTEMPTS)
+    }
+}
 
 impl ProgramLauncher for RealLauncher {
     fn spawn(&self, spec: &LaunchSpec) -> Result<SpawnedProgram, Error> {
         let (cols, rows) = spec.size;
-        let pty_system = portable_pty::native_pty_system();
-        let pair = {
-            let _guard = OPENPTY_LOCK
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            pty_system
-                .openpty(portable_pty::PtySize {
-                    rows,
-                    cols,
-                    pixel_width: 0,
-                    pixel_height: 0,
-                })
-                .map_err(|cause| Error::Pty(cause.into()))?
+        let (pair, open_attempts) = match open_pty(self.max_open_attempts, cols, rows) {
+            (Ok(pair), attempts) => (pair, attempts),
+            (Err(cause), attempts) => return Err(open_exhausted(attempts, cause)),
         };
 
         let mut command =
@@ -170,6 +357,82 @@ impl ProgramLauncher for RealLauncher {
             reader,
             resize,
             child,
+            open_attempts,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{open_exhausted, open_with_retry};
+
+    #[test]
+    fn succeeds_first_time_needs_no_retry() {
+        let mut calls = 0;
+        let result: Result<(u32, u32), (&str, u32)> = open_with_retry(5, || {
+            calls += 1;
+            Ok::<u32, &str>(42)
+        });
+        assert_eq!(result, Ok((42, 1)));
+        assert_eq!(calls, 1, "a call that succeeds first try must not retry");
+    }
+
+    #[test]
+    fn fails_once_then_succeeds_counts_one_retry() {
+        let mut calls = 0;
+        let result = open_with_retry(5, || {
+            calls += 1;
+            if calls == 1 { Err("transient") } else { Ok(42) }
+        });
+        assert_eq!(result, Ok((42, 2)));
+        assert_eq!(calls, 2);
+    }
+
+    #[test]
+    fn fails_every_time_surfaces_after_exactly_the_bound() {
+        let mut calls = 0;
+        let result: Result<((), u32), (&str, u32)> = open_with_retry(3, || {
+            calls += 1;
+            Err("always fails")
+        });
+        assert_eq!(result, Err(("always fails", 3)));
+        assert_eq!(
+            calls, 3,
+            "must stop at exactly the bound, neither short nor long"
+        );
+    }
+
+    /// AC #4 ("the last error surfaces") plus the review's own finding:
+    /// the attempt count is in the message, *and* the real cause is
+    /// still reachable through `source()`, not stringified away. A
+    /// synthetic cause, no real pty - `open_exhausted` is the one seam
+    /// that needs this proof, the same reason `open_with_retry` has its
+    /// own tests above rather than trusting `RealLauncher::spawn`'s own
+    /// real I/O to exercise this branch on cue.
+    #[test]
+    fn exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source() {
+        let cause: Box<dyn std::error::Error + Send + Sync> =
+            Box::new(std::io::Error::other("synthetic cause"));
+        let error = open_exhausted(3, cause);
+
+        assert!(
+            error.to_string().contains("3 attempt"),
+            "expected the attempt count in the message, got: {error}"
+        );
+
+        // Walks the whole chain, not just one level - `Error::Pty` wraps
+        // `OpenExhausted`, which wraps the real cause, so "the last
+        // underlying error" (the review's own wording) means following
+        // `source()` until it runs out, not stopping at the first hop.
+        let mut last: &dyn std::error::Error = &error;
+        while let Some(next) = last.source() {
+            last = next;
+        }
+        assert_eq!(
+            last.to_string(),
+            "synthetic cause",
+            "the last underlying error must be the real cause itself, not a formatted message \
+             anywhere in the chain - that would mean the cause was turned into a string"
+        );
     }
 }

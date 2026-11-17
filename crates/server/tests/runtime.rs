@@ -59,7 +59,7 @@ fn login_for_force_tests() -> LoginShell {
 fn runtime() -> (Runtime, Description) {
     (
         Runtime::new(
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             login_for_force_tests(),
             TEST_GRACE,
             TEST_TICK,
@@ -263,6 +263,62 @@ fn a_command_that_does_not_exist_fails_and_leaves_no_session_tab_or_pane_behind(
         counts(&runtime, &api),
         before,
         "nothing should be left behind"
+    );
+}
+
+/// A launcher whose open step always fails - the shape `.claude/rules/
+/// testing-rust.md` asks for (a small type implementing the same trait,
+/// holding its state in plain fields, not a mock of anything), standing
+/// in for `RealLauncher`'s own open step exhausting every retry attempt
+/// (TASK-1.112, AC #3). From `Runtime`'s own point of view these are the
+/// identical shape: `ProgramLauncher::spawn` returning `Err` once,
+/// synchronously, before anything about the pane exists at all - so this
+/// proves the same clean-failure-and-rollback path without needing a
+/// real, contrived cross-process race to land on cue inside one test.
+#[derive(Debug, Default)]
+struct AlwaysFailsToOpenLauncher;
+
+impl steg_server::ProgramLauncher for AlwaysFailsToOpenLauncher {
+    fn spawn(
+        &self,
+        _spec: &steg_server::LaunchSpec,
+    ) -> Result<steg_server::SpawnedProgram, steg_server::Error> {
+        Err(steg_server::Error::Pty(
+            "failed to openpty after 5 attempt(s): simulated exhaustion (TASK-1.112's own test)"
+                .into(),
+        ))
+    }
+}
+
+/// AC #3: the open step itself exhausting every attempt (not a bad
+/// command reaching `spawn_command`, which the test above this one
+/// already covers through the real launcher) still fails cleanly -
+/// `ProgramFailed`, and the rollback that already exists for a bad
+/// command (`Runtime::start_and_dispatch`'s own `rollback_mint`, read
+/// directly: it runs on *any* `Err` from `pane::start`, not one specific
+/// to how the error arose) leaves nothing behind here either.
+///
+/// Control, recorded via `asdlc record-check` both ways: with
+/// `rollback_mint`'s own call site in `runtime.rs` temporarily commented
+/// out, this test fails (`counts` differs) - restored, it passes.
+#[test]
+fn a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind() {
+    let runtime = Runtime::new(
+        Arc::new(AlwaysFailsToOpenLauncher),
+        login_for_force_tests(),
+        TEST_GRACE,
+        TEST_TICK,
+    );
+    let api = description();
+    let before = counts(&runtime, &api);
+
+    let error = err(runtime.handle(&api, &no_context(), &request("session.new", vec![])));
+
+    assert_eq!(error.code, ErrorCode::ProgramFailed);
+    assert_eq!(
+        counts(&runtime, &api),
+        before,
+        "nothing should be left behind when the open step itself exhausts every attempt"
     );
 }
 
@@ -639,7 +695,7 @@ fn a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_reg
     // a realistic end-to-end regression only, named for exactly that.
     let grace = Duration::from_secs(3);
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         grace,
         TEST_TICK,
@@ -710,7 +766,7 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
     // window wide enough that scheduling noise cannot close the gap.
     let grace = Duration::from_millis(500);
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         grace,
         TEST_TICK,
@@ -966,7 +1022,7 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
     // is wide enough for "refused at once, not after the grace" to be
     // real evidence rather than scheduling noise.
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         Duration::from_secs(5),
         TEST_TICK,
@@ -1044,7 +1100,7 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
 #[test]
 fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         Duration::from_secs(5),
         TEST_TICK,
@@ -1130,7 +1186,7 @@ fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
 #[test]
 fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         Duration::from_secs(5),
         TEST_TICK,
@@ -1205,7 +1261,7 @@ fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
 #[test]
 fn a_session_being_forced_is_unreachable_by_every_method_that_can_name_it() {
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         Duration::from_secs(5),
         TEST_TICK,
@@ -1296,7 +1352,7 @@ fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
     // exclusion is exactly what AC #4's "never both" needs, and nothing
     // here depends on which lock-holding order produces it.
     let runtime = Runtime::new(
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         login_for_force_tests(),
         Duration::from_secs(2),
         TEST_TICK,

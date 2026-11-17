@@ -338,6 +338,13 @@ impl Drop for ConnectionCleanup<'_> {
         for (&pane, &(attachment_id, _stream)) in self.pane_streams.borrow().iter() {
             self.runtime.forget_attachment(pane, attachment_id);
         }
+        // Before `disconnect_client`: a subscriber entry keyed by this
+        // same `client_id` must not linger past the id itself being
+        // freed for reuse (TASK-1.46 §7) - deregistering first, while the
+        // id is still unambiguously this connection's own, is what keeps
+        // that ordering safe regardless of which happens to run first in
+        // practice.
+        self.runtime.deregister_subscriber(self.client_id);
         self.runtime.disconnect_client(self.client_id);
         // Last, after this guard's own pre-existing duties keep their
         // exact order (unchanged above) - `Drop` runs exactly once, so
@@ -390,25 +397,34 @@ fn run_post_handshake(
     client_id: ClientId,
     events: Option<Sender<ConnectionEvent>>,
 ) {
-    // Three independent handles to the one underlying socket: `stream`
+    // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
-    // writer thread), and `shutdown_handle` (kept by the cleanup guard
-    // solely to force a stuck writer to fail promptly - see its own doc).
-    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
-        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
-        _ => {
-            // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so `ConnectionCleanup` is never built on this
-            // path either - both of its duties (disconnecting the client,
-            // reporting `Disconnected`) are done directly here instead,
-            // in the same order the guard would have used.
-            runtime.disconnect_client(client_id);
-            if let Some(events) = &events {
-                let _ = events.send(ConnectionEvent::Disconnected);
+    // writer thread), `shutdown_handle` (kept by the cleanup guard solely
+    // to force a stuck writer to fail promptly - see its own doc), and
+    // `subscriber_shutdown` (kept by `Runtime`'s own subscriber registry,
+    // TASK-1.46 §3/§7 - a slow subscriber is closed, not resynced: a
+    // broadcast that cannot be queued shuts this connection's socket down
+    // directly, from whichever thread is broadcasting, since nothing else
+    // can make this connection's own blocked read return without one).
+    let (write_half, shutdown_handle, subscriber_shutdown) =
+        match (stream.try_clone(), stream.try_clone(), stream.try_clone()) {
+            (Ok(write_half), Ok(shutdown_handle), Ok(subscriber_shutdown)) => {
+                (write_half, shutdown_handle, subscriber_shutdown)
             }
-            return;
-        }
-    };
+            _ => {
+                // No write half to hand a writer thread at all - nothing was
+                // ever spawned, so `ConnectionCleanup` is never built on this
+                // path either - both of its duties (disconnecting the client,
+                // reporting `Disconnected`) are done directly here instead,
+                // in the same order the guard would have used; there is
+                // also nothing registered as a subscriber yet to deregister.
+                runtime.disconnect_client(client_id);
+                if let Some(events) = &events {
+                    let _ = events.send(ConnectionEvent::Disconnected);
+                }
+                return;
+            }
+        };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
     // TASK-1.47: this connection's own attachment bookkeeping - which
@@ -420,6 +436,11 @@ fn run_post_handshake(
         RefCell::new(HashMap::new());
     let stream_panes: StreamPanes = RefCell::new(HashMap::new());
     let next_stream = RefCell::new(0_u32);
+    // Registered the moment this connection is usable at all - before the
+    // request loop below can bring in `event.watch` (TASK-1.46 §7): a
+    // connection must never be asked to subscribe before it is
+    // registered (`Runtime::subscribe`'s own invariant rests on this).
+    runtime.register_subscriber(client_id, Arc::clone(&outbound), subscriber_shutdown);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
@@ -651,6 +672,19 @@ fn handle_request(
             let bytes = Connection::reply(id, response);
             outbound.enqueue_control(bytes).is_ok()
         }
+        // `event.watch` (TASK-1.46 §4), reached directly or through
+        // `api.call` (already resolved above, the same way `pane.attach`/
+        // `pane.detach` are), bypasses the generic reply-after-the-fact
+        // path below entirely: `Runtime::subscribe` enqueues its own
+        // reply atomically with registering the filter, so nothing here
+        // must enqueue a second one.
+        "event.watch" => match runtime.subscribe(description, context, &resolved, client_id, id) {
+            Ok(()) => true,
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
+                outbound.enqueue_control(bytes).is_ok()
+            }
+        },
         _ => {
             let response = runtime.handle(description, context, &request);
             let bytes = Connection::reply(id, response);
@@ -884,7 +918,12 @@ mod tests {
     /// listener.
     #[test]
     fn connection_cleanups_drop_sweeps_every_attachment_it_still_holds() {
-        let runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let context = Context::none();
         let path = new_pane_path(&runtime, &description, &context);

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:54:00Z'
+updated_date: '2026-11-17T00:58:00Z'
 labels:
   - size-4
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,11 +24,10 @@ asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
-asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1093,6 +1093,51 @@ created: 2026-11-16T15:54:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r1 released its review claim on TASK-1.49; another reviewer may claim it with asdlc review-next.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 8h 14m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T00:24:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Full review (third full pass; a first pass sent this back for missing negative controls, a second for main.rs's server-start literal-argv bug - both fixed and verified below). Head reviewed: 8a69ac78 (matches the PR's head, CI green). `just check` run fresh in a detached review worktree at this head: green (format, lint, boundaries, licences, every crate's tests, architecture, recipe names, ui levels/colours).
+
+Evidence: the seven controls named in the approved plan (comment #1/#2) and the worker's own table (comment #7) are recorded via `asdlc record-check` as failing-then-passing pairs at c515f6ce, against cli_drift.rs, cli_no_server.rs, cli_run_placeholder.rs, methods.rs's sdk test and dispatch.rs's test. The later review-fix commit (5e12da80, the server-start routing fix) touched only main.rs, the already_a_group_leader fixture and server_start.rs - none of the five non-server-start test files the earlier controls cite - so those controls still hold against the tests as they stand on the final head. The fix's own three new controls (comment #10) are each a recorded failing run (pre-fix main.rs restored via git show) then a passing run, tied to their own new tests. I repeated one control myself: removed pane.split from tree.rs's noun_command loop, cargo test -p steg --test cli_drift every_described_method_has_a_generated_command_and_nothing_else failed exactly as recorded ("methods with no generated command: [(\"pane\", \"split\")]"), reverted, passed again, worktree confirmed clean.
+
+Command tree: verified by reading tree.rs/params.rs/values.rs/mod.rs - the whole tree is built from description().methods() at run time (one Command per noun, one subcommand per verb, params mapped by Role), nothing names a method/verb/flag by hand outside NON_METHOD_COMMANDS (version, completion) and the one stated exception, server.start, which is still parsed by the same generated tree and only dispatched differently after parsing (main.rs:66-93) - this is exactly what review #9's Important finding required, and it is fixed: --no-on-demand and --on-demand --no-on-demand now correctly resolve through extract_params instead of falling through to the placeholder.
+
+Main has moved (TASK-1.46's PR #63 merged into origin/main after this branch's last sync, 124 commits ahead). Checked precisely what moved: TASK-1.46 added a `follows: Follows` field to all 42 existing Method literals in methods.rs and typed event.watch's own follows as Follows::Events(...) - it did not add a new method (comm -13/-23 on the (noun,verb) sets of origin/main vs this branch's head: identical 42 pairs; pane.attach/pane.detach are still unmerged, TASK-1.47's). Test-merged origin/main into a scratch copy of this branch: no conflicts (git status showed only auto-merged hunks, no <<<<<<< markers), and `cargo check -p steg-sdk -p steg-server -p steg` compiled clean on the result - the three unset() switch edits and main's 42 new `follows` lines land in disjoint parts of the same struct literals. This branch does not need main merged before it can be merged; a normal merge resolves cleanly. No conflict and no stale generated artefact: tree.rs builds from description().methods() at run time, so a method added later (e.g. TASK-1.47's pane.attach) needs no CLI edit to appear, and Follows::Events needs no drift-test carve-out (only Follows::Attachment would, per the plan's own note).
+
+[Compliance, Nit] crates/steg/src/cli/values.rs:12-14, crates/steg/src/cli/params.rs:67-69: the approved plan's mapping table says `ValueKind::Path` should use clap's PathBuf parser ("Path as PathBuf"); the built code maps Path to ValueParser::string() and reads it back as a String, same as Text/Target/Argv. Harmless in practice (the extracted value becomes a JSON string either way, and params.rs is internally consistent with it), but it's an undocumented departure from the plan's literal mapping.
+
+Not a new finding, already tracked: review #9's nit (noun-level commands get no .about(), so top-level --help shows nouns with blank descriptions, since Description carries no per-noun summary field) is unchanged and already owned by the orchestrator per comment #10 ("you said you'd draft it") - not recounted here.
+
+Verified by hand, STEG_SOCKET_PATH pointed at a non-existent/throwaway path: steg, steg pane, steg version, steg completion zsh, steg server start --no-on-demand's own new tests (server_start.rs) all pass. ps after finishing shows nothing left from this review's worktree.
+
+Plan-matched: yes - the diff touches exactly the plan's named files (boundaries.toml, methods.rs's three unset params, crates/steg/src/cli/*, main.rs's routing, the three new test files, Cargo.toml/Cargo.lock, plus the review-fix's main.rs/server_start.rs/fixture changes), in the stated order, building the generated tree, placeholder, drift test and unset-switch step the approved plan describes.
 
 ---
 <!-- COMMENTS:END -->

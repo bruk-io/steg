@@ -3,7 +3,7 @@ id: doc-14
 title: 'Spec: wire protocol'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-15T01:24:00Z'
+updated_date: '2026-11-17T16:18:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -73,9 +73,11 @@ decides it.
   attachment in that session, or to declare a new size on one.
 - A terminal takes the size the latest client has declared for it. If the latest client has no
   attachment to that pane, its size does not change.
-- When a terminal's size changes, every attachment to it is told. The snapshot already carries a
-  size (decision-2, section 3); an update gains an optional `size` for the same purpose. A client draws at
-  that size, top left, padded or cropped (R91).
+- When a terminal's size changes, every attachment to it is told. Every screen carries its size,
+  the snapshot's included (decision-2, section 3). An attachment whose last-told size differs from
+  the terminal's is sent a full screen at the new size on its next update, even when nothing else
+  changed; a delta never carries a size. The server tracks this per attachment, so one that arms
+  just after a resize is still told. A client draws at that size, top left, padded or cropped (R91).
 
 ### Status
 

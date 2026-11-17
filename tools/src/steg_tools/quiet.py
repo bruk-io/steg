@@ -25,16 +25,26 @@ from pathlib import Path
 LOG_DIR = Path(".quiet")
 TAIL_LINES = 60
 
-# The slowest step recorded while building TASK-1.113: 132.2s for the affected-crate
-# selection in a real CI run (run 44004157135), and 109.2s for the slowest single
-# package step (accept-backoff-fixture, same run); a cold build of the whole workspace
-# on a developer machine with no cache at all (this task's own worktree, nothing in
-# `target/` yet) took 92s. No CI run sampled in this task's own history ever hit a cold
-# Zig/ghostty-vt build (every sampled `build (steg-kernel)` step was under 6s - the
-# tarball-seeded cache TASK-1.34 built stays warm). 300s clears every one of those with
-# real headroom and still leaves room, inside CI's 30-minute job limit, to report
-# several such timeouts rather than exhaust it on one.
-DEFAULT_TIMEOUT_S = 300.0
+# Revised on review from the plan's own 600s: 300s was set from this task's own
+# recorded step timings alone (132.2s the slowest affected-crate selection seen in CI,
+# 109.2s the slowest single-package step, 92s a cold full-workspace build with no cache
+# at all on this machine) - but every one of those is a `just check` step. One recipe
+# that goes through this same `steg-quiet` and is NOT part of `just check`,
+# `test-openpty-race-control`, carries its own internal 600s safety net
+# (`CONTROL_SAFETY_NET`, tests/openpty_race.rs) before it gives up with its own clear
+# message; a bound here below that would have `steg-quiet` kill it first and replace
+# that specific message with a bare "TIMED OUT" - and this task's own recorded run of
+# that recipe took 214.2s, 71% of 300s, under what was, on the day, an otherwise ordinary
+# load. No CI run sampled in this task's own history ever hit a cold Zig/ghostty-vt build
+# either (every sampled `build (steg-kernel)` step was under 6s - the tarball-seeded
+# cache TASK-1.34 built stays warm), so there is no measured number for the one case the
+# plan named by name. 900s clears the 600s internal bound above with real headroom,
+# clears every measured `just check`/`just build`/`just test-all` step several times
+# over, and still leaves half of CI's own 30-minute job limit free - a false TIMED OUT on
+# a slow runner costs more than the extra minutes a looser bound gives up on a real hang,
+# so this errs toward the looser number rather than the tightest one the measurements
+# alone would have supported.
+DEFAULT_TIMEOUT_S = 900.0
 
 
 def slug(label: str) -> str:

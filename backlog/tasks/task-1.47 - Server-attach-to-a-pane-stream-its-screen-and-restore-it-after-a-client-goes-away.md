@@ -1747,6 +1747,46 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; fini
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::no_attachments_never_arms` exited 101 at 2026-11-17T00:23:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused variable: `attachments`
+    --> crates/server/src/pane.rs:1001:5
+     |
+1001 |     attachments: &[Attachment],
+     |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_attachments`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.71s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::no_attachments_never_arms ... FAILED
+
+failures:
+
+---- pane::attach_tests::no_attachments_never_arms stdout ----
+
+thread 'pane::attach_tests::no_attachments_never_arms' (46071321) panicked at crates/server/src/pane.rs:1942:9:
+assertion `left == right` failed
+  left: Some(Instant { tv_sec: 265005, tv_nsec: 366650083 })
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::no_attachments_never_arms
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

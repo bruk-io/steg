@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:34:00Z'
+updated_date: '2026-11-17T01:35:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1173,6 +1173,51 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:35:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size ... FAILED
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+
+failures:
+
+---- model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size stdout ----
+
+thread 'model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size' (47750717) panicked at crates/app/src/model.rs:284:9:
+assertion `left == right` failed
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size
+
+test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

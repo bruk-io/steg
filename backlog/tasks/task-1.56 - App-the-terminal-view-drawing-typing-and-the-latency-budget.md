@@ -4,7 +4,7 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T16:47:00Z'
+updated_date: '2026-11-17T03:51:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -41,6 +41,10 @@ doc-9 R19; doc-10 R23, R29; doc-13 R59 (the view is written fresh, with nothing 
 
 <!-- SECTION:NOTES:BEGIN -->
 Carried (2026-11-15): Terminal::resize and the pty are given a pixel cell size of zero (unknown) everywhere today (TASK-1.39, 1.40, 1.76). This task's terminal view is the first thing that knows real pixel dimensions; its plan says how they reach the server and the pty.
+
+From the engineer's first run of the bare window, 2026-11-16, for this task's cursor work: the cursor never blinks though the server reports whether it should; a block cursor is painted over the character and hides it where it should show it inverted; nothing changes when the window loses focus. Blink is periodic by nature, so decide with the engineer how it sits with the rule against periodic wake-ups (for example a timer that runs only while the window is focused and the cursor is set to blink).
+
+2026-11-16: the cursor's fade is now its own task, drafted from the design's choice (Cursor atom, option 2B of the cursor motion board). What stays here for the cursor: the hollow outline in an unfocused pane, and the bar and underline shapes.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

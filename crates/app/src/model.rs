@@ -6,11 +6,12 @@
 //! case right after `pane.attach`) reports zero runs, which a "count the rows with content"
 //! rule would misread as zero rows - `Screen.size` is authoritative regardless of content.
 //!
-//! **Still a known gap, to be closed at this task's own next re-merge, not now**: TASK-1.114's
-//! own `ScreenUpdate::Delta` does not yet carry a `size` field on the branch this was merged
-//! against (`git log`'s own head at merge time) - its own plan section 2 says it will. Until
-//! that lands, `apply`'s `Delta` arm cannot update `size` at all; only a `Full` resync's own
-//! `Screen.size` does. Noted here and in the implementation notes, not silently assumed.
+//! **Settled, not a gap: a `Delta` never carries a size at all** (doc-14's own "the size of
+//! a terminal" section, reworded once this landed on main): a size change always arrives as
+//! a `Full` resync instead, even when nothing else changed - the server tracks each
+//! attachment's own last-told size and sends a whole screen, not a bare field on a `Delta`,
+//! the moment it goes stale. `apply`'s own `Delta` arm therefore never touches `size`, by
+//! design, not by an omission this task owed a follow-up for.
 //!
 //! Plain data: no `gpui::Window`/`Context` parameter anywhere in this file, which is what
 //! lets it be tested without a window (TASK-1.117's plan, §4).
@@ -85,8 +86,7 @@ impl Model {
     /// Applies one update: only the rows a `Delta` names, or the whole grid on a `Full`
     /// resync - O(rows changed), never O(screen), on a delta (TASK-1.117's plan §2). A
     /// `Full` resync's own `size` replaces this model's size, since a fresh `Screen` always
-    /// carries one; a `Delta` cannot yet (module doc's own stated gap - TASK-1.114's
-    /// `ScreenUpdate::Delta.size` isn't on the branch this was merged against).
+    /// carries one; a `Delta` never does (module doc).
     pub fn apply(&mut self, update: ScreenUpdate) {
         match update {
             ScreenUpdate::Unchanged => {}
@@ -109,7 +109,7 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
-    use steg_sdk::{CellStyle, CursorShape, Run, Underline};
+    use steg_sdk::{CellStyle, CursorShape, Run, Size, Underline};
 
     use super::*;
 
@@ -250,10 +250,9 @@ mod tests {
         assert_eq!(model.rows()[0], row(vec![narrow_run("aaaaa")]));
         assert_eq!(model.rows()[1], row(vec![narrow_run("BBBBB")]));
         assert_eq!(model.rows()[2], row(vec![narrow_run("ccccc")]));
-        // `ScreenUpdate::Delta` carries no `size` field on the branch this was merged
-        // against (module doc's own stated gap - TASK-1.114's plan section 2 adds one),
-        // so there is nothing yet for `apply` to read a changed size from; this assertion
-        // is expected to need revisiting, not restated unchanged, once that lands.
+        // `ScreenUpdate::Delta` never carries a `size` field at all (module doc, doc-14's
+        // own "the size of a terminal" section) - a size change always arrives as a `Full`
+        // instead, so this is the model's own settled behaviour, not a placeholder.
         assert_eq!(model.row_count(), 3);
     }
 

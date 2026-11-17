@@ -381,7 +381,7 @@ impl EntityInputHandler for AppWindow {
         };
         let bounds = state.last_bounds.get()?;
         let cursor = state.model.borrow().cursor();
-        let metrics = state.metrics;
+        let metrics = &state.metrics;
         Some(Bounds::new(
             gpui::point(
                 bounds.origin.x + metrics.cell_width * f32::from(cursor.x),
@@ -426,7 +426,7 @@ impl Render for AppWindow {
                     .on_key_down(cx.listener(Self::on_key_down))
                     .child(terminal_element::terminal(
                         Rc::clone(&state.model),
-                        state.metrics,
+                        state.metrics.clone(),
                         terminal_theme,
                         Rc::clone(&state.row_cache),
                         self.focus_handle.clone(),

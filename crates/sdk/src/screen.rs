@@ -150,18 +150,19 @@ pub struct Cursor {
 /// one that reads and reports it, since no caller declared one before it).
 ///
 /// A changed size reaches a client only through a `Screen`, never a bare
-/// field on [`ScreenUpdate::Delta`] (TASK-1.114; doc-14's own wording,
-/// "an update gains an optional `size`", was tried and dropped: see
-/// `crates/server/src/pane.rs`'s own `Attachment::last_told_size` for why.
-/// Whether a *given attachment* has already been told the current size
-/// is attachment-local state the kernel has no way to see, so the kernel
-/// cannot decide, call by call, whether this field would be `Some` or
-/// `None` for any one caller sharing this terminal's single `changes_
-/// since`). Attaching always reads a fresh `Screen` already, and the
-/// server treats an attachment whose own last-told size is stale exactly
-/// like one that needs a resync: a fresh `Full`, which already carries
-/// the current size by construction, no extra field needed on `Delta` at
-/// all.
+/// field on [`ScreenUpdate::Delta`] (TASK-1.114; doc-14's own Size section
+/// now specifies this - a size change on an attachment whose own
+/// last-told size is stale is delivered as a fresh `Full`, which already
+/// carries the current size by construction, never as a bare field on
+/// `Delta`: see `crates/server/src/pane.rs`'s own `Attachment::
+/// last_told_size` for the mechanism, and the review finding recorded on
+/// TASK-1.114's own notes for why - whether a *given attachment* has
+/// already been told the current size is attachment-local state the
+/// kernel has no way to see, so the kernel cannot decide, call by call,
+/// whether a `size` field on `Delta` would be `Some` or `None` for any one
+/// caller sharing this terminal's single `changes_since`). Attaching
+/// always reads a fresh `Screen` already, so no caller is ever left
+/// without a size at all.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Screen {
     /// The screen's rows, top to bottom.

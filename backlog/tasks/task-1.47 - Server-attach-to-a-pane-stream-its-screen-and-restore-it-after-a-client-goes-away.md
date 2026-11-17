@@ -3,15 +3,15 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: Done
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T01:05:00Z'
+updated_date: '2026-11-17T03:38:00Z'
 labels:
   - size-5
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -32,8 +32,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '9cff507ccc3f'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
 ---
 
@@ -2419,6 +2418,232 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 319, 288 without the Asdlc-Worker trailer.
+
+AttachmentId fix (TASK-1.114's real bug, reproduced by hand with the same names/shapes: pane.rs's AttachmentId(u64), minted per-attachment by the worker, replacing bare stream-number matching in PaneCommand::Arm/Detach; runtime.rs's attach_pane/arm_attachment/detach_pane/forget_attachment follow; connection.rs's pane_streams now keys by (AttachmentId, u32)). Proof: two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other, with a recorded failing-then-passing control (stream-number matching restored). All twelve controls (the original eleven plus this one) re-recorded as failing-then-passing pairs through asdlc record-check after both the TASK-1.46 merge and the AttachmentId fix, against the code as it stands at the end - not run by hand. Merged origin/main three times as it moved (TASK-1.46's PR, TASK-1.112's and TASK-1.49's PRs, then two board-only commits); each merge rebuilt, retested, and re-ran only the controls its own diff touched. just check green at every merge point, recorded on the task throughout. Head 69680a39, PR https://github.com/bruk-io/steg/pull/62, CI green.
+
+Check FAILED: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 101 at 2026-11-17T01:57:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... FAILED
+
+failures:
+
+---- runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock stdout ----
+
+thread 'runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock' (48525079) panicked at crates/server/src/runtime.rs:2848:13:
+an unrelated pane.show must answer within a bound even while a different pane's own attach is stuck on its worker, elapsed 1.953307s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 190 filtered out; finished in 1.99s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 0 at 2026-11-17T01:58:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.96s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 3.03s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_that_already_closed_still_releases_the_stream` exited 101 at 2026-11-17T02:01:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: function `parse_target_pane_id` is never used
+   --> crates/server/src/connection.rs:510:4
+    |
+510 | fn parse_target_pane_id(context: &Context, request: &Request) -> Option<PaneId> {
+    |    ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... FAILED
+
+failures:
+
+---- detaching_a_pane_that_already_closed_still_releases_the_stream stdout ----
+
+thread 'detaching_a_pane_that_already_closed_still_releases_the_stream' (48598364) panicked at crates/server/tests/attach.rs:677:5:
+detaching an already-closed pane must still succeed, not fail at target resolution: Error(ApiError { code: NoSuchTarget, message: "\"00000001\" matches nothing among 0 candidate(s)", candidates: [] })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_that_already_closed_still_releases_the_stream
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach detaching_a_pane_that_already_closed_still_releases_the_stream` exited 0 at 2026-11-17T02:02:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.92s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream` exited 101 at 2026-11-17T02:04:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.01s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... FAILED
+
+failures:
+
+---- repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream stdout ----
+
+thread 'repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream' (48618606) panicked at crates/server/tests/attach.rs:238:17:
+decision-2 section 3's ordering rule was violated: a frame for stream 1 arrived before the pane.attach reply naming it did
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream` exited 0 at 2026-11-17T02:04:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.93s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.21s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 101 at 2026-11-17T02:04:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... FAILED
+
+failures:
+
+---- detaching_a_pane_this_connection_never_attached_to_is_a_bad_request stdout ----
+
+thread 'detaching_a_pane_this_connection_never_attached_to_is_a_bad_request' (48625771) panicked at crates/server/tests/attach.rs:501:28:
+detaching a pane never attached to must not succeed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_this_connection_never_attached_to_is_a_bad_request
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 0 at 2026-11-17T02:05:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T02:13:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (34.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (68.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (29.6s)
+ok      test (steg-server) (33.3s)
+ok      test (steg-server, race-fixture) (37.2s)
+ok      test (steg-server, pty-race-fixture) (42.2s)
+ok      test (steg-server, accept-backoff-fixture) (37.1s)
+ok      build (steg) (1.4s)
+ok      test (steg) (5.9s)
+ok      test (steg, fixtures) (17.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (2.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Review findings fixed: (1) Important - Runtime::attach_pane held the state lock across PaneHandle::attach's own unbounded wait for the worker's reply, stalling every other request behind one busy pane's own worker. Fixed with PaneHandle::attach_sender/AttachSender: the lock covers only resolving the target and cloning the pane's own command-channel sender, released before the (now unlocked) wait. arm_attachment/detach_pane/forget_attachment checked and documented as never waiting on the worker (unbounded mpsc sends). Proof: runtime.rs's attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock - floods a pane's own worker, attaches it on a detached thread, repeatedly samples an unrelated pane.show over several seconds with a per-sample bound. Recorded failing (lock held across the wait) then passing. (2) Nit - pane.detach failed at tree-based target resolution for an already-closed pane, leaking the connection's own stream. Fixed with a fallback in connection.rs: parse the target's own pane segment directly (PaneId's FromStr) when tree resolution fails, and use it only if this connection's own pane_streams still holds that id. Proof: attach.rs's detaching_a_pane_that_already_closed_still_releases_the_stream. Recorded failing (fallback dropped) then passing. Plan departures named per the review's own plan-matched-no flags: AttachmentId (TASK-1.114's real bug, reproduced by hand since their branch and mine were not separable) and the ConnectionCleanup sweep (a real leak the plan implied through correctness but never named). Re-recorded the ordering-rule and bad-request-on-unattached-detach controls against the edited code. just check green, head f91a8f27, PR https://github.com/bruk-io/steg/pull/62, CI green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2484,6 +2709,66 @@ created: 2026-11-16T15:10:00Z
 ---
 
 2026-11-16, @bruk.o: released to free a slot, not abandoned: the work is built and pushed (1ce276d), its controls are recorded, and it can do nothing more until TASK-1.46 merges to main. Reclaim as bruk.w4 then: merge main (TASK-1.46's commits come from main and the rebased copies drop out), re-run, CI green, finish.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T01:20:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T01:41:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. The diff does not match the plan.
+
+[Bugs, Important] crates/server/src/runtime.rs:518-532 (Runtime::attach_pane) holds the one Runtime-wide state lock across crates/server/src/pane.rs:566-575 (PaneHandle::attach), which waits on an unbounded reply_rx.recv() for the target pane's own worker thread to drain its command queue and process PaneCommand::Attach. Every other request to the server (any method, on any connection, for any pane) also goes through Runtime::handle/start_and_dispatch/close_and_dispatch/move_and_dispatch, all of which take the same lock, so a pane.attach aimed at a currently busy/flooding pane can leave the whole server unresponsive for as long as that pane's queue takes to drain - not a permanent hang (the backlog ahead of Attach is finite once it is enqueued), but an unbounded-in-practice stall under the exact R19 "worst case" this same module already names. The precedent for bounding this exists in the same file: PaneHandle::cwd (pane.rs:540-548) uses recv_timeout(CWD_LOOKUP_TIMEOUT), and its own doc comment (pane.rs:77-81) states the reason explicitly - "so a worker mid-vt_write on a large flood (R19's own worst case) never blocks a caller holding Runtime's one lock indefinitely." PaneHandle::attach does not follow that same, already-established pattern. No test in crates/server/tests/attach.rs exercises a second, independent connection whose own unrelated request is delayed while one connection's pane.attach is blocked behind a flooding pane's backlog - repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream only measures the attaching connection's own round trip, never a competing connection's latency.
+
+[Bugs, Nit] A pane that closes (pane.close/tab.close/session.close, or a forced end) while a connection is still attached to it leaves that connection's stream permanently open with no further activity and no way to cleanly end it: Runtime::detach_pane is never reached, because connection.rs's own "pane.detach" arm (crates/server/src/connection.rs:576-597) first calls Runtime::resolve_pane_target, which fails with NoSuchTarget once the pane is gone from the tree (crates/server/src/runtime.rs:477-486) - so outbound.close_stream/connection.close_stream (connection.rs:589-590) are never called, and the connection's own pane_streams entry is never removed. The only way out is ending the whole connection (ConnectionCleanup's sweep, connection.rs:331-358). Not Important: TreeEvent::PaneClosed already reaches any subscriber on stream 0 (merged via TASK-1.46) so the client is told the pane is gone by another channel, nothing is corrupted, and both the stale pane_streams entry and the silent, idle data queue are bounded by the connection's own lifetime (Outbound's round-robin writer just skips an empty queue). Not covered by any test in crates/server/tests/attach.rs and not named as a deferred gap in the task's own plan or notes.
+
+Checked and found sound: the pane worker's own tick (recv() with no timeout when idle/unattached, one recv_timeout deadline armed only while a real attachment holds an Outbound, cleared on fire, never a periodic wake-up - crates/server/src/pane.rs:847-899, :1038-1049, with its own counted/state-based tests, e.g. no_attachments_never_arms, shutdown_ends_the_worker_even_while_a_tick_is_armed); back-pressure (run_tick never blocks - Full/NotOpen both move an attachment to NeedsResync and skip it that tick, pane.rs:1070-1136); AttachmentId (crates/server/src/pane.rs:246-260) is minted by the worker itself and used consistently by Attach/Arm/Detach, by Runtime::attach_pane/arm_attachment/detach_pane/forget_attachment, and by connection.rs's own pane_streams map (keyed by (AttachmentId, stream)) and ConnectionCleanup's sweep; repeated the test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other myself in a scratch edit to crates/server/src/pane.rs (Arm/Detach matching "whichever attachment comes first" instead of by AttachmentId, simulating the historical bare-stream-number bug) - it failed with the same "no update arrived on stream 1 within 5s" signature already recorded on the task, then passed clean after the exact inverse revert (git status --porcelain empty); the ordering rule (attach reply queued under the lock, open_stream, then arm_attachment - connection.rs:556-568) and its own race test against an already-flooding pane; ConnectionCleanup's Drop (connection.rs:331-358) runs exactly once per connection on every exit path (normal return, early return, or an unwind, since it is a plain RAII guard) and does all four duties - sweep attachments, deregister the subscriber, disconnect the client, send Disconnected - exactly once, in the documented order, with nothing from TASK-1.46/1.86's own merged teardown logic lost or doubled; the API description (pane.attach/pane.detach via Follows::Attachment, the method count at 44, doc-2's own table updated with both new rows) and the sdk's typed PaneAttached/ScreenUpdate (both carry #[derive(Serialize, Deserialize)], matching the server's own serde_json::to_vec/serde_json::to_value calls and the round-trip tests). The prior review's three Important findings (no recorded negative controls, CI not yet green, diff carrying rebased TASK-1.46 commits not on main) are all resolved at this head: git diff origin/main...HEAD's tree is identical whether reached by this branch's early rebased copies or by TASK-1.46's real commits on main (confirmed byte-for-byte on crates/sdk/src/description/methods.rs); CI (job "check", run 43993856924) is green on head 69680a39; and the eleven original controls plus the later AttachmentId control are recorded as failing-then-passing pairs against the code as it stood at each merge point, with no further code change between the last just check (93e4694b8aff) and the reviewed head (69680a39, board-only commits only). just check passes clean on this head, run once by this review.
+
+plan-matched: no - AttachmentId (crates/server/src/pane.rs:246-260) and the ConnectionCleanup attachment sweep are both real design decisions the plan's own order of work never named (found during implementation, after TASK-1.114's own worker hit the bare-stream-number bug), even though the task's notes explain both in detail.
+
+No policy cited by either finding - no earlier review was found citing the same policy for this task, so no rule-change draft was filed.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T02:23:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T02:36:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second-pass review of TASK-1.47, scoped to the diff since the prior review's head (69680a39), four files: crates/server/src/{connection.rs,pane.rs,runtime.rs}, crates/server/tests/attach.rs. Both findings from the prior review are genuinely fixed.
+
+1. [Bugs] Runtime::attach_pane no longer holds the state lock across PaneHandle::attach's wait. Verified: attach_pane (runtime.rs:527-542) resolves the target and clones a new AttachSender (pane.rs:566-575, wrapping Sender<PaneCommand>) under the lock, releases it, then calls AttachSender::attach unlocked. arm_attachment/detach_pane/forget_attachment (runtime.rs) each only call PaneHandle::arm/detach (pane.rs:590-609), both plain unbounded mpsc sends with no reply wait, so holding the lock across them costs nothing extra - confirmed by reading their bodies directly. Repeated the test's own negative control myself: edited attach_pane to fold attach_sender.attach(stream) back inside the locked block (restoring the pre-fix shape), ran `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock`, got the same failure already recorded on the task ("an unrelated pane.show must answer within a bound ... elapsed 1.94s"); reverted with `git checkout --`, re-ran, passed; `git status --porcelain` empty afterward. The test is real, not vacuous. The unlocked wait is still itself unbounded in the pathological case of a pane worker permanently stuck in write_all (a program that never reads stdin and never exits) - that connection's own reader thread, and its ConnectionCleanup, would not run until the worker answers - but this is unchanged from the pre-fix code (PaneHandle::attach's wait was already unbounded before this round) and was already reasoned through and accepted by the prior review (#8) as bounded in the backlog-depth sense; this round only removes the global-lock side effect, which it does cleanly.
+
+2. [Nit] pane.detach's fallback for an already-closed pane (connection.rs:498-514, parse_target_pane_id; 592-623) parses the target's trailing path segment as a bare PaneId only when tree resolution already failed, and only accepts it if that exact PaneId is a key in `pane_streams` - a RefCell<HashMap<PaneId,...>> local to this one connection (connection.rs:316/422), never shared. So the fallback cannot reach another connection's attachment or an unrelated pane; it can only recover this connection's own already-recorded entry. detaching_a_pane_this_connection_never_attached_to_is_a_bad_request (attach.rs) still gets the original BadRequest/NoSuchTarget on a genuinely bad target, since that control never produces a tree error that reaches the fallback with a matching key. detaching_a_pane_that_already_closed_still_releases_the_stream is the new, matching test and I read it in full; it is a straightforward close-then-detach proof, not read as a control myself but its recorded failing/passing pair (shown on the task) matches the code (removing the fallback branch reproduces the recorded NoSuchTarget failure).
+
+Evidence: CI confirmed green independently via `gh pr checks 62` (job "check", pass, head f91a8f27). `just check` run once by me on this head, clean (format, lint, boundaries, licences, all crate tests, architecture, recipe names, ui levels/colours). Worktree left clean throughout.
+
+Not checked beyond the stated scope: the rest of the implementation (pane worker tick, back-pressure, AttachmentId, ConnectionCleanup sweep, API description/sdk types) - already reviewed and found sound in review #8, not re-reviewed here since the brief scoped this pass to the two named fixes only. plan-matched is "no" only because AttachmentId and the ConnectionCleanup sweep remain real departures from the plan's own order of work (explained in the task's notes, per review.md's Compliance pass) - unchanged from the prior round; this round's own fixes (AttachSender, the detach fallback) are direct responses to the prior review's findings, not further departures.
 
 ---
 <!-- COMMENTS:END -->

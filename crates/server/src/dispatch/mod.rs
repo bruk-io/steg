@@ -192,10 +192,9 @@ pub(crate) fn program_running() -> ApiError {
 /// three not-yet nouns, or `pane.attach`/`pane.detach`/`tab.declare-size`'s
 /// own arms (TASK-1.47/TASK-1.114, each built but never reached this way
 /// in the real system), which `mod.rs`'s own completeness test checks
-/// against `description()` directly.
-/// Panics instead, rather than silently misrouting, if ever called with
-/// `"api.call"` itself - the one case the doc above says never to pass
-/// here.
+/// against `description()` directly. Panics instead, rather than silently
+/// misrouting, if ever called with `"api.call"` itself - the one case the
+/// doc above says never to pass here.
 pub(crate) fn dispatch_raw(
     tree: &mut Tree,
     settings: &mut Settings,

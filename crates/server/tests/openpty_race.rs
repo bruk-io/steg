@@ -55,6 +55,10 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+#[path = "support/mod.rs"]
+mod support;
+use support::{run_bounded, wait_child_bounded};
+
 /// This machine's own default `cargo test` parallelism is what first
 /// exposed this race (`real_pty.rs`'s own `CONCURRENT_OPENS`) - kept the
 /// same here for the same reason, now across processes instead of
@@ -322,9 +326,7 @@ fn run_the_fixture(
                 }
             }
         }
-        let status = wait_timeout_or_kill(&mut worker.0, STOP_TIMEOUT).unwrap_or_else(|| {
-            panic!("worker {i} did not exit within {STOP_TIMEOUT:?} of stopping")
-        });
+        let status = wait_child_bounded(&format!("worker {i}"), &mut worker.0, STOP_TIMEOUT);
         assert!(
             status.success(),
             "worker {i} should always exit 0 regardless of how many opens it counted as \
@@ -332,8 +334,19 @@ fn run_the_fixture(
         );
     }
 
-    for handle in reader_handles {
-        let _ = handle.join();
+    for (worker, handle) in reader_handles.into_iter().enumerate() {
+        // By this point every worker has already been reaped (just
+        // above), so its stdout pipe has already hit EOF and this
+        // reader thread has already returned in the overwhelming
+        // majority of cases - bounded all the same, rather than a bare
+        // `join()` that could block indefinitely if it has not.
+        run_bounded(
+            &format!("reader thread {worker} to end"),
+            STOP_TIMEOUT,
+            move || {
+                let _ = handle.join();
+            },
+        );
     }
 
     let total_opens: u64 = done.iter().map(|d| d.map_or(0, |(t, _)| t)).sum();
@@ -353,28 +366,6 @@ fn describe(event: &WorkerEvent) -> &'static str {
         WorkerEvent::Fail { .. } => "fail",
         WorkerEvent::Done { .. } => "done",
         WorkerEvent::Eof => "eof",
-    }
-}
-
-/// `std::process::Child` has no bounded wait of its own. By the time
-/// this is called the worker has already been told to stop (its stdin
-/// just closed) and - in every normal case - has already sent its own
-/// final `done:` line, so this is a short poll for the OS to finish
-/// reaping an already-exiting process, not a wait for the worker to do
-/// anything further; bounded all the same, rather than a bare `wait()`
-/// that could block indefinitely on a worker that ignored its stop
-/// signal.
-fn wait_timeout_or_kill(child: &mut Child, timeout: Duration) -> Option<std::process::ExitStatus> {
-    let deadline = Instant::now() + timeout;
-    loop {
-        if let Ok(Some(status)) = child.try_wait() {
-            return Some(status);
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            return None;
-        }
-        std::thread::sleep(Duration::from_millis(5));
     }
 }
 

@@ -1,15 +1,34 @@
 //! The terminal's own cell grid, measured from the font steg-ui's foundations name
 //! (TASK-1.117's plan §2) - plain data, no `gpui::Window`/`Context` parameter, so this is
 //! testable without a window.
+//!
+//! **The font family, resolved once (TASK-1.126's plan).** gpui 0.2.2's own
+//! `TextSystem::resolve_font` (`gpui-0.2.2/src/text_system.rs`, read directly, not
+//! guessed) tries the requested `Font.family`, and on failure tries gpui's *own* hardcoded
+//! fallback stack (".ZedMono", "Helvetica", "Arial", ...) - never a `Font`'s own
+//! `fallbacks` field, which is consulted only for a missing *glyph* inside an
+//! already-resolved family. Asking for a family nobody has installed (TASK-1.126's own
+//! bug: "JetBrains Mono" on a machine that only has Menlo) silently falls through to
+//! whichever of gpui's own stack happens to be present - Helvetica on macOS, a
+//! proportional font - which is why the cell width measured below drifted from every
+//! glyph actually painted. [`resolve_family`] picks the first of `foundations::FONT_TERMINAL`
+//! that `TextSystem::all_font_names()` (public, confirmed in the same file) reports as
+//! installed, *before* asking gpui for it at all, so what is measured here and what
+//! `terminal_element.rs` paints are resolved from the exact same name - resolving it twice,
+//! independently, is the same bug class reintroduced at the next font change.
 
-use gpui::{Bounds, Pixels, Window, px};
+use gpui::{Bounds, Pixels, SharedString, Window, px};
 use steg_ui::foundations;
 
-/// A terminal font's own metrics, measured once (this task never resizes the font).
-#[derive(Debug, Clone, Copy)]
+/// A terminal font's own metrics, measured once (this task never resizes the font), and the
+/// family they were measured from - carried alongside them so `terminal_element.rs` paints
+/// with the exact family `cell_width`/`line_height` were measured from, never a second,
+/// independently resolved one (module doc).
+#[derive(Debug, Clone)]
 pub struct CellMetrics {
     pub cell_width: Pixels,
     pub line_height: Pixels,
+    pub family: SharedString,
 }
 
 impl CellMetrics {
@@ -20,7 +39,9 @@ impl CellMetrics {
     /// than re-derived, since steg already has the design's own real value.
     #[must_use]
     pub fn measure(window: &mut Window) -> Self {
-        let font = terminal_font();
+        let installed = window.text_system().all_font_names();
+        let family = resolve_family(foundations::FONT_TERMINAL, &installed).to_owned();
+        let font = terminal_font(&family);
         let font_size = foundations::TERMINAL.size;
         let probe: gpui::SharedString = "MMMMMMMMMM".into();
         let run = gpui::TextRun {
@@ -37,6 +58,7 @@ impl CellMetrics {
         Self {
             cell_width: line.width / 10.0,
             line_height: foundations::TERMINAL.line_height,
+            family: family.into(),
         }
     }
 
@@ -59,16 +81,32 @@ impl CellMetrics {
     }
 }
 
-fn terminal_font() -> gpui::Font {
-    let (family, fallbacks) = foundations::FONT_TERMINAL
-        .split_first()
-        .expect("foundations::FONT_TERMINAL always names at least one family");
+/// The first of `candidates` that `installed` names, or `candidates`'s own first entry if
+/// none do (module doc) - pure, no `gpui` type in its signature, so a test can drive it
+/// with a fake `installed` list and no window at all.
+#[must_use]
+pub fn resolve_family<'a>(candidates: &[&'a str], installed: &[String]) -> &'a str {
+    candidates
+        .iter()
+        .find(|candidate| installed.iter().any(|name| name == *candidate))
+        .or_else(|| candidates.first())
+        .copied()
+        .expect("foundations::FONT_TERMINAL always names at least one family")
+}
+
+/// Every name `resolve_family` did not choose stays a fallback, for a glyph the chosen
+/// family itself lacks (module doc: orthogonal to which family is requested at all, and
+/// still wanted - a glyph-level concern, not this function's).
+fn terminal_font(family: &str) -> gpui::Font {
+    let fallbacks = foundations::FONT_TERMINAL
+        .iter()
+        .filter(|candidate| **candidate != family)
+        .map(|candidate| (*candidate).to_owned())
+        .collect();
     gpui::Font {
-        family: (*family).into(),
+        family: family.to_owned().into(),
         features: gpui::FontFeatures::default(),
-        fallbacks: Some(gpui::FontFallbacks::from_fonts(
-            fallbacks.iter().map(|name| (*name).to_owned()).collect(),
-        )),
+        fallbacks: Some(gpui::FontFallbacks::from_fonts(fallbacks)),
         weight: gpui::FontWeight::NORMAL,
         style: gpui::FontStyle::Normal,
     }
@@ -92,6 +130,29 @@ pub fn columns_that_fit(available: Pixels, cell_size: Pixels) -> u16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- resolve_family (AC#1/AC#2): the first candidate actually installed ------------
+
+    #[test]
+    fn the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list() {
+        let candidates = ["JetBrains Mono", "SF Mono", "Menlo"];
+        let installed = ["Menlo".to_owned(), "Helvetica".to_owned()];
+        assert_eq!(resolve_family(&candidates, &installed), "Menlo");
+    }
+
+    #[test]
+    fn the_lists_own_first_candidate_is_chosen_when_it_is_installed() {
+        let candidates = ["JetBrains Mono", "SF Mono", "Menlo"];
+        let installed = ["JetBrains Mono".to_owned(), "Menlo".to_owned()];
+        assert_eq!(resolve_family(&candidates, &installed), "JetBrains Mono");
+    }
+
+    #[test]
+    fn falls_back_to_the_lists_own_first_candidate_when_none_are_installed() {
+        let candidates = ["JetBrains Mono", "SF Mono", "Menlo"];
+        let installed = ["Helvetica".to_owned(), "Arial".to_owned()];
+        assert_eq!(resolve_family(&candidates, &installed), "JetBrains Mono");
+    }
 
     #[test]
     fn a_pixel_size_that_divides_evenly_fits_exactly() {

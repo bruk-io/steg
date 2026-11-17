@@ -13,6 +13,16 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
+#[path = "support/mod.rs"]
+mod support;
+use support::wait_child_bounded;
+
+/// Bounded wait for an already-`kill()`ed child to actually exit -
+/// generous, since `kill()` already ran: this is a backstop against the
+/// OS somehow not reaping a `SIGKILL`ed process promptly, not a wait for
+/// the process to do anything further.
+const STOP_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// `label` names the test in a comment or a variable, never in the path
 /// itself: kept short against `sockaddr_un`'s 104-byte `sun_path`
 /// budget (`crates/server/src/bind.rs`'s own doc comment found this
@@ -53,6 +63,13 @@ impl ReapOnDrop {
 
 impl Drop for ReapOnDrop {
     fn drop(&mut self) {
+        // Not `wait_child_bounded` here on purpose: that panics on a
+        // timeout, and a panic inside `Drop` while already unwinding
+        // from another panic aborts the whole process rather than
+        // reporting one clean failure. `kill()` already ran, so the
+        // `wait()` below is a backstop for the OS reaping an already
+        // -`SIGKILL`ed process, not a wait for it to do anything
+        // further.
         let _ = self.0.kill();
         let _ = self.0.wait();
     }
@@ -133,13 +150,10 @@ fn eight_simultaneous_starts_leave_exactly_one_server() {
     for (child, outcome) in children.iter_mut().zip(outcomes.iter()) {
         if outcome == "became" {
             child.0.kill().expect("killing the winner should succeed");
-            let status = child
-                .0
-                .wait()
-                .expect("waiting on the killed winner should succeed");
+            let status = wait_child_bounded("the killed winner", &mut child.0, STOP_TIMEOUT);
             assert!(!status.success(), "a killed process does not exit 0");
         } else {
-            let status = child.0.wait().expect("waiting on a loser should succeed");
+            let status = wait_child_bounded("a losing racer", &mut child.0, STOP_TIMEOUT);
             assert!(
                 status.success(),
                 "a losing racer should exit 0, got {status:?}"
@@ -174,10 +188,7 @@ fn a_socket_file_left_by_a_real_dead_process_is_replaced() {
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
     holder.0.kill().expect("killing the holder should succeed");
-    holder
-        .0
-        .wait()
-        .expect("waiting on the killed holder should succeed");
+    wait_child_bounded("the killed holder", &mut holder.0, STOP_TIMEOUT);
     drop(holder); // ReapOnDrop's own backstop re-wait is a harmless no-op here
 
     let config = steg_server::ServerConfig {

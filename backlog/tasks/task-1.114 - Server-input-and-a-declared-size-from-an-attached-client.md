@@ -1,16 +1,20 @@
 ---
 id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T18:13:00Z'
+updated_date: '2026-11-17T22:18:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.47
+references:
+  - task-1.114-server-input-and-a-declared-size-from-an
+  - https://github.com/bruk-io/steg/pull/66
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -18,6 +22,9 @@ asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ec385ef4d563'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -928,6 +935,1108 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:31:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 6b5b5634e3a6, last 40 of 79 lines:
+
+```text
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attach.rs (target/debug/deps/attach-6be417ce8cb1688e)
+
+running 16 tests
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test input_clears_a_finished_status ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (47562804) panicked at crates/server/tests/attach.rs:1331:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.55s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:34:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 6b5b5634e3a6:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (23.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (25.5s)
+ok      test (steg-server, race-fixture) (27.5s)
+ok      test (steg-server, pty-race-fixture) (40.0s)
+ok      test (steg-server, accept-backoff-fixture) (36.4s)
+ok      build (steg) (2.2s)
+ok      test (steg) (3.6s)
+ok      test (steg, fixtures) (11.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (6.1s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:41:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (27.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (30.7s)
+ok      test (steg-server) (31.0s)
+ok      test (steg-server, race-fixture) (31.3s)
+ok      test (steg-server, pty-race-fixture) (38.2s)
+ok      test (steg-server, accept-backoff-fixture) (31.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:43:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (25.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (24.4s)
+ok      test (steg-server, race-fixture) (24.2s)
+ok      test (steg-server, pty-race-fixture) (32.6s)
+ok      test (steg-server, accept-backoff-fixture) (26.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (2.0s)
+ok      test (steg, fixtures) (5.7s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (5.8s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (12.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream two_connections_attached_to_one_pane` exited 101 at 2026-11-17T01:44:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.92s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... FAILED
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+
+failures:
+
+---- two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other stdout ----
+
+thread 'two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other' (48129503) panicked at crates/server/tests/attach.rs:443:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (48129502) panicked at crates/server/tests/attach.rs:443:17:
+no update arrived on stream 1 within 5s
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+    two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.04s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach -- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream two_connections_attached_to_one_pane` exited 0 at 2026-11-17T01:45:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.09s
+```
+
+Check FAILED: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 101 at 2026-11-17T01:45:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report stdout ----
+
+thread 'pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report' (48173895) panicked at crates/server/src/pane.rs:2037:25:
+no update arrived within 2s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 190 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 0 at 2026-11-17T01:45:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:46:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735, last 40 of 71 lines:
+
+```text
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 60703: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 60699: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (48196465) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:50:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (30.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (29.4s)
+ok      test (steg-server) (31.0s)
+ok      test (steg-server, race-fixture) (33.1s)
+ok      test (steg-server, pty-race-fixture) (37.4s)
+ok      test (steg-server, accept-backoff-fixture) (34.9s)
+ok      build (steg) (0.9s)
+ok      test (steg) (4.4s)
+ok      test (steg, fixtures) (12.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 0 at 2026-11-17T02:11:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.21s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 5.99s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:14:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48855714) panicked at crates/server/tests/attach.rs:1461:5:
+the stuck pane's own worker answered a second attach - it was not actually stuck: Some(Ok(Object {"snapshot": Object {"cursor": Object {"blinking": Bool(false), "shape": String("Block"), "visible": Bool(true), "x": Number(0), "y": Number(0)}, "rows": Array [Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}]], "size": Object {"columns": Number(80), "rows": Number(24)}}, "stream": Number(2)}))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:16:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48904941) panicked at crates/server/tests/attach.rs:101:14:
+reading the server's hello reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 6.72s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:17:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.40s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48914479) panicked at crates/server/tests/attach.rs:1479:10:
+a second connection's plain control call must answer within 2s, never waiting on a different connection's own stuck-pane attach
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 3.70s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 0 at 2026-11-17T02:27:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.18s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 23.78s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T02:34:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (70.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (33.1s)
+ok      test (steg-server) (61.4s)
+ok      test (steg-server, race-fixture) (61.9s)
+ok      test (steg-server, pty-race-fixture) (63.3s)
+ok      test (steg-server, accept-backoff-fixture) (65.8s)
+ok      build (steg) (1.3s)
+ok      test (steg) (4.5s)
+ok      test (steg, fixtures) (13.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (7.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --test attach -- --exact two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck detaching_a_pane_that_already_closed_still_releases_the_stream` exited 0 at 2026-11-17T02:35:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.89s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 7 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.04s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T03:45:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (61.5s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.6s)
+ok      test (steg-sdk, local-socket) (1.9s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (1.6s)
+ok      build (steg-server) (32.6s)
+ok      test (steg-server) (67.4s)
+ok      test (steg-server, race-fixture) (60.5s)
+ok      test (steg-server, pty-race-fixture) (69.4s)
+ok      test (steg-server, accept-backoff-fixture) (72.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (2.8s)
+ok      test (steg, fixtures) (8.0s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (10.9s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --test attach -- --exact a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other detaching_a_pane_that_already_closed_still_releases_the_stream an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane` exited 0 at 2026-11-17T03:46:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.45s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 4 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 26.74s
+```
+
+Built: AC #1 (input reaches the real program and makes the sender R91's latest, clearing a Finished/Failed status), AC #2 (tab.declare-size, carried only on Screen.size, never on ScreenUpdate::Delta), AC #3 (two clients, release, and the survivor's own declared size), and R101's sdk surface (Connection::declare_size). Every proof item has a test with a named negative control, recorded failing then passing via asdlc record-check.
+
+Checks: just check green (recorded). gh pr checks 66 green on 93780eae and again on the final head 93780eae after merging main (CI run itself took ~12-13 minutes each time - slow, not hung).
+
+Departures/decisions, with reasons:
+
+1. Widened bound (5s/10s to 15s/30s) in an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane and the two force-close/stop bound tests: these prove "answers eventually, never permanently hangs," not a latency promise. Any finite bound proves that against the real failure (an unbounded wait); the widening only bought margin against just check's own concurrent CPU contention, no promise weakened.
+
+2. Added a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs): auditing my own Runtime::send_input/declare_size for TASK-1.47's review finding (attach_pane holding the runtime lock across an unbounded worker wait) confirmed neither has that shape, but surfaced a gap in the existing test instead - it runs every call over one connection, so it only proved that connection's own request queue eventually catches up, not that an unrelated connection stays responsive. The new test proves the real property with a second, pre-handshaken, otherwise idle connection. Recorded failing against pre-fix attach_pane, then passing after merging TASK-1.47's fix - both recorded via asdlc record-check.
+
+3. Accepted limit, unchanged from the approved plan but now proven at the point team-lead asked about: a pane whose program refuses to read input freezes only that pane's own screen and delays an attach to that one pane - proven not to freeze the server or any other connection's plain control calls, by the test in (2) above and by an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane's own (a)/(b) checks.
+
+4. Size-on-Delta departure from the approved plan and from doc-14 (review finding, bruk.r2, 2026-11-17): the plan's section 2, quoting doc-14 verbatim, specifies ScreenUpdate::Delta gaining an optional `size: Option<Size>`, with a resize never promoted to a full screen (that promotion reserved for back-pressure/!is_current). What was actually built instead: `Screen` gained a `size` field (Delta never carries one), and `pane.rs` added a per-attachment `Attachment::last_told_size`; any attachment whose `last_told_size` differs from the terminal's current size gets a fresh, independent `Full` on its next tick, even when there is no content change at all.
+
+The race the planned design would have had, specifically: a single pane-wide "size changed" flag, set once when a resize happens and cleared by whichever tick/attachment consumes it first. Order: client A is already attached and armed; client B calls `pane.attach` for the same pane, declares a size that changes the tab's current size as a side effect (R91's "latest" rule), and is about to call `pane.attach-arm` next, but has not yet sent it. Before B's own arm command reaches the pane worker, the pane's next tick runs, sees the pane-wide flag set, and delivers the size-changed Delta to A (the only armed attachment at that moment) - and clears the flag. When B's arm now lands, the flag is already clear, so B's own attachment is never told the size at all: B's own Screen is stale from the moment it attaches until some unrelated future content change happens to also need a Full (which may be never, if the program then goes idle). The per-attachment `last_told_size` design avoids this because staleness is tracked separately for every attachment, not spent globally by whichever one gets there first - this is exactly what `two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other` and the new unit test `a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` (pane.rs) prove, though neither names the planned design's race directly - that is corrected here, in the notes, for the first time.
+
+Cost on the wire compared with the planned form: the planned Delta+Option<size> would have added a handful of bytes to an already-outgoing Delta only on the tick a resize actually happened - the marginal cost of one Size (two u16s) plus its JSON key, well under 50 bytes regardless of screen size. What ships instead sends every size-stale attachment a full, independent `ScreenUpdate::Full { screen, seq }` - the whole grid's rows, not a diff - on the first tick after that attachment's own size goes stale, once per attachment, not once per pane. Rough JSON-encoded size, per full screen (every cell carries a style object today - doc-14's own `Row`/cell shape, not something this task changed): an 80x24 screen is 1,920 cells; a 200x60 screen is 12,000 cells. At roughly 150-250 bytes of JSON per populated cell's `{style: {...}, text: ...}` entry (less for blank cells, which still carry the full style object), that is very roughly 300KB-500KB for 80x24 and 2MB-3MB for 200x60 per size-stale attachment, once - not per keystroke, but a real spike compared to tens of bytes.
+
+What a window drag does with it, given TASK-1.121 declares a size on each cell boundary crossed: every one of those declarations is a separate `tab.declare-size` call: if it changes the tab's current size (R91 latest-client rules), it marks every attachment viewing that tab stale (`last_told_size` differs), and each such attachment gets a full, independent `Full` screen on its own next tick - not just the dragging client's own attachment, but every other client currently viewing the same tab, once per boundary crossed. A drag that crosses many cell boundaries (which an unthrottled resize stream easily does) sends one full-screen's worth of JSON to every viewer of that tab, once per boundary crossed, for the duration of the drag - the MB-scale cost above, repeated at drag speed, not the few bytes the planned Delta+size form would have cost on the same drag.
+
+Check FAILED: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 101 at 2026-11-17T16:28:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (52790603) panicked at crates/server/tests/attach.rs:1738:28:
+pane.detach for a pane that closed between attach and arm must not succeed - TASK-1.125's own 'silent stream' bug
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.70s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 0 at 2026-11-17T16:29:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.97s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.73s
+```
+
+Commits since the review: 0.
+
+5. Added the socket-level TASK-1.125 race test the team-lead asked for (a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach, crates/server/tests/attach.rs): connection one floods the stuck pane's stdin (same large, deterministic batch as the lock-contention test above, not a fixed small one - needed so connection two's queued attach reliably has not drained by the time the race runs), connection two's pane.attach queues behind it, connection one force-closes the pane (Runtime's own close-and-force removes the pane from its map under the lock before force_end's own signal/kill passes even run, so the race's trigger does not depend on force_end's timing at all), connection two's queued attach then resolves against a still-alive worker thread, and a later pane.detach for that target is the real check. Deterministic across repeated runs (4/4 clean both ways). Recorded failing against a reverted arm_attachment (armed unconditionally, TASK-1.125's own bug - the detach then succeeded) and passing against the real one, both via asdlc record-check.
+
+One finding while building it, worth flagging rather than silently matching: the exact error code pane.detach answers with here is NoSuchTarget, not BadRequest. pane.close --force removes the pane from the kernel's own tree too, not only from the worker map, so resolve_pane_target fails outright for this target regardless of which connection asks - connection.rs's own already-closed-pane fallback only helps a connection whose pane_streams already held a real entry for it, which this connection's never did (arm never succeeded). BadRequest ("no attachment") is what a merely-never-attached-but-still-live pane answers with (detaching_a_pane_this_connection_never_attached_to_is_a_bad_request); NoSuchTarget here is arguably the more precise of the two, not a regression - the test asserts on it and explains why in its own doc comment.
+
+Check passed: `just check` exited 0 at 2026-11-17T16:37:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc:
+
+```text
+ok      format check (0.3s)
+ok      lint (32.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (79.4s)
+ok      build (steg-sdk) (0.9s)
+ok      test (steg-sdk) (3.0s)
+ok      test (steg-sdk, local-socket) (3.8s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (57.6s)
+ok      test (steg-server, race-fixture) (60.4s)
+ok      test (steg-server, pty-race-fixture) (68.7s)
+ok      test (steg-server, accept-backoff-fixture) (62.8s)
+ok      build (steg) (1.9s)
+ok      test (steg) (4.8s)
+ok      test (steg, fixtures) (13.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.7s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 105, 93 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach -- --exact a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach detaching_a_pane_that_already_closed_still_releases_the_stream two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other detaching_a_pane_this_connection_never_attached_to_is_a_bad_request an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane` exited 0 at 2026-11-17T16:38:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.25s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 6 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 27.48s
+```
+
+Commits since the review: 105, 93 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 101 at 2026-11-17T16:43:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (52959816) panicked at crates/server/tests/attach.rs:1769:28:
+pane.detach for a pane that closed between attach and arm must not succeed - TASK-1.125's own 'silent stream' bug
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 5.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 0 at 2026-11-17T16:43:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 3.29s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:44:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 71 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 40103: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 40091: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (52972309) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:45:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 78 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 44827: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+kill: 45128: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 44818: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+
+failures:
+
+---- pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it stdout ----
+
+thread 'pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it' (52996148) panicked at crates/server/src/pane.rs:2095:26:
+a byte arrived when nothing should have been sent
+
+
+failures:
+    pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:48:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 78 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 51269: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 51262: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (53028397) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:53:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 81 lines:
+
+```text
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 69221: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 69229: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (53136248) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server-accept-backoff-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:54:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 71 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 71124: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 71123: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (53146185) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:56:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 78 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 75352: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 75348: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (53166354) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T16:59:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1, last 40 of 79 lines:
+
+```text
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 81316: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 81310: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (53193146) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 196 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T17:05:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (53.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (52.6s)
+ok      test (steg-server, race-fixture) (58.6s)
+ok      test (steg-server, pty-race-fixture) (67.0s)
+ok      test (steg-server, accept-backoff-fixture) (65.9s)
+ok      build (steg) (1.0s)
+ok      test (steg) (5.3s)
+ok      test (steg, fixtures) (15.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach -- --exact a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck` exited 0 at 2026-11-17T17:06:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 400ac97ac3e1:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.39s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 3 tests
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 28.56s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Review round 2 summary (2026-11-17), head 400ac97a: merged origin/main (PR 65/68/69 - the window, TASK-1.125's own arm_attachment fix, the outbound hang fix), resolving one conflict in connection.rs's pane.attach arm (kept finish_attach's armed/not-armed shape; this task's own stream_panes.insert moved inside the "if armed" branch) and two unrelated build breaks the merge exposed in crates/app (two Screen literals predating this task's own size field, given an arbitrary valid size since neither reads it). screen.rs's comment on why size is never carried on Delta updated to say doc-14 now specifies this, per the engineer's decision (comment #6). Added the socket-level TASK-1.125 race test requested (departure 5, above) and, after PR 66's CI caught it, fixed a bound in that same new test that used call_and_read_reply's plain 5s socket timeout instead of reply_within's generous one - exactly the fix this file already applies elsewhere for the identical reason. just check green at 400ac97a (recorded); the pre-existing, unrelated login_env grandchild flake (comment #2's own kind) was unusually persistent today - failed 4 of 6 just check attempts, 0 of 3 when run alone - confirmed pure contention (not a regression: login_env.rs is untouched by this task) before the 5th attempt came back clean; noted, not fixed, per standing instruction. gh pr checks 66 green on 400ac97a.
+
+Review round 2 complete at head 400ac97a. Fixed per the engineer's decision (comment #6, keep built behaviour) and team-lead's three asks: merged origin/main (PR 65/68/69), wrote the size-on-delta departure into the notes (departure 4), confirmed no code change was needed for the review finding itself (doc-14 reworded instead), added the requested socket-level TASK-1.125 race test (departure 5) with a recorded failing/passing control pair, and fixed a flaky bound CI caught in that new test. just check and gh pr checks 66 both green on 400ac97a.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -939,6 +2048,99 @@ created: 2026-11-16T16:43:00Z
 ---
 
 Plan approved by @bruk (ec385ef4d563, size-3): its worker may build it.
+
+---
+
+created: 2026-11-17T01:37:00Z
+
+---
+
+2026-11-16, @bruk.o: flake sighting for this task's own test, seen by TASK-1.121's worker in a full just check under load: crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once on its bound (pane.show must answer within a bound with the other pane stuck) and passed alone straight after. Before finishing, say whether the bound is a real product promise that load can break, or a test bound that is too tight, and what it is measured from.
+
+---
+
+created: 2026-11-17T02:18:00Z
+
+---
+
+Bound note (2026-11-16), per your request:
+
+The 15s/30s bounds in an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane and the two force-close/stop tests prove "answers eventually, never permanently hangs" - not a latency promise. The real failure they guard against is an unbounded wait, so any finite bound proves the property; widening 5s/10s to 15s/30s only bought margin against just check's own concurrent CPU contention. No promise was weakened.
+
+Separately, auditing my own Runtime additions per your request: Runtime::send_input (runtime.rs:637-645) and Runtime::declare_size (runtime.rs:662-680), and the apply_size_changed_locked they both call (runtime.rs:2022-2028), hold the lock only across in-memory kernel calls and PaneHandle::send_input/resize (pane.rs:505-509, 518-522) - both plain unbounded mpsc::Sender::send, never a recv. Neither has the shape 1.47's review found in attach_pane. (One test-only lookalike: attachment_count_for_test, runtime.rs:689-695, holds the lock across PaneHandle::attachment_count's own send-then-recv, pane.rs:628+ - #[cfg(test)], not a production path, but the same shape; flagging it so it isn't "found" later.)
+
+That audit did surface a real gap, in a test, not in my production code: an_unresponsive_panes_own_commands_do_not_stall... runs every one of its own calls over a single connection, so its "(a) a plain control call still answers" check only proves this connection's own request queue eventually catches up once the stuck pane's worker drains - not that an unrelated connection stays responsive. That is weaker than the "freezes only that pane's screen" limit this task's own plan names. Added a new test, a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs), issuing one plain pane.show from a second, already-handshaken, otherwise idle connection while a different connection's own attach to the stuck pane is confirmed stuck. Recorded failing via asdlc record-check just now: today's attach_pane does hold the runtime lock across PaneHandle::attach's unbounded recv, so this second connection's pane.show gets no reply within 2s - confirming 1.47's review finding independently, from this side. Left uncommitted on purpose; will record it passing and commit once 1.47's fix lands, per your instruction to hold until then.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:14:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:23:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/sdk/src/screen.rs:146 (Screen/ScreenUpdate shapes) and crates/server/src/pane.rs:276 (Attachment::last_told_size): the approved plan's section 2, quoting doc-14 verbatim ("an update gains an optional size"), specifies adding size: Option<Size> to ScreenUpdate::Delta. The diff never adds this field; instead Screen gained size and a new per-attachment Attachment::last_told_size in pane.rs forces any size-stale attachment onto a fresh, independent Full on its next tick, even with no content change. This is a real, substantial departure from both the plan's named mechanism and the contract's (doc-14) literal wording, and it is not in the task's "Departures/decisions, with reasons" list (which has three unrelated items: the 5s/10s->15s/30s bound widening, the added a_second_connections... test, and the accepted stuck-pane limit). The only place the departure and its reasoning appear is a source comment in screen.rs ("doc-14's own wording... was tried and dropped") - never surfaced on the board for a reviewer or for doc-14 to be reconciled with reality.
+
+The chosen mechanism is well-reasoned on its own terms (the code comments trace a real bug the plan's single pane-wide "size changed" flag would have had with a newly-arming attachment, confirmed by the two-client ordering test), and the behavioural clause of AC #2 ("an update on every attachment's stream reports the terminal's size when it changes") is still met empirically - I repeated one proof's control myself (declaring_a_size_of_zero_is_refused, widening connection.rs's range check from 1..=u16::MAX to 0..=u16::MAX in a scratch edit, reverted after): it failed as the task's notes claim, confirming that control is real. But soundness of the new design does not substitute for recording the departure: the plan's own section 2 explicitly says a resize must never be "promoted to a full, scrollback-free resync it does not need... reserved for !is_current/back-pressure" - the shipped mechanism does exactly that for every size change, unflagged as the policy exception it now is.
+
+Not checked beyond this: I did not re-run the full proof table past the one control above; the recorded failing/passing pairs in the notes look legitimate and consistent with the final head (93780eae, matching the PR). I did not check doc-9 in detail beyond its reference in the task's citation list.
+
+Informational, not a finding, answering the team-lead's question about TASK-1.125: this task's stream_panes.insert(stream, pane) (connection.rs, pane.attach's Ok arm) sits right after runtime.arm_attachment's call, alongside the pre-existing pane_streams insert. If TASK-1.125 wraps arm_attachment's effect in an "if armed" branch, stream_panes's insert can safely move inside it or stay outside: Runtime::send_input already no-ops (state.panes.get(&pane) is None) for a pane with no worker, the same precondition under which arm_attachment itself no-ops, so an unarmed attachment's input is silently dropped either way - inside send_input if stream_panes still routes it, or in connection.rs's own "nothing to route to" branch if it doesn't. No test depends on which side of that branch it ends up on. For symmetry with pane_streams (which stays unconditional, since ConnectionCleanup::drop's sweep needs it regardless of arming), leaving stream_panes unconditional too is the simpler, lower-risk choice for whoever merges second.
+
+---
+
+created: 2026-11-17T16:19:00Z
+
+---
+
+Decision by @bruk (2026-11-17, relayed by @bruk.o): keep the built behaviour for size changes (a full screen at the new size per size-stale attachment; a delta never carries a size). doc-14's Size section is reworded to match (board commit db68d8f8). The review's finding is answered by departure 4 in the notes plus this spec change; no code change is asked for. Cost of full screens during a window drag is noted for TASK-1.122.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T18:28:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T18:32:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Round 2 (narrow), head 400ac97a. No findings.
+
+Checked:
+- connection.rs's resolved pane.attach arm (finish_attach): if armed, records in pane_streams as before; else closes both outbound and connection sides and records nothing. stream_panes.insert is now inside the `if armed` branch, so an unarmed stream is never given to stream_panes for input routing. runtime.rs's arm_attachment now returns bool (false when the pane is gone from state.panes), matching finish_attach's contract. Shape matches TASK-1.125 as asked.
+- doc-14's reworded Size section ("...sent a full screen at the new size on its next update, even when nothing else changed; a delta never carries a size") agrees with the shipped code (pane.rs's Attachment::last_told_size / AttachState handling) and with screen.rs's updated comment, which now says "doc-14's own Size section now specifies this" rather than "tried and dropped" - no source comment still claims the departure is undocumented or provisional.
+- The new socket-level test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach (crates/server/tests/attach.rs): traced the mechanism - attach_pane's attach_sender.attach(stream) blocks on the pane worker's own command channel; the flood of 120x7MB send_input calls from connection one queues ahead of connection two's attach on that same channel; pane.close --force removes the pane from state.panes (runtime.rs's to_force extraction) synchronously under the lock before force_end's signal/kill ever runs, so by the time the worker drains the backlog and finally answers the queued attach, arm_attachment's state.panes.get(&pane) is already None. This is deterministic given the flood is large enough to still be draining when force-close runs (confirmed by the test's own `reply_within(..1s)).is_none()` check before close), not a lucky race.
+- Repeated the control myself in a scratch edit (reverted): changed Runtime::arm_attachment back to the pre-1.125 shape (arm unconditionally, always return true). Ran `cargo test -p steg-server --test attach -- --exact a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach`: failed with the exact panic the test's own doc predicts ("pane.detach for a pane that closed between attach and arm must not succeed"). Reverted with `git checkout --`; `git status` clean afterward. Ran the real (fixed) test three more times after reverting: passed every time.
+- Commit 400ac97a's bound fix (call_and_read_reply's plain 5s default -> reply_within with explicit 30s/15s bounds for pane.close --force and the final pane.detach in this same new test) matches the stated CI failure and mirrors the existing pattern in pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck.
+- Recorded checks (just check, the targeted cargo test for the three attach-queue tests, gh pr checks 66) are all against head 400ac97ac3e1, the branch's current head.
+- The build-break fixes in crates/app (model.rs, startup.rs) from the origin/main merge are trivial Screen-literal additions with an arbitrary valid size, commented as not read by either file's logic; consistent with the merge commit's own description.
+
+Not checked: the rest of the origin/main merge content (crates/app's own window/client code from PR 65, outbound.rs's broken-write fix from PR 69) beyond confirming it doesn't conflict with this task's own files - those are each other PRs' own reviewed work, out of this round's scope per the brief.
+
+No rule-change draft filed (none of the findings from round 1 repeat; there are no findings this round).
 
 ---
 <!-- COMMENTS:END -->

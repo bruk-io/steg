@@ -514,7 +514,17 @@ impl Runtime {
     ) -> Result<(PaneId, pane::AttachmentId), ApiError> {
         let Attaching { client, id, stream } = attaching;
         validate(description, request)?;
-        let (pane, attachment_id, screen) = {
+        // Resolves the target and clones a sender for its worker's own
+        // command channel, all under the lock, then releases it before
+        // `AttachSender::attach` ever waits on a reply (TASK-1.47
+        // review): `PaneHandle::attach`'s own wait is unbounded (it must
+        // answer with the pane's real screen, not a timeout's worth of a
+        // stale one), so calling it while still holding this `Runtime`'s
+        // one state lock would stall *every* other request on the server
+        // behind a single busy pane's own worker - proven by
+        // `attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_
+        // unrelated_requests_lock`, below.
+        let (pane, attach_sender) = {
             let mut state = self.lock();
             let pane = dispatch::target_pane(&state.tree, context, request)?;
             state
@@ -527,9 +537,9 @@ impl Runtime {
                     "this pane has no running program to attach to",
                 )
             })?;
-            let (attachment_id, screen) = handle.attach(stream).map_err(map_pane_error)?;
-            (pane, attachment_id, screen)
+            (pane, handle.attach_sender())
         };
+        let (attachment_id, screen) = attach_sender.attach(stream).map_err(map_pane_error)?;
         let attached = steg_sdk::PaneAttached {
             stream,
             snapshot: screen,
@@ -549,16 +559,38 @@ impl Runtime {
     /// updates to (TASK-1.47) - the second half of decision-2 section 3's
     /// ordering rule, called by `connection.rs` only after it has queued
     /// the attach reply and opened the stream with the writer. Self
-    /// -locking, a no-op if `pane` no longer has a worker at all.
+    /// -locking, a no-op if `pane` no longer has a worker at all - never
+    /// a stall-the-server hazard the way [`Runtime::attach_pane`]'s own
+    /// wait was (TASK-1.47 review): `PaneHandle::arm` only sends on an
+    /// unbounded `mpsc` channel, which returns the moment the message is
+    /// queued, regardless of how backed up the worker reading it is -
+    /// it never waits for a reply, so holding the lock across it costs
+    /// nothing more than the lock already costs for any other request.
+    ///
+    /// Returns whether an attachment was actually armed - `false` for
+    /// the race the same review found releasing `attach_pane`'s own
+    /// lock opened: the pane (or its whole tab) can close in the now
+    /// -unlocked window between `attach_pane` cloning this worker's own
+    /// `AttachSender` and this call running, in which case `attach_pane`
+    /// already replied with a real snapshot (truthfully - the pane was
+    /// still there when it was read) and the worker already registered
+    /// the attachment, but there is no `Outbound` left to ever send it
+    /// anything: the worker's own copy sits inert until that worker
+    /// -thread's own, unrelated shutdown (closing a pane ends its
+    /// worker) drops it, never swept by anything attachment-specific.
+    /// The caller must not record this in its own bookkeeping as a live
+    /// attachment when this returns `false` - see `connection.rs`'s own
+    /// `"pane.attach"` arm for what it does instead.
     pub(crate) fn arm_attachment(
         &self,
         pane: PaneId,
         attachment_id: pane::AttachmentId,
         outbound: Arc<crate::outbound::Outbound>,
-    ) {
+    ) -> bool {
         let state = self.lock();
-        if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.arm(attachment_id, outbound);
+        match state.panes.get(&pane) {
+            Some(handle) => handle.arm(attachment_id, outbound).is_ok(),
+            None => false,
         }
     }
 
@@ -582,7 +614,9 @@ impl Runtime {
     /// having no worker left are both silently tolerated - the caller
     /// already confirmed its own attachment was real before calling this,
     /// so either case only means the state this was meant to release is
-    /// already gone.
+    /// already gone. Like [`Runtime::arm_attachment`] (TASK-1.47 review),
+    /// `PaneHandle::detach`'s own send never waits on the worker - this
+    /// never risks the stall [`Runtime::attach_pane`]'s own wait did.
     pub(crate) fn detach_pane(
         &self,
         client: ClientId,
@@ -609,7 +643,9 @@ impl Runtime {
     /// calling `Tree::stop_viewing` here as well would at best be a no-op
     /// and at worst race whichever of the two cleanup calls runs first.
     /// Only the pane worker's own in-memory fan-out list, which the kernel
-    /// knows nothing about, still needs telling.
+    /// knows nothing about, still needs telling. Same reasoning as
+    /// [`Runtime::detach_pane`] (TASK-1.47 review): a non-waiting send,
+    /// never a stall hazard.
     pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
         let state = self.lock();
         if let Some(handle) = state.panes.get(&pane) {
@@ -2739,6 +2775,279 @@ mod tests {
                 .len(),
             24,
             "a's own 80x24 must be reapplied once b (the latest) disconnects"
+        );
+    }
+
+    /// TASK-1.47 review's own Important finding: `attach_pane` used to
+    /// call `PaneHandle::attach` - an unbounded wait for the worker's own
+    /// reply, since it must answer with the pane's real screen, never a
+    /// stale one - while still holding this `Runtime`'s one state lock.
+    /// A pane whose worker is busy (here: flooded with so much stdin
+    /// that it blocks inside a real `write_all`, writing to a program
+    /// that never reads it) held that lock hostage, which every other
+    /// request on the server needs too - proven here directly on the
+    /// lock, not through a real socket: the stuck attach runs on its own
+    /// thread, deliberately never joined (even once fixed, there is no
+    /// bound on how long a program that never reads its own stdin keeps
+    /// a `write_all` blocked - only this test's own process exiting ever
+    /// ends it, which abandoning the thread, rather than joining it,
+    /// costs nothing for); what this asserts is that a completely
+    /// unrelated request, on a healthy pane, answers within a short
+    /// bound regardless.
+    #[test]
+    fn attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock() {
+        use steg_sdk::{ClientKind, Request};
+
+        let runtime = Arc::new(Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        ));
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+
+        let busy_session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let busy_session_id: steg_sdk::SessionId =
+            busy_session["id"].as_str().unwrap().parse().unwrap();
+
+        let other_session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let other_target = {
+            let state = runtime.state.lock().unwrap();
+            let other_session_id: steg_sdk::SessionId =
+                other_session["id"].as_str().unwrap().parse().unwrap();
+            let tab = &state.tree.session(other_session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            format!("{other_session_id}/{}/{pane}", tab.id())
+        };
+
+        let (busy_pane, busy_target) = {
+            let state = runtime.state.lock().unwrap();
+            let tab = &state.tree.session(busy_session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            (pane, format!("{busy_session_id}/{}/{pane}", tab.id()))
+        };
+
+        // Floods the busy pane's own worker: `exec sleep 100` never
+        // reads its stdin at all, so the pty's own kernel buffer fills
+        // and the worker's `PaneCommand::Input` handler blocks inside a
+        // real `write_all` - confirmed necessary by this test's own
+        // negative control (reverting `attach_pane` to hold the lock
+        // across its wait makes the assertion below fail, not hang: the
+        // flood itself, independent of that revert, is what the stuck
+        // -ness depends on). Sized generously (TASK-1.114's own worker
+        // found, independently, that a much smaller flood - 70 MB - let
+        // the worker catch up before the real check ran at all, passing
+        // for the wrong reason) so the stuck window comfortably outlasts
+        // this test's own bound, confirmed below rather than assumed.
+        {
+            let state = runtime.state.lock().unwrap();
+            let handle = state.panes.get(&busy_pane).unwrap();
+            let chunk = vec![b'x'; 70 * 1024 * 1024];
+            for _ in 0..15 {
+                let _ = handle.send_input(chunk.clone());
+            }
+        }
+
+        let client = runtime.connect_client(ClientKind::Cli, None);
+        let outbound = Arc::new(Outbound::new());
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params: serde_json::json!({"target": busy_target})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        let stuck_runtime = Arc::clone(&runtime);
+        let stuck_description = description.clone();
+        let stuck_context = context;
+        // Signals when (if ever, within this test's own lifetime) the
+        // stuck attach finally answers - not joined (there is no bound
+        // on how long a program that never reads its own stdin keeps a
+        // `write_all` blocked, even once this is fixed), but checked
+        // below with a non-blocking `try_recv`, so this test confirms
+        // the stuck attach is genuinely still unanswered at the moment
+        // the real check runs, rather than assuming the flood above was
+        // large enough.
+        let (done_tx, done_rx) = mpsc::channel::<()>();
+        thread::spawn(move || {
+            let _ = stuck_runtime.attach_pane(
+                &stuck_description,
+                &stuck_context,
+                super::Attaching {
+                    client,
+                    id: 1,
+                    stream: 1,
+                },
+                &attach_request,
+                &outbound,
+            );
+            let _ = done_tx.send(());
+        });
+
+        // `std::sync::Mutex::lock` has no bound of its own - if this
+        // test called `runtime.handle` directly and the bug were real,
+        // *this* call would then also block forever, hanging the test
+        // instead of failing it (confirmed directly: an earlier version
+        // did exactly that, found by actually running the control, not
+        // assumed). Run on its own thread instead, answered through a
+        // channel this test waits on with a real, bounded `recv_timeout`
+        // - the one thing in `std` that can actually time out a wait on
+        // another thread's own lock. (TASK-1.125 review's own nit: a
+        // `done_rx` check right here, immediately after spawning, would
+        // prove nothing - the spawned thread may not even have started
+        // yet, so it could pass regardless of whether the flood below
+        // ever stuck anything. The one check that matters is after the
+        // real wait, below.)
+        let show_request = Request {
+            method: "pane.show".to_string(),
+            params: serde_json::json!({"target": other_target})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        let (show_tx, show_rx) = mpsc::channel();
+        let show_runtime = Arc::clone(&runtime);
+        let show_description = description.clone();
+        let show_context = context;
+        thread::spawn(move || {
+            let response = show_runtime.handle(&show_description, &show_context, &show_request);
+            let _ = show_tx.send(response);
+        });
+        let response = show_rx
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "an unrelated pane.show must answer within a bound even while a \
+                 different pane's own attach is stuck on its worker"
+                )
+            });
+        assert!(
+            matches!(response, steg_sdk::Response::Ok(_)),
+            "{response:?}"
+        );
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the stuck attach answered during the real check - it was not actually \
+             stuck, so this run proves nothing"
+        );
+    }
+
+    /// TASK-1.47 review: releasing `attach_pane`'s own lock before
+    /// waiting on the worker (this task's own fix for the review's
+    /// Important finding) opened a window the old, lock-held code never
+    /// had - the pane (or its tab) can now close between `attach_pane`
+    /// cloning the worker's own `AttachSender` and `arm_attachment`
+    /// running. No real race is needed to prove `arm_attachment`'s own
+    /// answer in that case: calling it, by hand, after the pane is
+    /// already gone, is the exact state a real race would produce.
+    #[test]
+    fn arm_attachment_answers_false_once_the_pane_has_already_closed() {
+        use steg_sdk::{ClientKind, Request};
+
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+
+        let session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let (pane, target) = {
+            let state = runtime.state.lock().unwrap();
+            let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            (pane, format!("{session_id}/{}/{pane}", tab.id()))
+        };
+
+        let client = runtime.connect_client(ClientKind::Cli, None);
+        let outbound = Arc::new(Outbound::new());
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params: serde_json::json!({"target": target.clone()})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        let (_, attachment_id) = runtime
+            .attach_pane(
+                &description,
+                &context,
+                super::Attaching {
+                    client,
+                    id: 1,
+                    stream: 1,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("the pane is still there - this attach must succeed");
+
+        // Simulates the window `attach_pane`'s own released lock opened:
+        // the pane closes after a client is told it attached (the
+        // reply above already went out) but before `arm_attachment`
+        // ever runs - `--force`, since a shell left running counts as
+        // still running from the kernel's own point of view.
+        let close_request = Request {
+            method: "pane.close".to_string(),
+            params: serde_json::json!({"target": target, "force": true})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        match runtime.handle(&description, &context, &close_request) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.close failed: {error:?}"),
+        }
+
+        let armed = runtime.arm_attachment(pane, attachment_id, outbound);
+        assert!(
+            !armed,
+            "arm_attachment must answer false once the pane it was meant for has \
+             already closed, not arm a worker that no longer has anywhere to send \
+             anything"
         );
     }
 

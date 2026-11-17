@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from steg_tools.quiet import failed_report, passed_line, slug, split_arguments, tail
+from steg_tools.quiet import failed_report, passed_line, slug, split_arguments, tail, timed_out_report
 
 
 def test_a_pass_is_one_line() -> None:
@@ -26,6 +26,17 @@ def test_a_failure_shows_the_end_of_the_output_and_where_the_rest_is() -> None:
 
 def test_short_output_is_shown_whole() -> None:
     assert tail("a\nb", 60) == "a\nb"
+
+
+def test_a_timeout_names_the_bound_and_how_long_it_ran() -> None:
+    report = timed_out_report("tests (steg-server)", 300.0, 301.2, "a\nb\nc", Path(".quiet/tests.log"), limit=2)
+    assert report.splitlines() == [
+        "TIMED OUT tests (steg-server) (bound 300s, ran 301.2s)",
+        "... 1 earlier lines left out ...",
+        "b",
+        "c",
+        "full output: .quiet/tests.log",
+    ]
 
 
 def test_arguments_need_a_label_a_separator_and_a_command() -> None:

@@ -3,13 +3,14 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:21:00Z'
+updated_date: '2026-11-17T05:34:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review", "testing"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1113,6 +1113,25 @@ created: 2026-11-17T05:21:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T05:34:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Bugs, Important] crates/server/tests/support/mod.rs:136-140 vs :144-149 (watchdog closure vs the main thread's detected.store+reap), and the invariant claimed at :59-68: wait_child_bounded's watchdog checks `detected` (:138) and acts on it - `timed_out.store` + `signal::kill` (:139-140) - as two separate, unsynchronized operations against the main thread's own `detected.store(true)` (:145) then `child.wait()` reap (:147-149). The doc comment at :59-68 claims this makes a kill from the watchdog "always safe here, however the two threads happen to interleave" - that is false on at least one interleaving: the watchdog's load at :138 can read `false` and then be descheduled before reaching :140; in that window the main thread can finish `wait_for_exit_without_reaping`, store `detected=true`, and run the real `child.wait()` reap to completion; when the watchdog resumes it still fires `signal::kill(pid, SIGKILL)` at :140 against a pid this process no longer owns, which the OS could by then have reassigned to an unrelated process. This is the same class of race the first review flagged (an unsynchronized check racing a reap), narrowed from "any real reap" to this specific check-then-act gap, not eliminated by reordering the store before the reap. A real fix needs the decision and the kill to share one lock with the reap (e.g. a Mutex the watchdog holds while checking-and-killing and the main thread holds while reaping-and-marking), not two independently-timed atomics. I did not fault the unsafe/libc machinery itself: nix 0.28.0's own `sys::wait::waitid` cfg excludes apple_targets (confirmed reading its source, locked in Cargo.lock), libc 0.2.191 (also locked) defines `waitid`/`P_PID`/`WEXITED`/`WNOWAIT`/`id_t` for apple with a signature matching the call site, the `unsafe` blocks' own reasoning (zeroed siginfo_t is a valid bit pattern, pointer validity, EINTR retry, return value checked) holds, and placing this in its own dedicated tests/support module behind a safe function matches rust.md's "one small module per foreign interface, behind a safe API."
+
+[Nit] tools/src/steg_tools/quiet.py:47 (DEFAULT_TIMEOUT_S = 900.0): a further disclosed departure from the plan's 600s (already a departure from the first shipped 300s, which review #1 flagged as a Nit). The reasoning checks out: test-openpty-race-control's own CONTROL_SAFETY_NET really is 600s (tests/openpty_race.rs:93), and every step `just check` depends on (check-fmt, lint, check-boundaries, check-foundations, check-foundations-public-surface, check-design, deny, test/check-packages, test-tools, check-architecture, check-recipes, check-ui-levels, check-ui-colours) routes through `{{quiet}}` in the justfile, whose bound is `STEG_QUIET_TIMEOUT_S` or this same default (verified in quiet.py's timeout_seconds()). On criterion 3's own arithmetic: this branch's own recorded CI runs were 6m21s and 8m48s (528s); one step consuming its full 900s bound in place of its own normal ~30s contribution gives roughly 528-30+900 = ~1398s (~23.3 min) against the 30-minute job limit - it fits, with ~6-7 minutes to spare, given the hang's historical position mid-suite (the race/pty-race/accept-backoff cluster) rather than after every other step. Nit, not Important: disclosed with real numbers, and a loose bound's false TIMED OUT is louder and more recoverable than a tight one's pre-emption of a test's own message.
+
+Evidence, checked and satisfied (no finding): all four negative-control pairs this task's mechanisms need (outbound.rs's close-on-broken-write, test_support.rs's run_bounded timeout, quiet.py's killpg, and support/mod.rs's watchdog kill) are recorded via asdlc record-check between 2026-11-17T05:03:28 and 05:05:55 UTC, strictly after the fix commit 0ee7df1a (05:01:53 UTC) that touches both files, and no later commit before the branch head (db191fde) edits either file again (checked via git log). Each failing half failed for its stated reason (an assertion mismatch for outbound.rs; two assertion failures on elapsed time/sentinel for quiet.py's functional test; a TIMED OUT via steg-quiet, the sanctioned way to bound a hang, for both run_bounded's and wait_child_bounded's own controls), not an unrelated one. I repeated the watchdog-kill control myself in the review worktree: commented out `signal::kill` at mod.rs:140, ran `cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` under steg-quiet's default 900s bound - it failed (the disabled path now blocks for the real child's full 30s lifetime instead of the 300ms bound before panicking on its own elapsed-time assertion), confirming the kill is load-bearing. Reverted; `git status --short` clean; `ps` showed no leftover sleep/race process.
+
+What I did not check: did not run `just check` myself (relied on this head's CI green at db191fde plus the targeted cargo/pytest runs above, within the review's own time budget); did not re-derive whether a true mutex-based fix would itself introduce new deadlock risk (out of scope - this review only judges the diff as submitted); did not read portable_pty's spawn path (TASK-1.124's own scope, not this task's).
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T16:30:00Z'
+updated_date: '2026-11-17T16:37:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1545,6 +1545,43 @@ Commits since the review: 0.
 5. Added the socket-level TASK-1.125 race test the team-lead asked for (a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach, crates/server/tests/attach.rs): connection one floods the stuck pane's stdin (same large, deterministic batch as the lock-contention test above, not a fixed small one - needed so connection two's queued attach reliably has not drained by the time the race runs), connection two's pane.attach queues behind it, connection one force-closes the pane (Runtime's own close-and-force removes the pane from its map under the lock before force_end's own signal/kill passes even run, so the race's trigger does not depend on force_end's timing at all), connection two's queued attach then resolves against a still-alive worker thread, and a later pane.detach for that target is the real check. Deterministic across repeated runs (4/4 clean both ways). Recorded failing against a reverted arm_attachment (armed unconditionally, TASK-1.125's own bug - the detach then succeeded) and passing against the real one, both via asdlc record-check.
 
 One finding while building it, worth flagging rather than silently matching: the exact error code pane.detach answers with here is NoSuchTarget, not BadRequest. pane.close --force removes the pane from the kernel's own tree too, not only from the worker map, so resolve_pane_target fails outright for this target regardless of which connection asks - connection.rs's own already-closed-pane fallback only helps a connection whose pane_streams already held a real entry for it, which this connection's never did (arm never succeeded). BadRequest ("no attachment") is what a merely-never-attached-but-still-live pane answers with (detaching_a_pane_this_connection_never_attached_to_is_a_bad_request); NoSuchTarget here is arguably the more precise of the two, not a regression - the test asserts on it and explains why in its own doc comment.
+
+Check passed: `just check` exited 0 at 2026-11-17T16:37:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc:
+
+```text
+ok      format check (0.3s)
+ok      lint (32.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (79.4s)
+ok      build (steg-sdk) (0.9s)
+ok      test (steg-sdk) (3.0s)
+ok      test (steg-sdk, local-socket) (3.8s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (29.1s)
+ok      test (steg-server) (57.6s)
+ok      test (steg-server, race-fixture) (60.4s)
+ok      test (steg-server, pty-race-fixture) (68.7s)
+ok      test (steg-server, accept-backoff-fixture) (62.8s)
+ok      build (steg) (1.9s)
+ok      test (steg) (4.8s)
+ok      test (steg, fixtures) (13.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.7s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 105, 93 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

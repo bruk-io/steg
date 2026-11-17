@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:45:00Z'
+updated_date: '2026-11-17T22:51:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.128-server-and-app-an-attached-client-is
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'ffc63839f742'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -431,3 +434,16 @@ Split by @bruk.o on 2026-11-17, as the plan recommended: this task keeps the wir
 
 Plan (ffc63839f742) checked against doc-14 and decision-2 by @bruk.o: ok. It builds only the server/sdk half after the split; the final update's shape and ordering match the task description; proof maps to the four criteria, with the forced-close and attach-after-end socket tests covering the two bugs the first draft had. The contract text (doc-14 bullet, decision-2 section 3 addendum by its own PR) is the orchestrator's to make, timed with the build. Three open questions go to the engineer with the plan: Closed carries no exit code; PROTOCOL_VERSION stays 1; server stop is best-effort.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-17T22:51:00Z
+
+---
+
+Plan approved by @bruk (ffc63839f742, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

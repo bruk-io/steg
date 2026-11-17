@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T03:37:00Z'
+updated_date: '2026-11-17T03:52:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -31,3 +31,9 @@ Found by the engineer on 2026-11-16, running the bare window with typing: the te
 - [ ] #4 The pull request has an image of a long line with the cursor at its end, and of a listing in columns, taken with nothing personal on screen
 - [ ] #5 The notes say whether steg should ship JetBrains Mono inside the app so the design's first choice is always there, with its licence, for the engineer to decide; nothing is bundled in this task
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From the engineer's second run, 2026-11-16, after installing JetBrains Mono: the spacing is right and the cursor sits where it should, which confirms the cause. One more thing visible in that screenshot, for the plan to settle: the text starts hard against the window's left edge with no inset, and the first column looks shaved by a few pixels (the prompt's arrow, the caret of ^C and a cursor in column 0 all look cut on their left side). Check whether glyphs or the cursor in column 0 are clipped by the element's bounds, and whether the design gives the terminal an inset inside its pane (doc-10, doc-17, the design's Layout page); if the inset belongs to the pane work (TASK-1.55), say so and make sure column 0 is at least fully drawn here.
+<!-- SECTION:NOTES:END -->

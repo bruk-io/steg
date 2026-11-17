@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:09:00Z'
+updated_date: '2026-11-17T04:15:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -487,6 +487,41 @@ warning: build failed, waiting for other jobs to finish...
 error: could not compile `steg-server` (test "openpty_race") due to 1 previous error
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T04:15:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (29.6s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (31.1s)
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.8s)
+ok      build (steg-kernel) (40.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (28.7s)
+ok      test (steg-server) (27.1s)
+ok      test (steg-server, race-fixture) (27.9s)
+ok      test (steg-server, pty-race-fixture) (33.5s)
+ok      test (steg-server, accept-backoff-fixture) (29.4s)
+ok      build (steg) (2.3s)
+ok      test (steg) (2.3s)
+ok      test (steg, fixtures) (7.0s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

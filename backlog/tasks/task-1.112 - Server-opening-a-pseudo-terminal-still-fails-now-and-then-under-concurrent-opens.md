@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:25:00Z'
+updated_date: '2026-11-17T00:29:00Z'
 labels:
   - size-2
   - changes-requested
@@ -643,6 +643,43 @@ Proof, recorded via asdlc record-check throughout:
 - A temporary CI workflow step gathered CI's own numbers for both tests, then was reverted (764a9d2) before this PR's head.
 
 just check is green on the final head (CI run 43944340331, 7m20s). Two merge-conflict fixups (RealLauncher/SpawnedProgram call sites TASK-1.98's own merged work added) are in a separate, clearly-labelled commit.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:29:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe:
+
+```text
+ok      format check (0.4s)
+ok      lint (7.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (1.0s)
+ok      test (steg-sdk) (2.7s)
+ok      test (steg-sdk, local-socket) (3.0s)
+ok      build (steg-kernel) (1.4s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.5s)
+ok      test (steg-server) (25.5s)
+ok      test (steg-server, race-fixture) (25.6s)
+ok      test (steg-server, pty-race-fixture) (33.6s)
+ok      test (steg-server, accept-backoff-fixture) (26.3s)
+ok      build (steg) (2.5s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (2.6s)
+ok      build (steg-app) (2.3s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

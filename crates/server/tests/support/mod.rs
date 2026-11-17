@@ -5,9 +5,9 @@
 //! so this duplicates the same shape rather than hiding the gap.
 
 use std::process::{Child, ExitStatus};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use nix::libc;
@@ -110,39 +110,83 @@ fn wait_for_exit_without_reaping(pid: libc::pid_t, label: &str) {
 /// same pid-signalling question this function answers directly, for no
 /// benefit over keeping `child` as `&mut` here.
 ///
-/// A watchdog thread races the real wait: it sleeps for `bound`, then -
-/// only if the child has not been confirmed exited yet - sends
-/// `SIGKILL`. The calling thread itself blocks in
-/// [`wait_for_exit_without_reaping`] (not a sleep-poll: one blocking
-/// call, woken by the real event), marks the child as detected once
-/// that returns, *then* reaps it with the ordinary, now-fast
-/// `child.wait()`. Signalling only ever reaches this process's own,
-/// still-unreaped child (see that function's own doc for why) - the
-/// watchdog thread is never joined, for the same reason `run_bounded`'s
-/// own doc gives: once its `sleep` finally ends, it finds the flag
-/// already set and does nothing, which is harmless, and joining it
-/// would cost every call the *whole* bound even on the happy path
-/// (found exactly this way while building this task:
-/// `eight_simultaneous_starts_leave_exactly_one_server` went from a
-/// fraction of a second to 80s before this was caught).
+/// # The invariant that makes the watchdog's kill safe
+/// A watchdog thread races the real wait: it sleeps for `bound`, then
+/// checks-and-kills under `finished`'s own lock. That check and that
+/// kill happen as one critical section - never a load followed by a
+/// separate store, which is what the first version of this function got
+/// wrong (a review caught it): the watchdog takes the lock, and only
+/// while still holding it does it decide whether to signal, so nothing
+/// else can run between "decided not finished yet" and "sent the kill".
+///
+/// The calling thread's own side of the same lock is what closes the
+/// race: it blocks in [`wait_for_exit_without_reaping`] first - the
+/// child becomes a zombie, still owning its own pid, the moment that
+/// returns, *before* anything here touches the lock - then takes the
+/// *same* lock to set `finished = true`, and only *after* releasing it
+/// does it call the ordinary, now-fast `child.wait()` to actually reap.
+/// A `Mutex` serialises every acquisition, so exactly one of two things
+/// is true for any given moment the watchdog might wake: either it
+/// acquires the lock first (the calling thread hasn't set `finished`
+/// yet, so the reap hasn't happened yet either - the kill lands on a
+/// still-owned, at-worst-zombie child), or the calling thread already
+/// has or had the lock (in which case the watchdog, once it finally
+/// acquires it, sees `finished == true` and sends nothing). A kill can
+/// only be sent while holding the lock with `finished` still false; a
+/// reap can only happen after the calling thread has held that same
+/// lock and set `finished` - so a kill can never follow a reap, however
+/// the two threads interleave. Nothing blocking happens while the lock
+/// is held (the kill itself is non-blocking; `waitid` and the real
+/// `wait()` both run outside it), so there is no deadlock risk either.
+/// A poisoned lock is handled, not panicked on, in both places -
+/// neither critical section here can itself panic, but recovering the
+/// guard rather than unwrapping costs nothing and keeps a poison
+/// anywhere else from turning this helper into a second failure.
+///
+/// The watchdog thread is never joined, for the same reason
+/// `run_bounded`'s own doc gives: once its `sleep` finally ends, it
+/// either already lost the lock race (nothing to do) or still runs its
+/// own quick critical section and returns - either way abandoning the
+/// `JoinHandle` costs nothing, and joining it would cost every call the
+/// *whole* bound even on the happy path (found exactly this way while
+/// building this task: `eight_simultaneous_starts_leave_exactly_one_
+/// server` went from a fraction of a second to 80s before this was
+/// caught).
+///
+/// A deterministic test of the closed interleaving itself is not
+/// practical - the race this fixes is a window measured in nothing a
+/// test could reliably hold open on demand. This rests on the invariant
+/// above and the `Mutex`'s own documented semantics, not on a test that
+/// forces the two threads through a particular order.
 pub fn wait_child_bounded(label: &str, child: &mut Child, bound: Duration) -> ExitStatus {
     let raw_pid = child.id() as libc::pid_t;
     let pid = Pid::from_raw(raw_pid);
 
-    let detected = Arc::new(AtomicBool::new(false));
+    let finished = Arc::new(Mutex::new(false));
     let timed_out = Arc::new(AtomicBool::new(false));
-    let watchdog_detected = Arc::clone(&detected);
+    let watchdog_finished = Arc::clone(&finished);
     let watchdog_timed_out = Arc::clone(&timed_out);
     let watchdog = std::thread::spawn(move || {
         std::thread::sleep(bound);
-        if !watchdog_detected.load(Ordering::SeqCst) {
+        let finished = watchdog_finished
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        if !*finished {
             watchdog_timed_out.store(true, Ordering::SeqCst);
             let _ = signal::kill(pid, Signal::SIGKILL);
         }
+        // `finished` is intentionally left as it was: this thread only
+        // ever decides whether to kill, never claims to have reaped.
     });
 
     wait_for_exit_without_reaping(raw_pid, label);
-    detected.store(true, Ordering::SeqCst);
+    {
+        let mut finished = finished.lock().unwrap_or_else(PoisonError::into_inner);
+        *finished = true;
+        // Released here, strictly before the real reap below - the
+        // watchdog can only ever see `true` once this has happened, and
+        // can only ever act while this has *not* happened, never both.
+    }
 
     let status = child
         .wait()

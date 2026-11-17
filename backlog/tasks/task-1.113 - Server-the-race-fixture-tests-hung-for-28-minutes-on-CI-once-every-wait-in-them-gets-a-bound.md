@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:03:00Z'
+updated_date: '2026-11-17T04:04:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -334,6 +334,51 @@ test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
 test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
 
      Running tests/socket_mode.rs (target/debug/deps/socket_mode-5b738c682df06af0)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `cargo test -p steg-server --features pty-race-fixture` exited 0 at 2026-11-17T04:04:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes, last 40 of 500 lines:
+
+```text
+kill: 57058: No such process
+kill: 57060: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 56962: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+kill: 56973: No such process
+kill: 56975: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 57029: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.10s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-ea9d4bbecb02e2c9)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-4e1e3a14870d2373)
 
 running 1 test
 test the_socket_is_0600_even_under_a_permissive_umask ... ok

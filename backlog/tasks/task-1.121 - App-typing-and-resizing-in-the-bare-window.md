@@ -1,13 +1,14 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T22:58:00Z'
+updated_date: '2026-11-17T23:08:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -22,8 +23,10 @@ asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=0'
+asdlc_review_policies: ["review", "app"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1712,6 +1715,29 @@ created: 2026-11-17T22:58:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T23:08:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 0 nit. Cites: review, app. The diff does not match the plan.
+
+[Bugs, Important] crates/app/src/client.rs:111-115,123-130 (Writer::send_input/declare_size): every call does a synchronous, blocking `write_all` on the window's own socket handle directly from the GPUI main/UI thread (on_key_down and replace_text_in_range in main.rs both call into this with no await, no channel, no timeout, and no set_nonblocking anywhere in this crate - confirmed by grep). If the server-side read for this connection ever stalls - the task's own plan names a related freeze ("a pane whose program never reads its input freezes that pane's own screen until the program reads, ends, or is force-closed", §"For the engineer" point 5) - or a large Cmd-V paste (§"For the engineer" point 3, sent as one send_input call with no size cap) exceeds the kernel's own socket send buffer while the peer is slow to drain it, this write blocks forever and freezes the whole app's render/input thread, not just one pane's screen. Nothing in the notes discusses this risk and no test exercises a slow/stalled peer on this path (only a clean write and an already-shut-down socket are tested). Needs either a bounded write (SO_SNDTIMEO/set_write_timeout), a dedicated writer thread fed by a channel, or a documented, tested bound on how much can ever be in flight before send_input is called.
+
+[Compliance, Important] crates/app/src/main.rs:325-335 (EntityInputHandler::marked_text_range): returns `Some(0..0)` for every open composition, regardless of the marked text's own length, departing from the plan's own specified expression (§2: `self.marked.as_ref().map(|s| 0..s.encode_utf16().count())`) with no mention of the change in the notes or comments. This value is not cosmetic - GPUI's pinned 0.2.2 macOS backend (platform/mac/window.rs:2177-2182) hands it straight to AppKit as `NSTextInputClient.markedRange`, which AppKit uses to compute the `replacement_range` it passes into the next `setMarkedText:`/`replace_and_mark_text_in_range` call. Always reporting a zero-width range is only safe for a single-unit dead-key composition (the only case this PR's own tests exercise, ime.rs); a multi-character composition (Pinyin/Hangul assembly, a longer emoji-picker candidate) would have AppKit believe nothing is marked yet, risking duplicated or garbled composition content - untested in both directions. This is also exactly the kind of thing the repository's own app.md rule asks to be a plain, tested function ("what can be decided without a window is a plain function tested without one") - the plan's own formula was such a function; what shipped is a hardcoded constant in main.rs instead.
+
+[Compliance/Evidence, Important] crates/app/src/keys.rs:412-461 (the_table_covers_every_named_key_this_module_maps): the plan's own §6 proof step for this test was "a second assertion per printable/control row that the table has no row this test doesn't cover, so a row added to the plan's own prose without a matching assertion fails the build, not just a missed case." What shipped instead is a fixed, hardcoded list of 18 key-name strings asserted against the test's own `table()` fixture, never against `named_key_bytes`'s own match arms - adding, removing or renaming a row in `named_key_bytes` would not fail this test or the build either way. It also only names 4 of the module's 8 function-key rows (f1, f4, f5, f12; f2/f3/f6-f11 absent). The notes and comments say nothing about this proof step being built differently from the plan.
+
+Verified the keys.rs control myself: reverted a scratch edit removing the `"tab" if shift => b"\x1b[Z"` arm (making Tab and Shift-Tab share a byte, the exact example the plan's own §6 names) and `cargo test -p steg-app --bin steg-app keys::tests::` failed `every_row_in_the_plans_own_table_maps_as_the_plan_says` exactly as the worker's recorded control claims; reverted immediately, `git status` on the review worktree confirmed clean afterward. That control is sound - my finding above is about the second, coverage-completeness test next to it, not this one.
+
+Recorded checks are against 2c127d4f, matching the branch's current head; PR 71's CI is green on the same commit. The two PNGs held off-PR (task-1121-typing.png, task-1121-resize.png) do show what the PR and notes claim: typing.png shows `echo final-check` with its output and a fresh prompt; resize.png shows the same scrollback in a visibly wider window with `stty size` reporting `32 141`, consistent with a resize having been declared and drawn. I could not open the .mov with my own tools - not checked. The PR body accurately states the images/recording are held by the orchestrator pending the engineer's own upload (AC #4's first clause is therefore not yet met on the PR itself, but this is the disclosed, expected state per the claim, not a new finding). Merge history reviewed in full (comments #2, #8, #9): confirmed nothing from TASK-1.126 (font-family resolution tests, cell_origin, per-glyph safety checks, run_key hashing) or TASK-1.117 (the three-state startup slot's own tests) was lost - all still present and passing. The crates/server/src/connection.rs change is a pure match-arm reorder from a merge, no semantic change.
+
+Not checked: the .mov recording's contents; whether the plan-approval hash still matches the plan as shipped beyond what the notes already state; any machine other than this one.
 
 ---
 <!-- COMMENTS:END -->

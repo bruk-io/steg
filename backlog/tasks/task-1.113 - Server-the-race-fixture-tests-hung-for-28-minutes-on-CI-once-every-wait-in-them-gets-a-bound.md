@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:56:00Z'
+updated_date: '2026-11-17T04:57:00Z'
 labels:
   - size-2
   - changes-requested
@@ -753,6 +753,14 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 2 filtered out; 
 error: test failed, to rerun pass `-p steg-server --test openpty_race`
 full output: .quiet/openpty-race-control.log
 error: recipe `test-openpty-race-control` failed on line 149 with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just test-openpty-race-control` exited 0 at 2026-11-17T04:57:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at dc5ac181fb37 with uncommitted changes:
+
+```text
+ok      openpty race control (0.7s)
 ```
 
 Commits since the review: 0.

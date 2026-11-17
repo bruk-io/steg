@@ -7,11 +7,15 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:04:00Z'
+updated_date: '2026-11-17T04:37:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
+references:
+  - task-1.113-server-the-race-fixture-tests-hung-for
+  - https://github.com/bruk-io/steg/pull/69
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -19,6 +23,10 @@ asdlc_branch: task-1.113-server-the-race-fixture-tests-hung-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -391,6 +399,185 @@ running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `just test-openpty-race-control` exited 101 at 2026-11-17T04:08:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+FAILED  openpty race control (exit 101, 214.2s)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_with_no_retry_the_permanent_control_eventually_fails has been running for over 60 seconds
+
+thread 'cross_process_opens_with_no_retry_the_permanent_control_eventually_fails' (50293704) panicked at crates/server/tests/openpty_race.rs:408:5:
+expected at least one failure within 100000 real cross-process opens with retry forced off (max_open_attempts = 1) - reaching the bound with none seen means the race was not reproduced on this run (saw 100000 opens, 0 failures); see the task's own notes before weakening or deleting this test
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cross_process_opens_with_no_retry_the_permanent_control_eventually_fails ... FAILED
+
+failures:
+
+failures:
+    cross_process_opens_with_no_retry_the_permanent_control_eventually_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 214.05s
+
+error: test failed, to rerun pass `-p steg-server --test openpty_race`
+full output: .quiet/openpty-race-control.log
+error: recipe `test-openpty-race-control` failed on line 149 with exit code 101
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-17T04:08:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server/tests/openpty_race.rs:340:
+         // reader thread has already returned in the overwhelming
+         // majority of cases - bounded all the same, rather than a bare
+         // `join()` that could block indefinitely if it has not.
+[31m-        run_bounded(&format!("reader thread {worker} to end"), STOP_TIMEOUT, move || {
+(B[m[31m-            let _ = handle.join();
+(B[m[31m-        });
+(B[m[32m+        run_bounded(
+(B[m[32m+            &format!("reader thread {worker} to end"),
+(B[m[32m+            STOP_TIMEOUT,
+(B[m[32m+            move || {
+(B[m[32m+                let _ = handle.join();
+(B[m[32m+            },
+(B[m[32m+        );
+(B[m     }
+ 
+     let total_opens: u64 = done.iter().map(|d| d.map_or(0, |(t, _)| t)).sum();
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T04:09:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes, last 40 of 65 lines:
+
+```text
+    Checking resvg v0.45.1
+    Checking icu_properties v2.4.0
+    Checking icu_normalizer v2.4.0
+    Checking half v2.7.1
+   Compiling toml v0.8.23
+   Compiling naga v25.0.1
+    Checking tiff v0.11.3
+    Checking exr v1.74.3
+   Compiling cbindgen v0.28.0
+    Checking idna_adapter v1.2.2
+    Checking idna v1.1.0
+    Checking url v2.5.8
+    Checking zed-reqwest v0.12.15-zed
+    Checking ravif v0.13.0
+    Checking gpui_http_client v0.2.2
+    Checking image v0.25.10
+    Checking blade-graphics v0.7.1
+    Checking blade-util v0.3.0
+   Compiling gpui v0.2.2
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/app)
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/steg)
+error: `allow` attribute without specifying a reason
+  --> crates/server/tests/support/mod.rs:28:1
+   |
+28 | #[allow(dead_code)]
+   | ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: try adding a reason at the end with `, reason = ".."`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#allow_attributes_without_reason
+   = note: requested on the command line with `-D clippy::allow-attributes-without-reason`
+
+error: could not compile `steg-server` (test "race") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (test "openpty_race") due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T04:15:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (29.6s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (31.1s)
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.8s)
+ok      build (steg-kernel) (40.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (28.7s)
+ok      test (steg-server) (27.1s)
+ok      test (steg-server, race-fixture) (27.9s)
+ok      test (steg-server, pty-race-fixture) (33.5s)
+ok      test (steg-server, accept-backoff-fixture) (29.4s)
+ok      build (steg) (2.3s)
+ok      test (steg) (2.3s)
+ok      test (steg, fixtures) (7.0s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.6s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T04:19:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at dc5ac181fb37:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (29.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.7s)
+ok      test (steg-server) (25.8s)
+ok      test (steg-server, race-fixture) (28.2s)
+ok      test (steg-server, pty-race-fixture) (33.6s)
+ok      test (steg-server, accept-backoff-fixture) (29.1s)
+ok      build (steg) (0.7s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (8.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Built per the approved, revised plan. Root cause (AC #1): confirmed via the toolchain's own std source (sys/net/connection/socket/unix.rs) that UnixStream::pair/accept cannot set CLOEXEC atomically on macOS; a fork from another thread of the same test binary (signal.rs, login_env.rs, pty.rs, pane.rs all fork real processes) can inherit the dropped client fd before close() lands, keeping the write from failing. Reproduced directly (scratch probe, not committed): 0/800,000+ failures with nothing else forking, ~1 in 4 successes with 8 threads forking concurrently. connection.rs's own ConnectionCleanup::drop confirms close() always runs on every production exit path, so this is a test-only defect, not a product bug.
+
+Fix: a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails now uses a sink that always fails (AlwaysFailsToWrite) instead of a dropped-peer socket, removing the dependency on fork timing entirely; also wrapped in the new run_bounded helper as a second, independent guard. Added crates/server/src/test_support.rs (run_bounded, ClosingWriterGuard - the latter gives the four spawn-then-assert outbound.rs tests panic-safe cleanup, mirroring connection.rs's own Drop idiom; stated as hygiene, not a fix for the hang). Added crates/server/tests/support/mod.rs (same run_bounded shape plus wait_child_bounded, a watchdog-thread design, not a sleep-poll) and wired it into race.rs (the kill()-then-wait() sites) and openpty_race.rs (replacing wait_timeout_or_kill's 5ms poll, per TASK-1.82's own forward reference, and bounding the reader-thread join). ReapOnDrop's own Drop impls in both files are left as plain kill()+wait(): wait_child_bounded panics on timeout, and a panic inside Drop during an unwind would abort the process rather than report one clean failure - documented inline.
+
+steg-quiet (tools/src/steg_tools/quiet.py) now bounds every just check step independently of Rust-level coverage: Popen with start_new_session=True, killpg on a per-step timeout (STEG_QUIET_TIMEOUT_S, default 300s). Default set from real recorded timings: 132.2s was the slowest step seen across ~15 sampled CI runs, 109.2s the slowest single-package step, 92s a cold full-workspace build with no cache at all on this machine; no CI run sampled ever hit a cold Zig/ghostty-vt build (cache stayed warm every time), so 300s clears every observed case with real headroom and still leaves CI's 30-minute job limit room to report several timeouts rather than exhaust it on one.
+
+Checks recorded via asdlc record-check: cargo test -p steg-server --lib (193 passed); cargo test -p steg-server --features race-fixture (full crate); cargo test -p steg-server --features pty-race-fixture (full crate); just test-openpty-race-control (re-run per the plan's own risk - one run missed the reproduction at 0/100,000, a second run reproduced in 0.8s, both within the control's own documented variance, nothing weakened); just test-tools (new quiet.py unit + functional tests, including a real grandchild-process-and-sentinel-file proof that killpg reaches the whole group, not only the direct child); just check, full workspace, twice (once before, once after rebasing onto origin/main's latest board commits).
+
+Two negative controls run by hand, not committed, not posted as raw output (description only, per the safety rule): reverting outbound.rs's close()-on-broken-write made the rewritten test fail with a clear assertion mismatch, confirming it still tests what it claims; reverting run_bounded's own timeout (rx.recv() instead of recv_timeout) made its own negative-control test hang indefinitely (confirmed by wrapping it in an external 8s timeout, which fired), confirming the bound mechanism itself is load-bearing. Both restored and re-verified passing before any check was recorded.
+
+Scope: criterion 2 was narrowed to outbound.rs, race.rs and openpty_race.rs per the engineer's split (TASK-1.123 for the wider sweep, TASK-1.124 for the accept()/portable_pty product question) before this build started. ps checked clean of leftover processes after every run. PR #69, CI green (6m21s, gh pr checks --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -426,6 +613,39 @@ created: 2026-11-17T03:40:00Z
 ---
 
 Plan approved by @bruk (2eb24f415089, size-2): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:27:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:37:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, testing. The diff matches the plan.
+
+[Bugs, Important] crates/server/tests/support/mod.rs:58-93 (wait_child_bounded, used by race.rs:153,156 and openpty_race.rs): the watchdog thread captures `pid` once, sleeps the full `bound`, then checks `finished` and sends SIGKILL with no synchronization against the main thread's `child.wait()`. `child.wait()` reaps the process (freeing its pid for OS reuse) before `finished.store(true)` runs; if the watchdog wakes in that gap it sees `finished == false` and signals the captured pid, which could by then belong to an unrelated process. The doc comment at :76-85 justifies not joining the watchdog but never addresses pid reuse. This is exactly the class of race the task's own root cause is (an unsynchronized check racing a fork/reap), reintroduced in the fix meant to guard against hangs.
+
+[Evidence, Important] Two of the three negative controls this task's mechanisms need have no recorded failing/passing pair, and one has no control at all:
+- crates/server/src/outbound.rs (a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails) and crates/server/src/test_support.rs (run_bounded's own timeout): the task's Implementation Notes say both controls were "run by hand, not committed." I repeated the outbound.rs one myself in a scratch edit (removed outbound.close() from run_writer's broken-write branch, confirmed the test fails with a clear assertion mismatch, reverted; git status clean) - it holds, but the task has no recorded pair for it, and I did not repeat run_bounded's own control.
+- tools/src/steg_tools/quiet.py's process-group kill (_kill_group, tested by tools/tests/functional/test_quiet_timeout.py, the mechanism behind AC #3): no control is claimed or recorded at all. I ran one myself (disabled the killpg call, confirmed both functional tests fail - 10s instead of <2s, sentinel file written - reverted; git status clean): the mechanism is load-bearing, but the worker never performed or disclosed this control.
+Per the team's testing rule, a control counts only as a recorded pair against the test as it stands; a hand-run or missing control is a finding regardless of my own after-the-fact repeats.
+
+[Nit] tools/src/steg_tools/quiet.py:38 (DEFAULT_TIMEOUT_S = 300.0): a disclosed departure from the approved plan's stated default of 600s, with real numbers (132.2s slowest observed CI step, 109.2s slowest single-package step, 92s a cold local build) - not an undisclosed departure. But the notes concede the one case the plan named by name, a cold Zig/ghostty-vt build, was never actually measured ("cache stayed warm every time"). The nearest observed data point in this branch's own recorded checks is just-test-openpty-race-control at 214.2s (71% of the new bound) for an #[ignore]d test outside just check. Worth another look at whether 300s has real headroom for the one case it was meant to protect, though the bound is env-overridable and a false timeout is loud and recoverable.
+
+[Nit] The approved plan's own Order of work and Proof sections label the quiet.py step-bound work "AC #4" when it is actually AC #3 by the task's own numbering - a pre-existing plan quirk, not introduced by this build, but worth a one-line fix for a future reader.
+
+What I did not check: did not run `just check` myself (ran targeted cargo test / pytest for the controls instead, within the 40-minute budget); did not repeat run_bounded's own recv_timeout-vs-recv() control; did not read portable_pty's spawn path (correctly out of scope - TASK-1.124).
 
 ---
 <!-- COMMENTS:END -->

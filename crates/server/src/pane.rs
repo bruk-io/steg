@@ -56,7 +56,7 @@ use std::time::{Duration, Instant};
 
 use nix::sys::signal::Signal;
 use steg_kernel::{CommandMark, Terminal};
-use steg_sdk::{Frame, PaneId, Screen, ScreenUpdate, Size, encode_frame};
+use steg_sdk::{EndReason, Frame, PaneId, Screen, ScreenUpdate, Size, encode_frame};
 
 use crate::error::Error;
 use crate::outbound::{EnqueueDataError, Outbound};
@@ -390,6 +390,18 @@ enum PaneCommand {
     /// (`PaneHandle::shutdown`'s own long-named gap: this alone does not
     /// reliably end a still-running program).
     Shutdown,
+    /// This pane is being closed (TASK-1.128): no payload, no reply, the
+    /// same fire-and-forget shape `PaneHandle::signal_hangup`'s own
+    /// command-queue siblings use. Sent by `Runtime::force_end`'s own new
+    /// first pass, *before* it signals anything - strictly ordered ahead
+    /// of the matching `Exited` this run's eventual death produces, by
+    /// construction: the relay thread cannot observe that death and send
+    /// `Exited` before the signal that causes it is sent, and the signal
+    /// is not sent until this pass's own loop (one send per handle) has
+    /// already returned. The worker sets `ended = Some(EndReason::Closed)`
+    /// only if nothing has already given it a more specific reason (see
+    /// the `Exited` arm's own doc) - never overwrites one.
+    MarkClosing,
     /// Replies once the current run has actually ended - immediately,
     /// **and ends the worker thread too**, if nothing is running right
     /// now (TASK-1.78 §1: the immediate-reply branch must still break the
@@ -693,6 +705,16 @@ impl PaneHandle {
         let _ = self.commands.send(PaneCommand::Shutdown);
     }
 
+    /// Tells the worker this pane is being closed (TASK-1.128), over the
+    /// command queue, not `RunGate` - `Runtime::force_end`'s own new pass
+    /// 0, sent before anything else (that pass's own doc on the
+    /// `MarkClosing` variant has the full ordering argument). Fire-and
+    /// -forget, the same shape as [`PaneHandle::signal_hangup`]: nothing
+    /// here waits for an acknowledgement.
+    pub(crate) fn mark_closing(&self) {
+        let _ = self.commands.send(PaneCommand::MarkClosing);
+    }
+
     /// Signals the run's own process group (if one is running right now)
     /// with the polite signal, `SIGHUP` - straight to the OS
     /// (`crate::signal::send`), through [`RunGate::signal_if_alive`],
@@ -933,6 +955,15 @@ fn worker_loop(
     // doc for why this, not an unconditional `recv_timeout`, is what
     // makes an idle or unattached pane cost nothing.
     let mut next_tick: Option<Instant> = None;
+    // `None` until this pane has ended for the first time (TASK-1.128) -
+    // never reset back to `None` except by `PaneCommand::Resume` (a
+    // restart), since a pane does not spontaneously un-end. Read by
+    // `PaneCommand::Arm` to answer a late attachment directly, and set
+    // either by `PaneCommand::MarkClosing` (before the fact, never
+    // overwriting a more specific reason already known) or by the
+    // `Exited` arm itself (after the fact, from the real exit code, only
+    // if nothing already set it).
+    let mut ended: Option<EndReason> = None;
 
     loop {
         let command = match next_tick {
@@ -987,6 +1018,12 @@ fn worker_loop(
                     resize,
                     relay_handle,
                 });
+                // A pane does not spontaneously un-end, but a restart
+                // (TASK-1.128; test-only today - no production API calls
+                // this) does: without this, `ended` would permanently
+                // poison every future `Attach`/`Arm` on this pane, even
+                // after a real, successful new run.
+                ended = None;
                 // A retry is never silent (TASK-1.112): sent only when
                 // more than one attempt was actually needed.
                 if open_attempts > 1 {
@@ -1018,12 +1055,44 @@ fn worker_loop(
                 // longer touches it at all (TASK-1.78's review, finding
                 // 1 and its own nit).
                 let _ = events.send(PaneEvent::Exited { pane, exit_code });
+                // TASK-1.128: if `MarkClosing` already set `ended` (this
+                // exit is the result of a close in progress -
+                // `MarkClosing`'s own doc has the ordering argument for
+                // why it is guaranteed to have already run by this
+                // point, if it was ever going to run at all for this
+                // exit), that more specific reason is kept; otherwise
+                // this is a spontaneous exit, with nothing waiting for
+                // it, and the real exit code is the reason.
+                let reason = ended.unwrap_or(EndReason::ProgramExited { exit_code });
+                ended = Some(reason);
+                next_tick = None;
+                flush_ended(&mut terminal, &mut tracked_seq, &mut attachments, reason);
                 if let Some(reply) = awaiting_exit.take() {
                     let _ = reply.send(());
                     break;
                 }
             }
-            PaneCommand::Shutdown => break,
+            PaneCommand::Shutdown => {
+                // Not dead code, unlike an equivalent call on `AwaitExit`'s
+                // own immediate-reply branch below would be: this can be
+                // reached while a program is still running and attachments
+                // are still armed (`PaneHandle::shutdown`'s own doc - no
+                // production caller does this today, but this file's own
+                // unit tests do, and the worker thread really is about to
+                // end either way).
+                flush_ended(
+                    &mut terminal,
+                    &mut tracked_seq,
+                    &mut attachments,
+                    ended.unwrap_or(EndReason::Closed),
+                );
+                break;
+            }
+            PaneCommand::MarkClosing => {
+                if ended.is_none() {
+                    ended = Some(EndReason::Closed);
+                }
+            }
             PaneCommand::AwaitExit(reply) => {
                 if current.is_some() {
                     awaiting_exit = Some(reply);
@@ -1074,7 +1143,24 @@ fn worker_loop(
                 let _ = reply.send(reply_value);
             }
             PaneCommand::Arm { id, outbound } => {
-                if let Some(attachment) = attachments.iter_mut().find(|a| a.id == id) {
+                if let Some(reason) = ended {
+                    // TASK-1.128: attaching to a pane that already ended
+                    // is not a race, it is the ordinary way of looking at
+                    // one (R97 keeps a pane and its scrollback around
+                    // after its program ends) - `flush_ended` leaves
+                    // exactly this attachment in place, unarmed, for this
+                    // arm to find (see its own doc). Delivered directly,
+                    // never registered for ticking: nothing will ever tick
+                    // for this pane again on account of this attachment.
+                    if let Some(position) = attachments.iter().position(|a| a.id == id) {
+                        let attachment = attachments.remove(position);
+                        let payload = serde_json::to_vec(&ScreenUpdate::Ended { reason })
+                            .expect("ScreenUpdate always serialises to JSON");
+                        let bytes = encode_frame(&Frame::control(attachment.stream, payload))
+                            .expect("an Ended update fits under the frame cap");
+                        let _ = outbound.end_stream(attachment.stream, bytes);
+                    }
+                } else if let Some(attachment) = attachments.iter_mut().find(|a| a.id == id) {
                     attachment.outbound = Some(outbound);
                 }
                 maybe_arm_tick(&mut next_tick, attach_tick, &attachments);
@@ -1176,6 +1262,13 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
     let new_seq = match &outcome {
         ScreenUpdate::Unchanged => previous,
         ScreenUpdate::Delta { seq, .. } | ScreenUpdate::Full { seq, .. } => *seq,
+        // The kernel's own `changes_since` never produces this variant -
+        // only `flush_ended` injects it, and only after this tick has
+        // already run - but `ScreenUpdate` is shared with the wire layer,
+        // so this match must still name it.
+        ScreenUpdate::Ended { .. } => {
+            unreachable!("the kernel's own changes_since never produces Ended")
+        }
     };
 
     // `None` only if the engine's own `cols`/`rows` failed - tolerated the
@@ -1266,6 +1359,53 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
             }
         }
     }
+}
+
+/// This pane has ended: tells every attachment that can be told right
+/// now, and removes it (TASK-1.128; doc-14, "The end of a pane, on its
+/// stream"). Called from the worker's own `Exited`/`Shutdown` arms, with
+/// `reason` already decided by the caller (see those arms' own docs for
+/// how).
+///
+/// Runs one last [`run_tick`] first - AC #1's "after any screen update
+/// still owed" is not automatic: a dirtying command only *arms* a future
+/// tick deadline (`maybe_arm_tick`), it never runs one itself, and
+/// nothing will ever tick for this pane's own attachments again once this
+/// function returns, so whatever content the terminal holds that no tick
+/// has sent yet must be flushed here or it is lost. (Harmless if nothing
+/// is actually owed: `run_tick` itself already treats "nothing changed
+/// and nothing is size-stale" as a no-op.)
+///
+/// Every attachment that already has an `Outbound` to send to
+/// (`outbound.is_some()`) gets `Ended`'s own frame, via [`Outbound::
+/// end_stream`] (never a bare `enqueue_data`+`close_stream` pair - see
+/// that method's own doc for why), and is removed from `attachments`.
+/// **Every attachment that does not yet have one is left exactly as it
+/// is, not removed** - attaching to a pane that already ended is not a
+/// race, it is the ordinary way of looking at one (R97 keeps a pane and
+/// its scrollback around after its program ends), and the `Arm` that
+/// eventually arrives for it (the second, separate step of its own
+/// `pane.attach`) needs this entry's own `stream` still there to answer
+/// directly - see the worker's own `Arm` arm for the other half of this.
+fn flush_ended(
+    terminal: &mut Terminal,
+    tracked_seq: &mut u64,
+    attachments: &mut Vec<Attachment>,
+    reason: EndReason,
+) {
+    run_tick(terminal, tracked_seq, attachments);
+
+    let payload = serde_json::to_vec(&ScreenUpdate::Ended { reason })
+        .expect("ScreenUpdate always serialises to JSON");
+    attachments.retain(|attachment| {
+        let Some(outbound) = attachment.outbound.clone() else {
+            return true; // not yet armed - leave it for `Arm` to find
+        };
+        let bytes = encode_frame(&Frame::control(attachment.stream, payload.clone()))
+            .expect("an Ended update fits under the frame cap");
+        let _ = outbound.end_stream(attachment.stream, bytes);
+        false // delivered - nothing more to do for this one
+    });
 }
 
 /// Turns every [`CommandMark`] [`Terminal::take_command_marks`] has queued
@@ -2006,12 +2146,15 @@ mod attach_tests {
     use std::sync::mpsc;
     use std::time::{Duration, Instant};
 
-    use steg_sdk::{Decoder, PaneId, ScreenUpdate, Size};
+    use steg_sdk::{Decoder, EndReason, Frame, PaneId, ScreenUpdate, Size, encode_frame};
 
     use crate::outbound::{Outbound, run_writer};
     use crate::pty::{LaunchSpec, RealLauncher};
 
-    use super::{AttachState, Attachment, AttachmentId, Terminal, maybe_arm_tick, run_tick, start};
+    use super::{
+        AttachState, Attachment, AttachmentId, PaneEvent, Terminal, flush_ended, maybe_arm_tick,
+        run_tick, start,
+    };
 
     const TEST_TICK: Duration = Duration::from_millis(1);
 
@@ -2200,7 +2343,9 @@ mod attach_tests {
         assert_eq!(stream, 7);
         match update {
             ScreenUpdate::Full { seq, .. } => assert_eq!(seq, 1),
-            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => {
+            unexpected @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Delta { .. }
+            | ScreenUpdate::Ended { .. }) => {
                 panic!("expected Full, got {unexpected:?}")
             }
         }
@@ -2232,7 +2377,9 @@ mod attach_tests {
         let (_, second) = frames.next_update(Duration::from_secs(2));
         match second {
             ScreenUpdate::Delta { seq, .. } => assert_eq!(seq, tracked_seq),
-            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Full { .. }) => panic!(
+            unexpected @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Full { .. }
+            | ScreenUpdate::Ended { .. }) => panic!(
                 "a caught-up attachment's second real change must be a \
                  Delta, not a redundant Full: got {unexpected:?}"
             ),
@@ -2267,7 +2414,9 @@ mod attach_tests {
         let (_, update) = frames.next_update(Duration::from_secs(2));
         match update {
             ScreenUpdate::Full { seq, .. } => assert_eq!(seq, tracked_seq),
-            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => panic!(
+            unexpected @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Delta { .. }
+            | ScreenUpdate::Ended { .. }) => panic!(
                 "NeedsResync must get a fresh Full screen, never a Delta: \
                  got {unexpected:?}"
             ),
@@ -2334,7 +2483,9 @@ mod attach_tests {
                 );
                 assert_eq!(seq, tracked_seq);
             }
-            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => panic!(
+            unexpected @ (ScreenUpdate::Unchanged
+            | ScreenUpdate::Delta { .. }
+            | ScreenUpdate::Ended { .. }) => panic!(
                 "a stale recorded size with nothing else to report must still get a fresh \
                  Full, never Unchanged or a Delta: got {unexpected:?}"
             ),
@@ -2409,10 +2560,12 @@ mod attach_tests {
     /// Applies one [`ScreenUpdate`] onto a client's own held copy, the way
     /// a real attached client does (decision-2 section 3): `Delta`
     /// replaces only the rows it names, by position; `Full` replaces the
-    /// whole thing; `Unchanged` does nothing.
+    /// whole thing; `Unchanged` does nothing. `Ended` is not applied here
+    /// at all - a caller that cares about it checks for it before
+    /// deciding whether there is still a screen update to apply.
     fn apply_update(held: &mut steg_sdk::Screen, update: ScreenUpdate) {
         match update {
-            ScreenUpdate::Unchanged => {}
+            ScreenUpdate::Unchanged | ScreenUpdate::Ended { .. } => {}
             ScreenUpdate::Full { screen, .. } => *held = screen,
             ScreenUpdate::Delta { rows, cursor, .. } => {
                 for (position, row) in rows {
@@ -2573,5 +2726,284 @@ mod attach_tests {
         // design - see its own doc); this test's own proof is that the
         // process does not hang waiting for anything further, which the
         // test harness's own timeout already enforces for the whole test.
+    }
+
+    // --- TASK-1.128: the pane ending, on an attachment's own stream -------
+
+    #[test]
+    fn a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content()
+    {
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "echo done; exit 3"]),
+            PaneId::from_raw(10),
+            Arc::new(RealLauncher::default()),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        let stream = 13;
+        let (attachment_id, attached_screen) = handle.attach_sender().attach(stream).unwrap();
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(stream);
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
+
+        let mut held = attached_screen;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut saw_content_before_ended = false;
+        loop {
+            let (frame_stream, update) = frames.next_update(
+                deadline
+                    .saturating_duration_since(Instant::now())
+                    .max(Duration::from_millis(1)),
+            );
+            assert_eq!(frame_stream, stream);
+            if let ScreenUpdate::Ended { reason } = update {
+                assert_eq!(reason, EndReason::ProgramExited { exit_code: 3 });
+                assert!(
+                    saw_content_before_ended,
+                    "Ended must arrive after any screen update still owed, never before it"
+                );
+                break;
+            }
+            apply_update(&mut held, update);
+            if screen_text(&held).contains("done") {
+                saw_content_before_ended = true;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "never saw Ended, holding: {:?}",
+                screen_text(&held)
+            );
+        }
+
+        // No frame arrives on this stream afterward (AC #1's own letter) -
+        // this connection's own `Outbound` was torn down for this stream
+        // by `end_stream`, not merely quiet.
+        frames.assert_nothing_arrives(Duration::from_millis(200));
+        assert_eq!(
+            frames.outbound.enqueue_data(stream, b"too-late".to_vec()),
+            Err(crate::outbound::EnqueueDataError::NotOpen),
+            "the stream must be torn down, not merely idle, once Ended has gone out"
+        );
+
+        frames.finish();
+        handle.shutdown();
+    }
+
+    /// Proves the worker's own flag-precedence logic directly (`if ended.
+    /// is_none()`): `MarkClosing`, sent well before the program's own real
+    /// exit, is what the eventual `Ended` reports - not the exit code the
+    /// program really did end with. The real *ordering* guarantee
+    /// (`force_end`'s own pass 0 before its signal) is a socket-level
+    /// property proven in `crates/server/tests/attach.rs`'s own forced
+    /// -close test, not here; this test only pins down what the worker
+    /// does once it has already been told.
+    #[test]
+    fn mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports() {
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "sleep 0.2; exit 9"]),
+            PaneId::from_raw(11),
+            Arc::new(RealLauncher::default()),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        let stream = 17;
+        let (attachment_id, _) = handle.attach_sender().attach(stream).unwrap();
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(stream);
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
+
+        // Well before the program's own `sleep 0.2` elapses.
+        handle.mark_closing();
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let (_, update) = frames.next_update(
+                deadline
+                    .saturating_duration_since(Instant::now())
+                    .max(Duration::from_millis(1)),
+            );
+            if let ScreenUpdate::Ended { reason } = update {
+                assert_eq!(
+                    reason,
+                    EndReason::Closed,
+                    "MarkClosing's own reason must win over the real exit code \
+                     (9) once it has already been told, not be overwritten by it"
+                );
+                break;
+            }
+            assert!(Instant::now() < deadline, "never saw Ended");
+        }
+
+        frames.finish();
+        handle.shutdown();
+    }
+
+    /// Attaching to a pane that already ended is not a race, it is the
+    /// ordinary way of looking at one (R97 keeps a pane and its scrollback
+    /// around after its program ends) - this waits for the real exit to be
+    /// fully processed (`PaneEvent::Exited`, sent from inside the same
+    /// `Exited` arm that runs `flush_ended`) before ever calling `attach`/
+    /// `arm`, so there is no race to synchronise with: the pane is already,
+    /// unambiguously ended by the time this test's own attach happens.
+    #[test]
+    fn attaching_to_a_pane_that_already_ended_gets_ended_on_arm_with_no_tick_first() {
+        let (events_tx, events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exit 0"]),
+            PaneId::from_raw(12),
+            Arc::new(RealLauncher::default()),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        let event = events_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("the program exits almost immediately");
+        assert!(matches!(event, PaneEvent::Exited { exit_code: 0, .. }));
+
+        let stream = 19;
+        let (attachment_id, _snapshot) = handle.attach_sender().attach(stream).unwrap();
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(stream);
+        handle
+            .arm(attachment_id, Arc::clone(&frames.outbound))
+            .unwrap();
+
+        let (frame_stream, update) = frames.next_update(Duration::from_secs(2));
+        assert_eq!(frame_stream, stream);
+        assert_eq!(
+            update,
+            ScreenUpdate::Ended {
+                reason: EndReason::ProgramExited { exit_code: 0 }
+            },
+            "the first and only update on a late attach to an already-ended pane must be Ended"
+        );
+        frames.assert_nothing_arrives(Duration::from_millis(100));
+
+        frames.finish();
+        handle.shutdown();
+    }
+
+    /// `end_stream`'s own full-queue guarantee (`crate::outbound`'s own
+    /// unit tests), exercised through `flush_ended` itself rather than
+    /// `Outbound` directly: a backlogged attachment still gets `Ended`.
+    ///
+    /// Fills the queue with no writer thread running yet (the same shape
+    /// `crate::outbound`'s own `a_full_data_queue_drops_the_new_frame_
+    /// rather_than_growing_or_blocking` uses) - `FramePair` spawns its
+    /// writer at construction, which would race this fill loop against a
+    /// concurrently-draining OS socket buffer and make "full" depend on
+    /// that buffer's own size rather than on `DATA_CAP`; the writer is
+    /// spawned here only once the queue is deterministically at capacity.
+    #[test]
+    fn flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full() {
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        let mut tracked_seq = 0_u64;
+        let outbound = Arc::new(Outbound::new());
+        outbound.open_stream(7);
+        // Real, decodable filler frames (a real client's own `Decoder`
+        // expects valid `ScreenUpdate` JSON on every frame) - `Unchanged`
+        // is the cheapest honest stand-in for "some already-queued, now
+        // -stale content".
+        let filler = encode_frame(&Frame::control(
+            7,
+            serde_json::to_vec(&ScreenUpdate::Unchanged).unwrap(),
+        ))
+        .unwrap();
+        let mut queued = 0_usize;
+        while outbound.enqueue_data(7, filler.clone()).is_ok() {
+            queued += 1;
+        }
+        assert!(
+            queued > 0,
+            "this test needs a real, non-empty backlog first"
+        );
+
+        let mut attachments = vec![Attachment {
+            id: AttachmentId(0),
+            stream: 7,
+            outbound: Some(Arc::clone(&outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
+        }];
+
+        flush_ended(
+            &mut terminal,
+            &mut tracked_seq,
+            &mut attachments,
+            EndReason::Closed,
+        );
+        assert!(
+            attachments.is_empty(),
+            "a delivered attachment must be removed"
+        );
+
+        outbound.close();
+        let (mut client, server) = UnixStream::pair().unwrap();
+        // Set once, before the writer thread (and so its own eventual
+        // `server` side closing) can possibly exist yet - found by this
+        // test actually flaking on calling this *again*, later, once the
+        // writer had already finished and dropped `server`: on this
+        // platform, `setsockopt(SO_RCVTIMEO)` on a Unix socket whose own
+        // peer has already closed answers `EINVAL`, not success, even
+        // though reading from it still works fine (immediate EOF) - a
+        // real, reproducible platform quirk, not a value-rounding issue
+        // (confirmed with a minimal, unrelated repro: `set_read_timeout`
+        // on a freshly-paired, never-touched socket never fails, but the
+        // identical call fails every time once its own peer has already
+        // been dropped). A read timeout, once set, stays set for the
+        // socket's whole life - nothing below ever needs to set it again.
+        client
+            .set_read_timeout(Some(Duration::from_millis(200)))
+            .unwrap();
+        let writer = std::thread::spawn(move || run_writer(&outbound, server));
+
+        // Loops until `Ended` is actually found, or panics (either via
+        // the deadline below, or a closed/broken read) - there is no
+        // other way out, so reaching past this loop at all is itself the
+        // proof `Ended` arrived, with no separate flag-and-assert needed.
+        let mut decoder = Decoder::new();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            match decoder.next_frame() {
+                Ok(Some(frame)) => {
+                    let update: ScreenUpdate = serde_json::from_slice(&frame.payload)
+                        .expect("every frame here is a real ScreenUpdate");
+                    if matches!(
+                        update,
+                        ScreenUpdate::Ended {
+                            reason: EndReason::Closed
+                        }
+                    ) {
+                        break;
+                    }
+                }
+                Ok(None) => {
+                    assert!(Instant::now() < deadline, "Ended never arrived");
+                    let mut buf = [0_u8; 65536];
+                    match client.read(&mut buf) {
+                        Ok(0) => panic!("the writer closed before Ended arrived"),
+                        Ok(n) => decoder.push(&buf[..n]),
+                        Err(e)
+                            if e.kind() == std::io::ErrorKind::WouldBlock
+                                || e.kind() == std::io::ErrorKind::TimedOut => {}
+                        Err(e) => panic!("read failed: {e}"),
+                    }
+                }
+                Err(e) => panic!("decode failed: {e}"),
+            }
+        }
+        writer.join().unwrap();
     }
 }

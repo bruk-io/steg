@@ -115,6 +115,12 @@ impl Model {
                 self.grid = screen.rows;
                 self.cursor = screen.cursor;
             }
+            // A no-op for now: the window's own reaction to a pane ending
+            // (keeping the last screen, showing that it ended, refusing
+            // further input) is a separate, later task's job, not this
+            // one's - this arm exists only so the model compiles against
+            // the new variant.
+            ScreenUpdate::Ended { .. } => {}
         }
     }
 }

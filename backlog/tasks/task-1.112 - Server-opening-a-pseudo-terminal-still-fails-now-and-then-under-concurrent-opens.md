@@ -720,6 +720,21 @@ error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source` exited 0 at 2026-11-17T00:33:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

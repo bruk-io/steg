@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T18:13:00Z'
+updated_date: '2026-11-17T02:11:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -928,6 +928,343 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:31:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 6b5b5634e3a6, last 40 of 79 lines:
+
+```text
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attach.rs (target/debug/deps/attach-6be417ce8cb1688e)
+
+running 16 tests
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test input_clears_a_finished_status ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (47562804) panicked at crates/server/tests/attach.rs:1331:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.55s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:34:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 6b5b5634e3a6:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (23.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (25.5s)
+ok      test (steg-server, race-fixture) (27.5s)
+ok      test (steg-server, pty-race-fixture) (40.0s)
+ok      test (steg-server, accept-backoff-fixture) (36.4s)
+ok      build (steg) (2.2s)
+ok      test (steg) (3.6s)
+ok      test (steg, fixtures) (11.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (6.1s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:41:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (27.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (30.7s)
+ok      test (steg-server) (31.0s)
+ok      test (steg-server, race-fixture) (31.3s)
+ok      test (steg-server, pty-race-fixture) (38.2s)
+ok      test (steg-server, accept-backoff-fixture) (31.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (1.2s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:43:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (25.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (24.4s)
+ok      test (steg-server, race-fixture) (24.2s)
+ok      test (steg-server, pty-race-fixture) (32.6s)
+ok      test (steg-server, accept-backoff-fixture) (26.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (2.0s)
+ok      test (steg, fixtures) (5.7s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (5.8s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (12.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream two_connections_attached_to_one_pane` exited 101 at 2026-11-17T01:44:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.92s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... FAILED
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+
+failures:
+
+---- two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other stdout ----
+
+thread 'two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other' (48129503) panicked at crates/server/tests/attach.rs:443:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (48129502) panicked at crates/server/tests/attach.rs:443:17:
+no update arrived on stream 1 within 5s
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+    two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.04s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach -- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream two_connections_attached_to_one_pane` exited 0 at 2026-11-17T01:45:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.09s
+```
+
+Check FAILED: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 101 at 2026-11-17T01:45:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report stdout ----
+
+thread 'pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report' (48173895) panicked at crates/server/src/pane.rs:2037:25:
+no update arrived within 2s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 190 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 0 at 2026-11-17T01:45:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:46:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735, last 40 of 71 lines:
+
+```text
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 60703: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 60699: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (48196465) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:50:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (30.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (29.4s)
+ok      test (steg-server) (31.0s)
+ok      test (steg-server, race-fixture) (33.1s)
+ok      test (steg-server, pty-race-fixture) (37.4s)
+ok      test (steg-server, accept-backoff-fixture) (34.9s)
+ok      build (steg) (0.9s)
+ok      test (steg) (4.4s)
+ok      test (steg, fixtures) (12.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 0 at 2026-11-17T02:11:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 31.21s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 5.99s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -939,6 +1276,14 @@ created: 2026-11-16T16:43:00Z
 ---
 
 Plan approved by @bruk (ec385ef4d563, size-3): its worker may build it.
+
+---
+
+created: 2026-11-17T01:37:00Z
+
+---
+
+2026-11-16, @bruk.o: flake sighting for this task's own test, seen by TASK-1.121's worker in a full just check under load: crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once on its bound (pane.show must answer within a bound with the other pane stuck) and passed alone straight after. Before finishing, say whether the bound is a real product promise that load can break, or a test bound that is too tight, and what it is measured from.
 
 ---
 <!-- COMMENTS:END -->

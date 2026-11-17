@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T00:19:00Z'
+updated_date: '2026-11-17T01:46:00Z'
 labels:
   - size-5
   - changes-requested
@@ -23,7 +23,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
 ---
@@ -1150,6 +1150,112 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T01:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 85da77e96e15:
+
+```text
+ok      format check (0.2s)
+ok      lint (6.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (58.2s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (1.4s)
+ok      test (steg-server) (26.5s)
+ok      test (steg-server, race-fixture) (26.9s)
+ok      test (steg-server, pty-race-fixture) (32.3s)
+ok      test (steg-server, accept-backoff-fixture) (28.3s)
+ok      build (steg) (2.1s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (10.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 133, 114 without the Asdlc-Worker trailer.
+
+Fixed all three review findings from @bruk.r2's review:
+
+1. (Important) AppWindow::teardown joined the startup thread unconditionally,
+   which could freeze the main thread indefinitely if the window closed while
+   the thread was blocked in a read with no timeout. Fixed: startup::spawn
+   now also returns a ShutdownSlot (Arc<Mutex<Option<UnixStream>>>), populated
+   with a cloned handle the moment connect() succeeds, before any further
+   blocking read - AppWindow::stop_startup locks it and shuts the handle down
+   before joining, the same mechanism the reader thread already has, just
+   published earlier since the socket does not exist until connect() returns.
+   The one phase this cannot reach into - connect()'s own retry loop, before
+   any socket exists - stays a bounded wait up to connect_timeout (10s),
+   stated in startup.rs's own module doc. New bounded test (no timers/
+   polling): a thread blocked in block_until is interrupted via the same
+   slot a concurrent teardown would use.
+
+2. (Important) startup.rs had zero tests; find_or_make_session and the
+   stale-pane fix-up (inline in run()) were untested, automated or manual.
+   Extracted the stale-pane branch into its own resolve_pane function and
+   added five tests against a real UnixStream::pair() (testing-rust.md): a
+   labelled session found with no session.new call; no label found calls
+   session.new; a running pane returned as-is; an ended pane's program gets
+   a fresh tab in the same session. Found and fixed a real bug while writing
+   these: the fake-server helper didn't handle EOF, so a worker that returns
+   early without touching the socket left the server-side loop spinning on
+   repeated Ok(0) reads - fixed, and every socket pair now carries a read
+   timeout so a broken client-request sequence fails a test cleanly instead
+   of hanging the suite.
+
+3. (Nit) terminal_element.rs's run_key did not hash underline_colour - two
+   runs identical except for underline colour collided on the same cache key,
+   painting the wrong colour on a cache hit. Fixed, with two tests.
+
+Every item has a recorded failing-then-passing asdlc record-check pair
+against the test as it stands at the end (one control needed a mid-stream
+fix to the EOF-handling bug above before it could be recorded cleanly - the
+first attempt hung and was killed; the test itself was fixed, then both
+runs re-recorded against the corrected version).
+
+unicode-segmentation (finding 3, the undisclosed dependency): recording the
+departure here rather than removing it. It is needed in model.rs's
+run_columns: a Run's own text is one grapheme cluster per cell it covers,
+and same-styled cells merge into one Run by string concatenation, so
+recovering how many cells a run spans needs real grapheme segmentation, not
+str::chars (a combining mark is more than one char but one grapheme and one
+cell - this crate's own test, a_combining_mark_is_one_grapheme_and_one_
+column_not_two, pins this down). gpui does not give this. Licence: MIT OR
+Apache-2.0 (cargo tree -p steg-app -e normal --format "{p} {l}"), already
+within deny.toml's existing allow-list - just licences already passed on it
+before and after this note, nothing changed there.
+
+Two merges since the last review, both as the engineer directed: origin/main
+(idle-stop/accept-backoff work, reconciled by hand where both sides touched
+the same server-internal structs, all additive) and then TASK-1.47's new
+head (69680a39, AttachmentId, on current main) - merge, not rebase, for
+both; every conflicted file was outside crates/app and resolved by taking
+the other side whole, confirmed after each by diffing clean against that
+head everywhere but crates/app and the Cargo/boundary/lock lines that serve
+it. AttachmentId is server-internal and never reaches the sdk's own public
+shapes (confirmed: grepped the merged crates/sdk for it, found only
+PaneAttached, unchanged) - no app code needed to change, as the engineer
+expected. just check recorded green after each merge; the merge touched
+nothing in crates/app, and the full steg-app test suite (all 22 tests,
+including every control) re-ran clean as part of each just check - no
+individual control needed separate re-recording beyond that.
+
+ps confirmed clean (no leftover processes) before each push. CI green on
+the PR (gh pr checks --watch) after the final push.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1205,6 +1311,40 @@ What I did not find wrong: the no-polling design (startup and the reader each bl
 The PR's image (https://github.com/user-attachments/assets/3b6e9d01-2556-4101-a6bf-a4b3873166d2): a bare dark window titled "steg", a `$` prompt and a violet block cursor, nothing else drawn - matches §2's letterboxing (the grid at top-left, empty terminal-background filling the rest of a window taller than the fixed grid) and decision-8/R26's session colour on the cursor (TerminalTheme::cursor). Nothing personal in it.
 
 Not checked: the app was not run (out of scope for this review); R19's latency budget (explicitly deferred to TASK-1.122 by this task's own narrowed scope); TASK-1.47's own mechanism and tests (its own PR, out of scope here beyond the reconciliation above).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T01:36:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T01:46:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Second pass after @bruk.r2's first review (changes requested). Findings 3 and 4 (unicode-segmentation undisclosed, underline-colour cache key) are fixed: the dependency is now recorded with reason and licence in boundaries.toml/Cargo.toml, and run_key hashes underline_colour with two new tests. Finding 2 (startup.rs untested) is fixed well: resolve_pane is extracted and covered by five new tests against a real UnixStream::pair(), the stale-pane/tab.new branch is genuinely reached with the real request sequence, the fake server now fails loudly on EOF instead of spinning, and no test relies on dropping one socket half to make the peer fail (the TASK-1.113 hazard) - every new test uses an explicit .shutdown() or a bounded read timeout instead.
+
+Finding 1 (teardown can block the main thread forever) is only partly fixed.
+
+[Bugs, Important] crates/app/src/main.rs:108-121 (AppWindow::stop_startup) and crates/app/src/startup.rs:132-148. stop_startup locks the ShutdownSlot exactly once, then calls thread.join(). startup::run() only populates that slot after connect() returns (startup.rs:139-142), with no lock held across the gap between connect() returning and the slot being written. If stop_startup's one lock happens before that write - plausible any time teardown races a startup thread that is about to finish connecting - it sees None, shuts nothing down, and falls into join(). The thread then proceeds through write_all(hello) and every subsequent block_until/call (hello, session.list, tab.list, resolve_pane's pane.list/tab.new, attach): plain reads with no timeout at all (steg_sdk's connect() sets no read timeout on the stream - crates/sdk/src/local_socket.rs only has connect_timeout, which bounds connecting, not anything after). A server that accepts and then stalls at any of those steps now hangs join() forever through this race instead of deterministically as before - the same unbounded block finding #1 described, narrowed to a timing window, not closed. The module doc's claim that "the worst case is a bounded wait up to connect_timeout (10s)" (startup.rs:16-19) is false for this path, and nothing in the notes accounts for it.
+
+[Evidence, Important] crates/app/src/startup.rs:479-504 (publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read), cited as proof finding #1 is fixed. It never calls run() or stop_startup: it builds its own Arc<Mutex<Some(handle)>> already populated and calls block_until directly, so it only proves shutdown() on an already-published handle unblocks a waiting read (POSIX semantics), not that run()'s own publish timing is safe against a concurrent stop_startup. Control I ran myself and reverted: commented out the one line in run() that publishes interrupt_handle into the slot (startup.rs:142), then ran cargo test -p steg-app publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read - still passes (ok), confirming the test is decoupled from the mechanism it is cited to prove. just check was clean again afterward with the revert applied (confirmed via git diff/status, no residual changes).
+
+Re-judged per the brief: no polling/periodic wake-up anywhere in the app (confirmed again reading client.rs/startup.rs/main.rs in full - every wait is a real blocking read, an .await on a channel, or (new) a lock-check); the recorded controls for model/metrics/client (ec8d9f46e04c) and the underline-colour fix (dd0dbb811b11) are unaffected by the two merges since (crates/app untouched by both, just check green again at the final head 85da77e96e15, matching the notes); I did not find separately-recorded failing/passing pairs for the five new startup.rs tests at the final head in the task's own history, only at dd0dbb811b11 - acceptable here since crates/app is confirmed byte-for-byte unchanged by both merges and just check re-ran the full suite green at head.
+
+I ran just check once myself (clean, exit 0, ~5 minutes, no server-side hang) and confirmed no leftover processes in ps afterward.
+
+Not checked: the app was not run; R19's latency budget (deferred to TASK-1.122); TASK-1.47's own mechanism (its own PR).
 
 ---
 <!-- COMMENTS:END -->

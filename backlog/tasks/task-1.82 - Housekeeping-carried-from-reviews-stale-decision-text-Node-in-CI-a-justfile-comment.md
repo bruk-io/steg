@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-17T00:58:00Z'
+updated_date: '2026-11-17T01:59:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -38,6 +38,8 @@ Added by @bruk.o 2026-11-15: the LikeC4 MCP smoke test in tools/ has timed out i
 Follow-up to draft (from the independent read of TASK-1.46's merge, 2026-11-16): no test runs idle stop and an event subscriber together through a session closing by its program ending. Follow-up to draft (TASK-1.117 review nits): the terminal element's run cache key leaves out the underline colour; StartupError::Protocol holds a string where an enum would tell causes apart.
 
 Follow-up to draft (TASK-1.49 review nit, 2026-11-16): the CLI holds a path argument as a string (crates/steg/src/cli/values.rs, params.rs) where the approved plan's table said a path type. Follow-up to draft (TASK-1.112 review nit): tests/openpty_race.rs wait_timeout_or_kill polls with a 5 ms sleep, the same pattern as tests/race.rs; TASK-1.113 bounds those waits and could replace both.
+
+Flake sightings, 2026-11-16 (names and symptoms only): steg-sdk's local_socket test failed once in a full just check by a socket path colliding under parallel tests, passed alone (seen by TASK-1.121's worker); a login_env test from TASK-1.87 failed once under load and passed on retry (seen by TASK-1.114's worker); crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane missed its bound once under load (noted on TASK-1.114, which owns it). The outbound hang is now explained on TASK-1.113: a socket pair inherited by a forked child.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

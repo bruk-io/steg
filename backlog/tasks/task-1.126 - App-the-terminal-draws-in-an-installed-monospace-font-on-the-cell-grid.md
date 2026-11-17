@@ -1,14 +1,13 @@
 ---
 id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T19:05:00Z'
+updated_date: '2026-11-17T21:18:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -918,6 +917,18 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Review findings fixed at head 67c972b3:
+
+Finding 1 (bug, confirmed myself before touching anything - read shape_and_check_run and shape_text first): shape_and_check_run shapes only the run's own text (window.text_system().shape_line(text, ...), just that text, no row context). Confirmed in gpui's own line_layout.rs that a glyph's position is relative to the shaped line it came from - here, the lone run shaped alone, so relative to the run's own start, never the row. The check compared this run-relative position against an absolute row column (run_start_column + grapheme_rank*columns_per_grapheme), so any run not starting at column 0 always "failed" and took the slow per-grapheme path regardless of whether it was actually safe - output stayed correct, but the claim that ASCII in a genuinely monospace font is "the common case" taking the fast path was only true for a run starting at column 0. Fixed: run_start_column no longer enters this comparison at all; it stays cell_origin's own job, applied separately when painting, which it already did correctly and still does.
+
+Finding 2 (evidence): split the decision into a pure function, every_glyph_position_is_safe, over (byte index, x position) pairs plus the text, cell width and columns-per-grapheme - no gpui type in its signature - with every_glyph_sits_on_its_own_column (the gpui-facing function) reduced to collecting those pairs from a ShapedLine. Three new tests, each with a recorded failing-then-passing control: a run whose glyphs are all on grid (safe), a glyph off by more than the tolerance (unsafe), and the regression case for finding 1 itself - run-relative positions for a run that would sit at a non-zero column, judged safe purely on their own terms, with no such column even reachable as a parameter any more. Third PR image added and held durably alongside the other two: a line mixing ASCII with a wide CJK character and an emoji (forcing the fallback family), with ASCII following on the same line and staying on the grid, plus a separate multi-styled (red/green/blue) line - /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/pr-images/task-1126-wide-and-fallback.png.
+
+Which path a run takes now, and how I know: verified with a scratch debug count (eprintln on each path, removed before this commit) on that exact mixed line - every ASCII run, wherever it sat on the row (abc at column 0; red/green/blue/end each starting mid-row after the previous), took the fast, single-line path; only the CJK+emoji run needing the fallback took the slow, per-grapheme path. The module doc and these notes are corrected accordingly - this is now demonstrated, not merely claimed.
+
+Nit 3: run_key now hashes style.wide too, rather than relying on the unstated (if true in practice) invariant that identical text always carries the same east-asian-width classification - resolved by adding the field to the hash, not by a comment.
+
+All five controls (resolve_family, cell_origin, and the three new every_glyph_position_is_safe tests) re-recorded cleanly against 67c972b3 with no uncommitted changes, each verified failing with its own mechanism removed before being recorded, alongside the full just check (also clean at 67c972b3). CI green on PR 70. Live run (draws, stays connected fifteen seconds idle, close and relaunch re-attaches) done specifically on 67c972b3, ps confirmed clean throughout; the engineer's own task-1.121 instances were never touched.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

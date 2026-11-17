@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1445,6 +1446,15 @@ Evidence, checked, no finding: the recorded pair "wait_child_bounded timeout con
 Question 4 (happy path), checked, no finding: cargo test -p steg-server --features race-fixture --test race: 4 tests passed in 0.31s, including eight_simultaneous_starts_leave_exactly_one_server (the test that regressed to 80s before the join-without-a-bound issue was caught) - no regression.
 
 What I did not check: did not run just check myself (relied on CI green at head 174ab452 plus the targeted cargo runs above, within the review's time budget); did not re-derive whether the Mutex design could deadlock against any other lock in this module (none exists) beyond what's checked above; did not look outside crates/server/tests/support/mod.rs per the brief's scope.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T06:19:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

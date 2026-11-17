@@ -1,11 +1,11 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:03:00Z'
+updated_date: '2026-11-17T00:08:00Z'
 labels:
   - size-3
   - review-passed

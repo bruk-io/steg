@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:37:00Z'
+updated_date: '2026-11-17T22:39:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -470,4 +470,32 @@ usual `{"Variant":{...}}`.)
   - #5: all five `attach.rs` tests bounded (no `recv()`/blocking read
     without a timeout anywhere added), each recorded via `asdlc record-
     check`.
+
+## Corrections after a second advisor review (fix these three before building; the plan above is otherwise confirmed sound)
+
+1. **The "defensive" `flush_ended` call on the `AwaitExit` arm's
+   immediate-reply branch is dead code as written - drop it.** `current.
+   is_none()` there is only ever reached *after* a `PaneCommand::Exited`
+   has already run (`current` only ever becomes `None` inside that arm's
+   own `current.take()`), and that earlier `Exited` already ran `flush_
+   ended` - every armed attachment is already gone and every unarmed one
+   is deliberately left for `Arm` to handle. Calling `flush_ended` again
+   here has nothing left to iterate that `outbound.is_some()`, ever. Do
+   not add this call.
+2. **Keep the `Shutdown` arm's own `flush_ended` call - it is not dead,
+   unlike the one above.** `PaneHandle::shutdown` can be called while a
+   program is still running and attachments are still armed (its own doc:
+   ending the worker this way "does not reliably end a still-running
+   program" - the loop simply breaks). No production caller does this
+   today, but `pane.rs`'s own unit tests do (`handle.shutdown()`, three
+   call sites in `#[cfg(test)]`), so this is a real, exercised path, not
+   a hypothetical one, and the flush there has real work to do.
+3. **Reword the planned pane.rs unit test** ("`MarkClosing` sent before a
+   program's own natural exit still reports `Closed`... proving the
+   ordering") - a single-threaded unit test proves the worker's own `if
+   ended.is_none()` precedence logic, not `force_end`'s pass-0-before-
+   pass-1 ordering, which is only a real property at the socket level.
+   The actual ordering proof is `attach.rs`'s forced-close test (step 6);
+   the pane.rs test is a narrower, useful check of the flag logic alone,
+   and should be described as that.
 <!-- SECTION:PLAN:END -->

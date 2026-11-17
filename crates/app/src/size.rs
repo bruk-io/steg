@@ -54,10 +54,12 @@ pub(crate) fn declare_if_changed(declared: GridSize, computed: GridSize) -> Opti
 
 /// Runs the coalescer over a whole sequence of computed sizes, starting from `initial` (the
 /// size already declared before this sequence began), returning the sizes it would actually
-/// send, in order. A pure simulation of the real resize-driven loop, which feeds
-/// `declare_if_changed` one size at a time and updates its own `declared` state the same
-/// way - this is that same logic run over a whole sequence, which is what makes "bounded,
-/// and always ends on the sequence's own last distinct value" a single, direct assertion.
+/// send, in order. A pure simulation of the real resize-driven loop (`AppWindow::on_resize`,
+/// `main.rs`, which feeds `declare_if_changed` one size at a time and updates its own
+/// `declared` state the same way) - this is that same logic run over a whole sequence, test
+/// code only, which is what makes "bounded, and always ends on the sequence's own last
+/// distinct value" a single, direct assertion rather than one step replayed by hand.
+#[cfg(test)]
 pub(crate) fn coalesce(
     initial: GridSize,
     computed: impl IntoIterator<Item = GridSize>,

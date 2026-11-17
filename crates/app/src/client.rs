@@ -2,7 +2,7 @@
 //! socket and decodes with the sdk's own `Connection`; each update reaches the foreground
 //! task over a channel it `.await`s - never polled (TASK-1.117's plan §1).
 
-use std::io::{self, Read};
+use std::io::{self, Read, Write as _};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::thread::{self, JoinHandle};
@@ -73,6 +73,63 @@ impl Drop for Client {
     }
 }
 
+/// The main thread's own, encode-only `Connection` (TASK-1.117's plan §1: "two `Connection`
+/// instances, not one shared behind a lock" - the reader thread owns the decode-only one,
+/// `read_loop` above; this is the other half, TASK-1.121's own writer). Writes directly over
+/// its own cloned handle to the same socket - no channel, no lock, because only the main
+/// thread ever builds a new request after startup.
+pub(crate) struct Writer {
+    handle: UnixStream,
+    connection: Connection,
+    stream: u32,
+    /// `{session}/{tab}` - `tab.declare_size`'s own target (TASK-1.114 §2).
+    tab_target: String,
+}
+
+impl Writer {
+    /// `connection` must already have `stream` open (`Connection::open_stream`), mirroring
+    /// what the reader's own `Connection` did with the same id - two independent sdk state
+    /// objects representing the one logical attachment, seeded the same way.
+    pub(crate) fn new(
+        handle: UnixStream,
+        connection: Connection,
+        stream: u32,
+        tab_target: String,
+    ) -> Self {
+        Self {
+            handle,
+            connection,
+            stream,
+            tab_target,
+        }
+    }
+
+    /// Sends `bytes` as input on the attachment's own stream (TASK-1.121 plan §1/§3).
+    /// Best-effort: a write that fails here is not specially recovered from - the same
+    /// underlying socket failing will also end the reader thread's own `read()` shortly
+    /// after, which is what actually moves this window to `Phase::Disconnected`.
+    pub(crate) fn send_input(&mut self, bytes: Vec<u8>) {
+        if let Ok(frame) = self.connection.send_data(self.stream, &bytes) {
+            let _ = self.handle.write_all(&frame);
+        }
+    }
+
+    /// Declares `columns`/`rows` for this attachment's own tab (TASK-1.121 plan §4). The
+    /// reply (`Response::Ok(Null)` or an error) lands on stream 0, decoded by the *reader's*
+    /// own `Connection`, not this one - `client.rs`'s own `drain` tolerates an
+    /// `Incoming::Reply` for exactly this reason, and this app acts the same way whether it
+    /// arrives or not: there is nothing to do differently on a `BadRequest` here, since
+    /// `size::grid_size`'s own floor already keeps a zero size from ever being sent.
+    pub(crate) fn declare_size(&mut self, columns: u16, rows: u16) {
+        if let Ok((_id, frame)) =
+            self.connection
+                .declare_size(Some(&self.tab_target), columns, rows)
+        {
+            let _ = self.handle.write_all(&frame);
+        }
+    }
+}
+
 fn read_loop(
     mut stream: UnixStream,
     mut connection: Connection,
@@ -106,12 +163,17 @@ fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> 
                     Err(_) => return false,
                 }
             }
-            // Part 1 makes no call after startup and subscribes to no events - anything
-            // else decoded here is a protocol-level surprise, not a case this bare app's
-            // own design produces or recovers from.
+            // TASK-1.121's own writer (a second `Connection` instance, `Writer` above)
+            // calls `tab.declare_size` after startup, whose reply lands here, on the
+            // reader's own decode-only `Connection` - ignored, not correlated to anything
+            // (this app acts the same way whether it succeeds or not, `Writer::declare_
+            // size`'s own doc), and not the protocol-level surprise it would have been
+            // before this task, when nothing on this connection ever called again.
+            Incoming::Reply { .. } => continue,
+            // Still a protocol-level surprise this app's own design does not produce or
+            // expect: no event subscription, no second attachment, no handshake replay.
             Incoming::Hello(_)
             | Incoming::Request { .. }
-            | Incoming::Reply { .. }
             | Incoming::Event { .. }
             | Incoming::UnknownEvent { .. }
             | Incoming::Data { .. }
@@ -127,7 +189,6 @@ fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> 
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write as _;
     use std::sync::mpsc;
     use std::time::Duration;
 

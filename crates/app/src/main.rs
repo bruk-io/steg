@@ -1,48 +1,61 @@
-//! Steg.app: a GPUI window with one terminal, read-only (TASK-1.117, part 1 of three -
-//! typing, resizing and the latency budget are later tasks). A client of the server like
-//! any other, through the sdk and the public API, with no private channel.
+//! Steg.app: a GPUI window with one terminal (TASK-1.117's bare, read-only window; typing,
+//! resizing and the IME, TASK-1.121; the latency budget, TASK-1.122). A client of the
+//! server like any other, through the sdk and the public API, with no private channel.
 
 mod client;
+mod ime;
+mod keys;
 mod metrics;
 mod model;
+mod size;
 mod startup;
 mod terminal_element;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::net::Shutdown;
+use std::ops::Range;
 use std::rc::Rc;
 use std::sync::PoisonError;
 use std::thread::JoinHandle;
 
 use futures::StreamExt as _;
 use gpui::{
-    App, Application, AsyncWindowContext, Context, FocusHandle, Focusable, IntoElement,
-    ParentElement as _, Render, Styled as _, Subscription, Task, TitlebarOptions, Window,
-    WindowAppearance, WindowBounds, WindowOptions, div, prelude::*, px, size,
+    App, Application, AsyncWindowContext, Bounds, Context, EntityInputHandler, FocusHandle,
+    Focusable, IntoElement, KeyDownEvent, ParentElement as _, Pixels, Render, Styled as _,
+    Subscription, Task, TitlebarOptions, UTF16Selection, Window, WindowAppearance, WindowBounds,
+    WindowOptions, div, prelude::*, px, size,
 };
 use steg_ui::foundations::{self, Appearance, Theme};
 
-use crate::client::{Client, ClientEvent};
+use crate::client::{Client, ClientEvent, Writer};
+use crate::ime::ImeState;
 use crate::metrics::CellMetrics;
 use crate::model::Model;
+use crate::size::GridSize;
 use crate::startup::{Attached, ShutdownSlot, StartupError};
 use crate::terminal_element::RowCache;
 
 /// Everything this window holds once attached: the model a background thread feeds, the
-/// metrics and row cache painting needs, and the client whose own `stop` ends the reader
-/// thread.
+/// metrics and row cache painting needs, the client whose own `stop` ends the reader
+/// thread, and TASK-1.121's own addition - the writer, the tab this attachment's size is
+/// declared for, the size last actually declared (the coalescer's own state, `size.rs`),
+/// and the terminal element's own last-painted bounds (read back by `bounds_for_range`).
 struct AttachedState {
     model: Rc<RefCell<Model>>,
     metrics: CellMetrics,
     row_cache: Rc<RefCell<RowCache>>,
     client: Client,
     _receive_task: Task<()>,
+    writer: Writer,
+    declared_size: Cell<GridSize>,
+    last_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
+    _resize_subscription: Subscription,
 }
 
 /// What the window shows right now (TASK-1.117's plan §3/§6).
 enum Phase {
     Connecting,
-    Attached(AttachedState),
+    Attached(Box<AttachedState>),
     Disconnected(String),
 }
 
@@ -61,6 +74,9 @@ pub struct AppWindow {
     startup_shutdown: ShutdownSlot,
     _startup_task: Task<()>,
     _appearance_subscription: Subscription,
+    /// The IME's own composition state (TASK-1.121 plan §2) - meaningless before
+    /// `Phase::Attached`, harmless either way (nothing reads it until then).
+    ime: ImeState,
 }
 
 impl AppWindow {
@@ -95,6 +111,7 @@ impl AppWindow {
             startup_shutdown,
             _startup_task: startup_task,
             _appearance_subscription: appearance_subscription,
+            ime: ImeState::default(),
         }
     }
 
@@ -153,6 +170,35 @@ impl AppWindow {
             attached.shutdown_handle,
         );
 
+        // The writer: a second, encode-only `Connection`, seeded the same way the reader's
+        // was (`Connection::open_stream` on the same id) - TASK-1.121 plan §3, TASK-1.117's
+        // plan §1's own slot for this. Its own `tab.declare_size` reply lands on the
+        // reader's connection instead (`client.rs`'s own `drain`, which tolerates it).
+        let mut writer_connection =
+            steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(attached.stream_id);
+        let mut writer = Writer::new(
+            attached.write_handle,
+            writer_connection,
+            attached.stream_id,
+            attached.tab_target,
+        );
+
+        // Declared once on open (TASK-1.121 plan §4), from whatever the window's own
+        // viewport already is - before any resize has happened, so the grid starts
+        // filling the window rather than waiting for the first one.
+        let declared_size = size::grid_size(
+            f32::from(window.viewport_size().width),
+            f32::from(window.viewport_size().height),
+            f32::from(metrics.cell_width),
+            f32::from(metrics.line_height),
+        );
+        writer.declare_size(declared_size.columns, declared_size.rows);
+
+        let resize_subscription = cx.observe_window_bounds(window, |this, window, _cx| {
+            this.on_resize(window);
+        });
+
         let weak = cx.weak_entity();
         let receive_task = window.spawn(cx, async move |cx: &mut AsyncWindowContext| {
             while let Some(event) = receiver.next().await {
@@ -167,13 +213,17 @@ impl AppWindow {
             }
         });
 
-        self.phase = Phase::Attached(AttachedState {
+        self.phase = Phase::Attached(Box::new(AttachedState {
             model,
             metrics,
             row_cache,
             client,
+            writer,
+            declared_size: Cell::new(declared_size),
+            last_bounds: Rc::new(Cell::new(None)),
+            _resize_subscription: resize_subscription,
             _receive_task: receive_task,
-        });
+        }));
         cx.notify();
     }
 
@@ -210,6 +260,156 @@ impl AppWindow {
             state.client.stop();
         }
     }
+
+    /// The resize coalescer's own window-level half (TASK-1.121 plan §4): computes the
+    /// viewport's own grid size and, if it differs from what was last actually declared,
+    /// declares it. A no-op before attachment (nothing to declare for yet) - registered as
+    /// a `Subscription` only once attached (`apply_startup_result`), so this is reachable
+    /// only while `Phase::Attached` anyway; the `let else` is defensive, not expected.
+    fn on_resize(&mut self, window: &mut Window) {
+        let Phase::Attached(state) = &mut self.phase else {
+            return;
+        };
+        let viewport = window.viewport_size();
+        let computed = size::grid_size(
+            f32::from(viewport.width),
+            f32::from(viewport.height),
+            f32::from(state.metrics.cell_width),
+            f32::from(state.metrics.line_height),
+        );
+        if let Some(next) = size::declare_if_changed(state.declared_size.get(), computed) {
+            state.declared_size.set(next);
+            state.writer.declare_size(next.columns, next.rows);
+        }
+    }
+
+    /// Sends `bytes` as input, if attached - a no-op otherwise (there is no writer before
+    /// `Phase::Attached`, and nowhere for a keystroke typed before then to go).
+    fn send_bytes(&mut self, bytes: Vec<u8>) {
+        if let Phase::Attached(state) = &mut self.phase {
+            state.writer.send_input(bytes);
+        }
+    }
+
+    /// The raw key path (TASK-1.121 plan §1): `keys::key_to_bytes` over the keystroke's own
+    /// three public fields, sent if it maps to anything. Stops propagation exactly when it
+    /// does - the one invariant that guarantees a keystroke this maps never also reaches
+    /// `replace_text_in_range` (`keys.rs`'s own doc comment on the dedup rule GPUI's own
+    /// macOS backend already enforces).
+    fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
+        let keystroke = &event.keystroke;
+        if let Some(bytes) = keys::key_to_bytes(
+            &keystroke.key,
+            keystroke.key_char.as_deref(),
+            keystroke.modifiers,
+        ) {
+            self.send_bytes(bytes);
+            cx.stop_propagation();
+        }
+    }
+}
+
+impl EntityInputHandler for AppWindow {
+    /// No editable text buffer exists here (`ime.rs`'s own module doc) - an honest "nothing
+    /// selectable" the IME already tolerates.
+    fn text_for_range(
+        &mut self,
+        _range: Range<usize>,
+        _adjusted_range: &mut Option<Range<usize>>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<String> {
+        None
+    }
+
+    fn selected_text_range(
+        &mut self,
+        _ignore_disabled_input: bool,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<UTF16Selection> {
+        None
+    }
+
+    /// Real, not hard-coded `None` - this is what lets GPUI's own macOS backend ever learn
+    /// a composition is open (`keys.rs`'s own doc comment on the dedup rule).
+    fn marked_text_range(
+        &self,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Range<usize>> {
+        if self.ime.is_composing() {
+            Some(0..0)
+        } else {
+            None
+        }
+    }
+
+    fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {
+        self.ime.unmark();
+    }
+
+    /// Committed text - the one path a resolved composition or a plain, non-composing
+    /// insert ever takes (`ime.rs`'s own doc on `ImeState::commit`).
+    fn replace_text_in_range(
+        &mut self,
+        _range: Option<Range<usize>>,
+        text: &str,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let bytes = self.ime.commit(text);
+        self.send_bytes(bytes);
+        cx.notify();
+    }
+
+    /// Marked (uncommitted) text: tracked so `is_composing` is real, sent nowhere (`ime.rs`'s
+    /// own stated gap - no preview is drawn for it yet either).
+    fn replace_and_mark_text_in_range(
+        &mut self,
+        _range: Option<Range<usize>>,
+        new_text: &str,
+        _new_selected_range: Option<Range<usize>>,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.ime.mark(new_text);
+        cx.notify();
+    }
+
+    /// The terminal's own current cursor cell, so the IME's candidate window anchors there
+    /// rather than the window's origin - `None` only before the first paint (`terminal_
+    /// element::terminal`'s own doc on `last_bounds`).
+    fn bounds_for_range(
+        &mut self,
+        _range_utf16: Range<usize>,
+        _element_bounds: Bounds<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<Bounds<Pixels>> {
+        let Phase::Attached(state) = &self.phase else {
+            return None;
+        };
+        let bounds = state.last_bounds.get()?;
+        let cursor = state.model.borrow().cursor();
+        let metrics = state.metrics;
+        Some(Bounds::new(
+            gpui::point(
+                bounds.origin.x + metrics.cell_width * f32::from(cursor.x),
+                bounds.origin.y + metrics.line_height * f32::from(cursor.y),
+            ),
+            gpui::size(metrics.cell_width, metrics.line_height),
+        ))
+    }
+
+    fn character_index_for_point(
+        &mut self,
+        _point: gpui::Point<Pixels>,
+        _window: &mut Window,
+        _cx: &mut Context<Self>,
+    ) -> Option<usize> {
+        None
+    }
 }
 
 impl Focusable for AppWindow {
@@ -219,7 +419,7 @@ impl Focusable for AppWindow {
 }
 
 impl Render for AppWindow {
-    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = Theme::with_default_session(self.appearance);
         match &self.phase {
             Phase::Connecting => placeholder(&theme, "connecting…"),
@@ -231,12 +431,19 @@ impl Render for AppWindow {
                     Appearance::Dark => foundations::steg_dark(theme.session()),
                     Appearance::Light => foundations::steg_light(theme.session()),
                 };
-                div().size_full().child(terminal_element::terminal(
-                    Rc::clone(&state.model),
-                    state.metrics,
-                    terminal_theme,
-                    Rc::clone(&state.row_cache),
-                ))
+                div()
+                    .size_full()
+                    .track_focus(&self.focus_handle)
+                    .on_key_down(cx.listener(Self::on_key_down))
+                    .child(terminal_element::terminal(
+                        Rc::clone(&state.model),
+                        state.metrics,
+                        terminal_theme,
+                        Rc::clone(&state.row_cache),
+                        self.focus_handle.clone(),
+                        cx.entity(),
+                        Rc::clone(&state.last_bounds),
+                    ))
             }
         }
     }
@@ -259,18 +466,6 @@ fn appearance_from(appearance: WindowAppearance) -> Appearance {
         WindowAppearance::Dark | WindowAppearance::VibrantDark => Appearance::Dark,
     }
 }
-
-// TASK-1.121: these modules are pure functions and state with their own tests, built ahead
-// of the window plumbing (`terminal_element.rs`/`client.rs`, TASK-1.117's own branch, not yet
-// merged here) that will call them. `#[cfg(test)]` while that wiring doesn't exist yet, so
-// `cargo build`'s own real binary target carries no dead code to warn about; dropped once
-// `on_key_event`/`paint`/the resize observer call them for real.
-#[cfg(test)]
-mod ime;
-#[cfg(test)]
-mod keys;
-#[cfg(test)]
-mod size;
 
 fn main() {
     Application::new().run(|cx: &mut App| {

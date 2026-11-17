@@ -13,13 +13,14 @@ use std::hash::{DefaultHasher, Hash as _, Hasher as _};
 use std::rc::Rc;
 
 use gpui::{
-    App, Bounds, FontStyle, FontWeight, Hsla, IntoElement, ParentElement as _, Pixels, ShapedLine,
-    SharedString, StrikethroughStyle, Styled as _, TextRun, UnderlineStyle, Window, canvas, div,
-    fill, point, px,
+    App, Bounds, ElementInputHandler, Entity, FocusHandle, FontStyle, FontWeight, Hsla,
+    IntoElement, ParentElement as _, Pixels, ShapedLine, SharedString, StrikethroughStyle,
+    Styled as _, TextRun, UnderlineStyle, Window, canvas, div, fill, point, px,
 };
 use steg_sdk::{CellStyle, Cursor, CursorShape, Rgb, Run, Underline};
 use steg_ui::foundations::TerminalTheme;
 
+use crate::AppWindow;
 use crate::metrics::CellMetrics;
 use crate::model::{Model, run_columns};
 
@@ -51,16 +52,36 @@ impl RowCache {
 
 /// Renders the fixed grid as one element: the window's own background first, then the
 /// grid from the model, cropped to whatever of it fits `bounds` (TASK-1.117's plan §2).
+///
+/// `focus_handle`/`entity` are TASK-1.121's own addition, for the one call in this crate
+/// that must run from inside a real paint phase: `window.handle_input` ("should only be
+/// called as part of the paint phase of element drawing", `input.rs`'s own doc) registers
+/// the `EntityInputHandler` `AppWindow` implements, which is what lets a dead key, the
+/// emoji picker or any other IME composition reach the program at all (`main.rs`'s own
+/// `EntityInputHandler` impl; `keys.rs`'s own doc comment on the dedup this and
+/// `on_key_down` - registered declaratively, in `main.rs`'s `render`, not here - together
+/// guarantee). `last_bounds` is this element's own last-painted bounds, read back by
+/// `AppWindow::bounds_for_range` to anchor the IME's candidate window at the terminal's own
+/// cursor cell - `None` only before the first paint.
 pub fn terminal(
     model: Rc<RefCell<Model>>,
     metrics: CellMetrics,
     theme: TerminalTheme,
     row_cache: Rc<RefCell<RowCache>>,
+    focus_handle: FocusHandle,
+    entity: Entity<AppWindow>,
+    last_bounds: Rc<std::cell::Cell<Option<Bounds<Pixels>>>>,
 ) -> impl IntoElement {
     div().size_full().bg(theme.bg).child(
         canvas(
             move |_bounds, _window, _cx| (),
             move |bounds, (), window, cx| {
+                window.handle_input(
+                    &focus_handle,
+                    ElementInputHandler::new(bounds, entity.clone()),
+                    cx,
+                );
+                last_bounds.set(Some(bounds));
                 paint_grid(
                     &model.borrow(),
                     &metrics,

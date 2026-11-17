@@ -1860,6 +1860,53 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; fin
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app once_the_queue_is_full_behind_a_stalled_peer` exited 101 at 2026-11-17T23:39:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes, last 40 of 43 lines:
+
+```text
+10 | use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+   |                                             ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `events` is never read
+   --> crates/app/src/client.rs:118:5
+    |
+105 | pub(crate) struct Writer {
+    |                   ------ field in this struct
+...
+118 |     events: UnboundedSender<ClientEvent>,
+    |     ^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost ... FAILED
+
+failures:
+
+---- client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost stdout ----
+
+thread 'client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost' (54920361) panicked at crates/app/src/client.rs:364:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

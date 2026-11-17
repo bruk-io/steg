@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-17T02:41:00Z'
+updated_date: '2026-11-17T02:44:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -44,6 +44,8 @@ Flake sightings, 2026-11-16 (names and symptoms only): steg-sdk's local_socket t
 Follow-up to draft (TASK-1.47, 2026-11-16): the unit test attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock uses a flood of about 70 MB and measures through an unbounded lock, so its control can in principle pass by the worker catching up, or hang. The reviewer's repeat of the control did fail as recorded. Its worker has a stronger version (a flood of about 1 GB, a check before and after that the attach is still unanswered, the measurement waited on with a bounded receive). TASK-1.114 brings a socket-level test of the same property with a large flood. Replace the unit test with the stronger version in a small change.
 
 Follow-up to decide (TASK-1.117 third review, 2026-11-16): the app keeps running after its window is closed; nothing in doc-10 says whether closing the last window quits. Decide and record it with the window work in m-4.
+
+Patches kept for follow-ups, 2026-11-16, in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/follow-up-patches-2026-11-16: task-1.47-arm-returns-armed.patch (the starting point for the drafted task on a pane closing between attach and arm; applies to f91a8f27), task-1.47-stronger-lock-test.patch (a stronger version of attach's lock test; applies to f91a8f27), task-1.117-startup-stop-variant.patch (holds a test that drives a genuinely stalled connect through the real run(); applies to f8967015).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-17T01:59:00Z'
+updated_date: '2026-11-17T02:17:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -106,6 +106,14 @@ created: 2026-11-16T15:45:00Z
 ---
 
 2026-11-16, @bruk.o: one timeout of outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails during TASK-1.86's review, while two full suites ran at once on this machine; five of five passed alone. Also noted there, to be drafted as tasks once the first window's work has slots to spare: (1) a panic in a launcher's spawn during session new, tab new or pane split skips pane::start's rollback of the half-made session (from TASK-1.76, crates/server/src/pane.rs near line 565); (2) the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created (from TASK-1.98's review); (3) a pane's screen freezes while its program refuses input, because the pty write blocks the pane's worker (TASK-1.114's plan); (4) the API description has no one-line summary for a noun, so steg --help lists nouns bare (TASK-1.49's review).
+
+---
+
+created: 2026-11-17T02:17:00Z
+
+---
+
+Flake sighting, 2026-11-16 (from TASK-1.114's worktree, bruk.w7): login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open failed once under just check's own heavy concurrent CPU contention (many test binaries running at once), then passed cleanly on an isolated rerun. Not touched - not this task's code, and the retry was clean.
 
 ---
 <!-- COMMENTS:END -->

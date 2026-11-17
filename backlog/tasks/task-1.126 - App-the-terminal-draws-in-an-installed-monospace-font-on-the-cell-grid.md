@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T18:51:00Z'
+updated_date: '2026-11-17T18:55:00Z'
 labels:
   - size-2
   - changes-requested
@@ -417,6 +417,53 @@ Images (AC#4): both checked (nothing personal on screen), held by the orchestrat
 Corrections to standing assumptions, found while building: $HOME does not affect font resolution on this machine (CoreText's own font enumeration, core_text::font_collection::create_for_all_families(), is session-scoped, not per-process) - both images resolved to JetBrains Mono regardless of a throwaway HOME.
 
 Checks: cargo test -p steg-app (30 tests) and just check both recorded clean at 2bf5d974, with no uncommitted changes. CI green on PR 70. Live run (draws, stays connected fifteen seconds idle, close and relaunch re-attaches) done specifically on 2bf5d974, reported on the task; ps confirmed clean throughout, the engineer's own task-1.121 instances never touched.
+
+Check FAILED: `cargo test -p steg-app a_run_whose_glyphs_are_all_on_grid_is_safe` exited 101 at 2026-11-17T18:55:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 2bf5d974438e with uncommitted changes:
+
+```text
+warning: unused variable: `position_x`
+   --> crates/app/src/terminal_element.rs:288:18
+    |
+288 |     for &(index, position_x) in glyph_positions {
+    |                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_position_x`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `GLYPH_POSITION_EPSILON` is never used
+   --> crates/app/src/terminal_element.rs:242:7
+    |
+242 | const GLYPH_POSITION_EPSILON: Pixels = px(0.5);
+    |       ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_run_whose_glyphs_are_all_on_grid_is_safe ... FAILED
+
+failures:
+
+---- terminal_element::tests::a_run_whose_glyphs_are_all_on_grid_is_safe stdout ----
+
+thread 'terminal_element::tests::a_run_whose_glyphs_are_all_on_grid_is_safe' (53613159) panicked at crates/app/src/terminal_element.rs:590:9:
+assertion failed: every_glyph_position_is_safe("abc", &positions, px(10.0), 1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::a_run_whose_glyphs_are_all_on_grid_is_safe
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

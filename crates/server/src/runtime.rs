@@ -208,6 +208,10 @@ pub struct Runtime {
     // own tests pass a tiny value, so the suite's own total time does not
     // grow by the production grace on every test that exercises forcing.
     force_grace: Duration,
+    // TASK-1.47: how often an attached pane's worker thread computes and
+    // fans out a screen update - threaded to every `pane::start` call
+    // below, the same injected-not-read shape `force_grace` already uses.
+    attach_tick: Duration,
 }
 
 /// The production default for [`Runtime::new`]'s own `force_grace`
@@ -233,6 +237,19 @@ const ESCALATE_CONFIRM_TIMEOUT: Duration = Duration::from_secs(2);
 /// is on its way out, so this is a hard guarantee, not a real wait.
 const FORCE_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// The three identifying values one `pane.attach` call needs beyond its
+/// own request/description/context (TASK-1.47) - grouped only so
+/// [`Runtime::attach_pane`] stays under clippy's own argument-count lint,
+/// not to claim these three belong together for any deeper reason.
+pub(crate) struct Attaching {
+    /// The connection attaching.
+    pub(crate) client: ClientId,
+    /// The request's own id, to match the reply.
+    pub(crate) id: u64,
+    /// The new attachment's stream id, already minted by the caller.
+    pub(crate) stream: u32,
+}
+
 impl Runtime {
     /// Builds an empty `Runtime` (no sessions yet) and starts its one
     /// drain thread, which applies every [`PaneEvent`] a pane's real
@@ -253,6 +270,7 @@ impl Runtime {
         launcher: Arc<dyn ProgramLauncher>,
         login: LoginShell,
         force_grace: Duration,
+        attach_tick: Duration,
     ) -> Self {
         let (events_tx, events_rx) = mpsc::channel();
         let state = Arc::new(Mutex::new(State {
@@ -298,6 +316,7 @@ impl Runtime {
             events: Some(events_tx),
             drain: Some(drain),
             force_grace,
+            attach_tick,
         }
     }
 
@@ -411,6 +430,164 @@ impl Runtime {
         for change in &changes {
             apply_size_changed_locked(&mut state, change);
         }
+    }
+
+    /// Resolves `request`'s target as a pane, with no mutation at all
+    /// (TASK-1.47) - `connection.rs`'s own `pane.detach` uses this to turn
+    /// a target into a `PaneId` before it can look its own stream up by
+    /// that id (its attachment bookkeeping is keyed by `PaneId`, not by a
+    /// target string), the one place this needs to be callable apart from
+    /// [`Runtime::attach_pane`], which resolves the same way internally.
+    ///
+    /// # Errors
+    /// Whatever `validate` or `dispatch::target_pane` refuse with
+    /// (`BadRequest`, `NoSuchTarget`, `AmbiguousTarget`).
+    pub(crate) fn resolve_pane_target(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+    ) -> Result<PaneId, ApiError> {
+        validate(description, request)?;
+        let state = self.lock();
+        dispatch::target_pane(&state.tree, context, request)
+    }
+
+    /// `pane.attach` (TASK-1.47; AC #1, #7): resolves the target, attaches
+    /// the kernel's own `Client` to it (`Tree::view_pane`), reads the
+    /// pane's current screen and registers the attachment in its worker's
+    /// own fan-out list, then builds and enqueues the reply itself - the
+    /// same shape TASK-1.46's own `Runtime::subscribe` uses, not a
+    /// `Response` handed back for `connection.rs` to enqueue. Returns the
+    /// resolved `PaneId` on success so the caller can finish decision-2
+    /// section 3's ordering rule (`Outbound::open_stream`, then
+    /// [`Runtime::arm_attachment`]) and record it in its own, per
+    /// -connection attachment map.
+    ///
+    /// # Errors
+    /// Whatever `validate`/`dispatch::target_pane`/`Tree::view_pane`
+    /// refuse with, or [`ErrorCode::NoSuchTarget`] if the pane has no
+    /// running worker at all (never in practice: every pane in the tree
+    /// has one, started in the same step it was minted) or
+    /// [`ErrorCode::EngineFailed`] if reading its screen failed. Nothing
+    /// is enqueued on `Err`: the caller builds and sends the ordinary
+    /// error reply itself.
+    pub(crate) fn attach_pane(
+        &self,
+        description: &Description,
+        context: &Context,
+        attaching: Attaching,
+        request: &Request,
+        outbound: &Arc<crate::outbound::Outbound>,
+    ) -> Result<PaneId, ApiError> {
+        let Attaching { client, id, stream } = attaching;
+        validate(description, request)?;
+        let (pane, screen) = {
+            let mut state = self.lock();
+            let pane = dispatch::target_pane(&state.tree, context, request)?;
+            state
+                .tree
+                .view_pane(client, pane)
+                .map_err(dispatch::map_kernel_error)?;
+            let handle = state.panes.get(&pane).ok_or_else(|| {
+                ApiError::new(
+                    ErrorCode::NoSuchTarget,
+                    "this pane has no running program to attach to",
+                )
+            })?;
+            let screen = handle.attach(stream).map_err(map_pane_error)?;
+            (pane, screen)
+        };
+        let attached = steg_sdk::PaneAttached {
+            stream,
+            snapshot: screen,
+        };
+        let value =
+            serde_json::to_value(&attached).expect("PaneAttached always serialises to JSON");
+        let bytes = steg_sdk::Connection::reply(id, Response::Ok(value));
+        // Best-effort, the same reasoning TASK-1.46's own `subscribe`
+        // gives for its own reply: if this fails, the connection is
+        // already tearing down concurrently, and there is nothing more to
+        // do about it here.
+        let _ = outbound.enqueue_control(bytes);
+        Ok(pane)
+    }
+
+    /// Hands an already-registered attachment the `Outbound` it sends
+    /// updates to (TASK-1.47) - the second half of decision-2 section 3's
+    /// ordering rule, called by `connection.rs` only after it has queued
+    /// the attach reply and opened the stream with the writer. Self
+    /// -locking, a no-op if `pane` no longer has a worker at all.
+    pub(crate) fn arm_attachment(
+        &self,
+        pane: PaneId,
+        stream: u32,
+        outbound: Arc<crate::outbound::Outbound>,
+    ) {
+        let state = self.lock();
+        if let Some(handle) = state.panes.get(&pane) {
+            let _ = handle.arm(stream, outbound);
+        }
+    }
+
+    /// `pane.detach` (TASK-1.47): releases the kernel's own viewing claim
+    /// (`Tree::stop_viewing`), reapplying any `SizeChanged` it reports
+    /// (decision-6: detaching can change who is latest), and tells the
+    /// pane's own worker to drop the attachment. Takes an already-resolved
+    /// `pane` and the caller's own `stream` (`connection.rs` looks both up
+    /// from its own bookkeeping before calling this - see
+    /// [`Runtime::resolve_pane_target`]) rather than a `Request`, since
+    /// "is this connection even attached to this pane" is connection
+    /// -local state the kernel and this `Runtime` know nothing about.
+    ///
+    /// Best-effort on both halves: `stop_viewing` failing (the client
+    /// already gone, or never really viewing this pane) and the pane
+    /// having no worker left are both silently tolerated - the caller
+    /// already confirmed its own attachment was real before calling this,
+    /// so either case only means the state this was meant to release is
+    /// already gone.
+    pub(crate) fn detach_pane(&self, client: ClientId, pane: PaneId, stream: u32) {
+        let mut state = self.lock();
+        if let Ok(changes) = state.tree.stop_viewing(client, pane) {
+            for change in &changes {
+                apply_size_changed_locked(&mut state, change);
+            }
+        }
+        if let Some(handle) = state.panes.get(&pane) {
+            let _ = handle.detach(stream);
+        }
+    }
+
+    /// Tells `pane`'s own worker thread to drop one attachment, with no
+    /// kernel interaction at all (TASK-1.47) - used only when a connection
+    /// ends without having called `pane.detach` for every attachment it
+    /// still held (`connection.rs`'s own `ConnectionCleanup`):
+    /// `Tree::disconnect_client` already removes that connection's whole
+    /// kernel-level `Client` row in one step, viewing list included, so
+    /// calling `Tree::stop_viewing` here as well would at best be a no-op
+    /// and at worst race whichever of the two cleanup calls runs first.
+    /// Only the pane worker's own in-memory fan-out list, which the kernel
+    /// knows nothing about, still needs telling.
+    pub(crate) fn forget_attachment(&self, pane: PaneId, stream: u32) {
+        let state = self.lock();
+        if let Some(handle) = state.panes.get(&pane) {
+            let _ = handle.detach(stream);
+        }
+    }
+
+    /// How many attachments `pane`'s own worker currently holds
+    /// (TASK-1.47 review): test-only, reaching `PaneHandle::
+    /// attachment_count` (itself `#[cfg(test)]`) for a connection.rs test
+    /// that proves `ConnectionCleanup`'s own sweep, not merely this
+    /// method, is what returns the count to what it was. `0` if `pane`
+    /// has no running worker at all.
+    #[cfg(test)]
+    pub(crate) fn attachment_count_for_test(&self, pane: PaneId) -> usize {
+        let state = self.lock();
+        state
+            .panes
+            .get(&pane)
+            .map_or(0, PaneHandle::attachment_count)
     }
 
     /// A cheap, repeatable way to read the live session count, usable
@@ -611,6 +788,7 @@ impl Runtime {
             self.events
                 .clone()
                 .expect("starting a program after this Runtime has been stopped"),
+            self.attach_tick,
         ) {
             Ok(handle) => {
                 state.panes.insert(new_pane, handle);
@@ -813,6 +991,25 @@ const PANE_TERM: &str = "xterm-256color";
 impl Drop for Runtime {
     fn drop(&mut self) {
         self.stop();
+    }
+}
+
+/// Converts this crate's own [`crate::error::Error`] (what a `PaneHandle`
+/// call can fail with) into an [`ApiError`] (TASK-1.47's own
+/// `PaneHandle::attach` is the first dispatch-adjacent caller that needs
+/// this - no earlier task needed the conversion at all). `PaneGone` maps
+/// to `NoSuchTarget`: from the caller's own point of view, a pane whose
+/// worker thread is no longer there is indistinguishable from one that no
+/// longer exists to attach to. Every other variant is this crate's own
+/// I/O-adjacent failure (the engine, the pty, a read/write) - `pane.attach`
+/// never performs any of the latter two itself, but `EngineFailed` is the
+/// closest named code for any of them, named plainly rather than invented.
+fn map_pane_error(error: crate::error::Error) -> ApiError {
+    match error {
+        crate::error::Error::PaneGone => ApiError::new(ErrorCode::NoSuchTarget, error.to_string()),
+        crate::error::Error::Kernel(_)
+        | crate::error::Error::Pty(_)
+        | crate::error::Error::Io(_) => ApiError::new(ErrorCode::EngineFailed, error.to_string()),
     }
 }
 
@@ -1178,6 +1375,12 @@ mod tests {
     /// exception), so the value only has to be cheap, never realistic.
     const TEST_GRACE: Duration = Duration::from_millis(30);
 
+    /// A tiny `attach_tick` for every `Runtime::new` in this module - none
+    /// of these tests attach to a pane (TASK-1.47's own tests live in
+    /// `pane.rs` and this crate's `tests/` directory), so the value only
+    /// has to be cheap, never realistic.
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
     fn login() -> LoginShell {
         LoginShell {
             argv0: "/bin/sh".to_string(),
@@ -1283,6 +1486,7 @@ mod tests {
             gone,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         let mut state = test_state(tree, HashMap::from([(gone, handle)]));
@@ -1330,6 +1534,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1358,6 +1563,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         state.panes.insert(pane, handle);
@@ -1387,7 +1593,12 @@ mod tests {
     fn disconnect_client_reapplies_the_next_latest_declared_size() {
         use steg_sdk::{ClientKind, Request, Size};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
         let session = match runtime.handle(
@@ -1510,7 +1721,12 @@ mod tests {
             ],
             ..login()
         };
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login, TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login,
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1590,7 +1806,12 @@ mod tests {
     /// construction alone.
     #[test]
     fn a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1660,7 +1881,12 @@ mod tests {
     /// still succeeds rather than hanging or propagating the poison.
     #[test]
     fn a_panic_while_holding_the_lock_does_not_poison_a_later_call() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
 
         let state_handle = std::sync::Arc::clone(&runtime.state);
         let panicked = std::thread::spawn(move || {
@@ -1693,7 +1919,12 @@ mod tests {
 
     #[test]
     fn runtime_new_does_not_panic_and_starts_empty() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let context = crate::dispatch::Context::none();
         let response = runtime.handle(
@@ -1719,7 +1950,12 @@ mod tests {
     /// not offered as proof of it - this is).
     #[test]
     fn a_plain_close_of_an_already_ended_pane_removes_its_idle_handle() {
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1824,7 +2060,12 @@ mod tests {
     fn pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -1947,7 +2188,12 @@ mod tests {
     fn pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists() {
         use steg_sdk::{Request, SessionId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -2099,7 +2345,12 @@ mod tests {
     fn the_general_sizing_step_reaches_every_pane_through_split_close_and_swap() {
         use steg_sdk::{ClientKind, Request, SessionId, Size, TabId};
 
-        let runtime = Runtime::new(std::sync::Arc::new(RealLauncher), login(), TEST_GRACE);
+        let runtime = Runtime::new(
+            std::sync::Arc::new(RealLauncher),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = crate::dispatch::Context::none();
 
@@ -2388,6 +2639,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         state.panes.insert(pane, handle);
@@ -2542,6 +2794,7 @@ mod tests {
             pane,
             std::sync::Arc::new(RealLauncher),
             events,
+            TEST_TICK,
         )
         .unwrap();
         runtime.state.lock().unwrap().panes.insert(pane, handle);
@@ -2566,6 +2819,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, tab_id, pane) = start_real_pane(
             &runtime,
@@ -2598,6 +2852,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2621,6 +2876,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2653,6 +2909,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (_, _, pane) = start_real_pane(
             &runtime,
@@ -2704,6 +2961,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session_id, _, pane) = start_real_pane(
             &runtime,
@@ -2768,6 +3026,7 @@ mod tests {
             gone,
             std::sync::Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         let mut state = test_state(tree, HashMap::from([(gone, handle)]));
@@ -2813,6 +3072,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
 
         let script = "printf '\\033]133;C\\007'; sleep 0.3; printf '\\033]133;D;3\\007'; \
@@ -2909,6 +3169,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session, tab_id, pane) = start_real_pane(
             &runtime,
@@ -2952,6 +3213,7 @@ mod tests {
             std::sync::Arc::new(RealLauncher),
             login_for_marks(),
             TEST_GRACE,
+            TEST_TICK,
         );
         let (session, tab_id, pane) = start_real_pane(
             &runtime,
@@ -3008,6 +3270,10 @@ mod stop_tests {
     /// after the polite signal is given a real chance, not so long that
     /// the whole module's run time grows needlessly.
     const TEST_GRACE: Duration = Duration::from_millis(200);
+
+    /// A tiny `attach_tick` for every `Runtime::new` in this module - same
+    /// reasoning as `tests::TEST_TICK`: nothing here attaches to a pane.
+    const TEST_TICK: Duration = Duration::from_millis(1);
 
     fn login() -> super::LoginShell {
         super::LoginShell {
@@ -3099,6 +3365,7 @@ mod stop_tests {
             pane,
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -3123,7 +3390,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_program_producing_output() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "yes");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -3139,7 +3406,7 @@ mod stop_tests {
 
     #[test]
     fn stop_ends_a_silent_program() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         let (pane, handle, pid, _events_rx) = start_pane_reporting_its_pid(&runtime, "sleep 1000");
         runtime.state.lock().unwrap().panes.insert(pane, handle);
         assert!(
@@ -3155,7 +3422,7 @@ mod stop_tests {
 
     #[test]
     fn stop_is_a_no_op_for_a_pane_whose_program_has_already_ended() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         // `true` exits at once, no `exec sleep` keeping it alive - by the
         // time this pid is known at all (printed, then read back), the
         // process behind it is already gone or going; this test only
@@ -3193,7 +3460,7 @@ mod stop_tests {
 
     #[test]
     fn stop_with_no_panes_at_all_returns_at_once() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
         runtime.stop();
         assert!(runtime.state.lock().unwrap().panes.is_empty());
     }
@@ -3207,7 +3474,7 @@ mod stop_tests {
     /// argued.
     #[test]
     fn stop_ends_a_program_that_traps_the_polite_signal() {
-        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE);
+        let mut runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
 
         // Waits for a real marker the nested shell writes *after*
         // installing its own trap, before calling `stop` - found

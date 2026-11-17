@@ -107,6 +107,10 @@ pub struct Method {
     pub params: Vec<Param>,
     /// What the method answers with, and so what the CLI prints.
     pub returns: Returns,
+    /// What, if anything, follows this method's own single, id-matched
+    /// reply on the same connection (TASK-1.46; decision-2 section 3).
+    /// `Follows::Nothing` for every method but `event.watch` today.
+    pub follows: Follows,
     /// The errors this method can answer with, by code.
     pub errors: Vec<ErrorCode>,
     /// The API version this method appeared in.
@@ -219,6 +223,57 @@ pub enum Returns {
     },
     /// Text, such as a pane's screen.
     Text,
+    /// A nested, structured value too shaped to flatten into fields: `of`
+    /// names the sdk type that defines its real shape once (decision-1),
+    /// the same role `of` already plays on `Identifier` above — naming
+    /// what kind of thing a reply is — applied here to naming what kind of
+    /// *value* it is instead of a fields table. The same honesty
+    /// `ValueKind::Text` already has for a field the format cannot
+    /// describe structurally (`TabRecord.layout`, `PaneRecord.status`),
+    /// one level up, at the whole-reply level (TASK-1.46).
+    /// `api show` prints `of` and `summary` in place of a fields table; a
+    /// generated CLI's `--json` prints the server's own JSON unchanged,
+    /// under the named type's own field names, not re-declared here a
+    /// second time; its plain-text rendering is left to whichever task
+    /// builds CLI generation, the same shape of exception doc-2 section 6
+    /// already allows for `Text`.
+    Nested {
+        /// The sdk type that defines this reply's real shape, e.g.
+        /// `"TreeSnapshot"`.
+        of: String,
+        /// One line describing it, since there is no fields table here to
+        /// carry that job instead.
+        summary: String,
+    },
+}
+
+/// What, if anything, follows a method's own reply on the same connection,
+/// with no further request needed to keep it coming (TASK-1.46; decision-2
+/// section 3). Two different shapes, not one, because a generated client
+/// behaves differently in each: an event needs nothing further read off the
+/// reply to keep receiving them, while an attachment's updates arrive on a
+/// *new* stream whose id the client has to read out of the reply first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", tag = "follows")]
+pub enum Follows {
+    /// This method's reply is the end of it.
+    Nothing,
+    /// Further items with no id, on the control stream this reply itself
+    /// travelled on (decision-2 section 3: "an event carries no id, so a
+    /// long-lived subscription never blocks a request on the same
+    /// connection"). `event.watch`'s own case.
+    Events(Returns),
+    /// Further items with no id, on a new stream, whose id is named by
+    /// `stream_id_field` — one field of *this* reply (decision-2 section
+    /// 3: "every other stream id belongs to one attachment, and the server
+    /// hands it out in the attach result").
+    Attachment {
+        /// The shape of each item that arrives on the new stream.
+        item: Returns,
+        /// The name of the field, on this method's own reply, that
+        /// carries the new stream's id.
+        stream_id_field: String,
+    },
 }
 
 /// A field of a record or an event.
@@ -298,8 +353,8 @@ pub enum ErrorCode {
 #[cfg(test)]
 mod tests {
     use super::{
-        Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param, Returns,
-        Role, ValueKind, Version,
+        Description, ErrorCode, ErrorRecord, Event, Field, Follows, Method, MethodName, Param,
+        Returns, Role, ValueKind, Version,
     };
 
     fn example_method() -> Method {
@@ -341,6 +396,7 @@ mod tests {
                 },
             ],
             returns: Returns::Identifier { of: "pane".into() },
+            follows: Follows::Nothing,
             errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
             since: Version { major: 1, minor: 0 },
         }

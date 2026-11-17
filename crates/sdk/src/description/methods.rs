@@ -21,8 +21,8 @@
 //! review against that document is a direct comparison.
 
 use super::shapes::{
-    Description, ErrorCode, ErrorRecord, Event, Field, Method, MethodName, Param, Returns, Role,
-    ValueKind, Version,
+    Description, ErrorCode, ErrorRecord, Event, Field, Follows, Method, MethodName, Param, Returns,
+    Role, ValueKind, Version,
 };
 
 /// The API this build of steg speaks.
@@ -201,6 +201,7 @@ fn session_methods() -> Vec<Method> {
                 fields: session_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -218,6 +219,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -244,6 +246,7 @@ fn session_methods() -> Vec<Method> {
                 of: "session".into(),
             },
             errors: vec![ErrorCode::BadRequest, ErrorCode::ProgramFailed],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -261,6 +264,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::ProgramRunning,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -283,6 +287,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::PositionOutOfRange,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -299,6 +304,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -315,6 +321,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -340,6 +347,7 @@ fn session_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -400,6 +408,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -415,6 +424,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -451,6 +461,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::ProgramFailed,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -468,6 +479,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::ProgramRunning,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -496,6 +508,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::PositionOutOfRange,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -512,6 +525,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -528,6 +542,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -541,6 +556,7 @@ fn tab_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -610,6 +626,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -625,6 +642,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -663,6 +681,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::SplitTooSmall,
                 ErrorCode::ProgramFailed,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -680,6 +699,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::ProgramRunning,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -698,6 +718,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::AlreadyInTab,
                 ErrorCode::SplitTooSmall,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -715,6 +736,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -732,6 +754,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -755,6 +778,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -783,6 +807,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::NoSplitInDirection,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -805,6 +830,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::AmbiguousTarget,
                 ErrorCode::PanesNotInSameTab,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -829,6 +855,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -845,6 +872,7 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -889,6 +917,61 @@ fn pane_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
+            since: VERSION,
+        },
+        Method {
+            name: method("pane", "attach"),
+            summary: "Opens a stream to the pane's screen".into(),
+            details: "The reply is the stream's id and its opening snapshot; updates that \
+                      follow arrive on that stream, not as this call's own output. `steg pane \
+                      attach` exists for completeness (R32) and for scripting through `api \
+                      call` - it prints the id and the snapshot once and exits, the same as \
+                      any other command; a program that wants the stream itself (the app, a \
+                      plugin) uses the sdk's `Connection` directly, as decision-2 and doc-16 \
+                      R101 already describe."
+                .into(),
+            params: vec![target(
+                "The pane to attach to. Defaults to the current pane",
+            )],
+            returns: Returns::Nested {
+                of: "PaneAttached".into(),
+                summary: "the new stream's id, and the pane's screen at the moment of \
+                          attaching"
+                    .into(),
+            },
+            follows: Follows::Attachment {
+                item: Returns::Nested {
+                    of: "ScreenUpdate".into(),
+                    summary: "the rows that changed, or a whole screen when a client fell \
+                              behind"
+                        .into(),
+                },
+                stream_id_field: "stream".into(),
+            },
+            errors: vec![
+                ErrorCode::BadRequest,
+                ErrorCode::NoSuchTarget,
+                ErrorCode::AmbiguousTarget,
+            ],
+            since: VERSION,
+        },
+        Method {
+            name: method("pane", "detach"),
+            summary: "Ends this connection's attachment to the pane".into(),
+            details: "A no-op from the client's own point of view either way - the attachment \
+                      is gone once this returns - but refused with `BadRequest` when this \
+                      connection has no attachment to the target pane at all, so a mistaken \
+                      target is not silently accepted."
+                .into(),
+            params: vec![target("The attached pane. Defaults to the current pane")],
+            returns: Returns::Nothing,
+            follows: Follows::Nothing,
+            errors: vec![
+                ErrorCode::BadRequest,
+                ErrorCode::NoSuchTarget,
+                ErrorCode::AmbiguousTarget,
+            ],
             since: VERSION,
         },
     ]
@@ -924,6 +1007,7 @@ fn server_methods() -> Vec<Method> {
                 fields: server_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -942,6 +1026,7 @@ fn server_methods() -> Vec<Method> {
             )],
             returns: Returns::Nothing,
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -951,6 +1036,7 @@ fn server_methods() -> Vec<Method> {
             params: vec![switch("force", "Stop it even though sessions exist")],
             returns: Returns::Nothing,
             errors: vec![ErrorCode::BadRequest, ErrorCode::ProgramRunning],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -961,9 +1047,13 @@ fn server_methods() -> Vec<Method> {
 fn event_methods(event_names: &[String]) -> Vec<Method> {
     vec![Method {
         name: method("event", "watch"),
-        summary: "Stream events until interrupted".into(),
-        details: "One record per line: which event fired, and its own fields. The only \
-                  stream in the first release."
+        summary: "Subscribe to events, after reading the tree once".into(),
+        details: "The reply is the tree: every session, with its tabs, each with its panes, \
+                  as of the moment this subscription began (TASK-1.46) - a `TreeSnapshot` \
+                  (decision-1: the sdk's own type is the single definition of its real \
+                  shape). Every event after that reply, with no further request, is one of \
+                  this method's own stream items: which event fired, and its own fields, as \
+                  one record. The only stream in the first release."
             .into(),
         params: vec![
             target("The session to watch. Defaults to the current session"),
@@ -975,7 +1065,13 @@ fn event_methods(event_names: &[String]) -> Vec<Method> {
             ),
             switch("all", "Every session on the host, not just the target's"),
         ],
-        returns: Returns::Records {
+        returns: Returns::Nested {
+            of: "TreeSnapshot".into(),
+            summary: "Every session, with its tabs, each with its panes, as of the moment \
+                      this subscription began"
+                .into(),
+        },
+        follows: Follows::Events(Returns::Records {
             fields: vec![
                 field("event", ValueKind::Text, "The event's name"),
                 field(
@@ -984,7 +1080,7 @@ fn event_methods(event_names: &[String]) -> Vec<Method> {
                     "The event's own fields, as a JSON object",
                 ),
             ],
-        },
+        }),
         errors: vec![
             ErrorCode::BadRequest,
             ErrorCode::NoSuchTarget,
@@ -1160,6 +1256,7 @@ fn client_methods() -> Vec<Method> {
                 fields: client_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1175,6 +1272,7 @@ fn client_methods() -> Vec<Method> {
                 ErrorCode::NoSuchTarget,
                 ErrorCode::AmbiguousTarget,
             ],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -1209,6 +1307,7 @@ fn setting_methods() -> Vec<Method> {
                 fields: setting_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1224,6 +1323,7 @@ fn setting_methods() -> Vec<Method> {
                 fields: setting_fields(),
             },
             errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1240,6 +1340,7 @@ fn setting_methods() -> Vec<Method> {
             ],
             returns: Returns::Nothing,
             errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1253,6 +1354,7 @@ fn setting_methods() -> Vec<Method> {
             )],
             returns: Returns::Nothing,
             errors: vec![ErrorCode::BadRequest, ErrorCode::NoSuchTarget],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -1287,6 +1389,7 @@ fn api_methods() -> Vec<Method> {
                 fields: api_method_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1306,6 +1409,7 @@ fn api_methods() -> Vec<Method> {
                 fields: api_method_fields(),
             },
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
         Method {
@@ -1323,6 +1427,7 @@ fn api_methods() -> Vec<Method> {
             params: vec![method_target("The method to call, by its dotted name")],
             returns: Returns::Text,
             errors: vec![ErrorCode::BadRequest],
+            follows: Follows::Nothing,
             since: VERSION,
         },
     ]
@@ -1444,6 +1549,8 @@ mod tests {
             ("pane", "send"),
             ("pane", "capture"),
             ("pane", "wait"),
+            ("pane", "attach"),
+            ("pane", "detach"),
             ("server", "show"),
             ("server", "start"),
             ("server", "stop"),
@@ -1461,9 +1568,13 @@ mod tests {
     }
 
     #[test]
-    fn the_method_set_is_exactly_doc_2_section_8s_42_pairs() {
+    fn the_method_set_is_exactly_doc_2_section_8s_44_pairs() {
         let api = description();
-        assert_eq!(api.methods.len(), 42, "doc-2 section 8 lists 42 methods");
+        assert_eq!(
+            api.methods.len(),
+            44,
+            "doc-2 section 8 lists 44 methods (TASK-1.47 added pane.attach/pane.detach)"
+        );
 
         let described: HashSet<(String, String)> = api
             .methods
@@ -1688,6 +1799,152 @@ mod tests {
         assert_eq!(
             words.iter().map(String::as_str).collect::<HashSet<_>>(),
             event_names
+        );
+    }
+
+    /// TASK-1.46 (AC #1, #4): `event.watch`'s own reply is the tree, a
+    /// nested value too shaped to flatten into fields - named by its sdk
+    /// type, not described as "any value".
+    #[test]
+    fn event_watch_replies_with_a_nested_tree_snapshot() {
+        use crate::description::shapes::Returns;
+
+        let api = description();
+        let event_watch = api.method("event.watch").unwrap();
+        let Returns::Nested { of, summary } = &event_watch.returns else {
+            panic!(
+                "event.watch's returns is not Nested: {:?}",
+                event_watch.returns
+            );
+        };
+        assert_eq!(of, "TreeSnapshot");
+        assert!(!summary.is_empty());
+    }
+
+    /// TASK-1.46: `event.watch`'s reply is followed by events with no id,
+    /// on the control stream the reply itself travelled on - never a new
+    /// stream (that shape is `Follows::Attachment`, TASK-1.47's own case).
+    /// The stream item's own fields are exactly what `returns` used to
+    /// declare before this task moved them here.
+    #[test]
+    fn event_watch_is_followed_by_events_on_the_control_stream() {
+        use crate::description::shapes::{Follows, Returns};
+
+        let api = description();
+        let event_watch = api.method("event.watch").unwrap();
+        let Follows::Events(Returns::Records { fields }) = &event_watch.follows else {
+            panic!(
+                "event.watch's follows is not Events(Records): {:?}",
+                event_watch.follows
+            );
+        };
+        let names: Vec<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(names, vec!["event", "data"]);
+    }
+
+    /// Only `event.watch` (events, on the control stream) and `pane.attach`
+    /// (TASK-1.47: screen updates, on a new stream) have anything following
+    /// their reply - a forgotten `follows` on a future method is a wrong,
+    /// silent default otherwise (`Follows::Nothing` has to be written, not
+    /// assumed, since `Method` has no `Default`). Extended, not weakened,
+    /// by TASK-1.47: the set of methods this allows is now two, named
+    /// explicitly, rather than loosened to "any method may".
+    #[test]
+    fn only_event_watch_and_pane_attach_have_anything_following_their_reply() {
+        use crate::description::shapes::Follows;
+
+        const METHODS_WITH_A_FOLLOWING_STREAM: &[&str] = &["event.watch", "pane.attach"];
+
+        let api = description();
+        for method in &api.methods {
+            let dotted = method.name.dotted();
+            if METHODS_WITH_A_FOLLOWING_STREAM.contains(&dotted.as_str()) {
+                assert_ne!(method.follows, Follows::Nothing, "{dotted}");
+            } else {
+                assert_eq!(method.follows, Follows::Nothing, "{dotted}");
+            }
+        }
+    }
+
+    /// A `Returns::Nested` names a real sdk type (decision-1: the single
+    /// definition of its real shape), checked against a small, explicit
+    /// allow-list rather than trusted by convention - a typo in `of`
+    /// fails this, not just a human reader. Checks a method's own `returns`
+    /// *and* its `follows`'s own nested item, if it has one (TASK-1.47:
+    /// `pane.attach`'s `Follows::Attachment::item` is `Nested` too) - the
+    /// same check, not a second one, since both are the identical "does
+    /// this string name a real type" question.
+    #[test]
+    fn every_nested_reply_and_stream_item_names_a_real_sdk_type() {
+        use crate::description::shapes::{Follows, Returns};
+
+        const KNOWN_NESTED_TYPES: &[&str] = &["TreeSnapshot", "PaneAttached", "ScreenUpdate"];
+
+        fn assert_known(of: &str, dotted: &str) {
+            assert!(
+                KNOWN_NESTED_TYPES.contains(&of),
+                "{dotted} names {of}, which is not in the known sdk types"
+            );
+        }
+
+        let api = description();
+        for method in &api.methods {
+            let dotted = method.name.dotted();
+            if let Returns::Nested { of, .. } = &method.returns {
+                assert_known(of, &dotted);
+            }
+            match &method.follows {
+                Follows::Nothing | Follows::Events(_) => {}
+                Follows::Attachment { item, .. } => {
+                    if let Returns::Nested { of, .. } = item {
+                        assert_known(of, &dotted);
+                    }
+                }
+            }
+        }
+    }
+
+    /// `Follows::Attachment::stream_id_field` names a field that really
+    /// exists on the method's own `Nested` reply type - checked at run
+    /// time against a real, serialised value of that type, not only by
+    /// eye: a typo here, or a later rename of `PaneAttached::stream` that
+    /// forgets this string, fails the build.
+    #[test]
+    fn pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply() {
+        use crate::description::shapes::Follows;
+        use crate::screen::{PaneAttached, Screen};
+
+        let api = description();
+        let pane_attach = api.method("pane.attach").unwrap();
+        let Follows::Attachment {
+            stream_id_field, ..
+        } = &pane_attach.follows
+        else {
+            panic!(
+                "pane.attach's follows is not Attachment: {:?}",
+                pane_attach.follows
+            );
+        };
+
+        let sample = PaneAttached {
+            stream: 1,
+            snapshot: Screen {
+                rows: Vec::new(),
+                cursor: crate::screen::Cursor {
+                    x: 0,
+                    y: 0,
+                    visible: true,
+                    blinking: false,
+                    shape: crate::screen::CursorShape::Block,
+                },
+            },
+        };
+        let value = serde_json::to_value(&sample).unwrap();
+        let object = value.as_object().unwrap();
+        assert!(
+            object.contains_key(stream_id_field.as_str()),
+            "stream_id_field names {stream_id_field:?}, which is not a field of PaneAttached: \
+             {object:?}"
         );
     }
 

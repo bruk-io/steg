@@ -31,6 +31,11 @@ const POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// window closed" scheduling noise, not evidence.
 const TEST_GRACE: Duration = Duration::from_millis(30);
 
+/// A tiny `attach_tick` for every `Runtime::new` in this file that does
+/// not itself need a real tick to measure against (TASK-1.47) - none of
+/// this file's own tests attach to a pane.
+const TEST_TICK: Duration = Duration::from_millis(1);
+
 /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
 /// `.env_clear()` means a `base_env` with none cannot resolve a relative
 /// program name like `"sh"` - this test file's own ambient `PATH` is
@@ -53,7 +58,12 @@ fn login_for_force_tests() -> LoginShell {
 
 fn runtime() -> (Runtime, Description) {
     (
-        Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), TEST_GRACE),
+        Runtime::new(
+            Arc::new(RealLauncher),
+            login_for_force_tests(),
+            TEST_GRACE,
+            TEST_TICK,
+        ),
         description(),
     )
 }
@@ -628,7 +638,12 @@ fn a_flooding_program_that_exits_by_itself_mid_grace_completes_promptly_as_a_reg
     // proof, with its own recorded negative control; this one is kept as
     // a realistic end-to-end regression only, named for exactly that.
     let grace = Duration::from_secs(3);
-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace);
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        login_for_force_tests(),
+        grace,
+        TEST_TICK,
+    );
     let api = description();
     // Floods a real backlog (20,000 lines through the pty, not a file -
     // confirmed by hand to take well under a second for a shell's own
@@ -694,7 +709,12 @@ fn tab_close_with_force_ends_every_program_in_scope_within_one_grace_window() {
     // enough to separate "one window" from "four windows" needs a
     // window wide enough that scheduling noise cannot close the gap.
     let grace = Duration::from_millis(500);
-    let runtime = Runtime::new(Arc::new(RealLauncher), login_for_force_tests(), grace);
+    let runtime = Runtime::new(
+        Arc::new(RealLauncher),
+        login_for_force_tests(),
+        grace,
+        TEST_TICK,
+    );
     let api = description();
 
     // The marker file's own content is the pid (`echo $$`, not a bare
@@ -949,6 +969,7 @@ fn a_pane_being_forced_is_unreachable_by_another_request_meanwhile() {
         Arc::new(RealLauncher),
         login_for_force_tests(),
         Duration::from_secs(5),
+        TEST_TICK,
     );
     let api = description();
     let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
@@ -1026,6 +1047,7 @@ fn a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         Arc::new(RealLauncher),
         login_for_force_tests(),
         Duration::from_secs(5),
+        TEST_TICK,
     );
     let api = description();
     let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
@@ -1111,6 +1133,7 @@ fn a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         Arc::new(RealLauncher),
         login_for_force_tests(),
         Duration::from_secs(5),
+        TEST_TICK,
     );
     let api = description();
     let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
@@ -1185,6 +1208,7 @@ fn a_session_being_forced_is_unreachable_by_every_method_that_can_name_it() {
         Arc::new(RealLauncher),
         login_for_force_tests(),
         Duration::from_secs(5),
+        TEST_TICK,
     );
     let api = description();
     let (session_id, tab_id, pid) = session_with_a_pane_reporting_its_pid(
@@ -1275,6 +1299,7 @@ fn a_force_racing_another_force_on_the_same_pane_never_double_acts() {
         Arc::new(RealLauncher),
         login_for_force_tests(),
         Duration::from_secs(2),
+        TEST_TICK,
     );
     let (session_id, tab_id, pid) =
         session_with_a_pane_reporting_its_pid(&runtime, &description(), "sleep 1000");

@@ -5248,9 +5248,12 @@ dependencies = [
 name = "steg-app"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "gpui",
+ "serde_json",
  "steg-sdk",
  "steg-ui",
+ "unicode-segmentation",
 ]
 
 [[package]]

@@ -31,17 +31,10 @@ use std::thread::{self, JoinHandle};
 /// surprise.
 const CONTROL_CAP: usize = 256;
 
-/// decision-2 §6's own measured number for a data-mode attachment's queue.
-/// Read only by this module's own tests today: nothing in this task ever
-/// opens a real stream (attach is TASK-1.47), so a production build never
-/// reaches it.
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "TASK-1.47's attach is the first real caller of the data side this guards; exercised today only by this module's own tests, which is why the expectation is scoped to a non-test build"
-    )
-)]
+/// decision-2 §6's own measured number for a data-mode attachment's queue:
+/// a bounded queue per attachment, so a slow client's backlog costs a
+/// fresh, screen-sized resync (TASK-1.47's own tick, `crate::pane::
+/// run_tick`), never an unbounded wait or a growing queue.
 const DATA_CAP: usize = 64;
 
 /// Why [`Outbound::enqueue_control`] refused.
@@ -56,28 +49,24 @@ pub(crate) enum EnqueueControlError {
     Closed,
 }
 
-/// Why [`Outbound::enqueue_data`] refused. Built and returned only by
-/// [`Outbound::enqueue_data`], which (see its own doc) is itself reachable
-/// only from this module's own tests today - the same TASK-1.47 gap as
-/// [`DATA_CAP`].
-#[cfg_attr(
-    not(test),
-    expect(
-        dead_code,
-        reason = "TASK-1.47's attach is the first real caller of enqueue_data, the only thing that ever produces this; exercised today only by this module's own tests"
-    )
-)]
+/// Why [`Outbound::enqueue_data`] refused. [`crate::pane::run_tick`] (the
+/// tick TASK-1.47 adds) treats [`EnqueueDataError::Full`] and
+/// [`EnqueueDataError::NotOpen`] identically: mark the attachment as
+/// needing a fresh resync and try again next tick, never block.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum EnqueueDataError {
     /// [`Outbound::open_stream`] was never called for this stream id (or
-    /// [`Outbound::close_stream`] already closed it) - nothing in this
-    /// task ever opens a stream (attach is TASK-1.47), so this is reachable
-    /// only by this module's own tests today.
+    /// [`Outbound::close_stream`] already closed it) - reachable today
+    /// when a tick runs for an attachment the worker knows about but this
+    /// `Outbound` has not yet been told to open (TASK-1.47's own ordering
+    /// rule: an attachment is handed its `Outbound` only after the writer
+    /// has been told its stream exists, `crate::pane`'s own `PaneCommand::
+    /// Arm`), or after it has already been closed.
     NotOpen,
-    /// The stream's own queue is already at [`DATA_CAP`]: this task's own
-    /// placeholder back-pressure policy (decision-2 §6's real
-    /// drop-and-resync needs a snapshot to send, which does not exist until
-    /// TASK-1.47) - the frame is dropped, not queued, and not blocked on.
+    /// The stream's own queue is already at [`DATA_CAP`]: decision-2 §6's
+    /// real drop-and-resync policy - the frame is dropped, not queued, and
+    /// not blocked on; a fresh, screen-sized snapshot replaces it on the
+    /// very next tick.
     Full,
     /// [`Outbound::close`] has already been called.
     Closed,
@@ -176,16 +165,9 @@ impl Outbound {
 
     /// Registers a stream so [`Outbound::enqueue_data`] accepts frames for
     /// it and the writer's round robin gives it a turn. Idempotent: opening
-    /// an already-open stream changes nothing (not reached today - nothing
-    /// in this task calls this at all; TASK-1.47's own attach code is the
-    /// first real caller).
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
-        )
-    )]
+    /// an already-open stream changes nothing. Called by `connection.rs`'s
+    /// own `pane.attach` handling (TASK-1.47), after the attach reply is
+    /// already queued (decision-2 section 3's ordering rule).
     pub(crate) fn open_stream(&self, stream: u32) {
         let mut queues = self.lock();
         if let std::collections::hash_map::Entry::Vacant(entry) = queues.data.entry(stream) {
@@ -198,14 +180,8 @@ impl Outbound {
     /// whatever was still queued for it is dropped. Keeps `cursor` valid by
     /// construction - removing by position and taking `cursor` modulo the
     /// new (possibly smaller) length, rather than leaving it pointing past
-    /// the end.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
-        )
-    )]
+    /// the end. Called by `connection.rs`'s own `pane.detach` handling
+    /// (TASK-1.47).
     pub(crate) fn close_stream(&self, stream: u32) {
         let mut queues = self.lock();
         queues.data.remove(&stream);
@@ -219,16 +195,8 @@ impl Outbound {
         }
     }
 
-    /// Queues opaque bytes on an already-open data stream - reached only by
-    /// this module's own tests today (see [`EnqueueDataError::NotOpen`]'s
-    /// own doc).
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "TASK-1.47's attach is the first real caller; exercised today only by this module's own tests"
-        )
-    )]
+    /// Queues opaque bytes on an already-open data stream - called once per
+    /// armed attachment, per tick, by `crate::pane::run_tick` (TASK-1.47).
     pub(crate) fn enqueue_data(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
         let mut queues = self.lock();
         if queues.closed {

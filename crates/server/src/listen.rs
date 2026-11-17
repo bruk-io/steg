@@ -378,6 +378,7 @@ pub fn run(
         Arc::clone(&config.launcher),
         config.login.clone(),
         crate::runtime::FORCE_GRACE_DEFAULT,
+        config.attach_tick,
     );
 
     // Built before the loop, same reasoning as `runtime` above - only
@@ -752,6 +753,7 @@ mod tests {
             std::sync::Arc::new(crate::pty::RealLauncher),
             crate::runtime::LoginShell::default(),
             Duration::from_millis(1),
+            crate::config::DEFAULT_ATTACH_TICK,
         );
         let stop = super::Stopper::new();
 

@@ -49,16 +49,17 @@
 //! itself is done without ever blocking inside that lock.
 
 use std::io::{Read, Write};
-use std::sync::mpsc::{self, Sender};
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use nix::sys::signal::Signal;
 use steg_kernel::{CommandMark, Terminal};
-use steg_sdk::{PaneId, Screen};
+use steg_sdk::{Frame, PaneId, Screen, ScreenUpdate, encode_frame};
 
 use crate::error::Error;
+use crate::outbound::{EnqueueDataError, Outbound};
 use crate::pty::{LaunchSpec, ProgramLauncher};
 
 /// doc-9 R15's default scrollback, in lines. Not exposed as a parameter
@@ -242,6 +243,37 @@ pub(crate) fn join_with_bound(handle: thread::JoinHandle<()>, timeout: Duration)
     done_rx.recv_timeout(timeout).is_ok()
 }
 
+/// One client's attachment to this pane's screen (TASK-1.47): its stream
+/// id, the connection's own outbound queue once it is armed, and whether
+/// it holds every row the terminal has reported so far or needs a fresh,
+/// full resync before it can resume taking deltas (decision-2 section 6).
+///
+/// `outbound` starts `None` and is filled in by [`PaneCommand::Arm`],
+/// deliberately a later, separate step from [`PaneCommand::Attach`] - see
+/// that command's own doc for why, and [`run_tick`]'s own doc for what an
+/// unarmed attachment costs (nothing: it is skipped until armed).
+struct Attachment {
+    stream: u32,
+    outbound: Option<Arc<Outbound>>,
+    caught_up_to: AttachState,
+}
+
+/// Whether an attachment is caught up to the terminal's own tracked point
+/// (`CaughtUp`, holding the point it was last sent, or registered with),
+/// or needs a whole fresh screen before it can resume taking deltas
+/// (`NeedsResync` - decision-2 section 6: a full queue, or a stream not
+/// yet armed at the moment a tick ran). A `CaughtUp` value that no longer
+/// equals the worker's own current tracked point (an attachment that was
+/// armed after one or more ticks it took no part in) is treated exactly
+/// like `NeedsResync` by [`run_tick`] - the two are not told apart there,
+/// since "caught up to a stale point" and "needs a resync" call for the
+/// identical fresh-screen response.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AttachState {
+    CaughtUp(u64),
+    NeedsResync,
+}
+
 /// What happened to a pane's program, reported out of its worker thread.
 /// TASK-1.41 reads this to compute richer status; TASK-1.46 forwards it as
 /// an event to clients.
@@ -321,6 +353,51 @@ enum PaneCommand {
     /// The current run's program ended with this exit code (internal:
     /// sent by this run's relay thread, never by a caller).
     Exited(i32),
+    /// Registers a new attachment to this pane's screen (TASK-1.47): reads
+    /// the terminal's current screen for the reply, and registers the
+    /// attachment in the worker's own fan-out list, caught up to the
+    /// terminal's own tracked point as of this exact read (decision-2
+    /// section 3: the stream resumes at this point plus one) - but *not*
+    /// yet handed anything to send to. `outbound` starts `None`:
+    /// decision-2's own ordering rule ("queue the attach result first,
+    /// register the attachment's queue second") is honoured by the caller
+    /// sending [`PaneCommand::Arm`] only once it has actually queued the
+    /// reply this sends back and opened the stream with the writer - this
+    /// command never blocks on that; it answers at once either way.
+    Attach {
+        /// The new attachment's stream id, already minted by the caller
+        /// (a connection concern, not this module's).
+        stream: u32,
+        /// Where the pane's current screen is sent back.
+        reply: Sender<Result<Screen, Error>>,
+    },
+    /// Hands an already-registered attachment the `Outbound` it sends
+    /// updates to, once the caller has queued the attach reply and opened
+    /// the stream with the writer (decision-2 section 3's ordering rule;
+    /// see [`PaneCommand::Attach`]'s own doc). A no-op if `stream` is not
+    /// currently registered (it was detached before this arrived, or the
+    /// `Attach` it answers never reached this worker - `Error::PaneGone`
+    /// already covers that case for the caller).
+    Arm {
+        /// The attachment to arm.
+        stream: u32,
+        /// The connection's own outbound queue.
+        outbound: Arc<Outbound>,
+    },
+    /// Ends an attachment: no further update is computed or sent for
+    /// `stream`. A no-op if it is not currently registered.
+    Detach {
+        /// The attachment to end.
+        stream: u32,
+    },
+    /// How many attachments this pane's own fan-out list currently holds,
+    /// read back through this reply channel (TASK-1.47 review): test-only,
+    /// since nothing outside a test needs it - the one fact that is true
+    /// exactly when a `Detach`, or the sweep `ConnectionCleanup::Drop`
+    /// sends in its place, has actually been applied by this worker, not
+    /// merely sent.
+    #[cfg(test)]
+    AttachmentCount(Sender<usize>),
 }
 
 /// The writer, resize handle and relay thread of whichever program is
@@ -424,6 +501,78 @@ impl PaneHandle {
         reply_rx
             .recv_timeout(CWD_LOOKUP_TIMEOUT)
             .map_err(|_| Error::PaneGone)
+    }
+
+    /// Registers a new attachment to this pane's screen and returns its
+    /// snapshot (TASK-1.47; AC #1, #7). The caller mints `stream` (a
+    /// connection concern) and must call [`PaneHandle::arm`] once it has
+    /// queued this reply and opened the stream with the writer -
+    /// decision-2 section 3's ordering rule; see [`PaneCommand::Attach`]'s
+    /// own doc for why attach and arm are two separate steps.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there, or whatever the terminal itself failed with.
+    pub fn attach(&self, stream: u32) -> Result<Screen, Error> {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        self.commands
+            .send(PaneCommand::Attach {
+                stream,
+                reply: reply_tx,
+            })
+            .map_err(|_| Error::PaneGone)?;
+        reply_rx.recv().map_err(|_| Error::PaneGone)?
+    }
+
+    /// Hands an already-registered attachment the `Outbound` it sends
+    /// updates to (TASK-1.47) - see [`PaneCommand::Arm`]'s own doc for the
+    /// ordering rule this is the second half of. `pub(crate)`, not `pub`:
+    /// `Outbound` itself is `pub(crate)` (a server-internal type), so this
+    /// is only ever called from this crate's own connection-handling code,
+    /// never meaningfully reachable from outside it.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there.
+    pub(crate) fn arm(&self, stream: u32, outbound: Arc<Outbound>) -> Result<(), Error> {
+        self.commands
+            .send(PaneCommand::Arm { stream, outbound })
+            .map_err(|_| Error::PaneGone)
+    }
+
+    /// Ends an attachment (TASK-1.47): no further update is computed or
+    /// sent for `stream`. Not an error if it is already gone - detaching
+    /// twice, or detaching a stream the worker never armed, both leave
+    /// the pane exactly as the caller wanted it: nothing more sent there.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there.
+    pub fn detach(&self, stream: u32) -> Result<(), Error> {
+        self.commands
+            .send(PaneCommand::Detach { stream })
+            .map_err(|_| Error::PaneGone)
+    }
+
+    /// How many attachments this pane's own fan-out list currently holds
+    /// (TASK-1.47 review) - test-only; see [`PaneCommand::AttachmentCount`]'s
+    /// own doc. `0` if the worker is already gone: nothing is left
+    /// attached to a pane with no worker, whatever this call's own reply
+    /// channel says.
+    #[cfg(test)]
+    pub(crate) fn attachment_count(&self) -> usize {
+        let (reply_tx, reply_rx) = mpsc::channel();
+        if self
+            .commands
+            .send(PaneCommand::AttachmentCount(reply_tx))
+            .is_err()
+        {
+            return 0;
+        }
+        reply_rx.recv().unwrap_or(0)
     }
 
     /// Runs the pane's program again (R97): a new pseudo-terminal and a
@@ -560,6 +709,7 @@ pub fn start(
     pane: PaneId,
     launcher: Arc<dyn ProgramLauncher>,
     events: Sender<PaneEvent>,
+    attach_tick: Duration,
 ) -> Result<PaneHandle, Error> {
     let (cols, rows) = spec.size;
     let spawned = launcher.spawn(&spec)?;
@@ -590,7 +740,17 @@ pub fn start(
 
     let worker = thread::Builder::new()
         .name(format!("steg-pane-{pane}"))
-        .spawn(move || worker_loop(commands_rx, cols, rows, Some(initial), pane, events))
+        .spawn(move || {
+            worker_loop(
+                commands_rx,
+                cols,
+                rows,
+                Some(initial),
+                pane,
+                events,
+                attach_tick,
+            );
+        })
         .map_err(Error::Io)?;
 
     Ok(PaneHandle {
@@ -610,6 +770,20 @@ pub fn start(
 /// anything: `commands_rx` is dropped, so the very next call through the
 /// `PaneHandle` this pane was given fails with [`Error::PaneGone`] rather
 /// than hanging - no panic, and no silent half-working pane.
+///
+/// **The tick (TASK-1.47): armed only while there is real work for it,
+/// never on a fixed cadence.** `next_tick` is `None` whenever nothing
+/// attached has output it has not yet seen - which includes every pane
+/// with no attachment at all - and the receive below blocks with no
+/// timeout in that state, exactly as it always did before this task. A
+/// command that could change the screen (`PtyBytes`, `Resize`) arms one
+/// deadline, `attach_tick` from now, *only* if an armed attachment exists
+/// and none is already pending (`maybe_arm_tick`) - one arm per dirty
+/// window, not one per byte, which is what keeps the tick's own
+/// coalescing real. A timeout clears `next_tick` and runs [`run_tick`];
+/// nothing re-arms it until the next dirtying command does. This is the
+/// whole of "no periodic wake-up": an idle or unattached pane calls
+/// `recv()` and nothing else, for ever, until a real command arrives.
 fn worker_loop(
     commands_rx: mpsc::Receiver<PaneCommand>,
     cols: u16,
@@ -617,6 +791,7 @@ fn worker_loop(
     initial: Option<Running>,
     pane: PaneId,
     events: Sender<PaneEvent>,
+    attach_tick: Duration,
 ) {
     let Ok(mut terminal) = Terminal::new(cols, rows, DEFAULT_SCROLLBACK_LINES) else {
         return;
@@ -626,8 +801,38 @@ fn worker_loop(
     // actually end (TASK-1.78 §1) - `None` the rest of the time,
     // including whenever nothing is running at all.
     let mut awaiting_exit: Option<Sender<()>> = None;
+    // TASK-1.47: every live attachment to this pane's screen, and the
+    // terminal's own tracked point as of the last tick this worker ran
+    // (`0` - a value `Terminal::changes_since` never hands out itself -
+    // meaning "no tick has run yet", the same convention the terminal's
+    // own `seq` already uses, read back by `run_tick` below).
+    let mut attachments: Vec<Attachment> = Vec::new();
+    let mut tracked_seq: u64 = 0;
+    // `None` until a dirtying command arms it; see this function's own
+    // doc for why this, not an unconditional `recv_timeout`, is what
+    // makes an idle or unattached pane cost nothing.
+    let mut next_tick: Option<Instant> = None;
 
-    for command in commands_rx {
+    loop {
+        let command = match next_tick {
+            Some(deadline) => {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                match commands_rx.recv_timeout(remaining) {
+                    Ok(command) => command,
+                    Err(RecvTimeoutError::Timeout) => {
+                        next_tick = None;
+                        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+                        continue;
+                    }
+                    Err(RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            None => match commands_rx.recv() {
+                Ok(command) => command,
+                Err(_) => break,
+            },
+        };
+
         match command {
             PaneCommand::Input(bytes) => {
                 if let Some(running) = &mut current {
@@ -639,6 +844,7 @@ fn worker_loop(
                 if let Some(running) = &current {
                     let _ = (running.resize)(cols, rows);
                 }
+                maybe_arm_tick(&mut next_tick, attach_tick, &attachments);
             }
             PaneCommand::Snapshot(reply) => {
                 let _ = reply.send(terminal.screen().map_err(Error::from));
@@ -663,6 +869,7 @@ fn worker_loop(
             PaneCommand::PtyBytes(bytes) => {
                 terminal.write(&bytes);
                 drain_command_marks(&mut terminal, pane, &events);
+                maybe_arm_tick(&mut next_tick, attach_tick, &attachments);
             }
             PaneCommand::Exited(exit_code) => {
                 if let Some(running) = current.take() {
@@ -701,6 +908,143 @@ fn worker_loop(
                     let _ = reply.send(());
                     break;
                 }
+            }
+            PaneCommand::Attach { stream, reply } => {
+                let screen = terminal.screen().map_err(Error::from);
+                if screen.is_ok() {
+                    // Registered as caught up to the worker's own
+                    // currently-tracked point, in this exact step - not
+                    // "caught up starting next tick": decision-2 section
+                    // 3's stream resumption ("snapshot.seq + 1") depends
+                    // on it. `outbound` stays `None` until `Arm` arrives;
+                    // nothing reads it before then.
+                    attachments.push(Attachment {
+                        stream,
+                        outbound: None,
+                        caught_up_to: AttachState::CaughtUp(tracked_seq),
+                    });
+                }
+                let _ = reply.send(screen);
+            }
+            PaneCommand::Arm { stream, outbound } => {
+                if let Some(attachment) = attachments.iter_mut().find(|a| a.stream == stream) {
+                    attachment.outbound = Some(outbound);
+                }
+                maybe_arm_tick(&mut next_tick, attach_tick, &attachments);
+            }
+            PaneCommand::Detach { stream } => {
+                attachments.retain(|a| a.stream != stream);
+            }
+            #[cfg(test)]
+            PaneCommand::AttachmentCount(reply) => {
+                let _ = reply.send(attachments.len());
+            }
+        }
+    }
+}
+
+/// Arms `next_tick`, `attach_tick` from now, if it is not already armed
+/// and at least one attachment is actually armed (has an `Outbound` to
+/// send to) - called after anything that could make `run_tick` have real
+/// work to do. A no-op otherwise: an unattached or not-yet-armed pane
+/// stays on a plain, timeout-free `recv()` (this function's own
+/// non-effect *is* "no periodic wake-up", not a separate mechanism that
+/// enforces it).
+fn maybe_arm_tick(
+    next_tick: &mut Option<Instant>,
+    attach_tick: Duration,
+    attachments: &[Attachment],
+) {
+    if next_tick.is_some() {
+        return;
+    }
+    if attachments.iter().any(|a| a.outbound.is_some()) {
+        *next_tick = Some(Instant::now() + attach_tick);
+    }
+}
+
+/// Computes this pane's one screen update for this tick and fans it out
+/// to every armed attachment (decision-2 section 3: "call this once per
+/// tick and fan the one result out"; AC #1, #3).
+///
+/// An attachment with no `Outbound` yet (not armed - see [`Attachment`]'s
+/// own doc) is skipped entirely: nothing is computed or sent for it, and
+/// its own `caught_up_to` is left exactly as it was, which is what lets
+/// [`PaneCommand::Arm`] hand it off cleanly whenever it does arrive - the
+/// next tick after that treats a stale `CaughtUp` exactly like
+/// `NeedsResync` (`AttachState`'s own doc), with no special case needed
+/// here for "just armed".
+///
+/// Back-pressure (decision-2 section 6, AC #3's second half): an
+/// attachment whose `enqueue_data` returns `Full` or `NotOpen` moves to
+/// `NeedsResync` and is simply left there for this tick - the very next
+/// tick tries a fresh, scrollback-free screen for it again, never a
+/// delta, until one actually queues. This never blocks: `enqueue_data`
+/// itself never blocks (`crate::outbound`'s own design), so neither does
+/// this function.
+fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [Attachment]) {
+    let previous = *tracked_seq;
+    let seen = (previous != 0).then_some(previous);
+    let Ok(outcome) = terminal.changes_since(seen) else {
+        // The engine failed to report. Nothing to send this tick; try
+        // again next tick rather than treating this as fatal to the pane.
+        return;
+    };
+    let new_seq = match &outcome {
+        ScreenUpdate::Unchanged => return,
+        ScreenUpdate::Delta { seq, .. } | ScreenUpdate::Full { seq, .. } => *seq,
+    };
+    *tracked_seq = new_seq;
+
+    // The JSON payload for an attachment that is already caught up to
+    // `previous` - built once, shared by every such attachment, not
+    // recomputed per attachment (decision-2 section 3's own point: one
+    // update per tick, fanned out). Framed separately per attachment
+    // below, since the stream id is part of the frame, not the payload.
+    let mut ready_payload: Option<Vec<u8>> = None;
+
+    for attachment in attachments.iter_mut() {
+        let Some(outbound) = attachment.outbound.clone() else {
+            continue; // not yet armed - nothing to send to
+        };
+        let ready =
+            matches!(attachment.caught_up_to, AttachState::CaughtUp(seq) if seq == previous);
+
+        let payload = if ready {
+            ready_payload
+                .get_or_insert_with(|| {
+                    serde_json::to_vec(&outcome).expect("ScreenUpdate always serialises to JSON")
+                })
+                .clone()
+        } else {
+            // Needs a fresh, independent, scrollback-free screen - never
+            // the tick's own `outcome` (which may be a `Delta` this
+            // attachment cannot apply), and never what any other
+            // attachment is sent (decision-2 section 6: "a client that
+            // falls behind gets one fresh screen-sized snapshot, without
+            // scrollback").
+            let Ok(screen) = terminal.screen() else {
+                continue; // try again next tick
+            };
+            let full = ScreenUpdate::Full {
+                screen,
+                seq: new_seq,
+            };
+            serde_json::to_vec(&full).expect("ScreenUpdate always serialises to JSON")
+        };
+
+        let bytes = encode_frame(&Frame::control(attachment.stream, payload))
+            .expect("a screen update fits under the frame cap");
+
+        match outbound.enqueue_data(attachment.stream, bytes) {
+            Ok(()) => attachment.caught_up_to = AttachState::CaughtUp(new_seq),
+            Err(EnqueueDataError::Full | EnqueueDataError::NotOpen) => {
+                attachment.caught_up_to = AttachState::NeedsResync;
+            }
+            Err(EnqueueDataError::Closed) => {
+                // The connection is tearing down; nothing more to do -
+                // `PaneCommand::Detach` will arrive, or this attachment
+                // simply never gets another successful send.
             }
         }
     }
@@ -1074,6 +1418,10 @@ mod ending_tests {
     /// process wait in this crate gives.
     const EVENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+    /// A tiny `attach_tick` for every `start` in this module - none of
+    /// these tests attach to a pane.
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
     fn real_spec(argv: Vec<&str>) -> LaunchSpec {
         LaunchSpec {
             argv: argv.into_iter().map(str::to_string).collect(),
@@ -1114,6 +1462,7 @@ mod ending_tests {
             steg_sdk::PaneId::from_raw(1),
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1150,6 +1499,7 @@ mod ending_tests {
             steg_sdk::PaneId::from_raw(2),
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1196,6 +1546,7 @@ mod ending_tests {
             steg_sdk::PaneId::from_raw(3),
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1248,6 +1599,7 @@ mod ending_tests {
             steg_sdk::PaneId::from_raw(4),
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
 
@@ -1306,6 +1658,7 @@ mod ending_tests {
             steg_sdk::PaneId::from_raw(5),
             Arc::new(RealLauncher),
             events_tx,
+            TEST_TICK,
         )
         .unwrap();
         // The first run already exits on its own - R97's own restart
@@ -1377,6 +1730,7 @@ mod ending_tests {
                 steg_sdk::PaneId::from_raw(pane),
                 Arc::new(RealLauncher),
                 events_tx,
+                TEST_TICK,
             )
             .unwrap();
             events_rx
@@ -1414,5 +1768,508 @@ mod ending_tests {
              was unaffected by - otherwise this test is not proving the \
              two mechanisms differ at all"
         );
+    }
+}
+
+/// TASK-1.47: attaching to a pane's screen, the tick, the fan-out and its
+/// back-pressure. `maybe_arm_tick` and `run_tick` are proven directly, as
+/// pure(-ish) functions - the same reasoning `testing-rust.md` gives for a
+/// terminal's own behaviour ("feeding bytes in and reading the screen back,
+/// not... the emulator's internals") applies here: these two functions
+/// *are* the mechanism, not internals behind it, and calling them directly
+/// needs no thread at all for most of what they decide. The full
+/// `start`/`PaneHandle` surface is exercised by the handful of tests that
+/// need a real worker thread and a real pty.
+#[cfg(test)]
+mod attach_tests {
+    use std::io::Read;
+    use std::os::unix::net::UnixStream;
+    use std::sync::Arc;
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    use steg_sdk::{Decoder, PaneId, ScreenUpdate};
+
+    use crate::outbound::{Outbound, run_writer};
+    use crate::pty::{LaunchSpec, RealLauncher};
+
+    use super::{AttachState, Attachment, Terminal, maybe_arm_tick, run_tick, start};
+
+    const TEST_TICK: Duration = Duration::from_millis(1);
+
+    fn real_spec(argv: Vec<&str>) -> LaunchSpec {
+        LaunchSpec {
+            argv: argv.into_iter().map(str::to_string).collect(),
+            cwd: std::env::temp_dir().to_str().unwrap().to_string(),
+            env: vec![(
+                std::ffi::OsString::from("PATH"),
+                std::env::var_os("PATH").unwrap_or_default(),
+            )],
+            size: (80, 24),
+        }
+    }
+
+    /// A real `Outbound`, writing onto a real `UnixStream::pair()` - the
+    /// returned stream is this test's own read side; `outbound` is what
+    /// `run_tick`/`PaneHandle::arm` enqueue onto. The writer thread is
+    /// joined by `finish`, not dropped: every thread this helper starts is
+    /// accounted for on every test's own exit path.
+    struct FramePair {
+        outbound: Arc<Outbound>,
+        client: UnixStream,
+        writer: std::thread::JoinHandle<()>,
+        decoder: Decoder,
+    }
+
+    impl FramePair {
+        fn new() -> Self {
+            let outbound = Arc::new(Outbound::new());
+            let (client, server) = UnixStream::pair().unwrap();
+            let writer = {
+                let outbound = Arc::clone(&outbound);
+                std::thread::spawn(move || run_writer(&outbound, server))
+            };
+            Self {
+                outbound,
+                client,
+                writer,
+                decoder: Decoder::new(),
+            }
+        }
+
+        /// Reads one frame's payload, decoded as a [`ScreenUpdate`] -
+        /// bounded, via a real read with a timeout, never a sleep-poll:
+        /// the event this waits on is the frame itself arriving.
+        fn next_update(&mut self, timeout: Duration) -> (u32, ScreenUpdate) {
+            let deadline = Instant::now() + timeout;
+            loop {
+                if let Ok(Some(frame)) = self.decoder.next_frame() {
+                    let update = serde_json::from_slice(&frame.payload)
+                        .expect("ScreenUpdate always deserialises from what run_tick sent");
+                    return (frame.stream, update);
+                }
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                assert!(!remaining.is_zero(), "no update arrived within {timeout:?}");
+                self.client.set_read_timeout(Some(remaining)).unwrap();
+                let mut buf = [0_u8; 65536];
+                match self.client.read(&mut buf) {
+                    Ok(0) => panic!("the writer closed before an update arrived"),
+                    Ok(n) => self.decoder.push(&buf[..n]),
+                    Err(e)
+                        if e.kind() == std::io::ErrorKind::WouldBlock
+                            || e.kind() == std::io::ErrorKind::TimedOut =>
+                    {
+                        panic!("no update arrived within {timeout:?}")
+                    }
+                    Err(e) => panic!("read failed: {e}"),
+                }
+            }
+        }
+
+        /// Asserts nothing arrives within `window` - used to prove an
+        /// unarmed or detached attachment gets nothing, not inferred from
+        /// a successful read elsewhere.
+        fn assert_nothing_arrives(&mut self, window: Duration) {
+            self.client.set_read_timeout(Some(window)).unwrap();
+            let mut buf = [0_u8; 1];
+            match self.client.read(&mut buf) {
+                Ok(0) => {}
+                Ok(_) => panic!("a byte arrived when nothing should have been sent"),
+                Err(e)
+                    if e.kind() == std::io::ErrorKind::WouldBlock
+                        || e.kind() == std::io::ErrorKind::TimedOut => {}
+                Err(e) => panic!("read failed: {e}"),
+            }
+        }
+
+        fn finish(self) {
+            self.outbound.close();
+            let _ = self.writer.join();
+        }
+    }
+
+    // --- `maybe_arm_tick`: the arming rule, pure, no thread at all ---------
+
+    #[test]
+    fn no_attachments_never_arms() {
+        let mut next_tick = None;
+        maybe_arm_tick(&mut next_tick, TEST_TICK, &[]);
+        assert_eq!(next_tick, None);
+    }
+
+    #[test]
+    fn an_unarmed_attachment_never_arms() {
+        let mut next_tick = None;
+        let attachments = [Attachment {
+            stream: 1,
+            outbound: None,
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+        maybe_arm_tick(&mut next_tick, TEST_TICK, &attachments);
+        assert_eq!(
+            next_tick, None,
+            "an attachment with no Outbound yet must never arm a tick - \
+             this is the whole of \"no wake-up for an idle or unattached \
+             pane\""
+        );
+    }
+
+    #[test]
+    fn one_armed_attachment_arms_a_deadline_roughly_one_tick_away() {
+        let mut next_tick = None;
+        let attachments = [Attachment {
+            stream: 1,
+            outbound: Some(Arc::new(Outbound::new())),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+        let before = Instant::now();
+        maybe_arm_tick(&mut next_tick, TEST_TICK, &attachments);
+        let deadline = next_tick.expect("an armed attachment must arm a deadline");
+        assert!(deadline >= before + TEST_TICK);
+        assert!(deadline <= Instant::now() + TEST_TICK);
+    }
+
+    #[test]
+    fn an_already_armed_deadline_is_never_extended() {
+        let attachments = [Attachment {
+            stream: 1,
+            outbound: Some(Arc::new(Outbound::new())),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+        let already = Instant::now() + Duration::from_secs(1);
+        let mut next_tick = Some(already);
+        maybe_arm_tick(&mut next_tick, TEST_TICK, &attachments);
+        assert_eq!(
+            next_tick,
+            Some(already),
+            "maybe_arm_tick must not reset or extend a deadline that is \
+             already armed - one arm per dirty window, not one per call"
+        );
+    }
+
+    // --- `run_tick`: the fan-out and back-pressure algorithm ---------------
+
+    #[test]
+    fn a_new_attachments_first_tick_is_a_full_screen_not_a_delta() {
+        // The engine's own `seq` starts at 0 too (never handed out), so
+        // the very first `changes_since` call of this terminal's whole
+        // life always answers `Full`, regardless of what the attachment's
+        // own `caught_up_to` already is - this is the terminal's own
+        // documented behaviour, proven here at the level this task's own
+        // code actually depends on it.
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        terminal.write(b"hi");
+        let mut tracked_seq = 0_u64;
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(7);
+        let mut attachments = [Attachment {
+            stream: 7,
+            outbound: Some(Arc::clone(&frames.outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+
+        let (stream, update) = frames.next_update(Duration::from_secs(2));
+        assert_eq!(stream, 7);
+        match update {
+            ScreenUpdate::Full { seq, .. } => assert_eq!(seq, 1),
+            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => {
+                panic!("expected Full, got {unexpected:?}")
+            }
+        }
+        assert_eq!(attachments[0].caught_up_to, AttachState::CaughtUp(1));
+        frames.finish();
+    }
+
+    #[test]
+    fn a_caught_up_attachment_gets_a_delta_on_the_next_real_change() {
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        terminal.write(b"first");
+        let mut tracked_seq = 0_u64;
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(7);
+        let mut attachments = [Attachment {
+            stream: 7,
+            outbound: Some(Arc::clone(&frames.outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+        let (_, first) = frames.next_update(Duration::from_secs(2));
+        assert!(matches!(first, ScreenUpdate::Full { .. }));
+
+        terminal.write(b"second");
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+
+        let (_, second) = frames.next_update(Duration::from_secs(2));
+        match second {
+            ScreenUpdate::Delta { seq, .. } => assert_eq!(seq, tracked_seq),
+            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Full { .. }) => panic!(
+                "a caught-up attachment's second real change must be a \
+                 Delta, not a redundant Full: got {unexpected:?}"
+            ),
+        }
+        frames.finish();
+    }
+
+    #[test]
+    fn an_attachment_marked_needs_resync_gets_a_fresh_screen_not_the_ticks_own_delta() {
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        terminal.write(b"first");
+        let mut tracked_seq = 0_u64;
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(7);
+        let mut attachments = [Attachment {
+            stream: 7,
+            outbound: Some(Arc::clone(&frames.outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+        let _ = frames.next_update(Duration::from_secs(2));
+
+        // Force the attachment behind, the same way a full queue would
+        // (decision-2 section 6) - never by hand-picking a stale seq, so
+        // this exercises the exact state `run_tick` itself sets.
+        attachments[0].caught_up_to = AttachState::NeedsResync;
+        terminal.write(b"second");
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+
+        let (_, update) = frames.next_update(Duration::from_secs(2));
+        match update {
+            ScreenUpdate::Full { seq, .. } => assert_eq!(seq, tracked_seq),
+            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => panic!(
+                "NeedsResync must get a fresh Full screen, never a Delta: \
+                 got {unexpected:?}"
+            ),
+        }
+        assert_eq!(
+            attachments[0].caught_up_to,
+            AttachState::CaughtUp(tracked_seq)
+        );
+        frames.finish();
+    }
+
+    /// decision-2 section 6's own back-pressure policy, proven against a
+    /// real, bounded `Outbound` queue - not asserted from the type, run.
+    /// Negative control (recorded on the task, not a toggle kept in the
+    /// tree): reverting `run_tick`'s `Err(EnqueueDataError::Full |
+    /// EnqueueDataError::NotOpen)` arm to `Err(_) => {}` (ignore the
+    /// error, leave the attachment's own state as `CaughtUp`) makes this
+    /// test fail: the attachment is never marked `NeedsResync`, so the
+    /// next real change after the queue drains is wrongly sent as a
+    /// `Delta` an already-behind client cannot apply.
+    #[test]
+    fn a_full_queue_marks_the_attachment_for_resync_without_blocking() {
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        let mut tracked_seq = 0_u64;
+        let outbound = Arc::new(Outbound::new());
+        outbound.open_stream(7); // never drained: no writer thread at all
+        let mut attachments = [Attachment {
+            stream: 7,
+            outbound: Some(Arc::clone(&outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+        }];
+
+        // Fills the queue directly (decision-2's own measured `DATA_CAP`,
+        // `crate::outbound`'s own constant - not duplicated here, just
+        // driven past): same effect as many real ticks' worth of output
+        // with nobody reading, without needing that many real writes.
+        for i in 0.. {
+            terminal.write(format!("line {i}\r\n").as_bytes());
+            let before = attachments[0].caught_up_to;
+            let started = Instant::now();
+            run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+            assert!(
+                started.elapsed() < Duration::from_secs(2),
+                "run_tick must never block on a full queue"
+            );
+            if attachments[0].caught_up_to == AttachState::NeedsResync {
+                assert_ne!(
+                    before,
+                    AttachState::NeedsResync,
+                    "the attachment should not have started this iteration \
+                     already needing a resync"
+                );
+                break;
+            }
+            assert!(
+                i < 1000,
+                "the queue never filled - test is not exercising DATA_CAP"
+            );
+        }
+
+        outbound.close();
+    }
+
+    // --- The real thing: `start`/`PaneHandle::attach`/`arm`/`detach` -------
+
+    /// A row's own text, trimmed trailing blanks stripped by the caller if
+    /// it wants that - kept raw here since this helper is only ever used
+    /// to search for a known substring, never compared whole.
+    fn row_text(row: &steg_sdk::Row) -> String {
+        row.iter().map(|run| run.text.as_str()).collect()
+    }
+
+    /// Applies one [`ScreenUpdate`] onto a client's own held copy, the way
+    /// a real attached client does (decision-2 section 3): `Delta`
+    /// replaces only the rows it names, by position; `Full` replaces the
+    /// whole thing; `Unchanged` does nothing.
+    fn apply_update(held: &mut steg_sdk::Screen, update: ScreenUpdate) {
+        match update {
+            ScreenUpdate::Unchanged => {}
+            ScreenUpdate::Full { screen, .. } => *held = screen,
+            ScreenUpdate::Delta { rows, cursor, .. } => {
+                for (position, row) in rows {
+                    if let Some(slot) = held.rows.get_mut(usize::from(position)) {
+                        *slot = row;
+                    }
+                }
+                held.cursor = cursor;
+            }
+        }
+    }
+
+    fn screen_text(screen: &steg_sdk::Screen) -> String {
+        screen
+            .rows
+            .iter()
+            .map(row_text)
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn attaching_returns_the_panes_current_screen_and_updates_follow_it() {
+        let (events_tx, _events_rx) = mpsc::channel();
+        // `cat`: reflects exactly what this test sends it, on its own -
+        // no race with a shell starting up or a prompt rendering, since
+        // nothing is written to this pty until this test does so itself.
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exec cat"]),
+            PaneId::from_raw(1),
+            Arc::new(RealLauncher),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        // Nothing has been sent yet - deterministically blank, no race to
+        // synchronise with.
+        let stream = 7;
+        let attached_screen = handle.attach(stream).unwrap();
+        assert!(
+            screen_text(&attached_screen).trim().is_empty(),
+            "nothing was written yet: {:?}",
+            screen_text(&attached_screen)
+        );
+
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(stream);
+        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+
+        // The pty's own line discipline echoes this, and `cat` relays it
+        // back too - either way, "hello" lands on the screen, possibly
+        // over more than one update (the two echoes, or the tick simply
+        // catching the write mid-flight) - applied here exactly as a real
+        // client would, onto its own held copy, rather than assumed to
+        // land whole in the very first frame.
+        handle.send_input(b"hello\r\n".to_vec()).unwrap();
+
+        let mut held = attached_screen;
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let (frame_stream, update) = frames.next_update(
+                deadline
+                    .saturating_duration_since(Instant::now())
+                    .max(Duration::from_millis(1)),
+            );
+            assert_eq!(frame_stream, stream);
+            apply_update(&mut held, update);
+            if screen_text(&held).contains("hello") {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "never saw the echoed input land, holding: {:?}",
+                screen_text(&held)
+            );
+        }
+
+        handle.detach(stream).unwrap();
+        handle.send_input(b"more\r\n".to_vec()).unwrap();
+        frames.assert_nothing_arrives(Duration::from_millis(200));
+
+        frames.finish();
+        handle.shutdown();
+    }
+
+    /// decision-2 section 3's own ordering rule, the half this layer can
+    /// prove without a connection: an attachment never receives anything
+    /// before [`super::PaneHandle::arm`] hands it the `Outbound` it sends
+    /// to - even when real output happens in between. `connection.rs`'s
+    /// own half (queuing the attach reply before calling `Outbound::
+    /// open_stream`) is TASK-1.47's step 4, blocked on TASK-1.46's
+    /// description vocabulary - named, not silently skipped.
+    #[test]
+    fn an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first() {
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exec sleep 1000"]),
+            PaneId::from_raw(2),
+            Arc::new(RealLauncher),
+            events_tx,
+            TEST_TICK,
+        )
+        .unwrap();
+
+        let stream = 3;
+        let _ = handle.attach(stream).unwrap();
+
+        handle.send_input(b"before arm\n".to_vec()).unwrap();
+        // Lets the worker's own tick (1ms) run several times over with
+        // real output pending, unarmed - a real wait, not a sleep this
+        // test treats as proof of anything: the actual proof is the read
+        // below finding nothing.
+        std::thread::sleep(Duration::from_millis(50));
+
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(stream);
+        // Still nothing: arming happens on the next line, after this.
+        frames.assert_nothing_arrives(Duration::from_millis(50));
+
+        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+        handle.send_input(b"after arm\n".to_vec()).unwrap();
+        let _ = frames.next_update(Duration::from_secs(2));
+
+        frames.finish();
+        handle.shutdown();
+    }
+
+    /// The lead's own named risk: a worker blocked in `recv_timeout`
+    /// (a deadline armed) must still notice `Shutdown` promptly, not only
+    /// a worker blocked in a plain `recv()`.
+    #[test]
+    fn shutdown_ends_the_worker_even_while_a_tick_is_armed() {
+        let (events_tx, _events_rx) = mpsc::channel();
+        let handle = start(
+            real_spec(vec!["sh", "-c", "exec sleep 1000"]),
+            PaneId::from_raw(4),
+            Arc::new(RealLauncher),
+            events_tx,
+            Duration::from_secs(60), // a deadline far in the future if armed
+        )
+        .unwrap();
+        let stream = 9;
+        let _ = handle.attach(stream).unwrap();
+        let frames = FramePair::new();
+        handle.arm(stream, Arc::clone(&frames.outbound)).unwrap();
+        handle.send_input(b"x".to_vec()).unwrap(); // arms the far-future deadline
+
+        handle.shutdown();
+        frames.finish();
+        // No direct join handle from `shutdown` (fire-and-forget, by
+        // design - see its own doc); this test's own proof is that the
+        // process does not hang waiting for anything further, which the
+        // test harness's own timeout already enforces for the whole test.
     }
 }

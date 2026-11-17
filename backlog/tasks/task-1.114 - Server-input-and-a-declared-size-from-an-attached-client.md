@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T16:43:00Z'
+updated_date: '2026-11-16T16:49:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -225,6 +225,39 @@ This stays one task: input, the declared size, and the size carried on every upd
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (ec385ef4d563) checked against the four acceptance criteria, decision-2 section 3, doc-14 and doc-15 R91, doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Built on TASK-1.47's branch (not merged) and to merge after it. Revised once at the orchestrator's request: the full cost of a program that does not read its input is stated (that pane's worker is blocked, so its screen stops updating and its commands wait), with a proof item on a real program that never reads (the connection stays responsive, another pane keeps updating, a forced close and a server stop return within their bounds), and that a failure there is a bug to fix in this task. For the engineer: the new method tab.declare_size (a row in doc-2; the method count moves to 45); a size with zero columns or rows is refused; and the accepted limit that one pane's own screen freezes while its program refuses input, with a follow-up proposed.
+
+Check passed: `just check` exited 0 at 2026-11-16T16:49:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c:
+
+```text
+ok      format check (0.3s)
+ok      lint (86.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (62.2s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (43.2s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (46.6s)
+ok      test (steg-server) (14.7s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (2.4s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.2s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.7s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

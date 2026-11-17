@@ -232,6 +232,100 @@ impl Connection {
         Ok((id, bytes))
     }
 
+    /// Subscribes (`event.watch`, TASK-1.46): the same shape [`Connection::
+    /// call`] already has - the id to match against the eventual
+    /// [`Incoming::Reply`], and the bytes to write. That reply's own
+    /// `Response::Ok` is the tree (`serde_json::from_value::<
+    /// crate::TreeSnapshot>`); every [`Incoming::Event`] on this connection
+    /// afterward, with no further request, is one of this subscription's
+    /// own events (`crate::TreeEvent::parse`) - no id ever matches them,
+    /// since an event carries none (decision-2 section 3).
+    ///
+    /// `target` names the session to watch (`None` for the current
+    /// session's own default); `for_` narrows to these event names only
+    /// (empty for every event); `all` watches every session on the host.
+    ///
+    /// # Errors
+    /// The same as [`Connection::call`].
+    ///
+    /// # Panics
+    /// Never in practice, the same as [`Connection::call`].
+    pub fn watch(
+        &mut self,
+        target: Option<&str>,
+        for_: &[&str],
+        all: bool,
+    ) -> Result<(u64, Vec<u8>), ApiError> {
+        let mut params = Map::new();
+        if let Some(target) = target {
+            params.insert("target".to_owned(), Value::String(target.to_owned()));
+        }
+        if !for_.is_empty() {
+            params.insert(
+                "for".to_owned(),
+                Value::Array(
+                    for_.iter()
+                        .map(|name| Value::String((*name).to_owned()))
+                        .collect(),
+                ),
+            );
+        }
+        if all {
+            params.insert("all".to_owned(), Value::Bool(true));
+        }
+        self.call("event.watch", params)
+    }
+
+    /// Attaches to a pane's screen (`pane.attach`, TASK-1.47): the same
+    /// shape [`Connection::call`] already has - the id to match against
+    /// the eventual [`Incoming::Reply`], and the bytes to write. That
+    /// reply's own `Response::Ok` is `PaneAttached` (`serde_json::
+    /// from_value::<crate::PaneAttached>`) - the caller reads its own
+    /// `stream` field and calls [`Connection::open_stream`] with it
+    /// *after* that reply is in hand, never before (decision-2 section
+    /// 3's ordering rule, the client's own half: a stream opened ahead of
+    /// the reply that names it could accept a frame for an id the server
+    /// never actually used this way). Every [`Incoming::StreamControl`]
+    /// on that stream afterward, with no further request, is one of this
+    /// attachment's own `ScreenUpdate`s - no id ever matches them, the
+    /// same reason an event carries none.
+    ///
+    /// `pane` names the target (`None` for the current pane's own
+    /// default, the same convention every other target parameter in this
+    /// API already follows).
+    ///
+    /// # Errors
+    /// The same as [`Connection::call`].
+    ///
+    /// # Panics
+    /// Never in practice, the same as [`Connection::call`].
+    pub fn attach(&mut self, pane: Option<&str>) -> Result<(u64, Vec<u8>), ApiError> {
+        let mut params = Map::new();
+        if let Some(pane) = pane {
+            params.insert("target".to_owned(), Value::String(pane.to_owned()));
+        }
+        self.call("pane.attach", params)
+    }
+
+    /// Ends an attachment (`pane.detach`, TASK-1.47): the same shape
+    /// [`Connection::call`] already has. `pane` names the target, the same
+    /// convention [`Connection::attach`] uses - not the stream id, which
+    /// this method's own caller already knows locally and closes with
+    /// [`Connection::close_stream`] once the matching reply arrives.
+    ///
+    /// # Errors
+    /// The same as [`Connection::call`].
+    ///
+    /// # Panics
+    /// Never in practice, the same as [`Connection::call`].
+    pub fn detach(&mut self, pane: Option<&str>) -> Result<(u64, Vec<u8>), ApiError> {
+        let mut params = Map::new();
+        if let Some(pane) = pane {
+            params.insert("target".to_owned(), Value::String(pane.to_owned()));
+        }
+        self.call("pane.detach", params)
+    }
+
     // --- server-side output ---------------------------------------------
 
     /// Reads the client's first frame and answers it: `Accept` with the

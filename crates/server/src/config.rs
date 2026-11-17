@@ -56,6 +56,16 @@ pub const DEFAULT_LOGIN_IDENTITY_TIMEOUT: Duration = Duration::from_secs(2);
 /// starts, so it delays a client's first request, never its `connect()`.
 pub const DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT: Duration = Duration::from_secs(3);
 
+/// How often a pane's worker thread (with at least one attachment, and
+/// something it has not yet reported) computes and fans out a screen
+/// update (TASK-1.47; decision-2 section 9: "the tick is unsettled...
+/// the answer wants a GPUI client in front of it"). A provisional default,
+/// not a measured answer - decision-2 section 4.1's own 8 ms row, chosen
+/// over its 1 ms row because 1 ms costs resynchronisations under a flood
+/// in that same measurement, revisited once the app has a real window to
+/// measure frames against.
+pub const DEFAULT_ATTACH_TICK: Duration = Duration::from_millis(8);
+
 /// How long an on-demand server waits with no sessions and no clients
 /// before stopping itself (doc-8 R99, TASK-1.86). Never read by an
 /// explicit start - see [`ServerConfig::idle_timeout`]'s own doc.
@@ -108,6 +118,9 @@ pub struct ServerConfig {
     /// may take before falling back to a fixed, minimal one - see
     /// [`DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT`].
     pub login_environment_timeout: Duration,
+    /// How often an attached pane computes and fans out a screen update
+    /// (TASK-1.47) - see [`DEFAULT_ATTACH_TICK`].
+    pub attach_tick: Duration,
     /// `None` means never idle-stop (R99: "a server started explicitly
     /// stops only when told to") - an explicit start's default, never
     /// overridden. `Some(duration)` is the period with no sessions and no
@@ -131,6 +144,7 @@ impl Default for ServerConfig {
             accept_error_backoff: DEFAULT_ACCEPT_ERROR_BACKOFF,
             login_identity_timeout: DEFAULT_LOGIN_IDENTITY_TIMEOUT,
             login_environment_timeout: DEFAULT_LOGIN_ENVIRONMENT_TIMEOUT,
+            attach_tick: DEFAULT_ATTACH_TICK,
             idle_timeout: None,
         }
     }

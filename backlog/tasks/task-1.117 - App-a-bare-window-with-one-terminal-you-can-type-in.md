@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T16:47:00Z'
+updated_date: '2026-11-16T17:27:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -148,6 +148,532 @@ Every item below is recorded through `asdlc record-check` as a failing run (the 
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (8551f6bb93b8) as rewritten for the read-only window alone, checked against doc-9, doc-10 (R20, R22, R24), doc-13 R59, doc-16, doc-17 and decision-11 by @bruk.o, 2026-11-16: ok. The split into three is taken (typing and resizing; measurement and the per-frame bound: two drafts). Revised at the orchestrator's request: the socket is not polled; a thread blocks on the read and hands each update through a channel to a task on the window's executor, woken by the channel. Needs only TASK-1.47. Adds futures as a direct dependency of the app (already in the lock file through gpui). Draws a fixed grid from the attach snapshot until the typing task brings the size.
+
+Check passed: `just check` exited 0 at 2026-11-16T16:48:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at d1c726dbd094:
+
+```text
+ok      format check (0.2s)
+ok      lint (89.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.1s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.2s)
+ok      build (steg-kernel) (47.4s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (43.7s)
+ok      test (steg-server) (13.7s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (2.2s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (20.1s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.8s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T17:06:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 64 lines:
+
+```text
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:107:
+                     .borrow_mut()
+                     .shaped(key, || shape_run(window, &run.text, text_run));
+                 let origin = point(bounds.origin.x + metrics.cell_width * f32::from(column), y);
+[31m-                if let Err(error) = shaped.paint_background(origin, metrics.line_height, window, cx) {
+(B[m[32m+                if let Err(error) = shaped.paint_background(origin, metrics.line_height, window, cx)
+(B[m[32m+                {
+(B[m                     eprintln!("painting a run's background failed: {error}");
+                 }
+                 if let Err(error) = shaped.paint(origin, metrics.line_height, window, cx) {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:194:
+ fn shape_run(window: &mut Window, text: &str, run: TextRun) -> ShapedLine {
+     let text: SharedString = text.to_owned().into();
+     let font_size = steg_ui::foundations::TERMINAL.size;
+[31m-    window.text_system().shape_line(text, font_size, &[run], None)
+(B[m[32m+    window
+(B[m[32m+        .text_system()
+(B[m[32m+        .shape_line(text, font_size, &[run], None)
+(B[m }
+ 
+ fn run_key(row: usize, column: u16, run: &Run) -> u64 {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app/src/terminal_element.rs:202:
+     row.hash(&mut hasher);
+     column.hash(&mut hasher);
+     run.text.hash(&mut hasher);
+[31m-    run.style.fg.map(|rgb| (rgb.r, rgb.g, rgb.b)).hash(&mut hasher);
+(B[m[31m-    run.style.bg.map(|rgb| (rgb.r, rgb.g, rgb.b)).hash(&mut hasher);
+(B[m[32m+    run.style
+(B[m[32m+        .fg
+(B[m[32m+        .map(|rgb| (rgb.r, rgb.g, rgb.b))
+(B[m[32m+        .hash(&mut hasher);
+(B[m[32m+    run.style
+(B[m[32m+        .bg
+(B[m[32m+        .map(|rgb| (rgb.r, rgb.g, rgb.b))
+(B[m[32m+        .hash(&mut hasher);
+(B[m     run.style.bold.hash(&mut hasher);
+     run.style.italic.hash(&mut hasher);
+     run.style.inverse.hash(&mut hasher);
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T17:08:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (13.5s)
+ok      build (steg-sdk) (1.1s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (1.3s)
+ok      test (steg-kernel) (1.3s)
+ok      build (steg-server) (1.2s)
+ok      test (steg-server) (15.1s)
+ok      test (steg-server, race-fixture) (14.3s)
+ok      build (steg) (2.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T17:22:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (44.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (11.8s)
+ok      test (steg-server, race-fixture) (12.1s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid'` exited 101 at 2026-11-16T17:22:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid ... FAILED
+
+failures:
+
+---- model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid stdout ----
+
+thread 'model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid' (44428535) panicked at crates/app/src/model.rs:245:9:
+assertion `left == right` failed
+  left: 1
+ right: 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid'` exited 0 at 2026-11-16T17:22:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_delta_touches_only_the_rows_it_names_and_never_resizes_the_grid ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_blank_first_row_does_not_change_the_row_count'` exited 101 at 2026-11-16T17:23:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_blank_first_row_does_not_change_the_row_count ... FAILED
+
+failures:
+
+---- model::tests::a_blank_first_row_does_not_change_the_row_count stdout ----
+
+thread 'model::tests::a_blank_first_row_does_not_change_the_row_count' (44432639) panicked at crates/app/src/model.rs:216:9:
+assertion `left == right` failed
+  left: 0
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_blank_first_row_does_not_change_the_row_count
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_blank_first_row_does_not_change_the_row_count'` exited 0 at 2026-11-16T17:23:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_blank_first_row_does_not_change_the_row_count ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_pixel_size_that_does_not_divide_evenly_floors_not_rounds'` exited 101 at 2026-11-16T17:23:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds ... FAILED
+
+failures:
+
+---- metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds stdout ----
+
+thread 'metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds' (44437452) panicked at crates/app/src/metrics.rs:105:9:
+assertion `left == right` failed
+  left: 11
+ right: 10
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_pixel_size_that_does_not_divide_evenly_floors_not_rounds'` exited 0 at 2026-11-16T17:23:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_wide_runs_columns_are_twice_its_own_grapheme_count'` exited 101 at 2026-11-16T17:23:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.68s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... FAILED
+
+failures:
+
+---- model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count stdout ----
+
+thread 'model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count' (44441731) panicked at crates/app/src/model.rs:194:9:
+assertion `left == right` failed
+  left: 2
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_wide_runs_columns_are_twice_its_own_grapheme_count'` exited 0 at 2026-11-16T17:24:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_control_frame_on_the_open_stream_arrives_as_an_update'` exited 101 at 2026-11-16T17:24:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 56 lines:
+
+```text
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `sender`
+   --> crates/app/src/client.rs:100:39
+    |
+100 | fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> bool {
+    |                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_sender`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `update`
+   --> crates/app/src/client.rs:102:13
+    |
+102 |         let update = match incoming {
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_update`
+
+warning: `steg-app` (bin "steg-app" test) generated 3 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... FAILED
+
+failures:
+
+---- client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update stdout ----
+
+thread 'client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update' (44445816) panicked at crates/app/src/client.rs:186:9:
+assertion failed: matches!(event, Some(ClientEvent::Update(ScreenUpdate::Unchanged)))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_control_frame_on_the_open_stream_arrives_as_an_update'` exited 0 at 2026-11-16T17:24:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound'` exited 101 at 2026-11-16T17:24:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes, last 40 of 43 lines:
+
+```text
+  |
+6 | use std::net::Shutdown;
+  |     ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `shutdown_handle` is never read
+  --> crates/app/src/client.rs:29:5
+   |
+28 | pub struct Client {
+   |            ------ field in this struct
+29 |     shutdown_handle: UnixStream,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... FAILED
+
+failures:
+
+---- client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound stdout ----
+
+thread 'client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound' (44450864) panicked at crates/app/src/client.rs:179:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound'` exited 0 at 2026-11-16T17:25:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T17:26:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at ec8d9f46e04c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (12.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (11.5s)
+ok      test (steg-server, race-fixture) (10.5s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:27:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 6a1b69b8f805, last 40 of 65 lines:
+
+```text
+2761 |         let handle = crate::pane::start(
+ ...
+2770 |             events_tx,
+2771 ~             /* std::time::Duration */,
+2772 ~         )
+     |
+
+error[E0061]: this function takes 5 arguments but 4 arguments were supplied
+    --> crates/server/src/runtime.rs:3088:22
+     |
+3088 |           let handle = crate::pane::start(
+     |  ______________________^^^^^^^^^^^^^^^^^^-
+3089 | |             LaunchSpec {
+3090 | |                 argv: vec![
+3091 | |                     "sh".to_string(),
+...    |
+3101 | |             events_tx,
+3102 | |         )
+     | |_________- argument #5 of type `std::time::Duration` is missing
+     |
+note: function defined here
+    --> crates/server/src/pane.rs:707:8
+     |
+ 707 | pub fn start(
+     |        ^^^^^
+...
+ 712 |     attach_tick: Duration,
+     |     ---------------------
+help: provide the argument
+     |
+3088 |         let handle = crate::pane::start(
+ ...
+3101 |             events_tx,
+3102 ~             /* std::time::Duration */,
+3103 ~         )
+     |
+
+error: could not compile `steg-server` (lib test) due to 10 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T06:19:00Z'
+updated_date: '2026-11-17T06:22:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1455,6 +1454,25 @@ created: 2026-11-17T06:19:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T06:22:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Fourth review (head 0e124c3c, CI green). Scope: diff 174ab452..0e124c3c against crates/tools/justfile is one file, 23 lines, crates/server/tests/support/mod.rs - confirmed myself that every changed line is a /// doc comment line; no executable line changed. (Head 0e124c3c is a merge of origin/main into the branch; confirmed by diffing the full tree, not just crates/tools/justfile, that the merge brought in nothing beyond the backlog task file and this same doc comment - no code from main landed unseen.)
+
+The rewritten comment on wait_for_exit_without_reaping now says WNOWAIT alone is necessary, not sufficient: it keeps an exited child as a zombie that still owns its pid until something reaps it, so a kill sent before that reap cannot land on another process - but it says nothing about the ordering between a concurrent kill decision and the reap. It correctly points to wait_child_bounded's own comment for that half. Walked wait_child_bounded's comment and the code it describes (:168-196): the kill decision and the finished check happen in one critical section under the Mutex (:174-180), and the calling thread sets finished=true under that same lock (:187-188) strictly before releasing it and reaping via the real child.wait() (:192-196). The one remaining "however the two threads interleave" sentence (:140-141) is this lock-earned claim, not the old unqualified one - no sentence in the file still contradicts the Mutex invariant.
+
+Evidence: no control was re-run. I rely on that being correct because the only change since 174ab452 is this doc comment (confirmed above) plus the backlog task file, and CI is green at 0e124c3c; I did not run just check or any test myself. The task's notes for this round correct the earlier round's note, which had claimed the false sentence was removed outright - true only of the copy in wait_child_bounded's own comment, not of this second, separate copy in wait_for_exit_without_reaping. That correction is honest and accurately scoped.
+
+No findings. Filed no rule-change draft - nothing to draft against an earlier review's finding.
 
 ---
 <!-- COMMENTS:END -->

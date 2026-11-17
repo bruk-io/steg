@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T01:34:00Z'
+updated_date: '2026-11-17T01:37:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1019,6 +1019,14 @@ created: 2026-11-16T16:43:00Z
 ---
 
 Plan approved by @bruk (ec385ef4d563, size-3): its worker may build it.
+
+---
+
+created: 2026-11-17T01:37:00Z
+
+---
+
+2026-11-16, @bruk.o: flake sighting for this task's own test, seen by TASK-1.121's worker in a full just check under load: crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once on its bound (pane.show must answer within a bound with the other pane stuck) and passed alone straight after. Before finishing, say whether the bound is a real product promise that load can break, or a test bound that is too tight, and what it is measured from.
 
 ---
 <!-- COMMENTS:END -->

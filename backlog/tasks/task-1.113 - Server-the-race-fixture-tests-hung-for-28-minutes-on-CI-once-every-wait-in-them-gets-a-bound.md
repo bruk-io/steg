@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:04:00Z'
+updated_date: '2026-11-17T05:05:00Z'
 labels:
   - size-2
   - changes-requested
@@ -921,6 +921,15 @@ tools/tests/functional/test_quiet_timeout.py:49: AssertionError
 FAILED tools/tests/functional/test_quiet_timeout.py::test_a_captured_step_past_its_bound_is_killed_group_and_all
 FAILED tools/tests/functional/test_quiet_timeout.py::test_a_live_step_past_its_bound_is_killed_group_and_all
 2 failed, 1 passed in 20.13s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `uv run --quiet --project tools pytest -q tools/tests/functional/test_quiet_timeout.py` exited 0 at 2026-11-17T05:05:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+...                                                                      [100%]
+3 passed in 1.89s
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.

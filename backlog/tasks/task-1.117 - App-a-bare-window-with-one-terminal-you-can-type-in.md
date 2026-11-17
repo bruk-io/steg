@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T00:16:00Z'
+updated_date: '2026-11-17T00:19:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1111,6 +1111,42 @@ running 1 test
 test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:19:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (57.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (20.1s)
+ok      test (steg-server, race-fixture) (20.7s)
+ok      test (steg-server, accept-backoff-fixture) (20.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

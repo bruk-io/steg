@@ -963,6 +963,21 @@ full output: .quiet/wait-child-bounded-timeout-control-watchdog-kill-removed.log
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` exited 0 at 2026-11-17T05:05:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 1 test
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.31s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:25:00Z'
+updated_date: '2026-11-17T00:26:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1975,6 +1975,37 @@ running 1 test
 test description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply` exited 101 at 2026-11-17T00:26:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply ... FAILED
+
+failures:
+
+---- description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply stdout ----
+
+thread 'description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply' (46108027) panicked at crates/sdk/src/description/methods.rs:1865:17:
+assertion `left == right` failed: pane.attach
+  left: Attachment { item: Nested { of: "ScreenUpdate", summary: "the rows that changed, or a whole screen when a client fell behind" }, stream_id_field: "stream" }
+ right: Nothing
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.

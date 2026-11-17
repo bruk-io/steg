@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T02:29:00Z'
+updated_date: '2026-11-17T02:40:00Z'
 labels:
   - size-5
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1578,6 +1577,37 @@ created: 2026-11-17T02:29:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T02:40:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Third pass, scoped to the diff since 85da77e9 (crates/app/src/main.rs, crates/app/src/startup.rs): the Slot-based rework (Pending/Connected/Cancelled) replacing the one-shot ShutdownSlot.
+
+No findings.
+
+What I checked:
+
+1. (A, the live-run bug) Read attach_over's two lock points: the publish-on-connect check and the claim-on-success check at startup.rs:221-236 and :309-323. Both share the same Mutex<Slot>, so the race is decided atomically, not by two independent checks. Traced every interleaving: if attach_over's final claim locks first, it takes Connected(handle) and drops it without shutting it down (the socket survives, success is reported, interrupt() then finds Cancelled and does nothing). If interrupt() locks first, it shuts down the handle it finds and leaves Cancelled; attach_over's claim then sees Cancelled, does not shut the socket down again, and returns Err. Both outcomes are correct per the module doc. Confirmed with a scratch edit: forcing `claimed = true` without touching the slot (so attach_over no longer takes the handle out) reproduces fault A exactly - cargo test -p steg-app a_successful_attach_survives_interrupt_called_right_after then fails with a broken pipe when the test's own interrupt() call shuts the still-slotted handle down underneath the "successful" connection; reverted, git status clean. attached.stream and attached.shutdown_handle both have their read timeout explicitly cleared (startup.rs:330-335) before being hand off to Client::start (client.rs never sets one), so no clone carries a lingering timeout onward.
+
+2. (B, can the main thread still block) teardown (main.rs:195-201) never calls .join(): it calls startup::interrupt (lock, maybe shutdown, unlock - bounded) and drops the JoinHandle. apply_startup_result (main.rs:106-114) is the only .join(), gated on the startup oneshot having already resolved - at that point the thread's closure (`sender.send(result)` then return, startup.rs:165-167) has nothing left to do, so the join is bounded/instant. No lock is held across a blocking call anywhere in this path. Confirmed with a second scratch edit: forcing already_cancelled = false (so attach_over ignores a too-early interrupt() and republishes Connected over Cancelled) reproduces fault B's shape - cargo test -p steg-app a_teardown_that_races_in_before_the_slot_is_published_is_not_lost fails on its own timing assertion at ~300ms (TEST_READ_TIMEOUT), not a hang; reverted, git status clean.
+
+3. The detached thread always ends within connect_timeout (10s, sdk-owned, unchanged) before a socket exists, then READ_TIMEOUT (10s) on every blocking read after - a timeout on recv/read, not a sleep-poll loop. block_until (startup.rs:505-533) maps any read error, including a timeout, straight to Err via `?` - no retry-on-timeout branch. The thread only ever touches the stream/connection and a oneshot::Sender; sending on a dropped receiver is silently ignored (`let _ =`), so a gone window/entity is never dereferenced.
+
+4. (C, evidence) All three new tests call the real attach_over and the real interrupt() over a real UnixStream::pair() with a fake server (answer_hello/answer_one), not a hand-built Slot. I reran two of the three as negative controls myself (described above in 1 and 2), confirming both fail by their own stated bound rather than hanging or passing; the task's own record-check history additionally shows failing-then-passing pairs for all three new tests at the pre-commit head that became f8967015. The removed test (publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read, the one cited in finding C) is gone, not just superseded in name. On the stated limitation (test (c) simulates "interrupt before attach_over is entered" rather than a genuine mid-retry connect()): this leaves no real gap given finding B's fix - teardown never joins in that phase either, so the main thread's own guarantee doesn't depend on reaching inside connect() at all, only on connect_timeout bounding the thread itself, which is unchanged and sdk-owned.
+
+5. Module doc (startup.rs:1-39) states the three guarantees precisely and matches what the code and tests actually do. Ran `just check` myself once, clean (lint 87s, full build/test ~5 min, no hang on steg-server's own race fixtures).
+
+6. The app process staying alive after the window closes is pre-existing (unchanged by this diff - confirmed main.rs has no cx.quit() call before or after this round) and out of scope for this fix. Nothing in doc-10 or this task's acceptance criteria (which are about the connection/session lifecycle, not the process) speaks to quit-on-last-window-close, so I'm not raising it as a finding; worth a follow-up task if single-instance-process behaviour ever matters, but not this one.
+
+Not checked: the app was not run; client.rs (unchanged this round, outside the stated diff scope); R19/TASK-1.122's latency budget; TASK-1.47's own mechanism (its own PR).
 
 ---
 <!-- COMMENTS:END -->

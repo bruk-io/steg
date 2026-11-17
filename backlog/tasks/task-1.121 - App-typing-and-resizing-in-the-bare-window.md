@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-16T19:47:00Z'
+updated_date: '2026-11-17T00:07:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '344be7f33227'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -408,3 +411,16 @@ to fill, not a file this task invents from nothing).
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9, doc-10 R20/R22/R29, decision-2 section 3 and TASK-1.114's plan by @bruk.o (plan 344be7f33227): ok. Key bytes come from a pure table; text and keys cannot both send (one branch sends and stops propagation); size is declared on open and when the computed cell grid changes, with no timer; the model draws the size the server reports. For the engineer to weigh: (1) Option composes characters, because GPUI 0.2.2 reports one alt flag with no left or right, so Alt-b and Alt-f word motions do not work until a setting exists; (2) Cmd-V paste is added here as plain bytes with line ends sent as Enter, ahead of TASK-1.57, without bracketed paste; (3) a drag sends one declaration per cell boundary crossed, not one per drag; (4) arrows are sent in normal mode only, so vim and htop arrow keys are wrong until the cursor-key mode is carried on an update. Note for the worker: TASK-1.117 changed its model after this plan was written (it tracks the row count and crops columns to the window), so the two tests named in section 4 may have other names now; replace whichever assert a size that never changes.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-17T00:07:00Z
+
+---
+
+Plan approved by @bruk (344be7f33227, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

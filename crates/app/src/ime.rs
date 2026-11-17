@@ -5,6 +5,14 @@
 //! This tracks only what composition itself needs: whether one is open, and what to send
 //! once it resolves. Marked (uncommitted) text is never sent to the program - only
 //! `commit`'s own, resolved text is.
+//!
+//! **`marked_range_utf16` reports the composition's own real length, never a fixed
+//! `0..0`** (review finding): AppKit uses `NSTextInputClient.markedRange` to compute the
+//! `replacement_range` it passes into the *next* `setMarkedText:` call (confirmed in GPUI's
+//! own pinned macOS backend, `platform/mac/window.rs:2177-2182`) - a composition longer
+//! than one code unit (Pinyin/Hangul assembly, a longer emoji-picker candidate) reporting a
+//! zero-width range here would have AppKit believe nothing is marked yet, risking
+//! duplicated or garbled composition content on the next keystroke.
 
 /// Whether an IME composition is open, and its own pending (uncommitted) text if so.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -31,14 +39,19 @@ impl ImeState {
         self.marked = None;
     }
 
-    /// Whether a composition is open. This is what `EntityInputHandler::marked_text_range`
-    /// answers from, and what makes GPUI's own macOS backend route the *next* keystroke to
-    /// the input context instead of this app's raw key handler
-    /// (`platform/mac/window.rs:1696-1699`) - the other half of the dedup rule in
-    /// `keys.rs`'s own doc comment: GPUI never sends the same keystroke to both paths, and
-    /// this is the state it reads to decide which one.
-    pub(crate) fn is_composing(&self) -> bool {
-        self.marked.is_some()
+    /// The composition's own range, in UTF-16 code units (`EntityInputHandler`'s own
+    /// convention) - `0..` the composition's own real length, never a fixed `0..0`
+    /// regardless of how long it actually is (module doc). `None` when nothing is
+    /// composing - `marked_text_range`'s own answer, and the one place GPUI's own macOS
+    /// backend reads whether a composition is open at all: it routes the *next* keystroke
+    /// to the input context instead of this app's raw key handler exactly when this is
+    /// `Some` (`platform/mac/window.rs:1696-1699`) - the other half of the dedup rule in
+    /// `keys.rs`'s own doc comment.
+    #[must_use]
+    pub(crate) fn marked_range_utf16(&self) -> Option<std::ops::Range<usize>> {
+        self.marked
+            .as_ref()
+            .map(|text| 0..text.encode_utf16().count())
     }
 
     /// Resolves the composition - or a direct, non-composing insert, which takes the same
@@ -67,9 +80,9 @@ mod tests {
     #[test]
     fn marking_text_opens_the_composition_and_sends_nothing() {
         let mut state = ImeState::default();
-        assert!(!state.is_composing());
+        assert!(state.marked_range_utf16().is_none());
         state.mark("e");
-        assert!(state.is_composing());
+        assert!(state.marked_range_utf16().is_some());
     }
 
     #[test]
@@ -77,7 +90,7 @@ mod tests {
         let mut state = ImeState::default();
         state.mark("e");
         state.mark("");
-        assert!(!state.is_composing());
+        assert!(state.marked_range_utf16().is_none());
     }
 
     #[test]
@@ -85,7 +98,7 @@ mod tests {
         let mut state = ImeState::default();
         state.mark("e");
         state.unmark();
-        assert!(!state.is_composing());
+        assert!(state.marked_range_utf16().is_none());
     }
 
     #[test]
@@ -94,7 +107,7 @@ mod tests {
         state.mark("e");
         let sent = state.commit("é");
         assert_eq!(sent, "é".as_bytes());
-        assert!(!state.is_composing());
+        assert!(state.marked_range_utf16().is_none());
     }
 
     #[test]
@@ -108,5 +121,30 @@ mod tests {
     fn a_multi_line_commit_sends_carriage_returns_like_enter_does() {
         let mut state = ImeState::default();
         assert_eq!(state.commit("a\nb\r\nc"), b"a\rb\rc");
+    }
+
+    #[test]
+    fn marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero() {
+        let mut state = ImeState::default();
+        state.mark("e");
+        assert_eq!(state.marked_range_utf16(), Some(0..1));
+    }
+
+    /// Review finding: a composition longer than one code unit must report its own real
+    /// length - AppKit uses this to compute the next `setMarkedText:` call's own
+    /// `replacement_range` (module doc). "你好" is two graphemes and, in UTF-16, two code
+    /// units (both in the Basic Multilingual Plane) - the review's own named risk (Pinyin/
+    /// Hangul assembly) reporting a fixed `0..0` regardless of length.
+    #[test]
+    fn marking_a_multi_character_composition_reports_its_real_utf16_length() {
+        let mut state = ImeState::default();
+        state.mark("你好");
+        assert_eq!(state.marked_range_utf16(), Some(0..2));
+    }
+
+    #[test]
+    fn no_composition_open_reports_no_range() {
+        let state = ImeState::default();
+        assert_eq!(state.marked_range_utf16(), None);
     }
 }

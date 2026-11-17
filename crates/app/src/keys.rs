@@ -293,6 +293,20 @@ mod tests {
                 expected: Some(b"\x1bOP"),
             },
             Row {
+                name: "f2",
+                key: "f2",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1bOQ"),
+            },
+            Row {
+                name: "f3",
+                key: "f3",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1bOR"),
+            },
+            Row {
                 name: "f4",
                 key: "f4",
                 key_char: None,
@@ -305,6 +319,48 @@ mod tests {
                 key_char: None,
                 modifiers: none(),
                 expected: Some(b"\x1b[15~"),
+            },
+            Row {
+                name: "f6",
+                key: "f6",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[17~"),
+            },
+            Row {
+                name: "f7",
+                key: "f7",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[18~"),
+            },
+            Row {
+                name: "f8",
+                key: "f8",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[19~"),
+            },
+            Row {
+                name: "f9",
+                key: "f9",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[20~"),
+            },
+            Row {
+                name: "f10",
+                key: "f10",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[21~"),
+            },
+            Row {
+                name: "f11",
+                key: "f11",
+                key_char: None,
+                modifiers: none(),
+                expected: Some(b"\x1b[23~"),
             },
             Row {
                 name: "f12",
@@ -437,38 +493,63 @@ mod tests {
         }
     }
 
-    /// The table above names every case this module's own doc comment enumerates
-    /// (every named key, the full Control+letter/punctuation set, Cmd, fn) at least once -
-    /// a row added to the prose without a matching assertion is exactly what this guards
-    /// against, by simply requiring the table to be non-trivially sized and to include each
-    /// named key's own string at least once.
+    /// Every key string this test asks `named_key_bytes` itself about - a superset of what
+    /// it currently maps (`f13` is deliberately included as a dropped boundary case, module
+    /// doc's own "f13 and above -> None"), never a parallel claim about what the mapping
+    /// *should* contain. The real question this test asks, per key, is only ever "does
+    /// `named_key_bytes` say `Some` here, and does the table have a row proving it" - driven
+    /// by the function's own real output, not a second, independently maintained list
+    /// (review finding: the previous version compared this fixture's own hardcoded list
+    /// against itself, so it could not fail when `named_key_bytes` lost or gained a key).
+    const CANDIDATE_NAMED_KEYS: &[&str] = &[
+        "enter",
+        "tab",
+        "backspace",
+        "escape",
+        "left",
+        "right",
+        "up",
+        "down",
+        "home",
+        "end",
+        "pageup",
+        "pagedown",
+        "insert",
+        "delete",
+        "f1",
+        "f2",
+        "f3",
+        "f4",
+        "f5",
+        "f6",
+        "f7",
+        "f8",
+        "f9",
+        "f10",
+        "f11",
+        "f12",
+        "f13",
+    ];
+
+    /// For every candidate key, `named_key_bytes`'s own real answer ("is this mapped at
+    /// all") must agree with whether the table has a row proving it - a row whose own
+    /// `expected` is `Some`, not merely a row that mentions the key (the existing "f13
+    /// (dropped)" row names `key: "f13"` precisely to prove it is *not* mapped, and must not
+    /// itself count as proof that it is). If `named_key_bytes` ever loses a mapping this
+    /// table still claims, or gains one this table never proves, the two sides disagree and
+    /// this fails - not a hand-maintained list repeating what the match arms already say.
     #[test]
-    fn the_table_covers_every_named_key_this_module_maps() {
-        let named_keys = [
-            "enter",
-            "tab",
-            "backspace",
-            "escape",
-            "left",
-            "right",
-            "up",
-            "down",
-            "home",
-            "end",
-            "pageup",
-            "pagedown",
-            "insert",
-            "delete",
-            "f1",
-            "f4",
-            "f5",
-            "f12",
-        ];
+    fn every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does() {
         let rows = table();
-        for key in named_keys {
-            assert!(
-                rows.iter().any(|row| row.key == key),
-                "no row in the table exercises named key {key:?}",
+        for key in CANDIDATE_NAMED_KEYS {
+            let really_mapped = named_key_bytes(key, false).is_some();
+            let table_claims_it_is_mapped = rows
+                .iter()
+                .any(|row| row.key == *key && row.expected.is_some());
+            assert_eq!(
+                really_mapped, table_claims_it_is_mapped,
+                "named_key_bytes({key:?}, false).is_some() = {really_mapped}, but the table's \
+                 own claim that it is mapped = {table_claims_it_is_mapped} - these must agree",
             );
         }
     }

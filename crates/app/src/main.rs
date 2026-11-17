@@ -321,17 +321,16 @@ impl EntityInputHandler for AppWindow {
     }
 
     /// Real, not hard-coded `None` - this is what lets GPUI's own macOS backend ever learn
-    /// a composition is open (`keys.rs`'s own doc comment on the dedup rule).
+    /// a composition is open (`keys.rs`'s own doc comment on the dedup rule), and the
+    /// composition's own real length, not a fixed `0..0` (`ime.rs`'s own doc on
+    /// `marked_range_utf16` - review finding: a multi-character composition needs its real
+    /// length for AppKit's own next `setMarkedText:` call to land correctly).
     fn marked_text_range(
         &self,
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
-        if self.ime.is_composing() {
-            Some(0..0)
-        } else {
-            None
-        }
+        self.ime.marked_range_utf16()
     }
 
     fn unmark_text(&mut self, _window: &mut Window, _cx: &mut Context<Self>) {

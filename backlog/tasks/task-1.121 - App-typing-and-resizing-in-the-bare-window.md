@@ -1,7 +1,7 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
@@ -12,6 +12,9 @@ milestone: m-4
 dependencies:
   - TASK-1.117
   - TASK-1.114
+references:
+  - task-1.121-app-typing-and-resizing-in-the-bare
+  - https://github.com/bruk-io/steg/pull/71
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -1561,6 +1564,20 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built: the writer (a second, encode-only Connection), a minimal EntityInputHandler for composed text, focus plumbing, and declared size on open/resize, re-threaded twice onto upstream's own startup/teardown and painting rewrites as they landed (TASK-1.117's Slot-based fix, then origin/main's PR 65/66/68/69/70). key_to_bytes is a pure, table-driven function; the resize coalescer and ImeState are pure too.
+
+Checks recorded: pure-function tests (keys/size/ime) each with a failing-then-passing control; real-socket Writer tests for declare_size/send_input, including one proving a reply is observable on a live connection and one proving the exact silent-failure shape of a dead one (found via this task's own live verification, not invented after the fact); Model's Full-update-changes-size behaviour. just check: exit 0, recorded against the final merge commit (2c127d4f) with a clean tree.
+
+Found and reported (not fixed here, not mine to fix): TASK-1.117's own stop_startup was shutting down a connection right after a successful attach - diagnosed with a scratch cargo test replaying the app's own startup sequence against a real server, confirmed live with a temporary reverted patch, then confirmed again once 1.117's own real fix landed and was merged in.
+
+Live run against the final merged head, throwaway socket, no local patch: prompt draws, stays connected 15s idle, typed command echoes with its output drawn, a resize is followed (stty size reports the new dimensions), close-and-relaunch shows the earlier scrollback. All yes.
+
+Honest note on the live run's own environment: the socket was genuinely isolated (a fresh one every run), but the shell's own environment was not - steg server start's real path resolves a pane's shell identity through the real password database, not the HOME env var the server process itself was launched with, so the prompt shown is the real account's own real theme, not a throwaway one. Nothing personal was on screen because that theme shows no path/hostname/username and every typed command was a generic demo - not because of a throwaway HOME reaching the shell, which it did not.
+
+Images/recording held by the orchestrator in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov), described in the PR body as checked here, awaiting the engineer's own upload.
+
+PR 71's CI is green on 2c127d4f.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

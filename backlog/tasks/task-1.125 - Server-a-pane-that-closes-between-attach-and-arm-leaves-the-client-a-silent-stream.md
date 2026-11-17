@@ -3,13 +3,14 @@ id: TASK-1.125
 title: >-
   Server: a pane that closes between attach and arm leaves the client a silent
   stream
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:13:00Z'
+updated_date: '2026-11-17T04:26:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -23,8 +24,10 @@ asdlc_branch: task-1.125-server-a-pane-that-closes-between-attach
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b734cfaf5683'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -224,6 +227,25 @@ created: 2026-11-17T04:13:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T04:26:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] crates/server/src/connection.rs:582-601 - AC #1 claims the client's stream closes and the connection keeps no record, and that a later pane.detach then answers as for a pane never attached. No test, in this diff or pre-existing, ever executes this `if armed {...} else {...}` branch: `arm_attachment_answers_false_once_the_pane_has_already_closed` (runtime.rs) proves only that `Runtime::arm_attachment` returns false - it calls that method directly, never `handle_request`, so it never reaches `pane_streams`, `outbound.close_stream`, `connection.close_stream`, or the `pane.detach` arm this criterion is actually about. The notes assert AC #1 is covered by this one test ("so a later pane.detach answers correctly") - an inference from reading the code, not a recorded run. Per review.md's clause-by-clause rule, a clause with nothing behind it is unmet whatever the summary says. I could not find a way to build this test that does not face the exact same obstacle AC #3's own honest account names (no implemented method widens the attach-to-arm window from outside `handle_request`'s own two back-to-back calls without a busy worker), but the plan never says this, and treats AC #1 as already delivered rather than flagging the same gap it gave AC #3. The real proof is the same deferred two-connection test AC #3 names for once `pane.send` lands; until then this is an honest account still owed, not a delivered criterion.
+
+[Bugs, Nit] crates/server/src/runtime.rs:2810 - the lock-contention test's flood is 15 live 70 MB chunks (~1 GB) queued in the worker's own mpsc channel at once. It ran in 0.10s in this repeat and `just check`'s own recorded run shows steg-server's tests finishing in 25.2s, so it is not slow, but it is a lot of simultaneous memory for a unit test, more so under `cargo test`'s default parallelism; worth a comment on why 70 MB/15 was chosen over something smaller, or bounding it if CI ever gets memory-constrained.
+
+[Bugs, Nit] crates/server/src/runtime.rs:2862 - the first `done_rx.try_recv().is_err()` assertion runs immediately after `thread::spawn`, before the spawned attach has necessarily even started, so it can pass vacuously on a slow scheduler without the flood having proven anything yet; only the second check at line 2894 (after the real `pane.show` wait) actually establishes the attach was still stuck throughout.
+
+Checked and found sound, not findings: the false-arm branch correctly leaves nothing in `pane_streams` and closes both `outbound`/`connection` stream sides before any frame can be queued (verified `Outbound`/`Connection` `open_stream`/`close_stream` are local bookkeeping only, idempotent, no wire frame); `arm_attachment`'s `state.panes.get` check and `handle.arm(...).is_ok()` both correctly return false whether the pane's handle is already removed from the map or its worker's receiver has already dropped; the pane worker's own inert attachment record is bounded by the worker's own shutdown, which `close_and_dispatch`/`force_end`/`join_worker` already guarantees for a request-driven close (the path this task's own test and race use); `Tree::close_pane` already drops the pane from every client's attachment/viewing data (TASK-1.42) independent of this race, so the false-arm path leaves no stale view claim. Repeated myself: reverted `arm_attachment` to report armed unconditionally - `arm_attachment_answers_false_once_the_pane_has_already_closed` failed as expected, reverted, tree clean; reverted `attach_pane` to hold its lock across the wait - the lock-contention test failed by its 2s bound in 2.08s, not by hanging, reverted, tree clean. `just check` was recorded passing at 16eb3fcd79df; the merge to cfa9f41a (this PR's head) only touched `backlog/*.md` files, confirmed by diff --stat, so that run is not stale. Did not check: whether the kernel's close-pane cascade or `force_end`'s join bound could themselves ever leave a worker thread outliving its removal from `state.panes` on a path other than the request-driven close this task's own race uses (the implementation notes already name this as a separate, larger, pre-existing gap out of this task's scope); did not re-run the full `just check` myself.
 
 ---
 <!-- COMMENTS:END -->

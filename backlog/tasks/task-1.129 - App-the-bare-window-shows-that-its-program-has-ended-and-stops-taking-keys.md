@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.129
 title: 'App: the bare window shows that its program has ended, and stops taking keys'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T22:39:00Z'
 labels:
@@ -12,6 +12,7 @@ dependencies:
   - TASK-1.121
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T01:41:00Z'
+updated_date: '2026-11-17T01:57:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2420,6 +2420,35 @@ ok      ui colours (0.0s)
 Commits since the review: 319, 288 without the Asdlc-Worker trailer.
 
 AttachmentId fix (TASK-1.114's real bug, reproduced by hand with the same names/shapes: pane.rs's AttachmentId(u64), minted per-attachment by the worker, replacing bare stream-number matching in PaneCommand::Arm/Detach; runtime.rs's attach_pane/arm_attachment/detach_pane/forget_attachment follow; connection.rs's pane_streams now keys by (AttachmentId, u32)). Proof: two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other, with a recorded failing-then-passing control (stream-number matching restored). All twelve controls (the original eleven plus this one) re-recorded as failing-then-passing pairs through asdlc record-check after both the TASK-1.46 merge and the AttachmentId fix, against the code as it stands at the end - not run by hand. Merged origin/main three times as it moved (TASK-1.46's PR, TASK-1.112's and TASK-1.49's PRs, then two board-only commits); each merge rebuilt, retested, and re-ran only the controls its own diff touched. just check green at every merge point, recorded on the task throughout. Head 69680a39, PR https://github.com/bruk-io/steg/pull/62, CI green.
+
+Check FAILED: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 101 at 2026-11-17T01:57:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... FAILED
+
+failures:
+
+---- runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock stdout ----
+
+thread 'runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock' (48525079) panicked at crates/server/src/runtime.rs:2848:13:
+an unrelated pane.show must answer within a bound even while a different pane's own attach is stuck on its worker, elapsed 1.953307s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 190 filtered out; finished in 1.99s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

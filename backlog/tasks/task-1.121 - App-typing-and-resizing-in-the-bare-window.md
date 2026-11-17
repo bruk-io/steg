@@ -1650,4 +1650,24 @@ created: 2026-11-17T02:46:00Z
 Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you at f8967015 (merge commit 7ba220a4, pushed to origin). Conflicts in main.rs/startup.rs (re-threaded this task's writer/focus/declared-size/IME additions through 1.117's new Slot-based startup/teardown, unchanged) and five server-side files (pane_streams/tab.declare-size/AttachmentId-shaped additive conflicts, both sides kept). just check: exit 0. Live run against committed code only, no local patch: prompt draws, stays connected 10s, typed command echoes and its output draws, a resize is followed (stty size), close-and-relaunch shows the earlier output - all yes.
 
 ---
+
+created: 2026-11-17T22:38:00Z
+
+---
+
+Merged origin/main (merge commit 2c127d4f) once PRs 65/66/68/69/70 all landed there - no local patch, no waiting needed per your second message (confirmed the two protected processes, pid 63012/67229, were never touched or signalled).
+
+Conflicts and how resolved:
+- crates/app/src/main.rs: one conflict, in render()'s Attached branch - kept this task's own .track_focus/.on_key_down/extra terminal() params, took main's state.metrics.clone() (CellMetrics is no longer Copy, PR 70). Also fixed one other now-broken move (EntityInputHandler::bounds_for_range's own `let metrics = state.metrics;` -> `&state.metrics`), caught by the compiler, not the merge itself.
+- crates/app/src/model.rs: one conflict, in a test fixture (snapshot/snapshot_with_size) - kept this task's own two-function split (used throughout this file's own later tests), dropped main's single-function version. Separately, updated the module's own doc comments: what I had called "a known gap, to close at the next re-merge" (Delta carrying no size) turns out to be the final, settled design once PR 66 landed (doc-14's own reworded Size section: "a delta never carries a size; a size-stale attachment gets a full screen") - reworded three comments to say so plainly, not restate a gap that closed on its own.
+- crates/app/src/terminal_element.rs: one conflict, an import list (PR 126's new Point import vs this task's own ElementInputHandler/Entity/FocusHandle) - combined both lists; nothing else needed changing, this task's own terminal()/paint_grid wiring (focus_handle/entity/last_bounds params, the handle_input call) auto-merged cleanly against PR 126's own rewrite underneath it.
+- crates/app/src/startup.rs: one conflict, a test fixture comment (same Screen.size shape, worded two ways) - kept main's wording.
+- crates/server/src/connection.rs, dispatch/mod.rs, pane.rs: additive conflicts (PR 68's finish_attach/armed-check, event.watch's own position) - combined, nothing dropped on either side, same shape as the last two merges.
+- crates/server/tests/attach.rs: replaced wholesale with main's version - confirmed first that main's file is a strict superset (all of this task's own existing tests present unchanged, plus three new ones from PR 68/69), so there was nothing of this task's own to preserve separately.
+
+Re-verification: checked whether any of this task's own recorded controls rest on something this merge actually changed. None do - the SDK's Connection::declare_size/send_data (this task's own Writer tests) are untouched between the last merge and this one (confirmed by diff); keys.rs/size.rs/ime.rs are pure and untouched; model.rs's own Delta/Full size behaviour is unchanged code, only the comment describing it. So no control needed a fresh failing-then-passing cycle - the full just check (recorded above, exit 0, against this merge commit) re-exercises every one of them regardless. just check: exit 0.
+
+Known cost, not fixed here (for TASK-1.122): my own resize coalescer (size::declare_if_changed) declares once per distinct cell-size boundary a drag crosses, not once per pixel-level resize event - but since PR 66, every size change that actually changes the tab's size now sends a full screen to every attached viewer, not a bare field. A drag crossing many cell boundaries in one gesture therefore sends one full-screen resync per boundary crossed, to every viewer, not just the one resizing. Flagging for whoever picks up the latency/flood-bounding work.
+
+---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T02:34:00Z'
+updated_date: '2026-11-17T02:35:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1393,6 +1393,28 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --test attach -- --exact two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck detaching_a_pane_that_already_closed_still_releases_the_stream` exited 0 at 2026-11-17T02:35:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.89s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 7 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.04s
 ```
 <!-- SECTION:NOTES:END -->
 

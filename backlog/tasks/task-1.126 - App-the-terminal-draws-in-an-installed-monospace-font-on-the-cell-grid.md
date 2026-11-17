@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T18:32:00Z'
+updated_date: '2026-11-17T18:40:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -413,6 +413,16 @@ created: 2026-11-17T16:18:00Z
 
 Departures from the approved plan:
 - Build base: the plan's own "Build base" section said to merge origin's task-1.117 branch. By the time the plan was approved, TASK-1.117 (PR 65), TASK-1.125 (PR 68) and TASK-1.113 (PR 69) were already merged to main and the task-1.117 branch deleted - merged origin/main instead (same content plus TASK-1.113's hang fix), per team-lead. No other change to the plan.
+
+---
+
+created: 2026-11-17T18:40:00Z
+
+---
+
+Departures from the approved plan (continued):
+- AC#4's cursor image shows seventy typed characters, not the eighty AC#4 itself names. The pane's pty is fixed at eighty columns (the server's own default; no client-declarable size is exposed until TASK-1.121's resize work), and writing exactly eighty characters into an eighty-column terminal is the standard deferred-wrap case: the cursor sticks at the last column with the block drawn over the last character, rather than advancing past the edge. Confirmed this is not a general off-by-one anywhere in this task's own code: a ten-character control in the same setup put the cursor at column ten exactly, with no drift. Column eighty itself is proven instead by cell_origin's own recorded test/control, which does not depend on any pty width.
+- The listing image's pane uses PROMPT='%# ' before exec'ing the shell with -f (no rc files read), so its prompt carries no hostname - the first attempt's default zsh prompt included this machine's hostname and could not go on a public PR.
 
 ---
 <!-- COMMENTS:END -->

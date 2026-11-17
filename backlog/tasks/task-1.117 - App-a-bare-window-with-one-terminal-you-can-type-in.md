@@ -1,14 +1,13 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T02:19:00Z'
+updated_date: '2026-11-17T02:28:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -1454,6 +1453,32 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Second review (comment #6) plus the live-run bug both traced to one mechanism; fixed with one design rather than patched one at a time, as directed.
+
+A (mine, live run): apply_startup_result called stop_startup unconditionally, including on success, shutting down the just-attached connection's own socket seconds after every real attach.
+B (review, Important): stop_startup checked the ShutdownSlot once then joined unconditionally; a teardown racing the gap before connect() published a handle shut nothing down and then blocked the main thread on join() for as long as a stalled server stayed silent.
+C (review, Important/Evidence): the cited test never called run() or stop_startup - it filled its own slot and proved only shutdown()'s own POSIX semantics.
+
+Fix: closing the window never joins a startup thread that has not already sent its result. teardown marks it cancelled (interrupt()) and lets go of the JoinHandle without joining; apply_startup_result is the only place that joins, and only once the oneshot has resolved (the thread's closure has nothing left to do by then - bounded, instant). The startup thread always ends on its own within a stated bound regardless of whether the main thread is watching: every blocking read once connected carries a read timeout (cleared the moment success is claimed), and connect()'s own retry loop (sdk-owned) is bounded by connect_timeout. A racing interrupt()'s shutdown call is now an acceleration only - ends a blocked read sooner - never the correctness mechanism; the one place a strict guarantee still holds is a successful attach, via a 3-state Slot (Pending/Connected/Cancelled) whose claim-on-success is the sole precise race (both sides share one lock, reasoned through in startup.rs's module doc).
+
+Limitation on requirement 4(c): connect()'s own retry loop is sdk-owned, not fakeable without inventing scope outside this crate. Test (c) simulates the same ordering a real race would produce - interrupt() called before attach_over is ever entered - rather than driving a genuine mid-retry connect(). The main-thread guarantee (never blocks) holds regardless, structurally, since teardown never joins; the bound on the thread itself in that phase is connect_timeout, unchanged, same as before this round.
+
+Three tests added, each against the real attach_over and a real fake server, each with a failing-then-passing control proven by removing its own mechanism and reverting (confirmed myself before recording, per the note that C was exactly a test that passed without its mechanism):
+- a_successful_attach_survives_interrupt_called_right_after (A/requirement 3, also asserts the read timeout is cleared on both the stream and its clone)
+- a_teardown_that_races_in_before_the_slot_is_published_is_not_lost (B/test c, with timing assertions)
+- teardown_while_the_server_is_silent_mid_handshake_ends_quickly (B/test b, the accelerator specifically, with a tight timing margin)
+The old test the review cited as insufficient (publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read) is removed - superseded by the new tests, which go through the real function and a real fake server rather than constructing the slot by hand.
+
+Module doc rewritten to state what is actually guaranteed (requirement 5): main thread never blocks on this thread in any phase; the thread itself always ends within a stated bound (read timeout once connected, connect_timeout before); a success never has its socket shut down or carries a timeout onward.
+
+Live run, reported as asked:
+- prompt draws: yes
+- stays connected after fifteen seconds idle: yes
+- close and relaunch re-attaches and stays connected: yes
+- closing during a deliberately stalled start (fake listener that accepts and never answers) returns at once: yes - window gone immediately (confirmed via the window-list tool finding nothing), and 0.0% CPU on the process after the read-timeout window elapsed confirmed the detached thread settled rather than spinning. Noting explicitly since it could otherwise read as a hidden hang: the app process itself stayed running after the window closed - that is this app's pre-existing, unchanged last-window behaviour (no cx.quit() on close), not a hang; ps confirmed no leftover nc/steg-app/server processes after cleanup in every run.
+
+just check green (recorded), full test suite 24 passed, CI green (gh pr checks 65 --watch). No merge brought in - origin/task-1.117... was a fast-forward ancestor of this branch's new commit, confirmed via merge-base before pushing. ps confirmed clean before every push, per the usual protocol.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

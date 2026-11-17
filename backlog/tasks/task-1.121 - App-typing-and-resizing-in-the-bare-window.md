@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T22:38:00Z'
+updated_date: '2026-11-17T22:57:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1668,6 +1668,22 @@ Conflicts and how resolved:
 Re-verification: checked whether any of this task's own recorded controls rest on something this merge actually changed. None do - the SDK's Connection::declare_size/send_data (this task's own Writer tests) are untouched between the last merge and this one (confirmed by diff); keys.rs/size.rs/ime.rs are pure and untouched; model.rs's own Delta/Full size behaviour is unchanged code, only the comment describing it. So no control needed a fresh failing-then-passing cycle - the full just check (recorded above, exit 0, against this merge commit) re-exercises every one of them regardless. just check: exit 0.
 
 Known cost, not fixed here (for TASK-1.122): my own resize coalescer (size::declare_if_changed) declares once per distinct cell-size boundary a drag crosses, not once per pixel-level resize event - but since PR 66, every size change that actually changes the tab's size now sends a full screen to every attached viewer, not a bare field. A drag crossing many cell boundaries in one gesture therefore sends one full-screen resync per boundary crossed, to every viewer, not just the one resizing. Flagging for whoever picks up the latency/flood-bounding work.
+
+---
+
+created: 2026-11-17T22:57:00Z
+
+---
+
+Correction to the live-run notes, for accuracy: the prompt shown in the images/recording (an arrow and a bare "~") is not the PROMPT='%# ' I set out to force, and tracing why matters more than it looks.
+
+What each live run actually used: a fresh mktemp -d directory for HOME and a fresh mktemp -d/steg.sock for STEG_SOCKET_PATH, passed as env vars to both the server and app processes - every run, including the final one for the images. STEG_SOCKET_PATH genuinely isolated each run onto its own socket, never the engineer's or any other real one.
+
+HOME did not: steg server start's own real path (not the test fixture path) resolves the pane's own shell identity through LoginShell::resolve_identity -> login_env::resolve_login_identity, which reads the real password database for the account actually running the server process, not the HOME environment variable I set when launching it - confirmed by reading crates/server/src/login_env.rs and runtime.rs directly, not guessed. So the shell each pane ran was spawned with the real account's own real home directory and its own real dotfiles, and whatever prompt theme those dotfiles set is what the arrow-and-~ actually is - this task's own throwaway HOME never reached that point at all. My own PROMPT='%#' env var, set only on the server process I launched, was never going to override a theme sourced from the real account's own rc files either, for the same reason.
+
+What this means for "nothing personal on screen": held, but not because of the throwaway HOME - it held because the prompt theme itself shows no path, hostname or username (just a generic arrow and a bare tilde), and because every command I typed into it was a generic demo (echo/stty), never anything that would surface a real path or other real content. I did not use, read, or write to the engineer's own session or socket at any point - that part of the isolation was real.
+
+Separately: PR 71 is green on 2c127d4f, controls and just check already recorded against this exact head (clean tree, confirmed above), the three files in pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov) are described in the PR body as checked by the orchestrator and awaiting the engineer's own upload. Calling asdlc finish now.
 
 ---
 <!-- COMMENTS:END -->

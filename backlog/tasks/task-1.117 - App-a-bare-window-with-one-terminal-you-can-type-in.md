@@ -1,14 +1,13 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T01:26:00Z'
+updated_date: '2026-11-17T01:35:00Z'
 labels:
   - size-5
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -1187,6 +1186,75 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 133, 114 without the Asdlc-Worker trailer.
+
+Fixed all three review findings from @bruk.r2's review:
+
+1. (Important) AppWindow::teardown joined the startup thread unconditionally,
+   which could freeze the main thread indefinitely if the window closed while
+   the thread was blocked in a read with no timeout. Fixed: startup::spawn
+   now also returns a ShutdownSlot (Arc<Mutex<Option<UnixStream>>>), populated
+   with a cloned handle the moment connect() succeeds, before any further
+   blocking read - AppWindow::stop_startup locks it and shuts the handle down
+   before joining, the same mechanism the reader thread already has, just
+   published earlier since the socket does not exist until connect() returns.
+   The one phase this cannot reach into - connect()'s own retry loop, before
+   any socket exists - stays a bounded wait up to connect_timeout (10s),
+   stated in startup.rs's own module doc. New bounded test (no timers/
+   polling): a thread blocked in block_until is interrupted via the same
+   slot a concurrent teardown would use.
+
+2. (Important) startup.rs had zero tests; find_or_make_session and the
+   stale-pane fix-up (inline in run()) were untested, automated or manual.
+   Extracted the stale-pane branch into its own resolve_pane function and
+   added five tests against a real UnixStream::pair() (testing-rust.md): a
+   labelled session found with no session.new call; no label found calls
+   session.new; a running pane returned as-is; an ended pane's program gets
+   a fresh tab in the same session. Found and fixed a real bug while writing
+   these: the fake-server helper didn't handle EOF, so a worker that returns
+   early without touching the socket left the server-side loop spinning on
+   repeated Ok(0) reads - fixed, and every socket pair now carries a read
+   timeout so a broken client-request sequence fails a test cleanly instead
+   of hanging the suite.
+
+3. (Nit) terminal_element.rs's run_key did not hash underline_colour - two
+   runs identical except for underline colour collided on the same cache key,
+   painting the wrong colour on a cache hit. Fixed, with two tests.
+
+Every item has a recorded failing-then-passing asdlc record-check pair
+against the test as it stands at the end (one control needed a mid-stream
+fix to the EOF-handling bug above before it could be recorded cleanly - the
+first attempt hung and was killed; the test itself was fixed, then both
+runs re-recorded against the corrected version).
+
+unicode-segmentation (finding 3, the undisclosed dependency): recording the
+departure here rather than removing it. It is needed in model.rs's
+run_columns: a Run's own text is one grapheme cluster per cell it covers,
+and same-styled cells merge into one Run by string concatenation, so
+recovering how many cells a run spans needs real grapheme segmentation, not
+str::chars (a combining mark is more than one char but one grapheme and one
+cell - this crate's own test, a_combining_mark_is_one_grapheme_and_one_
+column_not_two, pins this down). gpui does not give this. Licence: MIT OR
+Apache-2.0 (cargo tree -p steg-app -e normal --format "{p} {l}"), already
+within deny.toml's existing allow-list - just licences already passed on it
+before and after this note, nothing changed there.
+
+Two merges since the last review, both as the engineer directed: origin/main
+(idle-stop/accept-backoff work, reconciled by hand where both sides touched
+the same server-internal structs, all additive) and then TASK-1.47's new
+head (69680a39, AttachmentId, on current main) - merge, not rebase, for
+both; every conflicted file was outside crates/app and resolved by taking
+the other side whole, confirmed after each by diffing clean against that
+head everywhere but crates/app and the Cargo/boundary/lock lines that serve
+it. AttachmentId is server-internal and never reaches the sdk's own public
+shapes (confirmed: grepped the merged crates/sdk for it, found only
+PaneAttached, unchanged) - no app code needed to change, as the engineer
+expected. just check recorded green after each merge; the merge touched
+nothing in crates/app, and the full steg-app test suite (all 22 tests,
+including every control) re-ran clean as part of each just check - no
+individual control needed separate re-recording beyond that.
+
+ps confirmed clean (no leftover processes) before each push. CI green on
+the PR (gh pr checks --watch) after the final push.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

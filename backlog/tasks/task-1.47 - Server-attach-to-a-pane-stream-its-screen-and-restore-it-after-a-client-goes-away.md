@@ -1802,6 +1802,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; fi
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change` exited 101 at 2026-11-17T00:24:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change stdout ----
+
+thread 'pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change' (46077160) panicked at crates/server/src/pane.rs:2058:83:
+a caught-up attachment's second real change must be a Delta, not a redundant Full: got Full { screen: Screen { rows: [[Run { text: "firstsecon", style: CellStyle { fg: None, bg: None, bold: false, italic: false, faint: false, blink: false, inverse: false, invisible: false, strikethrough: false, overline: false, underline: None, underline_colour: None, wide: Narrow, link: false } }], [Run { text: "d", style: CellStyle { fg: None, bg: None, bold: false, italic: false, faint: false, blink: false, inverse: false, invisible: false, strikethrough: false, overline: false, underline: None, underline_colour: None, wide: Narrow, link: false } }]], cursor: Cursor { x: 1, y: 1, visible: true, blinking: false, shape: Block } }, seq: 2 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

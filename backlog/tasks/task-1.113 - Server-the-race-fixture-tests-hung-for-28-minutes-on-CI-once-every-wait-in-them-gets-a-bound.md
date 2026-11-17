@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:04:00Z'
+updated_date: '2026-11-17T04:08:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -390,6 +390,33 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `just test-openpty-race-control` exited 101 at 2026-11-17T04:08:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+FAILED  openpty race control (exit 101, 214.2s)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/openpty_race.rs (target/debug/deps/openpty_race-7feda493ce844436)
+
+running 1 test
+test cross_process_opens_with_no_retry_the_permanent_control_eventually_fails has been running for over 60 seconds
+
+thread 'cross_process_opens_with_no_retry_the_permanent_control_eventually_fails' (50293704) panicked at crates/server/tests/openpty_race.rs:408:5:
+expected at least one failure within 100000 real cross-process opens with retry forced off (max_open_attempts = 1) - reaching the bound with none seen means the race was not reproduced on this run (saw 100000 opens, 0 failures); see the task's own notes before weakening or deleting this test
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test cross_process_opens_with_no_retry_the_permanent_control_eventually_fails ... FAILED
+
+failures:
+
+failures:
+    cross_process_opens_with_no_retry_the_permanent_control_eventually_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 214.05s
+
+error: test failed, to rerun pass `-p steg-server --test openpty_race`
+full output: .quiet/openpty-race-control.log
+error: recipe `test-openpty-race-control` failed on line 149 with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

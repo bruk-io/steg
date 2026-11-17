@@ -3,19 +3,19 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:39:00Z'
+updated_date: '2026-11-17T00:46:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
   - task-1.112-server-opening-a-pseudo-terminal-still
   - https://github.com/bruk-io/steg/pull/61
+  - https://github.com/bruk-io/steg/pull/67
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -809,6 +809,16 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 77, 69 without the Asdlc-Worker trailer.
+
+Review fix (PR 61 had already merged; this is a new pull request from the same branch, referencing it).
+
+The one Important finding: RealLauncher::spawn's open-exhaustion path folded the retry's cause into a formatted string before boxing it as Error::Pty, losing the source chain (source() returned None) - .claude/rules/rust.md forbids this, and every other Error::Pty call site in the file kept the cause directly.
+
+Fix: OpenExhausted carries {attempts, cause}, with source() returning the real cause; built by a small open_exhausted(attempts, cause) function kept separate from RealLauncher::spawn specifically so it is directly unit tested with a synthetic cause and no real pty. New test walks the whole source chain (Error::Pty -> OpenExhausted -> the real cause) and checks the attempt count is still in the message, with its own recorded negative control: open_exhausted reverted to the string form (the test fails), restored (it passes) - both recorded via asdlc record-check.
+
+The nit (wait_timeout_or_kill's 5ms poll) left as-is per the review's own call - precedented by tests/race.rs's identical pattern.
+
+just check green on the final head, locally and on CI (run 43989431067, 6m26s). No leftover process after any run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

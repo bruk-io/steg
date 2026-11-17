@@ -2185,6 +2185,53 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; fini
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds` exited 101 at 2026-11-17T00:28:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes, last 40 of 43 lines:
+
+```text
+    |
+298 | struct ConnectionCleanup<'a> {
+    |        ----------------- field in this struct
+...
+316 |     pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `forget_attachment` is never used
+   --> crates/server/src/runtime.rs:613:19
+    |
+282 | impl Runtime {
+    | ------------ method in this implementation
+...
+613 |     pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds ... FAILED
+
+failures:
+
+---- connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds stdout ----
+
+thread 'connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds' (46156327) panicked at crates/server/src/connection.rs:821:13:
+pane 00000002 never reached 0 attachments; last saw 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

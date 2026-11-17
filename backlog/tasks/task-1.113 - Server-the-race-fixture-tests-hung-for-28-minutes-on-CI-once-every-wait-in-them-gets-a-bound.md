@@ -3,14 +3,13 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T06:10:00Z'
+updated_date: '2026-11-17T06:19:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -1306,6 +1305,18 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Fixed the last finding: wait_for_exit_without_reaping's own doc comment still claimed the WNOWAIT invariant alone made a kill from a second thread "always safe here, however the two threads happen to interleave" - the exact sentence the previous review quoted and refuted. The prior fix rewrote wait_child_bounded's own comment to attribute safety to the shared Mutex but missed this neighbouring copy, leaving the file contradicting itself.
+
+Rewritten to say precisely what WNOWAIT gives on its own (the pid stays owned by this process until something reaps it, so a kill sent before that reap cannot land on another process - necessary, not sufficient by itself) and that the other half - ordering the kill before the reap even when the two threads race - is wait_child_bounded's own lock, pointing to that function's comment rather than restating it.
+
+Grepped the file for every other copy of the "always safe... however they interleave" phrasing: the one remaining instance (wait_child_bounded's own comment, "so a kill can never follow a reap, however the two threads interleave") is the true claim the Mutex actually earns, not a stale copy - left as is. Grepped the PR description (gh pr view 69 --json body): it never contained this specific phrase, so there was nothing to correct there. Correcting the record on my own prior finish notes, which can't be edited after posting: that note said the fix "removed the earlier... claim" - true of the one copy in wait_child_bounded, not of this second, separate copy in wait_for_exit_without_reaping, which this round's fix now also corrects.
+
+No code change (doc comment only, confirmed via git diff before committing), so no control needed re-running - said so rather than claiming one.
+
+Checks: just check, full workspace, recorded clean. ps checked clean of leftover processes.
+
+PR #69, pushed (head 0e124c3c), CI green (run 44029370399, 7m38s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

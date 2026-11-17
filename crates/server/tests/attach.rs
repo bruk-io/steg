@@ -1348,6 +1348,143 @@ fn an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pan
     stop_server(&stop, handle);
 }
 
+/// A plain control call from a connection that never touched the stuck
+/// pane answers quickly, proving the server-wide freeze TASK-1.114's own
+/// accepted limit disclaims ("only that pane's screen") - not merely that
+/// one connection's own request queue is sequential.
+///
+/// `an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_
+/// another_pane`, above, issues every one of its calls over a single
+/// connection - its own `(a)` check only proves that *this* connection's
+/// read loop eventually gets back around to `pane.show` once the stuck
+/// pane's worker drains (`connection.rs`'s own `run_post_handshake` reads
+/// and handles one request at a time per connection, so that much is true
+/// of a perfectly healthy server too, and would pass even if every other
+/// connection in the process were also frozen).
+///
+/// This test instead issues `pane.show` from a *second*, otherwise idle
+/// connection, opened only after the first connection's own attach to the
+/// stuck pane is already known-stuck (the same proof `(a)` above uses: no
+/// reply within a short bound). `connection.rs` intercepts `pane.attach`
+/// before `Runtime::handle`'s own generic path (`Runtime::attach_pane`),
+/// and `pane.show` reaches that generic path, which needs `Runtime::lock`
+/// the same as everything else - so if `attach_pane` ever holds that lock
+/// across its own wait on the stuck pane's worker, this second
+/// connection's unrelated `pane.show` queues up behind it too, and this
+/// test fails.
+///
+/// 2s, not 15s: unlike the "eventually drains" checks above, this one
+/// does not wait on the stuck pane at all if the server is healthy - nothing
+/// here competes with the pty flood for a multi-second event, so a bound
+/// this much tighter than this file's own "eventually drains" margin still
+/// has plenty of room for `just check`'s own concurrent CPU contention.
+///
+/// Control (TASK-1.114, following TASK-1.47's own review finding that
+/// `Runtime::attach_pane` holds the runtime lock across `PaneHandle::
+/// attach`'s unbounded `recv`): recorded failing against the pre-fix
+/// `attach_pane` via `asdlc record-check` - this second connection's
+/// `pane.show` got no reply within 2s, confirming the lock actually is
+/// held across the wait today. Recorded passing once TASK-1.47's
+/// restructuring (not touched by this task) stops holding the lock across
+/// that wait.
+///
+/// 12x `flood_stdin`'s own batch (840MB, not 70MB), on a dedicated
+/// connection used for nothing else: this measured (an earlier draft of
+/// this test, using `flood_stdin`'s own 70MB) draining well inside the 2s
+/// bound below - too fast to tell a held lock apart from a released one,
+/// since either way the real check would then be answered by a fully
+/// recovered worker, not a stuck one. The sending side itself never
+/// blocks on the pty at all - it is a socket write the server's reader
+/// drains into the pane's own unbounded command channel - so sending 12x
+/// the data does not cost anywhere near 12x the wall-clock time; only the
+/// one pane worker's own serial, blocking pty writes do, and those stay
+/// well behind both bounded checks below.
+#[test]
+fn a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+
+    let stuck_pane = new_pane_running(
+        &mut stream_a,
+        &mut connection_a,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let other_pane = new_pane_running(
+        &mut stream_a,
+        &mut connection_a,
+        vec!["sh", "-c", "while true; do echo flooding; sleep 0.02; done"],
+    );
+    let _attached_other = attach(&mut stream_a, &mut connection_a, &other_pane);
+
+    // The second connection used for the real check below, opened and
+    // handshaken *before* the flood starts: a brand new connection's own
+    // handshake needs `Runtime::register_subscriber` (TASK-1.46 §7),
+    // which takes `Runtime::lock` too, so opening it only after the pane
+    // is already stuck would at best conflate "a new connection can even
+    // join" with "an already-connected one's plain control call still
+    // answers" - two different proofs. Opening it first removes that
+    // ambiguity: whatever happens next can only be explained by this
+    // connection's own later `pane.show`, not by its own handshake.
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    // A dedicated connection for the flood, so nothing else this test
+    // does ever shares a socket with it.
+    let (mut flood_stream, mut flood_connection) = connect_and_handshake(&socket_path);
+    let attached_stuck = attach(&mut flood_stream, &mut flood_connection, &stuck_pane);
+    let chunk = vec![b'x'; 7 * 1024 * 1024];
+    for _ in 0..120 {
+        send_input(
+            &mut flood_stream,
+            &flood_connection,
+            attached_stuck.stream,
+            &chunk,
+        );
+    }
+
+    // Proof the stuck pane's own worker really is stuck, the same shape
+    // as the single-connection test above: a second attach to it, queued
+    // behind the flood on that pane's own command channel, gets no reply
+    // within a short, bounded window.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(stuck_pane));
+    let (stuck_attach_id, bytes) = connection_a
+        .call("pane.attach", params)
+        .expect("a valid call");
+    stream_a.write_all(&bytes).unwrap();
+    let reply = reply_within(
+        &mut stream_a,
+        &mut connection_a,
+        stuck_attach_id,
+        Duration::from_secs(1),
+    );
+    assert!(
+        reply.is_none(),
+        "the stuck pane's own worker answered a second attach - it was not actually stuck: {reply:?}"
+    );
+
+    // The real check: `connection_b`, already connected before the flood
+    // started and never having touched `stuck_pane` at all, issues one
+    // plain control call and must get an answer quickly - never
+    // serialized behind a different connection's own worker-bound attach.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(other_pane));
+    let (show_id, bytes) = connection_b
+        .call("pane.show", params)
+        .expect("a valid call");
+    stream_b.write_all(&bytes).unwrap();
+    let response = reply_within(&mut stream_b, &mut connection_b, show_id, Duration::from_secs(2))
+        .expect(
+            "a second connection's plain control call must answer within 2s, \
+             never waiting on a different connection's own stuck-pane attach",
+        );
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    stop_server(&stop, handle);
+}
+
 /// `pane.close --force` returns within its own documented bound
 /// (`force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT`) even
 /// while that exact pane's own worker is stuck in a blocking `write_all`.

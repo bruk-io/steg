@@ -1934,6 +1934,35 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; fi
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type` exited 101 at 2026-11-17T00:25:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type ... FAILED
+
+failures:
+
+---- description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type stdout ----
+
+thread 'description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type' (46098631) panicked at crates/sdk/src/description/methods.rs:1885:13:
+pane.attach names PaneAttachedXX, which is not in the known sdk types
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

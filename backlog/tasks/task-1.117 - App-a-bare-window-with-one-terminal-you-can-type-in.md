@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T00:19:00Z'
+updated_date: '2026-11-17T01:26:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1150,6 +1150,43 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T01:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 85da77e96e15:
+
+```text
+ok      format check (0.2s)
+ok      lint (6.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (58.2s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (1.1s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (1.4s)
+ok      test (steg-server) (26.5s)
+ok      test (steg-server, race-fixture) (26.9s)
+ok      test (steg-server, pty-race-fixture) (32.3s)
+ok      test (steg-server, accept-backoff-fixture) (28.3s)
+ok      build (steg) (2.1s)
+ok      test (steg) (2.7s)
+ok      test (steg, fixtures) (10.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 133, 114 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:37:00Z'
+updated_date: '2026-11-17T04:44:00Z'
 labels:
   - size-2
   - changes-requested
@@ -294,6 +294,43 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; fi
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T04:44:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 89049cabf8e6:
+
+```text
+ok      format check (0.3s)
+ok      lint (32.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (58.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.9s)
+ok      test (steg-server) (25.9s)
+ok      test (steg-server, race-fixture) (27.7s)
+ok      test (steg-server, pty-race-fixture) (34.2s)
+ok      test (steg-server, accept-backoff-fixture) (28.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (9.3s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (4.8s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

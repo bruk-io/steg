@@ -3,13 +3,14 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:09:00Z'
+updated_date: '2026-11-17T00:25:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -22,8 +23,10 @@ asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4592947e385d'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r3
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["rust", "testing-rust"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -692,6 +695,27 @@ created: 2026-11-17T00:09:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 4h 6m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:25:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: rust, testing-rust. The diff does not match the plan.
+
+[Bugs/Rust, Important] crates/server/src/pty.rs:263-265 - RealLauncher::spawn's exhaustion path formats the retry's real cause into a string before boxing it (`Error::Pty(format!("failed to openpty after {attempts} attempt(s): {cause}").into())`), discarding the original error's source chain - Error::source() returns None for a String-backed Box<dyn Error>. .claude/rules/rust.md: "Add context where the error crosses a boundary, never by turning it into a string." Every other call site in this same file (lines 287, 298, 302, 313: `Error::Pty(cause.into())`) preserves the cause directly; only this new exhaustion path, which AC #4 specifically cares about ("the last error surfaces"), stringifies it. A small wrapper error type carrying {attempts, cause} with source() returning Some(cause.as_ref()) would keep both the message and the structured source.
+
+[Bugs/testing-rust, Nit] crates/server/tests/openpty_race.rs:377 - wait_timeout_or_kill polls with std::thread::sleep(Duration::from_millis(5)), which .claude/rules/testing-rust.md says a test should not do to wait for something. Precedented (tests/race.rs:84 has the identical pattern already), so Nit not Important.
+
+Checked and clear: the retry (any failure of the open step, no sleep, OpenRetried sent from both pane::start and worker_loop's Resume handling, exhaustion returns the last error with the attempt count, nothing allocated before the open succeeds so no fd/pane/thread leak on exhaustion - AlwaysFailsToOpenLauncher's own test confirms no thread is even spawned). .github/workflows/ci.yml on the branch head is byte-identical to main's pre-merge state (confirmed by diff) - the temporary CI step (b4e56dd7) was reverted (764a9d26) before the PR's head, as the notes say. Every wait in tests/openpty_race.rs and its fixture is bounded (READY_TIMEOUT/STOP_TIMEOUT/FIXED_SAFETY_NET/CONTROL_SAFETY_NET), and ReapOnDrop kills+waits its child on every path including a panic mid-test - verified no leftover process after running just check and a scratch revert myself. Both cited controls (pty.rs's open_with_retry unit tests, and runtime.rs's AC #3 rollback test) were recorded against the uncommitted working tree that became commit 577ed2a6ae69 unchanged - confirmed by diffing 577ed2a6ae69 against the final head 0d2a0bc1 for pty.rs, runtime.rs (rollback_mint/start_and_dispatch untouched - the only runtime.rs changes between those two commits are TASK-1.86's unrelated idle-notifier plumbing, merged in via 96bbab0c) and tests/runtime.rs (no diff at all). I independently repeated the layer (a) control myself: reverted open_with_retry to a single call in a scratch edit, confirmed fails_once_then_succeeds_counts_one_retry and fails_every_time_surfaces_after_exactly_the_bound both fail exactly as the task's own recorded control shows, then reverted the edit (git diff clean afterward). Ran just check once at the branch head myself: exited 0, all steps green including the new "test (steg-server, pty-race-fixture)" step; no hang, no leftover process.
+
+plan-matched=no: this is the orchestrator-approved, notes-recorded departure from the plan's own words (the no-retry control moved from a permanent just-check gate to an #[ignore]d, on-demand test, with criterion 2 reworded to match) plus the justfile recipe (test-openpty-race-control) that departure needed, which the plan's own "Files that change" list did not name. Not counted as an Important finding: the notes explain it in detail with real numbers (the 15% miss rate at the plan's original density, the redesign, the final 100,000-open bound's 3/3 local and 3/3 CI reproductions), matching the review brief's own framing of this as a disclosed, agreed departure.
+
+Not checked: whether anything outside crates/server/src/pty.rs's error-handling (this one exhaustion path) also silently drops a source chain elsewhere in the crate - only this task's own new code was in scope.
 
 ---
 <!-- COMMENTS:END -->

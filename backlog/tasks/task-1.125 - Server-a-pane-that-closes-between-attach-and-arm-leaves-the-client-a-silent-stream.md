@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T03:42:00Z'
+updated_date: '2026-11-17T03:47:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -74,3 +74,9 @@ I am not picking one now because it depends on timing outside this task's own co
 - Whichever AC #3 test is built - recorded failing then passing, or the honest account in the finish notes with what was tried. AC #3.
 - `just check` - recorded, green, before finishing.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against the task's criteria and decision-2 by @bruk.o (plan b734cfaf5683): the plan does what it says, but it shows the task as accepted does not fix what the client sees. The wire has no way to tell a client its stream has ended: a stream's control frames carry screen updates and nothing else. So after this fix the server's own records are right and a later pane.detach answers correctly, but a client that was told it is attached still hears nothing. The plan also found the same silence in the ordinary case: a pane whose program ends while a client is attached and armed sends nothing on the stream; only tree events report it. Put to the engineer: either approve this as the small server-side tidy it is and draft the real fix separately (an update that says the pane has ended, sent to every attachment, which the window needs for a program that has ended, TASK-1.61), or widen this task to that.
+<!-- SECTION:NOTES:END -->

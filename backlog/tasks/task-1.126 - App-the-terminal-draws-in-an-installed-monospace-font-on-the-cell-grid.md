@@ -528,6 +528,22 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-app positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column` exited 0 at 2026-11-17T18:56:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 2bf5d974438e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

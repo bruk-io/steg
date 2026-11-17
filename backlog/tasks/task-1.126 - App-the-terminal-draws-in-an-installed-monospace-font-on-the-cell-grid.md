@@ -21,6 +21,8 @@ asdlc_branch: task-1.126-app-the-terminal-draws-in-an-installed
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '128dd5e761a6'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -459,6 +461,15 @@ worker has a signed-in browser session to upload them:
 - A four-column listing, neutral prompt (PROMPT='%# ', no rc files), no hostname.
 
 PR 70's own body is updated with the same text.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T18:42:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.126: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

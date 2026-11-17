@@ -681,6 +681,12 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 full output: .quiet/tests-p-steg-app.log
 error: recipe `test` failed with exit code 101
 ```
+
+Check passed: `just test` exited 0 at 2026-11-17T00:21:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33:
+
+```text
+ok      tests (-p steg-app) (0.8s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

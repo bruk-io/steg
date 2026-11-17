@@ -23,6 +23,8 @@ asdlc_branch: task-1.125-server-a-pane-that-closes-between-attach
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b734cfaf5683'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -213,6 +215,15 @@ created: 2026-11-17T03:51:00Z
 ---
 
 Plan approved by @bruk (b734cfaf5683, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T04:13:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

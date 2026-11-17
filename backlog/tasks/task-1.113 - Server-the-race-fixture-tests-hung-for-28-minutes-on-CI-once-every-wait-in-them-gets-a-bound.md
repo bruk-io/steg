@@ -3,13 +3,14 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:55:00Z'
+updated_date: '2026-11-17T06:04:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1374,6 +1374,29 @@ created: 2026-11-17T05:55:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T06:04:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Scope: crates/server/tests/support/mod.rs only (db191fde..174ab452), per the brief.
+
+[Bugs, Important] crates/server/tests/support/mod.rs:59-68 (doc comment on wait_for_exit_without_reaping): still claims the WNOWAIT invariant alone is "the one invariant that makes a kill from a second thread always safe here, however the two threads happen to interleave" - the exact sentence review #8 quoted and refuted (a kill with no synchronizing lock can still hit a reaped/reused pid). This edit correctly rewrote wait_child_bounded's own doc comment (:113-160) to attribute safety to the shared Mutex, but left this neighboring sentence untouched, so the file now contradicts itself: :59-68 says WNOWAIT by itself suffices "however the two threads interleave," while :128-140 says the invariant depends on the Mutex serialising lock acquisitions. A reader taking :59-68 at face value would conclude the Mutex is redundant. The build notes say the false claim "removed the earlier ... claim" - true of one copy, not this one.
+
+Question 1 (the invariant itself), checked, no finding: walked both lock orders at :161-201. The watchdog's check-and-kill is one critical section under `finished`'s lock; the main thread sets finished=true under the same lock strictly before the real child.wait() reap at :191-193. A kill can only be sent while holding the lock with finished false; a reap can only follow the main thread having held that same lock and set it true - so a kill can never follow a reap on either lock order. Nothing blocking runs under the lock (kill is non-blocking; waitid and wait() both run outside it) - no deadlock risk. A poisoned lock is recovered via PoisonError::into_inner on both sides, not panicked on; neither critical section itself can panic. On timeout, child.wait() still reaps unconditionally before the trailing assert, which names label and bound (:196-199) - nothing left behind.
+
+Evidence, checked, no finding: the recorded pair "wait_child_bounded timeout control v2 (watchdog kill under lock, removed)" (05:39:38 FAILED / 05:39:51 passed, both "at db191fde8ced with uncommitted changes") ran against this Mutex-fixed code, not the pre-fix atomics version: the captured compiler warning at mod.rs:163 ("unused variable: pid") matches this file's current line numbers exactly, where the pre-fix (atomics) version's doc comment was ~25 lines shorter and would have placed that line near :133. The pair postdates review #8 (05:34) and sits on the worktree immediately before the fix commit (db7c7507091e, 2026-11-17 00:46 local), confirmed via git log db191fde..174ab452 -- crates/server/tests/support/mod.rs. I also repeated this control myself in the review worktree (commented out the SIGKILL call, ran the test under an external 8s bound): it hung past the bound with no further output, confirming the kill is still load-bearing. Reverted; git status clean; ps showed no leftover sleep/race process.
+
+Question 4 (happy path), checked, no finding: cargo test -p steg-server --features race-fixture --test race: 4 tests passed in 0.31s, including eight_simultaneous_starts_leave_exactly_one_server (the test that regressed to 80s before the join-without-a-bound issue was caught) - no regression.
+
+What I did not check: did not run just check myself (relied on CI green at head 174ab452 plus the targeted cargo runs above, within the review's time budget); did not re-derive whether the Mutex design could deadlock against any other lock in this module (none exists) beyond what's checked above; did not look outside crates/server/tests/support/mod.rs per the brief's scope.
 
 ---
 <!-- COMMENTS:END -->

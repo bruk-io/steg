@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T02:43:00Z'
+updated_date: '2026-11-17T02:46:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1570,6 +1570,14 @@ created: 2026-11-17T01:59:00Z
 ---
 
 Added the two tests described above (commit fa0b33fc): declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive (recorded failing-then-passing: the server never replying is what fails it) and once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen (the exact shape of the real bug, as a standing assertion). just check: exit 0.
+
+---
+
+created: 2026-11-17T02:46:00Z
+
+---
+
+Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you at f8967015 (merge commit 7ba220a4, pushed to origin). Conflicts in main.rs/startup.rs (re-threaded this task's writer/focus/declared-size/IME additions through 1.117's new Slot-based startup/teardown, unchanged) and five server-side files (pane_streams/tab.declare-size/AttachmentId-shaped additive conflicts, both sides kept). just check: exit 0. Live run against committed code only, no local patch: prompt draws, stays connected 10s, typed command echoes and its output draws, a resize is followed (stty size), close-and-relaunch shows the earlier output - all yes.
 
 ---
 <!-- COMMENTS:END -->

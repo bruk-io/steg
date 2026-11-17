@@ -566,15 +566,31 @@ impl Runtime {
     /// queued, regardless of how backed up the worker reading it is -
     /// it never waits for a reply, so holding the lock across it costs
     /// nothing more than the lock already costs for any other request.
+    ///
+    /// Returns whether an attachment was actually armed - `false` for
+    /// the race the same review found releasing `attach_pane`'s own
+    /// lock opened: the pane (or its whole tab) can close in the now
+    /// -unlocked window between `attach_pane` cloning this worker's own
+    /// `AttachSender` and this call running, in which case `attach_pane`
+    /// already replied with a real snapshot (truthfully - the pane was
+    /// still there when it was read) and the worker already registered
+    /// the attachment, but there is no `Outbound` left to ever send it
+    /// anything: the worker's own copy sits inert until that worker
+    /// -thread's own, unrelated shutdown (closing a pane ends its
+    /// worker) drops it, never swept by anything attachment-specific.
+    /// The caller must not record this in its own bookkeeping as a live
+    /// attachment when this returns `false` - see `connection.rs`'s own
+    /// `"pane.attach"` arm for what it does instead.
     pub(crate) fn arm_attachment(
         &self,
         pane: PaneId,
         attachment_id: pane::AttachmentId,
         outbound: Arc<crate::outbound::Outbound>,
-    ) {
+    ) -> bool {
         let state = self.lock();
-        if let Some(handle) = state.panes.get(&pane) {
-            let _ = handle.arm(attachment_id, outbound);
+        match state.panes.get(&pane) {
+            Some(handle) => handle.arm(attachment_id, outbound).is_ok(),
+            None => false,
         }
     }
 
@@ -2852,6 +2868,98 @@ mod tests {
                 "{response:?}"
             );
         }
+    }
+
+    /// TASK-1.47 review: releasing `attach_pane`'s own lock before
+    /// waiting on the worker (this task's own fix for the review's
+    /// Important finding) opened a window the old, lock-held code never
+    /// had - the pane (or its tab) can now close between `attach_pane`
+    /// cloning the worker's own `AttachSender` and `arm_attachment`
+    /// running. No real race is needed to prove `arm_attachment`'s own
+    /// answer in that case: calling it, by hand, after the pane is
+    /// already gone, is the exact state a real race would produce.
+    #[test]
+    fn arm_attachment_answers_false_once_the_pane_has_already_closed() {
+        use steg_sdk::{ClientKind, Request};
+
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = crate::dispatch::Context::none();
+
+        let session = match runtime.handle(
+            &description,
+            &context,
+            &Request {
+                method: "session.new".to_string(),
+                params: serde_json::json!({"program": ["sh", "-c", "exec sleep 100"]})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            },
+        ) {
+            steg_sdk::Response::Ok(value) => value,
+            steg_sdk::Response::Error(error) => panic!("session.new failed: {error:?}"),
+        };
+        let (pane, target) = {
+            let state = runtime.state.lock().unwrap();
+            let session_id: steg_sdk::SessionId = session["id"].as_str().unwrap().parse().unwrap();
+            let tab = &state.tree.session(session_id).unwrap().tabs()[0];
+            let pane = tab.panes()[0].id();
+            (pane, format!("{session_id}/{}/{pane}", tab.id()))
+        };
+
+        let client = runtime.connect_client(ClientKind::Cli, None);
+        let outbound = Arc::new(Outbound::new());
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params: serde_json::json!({"target": target.clone()})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        let (_, attachment_id) = runtime
+            .attach_pane(
+                &description,
+                &context,
+                super::Attaching {
+                    client,
+                    id: 1,
+                    stream: 1,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("the pane is still there - this attach must succeed");
+
+        // Simulates the window `attach_pane`'s own released lock opened:
+        // the pane closes after a client is told it attached (the
+        // reply above already went out) but before `arm_attachment`
+        // ever runs - `--force`, since a shell left running counts as
+        // still running from the kernel's own point of view.
+        let close_request = Request {
+            method: "pane.close".to_string(),
+            params: serde_json::json!({"target": target, "force": true})
+                .as_object()
+                .unwrap()
+                .clone(),
+        };
+        match runtime.handle(&description, &context, &close_request) {
+            steg_sdk::Response::Ok(_) => {}
+            steg_sdk::Response::Error(error) => panic!("pane.close failed: {error:?}"),
+        }
+
+        let armed = runtime.arm_attachment(pane, attachment_id, outbound);
+        assert!(
+            !armed,
+            "arm_attachment must answer false once the pane it was meant for has \
+             already closed, not arm a worker that no longer has anywhere to send \
+             anything"
+        );
     }
 
     #[test]

@@ -579,11 +579,26 @@ fn handle_request(
                     // may only now pull data frames for this stream, and
                     // the worker is only now handed something to send to.
                     outbound.open_stream(stream);
-                    runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
+                    let armed = runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
                     connection.open_stream(stream);
-                    pane_streams
-                        .borrow_mut()
-                        .insert(pane, (attachment_id, stream));
+                    if armed {
+                        pane_streams
+                            .borrow_mut()
+                            .insert(pane, (attachment_id, stream));
+                    } else {
+                        // The pane (or its tab) closed in the window
+                        // `attach_pane` released its lock for (TASK-1.47
+                        // review): the reply above already truthfully
+                        // named this stream and a real snapshot - taken
+                        // while the pane was still there - but there is
+                        // nothing left to ever send on it. Closed on
+                        // both sides immediately, and never recorded in
+                        // `pane_streams`: nothing to leak, and nothing a
+                        // later `pane.detach` could find either way, the
+                        // same answer a target that never existed gets.
+                        outbound.close_stream(stream);
+                        connection.close_stream(stream);
+                    }
                     true
                 }
                 Err(error) => {

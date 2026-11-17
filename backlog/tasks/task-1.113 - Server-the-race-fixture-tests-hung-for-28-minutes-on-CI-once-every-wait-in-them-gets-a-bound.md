@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:42:00Z'
+updated_date: '2026-11-17T05:46:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1219,6 +1219,43 @@ test result: FAILED. 192 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T05:46:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at db191fde8ced with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (31.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (28.5s)
+ok      test (steg-server) (29.0s)
+ok      test (steg-server, race-fixture) (30.4s)
+ok      test (steg-server, pty-race-fixture) (36.7s)
+ok      test (steg-server, accept-backoff-fixture) (31.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.1s)
+ok      test (steg, fixtures) (7.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (13.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.

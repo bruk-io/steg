@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:05:00Z'
+updated_date: '2026-11-17T02:13:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2602,6 +2602,43 @@ running 1 test
 test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T02:13:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (34.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (68.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (29.6s)
+ok      test (steg-server) (33.3s)
+ok      test (steg-server, race-fixture) (37.2s)
+ok      test (steg-server, pty-race-fixture) (42.2s)
+ok      test (steg-server, accept-backoff-fixture) (37.1s)
+ok      build (steg) (1.4s)
+ok      test (steg) (5.9s)
+ok      test (steg, fixtures) (17.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (2.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

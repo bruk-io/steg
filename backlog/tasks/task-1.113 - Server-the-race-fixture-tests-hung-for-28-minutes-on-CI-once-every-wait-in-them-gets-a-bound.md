@@ -3,13 +3,14 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:27:00Z'
+updated_date: '2026-11-17T04:37:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -22,8 +23,10 @@ asdlc_branch: task-1.113-server-the-race-fixture-tests-hung-for
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=2'
+asdlc_review_policies: ["review", "testing"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -619,6 +622,30 @@ created: 2026-11-17T04:27:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:37:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 2 nit. Cites: review, testing. The diff matches the plan.
+
+[Bugs, Important] crates/server/tests/support/mod.rs:58-93 (wait_child_bounded, used by race.rs:153,156 and openpty_race.rs): the watchdog thread captures `pid` once, sleeps the full `bound`, then checks `finished` and sends SIGKILL with no synchronization against the main thread's `child.wait()`. `child.wait()` reaps the process (freeing its pid for OS reuse) before `finished.store(true)` runs; if the watchdog wakes in that gap it sees `finished == false` and signals the captured pid, which could by then belong to an unrelated process. The doc comment at :76-85 justifies not joining the watchdog but never addresses pid reuse. This is exactly the class of race the task's own root cause is (an unsynchronized check racing a fork/reap), reintroduced in the fix meant to guard against hangs.
+
+[Evidence, Important] Two of the three negative controls this task's mechanisms need have no recorded failing/passing pair, and one has no control at all:
+- crates/server/src/outbound.rs (a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails) and crates/server/src/test_support.rs (run_bounded's own timeout): the task's Implementation Notes say both controls were "run by hand, not committed." I repeated the outbound.rs one myself in a scratch edit (removed outbound.close() from run_writer's broken-write branch, confirmed the test fails with a clear assertion mismatch, reverted; git status clean) - it holds, but the task has no recorded pair for it, and I did not repeat run_bounded's own control.
+- tools/src/steg_tools/quiet.py's process-group kill (_kill_group, tested by tools/tests/functional/test_quiet_timeout.py, the mechanism behind AC #3): no control is claimed or recorded at all. I ran one myself (disabled the killpg call, confirmed both functional tests fail - 10s instead of <2s, sentinel file written - reverted; git status clean): the mechanism is load-bearing, but the worker never performed or disclosed this control.
+Per the team's testing rule, a control counts only as a recorded pair against the test as it stands; a hand-run or missing control is a finding regardless of my own after-the-fact repeats.
+
+[Nit] tools/src/steg_tools/quiet.py:38 (DEFAULT_TIMEOUT_S = 300.0): a disclosed departure from the approved plan's stated default of 600s, with real numbers (132.2s slowest observed CI step, 109.2s slowest single-package step, 92s a cold local build) - not an undisclosed departure. But the notes concede the one case the plan named by name, a cold Zig/ghostty-vt build, was never actually measured ("cache stayed warm every time"). The nearest observed data point in this branch's own recorded checks is just-test-openpty-race-control at 214.2s (71% of the new bound) for an #[ignore]d test outside just check. Worth another look at whether 300s has real headroom for the one case it was meant to protect, though the bound is env-overridable and a false timeout is loud and recoverable.
+
+[Nit] The approved plan's own Order of work and Proof sections label the quiet.py step-bound work "AC #4" when it is actually AC #3 by the task's own numbering - a pre-existing plan quirk, not introduced by this build, but worth a one-line fix for a future reader.
+
+What I did not check: did not run `just check` myself (ran targeted cargo test / pytest for the controls instead, within the 40-minute budget); did not repeat run_bounded's own recv_timeout-vs-recv() control; did not read portable_pty's spawn path (correctly out of scope - TASK-1.124).
 
 ---
 <!-- COMMENTS:END -->

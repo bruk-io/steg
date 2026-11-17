@@ -237,6 +237,13 @@ fn run_key(row: usize, column: u16, run: &Run) -> u64 {
     run.style.faint.hash(&mut hasher);
     run.style.strikethrough.hash(&mut hasher);
     run.style.underline.hash(&mut hasher);
+    // Review nit, fixed: a real stale-cache bug without this - two runs identical except
+    // for underline colour collided on the same key, and the first one shaped won on a
+    // cache hit, painting the wrong colour.
+    run.style
+        .underline_colour
+        .map(|rgb| (rgb.r, rgb.g, rgb.b))
+        .hash(&mut hasher);
     hasher.finish()
 }
 
@@ -281,5 +288,66 @@ fn paint_cursor(
                 colour,
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn style() -> CellStyle {
+        CellStyle {
+            fg: None,
+            bg: None,
+            bold: false,
+            italic: false,
+            faint: false,
+            blink: false,
+            inverse: false,
+            invisible: false,
+            strikethrough: false,
+            overline: false,
+            underline: Underline::Single,
+            underline_colour: None,
+            wide: steg_sdk::Wide::Narrow,
+            link: false,
+        }
+    }
+
+    /// Review nit, fixed: two runs identical except for `underline_colour` must not share
+    /// a cache key, or the first one shaped wins on a cache hit and paints the wrong
+    /// underline colour.
+    #[test]
+    fn two_runs_differing_only_in_underline_colour_get_different_keys() {
+        let red = Rgb { r: 255, g: 0, b: 0 };
+        let blue = Rgb { r: 0, g: 0, b: 255 };
+        let run_red = Run {
+            text: "hi".to_owned(),
+            style: CellStyle {
+                underline_colour: Some(red),
+                ..style()
+            },
+        };
+        let run_blue = Run {
+            text: "hi".to_owned(),
+            style: CellStyle {
+                underline_colour: Some(blue),
+                ..style()
+            },
+        };
+        assert_ne!(run_key(0, 0, &run_red), run_key(0, 0, &run_blue));
+    }
+
+    #[test]
+    fn two_runs_with_the_same_underline_colour_share_a_key() {
+        let red = Rgb { r: 255, g: 0, b: 0 };
+        let run = Run {
+            text: "hi".to_owned(),
+            style: CellStyle {
+                underline_colour: Some(red),
+                ..style()
+            },
+        };
+        assert_eq!(run_key(0, 0, &run), run_key(0, 0, &run.clone()));
     }
 }

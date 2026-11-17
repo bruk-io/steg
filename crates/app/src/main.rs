@@ -9,7 +9,9 @@ mod startup;
 mod terminal_element;
 
 use std::cell::RefCell;
+use std::net::Shutdown;
 use std::rc::Rc;
+use std::sync::PoisonError;
 use std::thread::JoinHandle;
 
 use futures::StreamExt as _;
@@ -23,7 +25,7 @@ use steg_ui::foundations::{self, Appearance, Theme};
 use crate::client::{Client, ClientEvent};
 use crate::metrics::CellMetrics;
 use crate::model::Model;
-use crate::startup::{Attached, StartupError};
+use crate::startup::{Attached, ShutdownSlot, StartupError};
 use crate::terminal_element::RowCache;
 
 /// Everything this window holds once attached: the model a background thread feeds, the
@@ -51,8 +53,12 @@ pub struct AppWindow {
     /// Joined as soon as [`startup::spawn`]'s own oneshot resolves, or by
     /// `on_window_should_close` if the window closes first - either way, before the
     /// window's own lifetime ends (TASK-1.117's plan: every thread started is joined on
-    /// every path).
+    /// every path). `stop_startup` is the one place that takes it.
     startup_thread: Option<JoinHandle<()>>,
+    /// What `stop_startup` locks to interrupt a still-running startup thread before
+    /// joining it (review finding: `startup`'s own module doc explains the mechanism and
+    /// its one unavoidable gap, the bounded wait inside `connect()`'s own retry loop).
+    startup_shutdown: ShutdownSlot,
     _startup_task: Task<()>,
     _appearance_subscription: Subscription,
 }
@@ -73,7 +79,7 @@ impl AppWindow {
             }
         });
 
-        let (startup_thread, startup_receiver) = startup::spawn();
+        let (startup_thread, startup_receiver, startup_shutdown) = startup::spawn();
         let startup_task = window.spawn(cx, async move |cx: &mut AsyncWindowContext| {
             let result = startup_receiver.await;
             let _ = weak.update_in(cx, move |this, window, cx| {
@@ -86,9 +92,32 @@ impl AppWindow {
             focus_handle,
             appearance: appearance_from(window.appearance()),
             startup_thread: Some(startup_thread),
+            startup_shutdown,
             _startup_task: startup_task,
             _appearance_subscription: appearance_subscription,
         }
+    }
+
+    /// Interrupts a still-running startup thread before joining it, and is a cheap no-op
+    /// once it has already finished (`startup_thread` already `None`) - the one place
+    /// `startup_thread`/`startup_shutdown` are touched, called from both
+    /// `apply_startup_result` (the thread has already finished by then; this is just the
+    /// join) and `teardown` (the thread may still be running - this is the fix the review
+    /// asked for). Locks `startup_shutdown` *before* joining, never after: the whole point
+    /// is to unblock a read the join would otherwise wait on forever.
+    fn stop_startup(&mut self) {
+        let Some(thread) = self.startup_thread.take() else {
+            return;
+        };
+        if let Some(handle) = self
+            .startup_shutdown
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        {
+            let _ = handle.shutdown(Shutdown::Both);
+        }
+        let _ = thread.join();
     }
 
     /// Joins the startup thread (it has already sent its one result, or the channel was
@@ -100,9 +129,7 @@ impl AppWindow {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(thread) = self.startup_thread.take() {
-            let _ = thread.join();
-        }
+        self.stop_startup();
         let attached = match result {
             Ok(Ok(attached)) => attached,
             Ok(Err(error)) => {
@@ -174,13 +201,11 @@ impl AppWindow {
         }
     }
 
-    /// Stops the client (if attached) and joins the startup thread (if the window closes
-    /// before it ever resolved) - called from `on_window_should_close`, so no thread or
-    /// socket outlives the window on any path (TASK-1.117's plan).
+    /// Stops the client (if attached) and interrupts-then-joins the startup thread (if the
+    /// window closes before it ever resolved) - called from `on_window_should_close`, so
+    /// no thread or socket outlives the window on any path (TASK-1.117's plan).
     fn teardown(&mut self) {
-        if let Some(thread) = self.startup_thread.take() {
-            let _ = thread.join();
-        }
+        self.stop_startup();
         if let Phase::Attached(state) = &mut self.phase {
             state.client.stop();
         }

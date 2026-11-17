@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T01:33:00Z'
+updated_date: '2026-11-17T03:37:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -27,9 +27,9 @@ On 2026-11-16 pull request 55's check run 43802834909 (attempt 1, commit 51c1659
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 The step that hung is identified from the evidence, or the notes say plainly that it could not be reproduced and what was tried
-- [ ] #2 Every wait in the tests run under the race-fixture feature (on a child process, a socket, a thread or a file) has a bound, and a test that passes its bound fails with a message naming what it waited for and kills and reaps the processes it started
-- [ ] #3 A test proves a bound works: a fixture process made to hang fails its test within the bound and leaves no process behind, with a recorded negative control
-- [ ] #4 just check cannot spend its whole CI time limit on one hung test: the suite fails within minutes when a test hangs
+- [ ] #2 A test proves a bound works: a fixture process made to hang fails its test within the bound and leaves no process behind, with a recorded negative control
+- [ ] #3 just check cannot spend its whole CI time limit on one hung test: the suite fails within minutes when a test hangs
+- [ ] #4 Every wait in the test that hung (outbound.rs), in race.rs and in openpty_race.rs has a bound, and a test that passes its bound fails with a message naming what it waited for and kills and reaps the processes it started; the remaining waits found by the sweep are TASK-1.123's
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -265,6 +265,14 @@ created: 2026-11-17T01:27:00Z
 ---
 
 2026-11-16, @bruk.o, plan check (fbc7088082a8): not yet for approval; the finding needs one more step. (1) The second mechanism cannot be the hang: a leaked parked thread does not keep a Rust test binary alive, the process exits when the harness returns; and the sampled stack was the test's own thread under the harness, inside the direct run_writer call. So the write to the stream whose peer was dropped did succeed. (2) A mechanism that fits and that the 800,000-trial probe could not show: UnixStream::pair on macOS makes the pair and sets close-on-exec afterwards, not atomically. Other tests in the same binary fork and exec programs (pty and pane tests). A fork between the pair being made and drop(client) leaves a child holding the client end, so the peer is not gone, the write succeeds, and run_writer waits forever on an empty queue. Test this: repeat the probe while other threads spawn short-lived processes. (3) If confirmed, bounding that test only turns a hang into an intermittent failure. The test should not depend on a closed peer at all: run_writer is generic over Write, so give it a sink that always fails. (4) If confirmed it is also a product question, to note as a follow-up and not fix here: sockets the server accepts are likewise marked close-on-exec after the fact on macOS, so a pane's program started in that window could inherit a client's connection. Keep the rest: the step bound in steg-quiet, the helper, race.rs and openpty_race.rs, and the split of the wider sweep.
+
+---
+
+created: 2026-11-17T03:37:00Z
+
+---
+
+2026-11-16, @bruk.o: criterion 2 narrowed to the files this task names, after the engineer accepted the split: the wider sweep is TASK-1.123, the question of a pane's program inheriting a connection is TASK-1.124.
 
 ---
 <!-- COMMENTS:END -->

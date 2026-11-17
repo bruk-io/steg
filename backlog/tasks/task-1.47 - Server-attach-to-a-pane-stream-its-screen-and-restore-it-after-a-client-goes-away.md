@@ -3,14 +3,15 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Review
+status: In Progress
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T01:20:00Z'
+updated_date: '2026-11-17T01:41:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -31,10 +32,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '9cff507ccc3f'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=0'
-asdlc_review_policies: ["review", "testing"]
+asdlc_review_findings: 'important=1,nit=1'
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2495,6 +2494,27 @@ created: 2026-11-17T01:20:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T01:41:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. The diff does not match the plan.
+
+[Bugs, Important] crates/server/src/runtime.rs:518-532 (Runtime::attach_pane) holds the one Runtime-wide state lock across crates/server/src/pane.rs:566-575 (PaneHandle::attach), which waits on an unbounded reply_rx.recv() for the target pane's own worker thread to drain its command queue and process PaneCommand::Attach. Every other request to the server (any method, on any connection, for any pane) also goes through Runtime::handle/start_and_dispatch/close_and_dispatch/move_and_dispatch, all of which take the same lock, so a pane.attach aimed at a currently busy/flooding pane can leave the whole server unresponsive for as long as that pane's queue takes to drain - not a permanent hang (the backlog ahead of Attach is finite once it is enqueued), but an unbounded-in-practice stall under the exact R19 "worst case" this same module already names. The precedent for bounding this exists in the same file: PaneHandle::cwd (pane.rs:540-548) uses recv_timeout(CWD_LOOKUP_TIMEOUT), and its own doc comment (pane.rs:77-81) states the reason explicitly - "so a worker mid-vt_write on a large flood (R19's own worst case) never blocks a caller holding Runtime's one lock indefinitely." PaneHandle::attach does not follow that same, already-established pattern. No test in crates/server/tests/attach.rs exercises a second, independent connection whose own unrelated request is delayed while one connection's pane.attach is blocked behind a flooding pane's backlog - repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream only measures the attaching connection's own round trip, never a competing connection's latency.
+
+[Bugs, Nit] A pane that closes (pane.close/tab.close/session.close, or a forced end) while a connection is still attached to it leaves that connection's stream permanently open with no further activity and no way to cleanly end it: Runtime::detach_pane is never reached, because connection.rs's own "pane.detach" arm (crates/server/src/connection.rs:576-597) first calls Runtime::resolve_pane_target, which fails with NoSuchTarget once the pane is gone from the tree (crates/server/src/runtime.rs:477-486) - so outbound.close_stream/connection.close_stream (connection.rs:589-590) are never called, and the connection's own pane_streams entry is never removed. The only way out is ending the whole connection (ConnectionCleanup's sweep, connection.rs:331-358). Not Important: TreeEvent::PaneClosed already reaches any subscriber on stream 0 (merged via TASK-1.46) so the client is told the pane is gone by another channel, nothing is corrupted, and both the stale pane_streams entry and the silent, idle data queue are bounded by the connection's own lifetime (Outbound's round-robin writer just skips an empty queue). Not covered by any test in crates/server/tests/attach.rs and not named as a deferred gap in the task's own plan or notes.
+
+Checked and found sound: the pane worker's own tick (recv() with no timeout when idle/unattached, one recv_timeout deadline armed only while a real attachment holds an Outbound, cleared on fire, never a periodic wake-up - crates/server/src/pane.rs:847-899, :1038-1049, with its own counted/state-based tests, e.g. no_attachments_never_arms, shutdown_ends_the_worker_even_while_a_tick_is_armed); back-pressure (run_tick never blocks - Full/NotOpen both move an attachment to NeedsResync and skip it that tick, pane.rs:1070-1136); AttachmentId (crates/server/src/pane.rs:246-260) is minted by the worker itself and used consistently by Attach/Arm/Detach, by Runtime::attach_pane/arm_attachment/detach_pane/forget_attachment, and by connection.rs's own pane_streams map (keyed by (AttachmentId, stream)) and ConnectionCleanup's sweep; repeated the test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other myself in a scratch edit to crates/server/src/pane.rs (Arm/Detach matching "whichever attachment comes first" instead of by AttachmentId, simulating the historical bare-stream-number bug) - it failed with the same "no update arrived on stream 1 within 5s" signature already recorded on the task, then passed clean after the exact inverse revert (git status --porcelain empty); the ordering rule (attach reply queued under the lock, open_stream, then arm_attachment - connection.rs:556-568) and its own race test against an already-flooding pane; ConnectionCleanup's Drop (connection.rs:331-358) runs exactly once per connection on every exit path (normal return, early return, or an unwind, since it is a plain RAII guard) and does all four duties - sweep attachments, deregister the subscriber, disconnect the client, send Disconnected - exactly once, in the documented order, with nothing from TASK-1.46/1.86's own merged teardown logic lost or doubled; the API description (pane.attach/pane.detach via Follows::Attachment, the method count at 44, doc-2's own table updated with both new rows) and the sdk's typed PaneAttached/ScreenUpdate (both carry #[derive(Serialize, Deserialize)], matching the server's own serde_json::to_vec/serde_json::to_value calls and the round-trip tests). The prior review's three Important findings (no recorded negative controls, CI not yet green, diff carrying rebased TASK-1.46 commits not on main) are all resolved at this head: git diff origin/main...HEAD's tree is identical whether reached by this branch's early rebased copies or by TASK-1.46's real commits on main (confirmed byte-for-byte on crates/sdk/src/description/methods.rs); CI (job "check", run 43993856924) is green on head 69680a39; and the eleven original controls plus the later AttachmentId control are recorded as failing-then-passing pairs against the code as it stood at each merge point, with no further code change between the last just check (93e4694b8aff) and the reviewed head (69680a39, board-only commits only). just check passes clean on this head, run once by this review.
+
+plan-matched: no - AttachmentId (crates/server/src/pane.rs:246-260) and the ConnectionCleanup attachment sweep are both real design decisions the plan's own order of work never named (found during implementation, after TASK-1.114's own worker hit the bare-stream-number bug), even though the task's notes explain both in detail.
+
+No policy cited by either finding - no earlier review was found citing the same policy for this task, so no rule-change draft was filed.
 
 ---
 <!-- COMMENTS:END -->

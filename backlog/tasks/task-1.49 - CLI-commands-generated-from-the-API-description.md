@@ -1,11 +1,11 @@
 ---
 id: TASK-1.49
 title: 'CLI: commands generated from the API description, in the steg package'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:24:00Z'
+updated_date: '2026-11-17T00:58:00Z'
 labels:
   - size-4
   - review-passed

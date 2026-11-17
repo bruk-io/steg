@@ -745,6 +745,53 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column` exited 101 at 2026-11-17T19:00:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 67c972b3a769 with uncommitted changes:
+
+```text
+warning: unused variable: `position_x`
+   --> crates/app/src/terminal_element.rs:301:18
+    |
+301 |     for &(index, position_x) in glyph_positions {
+    |                  ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_position_x`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `GLYPH_POSITION_EPSILON` is never used
+   --> crates/app/src/terminal_element.rs:255:7
+    |
+255 | const GLYPH_POSITION_EPSILON: Pixels = px(0.5);
+    |       ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column ... FAILED
+
+failures:
+
+---- terminal_element::tests::positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column stdout ----
+
+thread 'terminal_element::tests::positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column' (53645548) panicked at crates/app/src/terminal_element.rs:631:9:
+assertion failed: every_glyph_position_is_safe("xyz", &positions, px(10.0), 1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

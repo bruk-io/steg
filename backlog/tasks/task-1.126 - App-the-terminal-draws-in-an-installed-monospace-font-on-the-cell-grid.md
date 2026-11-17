@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T16:18:00Z'
+updated_date: '2026-11-17T16:24:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -108,6 +108,41 @@ Cursor blink, the inverted character under a block cursor, and the unfocused win
 From the engineer's second run, 2026-11-16, after installing JetBrains Mono: the spacing is right and the cursor sits where it should, which confirms the cause. One more thing visible in that screenshot, for the plan to settle: the text starts hard against the window's left edge with no inset, and the first column looks shaved by a few pixels (the prompt's arrow, the caret of ^C and a cursor in column 0 all look cut on their left side). Check whether glyphs or the cursor in column 0 are clipped by the element's bounds, and whether the design gives the terminal an inset inside its pane (doc-10, doc-17, the design's Layout page); if the inset belongs to the pane work (TASK-1.55), say so and make sure column 0 is at least fully drawn here.
 
 Plan checked against the task's criteria, doc-17 and the design by @bruk.o: ok. The cause is read from gpui 0.2.2, not guessed: resolving a font tries the family asked for and then gpui's own fixed list, which reaches Helvetica; the fallbacks on a Font are used only for a glyph missing from a family already found. The plan picks the family once, in one place, for both measuring and painting, and paints a run as one shaped line only when every glyph is checked to sit on its own column, otherwise cell by cell. On the inset, which the worker could not read: the design gives 6px between panes and to the window edge (the gutter), and names no inset for the terminal's text inside a pane. So this task's duty is that column 0 is fully drawn; an inset inside the pane is a gap in the design for the engineer to settle with the pane work (TASK-1.55). JetBrains Mono's licence, SIL OFL 1.1, is not on the licence check's allow list, so shipping the font needs that list changed as well as the engineer's decision.
+
+Check passed: `just check` exited 0 at 2026-11-17T16:24:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 37401dca71d7:
+
+```text
+ok      format check (0.3s)
+ok      lint (81.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (2.2s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (42.5s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (40.5s)
+ok      test (steg-server) (26.0s)
+ok      test (steg-server, race-fixture) (26.0s)
+ok      test (steg-server, pty-race-fixture) (31.2s)
+ok      test (steg-server, accept-backoff-fixture) (26.8s)
+ok      build (steg) (2.3s)
+ok      test (steg) (2.0s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (18.4s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (1.3s)
+ok      tool tests (14.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

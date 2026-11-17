@@ -222,7 +222,7 @@ impl Render for AppWindow {
                 };
                 div().size_full().child(terminal_element::terminal(
                     Rc::clone(&state.model),
-                    state.metrics,
+                    state.metrics.clone(),
                     terminal_theme,
                     Rc::clone(&state.row_cache),
                 ))

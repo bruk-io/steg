@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:20:00Z'
+updated_date: '2026-11-17T23:24:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1716,6 +1716,43 @@ error: could not compile `steg-app` (bin "steg-app") due to 1 previous error
 warning: build failed, waiting for other jobs to finish...
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T23:24:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-server) (61.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (52.9s)
+ok      test (steg-server, race-fixture) (147.3s)
+ok      test (steg-server, pty-race-fixture) (59.6s)
+ok      test (steg-server, accept-backoff-fixture) (53.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.4s)
+ok      test (steg, fixtures) (7.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

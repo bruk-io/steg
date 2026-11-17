@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:08:00Z'
+updated_date: '2026-11-17T04:09:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -442,6 +442,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates
      let total_opens: u64 = done.iter().map(|d| d.map_or(0, |(t, _)| t)).sum();
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T04:09:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes, last 40 of 65 lines:
+
+```text
+    Checking resvg v0.45.1
+    Checking icu_properties v2.4.0
+    Checking icu_normalizer v2.4.0
+    Checking half v2.7.1
+   Compiling toml v0.8.23
+   Compiling naga v25.0.1
+    Checking tiff v0.11.3
+    Checking exr v1.74.3
+   Compiling cbindgen v0.28.0
+    Checking idna_adapter v1.2.2
+    Checking idna v1.1.0
+    Checking url v2.5.8
+    Checking zed-reqwest v0.12.15-zed
+    Checking ravif v0.13.0
+    Checking gpui_http_client v0.2.2
+    Checking image v0.25.10
+    Checking blade-graphics v0.7.1
+    Checking blade-util v0.3.0
+   Compiling gpui v0.2.2
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/app)
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/steg)
+error: `allow` attribute without specifying a reason
+  --> crates/server/tests/support/mod.rs:28:1
+   |
+28 | #[allow(dead_code)]
+   | ^^^^^^^^^^^^^^^^^^^
+   |
+   = help: try adding a reason at the end with `, reason = ".."`
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#allow_attributes_without_reason
+   = note: requested on the command line with `-D clippy::allow-attributes-without-reason`
+
+error: could not compile `steg-server` (test "race") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-server` (test "openpty_race") due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

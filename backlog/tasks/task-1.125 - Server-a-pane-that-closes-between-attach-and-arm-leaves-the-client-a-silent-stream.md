@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -371,6 +372,15 @@ Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
 [Bugs, Nit] crates/server/src/runtime.rs:2862 - the first `done_rx.try_recv().is_err()` assertion runs immediately after `thread::spawn`, before the spawned attach has necessarily even started, so it can pass vacuously on a slow scheduler without the flood having proven anything yet; only the second check at line 2894 (after the real `pane.show` wait) actually establishes the attach was still stuck throughout.
 
 Checked and found sound, not findings: the false-arm branch correctly leaves nothing in `pane_streams` and closes both `outbound`/`connection` stream sides before any frame can be queued (verified `Outbound`/`Connection` `open_stream`/`close_stream` are local bookkeeping only, idempotent, no wire frame); `arm_attachment`'s `state.panes.get` check and `handle.arm(...).is_ok()` both correctly return false whether the pane's handle is already removed from the map or its worker's receiver has already dropped; the pane worker's own inert attachment record is bounded by the worker's own shutdown, which `close_and_dispatch`/`force_end`/`join_worker` already guarantees for a request-driven close (the path this task's own test and race use); `Tree::close_pane` already drops the pane from every client's attachment/viewing data (TASK-1.42) independent of this race, so the false-arm path leaves no stale view claim. Repeated myself: reverted `arm_attachment` to report armed unconditionally - `arm_attachment_answers_false_once_the_pane_has_already_closed` failed as expected, reverted, tree clean; reverted `attach_pane` to hold its lock across the wait - the lock-contention test failed by its 2s bound in 2.08s, not by hanging, reverted, tree clean. `just check` was recorded passing at 16eb3fcd79df; the merge to cfa9f41a (this PR's head) only touched `backlog/*.md` files, confirmed by diff --stat, so that run is not stale. Did not check: whether the kernel's close-pane cascade or `force_end`'s join bound could themselves ever leave a worker thread outliving its removal from `state.panes` on a path other than the request-driven close this task's own race uses (the implementation notes already name this as a separate, larger, pre-existing gap out of this task's scope); did not re-run the full `just check` myself.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T04:53:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

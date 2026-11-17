@@ -3,8 +3,9 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
 updated_date: '2026-11-17T01:12:00Z'
 labels:
@@ -14,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.113-server-the-race-fixture-tests-hung-for
 ---
 
 ## Description

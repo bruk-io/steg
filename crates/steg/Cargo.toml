@@ -91,3 +91,8 @@ required-features = ["fixtures"]
 name = "login_environment"
 path = "tests/login_environment.rs"
 required-features = ["fixtures"]
+
+[[test]]
+name = "idle_stop"
+path = "tests/idle_stop.rs"
+required-features = ["fixtures"]

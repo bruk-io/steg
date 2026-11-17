@@ -24,17 +24,30 @@ use crate::dispatch::{Context, bad_request, resolve_api_call};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
-/// A connection's liveness, from `run`'s accept loop (the seam part B's
-/// idle checker will consume - this task has no idle rule of its own to
-/// feed it to). Sent `Connected` the instant `accept()` returns the
-/// connection, before any byte of it is read - counting from handshake
-/// -acceptance instead would let a real client mid-handshake go
-/// uncounted at the exact moment an idle rule might otherwise decide
-/// there is no one there (part B's problem to get right, not this task's
-/// to create by counting too late).
+/// A connection's liveness, from `run`'s accept loop - and, as of
+/// TASK-1.86, one thing that is not about any one connection at all
+/// (`SessionCountChanged`, below). Kept as one enum rather than each
+/// consumer inventing its own wrapper around it: this channel is the
+/// server's own internal "something the idle checker should re-evaluate"
+/// stream, not strictly a per-connection one, and TASK-1.98's own
+/// addition (`AcceptRetried`, below - an accept retried after a
+/// recoverable error) is the same kind of thing - naming the enum after
+/// its first, narrower use rather than widening the name too is the
+/// cheaper trade: `ConnectionEvent`
+/// reads oddly for a variant like `SessionCountChanged`, but renaming it
+/// would touch every existing sender and receiver across this crate for
+/// a cosmetic gain, which isn't worth it against two variants that
+/// genuinely aren't about one connection. Said here, and in this task's
+/// own notes, rather than silently renamed or silently left unexplained.
 ///
-/// **A caveat for part B's idle rule, not this task's to fix (a review
-/// of this task found it, named here rather than hidden):**
+/// `Connected` is sent the instant `accept()` returns the connection,
+/// before any byte of it is read - counting from handshake-acceptance
+/// instead would let a real client mid-handshake go uncounted at the
+/// exact moment an idle rule might otherwise decide there is no one
+/// there.
+///
+/// **A caveat for the idle checker (TASK-1.86), found by an earlier
+/// review and still true, named here rather than hidden:**
 /// `arbiter::probe`'s own liveness check - a plain `UnixStream::connect`
 /// against a running server, used only to tell "a live server of ours"
 /// apart from "a stale file" during arbitration - is indistinguishable
@@ -44,15 +57,38 @@ use crate::runtime::Runtime;
 /// closes its side right after connecting, never sending a hello) the
 /// same as it would for any client that connected and left before
 /// completing a handshake. A caller counting this seam to decide
-/// "is anyone here" - as TASK-1.77's idle checker will - would see a
-/// probe exactly like a very short-lived real client. The server
-/// cannot currently tell the two apart at all: a probe's connection
-/// carries nothing that marks it as one (no hello, no special byte),
-/// so there is no signal here to filter on even if `run` wanted to.
+/// "is anyone here" would see a probe exactly like a very short-lived
+/// real client. The server cannot currently tell the two apart at all:
+/// a probe's connection carries nothing that marks it as one (no hello,
+/// no special byte), so there is no signal here to filter on even if
+/// `run` wanted to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionEvent {
     Connected,
     Disconnected,
+    /// A pane's exit just closed a session with no client connected to
+    /// it at all (doc-15 R94/R97's own cascade: a plain shell pane
+    /// closes when its program exits, and that can close its tab and
+    /// its session in turn) - carries no id, since a caller that cares
+    /// always re-reads the live count (`Runtime::session_counter`),
+    /// never caches one against this event. Sent by `Runtime`, from the
+    /// drain thread that already applies a pane's exit to the tree -
+    /// never by `connection::handle`, which has no connection to send
+    /// it from in this one case (TASK-1.86's own plan, "Why only the
+    /// `PaneEvent::Exited` arm").
+    SessionCountChanged,
+    /// `run`'s accept loop hit an `accept()`/`try_clone()` error it
+    /// classified as safe to retry (TASK-1.98 AC #1/#4), sent once per
+    /// retry, before the loop's own backoff sleep. Not a connection at
+    /// all - no stream exists on this path - so it is its own variant
+    /// rather than folded into `Connected`/`Disconnected`, which both
+    /// name a real one. The idle checker's own catch-all (TASK-1.86,
+    /// `idle::run_checker_with_observer`'s match) treats this the same
+    /// as any other variant it does not specifically care about: it
+    /// wakes the loop to re-evaluate, never counted as a client arriving
+    /// (confirmed by this file's own `a_recoverable_accept_retry_does_
+    /// not_count_as_a_client_arriving` test, below).
+    AcceptRetried(crate::listen::RecoverableAcceptError),
 }
 
 /// How long is left before `deadline`, as of `now` - `None` once `now`
@@ -274,6 +310,18 @@ struct ConnectionCleanup<'a> {
     /// release there; only each pane's own worker thread, which the
     /// kernel knows nothing about, still needs telling.
     pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    /// TASK-1.86 review finding: a review found this guard already runs
+    /// on every path out of `run_post_handshake` (a normal return, an
+    /// early return, *or* an unwind) but did not hold the sender that
+    /// reports `ConnectionEvent::Disconnected` - `handle`'s own plain
+    /// statement at its very end, doing that, is skipped by an unwind,
+    /// since a panic never reaches a line below it. A panic in a request
+    /// handler (`Runtime::handle`, dispatched from this guard's own
+    /// scope) left the idle checker's live-client count one too high for
+    /// the rest of the server's life - R99 silently never fires again.
+    /// Fixed by giving this guard the sender too, so the one send that
+    /// matters is on the one path that already runs unconditionally.
+    events: Option<Sender<ConnectionEvent>>,
 }
 
 impl Drop for ConnectionCleanup<'_> {
@@ -286,7 +334,23 @@ impl Drop for ConnectionCleanup<'_> {
         for (&pane, &stream) in self.pane_streams.borrow().iter() {
             self.runtime.forget_attachment(pane, stream);
         }
+        // Before `disconnect_client`: a subscriber entry keyed by this
+        // same `client_id` must not linger past the id itself being
+        // freed for reuse (TASK-1.46 §7) - deregistering first, while the
+        // id is still unambiguously this connection's own, is what keeps
+        // that ordering safe regardless of which happens to run first in
+        // practice.
+        self.runtime.deregister_subscriber(self.client_id);
         self.runtime.disconnect_client(self.client_id);
+        // Last, after this guard's own pre-existing duties keep their
+        // exact order (unchanged above) - `Drop` runs exactly once, so
+        // this needs no idempotency guard of its own, only the ordering
+        // the review asked for: after `Connected` (trivially true - this
+        // guard cannot exist before `handle`'s own first line sends it)
+        // and after this struct's other cleanup, not before it.
+        if let Some(events) = &self.events {
+            let _ = events.send(ConnectionEvent::Disconnected);
+        }
     }
 }
 
@@ -314,21 +378,36 @@ fn run_post_handshake(
     connection: &mut Connection,
     runtime: &Runtime,
     client_id: ClientId,
+    events: Option<Sender<ConnectionEvent>>,
 ) {
-    // Three independent handles to the one underlying socket: `stream`
+    // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
-    // writer thread), and `shutdown_handle` (kept by the cleanup guard
-    // solely to force a stuck writer to fail promptly - see its own doc).
-    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
-        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
-        _ => {
-            // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so there is nothing to join; the client this
-            // function was given still has to be disconnected.
-            runtime.disconnect_client(client_id);
-            return;
-        }
-    };
+    // writer thread), `shutdown_handle` (kept by the cleanup guard solely
+    // to force a stuck writer to fail promptly - see its own doc), and
+    // `subscriber_shutdown` (kept by `Runtime`'s own subscriber registry,
+    // TASK-1.46 §3/§7 - a slow subscriber is closed, not resynced: a
+    // broadcast that cannot be queued shuts this connection's socket down
+    // directly, from whichever thread is broadcasting, since nothing else
+    // can make this connection's own blocked read return without one).
+    let (write_half, shutdown_handle, subscriber_shutdown) =
+        match (stream.try_clone(), stream.try_clone(), stream.try_clone()) {
+            (Ok(write_half), Ok(shutdown_handle), Ok(subscriber_shutdown)) => {
+                (write_half, shutdown_handle, subscriber_shutdown)
+            }
+            _ => {
+                // No write half to hand a writer thread at all - nothing was
+                // ever spawned, so `ConnectionCleanup` is never built on this
+                // path either - both of its duties (disconnecting the client,
+                // reporting `Disconnected`) are done directly here instead,
+                // in the same order the guard would have used; there is
+                // also nothing registered as a subscriber yet to deregister.
+                runtime.disconnect_client(client_id);
+                if let Some(events) = &events {
+                    let _ = events.send(ConnectionEvent::Disconnected);
+                }
+                return;
+            }
+        };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
     // TASK-1.47: this connection's own attachment bookkeeping - which
@@ -338,6 +417,11 @@ fn run_post_handshake(
     // guard, which only ever reads it, once, on the way out.
     let pane_streams: RefCell<HashMap<PaneId, u32>> = RefCell::new(HashMap::new());
     let next_stream = RefCell::new(0_u32);
+    // Registered the moment this connection is usable at all - before the
+    // request loop below can bring in `event.watch` (TASK-1.46 §7): a
+    // connection must never be asked to subscribe before it is
+    // registered (`Runtime::subscribe`'s own invariant rests on this).
+    runtime.register_subscriber(client_id, Arc::clone(&outbound), subscriber_shutdown);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
@@ -345,6 +429,7 @@ fn run_post_handshake(
         runtime,
         client_id,
         pane_streams: &pane_streams,
+        events,
     };
 
     let state = ConnectionState {
@@ -503,6 +588,19 @@ fn handle_request(
                 outbound.enqueue_control(bytes).is_ok()
             }
         },
+        // `event.watch` (TASK-1.46 §4), reached directly or through
+        // `api.call` (already resolved above, the same way `pane.attach`/
+        // `pane.detach` are), bypasses the generic reply-after-the-fact
+        // path below entirely: `Runtime::subscribe` enqueues its own
+        // reply atomically with registering the filter, so nothing here
+        // must enqueue a second one.
+        "event.watch" => match runtime.subscribe(description, context, &resolved, client_id, id) {
+            Ok(()) => true,
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
+                outbound.enqueue_control(bytes).is_ok()
+            }
+        },
         _ => {
             let response = runtime.handle(description, context, &request);
             let bytes = Connection::reply(id, response);
@@ -519,7 +617,7 @@ fn handle_request(
 pub fn handle(
     mut stream: UnixStream,
     handshake_timeout: Duration,
-    events: Option<Sender<ConnectionEvent>>,
+    mut events: Option<Sender<ConnectionEvent>>,
     runtime: &Runtime,
 ) {
     if let Some(sender) = events.as_ref() {
@@ -560,7 +658,19 @@ pub fn handle(
                 // client that has finished it and then sits idle is
                 // never closed for that (AC #4's second clause).
                 let _ = stream.set_read_timeout(None);
-                run_post_handshake(&mut stream, &mut connection, runtime, client_id);
+                // Moves `events` in, rather than lending it: from this
+                // point on, `run_post_handshake` (through `ConnectionCleanup`'s
+                // Drop) is the one place `Disconnected` is sent, on every
+                // path out of it including a panic - `handle`'s own final
+                // check below finds `None` here and sends nothing a
+                // second time.
+                run_post_handshake(
+                    &mut stream,
+                    &mut connection,
+                    runtime,
+                    client_id,
+                    events.take(),
+                );
             }
         }
         FirstFrame::NotAHello(reason) => {
@@ -586,6 +696,13 @@ pub fn handle(
     // indefinitely instead of closed).
     let _ = stream.shutdown(std::net::Shutdown::Both);
 
+    // Only reached with `events: Some(_)` on the paths that never called
+    // `run_post_handshake` at all (no complete frame, not a hello, or a
+    // refused handshake) - none of them run untrusted dispatch code, so
+    // there is nothing here that panics and skips this. The accepted
+    // path already sent `Disconnected` through `ConnectionCleanup`'s own
+    // `Drop`, on every path out of it including a panic, and left `None`
+    // behind here (`events.take()`, above) so this never sends twice.
     if let Some(events) = events {
         let _ = events.send(ConnectionEvent::Disconnected);
     }
@@ -761,6 +878,7 @@ mod tests {
                 runtime: &runtime,
                 client_id,
                 pane_streams: &pane_streams,
+                events: None,
             };
             // `_cleanup` drops here, running its sweep - the one thing
             // this test is about.

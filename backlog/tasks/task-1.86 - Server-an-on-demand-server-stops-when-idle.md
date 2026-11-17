@@ -1,13 +1,14 @@
 ---
 id: TASK-1.86
 title: 'Server: an on-demand server stops when idle'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w3'
 created_date: '2026-11-15T23:40:00Z'
-updated_date: '2026-11-16T13:36:00Z'
+updated_date: '2026-11-16T16:44:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.77
@@ -22,6 +23,9 @@ asdlc_branch: task-1.86-server-an-on-demand-server-stops-when
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '7161104a6d7b'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1183,6 +1187,376 @@ Checks recorded on the task throughout, including:
 AC #4's exact-instant race (a client connecting in the same accept-loop iteration the stop flag becomes true) is proven for the ordinary-timing case only, through the real binary and the sdk's own unmodified autostart - the engineer approved this reading and is adding the exact-instant case as a criterion on TASK-1.49 instead, per the plan's own "For the engineer" section.
 
 Reviewer: please check PR #60 includes the merges of origin/main and TASK-1.98's branch cleanly (no leftover conflict markers), and that the one-effective-sender change to listen.rs (TASK-1.98's own file) reads correctly in context.
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T14:03:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc, last 40 of 409 lines:
+
+```text
+kill: 74638: No such process
+kill: 74703: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+test tab_new_through_api_call_starts_a_real_program ... ok
+kill: 74691: No such process
+kill: 74704: No such process
+kill: 74726: No such process
+kill: 74747: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 74639: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74641: No such process
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74690: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 74696: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.09s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T14:03:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc, last 40 of 62 lines:
+
+```text
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-3e9d6d82b6885ce6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T14:07:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (53.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.1s)
+ok      test (steg-server) (20.8s)
+ok      test (steg-server, race-fixture) (23.3s)
+ok      test (steg-server, accept-backoff-fixture) (24.4s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.2s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Review findings fixed: PR #60's CI had been cancelled in the hanging accept-backoff step before any code review happened. Merged TASK-1.98's fixed head (d2ab50c - every wait in accept_backoff.rs's own tests is now bounded, the real-binary descriptor limit is 180). listen.rs itself was not touched by this merge (the fix was entirely in test helpers and fixtures), so my one-effective-sender change (checker_tx.or(events), all three send sites reading it) carried through unmodified - confirmed by grep after the merge.
+
+Re-ran both suites and just check in the foreground, each through asdlc record-check:
+- cargo test -p steg-server --tests: exit 0 (160+76+13+5+5+8+22+29+8+1 passed)
+- cargo test -p steg --features fixtures: exit 0 (includes server_start.rs's new surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers, replacing the old file-descriptor test)
+- just check: exit 0, including test (steg-server, accept-backoff-fixture) in 24.4s with no stall
+
+No leftover processes from this worktree before or after (checked via ps aux).
+
+None of my five recorded negative controls touch the files TASK-1.98's fix changed (accept_backoff.rs, accept_backoff_attempt.rs, server_start.rs), so none needed re-running.
+
+Pushed, watched gh pr checks 60 --watch in the foreground: passed at 8m4s (run 43882468307), confirmed via gh pr view --json statusCheckRollup (conclusion SUCCESS).
+
+Checked before finishing, per the engineer's instructions: gh pr view 59 --json state,reviewDecision shows OPEN with no reviewDecision set; TASK-1.98's own board task carries no changes-requested label. No adverse finding reported yet.
+
+Earlier CI run (43875669315) on this same PR, before TASK-1.98's fix, was confirmed to hang at test (steg-server, accept-backoff-fixture) exactly as the engineer described (log stops after race-fixture's own "ok" line, cancelled ~7m44s later, orphan-process cleanup names a leftover accept-backoff- process) - reported in full on the task's own comment thread with the earlier build notes.
+
+Check FAILED: `cargo test -p steg-server --test idle_stop a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out` exited 101 at 2026-11-16T14:55:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 1 test
+test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out ... FAILED
+
+failures:
+
+---- a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out stdout ----
+
+thread '<unnamed>' (41870885) panicked at crates/server/tests/idle_stop.rs:496:9:
+deliberate test panic (TASK-1.86 review finding 1): a request handler panicking after the handshake must still report ConnectionEvent::Disconnected
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out' (41870880) panicked at crates/server/tests/idle_stop.rs:82:29:
+run should have returned within 1s of being stopped
+
+
+failures:
+    a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 1.01s
+
+error: test failed, to rerun pass `-p steg-server --test idle_stop`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test idle_stop` exited 0 at 2026-11-16T14:55:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at a274b2cbeebc with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+
+running 6 tests
+test every_sender_dropping_is_what_lets_run_return_after_stop ... ok
+test a_genuinely_idle_server_stops_itself_within_a_bound ... ok
+test closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker ... ok
+test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out ... ok
+test an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle ... ok
+test a_session_that_exists_prevents_the_idle_stop ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.23s
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --tests` exited 0 at 2026-11-16T14:58:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d, last 40 of 411 lines:
+
+```text
+test pane_split_through_api_call_starts_a_real_program ... ok
+kill: 76029: No such process
+kill: 76132: No such process
+test session_close_with_force_ends_every_pane_of_every_tab ... ok
+kill: 76033: No such process
+kill: 76130: No such process
+kill: 76133: No such process
+kill: 76134: No such process
+test tab_close_with_force_ends_every_program_in_scope_within_one_grace_window ... ok
+kill: 76020: No such process
+test a_pane_being_forced_is_unreachable_by_another_request_meanwhile ... ok
+kill: 76031: No such process
+test a_tab_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+kill: 76035: No such process
+kill: 76038: No such process
+test a_pane_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+test a_session_being_forced_is_unreachable_by_every_method_that_can_name_it ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.07s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --features fixtures` exited 0 at 2026-11-16T14:58:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d, last 40 of 64 lines:
+
+```text
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-3e9d6d82b6885ce6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/idle_stop.rs (target/debug/deps/idle_stop-e4aadba640b0e380)
+
+running 1 test
+test an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests/login_environment.rs (target/debug/deps/login_environment-0a17af29fd7f3966)
+
+running 1 test
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-cbb24720610ec4e5)
+
+running 11 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Check FAILED: `just check` exited 1 at 2026-11-16T14:58:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d:
+
+```text
+FAILED  format check (exit 1, 0.2s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86/crates/server/src/connection.rs:481:
+                 // path out of it including a panic - `handle`'s own final
+                 // check below finds `None` here and sends nothing a
+                 // second time.
+[31m-                run_post_handshake(&mut stream, &mut connection, runtime, client_id, events.take());
+(B[m[32m+                run_post_handshake(
+(B[m[32m+                    &mut stream,
+(B[m[32m+                    &mut connection,
+(B[m[32m+                    runtime,
+(B[m[32m+                    client_id,
+(B[m[32m+                    events.take(),
+(B[m[32m+                );
+(B[m             }
+         }
+         FirstFrame::NotAHello(reason) => {
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-16T15:02:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.86 on task-1.86-server-an-on-demand-server-stops-when at 012415a04c5d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (3.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (63.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.0s)
+ok      test (steg-sdk, local-socket) (1.2s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (22.7s)
+ok      test (steg-server, race-fixture) (22.6s)
+ok      test (steg-server, accept-backoff-fixture) (24.0s)
+ok      build (steg) (0.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (7.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 75, 73 without the Asdlc-Worker trailer.
+
+Review findings fixed (full review by @bruk.r3, 1 Important + 3 nit).
+
+[Bugs, Important] Fixed: connection.rs's ConnectionCleanup (the one guard already running on every path out of run_post_handshake, including an unwind) now also holds the ConnectionEvent sender and sends Disconnected from its own Drop, after its pre-existing cleanup steps keep their exact order. handle() moves events into run_post_handshake (events.take()) only on the accepted path; its own trailing send only fires for the paths that never reach that guard (no complete frame, not a hello, a refused handshake), so nothing ever sends twice. New test: a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out (crates/server/tests/idle_stop.rs), using a test-only PanickingLauncher - an unusual implementation of the existing ServerConfig.launcher injection point, not a new production path that can panic on request. It force-closes the orphaned session the panic leaves behind (pane::start's own rollback_mint is skipped by the same panic - a related, pre-existing gap named in the test's own doc comment, not fixed here, since it's TASK-1.76's own pairing, not this task's idle-checker criteria) to isolate what this test actually proves: the live-client count. Negative control recorded and reverted: with the fix removed, this test fails bounded (1s), not a hang.
+
+[Bugs, Nit] Fixed: the_checker_blocks_with_no_timeout_...'s 300ms absence assertion now matches Err(RecvTimeoutError::Timeout) specifically, not .is_err() generally (which would also pass if the observer channel disconnected for an unrelated reason).
+
+[Evidence, Nit] and [Compliance, Nit]: both addressed in a separate task comment (the corrected reasoning for why the five negative controls didn't need re-running, and the checker_tx.or(events) touch to TASK-1.98's listen.rs lines stated explicitly as a departure from the plan).
+
+Merged TASK-1.98's newest head (25696d14, its own "confirm exhaustion before asserting survival" fix, on top of d2ab50c which this branch already had) - clean, no conflicts; checker_tx.or(events) carried through unchanged (confirmed by grep).
+
+Checks recorded, all exit 0: cargo test -p steg-server --tests, cargo test -p steg --features fixtures, just check (including accept-backoff-fixture, 24.0s, no stall). No leftover processes from this worktree before or after.
+
+Checked before finishing: gh pr view 59 --json state,reviewDecision,headRefOid shows OPEN, no reviewDecision, head 25696d14 - matches what's merged into this branch. TASK-1.98's own board task carries no changes-requested label. No adverse finding to wait on.
+
+Pushed (head cbe0f15). CI run 43892367040 confirmed SUCCESS via gh pr view --json statusCheckRollup, watched to completion in the foreground (4m47s) - no stall, nothing to cancel. One operational note: after pushing, no CI run appeared for ~20 minutes (gh run list/gh api showed nothing for this branch past an older, already-completed run) before 43892367040 was created and ran normally - flagged to the engineer at the time; no code or configuration issue found, and the run that eventually started passed cleanly, so not pursued further.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1213,6 +1587,126 @@ None of these touch the `accept-backoff-fixture` feature at all (that is TASK-1.
 Checked the exact-wait test's own 300ms absence window (`idle.rs`'s `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible`) for margin under machine load, as asked - what would make something arrive late into it or after it:
 
 Nothing legitimate can. The checker is in `Wait::Forever` for the whole window because `live_clients > 0` makes `wait()` return `Forever` unconditionally, regardless of how much time has elapsed - this does not depend on `idle_timeout` (50ms in this test) or on timing precision at all. The window's own boundaries are entirely test-controlled, not racing a background timer: it starts only after the test's own blocking (untimed) `.recv()` for the second observation has already returned, and the test does not send `Disconnected` - the only thing that could end the window - until after the window's own `recv_timeout` call has already returned. So there is no clock for machine load to make something arrive "late" into or after this window; the only way anything can appear inside it is a real implementation regression (a reverted periodic-poll design), which the committed negative control already confirmed bites, cleanly, at a bounded 300ms - about 3x the 100ms poll interval that regression used.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T13:58:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.86: a same-machine review: it waited 32m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T14:01:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Narrow first pass only: Evidence question, from gh and the task's notes alone. No worktree was made, no diff was read, no code was reviewed, and no suites were run. Nothing here is a judgement of the work - a full review follows once this comes back.
+
+[Evidence, Important] PR 60's only CI run has not passed on the branch's current head. Head d6c7ad92ba23950d0a88cc6ec71eeeaeedacdbde (task-1.86-server-an-on-demand-server-stops-when) has exactly one check, "CI / check", run 43875669315: started 2026-11-16T13:30:58Z, status COMPLETED, conclusion CANCELLED at 13:43:30Z (`gh run list` confirms no later run exists for this branch). Per the team's review.md Evidence pass: "Were the checks the worker recorded run on this branch, after its last change, and did they pass? A check recorded before the last commit, or not at all, is a finding." A cancelled run is not a passing run.
+
+Why it stalled: this branch merges TASK-1.98 at commit 0f38605 ("Server: the accept loop survives a recoverable accept() error"). `git log origin/main..origin/task-1.86-... -- crates/server/tests/accept_backoff.rs` returns exactly that one commit, and TASK-1.98's own fix commit (263d360, "Fix review findings: the accept-backoff test suite hangs", pushed to task-1.98-server-the-accept-loop-survives-an-error, head d2ab50c46927) is not an ancestor of 0f38605 (`git merge-base --is-ancestor` confirms). So this branch carries the pre-fix accept_backoff.rs / accept_backoff_attempt.rs that TASK-1.98's own review (PR 59, comment #3, 2026-11-16 13:12 UTC) already sent back for hanging CI: that review found a CI run stalled right after "ok test (steg-server, race-fixture)" and was killed by the 30-minute workflow timeout with an orphaned accept-backoff process. PR 60's cancelled run is consistent with the same unfixed hang (cancelled at ~12m41s into the job, after the same race-fixture step).
+
+What is needed before this returns to review: rebase/merge TASK-1.98's fixed head (not 0f38605) into this branch, run both suites and `just check` on the merged result, and get this pull request's own CI green on the final head.
+
+Plan match not assessed in this pass: no diff was read, so the positive "yes" condition (files match the plan, in order, building what it says) could not be verified. Recorded "no" per instructions for this case, not as a plan-departure finding.
+
+No earlier-review repeat found worth a rule-change draft: `review-done`'s own note that earlier reviews cited the same policy (review) points to TASK-1.98 (PR 59), but its Important finding was the hang itself (a mistake in the code/tests); this finding is that the task was sent to review before that fix reached this branch and before CI confirmed it - a different mistake, not a second instance of the same one. No draft filed.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:16:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T14:45:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review, testing. The diff does not match the plan.
+
+Full review at head a274b2c (a274b2cbeebc215c32b29dc9e20a0f5dade0777b). CI run 43882468307 confirmed success on this exact head (gh run view --json headSha matches gh pr view --json headRefOid). This task cannot merge before TASK-1.98 (PR 59, still in its second review); if that review changes listen.rs, this branch merges that change again on its next rebase.
+
+[Bugs, Important] crates/server/src/connection.rs:413-477 - `handle` sends `ConnectionEvent::Connected` at entry but sends the matching `Disconnected` only as a plain trailing statement after its `match`, which a panic's unwind skips. `ConnectionCleanup`'s `Drop` (connection.rs:304) is the only destructor on this path and is documented to cover "a panic unwinding through a call to `Runtime::handle` (a bug in a request handler)," but its fields (outbound/writer/shutdown_handle/runtime/client_id) do not include `events`, so it disconnects the client from the Runtime's tree but never sends `Disconnected` on the idle-checker's channel. Dropping the `events` sender clone during unwind emits nothing to the receiver (a channel only reports `Disconnected` once every sender is gone - the separate join-bound property in listen.rs section 6, not this one). Net effect: one post-handshake panic in a request handler permanently inflates `IdlePredicate::live_clients` in idle.rs, so `wait()` returns `Forever` for the rest of that process's life and the server never idle-stops again - R99 and AC #1 silently unmet from that point on. The plan's section 2 claim that `handle` "sends Disconnected on every path out of itself, including a panic unwinding past it (its own doc comment already says so)" is not true of this specific event; the doc comment it cites is about the tree-level disconnect, not this channel. No test in this diff reaches a connection-handler panic while idle-checking is on.
+
+Checked and clean, recorded for the next reviewer:
+- The `notify_session_count_changed` send in apply_event_locked runs under the drain thread's State lock, but the channel is unbounded `mpsc::channel()`, so `send` never blocks - no deadlock against `session_counter()`'s own lock acquisition.
+- Grepped the kernel and dispatch for every way a session closes: `apply_event_locked`'s `PaneEvent::Exited` arm (the one covered by the new notify) and `dispatch/session.rs::close`, `dispatch/tab.rs::close`, `dispatch/pane.rs::close`, and `rollback_mint` - all four of the latter are request-driven, always behind an already-accepted connection that eventually sends its own `Disconnected` (ordinary case; see the Important finding above for the panic exception to that).
+- `checker_tx.or(events)` is `events` byte-for-byte when `checker_tx` is `None` (explicit start) - confirmed by reading and by `just check` passing with every existing test, including the accept-backoff-fixture suite, unchanged.
+- No path in the shipped binary (crates/steg/src/main.rs) reads an env var to shorten or disable idle_timeout; only the fixtures-gated `fixture_server.rs` test binary does.
+- The 300ms absence window in `the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible` is test-controlled, not racing a background timer (the checker is in `Wait::Forever` throughout, which does not depend on elapsed time) - not vacuous: repeated the negative control myself (reverted the Forever arm to a bounded poll in a scratch edit, reverted after) and it fails exactly as the task's own recorded control claims. Also independently repeated the `every_sender_dropping_is_what_lets_run_return_after_stop` control (removed the notify-clearing line from Runtime::stop() in a scratch edit, reverted after): fails bounded, as claimed, not a hang.
+- Diffed a3ebd891939d (where the five negative controls were recorded) against a274b2c for every idle-stop test file: only idle.rs's test module changed (a new 300ms assertion plus a new, unrelated test and a clippy fix) - the control I re-ran above covers exactly that edit; the other three recorded controls are against byte-identical test code, so they remain valid as recorded.
+
+[Evidence, Nit] The task's own notes justify not re-running the five recorded negative controls by citing "none touch the files TASK-1.98's fix changed," which is the wrong criterion (testing.md's trigger is whether the test itself was edited since the control was recorded, not whether another task's fix touched the same file). The conclusion holds here (confirmed above) but the stated reasoning would not catch a case where it didn't.
+
+[Bugs, Nit] The 300ms absence assertion in the_checker_blocks_with_no_timeout_... uses `recv_timeout(...).is_err()`, which is also true if the observer channel disconnected early; a more precise absence check would match `Err(RecvTimeoutError::Timeout)` specifically.
+
+[Compliance, Nit] listen.rs's `checker_tx.or(events)` change to TASK-1.98's own two `AcceptRetried` send sites is a departure from the plan's own claim that those lines are "untouched by this task" - explained in the task's notes (a wiring bug found while merging TASK-1.98: the two sites read the raw `events` parameter, always `None` in production, never reaching the idle checker) and reasonable, but it is a departure the plan did not anticipate, hence `--plan-matched no`.
+
+Evidence otherwise clean: the task's own `just check`/`cargo test -p steg-server --tests`/`cargo test -p steg --features fixtures` are all recorded at or after a274b2c and exit 0; I reproduced all four of this task's own test targets 30 times each (0 failures) and both broader suites 5 times each (0 failures) plus my own `just check` (exit 0) on this exact head, with no leftover processes from this worktree before or after.
+
+---
+
+created: 2026-11-16T15:04:00Z
+
+---
+
+Review findings fixed (head cbe0f15, merged TASK-1.98's newest head 25696d14 on top - see the separate finish notes for the full build record). Two corrections asked for, both addressed directly here since they're about the task's own notes, not the code:
+
+**Nit 1 corrected: the right reason not to re-run the five recorded negative controls is not "the merge didn't touch the same files."** That was the wrong criterion - testing.md's own trigger is whether the test, or the mechanism it proves, was edited since the control was recorded, not whether some other task's unrelated fix happened to land in the same file. The right check, which the reviewer independently performed and confirmed (review #6): diff the commit where the five controls were recorded (a3ebd891) against the current head, file by file, for every idle-stop test and the production code each one proves - if neither the test nor its mechanism changed, the control still holds; if either did, it needs re-recording. For this task's own five controls, none of the files they exercise or prove against were touched by any of the TASK-1.98 merges, which is the actual reason they didn't need re-running - not a coincidence about which files a different task happened to change.
+
+**Nit 3: `checker_tx.or(events)`'s touch to TASK-1.98's own two `AcceptRetried` send sites in listen.rs is a departure from this task's own plan, stated here as one.** The plan's section 6 claimed those two lines were "untouched by this task." They are not: while merging TASK-1.98's first head, I found both sites read the raw `events` parameter directly, which is always `None` in production, so `AcceptRetried` would never have reached the idle checker at all. Fixed by computing one effective sender once, before the loop (`checker_tx.or(events)`), with all three send sites in the loop - TASK-1.98's two retries and this task's own per-connection clone - reading it. Reported to the engineer in full (the exact before/after of both lines) at the time, for TASK-1.98's own reviewer to see; recording it here too, as the plan's own departure it is.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T15:24:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.86: a same-machine review: it waited 15m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-16T15:44:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second full review, head cbe0f15 (cbe0f15d9bab032dff00b43287fcc0cf6b4f72ae). PR 60 head matches (gh pr view: headRefOid cbe0f15..., check "check" conclusion SUCCESS). TASK-1.98 (PR 59, head 25696d14) is review-passed but still open/unmerged to origin/main; this task cannot merge before it.
+
+No findings. The prior review's one Important finding is fixed correctly: connection::handle moves `events` into run_post_handshake only on the accepted path; ConnectionCleanup (the guard that already runs on every path out of run_post_handshake, including a panic's unwind) now holds the sender and sends Disconnected from its own Drop, last, after its pre-existing cleanup steps keep their exact order; handle's own trailing send covers only the paths that never reach the guard (no complete frame, not a hello, a refused handshake), with events.take() making a double-send structurally impossible. Traced every path out of handle (no complete frame, not a hello, refused handshake, clean close, protocol violation post-handshake, write/shutdown-clone failure, a panic in a request handler, a connection the server force-shuts-down via its own shutdown_handle on stop) - each sends Connected once at entry and Disconnected exactly once, after the guard's other duties. Independently reproduced the fix's own negative control myself (reverted ConnectionCleanup's Disconnected send in a scratch edit, reverted after): the new test a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out fails bounded at exactly its 1s join_within bound ("run should have returned within 1s"), not a hang; with the fix restored it passes in ~0.2s.
+
+The test's PanickingLauncher is confirmed test-only: ServerConfig.launcher is the existing production injection point, and this is only an unusual test implementation of it supplied from crates/server/tests/idle_stop.rs, not a new production path that can panic on request.
+
+The separate gap the worker names (a panic in a launcher's spawn, during session.new/tab.new/pane.split, skips pane::start's own rollback_mint) is real: pane::start (pane.rs) calls `launcher.spawn(&spec)?` directly, so a panic there unwinds straight past start_and_dispatch's `match pane::start(...)` (runtime.rs), skipping the `Err(error) => rollback_mint(...)` arm that only runs on a returned Err. Confirmed pre-existing: this match/rollback pairing is on commit 7a20452 (2026-11-15), part of TASK-1.76, already on origin/main before this task's branch started - not in this task's own scope or diff. A follow-up (on TASK-1.76 or a new task, not this one) should say: pane::start's call to the launcher needs panic-safety at the mint/spawn boundary (catch_unwind around the spawn, or a documented invariant that ProgramLauncher::spawn must never panic), because today a panicking launcher leaves a session/tab/pane in the tree with no pane handle in state.panes - silently un-rolled-back - which (per this task's own AC #1) would also keep session_count() above zero forever and block idle-stop permanently, the same class of bug this task's own fix just closed on the connection side.
+
+Nits from the prior review are fixed as recorded: the 300ms absence assertion in idle.rs now matches Err(RecvTimeoutError::Timeout) specifically; the task's own notes (comment #7) correct the reasoning for not re-running the five negative controls to the right criterion (whether the test/mechanism was edited since the control was recorded, not whether an unrelated merge touched the same file) and state the checker_tx.or(events)/checker_or_events touch to TASK-1.98's two AcceptRetried send sites in listen.rs as a departure from the plan's own "untouched by this task" claim.
+
+Evidence: this task's own four test targets (steg-server --lib idle::, --lib listen::, --test idle_stop; steg --features fixtures --test idle_stop) each run 20 times in the foreground, bounded (timeout 30s/command), 0 failures. Both broader suites (cargo test -p steg-server --tests; cargo test -p steg --features fixtures) run 3 times each in the foreground, bounded: 0 failures on the steg suite; one of three steg-server runs hit a 120s harness bound on an unrelated, untouched test (outbound::tests::a_broken_write_closes_the_queue...) while running concurrently with the other suite on this machine - reproduced 5/5 instantly in isolation afterward, and outbound.rs is unchanged by this branch (diff against both origin/main and a274b2c is empty), so this was my own resource contention, not a product defect; the retry (3 serial runs, no concurrent suite) was 0 failures. My own `just check` exited 0 on this exact head. No leftover processes from this worktree before, during, or after (checked by PID and by process list filtered to this worktree's path).
+
+Overlap for whoever merges TASK-1.46 (PR 63, still in review) and this task in either order: this branch's apply_event_locked PaneEvent::Exited arm sends ConnectionEvent::SessionCountChanged immediately after `state.panes.remove(&closed.pane)`, gated on `closed.session.is_some()`. TASK-1.46 restructures this same arm to broadcast pane.exited first, then pane.closed/tab.closed/session.closed (from the same ClosedPane) in innermost-first order, after capturing what it needs before record_exit runs. TASK-1.46's own notes already say correctly: whoever merges second must fold this task's SessionCountChanged send into that structure, placed after the broadcasts, with the scope still captured before record_exit - confirmed consistent by reading TASK-1.46's own plan section 5 directly, nothing further needed from this review beyond restating it.
+
+No earlier-review repeat found worth a rule-change draft: no new finding here repeats a mistake an earlier review already caught elsewhere; the existing nits were fixed, not repeated.
 
 ---
 <!-- COMMENTS:END -->

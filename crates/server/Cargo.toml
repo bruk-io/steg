@@ -53,6 +53,17 @@ nix = { version = "0.28", default-features = false, features = ["fs", "user", "p
 # `race.rs`, the same pattern that feature already uses for the sdk.
 race-fixture = []
 
+# Gates TASK-1.98's own accept-backoff fixture and the tests that drive it
+# (below) - same shape as `race-fixture`, same reason: off by default, so an
+# ordinary `cargo build -p steg-server` produces no extra binary and no
+# `ServerHandle::listener_raw_fd` (`arbiter.rs`, gated the same way). Also
+# turns on `nix`'s own `resource` feature, a real, separate feature not
+# bundled into `fs`/`user`/`process`/`signal` (`nix-0.28.0/Cargo.toml`) -
+# the fixture's own `setrlimit` call needs it, and nothing else in this
+# crate does, so it stays off for every build that doesn't ask for this
+# feature.
+accept-backoff-fixture = ["nix/resource"]
+
 # The race test's own fixture (`tests/race.rs`, AC #2): calls
 # `steg_server::attempt` directly and prints which `Arbitration` it got,
 # flushed before it would otherwise block in `run`, so eight of these
@@ -75,3 +86,19 @@ required-features = ["race-fixture"]
 name = "race"
 path = "tests/race.rs"
 required-features = ["race-fixture"]
+
+# The accept-backoff test's own fixture (`tests/accept_backoff.rs`, AC #1/
+# #2/#4): a real server, in its own process, with its own `RLIMIT_NOFILE`
+# lowered, reporting each recovered accept error over stdout so the test
+# can count them without reaching into this process's own memory. Gated
+# behind `accept-backoff-fixture`, above.
+[[bin]]
+name = "accept-backoff-attempt"
+path = "tests/fixtures/accept_backoff_attempt.rs"
+required-features = ["accept-backoff-fixture"]
+
+# Declared explicitly, the same reason `race`'s own entry above is.
+[[test]]
+name = "accept_backoff"
+path = "tests/accept_backoff.rs"
+required-features = ["accept-backoff-fixture"]

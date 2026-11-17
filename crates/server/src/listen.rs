@@ -9,15 +9,79 @@ use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::time::Duration;
+
+use nix::errno::Errno;
 
 use crate::arbiter::{self, Arbitration};
 use crate::config::ServerConfig;
 use crate::connection::{self, ConnectionEvent};
 use crate::error::Error;
+use crate::idle;
 use crate::runtime::Runtime;
+
+/// Why `run`'s accept loop treats one `accept()`/`try_clone()` error as safe
+/// to retry rather than as a reason to stop the whole server (TASK-1.98 AC
+/// #1). Matched by raw errno (`classify_accept_error`, below), never by
+/// `std::io::ErrorKind`: `EMFILE`/`ENFILE` have no `ErrorKind` variant that
+/// round-trips through this platform's own `decode_error_kind` - confirmed
+/// by reading this toolchain's own
+/// `library/std/src/sys/net/connection/socket/unix.rs`, not assumed - so an
+/// `ErrorKind`-based classifier could never cover the one case AC #4 is
+/// about (the loop must not spin while descriptors stay exhausted).
+///
+/// `pub`: carried on [`ConnectionEvent::AcceptRetried`] so a caller given
+/// `events` can tell which of the three kinds happened, same as any other
+/// `ConnectionEvent`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoverableAcceptError {
+    /// `EMFILE` (this process is out of descriptors) or `ENFILE` (the whole
+    /// system is). Unlike the other two kinds, this does not clear on its
+    /// own - it lasts until some descriptor, anywhere, is closed - which is
+    /// exactly why the loop backs off instead of retrying at full speed
+    /// while it lasts (AC #4), and why `run`'s own stop check now runs
+    /// before this classifier does: a storm that never resolves on its own
+    /// must still let `stop()` end the loop within one backoff interval,
+    /// not leave it retrying forever.
+    DescriptorsExhausted,
+    /// `ECONNABORTED` - a connection the kernel already queued was reset or
+    /// torn down by its own peer before this loop's `accept()` picked it
+    /// up. Not this listener's fault, and nothing to do with `run`'s own
+    /// stop mechanism either: `Stopper::stop` wakes a blocked `accept()`
+    /// with a real `UnixStream::connect` (`wake_accept`, above), never a
+    /// `shutdown`/`close` of the listener from another thread, so there is
+    /// no path here where `run`'s own stop produces this error itself.
+    ConnectionAborted,
+    /// `EINTR` - interrupted by a signal before a connection was ready.
+    /// **Checked, not assumed, to be dead in practice on this target**:
+    /// `UnixListener::accept` calls `Socket::accept`, which on macOS (not in
+    /// that file's `accept4`-capable target list) wraps `libc::accept` in
+    /// `cvt_r`, already retrying `EINTR` internally - so this arm is a
+    /// defensive backstop for a classifier that has to be correct
+    /// regardless of what std happens to do today, not because it is
+    /// expected to fire. Kept because AC #1 names it explicitly.
+    Interrupted,
+}
+
+/// `Some(kind)` for the three cases AC #1 names as recoverable; `None` for
+/// everything else, including `raw_os_error() == None` (a `std::io::Error`
+/// not actually sourced from a syscall) - the same conservative default
+/// `run` always had before this task, only narrowed by the three kinds
+/// above and never widened past them. Matched through `nix::errno::Errno`
+/// (already an allowed dependency of this crate, `boundaries.toml`), which
+/// re-exports `libc` itself (`nix::libc`), so no new dependency is needed
+/// for this.
+fn classify_accept_error(err: &std::io::Error) -> Option<RecoverableAcceptError> {
+    match err.raw_os_error().map(Errno::from_raw) {
+        Some(Errno::EMFILE | Errno::ENFILE) => Some(RecoverableAcceptError::DescriptorsExhausted),
+        Some(Errno::ECONNABORTED) => Some(RecoverableAcceptError::ConnectionAborted),
+        Some(Errno::EINTR) => Some(RecoverableAcceptError::Interrupted),
+        _ => None,
+    }
+}
 
 /// What [`serve`] reports once it has a final answer.
 #[derive(Debug)]
@@ -198,6 +262,43 @@ fn reap_finished<J: Joinable>(connections: &mut Vec<(UnixStream, J)>) {
     }
 }
 
+/// What [`build_idle_wiring`] hands back when idle-checking is on: the
+/// sender every connection should clone from, and the one checker
+/// thread's own handle to join once it is safe to (`run`'s own shutdown
+/// sequence, below `run`'s own body).
+struct IdleWiring {
+    checker_tx: Sender<ConnectionEvent>,
+    checker_handle: thread::JoinHandle<()>,
+}
+
+/// Builds the one checker thread and its channel, only when `idle_timeout`
+/// is `Some` (TASK-1.86, doc-8 R99) - an explicit start's `idle_timeout`
+/// is `None`, and this function's own first line is the whole of why
+/// that spawns nothing at all, checked directly rather than inferred from
+/// a timing bound (this module's own test, below).
+fn build_idle_wiring(
+    idle_timeout: Option<Duration>,
+    runtime: &Runtime,
+    stop: &Stopper,
+) -> Option<IdleWiring> {
+    let idle_timeout = idle_timeout?;
+
+    let (checker_tx, checker_rx) = mpsc::channel();
+    runtime.set_idle_notifier(checker_tx.clone());
+
+    let stop = stop.clone();
+    let session_count = runtime.session_counter();
+    let checker_handle = thread::Builder::new()
+        .name("steg-idle-checker".to_string())
+        .spawn(move || idle::run_checker(checker_rx, stop, session_count, idle_timeout))
+        .expect("spawning the idle checker thread");
+
+    Some(IdleWiring {
+        checker_tx,
+        checker_handle,
+    })
+}
+
 /// The accept loop: spawns a thread per accepted connection
 /// (`connection::handle`) until [`stop`] says to stop, then closes the
 /// listener, shuts down and joins every connection still open, removes
@@ -280,6 +381,15 @@ pub fn run(
         config.attach_tick,
     );
 
+    // Built before the loop, same reasoning as `runtime` above - only
+    // `Some` when `config.idle_timeout` is (TASK-1.86); `None` for an
+    // explicit start spawns nothing and costs nothing.
+    let (checker_tx, checker_handle) = match build_idle_wiring(config.idle_timeout, &runtime, stop)
+    {
+        Some(wiring) => (Some(wiring.checker_tx), Some(wiring.checker_handle)),
+        None => (None, None),
+    };
+
     // Split apart before the loop, not destructured after it as before:
     // `listener` has to be owned *inside* the `thread::scope` below (so
     // it can be dropped there, closing it before the final join loop -
@@ -304,12 +414,64 @@ pub fn run(
         Ok(())
     } else {
         let runtime_ref = &runtime;
+        // Computed once, outside the loop: every send site in this loop -
+        // TASK-1.98's own two retry arms below, and this task's own
+        // per-connection clone - needs the same answer to "who gets a
+        // `ConnectionEvent`," so there is exactly one place that decides
+        // it. When idle-checking is on, the checker's own sender wins
+        // (`AcceptRetried` must reach it too - a retry is not a client
+        // arriving, which the idle checker's own catch-all already
+        // handles identically to any other event it does not specifically
+        // care about, `idle.rs`'s own test proves); when it's off
+        // (`checker_tx` is `None`, an explicit start), this is
+        // `events.clone()`, byte for byte what ran here before TASK-1.86.
+        // `.or()`, not `.clone().or_else()`: computed exactly once, so
+        // there is nothing to keep cheap by deferring - and, just as
+        // importantly, this *fully consumes* both `checker_tx` and
+        // `events` rather than leaving a clone of either alive in this
+        // function's own outer scope. A leftover clone of `checker_tx`
+        // here, never moved into the scope below, would still be a live
+        // sender into the checker's channel after `thread::scope`
+        // returns - exactly the kind of extra sender the join bound
+        // below is derived *against never existing*.
+        let checker_or_events = checker_tx.or(events);
         thread::scope(move |scope| {
             let mut connections: Vec<(UnixStream, thread::ScopedJoinHandle<'_, ()>)> = Vec::new();
             let accept_result = loop {
                 let (stream, _addr) = match listener.accept() {
                     Ok(accepted) => accepted,
-                    Err(err) => break Err(err.into()),
+                    Err(err) => {
+                        // Checked before this error is even classified, not
+                        // only before the sleep below: TASK-1.98's own
+                        // review found that without this, a `stop()` called
+                        // while descriptors stay exhausted (`EMFILE`/
+                        // `ENFILE` do not clear on their own) could go
+                        // unnoticed for as long as the storm lasts, since
+                        // `should_stop` was otherwise only ever checked
+                        // after a *successful* `accept()` - worse than
+                        // today, where any error ends the loop at once.
+                        // Checking first bounds that to one loop iteration
+                        // instead, every time through.
+                        if stop.should_stop() {
+                            break Ok(());
+                        }
+                        match classify_accept_error(&err) {
+                            Some(kind) => {
+                                if let Some(tx) = &checker_or_events {
+                                    let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
+                                }
+                                // Opportunistic: a connection that finished
+                                // on its own during this storm gives its fd
+                                // back now, rather than waiting for the
+                                // next successful `accept()` - which, under
+                                // `ENFILE`, might be a while.
+                                reap_finished(&mut connections);
+                                thread::sleep(config.accept_error_backoff);
+                                continue;
+                            }
+                            None => break Err(err.into()),
+                        }
+                    }
                 };
                 reap_finished(&mut connections);
                 if stop.should_stop() {
@@ -320,11 +482,24 @@ pub fn run(
                     Ok(cloned) => cloned,
                     Err(err) => {
                         drop(stream);
-                        break Err(err.into());
+                        if stop.should_stop() {
+                            break Ok(());
+                        }
+                        match classify_accept_error(&err) {
+                            Some(kind) => {
+                                if let Some(tx) = &checker_or_events {
+                                    let _ = tx.send(ConnectionEvent::AcceptRetried(kind));
+                                }
+                                reap_finished(&mut connections);
+                                thread::sleep(config.accept_error_backoff);
+                                continue;
+                            }
+                            None => break Err(err.into()),
+                        }
                     }
                 };
                 let handshake_timeout = config.handshake_timeout;
-                let events = events.clone();
+                let events = checker_or_events.clone();
                 let join = scope.spawn(move || {
                     connection::handle(stream, handshake_timeout, events, runtime_ref);
                 });
@@ -373,6 +548,20 @@ pub fn run(
     // this point, which this line itself proves: it would not compile
     // otherwise.
     runtime.stop();
+
+    // The checker's channel is, by this line, fully disconnected: the
+    // `move |scope| { ... }` closure above returned (dropping its own
+    // `checker_tx`), every per-connection clone was joined above (its own
+    // thread's local destructors run even on a panic the `let _ =
+    // join.join()` discards), and `runtime.stop()` just above dropped
+    // `Runtime`'s own clone (`State.notify_session_count_changed`). So
+    // whichever `Wait` the checker was in - blocked with no timeout, or
+    // mid-bounded-wait - its blocking call now sees the channel
+    // disconnect and returns; this join's bound comes from that, never
+    // from a poll interval.
+    if let Some(checker_handle) = checker_handle {
+        let _ = checker_handle.join();
+    }
 
     let _ = std::fs::remove_file(socket_path);
     drop(lock);
@@ -438,7 +627,64 @@ mod tests {
     use std::sync::mpsc;
     use std::time::Duration;
 
-    use super::reap_finished;
+    use super::{RecoverableAcceptError, classify_accept_error, reap_finished};
+
+    /// AC #1: the three named cases, each a real `std::io::Error` built
+    /// from a real errno value (`from_raw_os_error`, not a mock of
+    /// `accept()` itself) - every one of these is a value the real
+    /// `accept()`/`try_clone()` calls in `run`'s loop can actually return
+    /// on this platform.
+    #[test]
+    fn descriptor_exhaustion_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EMFILE)),
+            Some(RecoverableAcceptError::DescriptorsExhausted)
+        );
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::ENFILE)),
+            Some(RecoverableAcceptError::DescriptorsExhausted)
+        );
+    }
+
+    #[test]
+    fn a_connection_aborted_before_accept_picked_it_up_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::ECONNABORTED)),
+            Some(RecoverableAcceptError::ConnectionAborted)
+        );
+    }
+
+    #[test]
+    fn an_interrupted_call_is_recoverable() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EINTR)),
+            Some(RecoverableAcceptError::Interrupted)
+        );
+    }
+
+    /// The negative control for the three tests above: two plausible but
+    /// wrong neighbours (not an exhaustive list) and "no errno at all" -
+    /// each must come back fatal, or a classifier that wrongly folded
+    /// everything into `Some` would pass the recoverable tests above for
+    /// the wrong reason.
+    #[test]
+    fn an_unlisted_errno_is_fatal() {
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EBADF)),
+            None
+        );
+        assert_eq!(
+            classify_accept_error(&std::io::Error::from_raw_os_error(nix::libc::EINVAL)),
+            None
+        );
+    }
+
+    #[test]
+    fn an_error_with_no_os_code_at_all_is_fatal() {
+        let err = std::io::Error::other("not from a syscall");
+        assert_eq!(err.raw_os_error(), None);
+        assert_eq!(classify_accept_error(&err), None);
+    }
 
     /// A thread that finishes the instant it is spawned leaves
     /// `is_finished()` `true` almost immediately - this test waits on
@@ -492,5 +738,30 @@ mod tests {
         let mut connections: Vec<(UnixStream, std::thread::JoinHandle<()>)> = Vec::new();
         reap_finished(&mut connections);
         assert!(connections.is_empty());
+    }
+
+    /// TASK-1.86 (idle stop): the structural proof that an explicit start
+    /// (`idle_timeout: None`) never idle-stops, because it never even
+    /// builds the thread that could - not a timing-bounded test, which
+    /// could only ever show "didn't stop within however long we waited,"
+    /// never "never." `build_idle_wiring` is private, so this test lives
+    /// here rather than in a separate integration-test file, which could
+    /// not reach it.
+    #[test]
+    fn build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none() {
+        let runtime = crate::runtime::Runtime::new(
+            std::sync::Arc::new(crate::pty::RealLauncher),
+            crate::runtime::LoginShell::default(),
+            Duration::from_millis(1),
+            Duration::from_millis(1),
+        );
+        let stop = super::Stopper::new();
+
+        let wiring = super::build_idle_wiring(None, &runtime, &stop);
+
+        assert!(
+            wiring.is_none(),
+            "idle_timeout: None must build neither a channel nor a thread"
+        );
     }
 }

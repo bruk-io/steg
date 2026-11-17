@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:26:00Z'
+updated_date: '2026-11-17T04:35:00Z'
 labels:
   - size-2
   - changes-requested
@@ -207,6 +207,34 @@ ok      ui colours (0.1s)
 ```
 
 AC #1 and #2: Runtime::arm_attachment now returns bool (false once the pane is already gone from state.panes); connection.rs's pane.attach success arm checks it, closing both sides of the stream and recording nothing in pane_streams when false, so a later pane.detach answers as never-attached. Proof: arm_attachment_answers_false_once_the_pane_has_already_closed, recorded failing (control: report armed unconditionally) then passing. Taken from the durable patch task-1.47-arm-returns-armed.patch. AC #3: honest account, not built. No implemented method on this worktree's main can create sustained backpressure on a pane's own worker from a socket-level test (pane.send is still NotImplementedYet; confirmed directly). PR #66 (TASK-1.114) had not merged by the time everything else here was done and green, so per the plan I did not wait on it. The two-connection socket test to add once it lands is named in the plan and the PR description. The stronger lock-contention test from TASK-1.47 (not driven by this task's own criteria, approved by the engineer as a separate, named addition) is carried here as its own commit, recorded failing (control: hold the lock across the wait) then passing. just check green. Expected conflict with TASK-1.114's own branch in connection.rs's pane.attach arm is named in the plan; not yet hit since PR #66 has not merged - if it merges after this one, their stream_panes.insert(stream, pane) belongs inside the if armed branch this change adds.
+
+Check FAILED: `cargo test -p steg-server --lib finish_attach_with_armed_false_closes_both_sides_and_records_nothing` exited 101 at 2026-11-17T04:35:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at cfa9f41ab0c9 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing ... FAILED
+
+failures:
+
+---- connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing stdout ----
+
+thread 'connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing' (50713234) panicked at crates/server/src/connection.rs:1054:9:
+an unarmed attach must record nothing in pane_streams: {PaneId(2): (AttachmentId(0), 1)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

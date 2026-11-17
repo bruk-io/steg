@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:29:00Z'
+updated_date: '2026-11-17T01:30:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1004,6 +1004,51 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:30:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size ... ok
+test model::tests::a_combining_mark_is_one_grapheme_and_one_column_not_two ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... FAILED
+
+failures:
+
+---- client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 stdout ----
+
+thread 'client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0' (47538010) panicked at crates/app/src/client.rs:307:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0
+
+test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

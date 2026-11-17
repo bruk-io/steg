@@ -3,40 +3,96 @@
 //! commands come from the API description (R32), with no protocol code of
 //! its own (R101) - and no server logic of its own (R98).
 //!
-//! `server start [--on-demand]` (TASK-1.77) is the first real behaviour:
-//! this crate composes `steg_server::attempt`/`run`/`detach`, all already
-//! public, and prints doc-2's own outcome lines - nothing here decides
-//! how arbitration, detaching or shutdown work, only when to call each.
-//! Every other command is not decided yet - that is TASK-1.49 (the API
-//! description and the CLI's commands generated from it).
+//! `server start [--on-demand]` (TASK-1.77) stays the one hand-written case
+//! for what it *does* (TASK-1.49's own dependency note): starting a server
+//! calls `steg_server::attempt`/`run`/`detach` directly and prints doc-2's
+//! own outcome lines, which a command that is *calling* a method (generated,
+//! `steg::cli::build`) never does - a server being started never had a
+//! server to connect to in the first place. But there is only one parser:
+//! the generated tree reads every invocation, including `server start`'s
+//! own, so `--on-demand`/`--no-on-demand` (doc-2 section 5: both always
+//! accepted, last one wins), an unrecognised flag, and `--help` all mean
+//! what the description says they mean, with no second grammar to drift
+//! from it - a review finding on this task's first pass found the earlier
+//! version matched `server start`'s literal argv instead, so
+//! `--no-on-demand` fell through to the placeholder below, parsed as
+//! valid, silently. Every other command is built from the API description
+//! at run time (TASK-1.49); `steg::cli::run` is its own placeholder for
+//! calling one for real (TASK-1.119's).
 
+use serde_json::Value;
 use steg_server::Arbitration;
 
 fn main() {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let code = match args
-        .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
-        ["server", "start"] => run_server_start(false),
-        ["server", "start", "--on-demand"] => run_server_start(true),
-        // An unrecognised variant of a command this binary *does*
-        // implement gets doc-2 section 6's own bad-usage status (2), not
-        // the generic placeholder below - that placeholder is for commands
-        // not implemented at all yet (TASK-1.49's), which `server start`
-        // itself no longer is.
-        ["server", "start", ..] => {
-            eprintln!("steg: unrecognised arguments to server start");
-            2
-        }
-        _ => {
-            println!("steg: not yet implemented");
+    let argv: Vec<String> = std::env::args().collect();
+    std::process::exit(run_generated(argv));
+}
+
+/// The whole tree `steg::cli::build` generates from the API description,
+/// `version` and `completion` (doc-2 section 2's two non-method commands),
+/// and `steg`/`steg <noun>` alone listing rather than failing (this task's
+/// own engineer decision 1, taken). `server.start` is the one method whose
+/// parsed result is handed to this crate's own hand-written behaviour
+/// (`run_server_start`) instead of the placeholder - still parsed, validated
+/// and `--help`ed by the one generated tree, same as every other method.
+fn run_generated(argv: Vec<String>) -> i32 {
+    let api = steg_sdk::description();
+    let tree = steg::cli::build(&api);
+    let matches = tree.get_matches_from(argv);
+
+    match matches.subcommand() {
+        None => {
+            for noun in api.nouns() {
+                println!("{noun}");
+            }
             0
         }
-    };
-    std::process::exit(code);
+        Some(("version", _)) => {
+            println!(env!("CARGO_PKG_VERSION"));
+            0
+        }
+        Some(("completion", sub)) => {
+            let shell = *sub
+                .get_one::<clap_complete::Shell>("shell")
+                .expect("required");
+            clap_complete::generate(
+                shell,
+                &mut steg::cli::build(&api),
+                "steg",
+                &mut std::io::stdout(),
+            );
+            0
+        }
+        Some((noun, noun_matches)) => match noun_matches.subcommand() {
+            None => {
+                for method in api.verbs_of(noun) {
+                    println!("{}", method.name.verb);
+                }
+                0
+            }
+            Some((verb, verb_matches)) => {
+                let dotted = format!("{noun}.{verb}");
+                let method = api
+                    .method(&dotted)
+                    .expect("every generated subcommand names a described method");
+                if dotted == "server.start" {
+                    let params = steg::cli::extract_params(method, verb_matches);
+                    // Absent (neither flag given) is off, same as every
+                    // other switch left out (doc-2 section 3: "a property
+                    // left out is unchanged") - `server.start` has no
+                    // existing state for it to leave unchanged, so absent
+                    // means the explicit, stays-up-with-no-clients kind.
+                    let on_demand = params
+                        .get("on_demand")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false);
+                    run_server_start(on_demand)
+                } else {
+                    steg::cli::run(method, verb_matches)
+                }
+            }
+        },
+    }
 }
 
 /// Starts a server, explicitly (`on_demand: false`) or on demand. Prints doc-2's

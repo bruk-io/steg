@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T00:07:00Z'
+updated_date: '2026-11-17T00:13:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -410,6 +410,51 @@ to fill, not a file this task invents from nothing).
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-9, doc-10 R20/R22/R29, decision-2 section 3 and TASK-1.114's plan by @bruk.o (plan 344be7f33227): ok. Key bytes come from a pure table; text and keys cannot both send (one branch sends and stops propagation); size is declared on open and when the computed cell grid changes, with no timer; the model draws the size the server reports. For the engineer to weigh: (1) Option composes characters, because GPUI 0.2.2 reports one alt flag with no left or right, so Alt-b and Alt-f word motions do not work until a setting exists; (2) Cmd-V paste is added here as plain bytes with line ends sent as Enter, ahead of TASK-1.57, without bracketed paste; (3) a drag sends one declaration per cell boundary crossed, not one per drag; (4) arrows are sent in normal mode only, so vim and htop arrow keys are wrong until the cursor-key mode is carried on an update. Note for the worker: TASK-1.117 changed its model after this plan was written (it tracks the row count and crops columns to the window), so the two tests named in section 4 may have other names now; replace whichever assert a size that never changes.
+
+Check FAILED: `just check` exited 1 at 2026-11-17T00:13:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at f377b58d5d92 with uncommitted changes, last 40 of 64 lines:
+
+```text
+ /// and always ends on the sequence's own last distinct value" a single, direct assertion.
+[31m-pub(crate) fn coalesce(initial: GridSize, computed: impl IntoIterator<Item = GridSize>) -> Vec<GridSize> {
+(B[m[32m+pub(crate) fn coalesce(
+(B[m[32m+    initial: GridSize,
+(B[m[32m+    computed: impl IntoIterator<Item = GridSize>,
+(B[m[32m+) -> Vec<GridSize> {
+(B[m     let mut declared = initial;
+     let mut sent = Vec::new();
+     for size in computed {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app/src/size.rs:102:
+ 
+     #[test]
+     fn a_changed_computed_size_declares_itself() {
+[31m-        assert_eq!(declare_if_changed(size(80, 24), size(81, 24)), Some(size(81, 24)));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            declare_if_changed(size(80, 24), size(81, 24)),
+(B[m[32m+            Some(size(81, 24))
+(B[m[32m+        );
+(B[m     }
+ 
+     /// The bounded-declarations proof: a drag that passes through several viewport sizes
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app/src/size.rs:112:
+     #[test]
+     fn a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one() {
+         let drag = [
+[31m-            size(80, 24), size(80, 24), size(80, 24), // sub-cell jitter: no new size yet
+(B[m[31m-            size(81, 24),                              // crosses one column
+(B[m[31m-            size(81, 24),                              // settles there briefly
+(B[m[31m-            size(81, 25),                              // crosses one row too - the final size
+(B[m[32m+            size(80, 24),
+(B[m[32m+            size(80, 24),
+(B[m[32m+            size(80, 24), // sub-cell jitter: no new size yet
+(B[m[32m+            size(81, 24), // crosses one column
+(B[m[32m+            size(81, 24), // settles there briefly
+(B[m[32m+            size(81, 25), // crosses one row too - the final size
+(B[m         ];
+         let sent = coalesce(size(80, 24), drag);
+         assert_eq!(sent, vec![size(81, 24), size(81, 25)]);
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

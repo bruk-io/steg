@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:20:00Z'
+updated_date: '2026-11-17T05:21:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1103,6 +1104,15 @@ Per the team's testing rule, a control counts only as a recorded pair against th
 [Nit] The approved plan's own Order of work and Proof sections label the quiet.py step-bound work "AC #4" when it is actually AC #3 by the task's own numbering - a pre-existing plan quirk, not introduced by this build, but worth a one-line fix for a future reader.
 
 What I did not check: did not run `just check` myself (ran targeted cargo test / pytest for the controls instead, within the 40-minute budget); did not repeat run_bounded's own recv_timeout-vs-recv() control; did not read portable_pty's spawn path (correctly out of scope - TASK-1.124).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T05:21:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

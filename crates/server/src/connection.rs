@@ -20,7 +20,7 @@ use steg_sdk::{
     Refusal, Request, Response, WireRole as Role, check_hello, description, encode_frame,
 };
 
-use crate::dispatch::{Context, bad_request, resolve_api_call};
+use crate::dispatch::{Context, bad_request, param_str, resolve_api_call};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
@@ -495,6 +495,25 @@ struct ConnectionState<'a> {
     next_stream: &'a RefCell<u32>,
 }
 
+/// `request`'s own `target`, as a bare `PaneId` (or `context.default_pane`
+/// when it gave none) - parsed directly from the last path segment, never
+/// through the kernel's tree (TASK-1.47 review's own nit): a pane that
+/// has already closed is gone from the tree by the time `pane.detach`
+/// runs, but the exact `PaneId` it closed under never changes, and this
+/// connection's own `pane_streams` is keyed by that same id regardless of
+/// whether the tree still agrees the pane exists. `None` on anything that
+/// does not parse as a bare id at all (a malformed target, or one naming
+/// a session/tab with no trailing pane) - the caller only treats this as
+/// a match if the id it finds is also one `pane_streams` already holds,
+/// so a target that happens to parse but names something unrelated is
+/// never silently accepted here.
+fn parse_target_pane_id(context: &Context, request: &Request) -> Option<PaneId> {
+    match param_str(request, "target") {
+        Some(target) => target.rsplit('/').next()?.parse().ok(),
+        None => context.default_pane,
+    }
+}
+
 /// Handles one decoded request, replying on `state.outbound` - `false`
 /// means the connection should end (the reply queue is closed or full),
 /// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) are
@@ -573,28 +592,48 @@ fn handle_request(
                 }
             }
         }
-        "pane.detach" => match runtime.resolve_pane_target(description, context, &resolved) {
-            Err(error) => {
-                let bytes = Connection::reply(id, Response::Error(error));
-                outbound.enqueue_control(bytes).is_ok()
-            }
-            Ok(pane) => {
-                let entry = pane_streams.borrow_mut().remove(&pane);
-                let response = match entry {
-                    None => Response::Error(bad_request(
-                        "this connection has no attachment to this pane",
-                    )),
-                    Some((attachment_id, stream)) => {
-                        runtime.detach_pane(client_id, pane, attachment_id);
-                        outbound.close_stream(stream);
-                        connection.close_stream(stream);
-                        Response::Ok(serde_json::Value::Null)
+        "pane.detach" => {
+            let outcome = match runtime.resolve_pane_target(description, context, &resolved) {
+                Ok(pane) => pane_streams
+                    .borrow_mut()
+                    .remove(&pane)
+                    .map(|entry| (pane, entry))
+                    .ok_or_else(|| bad_request("this connection has no attachment to this pane")),
+                Err(error) => {
+                    // The pane may have already closed (TASK-1.47
+                    // review's own nit): the tree above no longer
+                    // knows it, but this connection's own bookkeeping
+                    // is still keyed by the exact `PaneId` it was
+                    // attached under - found here, bypassing the tree
+                    // entirely, by parsing the target's own pane
+                    // segment directly (`PaneId`'s own `FromStr`,
+                    // never a kernel lookup). Only used if it actually
+                    // matches something this connection still holds;
+                    // a genuinely bad target falls back to the tree's
+                    // own error instead, unchanged.
+                    match parse_target_pane_id(context, &resolved).and_then(|pane| {
+                        pane_streams
+                            .borrow_mut()
+                            .remove(&pane)
+                            .map(|entry| (pane, entry))
+                    }) {
+                        Some(found) => Ok(found),
+                        None => Err(error),
                     }
-                };
-                let bytes = Connection::reply(id, response);
-                outbound.enqueue_control(bytes).is_ok()
-            }
-        },
+                }
+            };
+            let response = match outcome {
+                Err(error) => Response::Error(error),
+                Ok((pane, (attachment_id, stream))) => {
+                    runtime.detach_pane(client_id, pane, attachment_id);
+                    outbound.close_stream(stream);
+                    connection.close_stream(stream);
+                    Response::Ok(serde_json::Value::Null)
+                }
+            };
+            let bytes = Connection::reply(id, response);
+            outbound.enqueue_control(bytes).is_ok()
+        }
         // `event.watch` (TASK-1.46 §4), reached directly or through
         // `api.call` (already resolved above, the same way `pane.attach`/
         // `pane.detach` are), bypasses the generic reply-after-the-fact

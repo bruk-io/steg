@@ -646,3 +646,39 @@ fn two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_
 
     stop_server(&stop, handle);
 }
+
+/// TASK-1.47 review's own nit: a pane that closes while this connection
+/// is still attached to it must still be detachable - `pane.detach`'s
+/// own target resolution goes through the kernel's tree first, which no
+/// longer knows a closed pane at all, so without a fallback this would
+/// otherwise fail at that step and never reach `close_stream`, leaking
+/// the stream on both sides for the rest of the connection's life.
+#[test]
+fn detaching_a_pane_that_already_closed_still_releases_the_stream() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 0"]);
+    let attached = attach(&mut stream, &mut connection, &pane);
+    assert!(attached.stream > 0);
+
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    params.insert("force".to_string(), json!(true));
+    let response = call_and_read_reply(&mut stream, &mut connection, "pane.close", params);
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "pane.close failed: {response:?}"
+    );
+
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    let response = call_and_read_reply(&mut stream, &mut connection, "pane.detach", params);
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "detaching an already-closed pane must still succeed, not fail at target \
+         resolution: {response:?}"
+    );
+
+    stop_server(&stop, handle);
+}

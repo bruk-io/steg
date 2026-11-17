@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:15:00Z'
+updated_date: '2026-11-17T00:23:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1700,6 +1700,35 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach two_connections_attached_to_one_pane` exited 101 at 2026-11-17T00:23:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... FAILED
+
+failures:
+
+---- two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other stdout ----
+
+thread 'two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other' (46064021) panicked at crates/server/tests/attach.rs:311:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 5.08s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.

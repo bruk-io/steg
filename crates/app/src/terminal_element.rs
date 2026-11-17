@@ -25,6 +25,19 @@
 //! correct, at the cost of one shape/paint call per grapheme rather than one per run;
 //! [`RowCache`] caches whichever of the two a run actually needed, so a cache hit never
 //! replays the wrong path for the wrong run.
+//!
+//! **A run's own column never enters this check (second review finding).** The check
+//! compares each glyph's position against the column its own grapheme owns *within the
+//! run*, never the run's absolute column on the row: `shape_and_check_run` shapes only the
+//! run's own text, never the row, so gpui's own glyph positions are already relative to the
+//! run's start (confirmed in gpui's `line_layout.rs`). The row's absolute column is
+//! [`cell_origin`]'s job alone, applied separately when painting. A first version of this
+//! mixed the two spaces in, so any run not starting at column 0 - an ordinary colour
+//! change mid-line, say - always "failed" the check and took the slow path regardless of
+//! whether it was actually safe; verified fixed with a scratch debug count on a real line
+//! mixing several mid-row, differently-coloured ASCII runs with a wide CJK character and an
+//! emoji sharing one run: every ASCII run, wherever it sat on the row, took the fast,
+//! single-line path, and only the run needing the fallback took the slow one.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -160,7 +173,6 @@ fn paint_grid(
                         &run.text,
                         text_run,
                         metrics.cell_width,
-                        column,
                         per_grapheme_width,
                     )
                 });
@@ -220,17 +232,10 @@ fn shape_and_check_run(
     text: &str,
     text_run: TextRun,
     cell_width: Pixels,
-    run_start_column: u16,
     columns_per_grapheme: u16,
 ) -> CachedRun {
     let whole = shape_text(window, text, text_run.clone());
-    if every_glyph_sits_on_its_own_column(
-        &whole,
-        text,
-        cell_width,
-        run_start_column,
-        columns_per_grapheme,
-    ) {
+    if every_glyph_sits_on_its_own_column(&whole, text, cell_width, columns_per_grapheme) {
         return CachedRun::Whole(Box::new(whole));
     }
     let per_grapheme = text
@@ -244,49 +249,70 @@ fn shape_and_check_run(
     CachedRun::PerGrapheme(per_grapheme)
 }
 
-/// Whether every glyph `shaped` carries sits exactly on the column its own grapheme owns -
-/// the runtime check that makes painting `shaped` as one line provably safe for this
-/// specific run (module doc). `shaped` `#[deref]`s to `gpui::LineLayout`, whose `runs` and
-/// their `glyphs` carry each glyph's own `position` and its `index` (the byte offset into
-/// `text` it came from, gpui's own `line_layout.rs`) - used here to find which grapheme a
-/// glyph belongs to, without assuming one glyph per grapheme.
+/// A small, fixed tolerance for floating-point shaping/rounding, not for a glyph that is
+/// genuinely a fraction of a pixel off the grid - TASK-1.126's own build-time risk, settled
+/// once a real run showed what a truly monospace resolved font actually does.
+const GLYPH_POSITION_EPSILON: Pixels = px(0.5);
+
+/// Whether every glyph `shaped` carries sits exactly on the column its own grapheme owns,
+/// relative to the run's own start - collects each glyph's own `(byte index, x position)`
+/// pair (`shaped` `#[deref]`s to `gpui::LineLayout`, whose `runs` and their `glyphs` carry
+/// `position` and `index`, gpui's own `line_layout.rs`) and hands every decision to
+/// [`every_glyph_position_is_safe`], the plain function over that data this delegates to -
+/// no `gpui` type reaches past this one, thin, gpui-facing wrapper (review finding,
+/// TASK-1.126: split out so the actual decision is testable with no window at all).
 fn every_glyph_sits_on_its_own_column(
     shaped: &ShapedLine,
     text: &str,
     cell_width: Pixels,
-    run_start_column: u16,
     columns_per_grapheme: u16,
 ) -> bool {
-    // A small, fixed tolerance for floating-point shaping/rounding, not for a glyph that
-    // is genuinely a fraction of a pixel off the grid - TASK-1.126's own build-time risk,
-    // settled once a real run showed what a truly monospace resolved font actually does.
-    const EPSILON: Pixels = px(0.5);
+    let glyph_positions: Vec<(usize, Pixels)> = shaped
+        .runs
+        .iter()
+        .flat_map(|run| run.glyphs.iter())
+        .map(|glyph| (glyph.index, glyph.position.x))
+        .collect();
+    every_glyph_position_is_safe(text, &glyph_positions, cell_width, columns_per_grapheme)
+}
 
+/// The pure core of the per-glyph safety check (module doc). `glyph_positions` are each a
+/// shaped glyph's own byte index into `text` and its own `x` position - both **relative to
+/// the run's own start**: `shape_and_check_run` shapes only the run's own text, never the
+/// row it sits in (confirmed in gpui's own `line_layout.rs`: "the position of this glyph in
+/// its containing line", where the "line" here is this one run, shaped alone), so a glyph's
+/// `position.x` is never an absolute column on the row. A run's own absolute column
+/// (`cell_origin`'s own job, applied separately when painting) must never enter this
+/// comparison - review finding, TASK-1.126: the first version of this function added it in
+/// here too, so any run not starting at column 0 always compared its own run-relative
+/// positions against an absolute expectation and always "failed", silently taking the slow
+/// path on every row with more than one styled run.
+#[must_use]
+fn every_glyph_position_is_safe(
+    text: &str,
+    glyph_positions: &[(usize, Pixels)],
+    cell_width: Pixels,
+    columns_per_grapheme: u16,
+) -> bool {
     let grapheme_starts: Vec<usize> = text
         .grapheme_indices(true)
         .map(|(start, _)| start)
         .collect();
-    for run in &shaped.runs {
-        for glyph in &run.glyphs {
-            let Some(grapheme_rank) = grapheme_starts
-                .iter()
-                .rposition(|&start| start <= glyph.index)
-            else {
-                // No grapheme starts at or before this glyph's own byte index - gpui
-                // shaped something this function cannot account for; treat as unsafe
-                // rather than assume it is fine.
-                return false;
-            };
-            #[expect(
-                clippy::cast_possible_truncation,
-                reason = "a single run's own grapheme count never approaches u16::MAX"
-            )]
-            let grapheme_rank = grapheme_rank as u16;
-            let column = run_start_column + grapheme_rank * columns_per_grapheme;
-            let expected_x = cell_width * f32::from(column);
-            if (glyph.position.x - expected_x).abs() > EPSILON {
-                return false;
-            }
+    for &(index, position_x) in glyph_positions {
+        let Some(grapheme_rank) = grapheme_starts.iter().rposition(|&start| start <= index) else {
+            // No grapheme starts at or before this glyph's own byte index - gpui shaped
+            // something this function cannot account for; treat as unsafe rather than
+            // assume it is fine.
+            return false;
+        };
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a single run's own grapheme count never approaches u16::MAX"
+        )]
+        let grapheme_rank = grapheme_rank as u16;
+        let expected_x = cell_width * f32::from(grapheme_rank * columns_per_grapheme);
+        if (position_x - expected_x).abs() > GLYPH_POSITION_EPSILON {
+            return false;
         }
     }
     true
@@ -471,6 +497,11 @@ fn run_key(row: usize, column: u16, run: &Run) -> u64 {
         .underline_colour
         .map(|rgb| (rgb.r, rgb.g, rgb.b))
         .hash(&mut hasher);
+    // Review nit, fixed: without this, the key relied on an unstated invariant (identical
+    // text always carries the same east-asian-width classification, so no two cache
+    // entries sharing a key ever actually need a different columns_per_grapheme) - true in
+    // practice, but a literal hash of the field removes the need to rely on it at all.
+    run.style.wide.hash(&mut hasher);
     hasher.finish()
 }
 
@@ -559,6 +590,45 @@ mod tests {
             cell_origin(origin, cell_width, line_height, 2, 1),
             point(px(116.0), px(70.0))
         );
+    }
+
+    // --- every_glyph_position_is_safe (AC#3): the pure core of the per-glyph safety
+    // --- check, with no `gpui` type and no window at all --------------------------------
+
+    #[test]
+    fn a_run_whose_glyphs_are_all_on_grid_is_safe() {
+        // Three one-byte ASCII graphemes, each landing exactly on its own run-relative
+        // column - the shape a genuinely monospace font actually produces.
+        let positions = [(0, px(0.0)), (1, px(10.0)), (2, px(20.0))];
+        assert!(every_glyph_position_is_safe("abc", &positions, px(10.0), 1));
+    }
+
+    #[test]
+    fn a_glyph_off_by_more_than_the_tolerance_is_unsafe() {
+        // The third glyph sits 2px off its own expected column - well past
+        // GLYPH_POSITION_EPSILON (0.5px) - as a proportional font's own advances would
+        // produce.
+        let positions = [(0, px(0.0)), (1, px(10.0)), (2, px(22.0))];
+        assert!(!every_glyph_position_is_safe(
+            "abc",
+            &positions,
+            px(10.0),
+            1
+        ));
+    }
+
+    #[test]
+    fn positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column() {
+        // Review finding, TASK-1.126: the first version of this check compared these same
+        // run-relative positions against an *absolute* row column, so any run not starting
+        // at column 0 always "failed" here, regardless of whether the glyphs were actually
+        // safe. These positions are exactly what gpui reports for a run shaped on its own
+        // (confirmed by reading gpui's own line_layout.rs: a glyph's own position is
+        // relative to the shaped line it came from, never the row) - the function must
+        // judge them safe purely on their own terms, with no column of the row entering
+        // this comparison at all (there is no such parameter to pass one through any more).
+        let positions = [(0, px(0.0)), (1, px(10.0)), (2, px(20.0))];
+        assert!(every_glyph_position_is_safe("xyz", &positions, px(10.0), 1));
     }
 
     fn style() -> CellStyle {

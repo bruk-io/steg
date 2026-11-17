@@ -933,6 +933,36 @@ Check passed: `uv run --quiet --project tools pytest -q tools/tests/functional/t
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools steg-quiet 'wait_child_bounded timeout control (watchdog kill removed)' -- cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` exited 1 at 2026-11-17T05:05:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+TIMED OUT wait_child_bounded timeout control (watchdog kill removed) (bound 5s, ran 5.0s)
+warning: unused imports: `Signal` and `self`
+  --> crates/server/tests/support/mod.rs:14:24
+   |
+14 | use nix::sys::signal::{self, Signal};
+   |                        ^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `pid`
+   --> crates/server/tests/support/mod.rs:130:9
+    |
+130 |     let pid = Pid::from_raw(raw_pid);
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_pid`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (test "race") generated 2 warnings (run `cargo fix --test "race" -p steg-server` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 1 test
+full output: .quiet/wait-child-bounded-timeout-control-watchdog-kill-removed.log
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

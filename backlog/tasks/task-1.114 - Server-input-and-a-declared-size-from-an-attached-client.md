@@ -21,6 +21,8 @@ asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ec385ef4d563'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1518,6 +1520,15 @@ The 15s/30s bounds in an_unresponsive_panes_own_commands_do_not_stall_the_connec
 Separately, auditing my own Runtime additions per your request: Runtime::send_input (runtime.rs:637-645) and Runtime::declare_size (runtime.rs:662-680), and the apply_size_changed_locked they both call (runtime.rs:2022-2028), hold the lock only across in-memory kernel calls and PaneHandle::send_input/resize (pane.rs:505-509, 518-522) - both plain unbounded mpsc::Sender::send, never a recv. Neither has the shape 1.47's review found in attach_pane. (One test-only lookalike: attachment_count_for_test, runtime.rs:689-695, holds the lock across PaneHandle::attachment_count's own send-then-recv, pane.rs:628+ - #[cfg(test)], not a production path, but the same shape; flagging it so it isn't "found" later.)
 
 That audit did surface a real gap, in a test, not in my production code: an_unresponsive_panes_own_commands_do_not_stall... runs every one of its own calls over a single connection, so its "(a) a plain control call still answers" check only proves this connection's own request queue eventually catches up once the stuck pane's worker drains - not that an unrelated connection stays responsive. That is weaker than the "freezes only that pane's screen" limit this task's own plan names. Added a new test, a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs), issuing one plain pane.show from a second, already-handshaken, otherwise idle connection while a different connection's own attach to the stuck pane is confirmed stuck. Recorded failing via asdlc record-check just now: today's attach_pane does hold the runtime lock across PaneHandle::attach's unbounded recv, so this second connection's pane.show gets no reply within 2s - confirming 1.47's review finding independently, from this side. Left uncommitted on purpose; will record it passing and commit once 1.47's fix lands, per your instruction to hold until then.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:14:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

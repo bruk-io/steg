@@ -3,14 +3,13 @@ id: TASK-1.125
 title: >-
   Server: a pane that closes between attach and arm leaves the client a silent
   stream
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:44:00Z'
+updated_date: '2026-11-17T04:53:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -331,6 +330,8 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Review findings fixed. (1) Important: finish_attach extracted from connection.rs's pane.attach arm (same code, no behaviour change) so a unit test can run the if armed {..} else {..} branch directly - finish_attach_with_armed_false_closes_both_sides_and_records_nothing checks every part of criterion 1 (pane_streams empty, outbound refuses, this connection's own decode side answers UnknownStream not Data, a real pane.detach through handle_request answers BadRequest) and finish_attach_with_armed_true_records_the_attachment_as_today is the armed baseline. Recorded failing (control: the false branch records as if armed anyway) then passing. (2) Nit: removed the vacuous done_rx check right after spawning in the lock-contention test (could pass before that thread even started); the check after the real wait, which is the one that matters, is unchanged. Re-recorded that test's own control against the edit. The ~1GB flood stays, as asked, with the reason (TASK-1.114's own worker found a tenth of that size let the worker catch up before the real check ran) stated in the test's own comment. PR 66 (TASK-1.114) was still open when everything else here was done and green - checked again right before finishing - so AC #3's honest account stands unchanged from the first round; did not wait on it. just check green. Head ef7357c9.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

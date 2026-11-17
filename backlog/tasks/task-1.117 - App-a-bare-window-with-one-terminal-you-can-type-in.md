@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T17:27:00Z'
+updated_date: '2026-11-17T00:19:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
+references:
+  - task-1.117-app-a-bare-window-with-one-terminal-you
+  - https://github.com/bruk-io/steg/pull/65
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -18,6 +22,10 @@ asdlc_branch: task-1.117-app-a-bare-window-with-one-terminal-you
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -674,6 +682,474 @@ error: could not compile `steg-server` (lib test) due to 10 previous errors
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
 ```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:32:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 32a4b6b1945d, last 40 of 47 lines:
+
+```text
+   --> crates/server/src/connection.rs:840:28
+    |
+840 |             let _cleanup = ConnectionCleanup {
+    |                            ^^^^^^^^^^^^^^^^^ missing `events`
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates/server/src/listen.rs:752:23
+    |
+752 |           let runtime = crate::runtime::Runtime::new(
+    |  _______________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+753 | |             std::sync::Arc::new(crate::pty::RealLauncher),
+754 | |             crate::runtime::LoginShell::default(),
+755 | |             Duration::from_millis(1),
+756 | |         );
+    | |_________- argument #4 of type `std::time::Duration` is missing
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:269:12
+    |
+269 |     pub fn new(
+    |            ^^^
+...
+273 |         attach_tick: Duration,
+    |         ---------------------
+help: provide the argument
+    |
+752 |         let runtime = crate::runtime::Runtime::new(
+...
+755 |             Duration::from_millis(1),
+756 ~             /* std::time::Duration */,
+757 ~         );
+    |
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/steg)
+Some errors have detailed explanations: E0061, E0063.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T17:35:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (53.2s)
+ok      build (steg-sdk) (0.5s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.1s)
+ok      build (steg-kernel) (0.6s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (1.0s)
+ok      test (steg-server) (21.7s)
+ok      test (steg-server, race-fixture) (24.6s)
+ok      test (steg-server, accept-backoff-fixture) (23.5s)
+ok      build (steg) (1.6s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (5.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.8s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Part 1 of the plan's three-way split built as approved: a bare window that
+starts/finds a server, finds or makes the labelled session (replacing its
+pane with a fresh tab if the found pane's program has ended), attaches, and
+draws the fixed grid read-only. Threading matches the plan exactly: a
+dedicated thread blocks on the socket and decodes with the sdk's own
+Connection, forwarding each update over a futures::channel::mpsc the
+foreground task awaits - never polled; startup runs on its own dedicated
+thread too, off gpui's background-executor pool.
+
+Two real bugs found and fixed by running the app against a real server
+(nothing in just check opens a window): the model cannot derive a column
+count from a row's own content (a freshly attached, not-yet-printed-to row
+is blank, which read back as 0 columns and capped every row's paint width to
+0) - fixed by tracking only the row count and cropping columns to the
+window's own pixel width instead, with a regression test; and gpui's
+canvas() element needs its own size_full, separate from its wrapping div's,
+confirmed from gpui's own elements/canvas.rs.
+
+Checks recorded via asdlc record-check: just check, clean before and after
+merging origin/main. Every proof item in the plan's own list has a named
+control, each recorded as a failing run (mechanism deliberately broken) and
+a passing run (reverted): the model's fixed row count surviving a delta; the
+blank-first-row regression; columns_that_fit's floor-not-round boundary; a
+Wide run's column count doubling; the channel decoding a StreamControl
+frame; and shutdown() unblocking the reader thread, proven with a bounded
+wait (std::thread::JoinHandle::join has no timeout) so a broken mechanism
+fails the test rather than hanging it.
+
+Build note: this branch's dependency, TASK-1.47, is not on main yet (per
+the engineer's own note it is "rebuilt on main" later) - origin/main's own
+new idle-stop/accept-backoff work was merged in and reconciled by hand
+where both sides touched the same server-internal structs (all additive,
+no logical conflict); diffed clean against origin/main everywhere outside
+crates/app before pushing.
+
+Run by hand against a real on-demand server on a throwaway socket path,
+with a throwaway, isolated shell for the one manual verification pass
+(reverted before committing - the shipped code always defaults to the real
+login shell, doc-9 R13). Confirmed: live output draws; closing and
+relaunching re-attaches to the same session; every process started for
+this was stopped and reaped (ps confirmed clean) before pushing. PR carries
+the screenshot.
+
+CI green on the PR (gh pr checks --watch).
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read'` exited 101 at 2026-11-17T00:11:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... FAILED
+
+failures:
+
+---- startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read stdout ----
+
+thread 'startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read' (45592055) panicked at crates/app/src/startup.rs:421:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read'` exited 0 at 2026-11-17T00:11:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_labelled_session_is_returned_with_no_session_new_call'` exited 101 at 2026-11-17T00:12:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... FAILED
+
+failures:
+
+---- startup::tests::a_labelled_session_is_returned_with_no_session_new_call stdout ----
+
+thread 'startup::tests::a_labelled_session_is_returned_with_no_session_new_call' (45605833) panicked at crates/app/src/startup.rs:418:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::a_labelled_session_is_returned_with_no_session_new_call
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_labelled_session_is_returned_with_no_session_new_call'` exited 0 at 2026-11-17T00:12:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app no_labelled_session_calls_session_new'` exited -9 at 2026-11-17T00:14:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::no_labelled_session_calls_session_new has been running for over 60 seconds
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app no_labelled_session_calls_session_new'` exited 101 at 2026-11-17T00:14:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::no_labelled_session_calls_session_new ... FAILED
+
+failures:
+
+---- startup::tests::no_labelled_session_calls_session_new stdout ----
+
+thread 'startup::tests::no_labelled_session_calls_session_new' (45691854) panicked at crates/app/src/startup.rs:459:21:
+assertion `left != right` failed: the client side closed before sending the expected request
+  left: 0
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::no_labelled_session_calls_session_new
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app no_labelled_session_calls_session_new'` exited 0 at 2026-11-17T00:14:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::no_labelled_session_calls_session_new ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_running_pane_from_a_real_reply_is_returned_unchanged'` exited 101 at 2026-11-17T00:15:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... FAILED
+
+failures:
+
+---- startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged stdout ----
+
+thread 'startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged' (45709291) panicked at crates/app/src/startup.rs:570:20:
+the running pane is returned: Protocol("reading from the server: Resource temporarily unavailable (os error 35)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app an_ended_panes_program_gets_a_fresh_tab_in_the_same_session'` exited 101 at 2026-11-17T00:15:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... FAILED
+
+failures:
+
+---- startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session stdout ----
+
+thread 'startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session' (45717399) panicked at crates/app/src/startup.rs:468:21:
+assertion `left != right` failed: the client side closed before sending the expected request
+  left: 0
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app a_running_pane_from_a_real_reply_is_returned_unchanged'` exited 0 at 2026-11-17T00:15:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.84s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app an_ended_panes_program_gets_a_fresh_tab_in_the_same_session'` exited 0 at 2026-11-17T00:15:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app two_runs_differing_only_in_underline_colour_get_different_keys'` exited 101 at 2026-11-17T00:16:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.00s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... FAILED
+
+failures:
+
+---- terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys stdout ----
+
+thread 'terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys' (45749255) panicked at crates/app/src/terminal_element.rs:332:9:
+assertion `left != right` failed
+  left: 2340915883340319987
+ right: 2340915883340319987
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
+
+Check passed: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app two_runs_differing_only_in_underline_colour_get_different_keys'` exited 0 at 2026-11-17T00:16:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:19:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (57.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.5s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (20.1s)
+ok      test (steg-server, race-fixture) (20.7s)
+ok      test (steg-server, accept-backoff-fixture) (20.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.3s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -693,6 +1169,42 @@ created: 2026-11-16T16:47:00Z
 ---
 
 2026-11-16, @bruk.o: criteria narrowed to the split the engineer accepted: this task is the read-only window. TASK-1.121 has typing and resizing (and the recording); TASK-1.122 has the latency measurement and the per-frame bound. The approved plan calls them parts 2 and 3: cite TASK-1.121 and TASK-1.122 in code and notes. It no longer depends on TASK-1.114: it needs only attach.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T19:47:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 2h 1m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-16T19:56:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+[Bugs, Important] crates/app/src/main.rs:180-187 (AppWindow::teardown, called from on_window_should_close at main.rs:252-258). teardown() calls `self.startup_thread.take()` then an unconditional `thread.join()`, on the main thread, before touching `self.phase`. If the window closes while still `Phase::Connecting`, nothing can unblock that thread: `startup::run()` (startup.rs) creates its `shutdown_handle` as a purely local variable (startup.rs:111-113) that only escapes to the caller via `Attached` on success (startup.rs:221-226) - on any other path, including "still running", no handle to interrupt it ever reaches `AppWindow`. Two concrete hangs follow: (1) while inside `connect()`'s own retry loop, the window freezes for up to `connect_timeout` (10s, startup.rs:108); (2) once connected, every subsequent step (`block_until` for the hello reply at startup.rs:119, and every `call()`/`block_until` for session.list/session.new/tab.list/pane.list/attach) is a blocking `read()` with no timeout and no way to be interrupted from outside the thread - if the server accepts the connection and then stalls, `join()` never returns and the whole app is frozen, not just the window. This is the same class of leak the plan's own §1/§3 and this review's brief (item 2) call out for the reader thread, for which the mechanism and its test exist (`Client::stop`/`client.rs`'s tests) - but no equivalent exists for the startup thread, and no test exercises closing the window during `Phase::Connecting` at all (unsurprising, since nothing in `just check` opens a window, per AC #3 - but this is exactly the gap that leaves it unfound).
+
+[Compliance/Evidence, Important] crates/app/src/startup.rs:166-194 and `find_or_make_session` (startup.rs:231-260). AC #2's own mechanism - "running the app again attaches to the same session" - is this logic: label matching in `find_or_make_session`, and the stale-pane branch that replaces a dead pane's tab with `tab.new` in the same session rather than minting a second session (plan §3/§6). `startup.rs` has zero `#[cfg(test)]` (confirmed: grepped for `cfg(test)`/`mod tests`, nothing), and there is no `crates/app/tests/` either - every proof item in the plan's own §4 list is drawn only from `model`, `metrics` and `client`, never from `startup`. The one manual check recorded in the notes ("closing and relaunching re-attaches to the same session") only exercises the still-running branch; the notes never claim the dead-pane/`tab.new` branch was run at all, by hand or otherwise. Per review policy, a branch the plan itself names as worth proving (the stale-pane fix-up is its own numbered point, §6) needs a test that reaches it, and this one has none - automated or manual.
+
+[Compliance, Important] boundaries.toml / crates/app/Cargo.toml (unicode-segmentation). The plan's §1 names exactly three manifest additions for part 1: `steg-sdk` with `local-socket`, `serde_json`, and `futures` - with `futures` singled out for a paragraph of its own reasoning about not being reachable through gpui's own re-exports. `unicode-segmentation` is a fourth, new direct dependency (used in model.rs's `run_columns` for grapheme counting) that the plan never names and the implementation notes never mention (the notes name only `futures` as an added dependency). The boundaries.toml/Cargo.toml comments justify it well on their own terms, but that is the code explaining itself after the fact, not the plan or the notes - an unannounced manifest/boundary change is exactly the kind of decision review policy treats as a finding even when it turns out to be the right one. (Related nit: a new dependency reaching the workspace this way has no licence named on the task itself, though `just licences` already passed on it.)
+
+[Bugs, Nit] crates/app/src/terminal_element.rs:220-241 (`run_key`). The cache key hashes `fg`/`bg`/bold/italic/inverse/invisible/faint/strikethrough/underline, but not `underline_colour` - two runs identical except for underline colour collide on the same cache key and the first one shaped wins, painting the wrong underline colour on a cache hit. Not exercised by anything in this task (no coloured-underline fixture), and cosmetic.
+
+[Bugs, Nit] crates/app/src/startup.rs (`StartupError::Protocol(String)`). Collapses several distinct failure causes (a malformed frame, a write error, a read error, an API error response, an unexpected shape) into one string-carrying variant rather than an enum a caller could match on (rust.md: "never [add context] by turning it into a string"). Acceptable in effect since the only consumer is a human-readable "disconnected: ..." placeholder with no branching on the cause, but worth a real enum if a later task ever needs to tell these apart.
+
+What I did not find wrong: the no-polling design (startup and the reader each block on a real `read()`/`connect()`, handed to the foreground task over a channel it `.await`s, confirmed by reading client.rs/startup.rs/main.rs in full - no timer, no sleep-loop, no read timeout anywhere); the reader thread's own shutdown (`Client::stop`/`Drop`, verified both by reading and by my own scratch edit removing the `shutdown()` call in client.rs, reverted - the bounded test `stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound` failed with "did not finish within the test's own bound" exactly as claimed, then passed again once reverted); the app reaching the server only through `steg_sdk` (no `steg-kernel`/`steg-server` import anywhere in crates/app); every proof item the plan's own §4 names (model's fixed row count, the blank-first-row regression, columns_that_fit's floor rule, a Wide run's doubled column count, the channel decoding a StreamControl frame) has a recorded failing-then-passing `asdlc record-check` pair, run against the branch's own final commit; and the hand reconciliation of main's idle-stop/accept-backoff work (idle.rs, arbiter.rs, accept_backoff tests) looks sound - diffing this branch against origin/main shows those files byte-for-byte unchanged, and the only overlap is `attach_tick` threaded additively through `Runtime::new`/`ServerConfig`/`pane::start`/`listen::run`, fixed up in the branch's own last commit ("Fix two test-only call sites the merge's own additive conflicts left behind") after a recorded `just check` failure caught the two missed call sites, with `just check` green afterward.
+
+The PR's image (https://github.com/user-attachments/assets/3b6e9d01-2556-4101-a6bf-a4b3873166d2): a bare dark window titled "steg", a `$` prompt and a violet block cursor, nothing else drawn - matches §2's letterboxing (the grid at top-left, empty terminal-background filling the rest of a window taller than the fixed grid) and decision-8/R26's session colour on the cursor (TerminalTheme::cursor). Nothing personal in it.
+
+Not checked: the app was not run (out of scope for this review); R19's latency budget (explicitly deferred to TASK-1.122 by this task's own narrowed scope); TASK-1.47's own mechanism and tests (its own PR, out of scope here beyond the reconciliation above).
 
 ---
 <!-- COMMENTS:END -->

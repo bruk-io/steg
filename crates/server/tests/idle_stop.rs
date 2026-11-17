@@ -272,6 +272,9 @@ impl ProgramLauncher for FakeLauncher {
             child: Box::new(FakeChild {
                 exit_code: Mutex::new(exit_rx),
             }),
+            // No real open to retry here (TASK-1.112) - this fake never
+            // fails its own "open", so it always took exactly one attempt.
+            open_attempts: 1,
         })
     }
 }
@@ -304,7 +307,7 @@ fn a_genuinely_idle_server_stops_itself_within_a_bound() {
     let config = session_config(
         socket_path,
         Some(IDLE_TIMEOUT),
-        Arc::new(steg_server::RealLauncher),
+        Arc::new(steg_server::RealLauncher::default()),
     );
     let (_socket_path, _stop, server_thread) = start_server(config);
     // No client ever connects after this - the idle checker must decide

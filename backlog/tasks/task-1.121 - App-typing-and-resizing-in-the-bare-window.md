@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-16T16:59:00Z'
+updated_date: '2026-11-17T01:12:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '344be7f33227'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -402,3 +405,514 @@ top of 1.117's own, not beside them) and `crates/app/src/client.rs`/`startup.rs`
 `Connection`/`declare_size` wiring TASK-1.117's own plan left as a named slot for this task
 to fill, not a file this task invents from nothing).
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-9, doc-10 R20/R22/R29, decision-2 section 3 and TASK-1.114's plan by @bruk.o (plan 344be7f33227): ok. Key bytes come from a pure table; text and keys cannot both send (one branch sends and stops propagation); size is declared on open and when the computed cell grid changes, with no timer; the model draws the size the server reports. For the engineer to weigh: (1) Option composes characters, because GPUI 0.2.2 reports one alt flag with no left or right, so Alt-b and Alt-f word motions do not work until a setting exists; (2) Cmd-V paste is added here as plain bytes with line ends sent as Enter, ahead of TASK-1.57, without bracketed paste; (3) a drag sends one declaration per cell boundary crossed, not one per drag; (4) arrows are sent in normal mode only, so vim and htop arrow keys are wrong until the cursor-key mode is carried on an update. Note for the worker: TASK-1.117 changed its model after this plan was written (it tracks the row count and crops columns to the window), so the two tests named in section 4 may have other names now; replace whichever assert a size that never changes.
+
+Check FAILED: `just check` exited 1 at 2026-11-17T00:13:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at f377b58d5d92 with uncommitted changes, last 40 of 64 lines:
+
+```text
+ /// and always ends on the sequence's own last distinct value" a single, direct assertion.
+[31m-pub(crate) fn coalesce(initial: GridSize, computed: impl IntoIterator<Item = GridSize>) -> Vec<GridSize> {
+(B[m[32m+pub(crate) fn coalesce(
+(B[m[32m+    initial: GridSize,
+(B[m[32m+    computed: impl IntoIterator<Item = GridSize>,
+(B[m[32m+) -> Vec<GridSize> {
+(B[m     let mut declared = initial;
+     let mut sent = Vec::new();
+     for size in computed {
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app/src/size.rs:102:
+ 
+     #[test]
+     fn a_changed_computed_size_declares_itself() {
+[31m-        assert_eq!(declare_if_changed(size(80, 24), size(81, 24)), Some(size(81, 24)));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            declare_if_changed(size(80, 24), size(81, 24)),
+(B[m[32m+            Some(size(81, 24))
+(B[m[32m+        );
+(B[m     }
+ 
+     /// The bounded-declarations proof: a drag that passes through several viewport sizes
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app/src/size.rs:112:
+     #[test]
+     fn a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one() {
+         let drag = [
+[31m-            size(80, 24), size(80, 24), size(80, 24), // sub-cell jitter: no new size yet
+(B[m[31m-            size(81, 24),                              // crosses one column
+(B[m[31m-            size(81, 24),                              // settles there briefly
+(B[m[31m-            size(81, 25),                              // crosses one row too - the final size
+(B[m[32m+            size(80, 24),
+(B[m[32m+            size(80, 24),
+(B[m[32m+            size(80, 24), // sub-cell jitter: no new size yet
+(B[m[32m+            size(81, 24), // crosses one column
+(B[m[32m+            size(81, 24), // settles there briefly
+(B[m[32m+            size(81, 25), // crosses one row too - the final size
+(B[m         ];
+         let sent = coalesce(size(80, 24), drag);
+         assert_eq!(sent, vec![size(81, 24), size(81, 25)]);
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T00:15:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at f377b58d5d92 with uncommitted changes, last 40 of 65 lines:
+
+```text
+    Checking tokio-rustls v0.26.6
+    Checking hyper-rustls v0.27.10
+    Checking zed-reqwest v0.12.15-zed
+   Compiling toml v0.8.23
+   Compiling half v2.7.1
+    Checking gpui_http_client v0.2.2
+    Checking tiff v0.11.3
+    Checking exr v1.74.3
+    Checking ravif v0.13.0
+    Checking image v0.25.10
+    Checking blade-graphics v0.7.1
+    Checking blade-util v0.3.0
+   Compiling gpui v0.2.2
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: this `if` statement can be collapsed
+  --> crates/app/src/keys.rs:50:5
+   |
+50 | /     if modifiers.control {
+51 | |         if let Some(byte) = control_byte(key) {
+52 | |             return Some(vec![byte]);
+53 | |         }
+54 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+   = note: `-D clippy::collapsible-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+   |
+50 ~     if modifiers.control
+51 ~         && let Some(byte) = control_byte(key) {
+52 |             return Some(vec![byte]);
+53 ~         }
+   |
+
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T00:19:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at f377b58d5d92 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg-app) (20.1s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (1.9s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (45.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (44.6s)
+ok      test (steg-server) (22.1s)
+ok      test (steg-server, race-fixture) (20.8s)
+ok      test (steg-server, accept-backoff-fixture) (23.5s)
+ok      build (steg) (2.1s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.7s)
+ok      build (steg-ui) (1.0s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (0.6s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (12.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:20:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 52 lines:
+
+```text
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-84c5e5a9e7a26d91)
+
+running 15 tests
+test ime::tests::marking_empty_text_closes_the_composition ... ok
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::marking_text_opens_the_composition_and_sends_nothing ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test ime::tests::unmarking_closes_the_composition ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... FAILED
+
+failures:
+
+---- keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says stdout ----
+
+thread 'keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says' (45979149) panicked at crates/app/src/keys.rs:427:13:
+assertion `left == right` failed: row "shift-tab": key="tab" key_char=None modifiers=Modifiers { control: false, alt: false, shift: true, platform: false, function: false }
+  left: Some([9])
+ right: Some([27, 91, 90])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-17T00:20:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33:
+
+```text
+ok      tests (-p steg-app) (0.9s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:20:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 42 lines:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-84c5e5a9e7a26d91)
+
+running 15 tests
+test ime::tests::unmarking_closes_the_composition ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test ime::tests::marking_empty_text_closes_the_composition ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test ime::tests::marking_text_opens_the_composition_and_sends_nothing ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... FAILED
+
+failures:
+
+---- size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero stdout ----
+
+thread 'size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero' (45989810) panicked at crates/app/src/size.rs:96:9:
+assertion `left == right` failed
+  left: GridSize { columns: 0, rows: 0 }
+ right: GridSize { columns: 1, rows: 1 }
+
+
+failures:
+    size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-17T00:20:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33:
+
+```text
+ok      tests (-p steg-app) (0.9s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:21:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 51 lines:
+
+```text
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test ime::tests::unmarking_closes_the_composition ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... FAILED
+test size::tests::an_unchanged_computed_size_declares_nothing ... FAILED
+
+failures:
+
+---- size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one stdout ----
+
+thread 'size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one' (45999435) panicked at crates/app/src/size.rs:129:9:
+assertion `left == right` failed
+  left: [GridSize { columns: 80, rows: 24 }, GridSize { columns: 80, rows: 24 }, GridSize { columns: 80, rows: 24 }, GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 25 }]
+ right: [GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 25 }]
+
+---- size::tests::an_unchanged_computed_size_declares_nothing stdout ----
+
+thread 'size::tests::an_unchanged_computed_size_declares_nothing' (45999440) panicked at crates/app/src/size.rs:103:9:
+assertion `left == right` failed
+  left: Some(GridSize { columns: 80, rows: 24 })
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one
+    size::tests::an_unchanged_computed_size_declares_nothing
+
+test result: FAILED. 13 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just test` exited 0 at 2026-11-17T00:21:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33:
+
+```text
+ok      tests (-p steg-app) (0.8s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:21:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 41 lines:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-84c5e5a9e7a26d91)
+
+running 15 tests
+test ime::tests::marking_text_opens_the_composition_and_sends_nothing ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::marking_empty_text_closes_the_composition ... ok
+test ime::tests::unmarking_closes_the_composition ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... FAILED
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+
+failures:
+
+---- ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it stdout ----
+
+thread 'ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it' (46006094) panicked at crates/app/src/ime.rs:96:9:
+assertion failed: !state.is_composing()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T00:23:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg-app) (0.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.3s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (18.4s)
+ok      test (steg-server, race-fixture) (18.4s)
+ok      test (steg-server, accept-backoff-fixture) (19.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T00:31:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 05dd9808cb59 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (2.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (59.4s)
+ok      build (steg-sdk) (1.0s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (1.3s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.3s)
+ok      test (steg-server) (25.9s)
+ok      test (steg-server, race-fixture) (27.0s)
+ok      test (steg-server, accept-backoff-fixture) (27.7s)
+ok      build (steg) (2.4s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (1.4s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T00:40:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 724fe9aca809 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 0.8s)
+    Blocking waiting for file lock on package cache
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: large size difference between variants
+  --> crates/app/src/main.rs:56:1
+   |
+56 | / enum Phase {
+57 | |     Connecting,
+58 | |     Attached(AttachedState),
+   | |     ----------------------- the largest variant contains at least 304 bytes
+59 | |     Disconnected(String),
+   | |     -------------------- the second-largest variant contains at least 24 bytes
+60 | | }
+   | |_^ the entire enum is at least 304 bytes
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#large_enum_variant
+   = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+   |
+58 -     Attached(AttachedState),
+58 +     Attached(Box<AttachedState>),
+   |
+
+error: could not compile `steg-app` (bin "steg-app") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:12:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 724fe9aca809 with uncommitted changes, last 40 of 79 lines:
+
+```text
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test runtime::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+kill: 96608: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+kill: 96429: No such process
+test runtime::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+kill: 96439: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 96725: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 96427: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails has been running for over 60 seconds
+error: test failed, to rerun pass `-p steg-server --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/target/debug/deps/steg_server-12505e9af74cc0ed` (signal: 15, SIGTERM: termination signal)
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+<!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-17T00:07:00Z
+
+---
+
+Plan approved by @bruk (344be7f33227, size-2): its worker may build it.
+
+---
+
+created: 2026-11-17T00:32:00Z
+
+---
+
+Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you (clean) and origin/task-1.114-server-input-and-a-declared-size-from-an (two conflicts) into this branch.
+
+Conflicts: crates/server/src/connection.rs (pane_streams's key type - took 1.114's side, the AttachmentId fix per the orchestrator's note) and crates/server/src/listen.rs (a test-only Duration literal for the now-shared attach_tick parameter - kept the named DEFAULT_ATTACH_TICK constant, incidental to that test's own assertion either way).
+
+Model (crates/app/src/model.rs) departs from the plan's section 4 as written, because 1.117's own model changed shape before this merge: it now tracks only a row count (columns are cropped by pixel bounds, not counted), not the full (columns, rows) the plan's prose assumed. Updated it to read that row count from Screen.size (now real, from TASK-1.114) instead of rows.len(), and to update it from a Full resync's own size. Renamed/replaced the two tests the plan named as falsified, under their real current names: from_snapshot_reads_its_fixed_row_count_once -> from_snapshot_reads_its_row_count_from_the_snapshots_own_size; a_full_update_replaces_the_whole_grid_but_not_the_fixed_row_count_it_was_built_with -> a_full_update_replaces_the_whole_grid_and_its_own_reported_size (now asserts the size changes, the opposite of its old name). a_delta_touches_only_the_rows_it_names_... is left asserting "unchanged" for now and renamed to say so plainly, because ScreenUpdate::Delta carries no size field on the branch this was merged against yet - TASK-1.114's own section 2 adds one; this is the known, named gap to close at the next re-merge, not a decision that Delta should stay size-blind.
+
+just check: exit 0 after the merge and this fix.
+
+---
+
+created: 2026-11-17T01:12:00Z
+
+---
+
+The just check recorded above (exit 101, race-fixture) was stopped by the team lead: it hung in steg-server's own outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails, the known intermittent hang recorded on TASK-1.113, not this task's own code. Re-running now.
+
+---
+<!-- COMMENTS:END -->

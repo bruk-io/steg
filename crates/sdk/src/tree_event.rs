@@ -151,12 +151,53 @@ impl TreeEvent {
         let envelope = serde_json::json!({ "event": name, "data": body });
         serde_json::from_value(envelope)
     }
+
+    /// The reverse of [`TreeEvent::parse`]: the `name`/`body` pair a
+    /// producer (`steg-server`'s own `broadcast`) hands to `Connection::
+    /// emit_event` - taken from this same enum's own serde representation
+    /// (`serde_json::to_value`, then split at the `event`/`data` keys its
+    /// derive already writes), so a producer builds the exact same shape
+    /// `parse` reads back, from the one definition.
+    ///
+    /// # Panics
+    /// Never in practice: every variant here derives `Serialize` over
+    /// plain data with no cycle and no non-finite float.
+    #[must_use]
+    pub fn to_wire(&self) -> (String, serde_json::Value) {
+        let mut value = serde_json::to_value(self).expect("TreeEvent always serialises");
+        let object = value
+            .as_object_mut()
+            .expect("the tag/content representation is always an object");
+        let name = object
+            .remove("event")
+            .expect("the tag field is always present")
+            .as_str()
+            .expect("the tag is always a string")
+            .to_owned();
+        let body = object.remove("data").unwrap_or(serde_json::Value::Null);
+        (name, body)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::TreeEvent;
     use crate::ids::{PaneId, SessionId, TabId};
+
+    /// A producer's own `to_wire` and a consumer's own `parse` agree on
+    /// the exact same `name`/`body` pair - a change to one that the other
+    /// does not follow would otherwise only be caught the first time a
+    /// real event crossed the wire.
+    #[test]
+    fn to_wire_and_parse_round_trip() {
+        let event = TreeEvent::PaneExited {
+            pane: PaneId::from_raw(1),
+            exit_code: 3,
+        };
+        let (name, body) = event.to_wire();
+        assert_eq!(name, "pane.exited");
+        assert_eq!(TreeEvent::parse(&name, body).unwrap(), event);
+    }
 
     #[test]
     fn parses_a_pane_closed_event_by_name() {

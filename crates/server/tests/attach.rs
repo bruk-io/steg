@@ -569,3 +569,80 @@ fn disconnecting_without_detaching_does_not_leak_or_block_a_later_attach() {
 
     stop_server(&stop, handle);
 }
+
+/// TASK-1.114's own real bug, caught before it ever shipped: `PaneCommand::
+/// Arm`/`Detach` used to match an attachment by the connection-supplied
+/// `stream` number alone, which is only unique *within* one connection -
+/// two different connections attached to the same pane both mint
+/// `stream == 1` for their own first attachment, since each one's own
+/// `next_stream` counter starts fresh. Matching on that number alone found
+/// whichever entry happened to come first in the worker's own list,
+/// regardless of which connection a command actually named - detaching one
+/// connection's attachment silently detached the other's instead. The pane
+/// worker now mints its own `AttachmentId` at `Attach` time (TASK-1.114)
+/// and `Arm`/`Detach` key off that, never the bare stream number.
+#[test]
+fn two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other()
+ {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+
+    // Steady, paced output, continuously drained by both connections below
+    // - the same reasoning `detach_ends_the_stream_even_though_the_program_
+    // keeps_producing_output`'s own comment gives for not flooding: this
+    // test's own proof needs updates to keep arriving on the survivor,
+    // which a saturated queue would mask.
+    let pane = new_pane_running(
+        &mut stream_a,
+        &mut connection_a,
+        vec!["sh", "-c", "while true; do echo flooding; sleep 0.02; done"],
+    );
+
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+    // Both connections mint their own stream ids independently, starting
+    // from the same count - the exact precondition the bug needed: this
+    // assertion is not the proof itself, only confirmation the race this
+    // test is built to catch is actually being given a chance.
+    assert_eq!(
+        attached_a.stream, attached_b.stream,
+        "this test only proves anything if both connections mint the same \
+         stream number for their own first attachment"
+    );
+
+    // Each connection really does get its own, independent updates -
+    // never checked by reading the wire's own stream id and hoping that is
+    // enough, since both sides use the same number: only that each
+    // connection's own decoded update arrives on its own connection.
+    for _ in 0..2 {
+        let _ = next_update(
+            &mut stream_a,
+            &mut connection_a,
+            attached_a.stream,
+            Duration::from_secs(5),
+        );
+        let _ = next_update(
+            &mut stream_b,
+            &mut connection_b,
+            attached_b.stream,
+            Duration::from_secs(5),
+        );
+    }
+
+    detach(&mut stream_a, &mut connection_a, &pane, attached_a.stream);
+
+    // The bug this test is named for: detaching A's attachment (bare
+    // stream number 1) must never also detach B's (also bare stream
+    // number 1) - B's connection must still be receiving real updates
+    // right after A's own detach returns.
+    let _ = next_update(
+        &mut stream_b,
+        &mut connection_b,
+        attached_b.stream,
+        Duration::from_secs(5),
+    );
+
+    stop_server(&stop, handle);
+}

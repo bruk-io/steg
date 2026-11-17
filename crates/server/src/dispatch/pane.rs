@@ -79,7 +79,12 @@ fn parse_direction(word: &str) -> Direction {
 /// `None` whenever the tab holds no declared size yet (R91) -
 /// `pane_size` below reads `Tree::tab_layout`/`Tab::size` the same way
 /// `tab::record_for` reads `tab_layout` for `TabRecord.layout`.
-fn record_for(tree: &Tree, tab_id: steg_sdk::TabId, pane: &Pane, now: Moment) -> PaneRecord {
+pub(super) fn record_for(
+    tree: &Tree,
+    tab_id: steg_sdk::TabId,
+    pane: &Pane,
+    now: Moment,
+) -> PaneRecord {
     PaneRecord {
         id: pane.id(),
         label: pane.label().map(str::to_string),
@@ -230,10 +235,13 @@ fn split(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
 /// `Pane::program_status()`, because the kernel's `close_pane` has no concept of
 /// "refuse" (TASK-1.40's own plan rejected threading a force flag through
 /// its signature, the same reasoning this plan's own §5 repeats). With
-/// `--force`, this always proceeds (whether anything is running or not) -
-/// `Runtime::close_and_dispatch` (TASK-1.78 §5) is what ends a running
-/// program *before* calling this, under the same lock, so by the time this
-/// unconditional `tree.close_pane` runs there is nothing left to force.
+/// `--force`, this always proceeds (whether anything is running or not):
+/// the kernel's own tree has no notion of a still-running OS process
+/// either way, only of a pane that exists or does not. Actually ending a
+/// running program is `Runtime::close_and_dispatch`'s own job (TASK-1.78
+/// §5), and it happens *after* this call returns, not before - once the
+/// kernel has reported what the close removed, under the same lock, the
+/// caller pops that pane's handle and asks it to end, outside the lock.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_pane(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);
@@ -244,10 +252,19 @@ fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
         return Err(super::program_running());
     }
 
-    tree.close_pane(id).map_err(map_kernel_error)?;
-    Ok(Outcome::Nothing)
+    let closed = tree.close_pane(id).map_err(map_kernel_error)?;
+    Ok(Outcome::PaneClosed(closed))
 }
 
+/// `pane.move`: moves `pane` into another tab, by `--direction`'s own
+/// default when none is given (doc-2 section 8 names no direction field
+/// for this method). If `pane` was its own tab's last, `move_pane_to_tab`
+/// cascades the same way `close_pane` does (R94) - closing the source tab
+/// and, if that tab was the session's last, the source session too.
+/// `Outcome::PaneMoved` carries that cascade out so `Runtime`'s own
+/// `move_and_dispatch` can emit `tab.closed`/`session.closed` from it,
+/// same reason and same shape as `pane.close`/`tab.close` (TASK-1.46,
+/// found one review round later on this method).
 fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let pane = target_pane(tree, context, request)?;
     let to = param_str(request, "to").ok_or_else(|| bad_request("needs to"))?;
@@ -258,9 +275,10 @@ fn move_(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcom
     // dispatch's own default - appending at the end of the target tab -
     // documented here since the description gives no way for a caller to
     // ask for anything else.
-    tree.move_pane_to_tab(pane, target_tab, Direction::Right)
+    let moved = tree
+        .move_pane_to_tab(pane, target_tab, Direction::Right)
         .map_err(map_kernel_error)?;
-    Ok(Outcome::Nothing)
+    Ok(Outcome::PaneMoved(moved))
 }
 
 fn set(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {

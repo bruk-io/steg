@@ -3,15 +3,20 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T13:56:00Z'
+updated_date: '2026-11-17T00:57:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
+references:
+  - task-1.112-server-opening-a-pseudo-terminal-still
+  - https://github.com/bruk-io/steg/pull/61
+  - https://github.com/bruk-io/steg/pull/67
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -19,6 +24,9 @@ asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4592947e385d'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -533,6 +541,284 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+## CI's OWN NUMBERS (temporary workflow step, pull request 61, now removed)
+
+Ran on GitHub's hosted macOS runner, via a temporary CI step since removed (reverted in a follow-up commit before this pull request merges, per the engineer's instruction).
+
+Shipped-default test (5 attempts, 3,200 opens), 5 runs: all 5 passed, wall time 2.6s-4.7s per run.
+
+Ignored no-retry control (`max_open_attempts = 1`), 3 runs: all 3 reproduced the race. Opens until first failure on the worker that saw it: 1, 9, 1. Total opens across all workers before the control stopped them: 879, 793, 557. Wall time: 1.1s-1.4s per run.
+
+Reading this against the dev-machine table above: CI's runner reproduced faster and more consistently (3/3, each within under 1,000 total opens) than this shared dev machine did at the same bound (3/3 there too, but one run needed 60,491 opens and 110s) - consistent with this task's own finding that the rate depends on ambient pty activity elsewhere on the machine, which a dedicated CI runner has far less of than this heavily-shared dev machine. No miss recorded on either machine at the 100,000-open bound.
+
+Check FAILED: `just check` exited 101 at 2026-11-16T19:50:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 96bbab0c5012, last 40 of 44 lines:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+error[E0423]: expected value, found struct `crate::pty::RealLauncher`
+   --> crates/server/src/listen.rs:752:33
+    |
+752 |               std::sync::Arc::new(crate::pty::RealLauncher),
+    |                                   ^^^^^^^^^^^^^^^^^^^^^^^^ help: use struct literal syntax instead: `crate::pty::RealLauncher { max_open_attempts: val }`
+    |
+   ::: crates/server/src/pty.rs:193:1
+    |
+193 | / pub struct RealLauncher {
+194 | |     max_open_attempts: u32,
+195 | | }
+    | |_- `crate::pty::RealLauncher` defined here
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/steg)
+For more information about this error, try `rustc --explain E0423`.
+error: could not compile `steg-server` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0423]: expected value, found struct `steg_server::RealLauncher`
+   --> crates/server/tests/idle_stop.rs:307:18
+    |
+307 |         Arc::new(steg_server::RealLauncher),
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates/server/src/pty.rs:193:1
+    |
+193 | pub struct RealLauncher {
+    | ----------------------- `steg_server::RealLauncher` defined here
+
+error[E0063]: missing field `open_attempts` in initializer of `steg_server::SpawnedProgram`
+   --> crates/server/tests/idle_stop.rs:268:12
+    |
+268 |         Ok(SpawnedProgram {
+    |            ^^^^^^^^^^^^^^ missing `open_attempts`
+
+Some errors have detailed explanations: E0063, E0423.
+For more information about an error, try `rustc --explain E0063`.
+error: could not compile `steg-server` (test "idle_stop") due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T19:54:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 96bbab0c5012 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (52.5s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.7s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.6s)
+ok      build (steg-server) (1.0s)
+ok      test (steg-server) (22.4s)
+ok      test (steg-server, race-fixture) (21.9s)
+ok      test (steg-server, pty-race-fixture) (31.0s)
+ok      test (steg-server, accept-backoff-fixture) (23.1s)
+ok      build (steg) (1.1s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.8s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Built per the engineer's final direction (sequential warm-worker design; the no-retry control #[ignore]d and run on demand, not a just-check gate; the departure and the full table recorded in the task's own notes under its own heading).
+
+What was built: RealLauncher retries any failure of the open step (not the spawn), up to 5 attempts by default, no sleep, the attempt count folded into the error on exhaustion; a retry is never silent (PaneEvent::OpenRetried from both start and restart). OPENPTY_LOCK is unchanged.
+
+Proof, recorded via asdlc record-check throughout:
+- pty.rs's own unit-test seam (open_with_retry) with its revert-based negative control.
+- A Runtime-level test for a pane whose open exhausts every attempt (AC #3), with its own revert-based control on the existing rollback path.
+- A new pty-race-fixture Cargo feature (mirrors race-fixture): a fixed, modest cross-process test at the shipped default gates just check (~4-5s locally, 2.6-4.7s on CI); the sequential no-retry control is ignored but run on demand (just test-openpty-race-control) and recorded reproducing the race on every attempt made, on both this dev machine and CI's own runner (numbers in the task's notes).
+- A temporary CI workflow step gathered CI's own numbers for both tests, then was reverted (764a9d2) before this PR's head.
+
+just check is green on the final head (CI run 43944340331, 7m20s). Two merge-conflict fixups (RealLauncher/SpawnedProgram call sites TASK-1.98's own merged work added) are in a separate, clearly-labelled commit.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:29:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe:
+
+```text
+ok      format check (0.4s)
+ok      lint (7.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (1.0s)
+ok      test (steg-sdk) (2.7s)
+ok      test (steg-sdk, local-socket) (3.0s)
+ok      build (steg-kernel) (1.4s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.5s)
+ok      test (steg-server) (25.5s)
+ok      test (steg-server, race-fixture) (25.6s)
+ok      test (steg-server, pty-race-fixture) (33.6s)
+ok      test (steg-server, accept-backoff-fixture) (26.3s)
+ok      build (steg) (2.5s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (2.6s)
+ok      build (steg-app) (2.3s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (11.8s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source` exited 101 at 2026-11-17T00:33:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+warning: struct `OpenExhausted` is never constructed
+   --> crates/server/src/pty.rs:190:8
+    |
+190 | struct OpenExhausted {
+    |        ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source ... FAILED
+
+failures:
+
+---- pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source stdout ----
+
+thread 'pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source' (46368026) panicked at crates/server/src/pty.rs:434:9:
+assertion `left == right` failed: the last underlying error must be the real cause itself, not a formatted message anywhere in the chain - that would mean the cause was turned into a string
+  left: "failed to openpty after 3 attempt(s): synthetic cause"
+ right: "synthetic cause"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source` exited 0 at 2026-11-17T00:33:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:36:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (54.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.7s)
+ok      test (steg-server) (25.8s)
+ok      test (steg-server, race-fixture) (27.2s)
+ok      test (steg-server, pty-race-fixture) (31.9s)
+ok      test (steg-server, accept-backoff-fixture) (27.2s)
+ok      build (steg) (0.4s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (7.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:39:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 8009af415d44:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (20.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (20.4s)
+ok      test (steg-server, race-fixture) (20.7s)
+ok      test (steg-server, pty-race-fixture) (27.3s)
+ok      test (steg-server, accept-backoff-fixture) (21.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.4s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 77, 69 without the Asdlc-Worker trailer.
+
+Review fix (PR 61 had already merged; this is a new pull request from the same branch, referencing it).
+
+The one Important finding: RealLauncher::spawn's open-exhaustion path folded the retry's cause into a formatted string before boxing it as Error::Pty, losing the source chain (source() returned None) - .claude/rules/rust.md forbids this, and every other Error::Pty call site in the file kept the cause directly.
+
+Fix: OpenExhausted carries {attempts, cause}, with source() returning the real cause; built by a small open_exhausted(attempts, cause) function kept separate from RealLauncher::spawn specifically so it is directly unit tested with a synthetic cause and no real pty. New test walks the whole source chain (Error::Pty -> OpenExhausted -> the real cause) and checks the attempt count is still in the message, with its own recorded negative control: open_exhausted reverted to the string form (the test fails), restored (it passes) - both recorded via asdlc record-check.
+
+The nit (wait_timeout_or_kill's 5ms poll) left as-is per the review's own call - precedented by tests/race.rs's identical pattern.
+
+just check green on the final head, locally and on CI (run 43989431067, 6m26s). No leftover process after any run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -576,6 +862,68 @@ Numbers, all taken within the last 30 minutes, same machine, same code:
 Reading this together: the rate looks bursty, not a stable per-open constant - several of the fast reproductions (opens-until-first-failure = 1) suggest something *else* on this shared machine was also hammering ptys at that exact moment, and the self-contained rate from this fixture's own 16 workers alone, with nothing else helping, may be considerably lower and is what the zero-failure runs and the newly re-measured ~0.02-0.05% (not the original ~0.3-0.4% from early in this investigation) are showing. I don't yet have a bound I'm confident in without more time on this, and a naive 5x-larger bound just cost over two minutes without finishing - possibly fine on a quieter machine, possibly a sign the approach needs a different shape (e.g. sized and tuned against CI's own numbers rather than this heavily-shared dev machine, since CI's contention profile is presumably more stable run to run).
 
 Not weakening the control to force a pass - holding here instead, same as before. The code for the sequential design (fixture + test) is in the worktree, not committed; CONCURRENT_WORKERS/TOTAL_OPEN_BOUND are still placeholders (16/20,000) pending direction.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 4h 6m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:25:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: rust, testing-rust. The diff does not match the plan.
+
+[Bugs/Rust, Important] crates/server/src/pty.rs:263-265 - RealLauncher::spawn's exhaustion path formats the retry's real cause into a string before boxing it (`Error::Pty(format!("failed to openpty after {attempts} attempt(s): {cause}").into())`), discarding the original error's source chain - Error::source() returns None for a String-backed Box<dyn Error>. .claude/rules/rust.md: "Add context where the error crosses a boundary, never by turning it into a string." Every other call site in this same file (lines 287, 298, 302, 313: `Error::Pty(cause.into())`) preserves the cause directly; only this new exhaustion path, which AC #4 specifically cares about ("the last error surfaces"), stringifies it. A small wrapper error type carrying {attempts, cause} with source() returning Some(cause.as_ref()) would keep both the message and the structured source.
+
+[Bugs/testing-rust, Nit] crates/server/tests/openpty_race.rs:377 - wait_timeout_or_kill polls with std::thread::sleep(Duration::from_millis(5)), which .claude/rules/testing-rust.md says a test should not do to wait for something. Precedented (tests/race.rs:84 has the identical pattern already), so Nit not Important.
+
+Checked and clear: the retry (any failure of the open step, no sleep, OpenRetried sent from both pane::start and worker_loop's Resume handling, exhaustion returns the last error with the attempt count, nothing allocated before the open succeeds so no fd/pane/thread leak on exhaustion - AlwaysFailsToOpenLauncher's own test confirms no thread is even spawned). .github/workflows/ci.yml on the branch head is byte-identical to main's pre-merge state (confirmed by diff) - the temporary CI step (b4e56dd7) was reverted (764a9d26) before the PR's head, as the notes say. Every wait in tests/openpty_race.rs and its fixture is bounded (READY_TIMEOUT/STOP_TIMEOUT/FIXED_SAFETY_NET/CONTROL_SAFETY_NET), and ReapOnDrop kills+waits its child on every path including a panic mid-test - verified no leftover process after running just check and a scratch revert myself. Both cited controls (pty.rs's open_with_retry unit tests, and runtime.rs's AC #3 rollback test) were recorded against the uncommitted working tree that became commit 577ed2a6ae69 unchanged - confirmed by diffing 577ed2a6ae69 against the final head 0d2a0bc1 for pty.rs, runtime.rs (rollback_mint/start_and_dispatch untouched - the only runtime.rs changes between those two commits are TASK-1.86's unrelated idle-notifier plumbing, merged in via 96bbab0c) and tests/runtime.rs (no diff at all). I independently repeated the layer (a) control myself: reverted open_with_retry to a single call in a scratch edit, confirmed fails_once_then_succeeds_counts_one_retry and fails_every_time_surfaces_after_exactly_the_bound both fail exactly as the task's own recorded control shows, then reverted the edit (git diff clean afterward). Ran just check once at the branch head myself: exited 0, all steps green including the new "test (steg-server, pty-race-fixture)" step; no hang, no leftover process.
+
+plan-matched=no: this is the orchestrator-approved, notes-recorded departure from the plan's own words (the no-retry control moved from a permanent just-check gate to an #[ignore]d, on-demand test, with criterion 2 reworded to match) plus the justfile recipe (test-openpty-race-control) that departure needed, which the plan's own "Files that change" list did not name. Not counted as an Important finding: the notes explain it in detail with real numbers (the 15% miss rate at the plan's original density, the redesign, the final 100,000-open bound's 3/3 local and 3/3 CI reproductions), matching the review brief's own framing of this as a disclosed, agreed departure.
+
+Not checked: whether anything outside crates/server/src/pty.rs's error-handling (this one exhaustion path) also silently drops a source chain elsewhere in the crate - only this task's own new code was in scope.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:46:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:51:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review of PR 67 (head 8009af4) against main: only crates/server/src/pty.rs changed, 79 insertions/6 deletions, exactly the first pass's one Important finding and what serves it.
+
+1. Fixed. The exhaustion path now calls open_exhausted(attempts, cause), which builds Error::Pty(Box::new(OpenExhausted { attempts, cause })); OpenExhausted::source() returns Some(cause.as_ref()), so the real cause stays reachable instead of being folded into a string. Checked every other Error::Pty call site in the file (lines 326, 337, 341, 352): all still use cause.into() directly, unchanged - no other error in this diff was turned into a string.
+
+2. The new test (pty.rs:424) walks source() to the end of the chain and asserts the last error's text is the synthetic cause itself, plus asserts the formatted message still contains the attempt count. The worker's recorded control pair (fail at 38e596bd3cbe+uncommitted 00:33:13, pass at 00:33:26) is for this same change: git diff 38e596bd3cbe..HEAD -- crates/server/src/pty.rs equals the PR's own diff against main, so the committed fix is byte-identical to what was tested uncommitted - the recorded control applies unchanged at the head. I also repeated it myself: reverted open_exhausted to the format! string form in a scratch edit at head 8009af41, ran the test, got the same failure shape (left: the formatted string, right: "synthetic cause"), then `git checkout --` the file clean. Ran cargo test -p steg-server --lib pty::tests at head: all 4 pass, no warnings (OpenExhausted's earlier dead_code warning is gone now that both real code and the test construct it).
+
+3. Nothing else changed in the diff beyond this fix and what serves it - no other file touched, no test weakened, no behaviour beyond the fix.
+
+plan-matched=yes for this diff: it touches only crates/server/src/pty.rs (named in the plan's "Files that change") and does only what the plan's error-message line already called for, now done without losing the source chain; a private error type added to satisfy a review finding is not a plan departure. (The task-level plan-matched=no from the first pass, about the #[ignore]d control and the justfile recipe, stands on its own record and isn't re-litigated here - it predates and is outside PR 67's diff.)
+
+Not checked: did not re-run the first pass's nit (tests/openpty_race.rs's 5ms poll) - that file isn't in this diff, and the first pass already closed it as precedented. Did not run `just check` (ten-minute budget); relying on the recorded green at this exact head (8009af415d44, 00:39:32) and CI green (run 43989431067), plus my own targeted pty::tests run at head.
 
 ---
 <!-- COMMENTS:END -->

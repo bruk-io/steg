@@ -301,15 +301,19 @@ struct ConnectionCleanup<'a> {
     shutdown_handle: UnixStream,
     runtime: &'a Runtime,
     client_id: ClientId,
-    /// Every pane this connection still attaches to, by stream
-    /// (TASK-1.47), swept below so a connection that ends without calling
-    /// `pane.detach` for all of them does not leak a dead attachment in a
-    /// pane's own fan-out list forever. `Tree::disconnect_client` (below)
-    /// already removes this connection's whole kernel-level `Client` row
-    /// in one step, viewing list included - there is nothing left to
-    /// release there; only each pane's own worker thread, which the
-    /// kernel knows nothing about, still needs telling.
-    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    /// Every pane this connection still attaches to, by its own
+    /// worker-minted [`crate::pane::AttachmentId`] and connection-local
+    /// stream id (TASK-1.47; the id, TASK-1.114 - see `AttachmentId`'s
+    /// own doc for why the bare stream number is not a safe key once a
+    /// second connection can attach the same pane), swept below so a
+    /// connection that ends without calling `pane.detach` for all of them
+    /// does not leak a dead attachment in a pane's own fan-out list
+    /// forever. `Tree::disconnect_client` (below) already removes this
+    /// connection's whole kernel-level `Client` row in one step, viewing
+    /// list included - there is nothing left to release there; only each
+    /// pane's own worker thread, which the kernel knows nothing about,
+    /// still needs telling.
+    pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
     /// TASK-1.86 review finding: a review found this guard already runs
     /// on every path out of `run_post_handshake` (a normal return, an
     /// early return, *or* an unwind) but did not hold the sender that
@@ -331,9 +335,16 @@ impl Drop for ConnectionCleanup<'_> {
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
-        for (&pane, &stream) in self.pane_streams.borrow().iter() {
-            self.runtime.forget_attachment(pane, stream);
+        for (&pane, &(attachment_id, _stream)) in self.pane_streams.borrow().iter() {
+            self.runtime.forget_attachment(pane, attachment_id);
         }
+        // Before `disconnect_client`: a subscriber entry keyed by this
+        // same `client_id` must not linger past the id itself being
+        // freed for reuse (TASK-1.46 §7) - deregistering first, while the
+        // id is still unambiguously this connection's own, is what keeps
+        // that ordering safe regardless of which happens to run first in
+        // practice.
+        self.runtime.deregister_subscriber(self.client_id);
         self.runtime.disconnect_client(self.client_id);
         // Last, after this guard's own pre-existing duties keep their
         // exact order (unchanged above) - `Drop` runs exactly once, so
@@ -373,25 +384,34 @@ fn run_post_handshake(
     client_id: ClientId,
     events: Option<Sender<ConnectionEvent>>,
 ) {
-    // Three independent handles to the one underlying socket: `stream`
+    // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
-    // writer thread), and `shutdown_handle` (kept by the cleanup guard
-    // solely to force a stuck writer to fail promptly - see its own doc).
-    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
-        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
-        _ => {
-            // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so `ConnectionCleanup` is never built on this
-            // path either - both of its duties (disconnecting the client,
-            // reporting `Disconnected`) are done directly here instead,
-            // in the same order the guard would have used.
-            runtime.disconnect_client(client_id);
-            if let Some(events) = &events {
-                let _ = events.send(ConnectionEvent::Disconnected);
+    // writer thread), `shutdown_handle` (kept by the cleanup guard solely
+    // to force a stuck writer to fail promptly - see its own doc), and
+    // `subscriber_shutdown` (kept by `Runtime`'s own subscriber registry,
+    // TASK-1.46 §3/§7 - a slow subscriber is closed, not resynced: a
+    // broadcast that cannot be queued shuts this connection's socket down
+    // directly, from whichever thread is broadcasting, since nothing else
+    // can make this connection's own blocked read return without one).
+    let (write_half, shutdown_handle, subscriber_shutdown) =
+        match (stream.try_clone(), stream.try_clone(), stream.try_clone()) {
+            (Ok(write_half), Ok(shutdown_handle), Ok(subscriber_shutdown)) => {
+                (write_half, shutdown_handle, subscriber_shutdown)
             }
-            return;
-        }
-    };
+            _ => {
+                // No write half to hand a writer thread at all - nothing was
+                // ever spawned, so `ConnectionCleanup` is never built on this
+                // path either - both of its duties (disconnecting the client,
+                // reporting `Disconnected`) are done directly here instead,
+                // in the same order the guard would have used; there is
+                // also nothing registered as a subscriber yet to deregister.
+                runtime.disconnect_client(client_id);
+                if let Some(events) = &events {
+                    let _ = events.send(ConnectionEvent::Disconnected);
+                }
+                return;
+            }
+        };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
     // TASK-1.47: this connection's own attachment bookkeeping - which
@@ -399,8 +419,14 @@ fn run_post_handshake(
     // hand out. Shared (via `RefCell`) between the read loop below, which
     // mutates it on every `pane.attach`/`pane.detach`, and the cleanup
     // guard, which only ever reads it, once, on the way out.
-    let pane_streams: RefCell<HashMap<PaneId, u32>> = RefCell::new(HashMap::new());
+    let pane_streams: RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>> =
+        RefCell::new(HashMap::new());
     let next_stream = RefCell::new(0_u32);
+    // Registered the moment this connection is usable at all - before the
+    // request loop below can bring in `event.watch` (TASK-1.46 §7): a
+    // connection must never be asked to subscribe before it is
+    // registered (`Runtime::subscribe`'s own invariant rests on this).
+    runtime.register_subscriber(client_id, Arc::clone(&outbound), subscriber_shutdown);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
@@ -465,7 +491,7 @@ struct ConnectionState<'a> {
     context: Context,
     outbound: &'a Arc<Outbound>,
     client_id: ClientId,
-    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
     next_stream: &'a RefCell<u32>,
 }
 
@@ -527,16 +553,18 @@ fn handle_request(
                 &resolved,
                 outbound,
             ) {
-                Ok(pane) => {
+                Ok((pane, attachment_id)) => {
                     // decision-2 section 3's ordering rule: the reply is
                     // already queued (inside `attach_pane`, under its own
                     // lock) before either of these two run - the writer
                     // may only now pull data frames for this stream, and
                     // the worker is only now handed something to send to.
                     outbound.open_stream(stream);
-                    runtime.arm_attachment(pane, stream, Arc::clone(outbound));
+                    runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
                     connection.open_stream(stream);
-                    pane_streams.borrow_mut().insert(pane, stream);
+                    pane_streams
+                        .borrow_mut()
+                        .insert(pane, (attachment_id, stream));
                     true
                 }
                 Err(error) => {
@@ -551,19 +579,32 @@ fn handle_request(
                 outbound.enqueue_control(bytes).is_ok()
             }
             Ok(pane) => {
-                let stream = pane_streams.borrow_mut().remove(&pane);
-                let response = match stream {
+                let entry = pane_streams.borrow_mut().remove(&pane);
+                let response = match entry {
                     None => Response::Error(bad_request(
                         "this connection has no attachment to this pane",
                     )),
-                    Some(stream) => {
-                        runtime.detach_pane(client_id, pane, stream);
+                    Some((attachment_id, stream)) => {
+                        runtime.detach_pane(client_id, pane, attachment_id);
                         outbound.close_stream(stream);
                         connection.close_stream(stream);
                         Response::Ok(serde_json::Value::Null)
                     }
                 };
                 let bytes = Connection::reply(id, response);
+                outbound.enqueue_control(bytes).is_ok()
+            }
+        },
+        // `event.watch` (TASK-1.46 §4), reached directly or through
+        // `api.call` (already resolved above, the same way `pane.attach`/
+        // `pane.detach` are), bypasses the generic reply-after-the-fact
+        // path below entirely: `Runtime::subscribe` enqueues its own
+        // reply atomically with registering the filter, so nothing here
+        // must enqueue a second one.
+        "event.watch" => match runtime.subscribe(description, context, &resolved, client_id, id) {
+            Ok(()) => true,
+            Err(error) => {
+                let bytes = Connection::reply(id, Response::Error(error));
                 outbound.enqueue_control(bytes).is_ok()
             }
         },
@@ -800,7 +841,12 @@ mod tests {
     /// listener.
     #[test]
     fn connection_cleanups_drop_sweeps_every_attachment_it_still_holds() {
-        let runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let context = Context::none();
         let path = new_pane_path(&runtime, &description, &context);
@@ -817,7 +863,7 @@ mod tests {
             method: "pane.attach".to_string(),
             params,
         };
-        let pane = runtime
+        let (pane, attachment_id) = runtime
             .attach_pane(
                 &description,
                 &context,
@@ -831,10 +877,10 @@ mod tests {
             )
             .expect("attach_pane succeeds");
         outbound.open_stream(stream);
-        runtime.arm_attachment(pane, stream, Arc::clone(&outbound));
+        runtime.arm_attachment(pane, attachment_id, Arc::clone(&outbound));
         wait_for_attachment_count(&runtime, pane, 1);
 
-        let pane_streams = RefCell::new(HashMap::from([(pane, stream)]));
+        let pane_streams = RefCell::new(HashMap::from([(pane, (attachment_id, stream))]));
         let (_shutdown_a, shutdown_b) = UnixStream::pair().unwrap();
         {
             let _cleanup = ConnectionCleanup {

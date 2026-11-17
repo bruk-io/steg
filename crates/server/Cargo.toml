@@ -53,6 +53,12 @@ nix = { version = "0.28", default-features = false, features = ["fs", "user", "p
 # `race.rs`, the same pattern that feature already uses for the sdk.
 race-fixture = []
 
+# Gates the cross-process pty-open race's own fixture binary and the
+# test that drives it (TASK-1.112), the same reason and the same shape
+# as `race-fixture` just above: off by default, so an ordinary `cargo
+# build -p steg-server` produces no extra binary.
+pty-race-fixture = []
+
 # Gates TASK-1.98's own accept-backoff fixture and the tests that drive it
 # (below) - same shape as `race-fixture`, same reason: off by default, so an
 # ordinary `cargo build -p steg-server` produces no extra binary and no
@@ -74,6 +80,18 @@ name = "race-attempt"
 path = "tests/fixtures/race_attempt.rs"
 required-features = ["race-fixture"]
 
+# The cross-process pty-open race's own fixture (`tests/openpty_race.rs`,
+# TASK-1.112): calls `steg_server::RealLauncher::open_only` in a tight
+# loop - the real lock and the real retry, no `spawn_command` - so its
+# own density matches the bare-libc probe that actually reproduced the
+# race, not a real spawn's much lower one. Gated behind
+# `pty-race-fixture`, above, the same reason `race-attempt` is gated
+# behind `race-fixture`.
+[[bin]]
+name = "openpty-race-attempt"
+path = "tests/fixtures/openpty_race_attempt.rs"
+required-features = ["pty-race-fixture"]
+
 # Declared explicitly (autodiscovery alone cannot carry
 # `required-features`) so this one test is skipped, not built, without
 # `race-fixture` - the same reason the binary above is gated. Every
@@ -86,6 +104,12 @@ required-features = ["race-fixture"]
 name = "race"
 path = "tests/race.rs"
 required-features = ["race-fixture"]
+
+# Same reasoning as `race` above, for `openpty_race.rs` (TASK-1.112).
+[[test]]
+name = "openpty_race"
+path = "tests/openpty_race.rs"
+required-features = ["pty-race-fixture"]
 
 # The accept-backoff test's own fixture (`tests/accept_backoff.rs`, AC #1/
 # #2/#4): a real server, in its own process, with its own `RLIMIT_NOFILE`

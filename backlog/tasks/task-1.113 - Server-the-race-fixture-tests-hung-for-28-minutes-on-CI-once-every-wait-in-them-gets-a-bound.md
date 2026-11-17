@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:03:00Z'
+updated_date: '2026-11-17T05:04:00Z'
 labels:
   - size-2
   - changes-requested
@@ -847,6 +847,19 @@ running 1 test
 test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 192 filtered out; finished in 0.00s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools steg-quiet 'run_bounded timeout control (mechanism removed)' -- cargo test -p steg-server --lib test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for -- --exact` exited 1 at 2026-11-17T05:04:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+TIMED OUT run_bounded timeout control (mechanism removed) (bound 5s, ran 5.0s)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+full output: .quiet/run-bounded-timeout-control-mechanism-removed.log
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.

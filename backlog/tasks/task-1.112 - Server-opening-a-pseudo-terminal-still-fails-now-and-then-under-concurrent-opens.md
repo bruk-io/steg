@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-16T20:03:00Z'
+updated_date: '2026-11-17T00:09:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -22,6 +22,8 @@ asdlc_branch: task-1.112-server-opening-a-pseudo-terminal-still
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4592947e385d'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r3
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -681,6 +683,15 @@ Numbers, all taken within the last 30 minutes, same machine, same code:
 Reading this together: the rate looks bursty, not a stable per-open constant - several of the fast reproductions (opens-until-first-failure = 1) suggest something *else* on this shared machine was also hammering ptys at that exact moment, and the self-contained rate from this fixture's own 16 workers alone, with nothing else helping, may be considerably lower and is what the zero-failure runs and the newly re-measured ~0.02-0.05% (not the original ~0.3-0.4% from early in this investigation) are showing. I don't yet have a bound I'm confident in without more time on this, and a naive 5x-larger bound just cost over two minutes without finishing - possibly fine on a quieter machine, possibly a sign the approach needs a different shape (e.g. sized and tuned against CI's own numbers rather than this heavily-shared dev machine, since CI's contention profile is presumably more stable run to run).
 
 Not weakening the control to force a pass - holding here instead, same as before. The code for the sequential design (fixture + test) is in the worktree, not committed; CONCURRENT_WORKERS/TOTAL_OPEN_BOUND are still placeholders (16/20,000) pending direction.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 4h 6m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T04:02:00Z'
+updated_date: '2026-11-17T04:03:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -86,4 +86,6 @@ Cursor blink, the inverted character under a block cursor, and the unfocused win
 
 <!-- SECTION:NOTES:BEGIN -->
 From the engineer's second run, 2026-11-16, after installing JetBrains Mono: the spacing is right and the cursor sits where it should, which confirms the cause. One more thing visible in that screenshot, for the plan to settle: the text starts hard against the window's left edge with no inset, and the first column looks shaved by a few pixels (the prompt's arrow, the caret of ^C and a cursor in column 0 all look cut on their left side). Check whether glyphs or the cursor in column 0 are clipped by the element's bounds, and whether the design gives the terminal an inset inside its pane (doc-10, doc-17, the design's Layout page); if the inset belongs to the pane work (TASK-1.55), say so and make sure column 0 is at least fully drawn here.
+
+Plan checked against the task's criteria, doc-17 and the design by @bruk.o: ok. The cause is read from gpui 0.2.2, not guessed: resolving a font tries the family asked for and then gpui's own fixed list, which reaches Helvetica; the fallbacks on a Font are used only for a glyph missing from a family already found. The plan picks the family once, in one place, for both measuring and painting, and paints a run as one shaped line only when every glyph is checked to sit on its own column, otherwise cell by cell. On the inset, which the worker could not read: the design gives 6px between panes and to the window edge (the gutter), and names no inset for the terminal's text inside a pane. So this task's duty is that column 0 is fully drawn; an inset inside the pane is a gap in the design for the engineer to settle with the pane work (TASK-1.55). JetBrains Mono's licence, SIL OFL 1.1, is not on the licence check's allow list, so shipping the font needs that list changed as well as the engineer's decision.
 <!-- SECTION:NOTES:END -->

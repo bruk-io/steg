@@ -1,11 +1,11 @@
 ---
 id: TASK-1.98
 title: 'Server: the accept loop survives an error it can recover from'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T02:00:00Z'
-updated_date: '2026-11-16T15:27:00Z'
+updated_date: '2026-11-16T16:47:00Z'
 labels:
   - size-2
   - review-passed

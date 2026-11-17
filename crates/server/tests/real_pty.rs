@@ -95,7 +95,7 @@ fn a_real_program_runs_in_the_given_working_directory() {
             test_path_env(),
         ),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -139,7 +139,7 @@ fn a_real_programs_environment_carries_the_five_variables_and_path() {
             (200, 4000),
         ),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -188,7 +188,7 @@ fn a_real_programs_environment_never_leaks_this_processs_own_ambient_variables()
             (200, 200),
         ),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -230,7 +230,7 @@ fn a_command_panes_real_exit_code_is_known_it_stays_and_can_run_again() {
     let handle = steg_server::start(
         command_spec.clone(),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -289,7 +289,7 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
     let handle = steg_server::start(
         spec(vec!["sh"], cwd.to_str().unwrap(), test_path_env()),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -369,7 +369,7 @@ fn a_nonexistent_cwd_is_not_a_failure_to_start_portable_pty_silently_uses_home()
             test_path_env(),
         ),
         pane,
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     )
@@ -397,7 +397,7 @@ fn a_command_that_does_not_exist_fails_synchronously_with_no_thread_to_join() {
             test_path_env(),
         ),
         PaneId::from_raw(1),
-        Arc::new(RealLauncher),
+        Arc::new(RealLauncher::default()),
         events_tx,
         TEST_TICK,
     );
@@ -450,7 +450,7 @@ fn many_threads_opening_a_real_pty_at_once_never_fails() {
                 let barrier = std::sync::Arc::clone(&barrier);
                 let cwd = cwd.clone();
                 std::thread::spawn(move || {
-                    let launcher = RealLauncher;
+                    let launcher = RealLauncher::default();
                     let spec = spec(
                         vec!["sh", "-c", "true"],
                         cwd.to_str().unwrap(),

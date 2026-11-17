@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T16:43:00Z'
+updated_date: '2026-11-16T18:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -225,6 +225,709 @@ This stays one task: input, the declared size, and the size carried on every upd
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (ec385ef4d563) checked against the four acceptance criteria, decision-2 section 3, doc-14 and doc-15 R91, doc-16 R101 and the team's testing rules by @bruk.o, 2026-11-16: ok. Built on TASK-1.47's branch (not merged) and to merge after it. Revised once at the orchestrator's request: the full cost of a program that does not read its input is stated (that pane's worker is blocked, so its screen stops updating and its commands wait), with a proof item on a real program that never reads (the connection stays responsive, another pane keeps updating, a forced close and a server stop return within their bounds), and that a failure there is a bug to fix in this task. For the engineer: the new method tab.declare_size (a row in doc-2; the method count moves to 45); a size with zero columns or rows is refused; and the accepted limit that one pane's own screen freezes while its program refuses input, with a follow-up proposed.
+
+Check passed: `just check` exited 0 at 2026-11-16T16:49:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c:
+
+```text
+ok      format check (0.3s)
+ok      lint (86.9s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.2s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (62.2s)
+ok      build (steg-sdk) (3.5s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (43.2s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (46.6s)
+ok      test (steg-server) (14.7s)
+ok      test (steg-server, race-fixture) (14.4s)
+ok      build (steg) (2.4s)
+ok      test (steg) (0.4s)
+ok      test (steg, fixtures) (4.2s)
+ok      build (steg-ui) (14.5s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.7s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `sh -c 'cargo test -p steg-sdk -p steg-kernel -p steg-server'` exited 0 at 2026-11-16T17:39:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 960 lines:
+
+```text
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check passed: `sh -c 'cargo test -p steg-sdk -p steg-kernel -p steg-server'` exited 0 at 2026-11-16T17:48:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 948 lines:
+
+```text
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+
+     Running tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+
+running 8 tests
+test a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop ... ok
+test stopping_closes_the_listener_removes_the_socket_and_releases_the_lock ... ok
+test stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound ... ok
+test stop_called_twice_concurrently_on_an_idle_server_is_harmless ... ok
+test a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop ... ok
+test many_short_connections_do_not_grow_the_tracked_set ... ok
+test stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bound ... ok
+test stop_racing_a_client_connecting_still_returns_within_a_bound ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+running 1 test
+test the_socket_is_0600_even_under_a_permissive_umask ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach typed_bytes_reach_a_real_program_in_order` exited 101 at 2026-11-16T17:52:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+warning: method `send_input` is never used
+   --> crates/server/src/runtime.rs:590:19
+    |
+244 | impl Runtime {
+    | ------------ method in this implementation
+...
+590 |     pub(crate) fn send_input(&self, client: ClientId, pane: PaneId, bytes: Vec<u8>) {
+    |                   ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test typed_bytes_reach_a_real_program_in_order ... FAILED
+
+failures:
+
+---- typed_bytes_reach_a_real_program_in_order stdout ----
+
+thread 'typed_bytes_reach_a_real_program_in_order' (44720435) panicked at crates/server/tests/attach.rs:445:30:
+the server closed before an update arrived
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    typed_bytes_reach_a_real_program_in_order
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach typed_bytes_reach_a_real_program_in_order` exited 0 at 2026-11-16T17:53:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test typed_bytes_reach_a_real_program_in_order ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach input_clears_a_finished_status` exited 101 at 2026-11-16T17:53:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+warning: variable does not need to be mutable
+   --> crates/server/src/runtime.rs:591:13
+    |
+591 |         let mut state = self.lock();
+    |             ----^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test input_clears_a_finished_status ... FAILED
+
+failures:
+
+---- input_clears_a_finished_status stdout ----
+
+thread 'input_clears_a_finished_status' (44725105) panicked at crates/server/tests/attach.rs:794:9:
+input never cleared the Finished status: Object {"cwd": String("/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/"), "exit_code": Number(0), "id": String("00000003"), "kind": String("terminal"), "label": Null, "program": String("sh -c exit 0"), "program_status": String("ended"), "size": Null, "status": String("finished"), "title": Null}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    input_clears_a_finished_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach input_clears_a_finished_status` exited 0 at 2026-11-16T17:53:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test input_clears_a_finished_status ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream` exited 101 at 2026-11-16T17:54:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+
+failures:
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (44729633) panicked at crates/server/tests/attach.rs:436:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream` exited 0 at 2026-11-16T17:54:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.06s
+```
+
+Check FAILED: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 101 at 2026-11-16T17:54:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report stdout ----
+
+thread 'pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report' (44733748) panicked at crates/server/src/pane.rs:1997:25:
+no update arrived within 2s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 157 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 0 at 2026-11-16T17:54:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 157 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size` exited 101 at 2026-11-16T17:54:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... FAILED
+
+failures:
+
+---- detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size stdout ----
+
+thread 'detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size' (44737976) panicked at crates/server/tests/attach.rs:436:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size` exited 0 at 2026-11-16T17:55:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.05s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_dropped_connection_releases_its_claim_the_same_way` exited 101 at 2026-11-16T17:55:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 48 lines:
+
+```text
+    |     ^^^^^^^
+267 |     client_id: ClientId,
+    |     ^^^^^^^^^
+...
+280 |     pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `forget_attachment` is never used
+   --> crates/server/src/runtime.rs:566:19
+    |
+244 | impl Runtime {
+    | ------------ method in this implementation
+...
+566 |     pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_dropped_connection_releases_its_claim_the_same_way ... FAILED
+
+failures:
+
+---- a_dropped_connection_releases_its_claim_the_same_way stdout ----
+
+thread 'a_dropped_connection_releases_its_claim_the_same_way' (44742468) panicked at crates/server/tests/attach.rs:436:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_dropped_connection_releases_its_claim_the_same_way
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.06s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach a_dropped_connection_releases_its_claim_the_same_way` exited 0 at 2026-11-16T17:55:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.05s
+```
+
+Check passed: `cargo test -p steg-server --test attach declaring_a_size_of_zero_is_refused` exited 0 at 2026-11-16T17:55:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.70s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test declaring_a_size_of_zero_is_refused ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+```
+
+Check FAILED: `cargo test -p steg-server --test attach declaring_a_size_of_zero_is_refused` exited 101 at 2026-11-16T17:57:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test declaring_a_size_of_zero_is_refused ... FAILED
+
+failures:
+
+---- declaring_a_size_of_zero_is_refused stdout ----
+
+thread 'declaring_a_size_of_zero_is_refused' (44751947) panicked at crates/server/tests/attach.rs:1066:32:
+declaring 0x24 must not succeed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    declaring_a_size_of_zero_is_refused
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach declaring_a_size_of_zero_is_refused` exited 0 at 2026-11-16T17:57:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test declaring_a_size_of_zero_is_refused ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.02s
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-16T17:58:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+        &mut connection,
+(B[m[32m+        vec!["sh", "-c", "exec sleep 100"],
+(B[m[32m+    );
+(B[m     let attached = attach(&mut stream, &mut connection, &pane);
+     flood_stdin(&mut stream, &connection, attached.stream);
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1238:
+     // reset to a bound comfortably past `force_end`'s own worst case
+     // before a call whose reply can legitimately take that long, so
+     // `call_and_read_reply`'s own blocking read does not time out first.
+[31m-    stream.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+(B[m[32m+    stream
+(B[m[32m+        .set_read_timeout(Some(Duration::from_secs(10)))
+(B[m[32m+        .unwrap();
+(B[m 
+     let mut params = Map::new();
+     params.insert("target".to_string(), json!(pane));
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1263:
+ /// stop`).
+ #[test]
+ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck() {
+[31m-    let _flood_guard = FLOOD_TEST_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+(B[m[32m+    let _flood_guard = FLOOD_TEST_LOCK
+(B[m[32m+        .lock()
+(B[m[32m+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+(B[m     let (socket_path, stop, handle) = start_server();
+     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+ 
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server/tests/attach.rs:1270:
+[31m-    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exec sleep 100"]);
+(B[m[32m+    let pane = new_pane_running(
+(B[m[32m+        &mut stream,
+(B[m[32m+        &mut connection,
+(B[m[32m+        vec!["sh", "-c", "exec sleep 100"],
+(B[m[32m+    );
+(B[m     let attached = attach(&mut stream, &mut connection, &pane);
+     flood_stdin(&mut stream, &connection, attached.stream);
+ 
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 142 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T17:59:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 65 lines:
+
+```text
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+162 | ///   like one that needs a resync: a fresh `Full`, which already carries
+    |     ++
+
+error: doc list item without indentation
+   --> crates/sdk/src/screen.rs:163:5
+    |
+163 | /// the current size by construction, no extra field needed on `Delta` at
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+163 | ///   the current size by construction, no extra field needed on `Delta` at
+    |     ++
+
+error: doc list item without indentation
+   --> crates/sdk/src/screen.rs:164:5
+    |
+164 | /// all.
+    |     ^
+    |
+    = help: if this is supposed to be its own paragraph, add a blank line
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+    |
+164 | ///   all.
+    |     ++
+
+error: could not compile `steg-sdk` (lib) due to 7 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-sdk` (lib test) due to 7 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T18:00:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes, last 40 of 42 lines:
+
+```text
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/sdk)
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/app)
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/steg)
+error: doc list item without indentation
+    --> crates/server/tests/attach.rs:1273:5
+     |
+1273 | /// wait on the worker thread past a stated timeout; only the final two
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+     = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+     |
+1273 | ///   wait on the worker thread past a stated timeout; only the final two
+     |     ++
+
+error: doc list item without indentation
+    --> crates/server/tests/attach.rs:1274:5
+     |
+1274 | /// (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+help: indent this line
+     |
+1274 | ///   (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
+     |     ++
+
+error: could not compile `steg-server` (test "attach") due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T18:04:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 089079ad1c2c with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (29.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (24.5s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (2.0s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (28.6s)
+ok      test (steg-kernel) (1.1s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (21.1s)
+ok      test (steg-server, race-fixture) (22.3s)
+ok      build (steg) (1.9s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (5.6s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.2s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T18:09:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 4c3f03035468, last 40 of 46 lines:
+
+```text
+   --> crates/server/src/connection.rs:924:28
+    |
+924 |             let _cleanup = ConnectionCleanup {
+    |                            ^^^^^^^^^^^^^^^^^ missing `events`
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates/server/src/listen.rs:752:23
+    |
+752 |           let runtime = crate::runtime::Runtime::new(
+    |  _______________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+753 | |             std::sync::Arc::new(crate::pty::RealLauncher),
+754 | |             crate::runtime::LoginShell::default(),
+755 | |             Duration::from_millis(1),
+756 | |         );
+    | |_________- argument #4 of type `std::time::Duration` is missing
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:269:12
+    |
+269 |     pub fn new(
+    |            ^^^
+...
+273 |         attach_tick: Duration,
+    |         ---------------------
+help: provide the argument
+    |
+752 |         let runtime = crate::runtime::Runtime::new(
+...
+755 |             Duration::from_millis(1),
+756 ~             /* std::time::Duration */,
+757 ~         );
+    |
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/steg)
+Some errors have detailed explanations: E0061, E0063.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T18:13:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 4c3f03035468 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (57.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.6s)
+ok      test (steg-server) (27.0s)
+ok      test (steg-server, race-fixture) (28.8s)
+ok      test (steg-server, accept-backoff-fixture) (29.4s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -3,11 +3,12 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: To Do
+status: In Progress
 assignee:
   - '@bruk'
+  - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:10:00Z'
+updated_date: '2026-11-17T00:33:00Z'
 labels:
   - size-5
   - changes-requested
@@ -34,7 +35,6 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
-asdlc_reserved_for_author: bruk
 ---
 
 ## Description
@@ -1656,6 +1656,633 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test --workspace` exited 0 at 2026-11-17T00:15:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33, last 40 of 1059 lines:
+
+```text
+test foundations::tests::hex_of_round_trips_a_near_neutral_colour ... ok
+test foundations::tests::the_session_colour_is_whatever_new_was_given ... ok
+test foundations::tests::with_default_session_matches_ramp_1_violets_own_form ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests gallery/main.rs (target/debug/deps/gallery-ca66282f5e4f5c40)
+
+running 5 tests
+test tests::an_unrecognised_value_falls_back_to_light_rather_than_failing ... ok
+test tests::the_gallery_theme_carries_the_appearance_asked_for ... ok
+test tests::light_is_explicit_too ... ok
+test tests::dark_is_recognised_in_any_case ... ok
+test tests::unset_is_light ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach two_connections_attached_to_one_pane` exited 101 at 2026-11-17T00:23:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... FAILED
+
+failures:
+
+---- two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other stdout ----
+
+thread 'two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other' (46064021) panicked at crates/server/tests/attach.rs:311:17:
+no update arrived on stream 1 within 5s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 5.08s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach two_connections_attached_to_one_pane` exited 0 at 2026-11-17T00:23:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.11s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::no_attachments_never_arms` exited 101 at 2026-11-17T00:23:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused variable: `attachments`
+    --> crates/server/src/pane.rs:1001:5
+     |
+1001 |     attachments: &[Attachment],
+     |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_attachments`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.71s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::no_attachments_never_arms ... FAILED
+
+failures:
+
+---- pane::attach_tests::no_attachments_never_arms stdout ----
+
+thread 'pane::attach_tests::no_attachments_never_arms' (46071321) panicked at crates/server/src/pane.rs:1942:9:
+assertion `left == right` failed
+  left: Some(Instant { tv_sec: 265005, tv_nsec: 366650083 })
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::no_attachments_never_arms
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pane::attach_tests::no_attachments_never_arms` exited 0 at 2026-11-17T00:24:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::no_attachments_never_arms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change` exited 101 at 2026-11-17T00:24:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change stdout ----
+
+thread 'pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change' (46077160) panicked at crates/server/src/pane.rs:2058:83:
+a caught-up attachment's second real change must be a Delta, not a redundant Full: got Full { screen: Screen { rows: [[Run { text: "firstsecon", style: CellStyle { fg: None, bg: None, bold: false, italic: false, faint: false, blink: false, inverse: false, invisible: false, strikethrough: false, overline: false, underline: None, underline_colour: None, wide: Narrow, link: false } }], [Run { text: "d", style: CellStyle { fg: None, bg: None, bold: false, italic: false, faint: false, blink: false, inverse: false, invisible: false, strikethrough: false, overline: false, underline: None, underline_colour: None, wide: Narrow, link: false } }]], cursor: Cursor { x: 1, y: 1, visible: true, blinking: false, shape: Block } }, seq: 2 }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change` exited 0 at 2026-11-17T00:24:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_caught_up_attachment_gets_a_delta_on_the_next_real_change ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking` exited 101 at 2026-11-17T00:24:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking ... FAILED
+
+failures:
+
+---- pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking stdout ----
+
+thread 'pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking' (46083568) panicked at crates/server/src/pane.rs:2148:13:
+the queue never filled - test is not exercising DATA_CAP
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking` exited 0 at 2026-11-17T00:25:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply` exited 101 at 2026-11-17T00:25:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.04s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply ... FAILED
+
+failures:
+
+---- description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply stdout ----
+
+thread 'description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply' (46091437) panicked at crates/sdk/src/description/methods.rs:1945:9:
+stream_id_field names "streamid", which is not a field of PaneAttached: {"snapshot": Object {"cursor": Object {"blinking": Bool(false), "shape": String("Block"), "visible": Bool(true), "x": Number(0), "y": Number(0)}, "rows": Array []}, "stream": Number(1)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply` exited 0 at 2026-11-17T00:25:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type` exited 101 at 2026-11-17T00:25:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type ... FAILED
+
+failures:
+
+---- description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type stdout ----
+
+thread 'description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type' (46098631) panicked at crates/sdk/src/description/methods.rs:1885:13:
+pane.attach names PaneAttachedXX, which is not in the known sdk types
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type` exited 0 at 2026-11-17T00:25:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-sdk --lib description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply` exited 101 at 2026-11-17T00:26:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply ... FAILED
+
+failures:
+
+---- description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply stdout ----
+
+thread 'description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply' (46108027) panicked at crates/sdk/src/description/methods.rs:1865:17:
+assertion `left == right` failed: pane.attach
+  left: Attachment { item: Nested { of: "ScreenUpdate", summary: "the rows that changed, or a whole screen when a client fell behind" }, stream_id_field: "stream" }
+ right: Nothing
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply` exited 0 at 2026-11-17T00:26:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::only_event_watch_and_pane_attach_have_anything_following_their_reply ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream` exited 101 at 2026-11-17T00:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.48s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... FAILED
+
+failures:
+
+---- repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream stdout ----
+
+thread 'repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream' (46115430) panicked at crates/server/tests/attach.rs:238:17:
+decision-2 section 3's ordering rule was violated: a frame for stream 1 arrived before the pane.attach reply naming it did
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream` exited 0 at 2026-11-17T00:26:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.19s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach detach_ends_the_stream_even_though_the_program_keeps_producing_output` exited 101 at 2026-11-17T00:27:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes, last 40 of 42 lines:
+
+```text
+   --> crates/server/src/runtime.rs:590:9
+    |
+590 |         attachment_id: pane::AttachmentId,
+    |         ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_attachment_id`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `close_stream` is never used
+   --> crates/server/src/outbound.rs:185:19
+    |
+136 | impl Outbound {
+    | ------------- method in this implementation
+...
+185 |     pub(crate) fn close_stream(&self, stream: u32) {
+    |                   ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 2 warnings (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.94s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... FAILED
+
+failures:
+
+---- detach_ends_the_stream_even_though_the_program_keeps_producing_output stdout ----
+
+thread 'detach_ends_the_stream_even_though_the_program_keeps_producing_output' (46130045) panicked at crates/server/tests/attach.rs:459:17:
+the server kept sending for a stream this connection already detached (decoded as UnknownStream, since this connection also closed its own side of it)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detach_ends_the_stream_even_though_the_program_keeps_producing_output
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.13s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach detach_ends_the_stream_even_though_the_program_keeps_producing_output` exited 0 at 2026-11-17T00:27:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.61s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 101 at 2026-11-17T00:27:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused import: `bad_request`
+  --> crates/server/src/connection.rs:23:32
+   |
+23 | use crate::dispatch::{Context, bad_request, resolve_api_call};
+   |                                ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... FAILED
+
+failures:
+
+---- detaching_a_pane_this_connection_never_attached_to_is_a_bad_request stdout ----
+
+thread 'detaching_a_pane_this_connection_never_attached_to_is_a_bad_request' (46142468) panicked at crates/server/tests/attach.rs:501:28:
+detaching a pane never attached to must not succeed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_this_connection_never_attached_to_is_a_bad_request
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 0 at 2026-11-17T00:28:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.75s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds` exited 101 at 2026-11-17T00:28:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes, last 40 of 43 lines:
+
+```text
+    |
+298 | struct ConnectionCleanup<'a> {
+    |        ----------------- field in this struct
+...
+316 |     pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+    |     ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `forget_attachment` is never used
+   --> crates/server/src/runtime.rs:613:19
+    |
+282 | impl Runtime {
+    | ------------ method in this implementation
+...
+613 |     pub(crate) fn forget_attachment(&self, pane: PaneId, attachment_id: pane::AttachmentId) {
+    |                   ^^^^^^^^^^^^^^^^^
+
+warning: `steg-server` (lib test) generated 2 warnings
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds ... FAILED
+
+failures:
+
+---- connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds stdout ----
+
+thread 'connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds' (46156327) panicked at crates/server/src/connection.rs:821:13:
+pane 00000002 never reached 0 attachments; last saw 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 5.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds` exited 0 at 2026-11-17T00:28:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::connection_cleanups_drop_sweeps_every_attachment_it_still_holds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.03s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:33:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (32.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (60.5s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (3.9s)
+ok      build (steg-kernel) (0.8s)
+ok      test (steg-kernel) (1.6s)
+ok      build (steg-server) (30.7s)
+ok      test (steg-server) (28.0s)
+ok      test (steg-server, race-fixture) (32.1s)
+ok      test (steg-server, accept-backoff-fixture) (29.7s)
+ok      build (steg) (2.0s)
+ok      test (steg) (0.6s)
+ok      test (steg, fixtures) (9.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

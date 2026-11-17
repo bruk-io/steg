@@ -1,11 +1,11 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T16:18:00Z'
+updated_date: '2026-11-17T00:08:00Z'
 labels:
   - size-3
   - review-passed
@@ -1803,6 +1803,47 @@ Checked that `move_and_dispatch` omitting `emit_focus_event` (present in `handle
 6. Restated for whoever merges second: TASK-1.86 (PR 60, passed review, not yet on main) adds its own `SessionCountChanged` notify inside the same `apply_event_locked`'s `PaneEvent::Exited` arm this task restructures. I read that arm directly at ca699ee: `scope` is captured from `tab_of_pane`/`session_owning_tab` *before* `record_exit` runs (since `record_exit` can remove the very tab/session scope would otherwise have to be read back from), then on `Ok(outcome)`, `pane.exited` broadcasts first, and only inside `if let ExitOutcome::Closed(closed) = &outcome` does `emit_close_cascade` run. 1.86's own notify must land inside that same `if let ExitOutcome::Closed(closed) = &outcome` block, after this task's broadcasts, using the same pre-captured `scope` - never re-derived after `record_exit`, and never placed ahead of this task's own broadcasts.
 
 No Important findings on this round's own changes; the five Important findings and the two nits from the first two rounds are addressed and verified, not re-raised. plan-matched is "no" for the same reason round 2 already recorded and explained (the plan's own text still says no `Outcome`/return-shape change for any close/new arm; this round's `PaneMoved` variant is the same explained class of departure, not a new unexplained one).
+
+---
+
+created: 2026-11-16T16:59:00Z
+
+---
+
+Merged origin/main (TASK-1.98, TASK-1.86) locally, not pushed yet - awaiting the third review's verdict on ca699ee per the team-lead. Local merge head: 60b973de6d04fb16de2eadfa0130ce2fcc8a54cd. The board will not take record-check while this task is In Review/locked, so recording what was run here instead.
+
+Ran locally, in the foreground, each to completion:
+- cargo build -p steg-server --tests: clean.
+- cargo test -p steg-server: 174 lib + 76 (connection) + 15 (events) + 13 (dispatch) + 6 (arbiter) + 5 + 8 + 22 + 29 (runtime) + 8 (shutdown) + 1 (socket_mode) = all passed, 0 failed.
+- cargo test --workspace: every crate's suite passed, 0 failed, including the 325/157 sdk suites.
+- just check (full): ok through every step - format check, lint, boundaries, foundations, design pages, licences, tests (every crate), build+test per crate including the new steg-server accept-backoff-fixture and race-fixture, tool tests, architecture, recipe names, ui levels/colours. Ran twice: once right after resolving conflicts, once again after reverting this comment's own negative control below - both clean.
+
+Re-ran the one negative control whose own mechanism the merge touched: the exit-driven cascade order control (emit_close_cascade's tab.closed broadcast disabled) - re-run because apply_event_locked's PaneEvent::Exited arm, which calls it, was restructured by the merge (TASK-1.86's own SessionCountChanged notify folded in beside my broadcasts). a_shell_panes_exit_emits_the_whole_cascade_in_order still fails correctly under it, at the same assertion as before the merge; reverted. No other control's own mechanism was touched by the merge (register_subscriber/deregister_subscriber/subscribe/close_and_dispatch/move_and_dispatch/emit_close_events are untouched text, only repositioned next to TASK-1.86's new methods).
+
+Conflict resolution, hunk by hunk:
+
+connection.rs (one conflict, in run_post_handshake): kept all four socket clones (write_half, shutdown_handle, subscriber_shutdown from mine) and, on the clone-failure path, added TASK-1.86's own disconnect_client + events.send(Disconnected) duties in the same order ConnectionCleanup's own Drop would use - noted there is also no subscriber to deregister on this path, since registration never ran. ConnectionCleanup's own struct/Drop impl (events sender, deregister_subscriber before disconnect_client, Disconnected sent last) had no conflict markers at all - it already merged cleanly with the right order: deregister_subscriber, then disconnect_client, then (last) events.send(Disconnected), each running exactly once since Drop runs exactly once.
+
+runtime.rs (six conflicts, all in the same handful of spots, same two added fields/method groups recurring):
+1. Import line: combined `use crate::connection::ConnectionEvent;` with my own `use crate::dispatch::{self, Context, Filter, Outcome};`.
+2. State struct: kept both fields, subscribers and notify_session_count_changed, with a merged doc comment on the latter stating request-driven closes (now including pane.move) don't need it either, for the reason below.
+3. Runtime::new's State literal: both fields' initializers kept (subscribers: HashMap::new(), notify_session_count_changed: None).
+4. Impl block: kept register_subscriber/deregister_subscriber/subscribe (mine) immediately followed by session_counter/set_idle_notifier (TASK-1.86's) - two independent method groups on the same impl, no actual logic overlap, just concatenated.
+5. apply_event_locked's PaneEvent::Exited arm - the one with real logic to reconcile: kept my own outer `if let Some(scope) { broadcast(PaneExited); if Closed { emit_close_cascade } }` followed by `if let ExitOutcome::Closed(closed) = outcome { state.panes.remove(...); <TASK-1.86's notify, folded in here> }` - the notify now sits after my own broadcasts (textually and causally, since it is in the second block which already ran after the first), with scope captured before record_exit exactly as before test_state's own State literal (two occurrences): both fields kept, same as point 3.
+
+Confirmed per the team-lead's own question: a session closed by a request (pane.close/tab.close/session.close/pane.move, all four now covered by this task) needs no SessionCountChanged notify of its own. Read idle.rs's own IdlePredicate::wait: it returns Wait::Forever whenever live_clients > 0, regardless of session_count - and every one of my four request-driven close paths only ever runs on an already-accepted, already-counted-live connection, so the idle checker cannot become eligible while that connection is open regardless of whether a notify fires. The moment that connection (or any other) later disconnects, connection::handle's own ConnectionCleanup sends Disconnected unconditionally, which (a) decrements live_clients and (b) wakes run_checker_with_observer's loop, which re-reads session_count() fresh on every wait() call regardless of which event woke it (its own documented catch-all, idle.rs:139-147). So the exit-driven path is the only one with nothing else to wake the checker, since it is the one case a session can close with live_clients already at 0 (every client detached, the shell's own program exiting asynchronously) - exactly TASK-1.86's own comment, which I confirmed rather than took on faith.
+
+listen.rs: confirmed untouched by this task at any point - git log --oneline <merge-base-with-main>..ca699ee -- crates/server/src/listen.rs is empty, and the merge itself produced no conflict there; TASK-1.98 merges in as-is.
+
+Not pushing per instruction - will push once the verdict on ca699ee is in and I'm told to.
+
+---
+
+created: 2026-11-17T00:03:00Z
+
+---
+
+2026-11-16, @bruk.o: independent read of the merge with main (60b973d, parents ca699ee reviewed and 2c6bece main) by a separate agent that did not build or review this task. Verdict: correct. Only connection.rs and runtime.rs differ from git's own merge. Nothing from TASK-1.86 or TASK-1.98 is lost, nothing from this task is lost, nothing is defined twice. In the exit-driven closure both the tree events and the session-count notice are sent, with no nested lock. The argument that a requested close needs no notice of its own holds against idle.rs. Gap found, not a defect: no test runs idle stop and a subscriber together; noted on TASK-1.82 as a follow-up. PR 63 CI is green on 60b973d. The third review covered ca699ee; this read covers the merge.
 
 ---
 <!-- COMMENTS:END -->

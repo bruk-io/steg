@@ -841,7 +841,12 @@ mod tests {
     /// listener.
     #[test]
     fn connection_cleanups_drop_sweeps_every_attachment_it_still_holds() {
-        let runtime = Runtime::new(Arc::new(RealLauncher), login(), TEST_GRACE, TEST_TICK);
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let context = Context::none();
         let path = new_pane_path(&runtime, &description, &context);

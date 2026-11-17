@@ -757,6 +757,10 @@ mod tests {
                     blinking: false,
                     shape: steg_sdk::CursorShape::Block,
                 },
+                // TASK-1.114: `Screen` now carries its own `size`, unused
+                // by this module's own attach/interrupt-race tests - an
+                // arbitrary valid size keeps this fixture compiling.
+                size: steg_sdk::Size::new(80, 24),
             },
         }
     }

@@ -16,13 +16,14 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
 use steg_sdk::{
-    ClientKind, Connection, Incoming, PaneAttached, Response, ScreenUpdate, WireRole as Role,
-    description, parse_server_hello,
+    ClientKind, Connection, ErrorCode, Frame, Incoming, PaneAttached, Response, ScreenUpdate,
+    WireRole as Role, description, encode_frame, parse_server_hello,
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
@@ -273,6 +274,137 @@ fn detach(
     let response = call_and_read_reply(stream, connection, "pane.detach", params);
     assert!(matches!(response, Response::Ok(_)), "{response:?}");
     connection.close_stream(attachment_stream);
+}
+
+/// The tab a `new_pane_running`/`attach` pane path names, as its own
+/// target string (`session/tab`, the pane's own last segment dropped) -
+/// `tab.declare-size`'s own target (TASK-1.114: a client declares a
+/// *tab's* size, which `Layout::leaf_sizes` splits across its panes).
+fn tab_path_of(pane_path: &str) -> String {
+    let (tab_path, _pane) = pane_path
+        .rsplit_once('/')
+        .expect("a pane path is always session/tab/pane");
+    tab_path.to_string()
+}
+
+/// Sends raw bytes on an attachment's own stream (TASK-1.114, AC #1):
+/// `Connection::send_data` already refuses a stream this connection has
+/// not itself opened (checked client-side, before anything is encoded),
+/// the same guard `connection.open_stream`'s own doc names.
+fn send_input(
+    stream: &mut UnixStream,
+    connection: &Connection,
+    attachment_stream: u32,
+    bytes: &[u8],
+) {
+    let frame = connection
+        .send_data(attachment_stream, bytes)
+        .expect("a stream this connection has open");
+    stream.write_all(&frame).unwrap();
+}
+
+/// `tab.declare-size` (TASK-1.114): the same bounded call-and-read-reply
+/// shape every other method in this file uses.
+fn declare_size(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    tab: &str,
+    columns: u16,
+    rows: u16,
+) -> Response {
+    let (id, bytes) = connection
+        .declare_size(Some(tab), columns, rows)
+        .expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(Incoming::Reply {
+            id: reply_id,
+            response,
+        }) = connection.poll()
+        {
+            assert_eq!(reply_id, id, "the reply must carry the id this call minted");
+            return response;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for tab.declare-size's reply"
+        );
+        stream
+            .set_read_timeout(Some(Duration::from_millis(200)))
+            .unwrap();
+        let mut buf = [0_u8; 65536];
+        match stream.read(&mut buf) {
+            Ok(0) => panic!("server closed before replying"),
+            Ok(n) => connection.receive(&buf[..n]),
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(e) => panic!("read failed: {e}"),
+        }
+    }
+}
+
+/// Like `call_and_read_reply`, but never panics on a timeout: `None` means
+/// no reply for `id` arrived within `timeout` - this file's own proof that
+/// a *specific* request is stuck (TASK-1.114, proof item 9), as opposed to
+/// the connection or another request being stuck. Every other decoded
+/// frame read along the way (another request's reply, an update on some
+/// other stream) is kept, not dropped, so a caller can still see what else
+/// arrived while waiting.
+fn reply_within(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    id: u64,
+    timeout: Duration,
+) -> Option<Response> {
+    // Every other helper in this file assumes the connection's own
+    // 5-second default read timeout (`connect_and_handshake`'s own
+    // setting) - restored on every exit from this function, not left at
+    // whatever this function's own short, internal polling timeout last
+    // set it to, which would otherwise make the *next* helper's own
+    // blocking read fail with `WouldBlock` instead of really waiting.
+    let result = reply_within_with_leaky_timeout(stream, connection, id, timeout);
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    result
+}
+
+fn reply_within_with_leaky_timeout(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    id: u64,
+    timeout: Duration,
+) -> Option<Response> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        match connection.poll() {
+            Some(Incoming::Reply {
+                id: reply_id,
+                response,
+            }) if reply_id == id => return Some(response),
+            Some(_) => {} // some other frame - fine, keep waiting for `id`
+            None => {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    return None;
+                }
+                stream
+                    .set_read_timeout(Some(remaining.min(Duration::from_millis(200))))
+                    .unwrap();
+                let mut buf = [0_u8; 65536];
+                match stream.read(&mut buf) {
+                    Ok(0) => return None,
+                    Ok(n) => connection.receive(&buf[..n]),
+                    Err(e)
+                        if e.kind() == std::io::ErrorKind::WouldBlock
+                            || e.kind() == std::io::ErrorKind::TimedOut => {}
+                    Err(e) => panic!("read failed: {e}"),
+                }
+            }
+        }
+    }
 }
 
 /// Reads one `Incoming::StreamControl` for `wanted_stream`, decoded as a
@@ -679,6 +811,966 @@ fn detaching_a_pane_that_already_closed_still_releases_the_stream() {
         "detaching an already-closed pane must still succeed, not fail at target \
          resolution: {response:?}"
     );
+
+    stop_server(&stop, handle);
+}
+
+// --- TASK-1.114: input and a declared size from an attached client --------
+
+/// AC #1: bytes a client sends on an attachment's own stream reach the
+/// pane's real program, in order - `cat` echoes its stdin back, so the
+/// screen shows the sent text once from the pty driver's own echo and
+/// once more from `cat`'s own copy, confirming the bytes really reached
+/// the program's stdin, not merely the pty (proof item 1).
+///
+/// Control: with `connection.rs`'s own `Incoming::Data` arm removed (left
+/// in the closing bucket, as it was before this task), this test fails
+/// because the connection closes on the first input frame instead of the
+/// marker ever appearing - run by hand and reverted, recorded via
+/// `asdlc record-check` both ways.
+#[test]
+fn typed_bytes_reach_a_real_program_in_order() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream, &mut connection, vec!["cat"]);
+    let attached = attach(&mut stream, &mut connection, &pane);
+
+    // Four separate frames, not one: proves ordering across frames, not
+    // merely that one frame's own bytes stay in order.
+    for byte in [b"o", b"r", b"d", b"e"] {
+        send_input(&mut stream, &connection, attached.stream, byte);
+    }
+    send_input(&mut stream, &connection, attached.stream, b"r\n");
+
+    let mut held = attached.snapshot;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !screen_text(&held).contains("order\r\norder")
+        && !screen_text(&held).contains("order\norder")
+    {
+        assert!(
+            Instant::now() < deadline,
+            "never saw the typed text echoed and copied back by cat, holding: {:?}",
+            screen_text(&held)
+        );
+        let update = next_update(
+            &mut stream,
+            &mut connection,
+            attached.stream,
+            Duration::from_secs(5),
+        );
+        apply_update(&mut held, update);
+    }
+
+    stop_server(&stop, handle);
+}
+
+/// AC #1: input makes the sender R91's "latest" and clears a `Finished`/
+/// `Failed` status (`Tree::note_input`, doc-11 R83) - proof item 2. A
+/// command pane whose command already exited is used so this does not
+/// depend on a live program reading anything: `note_input` is about
+/// client activity on the *pane*, independent of whether anything is
+/// currently running.
+///
+/// Control: with the `tree.note_input` call removed from
+/// `Runtime::send_input`, this test fails because the status never
+/// clears - recorded both ways through `asdlc record-check`.
+#[test]
+fn input_clears_a_finished_status() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 0"]);
+
+    // Wait for the command to actually end and its status to show
+    // (bounded, on the event - `pane.show`'s own report, not a sleep).
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let mut params = Map::new();
+        params.insert("target".to_string(), json!(pane));
+        let response = call_and_read_reply(&mut stream, &mut connection, "pane.show", params);
+        let Response::Ok(record) = response else {
+            panic!("pane.show failed: {response:?}")
+        };
+        // Not merely non-null: a freshly-started pane's own status is
+        // already `Some(Status::Running)`, also non-null - this must wait
+        // specifically for the *ended* status (`"finished"`), which only
+        // arrives once the program has actually exited.
+        if record.get("status").and_then(Value::as_str) == Some("finished") {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "the command never reached a Finished status: {record:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    let attached = attach(&mut stream, &mut connection, &pane);
+    send_input(&mut stream, &connection, attached.stream, b"x");
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        let mut params = Map::new();
+        params.insert("target".to_string(), json!(pane));
+        let response = call_and_read_reply(&mut stream, &mut connection, "pane.show", params);
+        let Response::Ok(record) = response else {
+            panic!("pane.show failed: {response:?}")
+        };
+        if record.get("status").is_some_and(Value::is_null) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "input never cleared the Finished status: {record:?}"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    stop_server(&stop, handle);
+}
+
+/// AC #2: a declared size reaches the real pty (observed by the program
+/// itself through `stty size`, after a `SIGWINCH` its own trap catches),
+/// and is reported on *every* attached stream, including one that never
+/// declared a size of its own - proof items 3 and 5 (the kernel's own
+/// "latest wins" rule is unit-tested directly in `crates/kernel/src/
+/// tree.rs`; this is the end-to-end wiring on top of it).
+///
+/// Also item 4, specifically, and not by construction: client A attaches
+/// *before* client B, so B's own `PaneCommand::Arm` has not necessarily
+/// reached the pane's worker yet by the time B's `tab.declare-size` call
+/// arms a tick - this ordering is what this task's own build first caught
+/// a real bug with (a pane-wide "has the size changed since the last
+/// report" flag, consumed by whichever tick ran first, left the *other*
+/// attachment stale forever). Control: reverting `Attachment::
+/// last_told_size`'s own per-attachment tracking in `crate::pane::run_tick`
+/// back to a single, pane-wide flag reproduces exactly that failure in
+/// this test - recorded through `asdlc record-check`, both ways.
+#[test]
+fn a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh"]);
+    let tab = tab_path_of(&pane);
+
+    // Client A attaches and declares nothing; client B attaches to the
+    // *same* pane and is the one that declares a size - item 3's own
+    // wording: "including one that declared no size itself" is A.
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+
+    fn drain_until_size(
+        stream: &mut UnixStream,
+        connection: &mut Connection,
+        wanted_stream: u32,
+        columns: u16,
+        rows: u16,
+    ) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            assert!(Instant::now() < deadline, "never saw size {columns}x{rows}");
+            let update = next_update(stream, connection, wanted_stream, Duration::from_secs(5));
+            if let ScreenUpdate::Full { screen, .. } = &update
+                && screen.size.columns() == columns
+                && screen.size.rows() == rows
+            {
+                return;
+            }
+        }
+    }
+
+    let response = declare_size(&mut stream_b, &mut connection_b, &tab, 100, 30);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    // Both streams must see the new size - the proof that "every
+    // attachment is told", not only the declarer (client B, above). A
+    // size catch-up always arrives as a `Full` (`Screen` always carries
+    // the current size; `Delta` carries none - see `steg_sdk::screen`'s
+    // own doc for why), never a bare field on a `Delta`.
+    drain_until_size(&mut stream_a, &mut connection_a, attached_a.stream, 100, 30);
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 100, 30);
+
+    // And the real pty: a plain command run at the shell's own prompt
+    // reports the real dimensions through `stty size` ("<rows> <cols>")
+    // - sent as input on client B's own attachment, the same mechanism
+    // AC #1's own test already proves, deliberately not a signal-
+    // dependent trap (real, but asynchronous relative to the shell's own
+    // `sleep`, and not worth the flakiness here: this item is about the
+    // declared size reaching the real pty, not about signal delivery
+    // timing, which is the OS's concern, not this task's).
+    send_input(
+        &mut stream_b,
+        &connection_b,
+        attached_b.stream,
+        b"stty size\n",
+    );
+
+    let mut held = attached_b.snapshot;
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !screen_text(&held).contains("30 100") {
+        assert!(
+            Instant::now() < deadline,
+            "the program never reported the real pty size, holding: {:?}",
+            screen_text(&held)
+        );
+        let update = next_update(
+            &mut stream_b,
+            &mut connection_b,
+            attached_b.stream,
+            Duration::from_secs(5),
+        );
+        apply_update(&mut held, update);
+    }
+
+    // A *second*, independent declare, confirming a later redeclare keeps
+    // working (not only the pane's very first tick, which the kernel's
+    // own `is_current == false` already forces a `Full` for regardless
+    // of this task's own code) - declared by A this time, not B, so both
+    // directions are exercised. In practice ghostty-vt marks *every*
+    // resize dirty (confirmed directly: growing or shrinking rows alone,
+    // with no column change, still yields `Dirty::Full`/`Partial` here,
+    // not `Clean` - bringing previously-scrolled rows into view, or
+    // moving visible ones into scrollback, is itself a content change to
+    // the engine), so this does not by itself isolate `run_tick`'s own
+    // `needs_size_catch_up` branch from a `Dirty::Clean` tick - that
+    // precise case (a stale recorded size with nothing else to report)
+    // is unit-tested directly in `crate::pane::attach_tests`, where the
+    // precondition can be constructed without depending on whether any
+    // real resize ever produces it.
+    let response = declare_size(&mut stream_a, &mut connection_a, &tab, 100, 45);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+    drain_until_size(&mut stream_a, &mut connection_a, attached_a.stream, 100, 45);
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 100, 45);
+
+    stop_server(&stop, handle);
+}
+
+/// AC #3: a client that calls `pane.detach` releases its claim, and the
+/// survivor's terminal returns to *its own* declared size - told on its
+/// own stream, not merely recomputed server-side (proof item 6). The
+/// release mechanism itself (`Tree::stop_viewing`/`reapply_latest`) is
+/// already built and unit-tested in `crates/kernel/src/tree.rs`; this
+/// proves the end-to-end wiring, with a real size difference to detect,
+/// not only that a stale attachment is swept.
+///
+/// Control: removing `forget_attachment`/the `detach_pane` call's own
+/// reapply step makes this test fail because the survivor's stream never
+/// reports the reapplied size - recorded through `asdlc record-check`.
+#[test]
+fn detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh"]);
+    let tab = tab_path_of(&pane);
+
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+
+    // B declares first (60x15), then A declares (100x30) - A is now
+    // latest unconditionally (declaring is activity, decision-6), so the
+    // tab's size is A's. Drained past both clients' own "I declared"
+    // updates before detaching, so the detach's own effect below is not
+    // confused with these.
+    let response = declare_size(&mut stream_b, &mut connection_b, &tab, 60, 15);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+    let response = declare_size(&mut stream_a, &mut connection_a, &tab, 100, 30);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    fn drain_until_size(
+        stream: &mut UnixStream,
+        connection: &mut Connection,
+        wanted_stream: u32,
+        columns: u16,
+        rows: u16,
+    ) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            assert!(Instant::now() < deadline, "never saw size {columns}x{rows}");
+            let update = next_update(stream, connection, wanted_stream, Duration::from_secs(5));
+            if let ScreenUpdate::Full { screen, .. } = &update
+                && screen.size.columns() == columns
+                && screen.size.rows() == rows
+            {
+                return;
+            }
+        }
+    }
+
+    drain_until_size(&mut stream_a, &mut connection_a, attached_a.stream, 100, 30);
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 100, 30);
+
+    // A detaches: releases its claim. B is the only remaining viewer, so
+    // `reapply_latest`'s own fallback makes B latest again, and B's own
+    // last-declared size (60x15, differing from the current 100x30) is
+    // reapplied - a real, visible change, not a no-op.
+    detach(&mut stream_a, &mut connection_a, &pane, attached_a.stream);
+
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 60, 15);
+
+    stop_server(&stop, handle);
+}
+
+/// AC #3: a client whose connection is dropped hard (not a polite
+/// `pane.detach`) releases its claim the same way - proof item 7.
+/// `ConnectionCleanup::Drop`'s own sweep (TASK-1.47) calls `Runtime::
+/// disconnect_client`, which reapplies every `SizeChanged` the kernel
+/// reports (`Tree::disconnect_client`'s own doc) - the same release path
+/// a graceful `pane.detach` takes, from a different trigger.
+///
+/// Control: removing `ConnectionCleanup::Drop`'s `disconnect_client` call
+/// makes this test fail the same way the graceful-detach test's own
+/// control does.
+#[test]
+fn a_dropped_connection_releases_its_claim_the_same_way() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh"]);
+    let tab = tab_path_of(&pane);
+
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+
+    let response = declare_size(&mut stream_b, &mut connection_b, &tab, 60, 15);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+    let response = declare_size(&mut stream_a, &mut connection_a, &tab, 100, 30);
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    fn drain_until_size(
+        stream: &mut UnixStream,
+        connection: &mut Connection,
+        wanted_stream: u32,
+        columns: u16,
+        rows: u16,
+    ) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            assert!(Instant::now() < deadline, "never saw size {columns}x{rows}");
+            let update = next_update(stream, connection, wanted_stream, Duration::from_secs(5));
+            if let ScreenUpdate::Full { screen, .. } = &update
+                && screen.size.columns() == columns
+                && screen.size.rows() == rows
+            {
+                return;
+            }
+        }
+    }
+
+    drain_until_size(&mut stream_a, &mut connection_a, attached_a.stream, 100, 30);
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 100, 30);
+
+    // A's connection is dropped hard, not detached politely - the socket
+    // itself closes, which is what `ConnectionCleanup::Drop`'s own sweep
+    // reacts to on the server's side (a real half-close, not a syscall
+    // this test fakes).
+    drop(stream_a);
+    drop(connection_a);
+
+    drain_until_size(&mut stream_b, &mut connection_b, attached_b.stream, 60, 15);
+
+    stop_server(&stop, handle);
+}
+
+/// AC #2: a declared size of `0` is refused with `BadRequest`, never
+/// reaching `Tree::declare_size` or the engine (proof item 11; R100's own
+/// "no floor check, ever" is about shrinking *below* 20x4, a different,
+/// deliberately allowed case - `0` is a narrower, degenerate one nothing
+/// in the kernel or the engine is verified to handle).
+///
+/// Control: removing the range check in `connection.rs`'s `tab.declare
+/// -size` arm makes this test fail - recorded through `asdlc record-check`.
+#[test]
+fn declaring_a_size_of_zero_is_refused() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let tab = tab_path_of(&pane);
+    // Declaring needs an attachment first (`Tree::declare_size`'s own
+    // precondition, R91's "a client attaches before it declares") - this
+    // test is about the size itself, so that precondition is met here,
+    // not left out (which would refuse for an unrelated reason).
+    let _attached = attach(&mut stream, &mut connection, &pane);
+
+    for (columns, rows) in [(0, 24), (80, 0), (0, 0)] {
+        let response = declare_size(&mut stream, &mut connection, &tab, columns, rows);
+        match response {
+            Response::Error(error) => assert_eq!(error.code, ErrorCode::BadRequest),
+            Response::Ok(_) => panic!("declaring {columns}x{rows} must not succeed"),
+        }
+    }
+
+    stop_server(&stop, handle);
+}
+
+/// decision-2's own "refused" for a frame on a stream this connection has
+/// already detached (proof item 10): `pane.detach` closes the stream on
+/// both sides, so a later `Incoming::Data` for it decodes as `Incoming::
+/// UnknownStream`, which `connection.rs`'s own read loop already closes
+/// the connection for (TASK-1.45 §3, unchanged by this task) - this test
+/// confirms that existing mechanism still applies once this task's own
+/// `Incoming::Data` arm exists beside it, by building the frame directly
+/// (bypassing `Connection::send_data`'s own client-side guard, which
+/// would otherwise refuse to build this exact frame at all).
+#[test]
+fn a_frame_on_an_already_detached_stream_closes_the_connection() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached = attach(&mut stream, &mut connection, &pane);
+    detach(&mut stream, &mut connection, &pane, attached.stream);
+
+    let frame = encode_frame(&Frame::data(attached.stream, b"x".to_vec()))
+        .expect("a data frame for an id this test controls directly");
+    stream.write_all(&frame).unwrap();
+
+    stream
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut buf = [0_u8; 4096];
+    match stream.read(&mut buf) {
+        Ok(0) => {} // the connection closed - decision-2's "refused"
+        Ok(n) => panic!("expected the connection to close, got {n} more bytes"),
+        Err(e) => panic!("expected a clean close (Ok(0)), got {e}"),
+    }
+
+    stop_server(&stop, handle);
+}
+
+/// Floods a non-reading program's pty with enough input to keep that
+/// pane's own worker thread genuinely busy inside a real `write_all` for
+/// a bounded-but-real stretch of wall-clock time - measured directly on
+/// this machine (`pty_block_test2.py`, this task's own scratch script,
+/// not committed): a pty with nobody reading its slave does not refuse
+/// further writes here at any size this task tried (up to 370 MB over
+/// 10 s) - it sustains a steady, bounded throughput (~37 MB/s) instead of
+/// the hard, buffer-exhaustion block a Linux `n_tty` queue gives. Either
+/// shape proves the same thing this task's own plan needs (the worker
+/// thread's `write_all` stays busy, not returned, for a real stretch of
+/// time): 20 chunks of 7 MB (under the wire's own 8 MiB frame cap,
+/// decision-2 section 3), each its own `PaneCommand::Input` behind the
+/// last on the pane's own command queue, keeps that worker busy for
+/// several real seconds - comfortably past every bounded check below,
+/// without making the whole test suite slow.
+fn flood_stdin(stream: &mut UnixStream, connection: &Connection, attachment_stream: u32) {
+    let chunk = vec![b'x'; 7 * 1024 * 1024];
+    for _ in 0..10 {
+        send_input(stream, connection, attachment_stream, &chunk);
+    }
+}
+
+/// Every test that calls [`flood_stdin`] holds this for its own whole
+/// body: `cargo test`'s default thread-per-test parallelism would
+/// otherwise run several of these at once, each assuming close to this
+/// machine's own full measured throughput (`flood_stdin`'s own doc) -
+/// true one at a time, not guaranteed when several compete for the same
+/// underlying pty/socket I/O at once. Every other test in this file is
+/// unaffected: only the handful that actually flood take this lock.
+static FLOOD_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+/// AC #1's own cost, proven directly (TASK-1.114's plan, §1 and proof
+/// item 9): flooding a program that never reads its stdin at all (`sleep`)
+/// makes that *one* pane's own worker thread stuck in a blocking
+/// `write_all` - proven here, not assumed, by a second `pane.attach` to
+/// the very same pane never getting a reply (it queues behind the stuck
+/// write on that pane's own command channel) - while, on bounded waits,
+/// (a) a plain control call on the *same* connection still answers and
+/// (b) a second, unrelated pane on the same connection still receives
+/// updates. If either (a) or (b) ever failed, that would be a real
+/// regression this plan names nowhere as a limit, not something to
+/// accept - this test's job is to confirm nothing beyond the one named
+/// limit (that stuck pane's own screen freezing) rides along with it.
+#[test]
+fn an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let stuck_pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let other_pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "while true; do echo flooding; sleep 0.02; done"],
+    );
+
+    let attached_stuck = attach(&mut stream, &mut connection, &stuck_pane);
+    let attached_other = attach(&mut stream, &mut connection, &other_pane);
+    // At least one real update from the other pane before flooding, so
+    // this test's own later check (another update still arrives) proves
+    // something that was genuinely still flowing, not a pane that
+    // happened never to produce anything.
+    let _ = next_update(
+        &mut stream,
+        &mut connection,
+        attached_other.stream,
+        Duration::from_secs(5),
+    );
+
+    flood_stdin(&mut stream, &connection, attached_stuck.stream);
+
+    // Proof the stuck pane's own worker really is stuck: a second attach
+    // to it, queued behind the flood on that pane's own command channel,
+    // gets no reply within a short, bounded window.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(stuck_pane));
+    let (stuck_attach_id, bytes) = connection
+        .call("pane.attach", params)
+        .expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+    let reply = reply_within(
+        &mut stream,
+        &mut connection,
+        stuck_attach_id,
+        Duration::from_secs(1),
+    );
+    assert!(
+        reply.is_none(),
+        "the stuck pane's own worker answered a second attach - it was not actually stuck: {reply:?}"
+    );
+
+    // (a) a plain control call on the same connection still answers -
+    // `reply_within`, not `call_and_read_reply`: the abandoned second
+    // attach's own reply (above) is still outstanding and will arrive on
+    // this same connection at some later, unpredictable point once the
+    // flood drains, so this call must skip past it by id, not assume the
+    // next reply frame is its own.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(other_pane));
+    let (show_id, bytes) = connection.call("pane.show", params).expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+    // 15s, not 5s: this only has to prove the control call answers *at
+    // all* (never truly stuck), not race a tight deadline against this
+    // machine's own, unrelated CPU contention - `just check` runs several
+    // other test binaries at the same time, which can starve this one's
+    // own socket reads well past 5s without the server itself being slow.
+    let response = reply_within(
+        &mut stream,
+        &mut connection,
+        show_id,
+        Duration::from_secs(15),
+    )
+    .expect("pane.show must answer within a bound, even with the other pane stuck");
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    // (b) the other pane still receives updates - 15s for the same
+    // contention-margin reason as the control call above.
+    let _ = next_update(
+        &mut stream,
+        &mut connection,
+        attached_other.stream,
+        Duration::from_secs(15),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// A plain control call from a connection that never touched the stuck
+/// pane answers quickly, proving the server-wide freeze TASK-1.114's own
+/// accepted limit disclaims ("only that pane's screen") - not merely that
+/// one connection's own request queue is sequential.
+///
+/// `an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_
+/// another_pane`, above, issues every one of its calls over a single
+/// connection - its own `(a)` check only proves that *this* connection's
+/// read loop eventually gets back around to `pane.show` once the stuck
+/// pane's worker drains (`connection.rs`'s own `run_post_handshake` reads
+/// and handles one request at a time per connection, so that much is true
+/// of a perfectly healthy server too, and would pass even if every other
+/// connection in the process were also frozen).
+///
+/// This test instead issues `pane.show` from a *second*, otherwise idle
+/// connection, opened only after the first connection's own attach to the
+/// stuck pane is already known-stuck (the same proof `(a)` above uses: no
+/// reply within a short bound). `connection.rs` intercepts `pane.attach`
+/// before `Runtime::handle`'s own generic path (`Runtime::attach_pane`),
+/// and `pane.show` reaches that generic path, which needs `Runtime::lock`
+/// the same as everything else - so if `attach_pane` ever holds that lock
+/// across its own wait on the stuck pane's worker, this second
+/// connection's unrelated `pane.show` queues up behind it too, and this
+/// test fails.
+///
+/// 2s, not 15s: unlike the "eventually drains" checks above, this one
+/// does not wait on the stuck pane at all if the server is healthy - nothing
+/// here competes with the pty flood for a multi-second event, so a bound
+/// this much tighter than this file's own "eventually drains" margin still
+/// has plenty of room for `just check`'s own concurrent CPU contention.
+///
+/// Control (TASK-1.114, following TASK-1.47's own review finding that
+/// `Runtime::attach_pane` holds the runtime lock across `PaneHandle::
+/// attach`'s unbounded `recv`): recorded failing against the pre-fix
+/// `attach_pane` via `asdlc record-check` - this second connection's
+/// `pane.show` got no reply within 2s, confirming the lock actually is
+/// held across the wait today. Recorded passing once TASK-1.47's
+/// restructuring (not touched by this task) stops holding the lock across
+/// that wait.
+///
+/// 12x `flood_stdin`'s own batch (840MB, not 70MB), on a dedicated
+/// connection used for nothing else: this measured (an earlier draft of
+/// this test, using `flood_stdin`'s own 70MB) draining well inside the 2s
+/// bound below - too fast to tell a held lock apart from a released one,
+/// since either way the real check would then be answered by a fully
+/// recovered worker, not a stuck one. The sending side itself never
+/// blocks on the pty at all - it is a socket write the server's reader
+/// drains into the pane's own unbounded command channel - so sending 12x
+/// the data does not cost anywhere near 12x the wall-clock time; only the
+/// one pane worker's own serial, blocking pty writes do, and those stay
+/// well behind both bounded checks below.
+#[test]
+fn a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+
+    let stuck_pane = new_pane_running(
+        &mut stream_a,
+        &mut connection_a,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let other_pane = new_pane_running(
+        &mut stream_a,
+        &mut connection_a,
+        vec!["sh", "-c", "while true; do echo flooding; sleep 0.02; done"],
+    );
+    let _attached_other = attach(&mut stream_a, &mut connection_a, &other_pane);
+
+    // The second connection used for the real check below, opened and
+    // handshaken *before* the flood starts: a brand new connection's own
+    // handshake needs `Runtime::register_subscriber` (TASK-1.46 §7),
+    // which takes `Runtime::lock` too, so opening it only after the pane
+    // is already stuck would at best conflate "a new connection can even
+    // join" with "an already-connected one's plain control call still
+    // answers" - two different proofs. Opening it first removes that
+    // ambiguity: whatever happens next can only be explained by this
+    // connection's own later `pane.show`, not by its own handshake.
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+
+    // A dedicated connection for the flood, so nothing else this test
+    // does ever shares a socket with it.
+    let (mut flood_stream, mut flood_connection) = connect_and_handshake(&socket_path);
+    let attached_stuck = attach(&mut flood_stream, &mut flood_connection, &stuck_pane);
+    let chunk = vec![b'x'; 7 * 1024 * 1024];
+    for _ in 0..120 {
+        send_input(
+            &mut flood_stream,
+            &flood_connection,
+            attached_stuck.stream,
+            &chunk,
+        );
+    }
+
+    // Proof the stuck pane's own worker really is stuck, the same shape
+    // as the single-connection test above: a second attach to it, queued
+    // behind the flood on that pane's own command channel, gets no reply
+    // within a short, bounded window.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(stuck_pane));
+    let (stuck_attach_id, bytes) = connection_a
+        .call("pane.attach", params)
+        .expect("a valid call");
+    stream_a.write_all(&bytes).unwrap();
+    let reply = reply_within(
+        &mut stream_a,
+        &mut connection_a,
+        stuck_attach_id,
+        Duration::from_secs(1),
+    );
+    assert!(
+        reply.is_none(),
+        "the stuck pane's own worker answered a second attach - it was not actually stuck: {reply:?}"
+    );
+
+    // The real check: `connection_b`, already connected before the flood
+    // started and never having touched `stuck_pane` at all, issues one
+    // plain control call and must get an answer quickly - never
+    // serialized behind a different connection's own worker-bound attach.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(other_pane));
+    let (show_id, bytes) = connection_b
+        .call("pane.show", params)
+        .expect("a valid call");
+    stream_b.write_all(&bytes).unwrap();
+    let response = reply_within(
+        &mut stream_b,
+        &mut connection_b,
+        show_id,
+        Duration::from_secs(2),
+    )
+    .expect(
+        "a second connection's plain control call must answer within 2s, \
+             never waiting on a different connection's own stuck-pane attach",
+    );
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+
+    stop_server(&stop, handle);
+}
+
+/// `pane.close --force` returns within its own documented bound
+/// (`force_grace + ESCALATE_CONFIRM_TIMEOUT + FORCE_JOIN_TIMEOUT`) even
+/// while that exact pane's own worker is stuck in a blocking `write_all`.
+/// `force_end`'s own six passes (`crates/server/src/runtime.rs`) never
+/// wait on the worker thread past a stated timeout; only the final two
+/// (`settle_worker`/`join_worker`) touch it at all, and both are bounded.
+#[test]
+fn pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached = attach(&mut stream, &mut connection, &pane);
+    flood_stdin(&mut stream, &connection, attached.stream);
+
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    params.insert("force".to_string(), json!(true));
+    let (id, bytes) = connection.call("pane.close", params).expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+    let started = Instant::now();
+    // `reply_within`, not `call_and_read_reply`: a generous bound, not a
+    // tight race against this machine's own, unrelated CPU contention
+    // (`just check` runs several other test binaries at the same time) -
+    // this item is about `force_end` having a bound *at all*, not about
+    // how close to force_grace's own nominal ~6s this specific run lands.
+    let response = reply_within(&mut stream, &mut connection, id, Duration::from_secs(30))
+        .expect("pane.close --force must answer within a bound, even against a stuck worker");
+    let elapsed = started.elapsed();
+    assert!(matches!(response, Response::Ok(_)), "{response:?}");
+    assert!(
+        elapsed < Duration::from_secs(30),
+        "pane.close --force took {elapsed:?} against a stuck worker - force_end's own bound is \
+         meant to hold regardless"
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// Stopping the whole server returns within its own documented bound even
+/// while one pane's worker is stuck the same way - `Runtime::stop` uses
+/// the identical `force_end` a forced `pane.close` does, for every pane
+/// still running (`crates/server/src/runtime.rs`'s own doc on `Runtime::
+/// stop`).
+#[test]
+fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached = attach(&mut stream, &mut connection, &pane);
+    flood_stdin(&mut stream, &connection, attached.stream);
+
+    let started = Instant::now();
+    stop_server(&stop, handle);
+    let elapsed = started.elapsed();
+    // 30s, not 10s - the same reasoning `pane_close_force_returns_within_
+    // its_bound_even_while_the_panes_own_worker_is_stuck`'s own comment
+    // gives: a generous margin against this machine's own unrelated CPU
+    // contention, not a tight race against `force_end`'s nominal ~6s.
+    assert!(
+        elapsed < Duration::from_secs(30),
+        "stopping the server took {elapsed:?} against a stuck pane's worker - Runtime::stop's \
+         own bound is meant to hold regardless"
+    );
+}
+
+/// TASK-1.125's own race, reproduced over two real connections rather
+/// than inferred from `finish_attach`'s own unit tests (which exercise
+/// `armed: bool` as a given, not the real timing that produces it) - the
+/// end-to-end test TASK-1.125 could not build on its own, now possible
+/// with this task's own flood/stuck-pane machinery plus TASK-1.125's fix.
+///
+/// Connection two's own `pane.attach` is deliberately queued behind a
+/// large, deterministic flood on the pane's own worker (the same
+/// technique `a_second_connections_control_call_is_not_blocked_by_a_
+/// stuck_panes_lock_held_attach` uses, and for the same reason: a fixed
+/// small batch risks draining before the race below gets a chance to
+/// run). While it is still queued, connection one force-closes the pane.
+/// `Runtime`'s own close-and-force removes the pane from its own map
+/// under the lock, synchronously, *before* `force_end`'s signal/kill
+/// passes even run (`crates/server/src/runtime.rs`, the `to_force`
+/// extraction ahead of `force_end`) - so the pane is already gone by the
+/// time connection two's queued attach is finally reached. The worker
+/// thread itself is not torn down until `force_end`'s own later passes,
+/// so it drains its backlog and answers that queued attach normally,
+/// unaware the pane it belongs to has already been removed - exactly the
+/// gap between "attach succeeded" and "arm found nothing to arm" TASK-
+/// 1.125 named. `arm_attachment` (runtime.rs) checks the pane is still in
+/// its own map before arming; `finish_attach` (connection.rs) does not
+/// record the attachment when it is not. What this test checks is not
+/// connection two's own `pane.attach` reply (which may itself report
+/// success - the "silent stream" TASK-1.125's own title names), but that
+/// a later `pane.detach` for the same target never succeeds, rather than
+/// succeeding against nothing or leaking (the exact error code observed
+/// is `NoSuchTarget`, not `BadRequest` - the target itself is gone too,
+/// not merely never attached by this connection; see this test's own
+/// real check for why).
+///
+/// Control: reverted `arm_attachment` to `fn arm_attachment(...) -> bool
+/// { let state = self.lock(); if let Some(handle) = state.panes.get(&pane)
+/// { let _ = handle.arm(attachment_id, outbound); } true }` (armed
+/// unconditionally, TASK-1.125's own bug) - the `pane.detach` below then
+/// answered `Ok`, not an error, confirmed via `asdlc record-check`
+/// before being reverted back.
+#[test]
+fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_one, mut connection_one) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream_one,
+        &mut connection_one,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached_one = attach(&mut stream_one, &mut connection_one, &pane);
+
+    // A dedicated, large, synchronous flood - deterministic regardless
+    // of this machine's own real pty throughput (see the lock-contention
+    // test above for the same reasoning): big enough that the worker has
+    // not drained it by the time this test reaches its own real check.
+    let chunk = vec![b'x'; 7 * 1024 * 1024];
+    for _ in 0..120 {
+        send_input(
+            &mut stream_one,
+            &connection_one,
+            attached_one.stream,
+            &chunk,
+        );
+    }
+
+    let (mut stream_two, mut connection_two) = connect_and_handshake(&socket_path);
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    let (attach_id, bytes) = connection_two
+        .call("pane.attach", params)
+        .expect("a valid call");
+    stream_two.write_all(&bytes).unwrap();
+
+    // Proof connection two's own attach really is still queued, same
+    // shape as this file's own other stuck-pane proofs: no reply within
+    // a short, bounded window.
+    let reply = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        attach_id,
+        Duration::from_secs(1),
+    );
+    assert!(
+        reply.is_none(),
+        "connection two's own attach answered before the flood drained - this test's own race \
+         never had a chance to run: {reply:?}"
+    );
+
+    // Connection one force-closes the pane while connection two's attach
+    // is still queued behind the flood. `reply_within`, not `call_and_
+    // read_reply`: the same reasoning `pane_close_force_returns_within_
+    // its_bound_even_while_the_panes_own_worker_is_stuck`'s own comment
+    // gives - `call_and_read_reply`'s own underlying socket read uses
+    // this connection's plain 5s default timeout, which `force_grace`
+    // plus CI's own contention can exceed even though force_end's real
+    // bound is much wider.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    params.insert("force".to_string(), json!(true));
+    let (close_id, bytes) = connection_one
+        .call("pane.close", params)
+        .expect("a valid call");
+    stream_one.write_all(&bytes).unwrap();
+    let response = reply_within(
+        &mut stream_one,
+        &mut connection_one,
+        close_id,
+        Duration::from_secs(30),
+    )
+    .expect("pane.close --force must answer within a bound");
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "pane.close --force failed: {response:?}"
+    );
+
+    // Connection two's own queued attach now resolves - the worker
+    // thread is still alive at this point (torn down only by `force_
+    // end`'s own later passes), so it drains its backlog and answers the
+    // queued command normally. This reply's own content is not what this
+    // test checks (see this test's own doc); only draining it so
+    // connection two is free to send its next request matters here.
+    let _ = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        attach_id,
+        Duration::from_secs(15),
+    );
+
+    // The real check: a `pane.detach` for the same target must not
+    // succeed - this connection holds no real attachment to arm or
+    // release, and `pane.close --force` already removed the target from
+    // the tree too, so the actual code observed is `NoSuchTarget` (the
+    // target itself is gone), not the `BadRequest` a merely-never-
+    // attached-but-still-live pane would answer with (`detaching_a_pane_
+    // this_connection_never_attached_to_is_a_bad_request`, above) -
+    // `connection.rs`'s own already-closed-pane fallback only resolves
+    // through this connection's `pane_streams`, which has nothing here
+    // either way. Either error code is a correct refusal; `Ok` is the
+    // one outcome TASK-1.125's own "silent stream" bug produced.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    let (detach_id, bytes) = connection_two
+        .call("pane.detach", params)
+        .expect("a valid call");
+    stream_two.write_all(&bytes).unwrap();
+    let response = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        detach_id,
+        Duration::from_secs(15),
+    )
+    .expect("pane.detach must answer within a bound");
+    match response {
+        Response::Error(error) => {
+            assert_eq!(error.code, steg_sdk::ErrorCode::NoSuchTarget, "{error:?}");
+        }
+        Response::Ok(_) => panic!(
+            "pane.detach for a pane that closed between attach and arm must not succeed - \
+             TASK-1.125's own 'silent stream' bug"
+        ),
+    }
 
     stop_server(&stop, handle);
 }

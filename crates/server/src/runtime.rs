@@ -21,7 +21,7 @@ use steg_kernel::{
 };
 use steg_sdk::{
     ApiError, ClientId, ClientKind, Connection, Description, ErrorCode, PaneId, Program, Request,
-    Response, SessionId, validate,
+    Response, SessionId, Size, validate,
 };
 
 use crate::connection::ConnectionEvent;
@@ -651,6 +651,68 @@ impl Runtime {
         if let Some(handle) = state.panes.get(&pane) {
             let _ = handle.detach(attachment_id);
         }
+    }
+
+    /// Bytes `client` sent on an attachment's own stream (TASK-1.114, AC
+    /// #1): `Tree::note_input` makes `client` the new latest in `pane`'s
+    /// session (R91's other half of "latest" - decision-6) and reapplies
+    /// whatever size it last declared, if that now differs from the tab's
+    /// current size; then the bytes themselves are handed to the pane's
+    /// worker. Self-locking, the same shape as [`Runtime::arm_attachment`].
+    ///
+    /// Never blocks on the program: `PaneHandle::send_input` only enqueues
+    /// onto the pane's own unbounded command channel (a non-blocking
+    /// `mpsc::Sender::send`) - the pty write itself happens later, on that
+    /// pane's own worker thread, not this one. `Tree::note_input`'s `Err`
+    /// (`ClientNotFound`/`ClientNotViewingPane`) is never reached in
+    /// practice - `connection.rs`'s own `stream_panes` only ever names a
+    /// pane this connection's `client` is currently attached to - but is
+    /// tolerated the same way `detach_pane`/`forget_attachment` already
+    /// tolerate a stale pane: there is nothing sane to do about a state
+    /// inconsistency here except not fail the bytes over it.
+    pub(crate) fn send_input(&self, client: ClientId, pane: PaneId, bytes: Vec<u8>) {
+        let mut state = self.lock();
+        if let Ok(Some(change)) = state.tree.note_input(client, pane) {
+            apply_size_changed_locked(&mut state, &change);
+        }
+        if let Some(handle) = state.panes.get(&pane) {
+            let _ = handle.send_input(bytes);
+        }
+    }
+
+    /// `tab.declare-size` (TASK-1.114, AC #2): `client` declares its own
+    /// size for `tab`, in whole cells. `columns`/`rows` are already
+    /// range-checked by `connection.rs` (both `1..=u16::MAX`) before this
+    /// is ever called - the kernel's own `Tree::declare_size` applies
+    /// whatever size it is given with no floor of its own (R100's last
+    /// clause: a window may shrink a pane under R100's 20x4 floor, cropped
+    /// rather than refused), so a degenerate `0` has to be refused before
+    /// it ever reaches the kernel or the engine, not after.
+    ///
+    /// # Errors
+    ///
+    /// Whatever `validate`/`dispatch::target_tab`/`Tree::declare_size`
+    /// refuse with (`BadRequest`, `NoSuchTarget`, `AmbiguousTarget`, or -
+    /// `Tree::declare_size`'s own `ClientNotViewingTab` - `BadRequest`,
+    /// via [`dispatch::map_kernel_error`]).
+    pub(crate) fn declare_size(
+        &self,
+        description: &Description,
+        context: &Context,
+        request: &Request,
+        client: ClientId,
+        columns: u16,
+        rows: u16,
+    ) -> Result<(), ApiError> {
+        validate(description, request)?;
+        let mut state = self.lock();
+        let tab = dispatch::target_tab(&state.tree, context, request)?;
+        let change = state
+            .tree
+            .declare_size(client, tab, Size::new(columns, rows))
+            .map_err(dispatch::map_kernel_error)?;
+        apply_size_changed_locked(&mut state, &change);
+        Ok(())
     }
 
     /// How many attachments `pane`'s own worker currently holds

@@ -95,17 +95,31 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all
 }
 
-/// Described, fully built methods that never reach [`dispatch`] at all
-/// (TASK-1.47): `connection.rs`'s own read loop intercepts them before
-/// falling through to [`Runtime::handle`][crate::runtime::Runtime::handle],
-/// because answering them needs a connection's own `Arc<Outbound>` and its
-/// own per-connection attachment bookkeeping, neither of which `dispatch`
-/// or `Runtime::handle` can reach (both exist only inside `connection.rs`,
-/// created after the handshake) - the same structural reason `event.watch`
-/// is expected to leave [`NOT_YET_NOUNS`] for this list too, once its own
-/// server-side task lands. Test-only, for the same reason as [`handled`].
+/// Described, fully built methods that never reach [`dispatch`] at all:
+/// `connection.rs`'s own read loop intercepts them before falling through to
+/// [`Runtime::handle`][crate::runtime::Runtime::handle], because answering
+/// them needs something `dispatch`'s own signature has no way to carry.
+/// `pane.attach`/`pane.detach` (TASK-1.47) need a connection's own
+/// `Arc<Outbound>` and its own per-connection attachment bookkeeping, both
+/// created only inside `connection.rs`, after the handshake. `tab.declare
+/// -size` (TASK-1.114) needs only a `ClientId` - `Context` carries session/
+/// tab/pane defaults and nothing else, so `Tree::declare_size`/`Tree::
+/// note_input` are just as unreachable from here, one step further back.
+/// The same structural reason `event.watch` is expected to leave
+/// [`NOT_YET_NOUNS`] for this list too, once its own server-side task
+/// lands. Test-only, for the same reason as [`handled`].
 #[cfg(test)]
-const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[("pane", "attach"), ("pane", "detach")];
+const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
+    ("pane", "attach"),
+    ("pane", "detach"),
+    // TASK-1.114: `Tree::declare_size` needs a `ClientId`, which `dispatch`'s
+    // own signature has no way to carry at all (`Context` holds only
+    // session/tab/pane defaults) - the same structural reason `pane.attach`/
+    // `pane.detach` are on this list, one step further back (they also
+    // needed a connection's own `Arc<Outbound>`; this needs neither, only
+    // the `ClientId` itself).
+    ("tab", "declare-size"),
+];
 
 /// The nouns with no served arm at all in this task (`server`, `event`,
 /// `client`): every one of their methods answers
@@ -175,12 +189,12 @@ pub(crate) fn program_running() -> ApiError {
 /// once `validate` has already confirmed the method is in `description`
 /// (every described method's name is `{noun}.{verb}`, R101), and every
 /// described method is matched by one of the per-noun `HANDLED` lists, the
-/// three not-yet nouns, or `pane.attach`/`pane.detach`'s own arm
-/// (TASK-1.47, built but never reached this way in the real system), which
-/// `mod.rs`'s own completeness test checks against `description()` directly.
-/// Panics instead, rather than silently misrouting, if ever called with
-/// `"api.call"` itself - the one case the doc above says never to pass
-/// here.
+/// three not-yet nouns, or `pane.attach`/`pane.detach`/`tab.declare-size`'s
+/// own arms (TASK-1.47/TASK-1.114, each built but never reached this way
+/// in the real system), which `mod.rs`'s own completeness test checks
+/// against `description()` directly. Panics instead, rather than silently
+/// misrouting, if ever called with `"api.call"` itself - the one case the
+/// doc above says never to pass here.
 pub(crate) fn dispatch_raw(
     tree: &mut Tree,
     settings: &mut Settings,
@@ -240,6 +254,11 @@ pub(crate) fn dispatch_raw(
              but never reached through dispatch in the real system: answering it needs a \
              connection's own Arc<Outbound> and attachment bookkeeping, which only exist in \
              connection.rs, created after the handshake",
+        )),
+        ("tab", "declare-size") => Err(not_implemented_yet(
+            "connection.rs's own interception (TASK-1.114) - a described method, fully built, \
+             but never reached through dispatch in the real system: answering it needs a \
+             ClientId, which this function's own signature has no way to carry at all",
         )),
         _ => unreachable!(
             "validate already refused any method not in the description, and every \

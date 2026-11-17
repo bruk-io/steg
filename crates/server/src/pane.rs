@@ -56,7 +56,7 @@ use std::time::{Duration, Instant};
 
 use nix::sys::signal::Signal;
 use steg_kernel::{CommandMark, Terminal};
-use steg_sdk::{Frame, PaneId, Screen, ScreenUpdate, encode_frame};
+use steg_sdk::{Frame, PaneId, Screen, ScreenUpdate, Size, encode_frame};
 
 use crate::error::Error;
 use crate::outbound::{EnqueueDataError, Outbound};
@@ -276,6 +276,19 @@ struct Attachment {
     stream: u32,
     outbound: Option<Arc<Outbound>>,
     caught_up_to: AttachState,
+    /// The terminal's size as of this attachment's own last-sent `Screen`
+    /// (TASK-1.114; doc-14/R91: "an update... reports the terminal's size
+    /// when it changes") - set once, at registration (`PaneCommand::
+    /// Attach`'s own screen read, always correct for that moment), and
+    /// again whenever this attachment is sent a fresh `Full` (never from
+    /// a shared `Delta`, which carries no size of its own - see `Screen`'s
+    /// own doc in `steg_sdk::screen` for why). [`run_tick`] treats a stale
+    /// value here exactly like [`AttachState::NeedsResync`]: this
+    /// attachment's own next payload is a fresh, independent `Full`,
+    /// which already carries the current size by construction, rather
+    /// than the content-only shared `Delta` every caught-up attachment
+    /// would otherwise share.
+    last_told_size: Size,
 }
 
 /// Whether an attachment is caught up to the terminal's own tracked point
@@ -1039,7 +1052,12 @@ fn worker_loop(
                         // then. `id` is this worker's own (TASK-1.114;
                         // `AttachmentId`'s own doc) - `stream` alone is
                         // not a safe key once a second connection can
-                        // attach the same pane.
+                        // attach the same pane. `last_told_size` is this
+                        // same `screen`'s own size (TASK-1.114): this
+                        // reply is what the caller sends back as the
+                        // attach snapshot, so the attachment is never
+                        // stale on size at the moment it is registered,
+                        // only ever later, after a real resize.
                         let id = AttachmentId(next_attachment_id);
                         next_attachment_id += 1;
                         attachments.push(Attachment {
@@ -1047,6 +1065,7 @@ fn worker_loop(
                             stream,
                             outbound: None,
                             caught_up_to: AttachState::CaughtUp(tracked_seq),
+                            last_told_size: screen.size,
                         });
                         Ok((id, screen))
                     }
@@ -1093,15 +1112,50 @@ fn maybe_arm_tick(
 
 /// Computes this pane's one screen update for this tick and fans it out
 /// to every armed attachment (decision-2 section 3: "call this once per
-/// tick and fan the one result out"; AC #1, #3).
+/// tick and fan the one result out"; AC #1, #3) - and, independently of
+/// content, catches up any attachment whose own `last_told_size` is stale
+/// against the terminal's current size (TASK-1.114, AC #2/R91).
 ///
 /// An attachment with no `Outbound` yet (not armed - see [`Attachment`]'s
 /// own doc) is skipped entirely: nothing is computed or sent for it, and
-/// its own `caught_up_to` is left exactly as it was, which is what lets
-/// [`PaneCommand::Arm`] hand it off cleanly whenever it does arrive - the
-/// next tick after that treats a stale `CaughtUp` exactly like
-/// `NeedsResync` (`AttachState`'s own doc), with no special case needed
-/// here for "just armed".
+/// its own `caught_up_to`/`last_told_size` are left exactly as they were,
+/// which is what lets [`PaneCommand::Arm`] hand it off cleanly whenever it
+/// does arrive - the next tick after that treats a stale `CaughtUp` or a
+/// stale `last_told_size` exactly like `NeedsResync` (`AttachState`'s own
+/// doc), with no special case needed here for "just armed".
+///
+/// **Why a size catch-up cannot share `changes_since`'s own `Dirty` check,
+/// or its `Delta`'s payload, the way content does (found by this task's
+/// own proof, not assumed):** whether a *given attachment* has already
+/// been told the current size is per-attachment state this function
+/// alone holds - `Terminal::changes_since` has no notion of attachments at
+/// all, and the engine's content-dirty tracking says nothing about
+/// whether the size changed (a resize that only grows blank rows can
+/// leave `Dirty::Clean`). Treating "size changed" as one pane-wide flag,
+/// consumed by whichever tick happens to run first, silently starves any
+/// attachment that was not yet armed at that exact tick (confirmed by a
+/// real two-client test with this exact timing: the second client's own
+/// `Arm` had not yet reached this worker when the first size-bearing tick
+/// ran, and a global, once-only flag left it stale forever). This
+/// function instead decides, per attachment, every tick: does *this one*
+/// still need a size catch-up, regardless of what any other attachment
+/// has already been sent. An attachment that does gets a fresh,
+/// independent `Full` (`Screen` always carries the current size), not the
+/// shared `Delta` - the same shape `NeedsResync` already uses, extended
+/// to a second reason to need it.
+///
+/// **Why this actively forces extra ticks for a stale size but a merely
+/// content-behind attachment (one `NeedsResync`, or freshly armed, with
+/// nothing new since) still just waits for the next real dirty tick, with
+/// no equivalent forcing:** a content-behind attachment's own, already-
+/// held screen is still *correct* - nothing has happened since to make it
+/// wrong, so there is nothing urgent to push. A size-stale attachment's
+/// own held screen is actively *wrong* the moment the resize happens and
+/// stays wrong until something tells it otherwise; without `any_work`
+/// treating `needs_size_catch_up` as its own, independent reason to run a
+/// tick, such an attachment would never self-correct if the pane's
+/// program never prints again. The two cases are not the same kind of
+/// staleness, so they are not handled the same way on purpose.
 ///
 /// Back-pressure (decision-2 section 6, AC #3's second half): an
 /// attachment whose `enqueue_data` returns `Full` or `NotOpen` moves to
@@ -1118,16 +1172,36 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
         // again next tick rather than treating this as fatal to the pane.
         return;
     };
+    let content_changed = !matches!(outcome, ScreenUpdate::Unchanged);
     let new_seq = match &outcome {
-        ScreenUpdate::Unchanged => return,
+        ScreenUpdate::Unchanged => previous,
         ScreenUpdate::Delta { seq, .. } | ScreenUpdate::Full { seq, .. } => *seq,
     };
+
+    // `None` only if the engine's own `cols`/`rows` failed - tolerated the
+    // same way the rest of this function tolerates an engine hiccup:
+    // every attachment is simply treated as not stale on size *this*
+    // tick, and tried again on the next one.
+    let current_size = match (terminal.cols(), terminal.rows()) {
+        (Ok(columns), Ok(rows)) => Some(Size::new(columns, rows)),
+        _ => None,
+    };
+    let size_stale = |attachment: &Attachment| {
+        current_size.is_some_and(|size| size != attachment.last_told_size)
+    };
+
+    let any_work = attachments
+        .iter()
+        .any(|a| a.outbound.is_some() && (content_changed || size_stale(a)));
+    if !any_work {
+        return;
+    }
     *tracked_seq = new_seq;
 
-    // The JSON payload for an attachment that is already caught up to
-    // `previous` - built once, shared by every such attachment, not
-    // recomputed per attachment (decision-2 section 3's own point: one
-    // update per tick, fanned out). Framed separately per attachment
+    // The JSON payload for an attachment that is caught up on *both*
+    // content and size - built once, shared by every such attachment,
+    // not recomputed per attachment (decision-2 section 3's own point:
+    // one update per tick, fanned out). Framed separately per attachment
     // below, since the stream id is part of the frame, not the payload.
     let mut ready_payload: Option<Vec<u8>> = None;
 
@@ -1135,10 +1209,15 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
         let Some(outbound) = attachment.outbound.clone() else {
             continue; // not yet armed - nothing to send to
         };
-        let ready =
+        let content_ready =
             matches!(attachment.caught_up_to, AttachState::CaughtUp(seq) if seq == previous);
+        let needs_size_catch_up = size_stale(attachment);
 
-        let payload = if ready {
+        if !content_changed && !needs_size_catch_up {
+            continue; // nothing new for this attachment specifically
+        }
+
+        let payload = if content_changed && content_ready && !needs_size_catch_up {
             ready_payload
                 .get_or_insert_with(|| {
                     serde_json::to_vec(&outcome).expect("ScreenUpdate always serialises to JSON")
@@ -1147,10 +1226,11 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
         } else {
             // Needs a fresh, independent, scrollback-free screen - never
             // the tick's own `outcome` (which may be a `Delta` this
-            // attachment cannot apply), and never what any other
-            // attachment is sent (decision-2 section 6: "a client that
-            // falls behind gets one fresh screen-sized snapshot, without
-            // scrollback").
+            // attachment cannot apply, or carries no size at all), and
+            // never what any other attachment is sent (decision-2 section
+            // 6: "a client that falls behind gets one fresh screen-sized
+            // snapshot, without scrollback" - extended here to cover a
+            // size catch-up the same way).
             let Ok(screen) = terminal.screen() else {
                 continue; // try again next tick
             };
@@ -1165,9 +1245,19 @@ fn run_tick(terminal: &mut Terminal, tracked_seq: &mut u64, attachments: &mut [A
             .expect("a screen update fits under the frame cap");
 
         match outbound.enqueue_data(attachment.stream, bytes) {
-            Ok(()) => attachment.caught_up_to = AttachState::CaughtUp(new_seq),
+            Ok(()) => {
+                attachment.caught_up_to = AttachState::CaughtUp(new_seq);
+                if let Some(size) = current_size {
+                    attachment.last_told_size = size;
+                }
+            }
             Err(EnqueueDataError::Full | EnqueueDataError::NotOpen) => {
                 attachment.caught_up_to = AttachState::NeedsResync;
+                // `last_told_size` is left exactly as it was: this
+                // attachment did not actually receive anything, so it is
+                // no more caught up on size than it was before this tick
+                // - the next tick's own `size_stale` check must still see
+                // it as stale if it still is.
             }
             Err(EnqueueDataError::Closed) => {
                 // The connection is tearing down; nothing more to do -
@@ -1916,7 +2006,7 @@ mod attach_tests {
     use std::sync::mpsc;
     use std::time::{Duration, Instant};
 
-    use steg_sdk::{Decoder, PaneId, ScreenUpdate};
+    use steg_sdk::{Decoder, PaneId, ScreenUpdate, Size};
 
     use crate::outbound::{Outbound, run_writer};
     use crate::pty::{LaunchSpec, RealLauncher};
@@ -2033,6 +2123,7 @@ mod attach_tests {
             stream: 1,
             outbound: None,
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
         maybe_arm_tick(&mut next_tick, TEST_TICK, &attachments);
         assert_eq!(
@@ -2051,6 +2142,7 @@ mod attach_tests {
             stream: 1,
             outbound: Some(Arc::new(Outbound::new())),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
         let before = Instant::now();
         maybe_arm_tick(&mut next_tick, TEST_TICK, &attachments);
@@ -2066,6 +2158,7 @@ mod attach_tests {
             stream: 1,
             outbound: Some(Arc::new(Outbound::new())),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
         let already = Instant::now() + Duration::from_secs(1);
         let mut next_tick = Some(already);
@@ -2098,6 +2191,7 @@ mod attach_tests {
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
 
         run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
@@ -2126,6 +2220,7 @@ mod attach_tests {
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
         run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
         let (_, first) = frames.next_update(Duration::from_secs(2));
@@ -2157,6 +2252,7 @@ mod attach_tests {
             stream: 7,
             outbound: Some(Arc::clone(&frames.outbound)),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
         run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
         let _ = frames.next_update(Duration::from_secs(2));
@@ -2183,6 +2279,70 @@ mod attach_tests {
         frames.finish();
     }
 
+    /// TASK-1.114 (AC #2; doc-14/R91): an attachment whose own recorded
+    /// `last_told_size` is stale gets a fresh `Full` - carrying the
+    /// terminal's current size - even on a tick with no content change
+    /// at all (`Dirty::Clean`), which `run_tick`'s own top-level check
+    /// would otherwise report as `Unchanged` and nothing would ever be
+    /// sent. The precondition (stale `last_told_size`, clean content) is
+    /// set directly here, not produced by a real resize: every resize
+    /// this task tried against the real engine (growing or shrinking
+    /// rows alone, no column change) came back `Dirty::Full` or
+    /// `Partial`, never `Clean` - `crates/server/tests/attach.rs`'s own
+    /// integration test names this and points here for the one thing a
+    /// real resize does not exercise.
+    ///
+    /// Control: reverting `run_tick`'s own `needs_size_catch_up` to a
+    /// bare `false` (ignoring `size_stale` entirely) makes this test fail
+    /// - recorded through `asdlc record-check`, both ways.
+    #[test]
+    fn a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report() {
+        let mut terminal = Terminal::new(10, 2, 100).unwrap();
+        terminal.write(b"hi");
+        let mut tracked_seq = 0_u64;
+        let mut frames = FramePair::new();
+        frames.outbound.open_stream(7);
+        let mut attachments = [Attachment {
+            id: AttachmentId(0),
+            stream: 7,
+            outbound: Some(Arc::clone(&frames.outbound)),
+            caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
+        }];
+
+        // First tick: catches the one real write up, same as every other
+        // test in this module - `caught_up_to` and `last_told_size` both
+        // now agree with the terminal's own real state (10x2, unchanged).
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+        let _ = frames.next_update(Duration::from_secs(2));
+
+        // Nothing dirties the terminal from here - no `write`, no real
+        // `resize` - only this attachment's own recorded size is made
+        // stale directly, the one precondition this test is about.
+        attachments[0].last_told_size = Size::new(99, 99);
+
+        run_tick(&mut terminal, &mut tracked_seq, &mut attachments);
+
+        let (stream, update) = frames.next_update(Duration::from_secs(2));
+        assert_eq!(stream, 7);
+        match update {
+            ScreenUpdate::Full { screen, seq } => {
+                assert_eq!(
+                    screen.size,
+                    Size::new(10, 2),
+                    "the real, current terminal size"
+                );
+                assert_eq!(seq, tracked_seq);
+            }
+            unexpected @ (ScreenUpdate::Unchanged | ScreenUpdate::Delta { .. }) => panic!(
+                "a stale recorded size with nothing else to report must still get a fresh \
+                 Full, never Unchanged or a Delta: got {unexpected:?}"
+            ),
+        }
+        assert_eq!(attachments[0].last_told_size, Size::new(10, 2));
+        frames.finish();
+    }
+
     /// decision-2 section 6's own back-pressure policy, proven against a
     /// real, bounded `Outbound` queue - not asserted from the type, run.
     /// Negative control (recorded on the task, not a toggle kept in the
@@ -2203,6 +2363,7 @@ mod attach_tests {
             stream: 7,
             outbound: Some(Arc::clone(&outbound)),
             caught_up_to: AttachState::CaughtUp(0),
+            last_told_size: Size::new(10, 2),
         }];
 
         // Fills the queue directly (decision-2's own measured `DATA_CAP`,

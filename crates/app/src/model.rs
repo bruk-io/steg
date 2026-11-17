@@ -121,7 +121,7 @@ impl Model {
 
 #[cfg(test)]
 mod tests {
-    use steg_sdk::{CellStyle, CursorShape, Run, Underline};
+    use steg_sdk::{CellStyle, CursorShape, Run, Size, Underline};
 
     use super::*;
 
@@ -176,9 +176,15 @@ mod tests {
     }
 
     fn snapshot(rows: Vec<Row>) -> Screen {
+        // TASK-1.114: `Screen` now carries its own `size`, unused by this
+        // file's own logic (module doc above) - an arbitrary valid size
+        // keeps this fixture compiling, 80 columns matching every row
+        // built by this test module's own `narrow_run`/`wide_run` helpers.
+        let size = Size::new(80, rows.len() as u16);
         Screen {
             rows,
             cursor: cursor(),
+            size,
         }
     }
 

@@ -20,7 +20,7 @@ use steg_sdk::{
     Refusal, Request, Response, WireRole as Role, check_hello, description, encode_frame,
 };
 
-use crate::dispatch::{Context, bad_request, param_str, resolve_api_call};
+use crate::dispatch::{Context, bad_request, param_i64, param_str, resolve_api_call};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
@@ -358,6 +358,19 @@ impl Drop for ConnectionCleanup<'_> {
     }
 }
 
+/// Which pane a `pane.attach`'ed stream belongs to - the reverse of
+/// `pane_streams` (TASK-1.114), needed to route an `Incoming::Data` frame
+/// (opaque input bytes, never a decoded request) back to the pane it
+/// belongs to: unlike every other message on a connection, input names no
+/// method and carries no target string to resolve, only the stream id the
+/// frame itself arrived on. Kept as its own `HashMap` rather than one
+/// bidirectional map: two inserts/removes at the same two call sites
+/// (`pane.attach` succeeding, `pane.detach`'s `Some(stream)` arm) is
+/// cheaper than a new dependency for this one, small crate. Not read by
+/// `ConnectionCleanup::drop` - that sweep only ever needs pane -> stream,
+/// which `pane_streams` already gives it.
+type StreamPanes = RefCell<HashMap<u32, PaneId>>;
+
 /// The reader loop a connection that completed its handshake runs for the
 /// rest of its life (TASK-1.45 §1): drains whatever `connection` already
 /// has buffered (possibly a request pipelined right behind the hello,
@@ -421,6 +434,7 @@ fn run_post_handshake(
     // guard, which only ever reads it, once, on the way out.
     let pane_streams: RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>> =
         RefCell::new(HashMap::new());
+    let stream_panes: StreamPanes = RefCell::new(HashMap::new());
     let next_stream = RefCell::new(0_u32);
     // Registered the moment this connection is usable at all - before the
     // request loop below can bring in `event.watch` (TASK-1.46 §7): a
@@ -444,6 +458,7 @@ fn run_post_handshake(
         outbound: &outbound,
         client_id,
         pane_streams: &pane_streams,
+        stream_panes: &stream_panes,
         next_stream: &next_stream,
     };
 
@@ -459,13 +474,28 @@ fn run_post_handshake(
                         return;
                     }
                 }
+                Some(Incoming::Data { stream, bytes }) => {
+                    // TASK-1.114 (AC #1): input on an attachment's own
+                    // stream, decision-2 section 3 - "a client sends input
+                    // on the same stream it attached with." `stream_panes`
+                    // only ever names a pane whose `pane.attach` succeeded
+                    // on *this* connection (inserted there, removed at
+                    // `pane.detach`/cleanup), so a frame for any other
+                    // stream never decodes as `Incoming::Data` at all -
+                    // `Connection::poll` itself answers `UnknownStream`
+                    // for it instead (unchanged, below), which is
+                    // decision-2's own "refused" for a stream this
+                    // connection never opened or has already detached.
+                    if let Some(&pane) = state.stream_panes.borrow().get(&stream) {
+                        runtime.send_input(client_id, pane, bytes);
+                    }
+                }
                 Some(
                     Incoming::Hello(_)
                     | Incoming::Reply { .. }
                     | Incoming::Event { .. }
                     | Incoming::UnknownEvent { .. }
                     | Incoming::StreamControl { .. }
-                    | Incoming::Data { .. }
                     | Incoming::UnknownStream { .. }
                     | Incoming::Malformed(_),
                 ) => return,
@@ -492,6 +522,7 @@ struct ConnectionState<'a> {
     outbound: &'a Arc<Outbound>,
     client_id: ClientId,
     pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+    stream_panes: &'a StreamPanes,
     next_stream: &'a RefCell<u32>,
 }
 
@@ -548,12 +579,15 @@ fn finish_attach(
 
 /// Handles one decoded request, replying on `state.outbound` - `false`
 /// means the connection should end (the reply queue is closed or full),
-/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) are
-/// intercepted here, *before* falling through to `runtime.handle`'s own,
-/// unchanged generic path, for the same structural reason TASK-1.46
-/// intercepts `event.watch` the same way: neither `dispatch::dispatch` nor
-/// `Runtime::handle` can reach a connection's own `Arc<Outbound>` or its
-/// own attachment bookkeeping, both created here, after the handshake.
+/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) and
+/// `tab.declare-size` (TASK-1.114) are intercepted here, *before* falling
+/// through to `runtime.handle`'s own, unchanged generic path, for the same
+/// structural reason TASK-1.46 intercepts `event.watch` the same way:
+/// neither `dispatch::dispatch` nor `Runtime::handle` can reach a
+/// connection's own `Arc<Outbound>`/attachment bookkeeping (`pane.attach`/
+/// `pane.detach`'s own reason) or even a `ClientId` at all (`tab.declare
+/// -size`'s - `Context` carries no client identity, only session/tab/pane
+/// defaults), both only ever available here, after the handshake.
 ///
 /// A client reaching either method *through* `api.call` is still routed
 /// here, resolved first - the same cheap, harmless second resolution
@@ -572,6 +606,7 @@ fn handle_request(
     let outbound = state.outbound;
     let client_id = state.client_id;
     let pane_streams = state.pane_streams;
+    let stream_panes = state.stream_panes;
     let next_stream = state.next_stream;
 
     let resolved = if request.method == "api.call" {
@@ -622,6 +657,13 @@ fn handle_request(
                         connection,
                         pane_streams,
                     );
+                    // TASK-1.114: nothing to route input to for a stream
+                    // `finish_attach` is about to close (not armed) -
+                    // `stream_panes` only ever names a stream this
+                    // connection can still send `Incoming::Data` on.
+                    if armed {
+                        stream_panes.borrow_mut().insert(stream, pane);
+                    }
                     true
                 }
                 Err(error) => {
@@ -666,8 +708,49 @@ fn handle_request(
                     runtime.detach_pane(client_id, pane, attachment_id);
                     outbound.close_stream(stream);
                     connection.close_stream(stream);
+                    stream_panes.borrow_mut().remove(&stream);
                     Response::Ok(serde_json::Value::Null)
                 }
+            };
+            let bytes = Connection::reply(id, response);
+            outbound.enqueue_control(bytes).is_ok()
+        }
+        "tab.declare-size" => {
+            // Params are read and range-checked here, before `Runtime::
+            // declare_size` is even called: `columns`/`rows` are the one
+            // thing this method's own `ValueKind::Integer` params don't
+            // already bound (R100's own kernel-level "no floor check,
+            // ever" is about shrinking below the 20x4 floor, a different,
+            // deliberately allowed case - see the method's own `details`
+            // string; `0` is a narrower, degenerate case nothing in the
+            // kernel or the engine is verified to handle).
+            let response = match (
+                param_i64(&resolved, "columns"),
+                param_i64(&resolved, "rows"),
+            ) {
+                (Some(columns), Some(rows))
+                    if (1..=i64::from(u16::MAX)).contains(&columns)
+                        && (1..=i64::from(u16::MAX)).contains(&rows) =>
+                {
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        reason = "just bounded to 1..=u16::MAX above"
+                    )]
+                    match runtime.declare_size(
+                        description,
+                        context,
+                        &resolved,
+                        client_id,
+                        columns as u16,
+                        rows as u16,
+                    ) {
+                        Ok(()) => Response::Ok(serde_json::Value::Null),
+                        Err(error) => Response::Error(error),
+                    }
+                }
+                _ => Response::Error(bad_request(
+                    "columns and rows must each be an integer between 1 and 65535",
+                )),
             };
             let bytes = Connection::reply(id, response);
             outbound.enqueue_control(bytes).is_ok()
@@ -1083,6 +1166,7 @@ mod tests {
             outbound: &outbound,
             client_id,
             pane_streams: &pane_streams,
+            stream_panes: &RefCell::new(HashMap::new()),
             next_stream: &RefCell::new(stream),
         };
         let mut params = serde_json::Map::new();

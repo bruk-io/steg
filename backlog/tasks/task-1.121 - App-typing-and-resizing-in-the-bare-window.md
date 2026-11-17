@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:53:00Z'
+updated_date: '2026-11-17T01:55:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1344,6 +1344,20 @@ Root-caused the disconnect reported earlier, at the orchestrator's request to bi
 Verified with a scratch cargo test (crates/server/tests/scratch_1121_diagnose.rs, deleted, never committed) replicating startup.rs's own call sequence against a real server: stayed connected 10s with no issue, pointing at the app's own code rather than the server. Confirmed by a temporary, reverted patch (join the thread without re-shutting-down the handle) run against a live window: the window showed a live prompt, stayed connected, typing and resizing (echo + stty size showing the new dimensions) both worked end to end.
 
 Not my fix to make (TASK-1.117's file); reported to the orchestrator with the exact mechanism. My own wiring is now confirmed working against a real server/window, not only unit-tested.
+
+---
+
+created: 2026-11-17T01:55:00Z
+
+---
+
+Cleanup done: scratchpad bisection binaries removed, worktree back on task-1.121-app-typing-and-resizing-in-the-bare, clean (just the one commit from before), ps sweep clean.
+
+What was checked by hand, in words, no output kept: with a temporary, reverted one-line local change to TASK-1.117's stop_startup (skip the shutdown when the startup result is a success - the diagnosis's own fix shape), I ran the real app against a real server, both with a throwaway socket and a throwaway HOME. The window showed a live shell prompt instead of "disconnected". I typed a short echo command and pressed enter: it appeared on its own line, the shell's own output line followed it, and a fresh prompt came after - typing reaching the program and its output drawing, both through this task's own on_key_down/Writer wiring. I then resized the window larger and ran `stty size` in the same shell: it printed the new row and column counts, matching the resize, not the original size - confirming declare_size and the coalescer reach the real pty too. The change was reverted immediately afterward and nothing was committed.
+
+Recording held, as instructed: it waits for TASK-1.117's own fixed head (and 1.114's), since the recording must be made from committed code, and for the engineer's Screen Recording grant.
+
+What would have caught this at my own wiring's level: nothing in my own tests does, today, because the bug lives one level up (TASK-1.117's own stop_startup/apply_startup_result, not anything this task's Writer or Client touch) and because Writer::send_input/declare_size are deliberately fire-and-forget (a write that fails is not specially recovered from, by design - TASK-1.114's own "best effort" reasoning for the same shape). A real-socket test that calls declare_size and then asserts a reply is actually observable on the connection - not just that the outgoing request's own bytes are shaped correctly, which is all today's two Writer tests check - would at least demonstrate the class of bug is catchable at this level: added one (client.rs), with a server-side reply sent back and read through a real decode Connection the same way the reader thread would, and a control that shuts the connection down first (same shape stop_startup's own bug produces) and asserts the reply never arrives within the test's own bound. Recorded as a failing-then-passing cycle like the others. just check: exit 0.
 
 ---
 <!-- COMMENTS:END -->

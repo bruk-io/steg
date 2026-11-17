@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T16:19:00Z'
+updated_date: '2026-11-17T16:28:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1498,6 +1498,34 @@ The race the planned design would have had, specifically: a single pane-wide "si
 Cost on the wire compared with the planned form: the planned Delta+Option<size> would have added a handful of bytes to an already-outgoing Delta only on the tick a resize actually happened - the marginal cost of one Size (two u16s) plus its JSON key, well under 50 bytes regardless of screen size. What ships instead sends every size-stale attachment a full, independent `ScreenUpdate::Full { screen, seq }` - the whole grid's rows, not a diff - on the first tick after that attachment's own size goes stale, once per attachment, not once per pane. Rough JSON-encoded size, per full screen (every cell carries a style object today - doc-14's own `Row`/cell shape, not something this task changed): an 80x24 screen is 1,920 cells; a 200x60 screen is 12,000 cells. At roughly 150-250 bytes of JSON per populated cell's `{style: {...}, text: ...}` entry (less for blank cells, which still carry the full style object), that is very roughly 300KB-500KB for 80x24 and 2MB-3MB for 200x60 per size-stale attachment, once - not per keystroke, but a real spike compared to tens of bytes.
 
 What a window drag does with it, given TASK-1.121 declares a size on each cell boundary crossed: every one of those declarations is a separate `tab.declare-size` call: if it changes the tab's current size (R91 latest-client rules), it marks every attachment viewing that tab stale (`last_told_size` differs), and each such attachment gets a full, independent `Full` screen on its own next tick - not just the dragging client's own attachment, but every other client currently viewing the same tab, once per boundary crossed. A drag that crosses many cell boundaries (which an unthrottled resize stream easily does) sends one full-screen's worth of JSON to every viewer of that tab, once per boundary crossed, for the duration of the drag - the MB-scale cost above, repeated at drag speed, not the few bytes the planned Delta+size form would have cost on the same drag.
+
+Check FAILED: `cargo test -p steg-server --test attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach -- --exact` exited 101 at 2026-11-17T16:28:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (52790603) panicked at crates/server/tests/attach.rs:1738:28:
+pane.detach for a pane that closed between attach and arm must not succeed - TASK-1.125's own 'silent stream' bug
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.70s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

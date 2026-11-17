@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T02:27:00Z'
+updated_date: '2026-11-17T02:34:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1358,6 +1358,41 @@ running 1 test
 test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 23.78s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T02:34:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (70.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (33.1s)
+ok      test (steg-server) (61.4s)
+ok      test (steg-server, race-fixture) (61.9s)
+ok      test (steg-server, pty-race-fixture) (63.3s)
+ok      test (steg-server, accept-backoff-fixture) (65.8s)
+ok      build (steg) (1.3s)
+ok      test (steg) (4.5s)
+ok      test (steg, fixtures) (13.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (7.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

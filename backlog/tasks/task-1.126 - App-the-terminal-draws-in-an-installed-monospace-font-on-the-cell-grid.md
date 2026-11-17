@@ -544,6 +544,45 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-app a_glyph_off_by_more_than_the_tolerance_is_unsafe` exited 101 at 2026-11-17T18:56:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 2bf5d974438e with uncommitted changes:
+
+```text
+warning: constant `GLYPH_POSITION_EPSILON` is never used
+   --> crates/app/src/terminal_element.rs:242:7
+    |
+242 | const GLYPH_POSITION_EPSILON: Pixels = px(0.5);
+    |       ^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_glyph_off_by_more_than_the_tolerance_is_unsafe ... FAILED
+
+failures:
+
+---- terminal_element::tests::a_glyph_off_by_more_than_the_tolerance_is_unsafe stdout ----
+
+thread 'terminal_element::tests::a_glyph_off_by_more_than_the_tolerance_is_unsafe' (53620586) panicked at crates/app/src/terminal_element.rs:599:9:
+assertion failed: !every_glyph_position_is_safe("abc", &positions, px(10.0), 1)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::a_glyph_off_by_more_than_the_tolerance_is_unsafe
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:01:00Z'
+updated_date: '2026-11-17T02:02:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2499,6 +2499,21 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.03s
 
 error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach detaching_a_pane_that_already_closed_still_releases_the_stream` exited 0 at 2026-11-17T02:02:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.92s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
 ```
 
 Commits since the review: 0.

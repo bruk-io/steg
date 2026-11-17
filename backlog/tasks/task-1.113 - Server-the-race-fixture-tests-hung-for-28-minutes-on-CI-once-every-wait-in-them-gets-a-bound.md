@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:46:00Z'
+updated_date: '2026-11-17T06:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -24,9 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '2eb24f415089'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -1259,6 +1259,53 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Fixed the remaining finding: wait_child_bounded's watchdog and the main thread now share one Mutex<bool> (finished) for the whole decision, not two independently-timed atomics. The watchdog checks-and-kills as a single critical section under the lock; the main thread sets finished = true under that same lock strictly before calling the real child.wait() to reap. A kill can only be sent while holding the lock with finished still false; a reap can only happen after the main thread has held that same lock and set finished - so a kill can never follow a reap, whichever way the two threads interleave. Neither critical section blocks (the kill is non-blocking; waitid and the real reap both run outside the lock), so no deadlock risk; a poisoned lock is recovered (PoisonError::into_inner), not panicked on, on both sides. Rewrote the doc comment to state this invariant in exactly those terms and removed the earlier "always safe however the two threads interleave" claim, which was true in form but not in substance given the two-atomics implementation it described.
+
+As asked: a deterministic test of the closed interleaving itself isn't practical (the window is not one a test can reliably hold open on demand) - said so in the doc comment rather than claiming one. The existing timeout test (a real, never-exiting `sleep 30` child; confirms the panic fires and the pid is fully gone - ESRCH on signal-0 - afterward) still exercises the same path unchanged.
+
+Re-ran and re-recorded the watchdog-kill control against the edited code, both halves via asdlc record-check: ran once unrecorded first (STEG_QUIET_TIMEOUT_S=5 through steg-quiet, kill call removed) and read the output before recording - compiler warnings naming our own file/line/variable and "running 1 test", nothing from the environment - then recorded that failing run, restored the kill, and recorded the passing run.
+
+Checks after the fix: cargo test -p steg-server --features race-fixture (full crate, includes the edited test) and --features pty-race-fixture (full crate), both green. just check, full workspace: one run hit an unrelated flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, "the backgrounded grandchild's own pid file never appeared" - a timing-sensitive test in a file this task never touches; reran it alone and it passed, consistent with load on a shared machine, not a regression from this change) - recorded that run and the clean rerun both, for the record. ps checked clean of leftover processes throughout, including after the unrecorded and recorded failing control runs.
+
+PR #69, pushed (head 174ab452), CI green (run 44026476589, 7m55s).
+
+Check passed: `just check` exited 0 at 2026-11-17T06:10:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 174ab452d86d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (31.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (27.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (22.0s)
+ok      test (steg-server, race-fixture) (22.9s)
+ok      test (steg-server, pty-race-fixture) (30.4s)
+ok      test (steg-server, accept-backoff-fixture) (22.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.3s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1355,6 +1402,38 @@ Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
 Evidence, checked and satisfied (no finding): all four negative-control pairs this task's mechanisms need (outbound.rs's close-on-broken-write, test_support.rs's run_bounded timeout, quiet.py's killpg, and support/mod.rs's watchdog kill) are recorded via asdlc record-check between 2026-11-17T05:03:28 and 05:05:55 UTC, strictly after the fix commit 0ee7df1a (05:01:53 UTC) that touches both files, and no later commit before the branch head (db191fde) edits either file again (checked via git log). Each failing half failed for its stated reason (an assertion mismatch for outbound.rs; two assertion failures on elapsed time/sentinel for quiet.py's functional test; a TIMED OUT via steg-quiet, the sanctioned way to bound a hang, for both run_bounded's and wait_child_bounded's own controls), not an unrelated one. I repeated the watchdog-kill control myself in the review worktree: commented out `signal::kill` at mod.rs:140, ran `cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` under steg-quiet's default 900s bound - it failed (the disabled path now blocks for the real child's full 30s lifetime instead of the 300ms bound before panicking on its own elapsed-time assertion), confirming the kill is load-bearing. Reverted; `git status --short` clean; `ps` showed no leftover sleep/race process.
 
 What I did not check: did not run `just check` myself (relied on this head's CI green at db191fde plus the targeted cargo/pytest runs above, within the review's own time budget); did not re-derive whether a true mutex-based fix would itself introduce new deadlock risk (out of scope - this review only judges the diff as submitted); did not read portable_pty's spawn path (TASK-1.124's own scope, not this task's).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T05:55:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T06:04:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff matches the plan.
+
+Scope: crates/server/tests/support/mod.rs only (db191fde..174ab452), per the brief.
+
+[Bugs, Important] crates/server/tests/support/mod.rs:59-68 (doc comment on wait_for_exit_without_reaping): still claims the WNOWAIT invariant alone is "the one invariant that makes a kill from a second thread always safe here, however the two threads happen to interleave" - the exact sentence review #8 quoted and refuted (a kill with no synchronizing lock can still hit a reaped/reused pid). This edit correctly rewrote wait_child_bounded's own doc comment (:113-160) to attribute safety to the shared Mutex, but left this neighboring sentence untouched, so the file now contradicts itself: :59-68 says WNOWAIT by itself suffices "however the two threads interleave," while :128-140 says the invariant depends on the Mutex serialising lock acquisitions. A reader taking :59-68 at face value would conclude the Mutex is redundant. The build notes say the false claim "removed the earlier ... claim" - true of one copy, not this one.
+
+Question 1 (the invariant itself), checked, no finding: walked both lock orders at :161-201. The watchdog's check-and-kill is one critical section under `finished`'s lock; the main thread sets finished=true under the same lock strictly before the real child.wait() reap at :191-193. A kill can only be sent while holding the lock with finished false; a reap can only follow the main thread having held that same lock and set it true - so a kill can never follow a reap on either lock order. Nothing blocking runs under the lock (kill is non-blocking; waitid and wait() both run outside it) - no deadlock risk. A poisoned lock is recovered via PoisonError::into_inner on both sides, not panicked on; neither critical section itself can panic. On timeout, child.wait() still reaps unconditionally before the trailing assert, which names label and bound (:196-199) - nothing left behind.
+
+Evidence, checked, no finding: the recorded pair "wait_child_bounded timeout control v2 (watchdog kill under lock, removed)" (05:39:38 FAILED / 05:39:51 passed, both "at db191fde8ced with uncommitted changes") ran against this Mutex-fixed code, not the pre-fix atomics version: the captured compiler warning at mod.rs:163 ("unused variable: pid") matches this file's current line numbers exactly, where the pre-fix (atomics) version's doc comment was ~25 lines shorter and would have placed that line near :133. The pair postdates review #8 (05:34) and sits on the worktree immediately before the fix commit (db7c7507091e, 2026-11-17 00:46 local), confirmed via git log db191fde..174ab452 -- crates/server/tests/support/mod.rs. I also repeated this control myself in the review worktree (commented out the SIGKILL call, ran the test under an external 8s bound): it hung past the bound with no further output, confirming the kill is still load-bearing. Reverted; git status clean; ps showed no leftover sleep/race process.
+
+Question 4 (happy path), checked, no finding: cargo test -p steg-server --features race-fixture --test race: 4 tests passed in 0.31s, including eight_simultaneous_starts_leave_exactly_one_server (the test that regressed to 80s before the join-without-a-bound issue was caught) - no regression.
+
+What I did not check: did not run just check myself (relied on CI green at head 174ab452 plus the targeted cargo runs above, within the review's time budget); did not re-derive whether the Mutex design could deadlock against any other lock in this module (none exists) beyond what's checked above; did not look outside crates/server/tests/support/mod.rs per the brief's scope.
 
 ---
 <!-- COMMENTS:END -->

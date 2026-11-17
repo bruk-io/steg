@@ -4,6 +4,7 @@ title: 'App: the cursor dissolves and re-forms while it waits for a key'
 status: To Do
 assignee: []
 created_date: '2026-11-17T03:51:00Z'
+updated_date: '2026-11-17T21:24:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -29,3 +30,15 @@ Chosen by the engineer on 2026-11-16 from the design's exploration board, Atoms 
 - [ ] #4 Over a character, the character is drawn in the ground colour where the cursor's pieces cover it and in its own colour elsewhere
 - [ ] #5 The step shown at a given time in the cycle is a pure function with a table test and a recorded control; the pull request carries a short recording, and stills of each step, with nothing personal on screen
 <!-- AC:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+created: 2026-11-17T21:24:00Z
+
+---
+
+Carry-over from TASK-1.126's second review (nit, not fixed there because the task was locked on passing): the doc comment above shape_and_check_run in crates/app/src/terminal_element.rs still describes a run_start_column parameter the function no longer takes. Correct it when this task touches the file. - @bruk.o
+
+---
+<!-- COMMENTS:END -->

@@ -1,11 +1,11 @@
 ---
 id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T18:32:00Z'
+updated_date: '2026-11-17T22:18:00Z'
 labels:
   - size-3
   - review-passed

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T00:20:00Z'
+updated_date: '2026-11-17T00:21:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -635,6 +635,51 @@ Check passed: `just test` exited 0 at 2026-11-17T00:20:53+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg-app) (0.9s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T00:21:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 145b60b6bc33 with uncommitted changes, last 40 of 51 lines:
+
+```text
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test ime::tests::unmarking_closes_the_composition ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test size::tests::a_changed_computed_size_declares_itself ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test keys::tests::the_table_covers_every_named_key_this_module_maps ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... FAILED
+test size::tests::an_unchanged_computed_size_declares_nothing ... FAILED
+
+failures:
+
+---- size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one stdout ----
+
+thread 'size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one' (45999435) panicked at crates/app/src/size.rs:129:9:
+assertion `left == right` failed
+  left: [GridSize { columns: 80, rows: 24 }, GridSize { columns: 80, rows: 24 }, GridSize { columns: 80, rows: 24 }, GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 25 }]
+ right: [GridSize { columns: 81, rows: 24 }, GridSize { columns: 81, rows: 25 }]
+
+---- size::tests::an_unchanged_computed_size_declares_nothing stdout ----
+
+thread 'size::tests::an_unchanged_computed_size_declares_nothing' (45999440) panicked at crates/app/src/size.rs:103:9:
+assertion `left == right` failed
+  left: Some(GridSize { columns: 80, rows: 24 })
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one
+    size::tests::an_unchanged_computed_size_declares_nothing
+
+test result: FAILED. 13 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-app.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

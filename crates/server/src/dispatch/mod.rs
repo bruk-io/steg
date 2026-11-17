@@ -91,8 +91,21 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all.extend(api::HANDLED.iter().copied());
     all.extend(setting::HANDLED.iter().copied());
     all.extend(NOT_YET_NOUNS.iter().copied());
+    all.extend(INTERCEPTED_BEFORE_DISPATCH.iter().copied());
     all
 }
+
+/// Described, fully built methods that never reach [`dispatch`] at all
+/// (TASK-1.47): `connection.rs`'s own read loop intercepts them before
+/// falling through to [`Runtime::handle`][crate::runtime::Runtime::handle],
+/// because answering them needs a connection's own `Arc<Outbound>` and its
+/// own per-connection attachment bookkeeping, neither of which `dispatch`
+/// or `Runtime::handle` can reach (both exist only inside `connection.rs`,
+/// created after the handshake) - the same structural reason `event.watch`
+/// is expected to leave [`NOT_YET_NOUNS`] for this list too, once its own
+/// server-side task lands. Test-only, for the same reason as [`handled`].
+#[cfg(test)]
+const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[("pane", "attach"), ("pane", "detach")];
 
 /// The nouns with no served arm at all in this task (`server`, `event`,
 /// `client`): every one of their methods answers
@@ -161,11 +174,13 @@ pub(crate) fn program_running() -> ApiError {
 /// Never in practice: splitting `request.method` on `.` always succeeds
 /// once `validate` has already confirmed the method is in `description`
 /// (every described method's name is `{noun}.{verb}`, R101), and every
-/// described method is matched by one of the per-noun `HANDLED` lists or
-/// the three not-yet nouns below, which `mod.rs`'s own completeness test
-/// checks against `description()` directly. Panics instead, rather than
-/// silently misrouting, if ever called with `"api.call"` itself - the one
-/// case the doc above says never to pass here.
+/// described method is matched by one of the per-noun `HANDLED` lists, the
+/// three not-yet nouns, or `pane.attach`/`pane.detach`'s own arm
+/// (TASK-1.47, built but never reached this way in the real system), which
+/// `mod.rs`'s own completeness test checks against `description()` directly.
+/// Panics instead, rather than silently misrouting, if ever called with
+/// `"api.call"` itself - the one case the doc above says never to pass
+/// here.
 pub(crate) fn dispatch_raw(
     tree: &mut Tree,
     settings: &mut Settings,
@@ -220,6 +235,12 @@ pub(crate) fn dispatch_raw(
              path is unreachable through a real connection",
         )),
         ("client", _) => Err(not_implemented_yet("a client model (TASK-1.42)")),
+        ("pane", "attach" | "detach") => Err(not_implemented_yet(
+            "connection.rs's own interception (TASK-1.47) - a described method, fully built, \
+             but never reached through dispatch in the real system: answering it needs a \
+             connection's own Arc<Outbound> and attachment bookkeeping, which only exist in \
+             connection.rs, created after the handshake",
+        )),
         _ => unreachable!(
             "validate already refused any method not in the description, and every \
              described method is in one of the lists above"

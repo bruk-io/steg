@@ -2265,7 +2265,8 @@ fn extra_params_for(
             let other_tab = tree.session(other_session).unwrap().tabs()[0].id();
             vec![("target", json!(other_tab.to_string()))]
         }
-        "pane.show" | "pane.close" | "pane.send" | "pane.capture" => {
+        "pane.show" | "pane.close" | "pane.send" | "pane.capture" | "pane.attach"
+        | "pane.detach" => {
             let other_pane = tree
                 .split_pane(
                     context.default_pane.unwrap(),
@@ -2528,6 +2529,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
         "session.focus",
         "pane.resize",
         "pane.send",
+        "pane.detach",
         "server.start",
         "server.stop",
     ];

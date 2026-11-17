@@ -1963,6 +1963,21 @@ error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type` exited 0 at 2026-11-17T00:25:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::every_nested_reply_and_stream_item_names_a_real_sdk_type ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

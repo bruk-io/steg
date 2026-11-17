@@ -143,7 +143,7 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
         ("server.show", vec![], "socket and lifecycle"),
         ("server.start", vec![], "socket and lifecycle"),
         ("server.stop", vec![], "socket and lifecycle"),
-        ("event.watch", vec![], "events"),
+        ("event.watch", vec![], "Runtime::subscribe"),
         ("client.list", vec![], "client model"),
         (
             "client.show",
@@ -254,7 +254,10 @@ fn declared_fields(api: &Description, dotted: &str) -> Vec<String> {
         }
         other @ (steg_sdk::Returns::Nothing
         | steg_sdk::Returns::Identifier { .. }
-        | steg_sdk::Returns::Text) => panic!("{dotted}'s returns is not a record: {other:?}"),
+        | steg_sdk::Returns::Text
+        | steg_sdk::Returns::Nested { .. }) => {
+            panic!("{dotted}'s returns is not a record: {other:?}")
+        }
     }
 }
 

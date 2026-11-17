@@ -14,11 +14,11 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{
-    ClientId, Connection, Frame, Handshake, Incoming, PROTOCOL_VERSION, Refusal, WireRole as Role,
-    check_hello, description, encode_frame,
+    ClientId, Connection, Frame, Handshake, Incoming, PROTOCOL_VERSION, Refusal, Response,
+    WireRole as Role, check_hello, description, encode_frame,
 };
 
-use crate::dispatch::Context;
+use crate::dispatch::{self, Context};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
@@ -320,6 +320,13 @@ impl Drop for ConnectionCleanup<'_> {
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
+        // Before `disconnect_client`: a subscriber entry keyed by this
+        // same `client_id` must not linger past the id itself being
+        // freed for reuse (TASK-1.46 §7) - deregistering first, while the
+        // id is still unambiguously this connection's own, is what keeps
+        // that ordering safe regardless of which happens to run first in
+        // practice.
+        self.runtime.deregister_subscriber(self.client_id);
         self.runtime.disconnect_client(self.client_id);
         // Last, after this guard's own pre-existing duties keep their
         // exact order (unchanged above) - `Drop` runs exactly once, so
@@ -359,27 +366,41 @@ fn run_post_handshake(
     client_id: ClientId,
     events: Option<Sender<ConnectionEvent>>,
 ) {
-    // Three independent handles to the one underlying socket: `stream`
+    // Four independent handles to the one underlying socket: `stream`
     // itself (this function's own reads), `write_half` (moved into the
-    // writer thread), and `shutdown_handle` (kept by the cleanup guard
-    // solely to force a stuck writer to fail promptly - see its own doc).
-    let (write_half, shutdown_handle) = match (stream.try_clone(), stream.try_clone()) {
-        (Ok(write_half), Ok(shutdown_handle)) => (write_half, shutdown_handle),
-        _ => {
-            // No write half to hand a writer thread at all - nothing was
-            // ever spawned, so `ConnectionCleanup` is never built on this
-            // path either - both of its duties (disconnecting the client,
-            // reporting `Disconnected`) are done directly here instead,
-            // in the same order the guard would have used.
-            runtime.disconnect_client(client_id);
-            if let Some(events) = &events {
-                let _ = events.send(ConnectionEvent::Disconnected);
+    // writer thread), `shutdown_handle` (kept by the cleanup guard solely
+    // to force a stuck writer to fail promptly - see its own doc), and
+    // `subscriber_shutdown` (kept by `Runtime`'s own subscriber registry,
+    // TASK-1.46 §3/§7 - a slow subscriber is closed, not resynced: a
+    // broadcast that cannot be queued shuts this connection's socket down
+    // directly, from whichever thread is broadcasting, since nothing else
+    // can make this connection's own blocked read return without one).
+    let (write_half, shutdown_handle, subscriber_shutdown) =
+        match (stream.try_clone(), stream.try_clone(), stream.try_clone()) {
+            (Ok(write_half), Ok(shutdown_handle), Ok(subscriber_shutdown)) => {
+                (write_half, shutdown_handle, subscriber_shutdown)
             }
-            return;
-        }
-    };
+            _ => {
+                // No write half to hand a writer thread at all - nothing was
+                // ever spawned, so `ConnectionCleanup` is never built on this
+                // path either - both of its duties (disconnecting the client,
+                // reporting `Disconnected`) are done directly here instead,
+                // in the same order the guard would have used; there is
+                // also nothing registered as a subscriber yet to deregister.
+                runtime.disconnect_client(client_id);
+                if let Some(events) = &events {
+                    let _ = events.send(ConnectionEvent::Disconnected);
+                }
+                return;
+            }
+        };
     let outbound = Arc::new(Outbound::new());
     let writer = spawn_writer(Arc::clone(&outbound), write_half);
+    // Registered the moment this connection is usable at all - before the
+    // request loop below can bring in `event.watch` (TASK-1.46 §7): a
+    // connection must never be asked to subscribe before it is
+    // registered (`Runtime::subscribe`'s own invariant rests on this).
+    runtime.register_subscriber(client_id, Arc::clone(&outbound), subscriber_shutdown);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
         writer: Some(writer),
@@ -396,6 +417,40 @@ fn run_post_handshake(
         loop {
             match connection.poll() {
                 Some(Incoming::Request { id, request }) => {
+                    // `api.call` wrapping is resolved here, before the
+                    // method-name check below, the same cheap, I/O-free
+                    // way `Runtime::handle` already resolves it internally
+                    // for every other method ("harmless, cheap: it has to
+                    // run here first too", the same reasoning `start_and_
+                    // dispatch`'s own second `validate` call already rests
+                    // on) - a redundant resolution for every method but
+                    // `event.watch`, never redundant behaviour, since
+                    // `handle` below still resolves `request` itself.
+                    let resolution = if request.method == "api.call" {
+                        dispatch::resolve_api_call(&request)
+                    } else {
+                        Ok(request.clone())
+                    };
+
+                    // `event.watch` (TASK-1.46 §4), reached directly or
+                    // through `api.call`, bypasses the generic reply-
+                    // after-the-fact path below entirely: `Runtime::
+                    // subscribe` enqueues its own reply atomically with
+                    // registering the filter, so nothing here must
+                    // enqueue a second one.
+                    if matches!(&resolution, Ok(resolved) if resolved.method == "event.watch") {
+                        let resolved = resolution.expect("just matched Ok above");
+                        if let Err(error) =
+                            runtime.subscribe(&description, &context, &resolved, client_id, id)
+                        {
+                            let bytes = Connection::reply(id, Response::Error(error));
+                            if outbound.enqueue_control(bytes).is_err() {
+                                return;
+                            }
+                        }
+                        continue;
+                    }
+
                     let response = runtime.handle(&description, &context, &request);
                     let bytes = Connection::reply(id, response);
                     if outbound.enqueue_control(bytes).is_err() {

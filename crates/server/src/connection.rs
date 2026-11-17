@@ -20,7 +20,7 @@ use steg_sdk::{
     Refusal, Request, Response, WireRole as Role, check_hello, description, encode_frame,
 };
 
-use crate::dispatch::{Context, bad_request, resolve_api_call};
+use crate::dispatch::{Context, bad_request, param_i64, resolve_api_call};
 use crate::outbound::{Outbound, spawn_writer};
 use crate::runtime::Runtime;
 
@@ -301,15 +301,19 @@ struct ConnectionCleanup<'a> {
     shutdown_handle: UnixStream,
     runtime: &'a Runtime,
     client_id: ClientId,
-    /// Every pane this connection still attaches to, by stream
-    /// (TASK-1.47), swept below so a connection that ends without calling
-    /// `pane.detach` for all of them does not leak a dead attachment in a
-    /// pane's own fan-out list forever. `Tree::disconnect_client` (below)
-    /// already removes this connection's whole kernel-level `Client` row
-    /// in one step, viewing list included - there is nothing left to
-    /// release there; only each pane's own worker thread, which the
-    /// kernel knows nothing about, still needs telling.
-    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    /// Every pane this connection still attaches to, by its own
+    /// worker-minted [`crate::pane::AttachmentId`] and connection-local
+    /// stream id (TASK-1.47; the id, TASK-1.114 - see `AttachmentId`'s
+    /// own doc for why the bare stream number is not a safe key once a
+    /// second connection can attach the same pane), swept below so a
+    /// connection that ends without calling `pane.detach` for all of them
+    /// does not leak a dead attachment in a pane's own fan-out list
+    /// forever. `Tree::disconnect_client` (below) already removes this
+    /// connection's whole kernel-level `Client` row in one step, viewing
+    /// list included - there is nothing left to release there; only each
+    /// pane's own worker thread, which the kernel knows nothing about,
+    /// still needs telling.
+    pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
     /// TASK-1.86 review finding: a review found this guard already runs
     /// on every path out of `run_post_handshake` (a normal return, an
     /// early return, *or* an unwind) but did not hold the sender that
@@ -331,8 +335,8 @@ impl Drop for ConnectionCleanup<'_> {
         if let Some(writer) = self.writer.take() {
             let _ = writer.join();
         }
-        for (&pane, &stream) in self.pane_streams.borrow().iter() {
-            self.runtime.forget_attachment(pane, stream);
+        for (&pane, &(attachment_id, _stream)) in self.pane_streams.borrow().iter() {
+            self.runtime.forget_attachment(pane, attachment_id);
         }
         self.runtime.disconnect_client(self.client_id);
         // Last, after this guard's own pre-existing duties keep their
@@ -346,6 +350,19 @@ impl Drop for ConnectionCleanup<'_> {
         }
     }
 }
+
+/// Which pane a `pane.attach`'ed stream belongs to - the reverse of
+/// `pane_streams` (TASK-1.114), needed to route an `Incoming::Data` frame
+/// (opaque input bytes, never a decoded request) back to the pane it
+/// belongs to: unlike every other message on a connection, input names no
+/// method and carries no target string to resolve, only the stream id the
+/// frame itself arrived on. Kept as its own `HashMap` rather than one
+/// bidirectional map: two inserts/removes at the same two call sites
+/// (`pane.attach` succeeding, `pane.detach`'s `Some(stream)` arm) is
+/// cheaper than a new dependency for this one, small crate. Not read by
+/// `ConnectionCleanup::drop` - that sweep only ever needs pane -> stream,
+/// which `pane_streams` already gives it.
+type StreamPanes = RefCell<HashMap<u32, PaneId>>;
 
 /// The reader loop a connection that completed its handshake runs for the
 /// rest of its life (TASK-1.45 §1): drains whatever `connection` already
@@ -399,7 +416,9 @@ fn run_post_handshake(
     // hand out. Shared (via `RefCell`) between the read loop below, which
     // mutates it on every `pane.attach`/`pane.detach`, and the cleanup
     // guard, which only ever reads it, once, on the way out.
-    let pane_streams: RefCell<HashMap<PaneId, u32>> = RefCell::new(HashMap::new());
+    let pane_streams: RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>> =
+        RefCell::new(HashMap::new());
+    let stream_panes: StreamPanes = RefCell::new(HashMap::new());
     let next_stream = RefCell::new(0_u32);
     let _cleanup = ConnectionCleanup {
         outbound: Arc::clone(&outbound),
@@ -418,6 +437,7 @@ fn run_post_handshake(
         outbound: &outbound,
         client_id,
         pane_streams: &pane_streams,
+        stream_panes: &stream_panes,
         next_stream: &next_stream,
     };
 
@@ -433,13 +453,28 @@ fn run_post_handshake(
                         return;
                     }
                 }
+                Some(Incoming::Data { stream, bytes }) => {
+                    // TASK-1.114 (AC #1): input on an attachment's own
+                    // stream, decision-2 section 3 - "a client sends input
+                    // on the same stream it attached with." `stream_panes`
+                    // only ever names a pane whose `pane.attach` succeeded
+                    // on *this* connection (inserted there, removed at
+                    // `pane.detach`/cleanup), so a frame for any other
+                    // stream never decodes as `Incoming::Data` at all -
+                    // `Connection::poll` itself answers `UnknownStream`
+                    // for it instead (unchanged, below), which is
+                    // decision-2's own "refused" for a stream this
+                    // connection never opened or has already detached.
+                    if let Some(&pane) = state.stream_panes.borrow().get(&stream) {
+                        runtime.send_input(client_id, pane, bytes);
+                    }
+                }
                 Some(
                     Incoming::Hello(_)
                     | Incoming::Reply { .. }
                     | Incoming::Event { .. }
                     | Incoming::UnknownEvent { .. }
                     | Incoming::StreamControl { .. }
-                    | Incoming::Data { .. }
                     | Incoming::UnknownStream { .. }
                     | Incoming::Malformed(_),
                 ) => return,
@@ -465,18 +500,22 @@ struct ConnectionState<'a> {
     context: Context,
     outbound: &'a Arc<Outbound>,
     client_id: ClientId,
-    pane_streams: &'a RefCell<HashMap<PaneId, u32>>,
+    pane_streams: &'a RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+    stream_panes: &'a StreamPanes,
     next_stream: &'a RefCell<u32>,
 }
 
 /// Handles one decoded request, replying on `state.outbound` - `false`
 /// means the connection should end (the reply queue is closed or full),
-/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) are
-/// intercepted here, *before* falling through to `runtime.handle`'s own,
-/// unchanged generic path, for the same structural reason TASK-1.46
-/// intercepts `event.watch` the same way: neither `dispatch::dispatch` nor
-/// `Runtime::handle` can reach a connection's own `Arc<Outbound>` or its
-/// own attachment bookkeeping, both created here, after the handshake.
+/// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) and
+/// `tab.declare-size` (TASK-1.114) are intercepted here, *before* falling
+/// through to `runtime.handle`'s own, unchanged generic path, for the same
+/// structural reason TASK-1.46 intercepts `event.watch` the same way:
+/// neither `dispatch::dispatch` nor `Runtime::handle` can reach a
+/// connection's own `Arc<Outbound>`/attachment bookkeeping (`pane.attach`/
+/// `pane.detach`'s own reason) or even a `ClientId` at all (`tab.declare
+/// -size`'s - `Context` carries no client identity, only session/tab/pane
+/// defaults), both only ever available here, after the handshake.
 ///
 /// A client reaching either method *through* `api.call` is still routed
 /// here, resolved first - the same cheap, harmless second resolution
@@ -495,6 +534,7 @@ fn handle_request(
     let outbound = state.outbound;
     let client_id = state.client_id;
     let pane_streams = state.pane_streams;
+    let stream_panes = state.stream_panes;
     let next_stream = state.next_stream;
 
     let resolved = if request.method == "api.call" {
@@ -527,16 +567,19 @@ fn handle_request(
                 &resolved,
                 outbound,
             ) {
-                Ok(pane) => {
+                Ok((pane, attachment_id)) => {
                     // decision-2 section 3's ordering rule: the reply is
                     // already queued (inside `attach_pane`, under its own
                     // lock) before either of these two run - the writer
                     // may only now pull data frames for this stream, and
                     // the worker is only now handed something to send to.
                     outbound.open_stream(stream);
-                    runtime.arm_attachment(pane, stream, Arc::clone(outbound));
+                    runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
                     connection.open_stream(stream);
-                    pane_streams.borrow_mut().insert(pane, stream);
+                    pane_streams
+                        .borrow_mut()
+                        .insert(pane, (attachment_id, stream));
+                    stream_panes.borrow_mut().insert(stream, pane);
                     true
                 }
                 Err(error) => {
@@ -551,15 +594,16 @@ fn handle_request(
                 outbound.enqueue_control(bytes).is_ok()
             }
             Ok(pane) => {
-                let stream = pane_streams.borrow_mut().remove(&pane);
-                let response = match stream {
+                let entry = pane_streams.borrow_mut().remove(&pane);
+                let response = match entry {
                     None => Response::Error(bad_request(
                         "this connection has no attachment to this pane",
                     )),
-                    Some(stream) => {
-                        runtime.detach_pane(client_id, pane, stream);
+                    Some((attachment_id, stream)) => {
+                        runtime.detach_pane(client_id, pane, attachment_id);
                         outbound.close_stream(stream);
                         connection.close_stream(stream);
+                        stream_panes.borrow_mut().remove(&stream);
                         Response::Ok(serde_json::Value::Null)
                     }
                 };
@@ -567,6 +611,46 @@ fn handle_request(
                 outbound.enqueue_control(bytes).is_ok()
             }
         },
+        "tab.declare-size" => {
+            // Params are read and range-checked here, before `Runtime::
+            // declare_size` is even called: `columns`/`rows` are the one
+            // thing this method's own `ValueKind::Integer` params don't
+            // already bound (R100's own kernel-level "no floor check,
+            // ever" is about shrinking below the 20x4 floor, a different,
+            // deliberately allowed case - see the method's own `details`
+            // string; `0` is a narrower, degenerate case nothing in the
+            // kernel or the engine is verified to handle).
+            let response = match (
+                param_i64(&resolved, "columns"),
+                param_i64(&resolved, "rows"),
+            ) {
+                (Some(columns), Some(rows))
+                    if (1..=i64::from(u16::MAX)).contains(&columns)
+                        && (1..=i64::from(u16::MAX)).contains(&rows) =>
+                {
+                    #[expect(
+                        clippy::cast_possible_truncation,
+                        reason = "just bounded to 1..=u16::MAX above"
+                    )]
+                    match runtime.declare_size(
+                        description,
+                        context,
+                        &resolved,
+                        client_id,
+                        columns as u16,
+                        rows as u16,
+                    ) {
+                        Ok(()) => Response::Ok(serde_json::Value::Null),
+                        Err(error) => Response::Error(error),
+                    }
+                }
+                _ => Response::Error(bad_request(
+                    "columns and rows must each be an integer between 1 and 65535",
+                )),
+            };
+            let bytes = Connection::reply(id, response);
+            outbound.enqueue_control(bytes).is_ok()
+        }
         _ => {
             let response = runtime.handle(description, context, &request);
             let bytes = Connection::reply(id, response);
@@ -817,7 +901,7 @@ mod tests {
             method: "pane.attach".to_string(),
             params,
         };
-        let pane = runtime
+        let (pane, attachment_id) = runtime
             .attach_pane(
                 &description,
                 &context,
@@ -831,10 +915,10 @@ mod tests {
             )
             .expect("attach_pane succeeds");
         outbound.open_stream(stream);
-        runtime.arm_attachment(pane, stream, Arc::clone(&outbound));
+        runtime.arm_attachment(pane, attachment_id, Arc::clone(&outbound));
         wait_for_attachment_count(&runtime, pane, 1);
 
-        let pane_streams = RefCell::new(HashMap::from([(pane, stream)]));
+        let pane_streams = RefCell::new(HashMap::from([(pane, (attachment_id, stream))]));
         let (_shutdown_a, shutdown_b) = UnixStream::pair().unwrap();
         {
             let _cleanup = ConnectionCleanup {

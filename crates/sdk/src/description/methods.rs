@@ -559,6 +559,39 @@ fn tab_methods() -> Vec<Method> {
             follows: Follows::Nothing,
             since: VERSION,
         },
+        Method {
+            name: method("tab", "declare-size"),
+            summary: "Declare the caller's own size for the tab".into(),
+            details: "The size is the calling client's for the target tab, in whole cells. \
+                      The terminal's actual size follows doc-15 R91/decision-6 (the latest \
+                      client - the last one to send input or declare a size - wins); every \
+                      attached client is told the size in force on its own attachment's \
+                      stream once it changes, not only the caller (TASK-1.114)."
+                .into(),
+            params: vec![
+                target("The tab to declare a size for. Defaults to the current tab"),
+                flag(
+                    "columns",
+                    ValueKind::Integer,
+                    true,
+                    "The declared width, in whole cells. Must be at least 1",
+                ),
+                flag(
+                    "rows",
+                    ValueKind::Integer,
+                    true,
+                    "The declared height, in whole cells. Must be at least 1",
+                ),
+            ],
+            returns: Returns::Nothing,
+            errors: vec![
+                ErrorCode::BadRequest,
+                ErrorCode::NoSuchTarget,
+                ErrorCode::AmbiguousTarget,
+            ],
+            follows: Follows::Nothing,
+            since: VERSION,
+        },
     ]
 }
 
@@ -1536,6 +1569,7 @@ mod tests {
             ("tab", "set"),
             ("tab", "unset"),
             ("tab", "focus"),
+            ("tab", "declare-size"),
             ("pane", "list"),
             ("pane", "show"),
             ("pane", "split"),
@@ -1568,12 +1602,12 @@ mod tests {
     }
 
     #[test]
-    fn the_method_set_is_exactly_doc_2_section_8s_44_pairs() {
+    fn the_method_set_is_exactly_doc_2_section_8s_45_pairs() {
         let api = description();
         assert_eq!(
             api.methods.len(),
-            44,
-            "doc-2 section 8 lists 44 methods (TASK-1.47 added pane.attach/pane.detach)"
+            45,
+            "doc-2 section 8 lists 45 methods (TASK-1.114 added tab.declare-size)"
         );
 
         let described: HashSet<(String, String)> = api
@@ -1937,6 +1971,7 @@ mod tests {
                     blinking: false,
                     shape: crate::screen::CursorShape::Block,
                 },
+                size: crate::layout::Size::new(80, 24),
             },
         };
         let value = serde_json::to_value(&sample).unwrap();
@@ -1993,6 +2028,7 @@ mod tests {
             ("tab.set", Some((false, ValueKind::Target))),
             ("tab.unset", Some((false, ValueKind::Target))),
             ("tab.focus", Some((false, ValueKind::Target))),
+            ("tab.declare-size", Some((false, ValueKind::Target))),
             ("pane.list", Some((false, ValueKind::Target))),
             ("pane.show", Some((false, ValueKind::Target))),
             ("pane.split", Some((false, ValueKind::Target))),

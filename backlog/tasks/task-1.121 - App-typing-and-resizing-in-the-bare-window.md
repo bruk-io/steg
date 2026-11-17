@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:12:00Z'
+updated_date: '2026-11-17T23:13:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1627,6 +1627,14 @@ test result: FAILED. 53 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just test` exited 0 at 2026-11-17T23:13:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-server) (59.1s)
 ```
 
 Commits since the review: 0.

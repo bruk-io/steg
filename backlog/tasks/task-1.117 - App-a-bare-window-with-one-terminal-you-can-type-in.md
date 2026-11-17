@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-16T19:56:00Z'
+updated_date: '2026-11-17T00:11:00Z'
 labels:
   - size-5
   - changes-requested
@@ -806,6 +806,37 @@ this was stopped and reaped (ps confirmed clean) before pushing. PR carries
 the screenshot.
 
 CI green on the PR (gh pr checks --watch).
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read'` exited 101 at 2026-11-17T00:11:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... FAILED
+
+failures:
+
+---- startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read stdout ----
+
+thread 'startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read' (45592055) panicked at crates/app/src/startup.rs:421:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

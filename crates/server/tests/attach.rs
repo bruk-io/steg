@@ -1699,11 +1699,27 @@ fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_deta
     );
 
     // Connection one force-closes the pane while connection two's attach
-    // is still queued behind the flood.
+    // is still queued behind the flood. `reply_within`, not `call_and_
+    // read_reply`: the same reasoning `pane_close_force_returns_within_
+    // its_bound_even_while_the_panes_own_worker_is_stuck`'s own comment
+    // gives - `call_and_read_reply`'s own underlying socket read uses
+    // this connection's plain 5s default timeout, which `force_grace`
+    // plus CI's own contention can exceed even though force_end's real
+    // bound is much wider.
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
     params.insert("force".to_string(), json!(true));
-    let response = call_and_read_reply(&mut stream_one, &mut connection_one, "pane.close", params);
+    let (close_id, bytes) = connection_one
+        .call("pane.close", params)
+        .expect("a valid call");
+    stream_one.write_all(&bytes).unwrap();
+    let response = reply_within(
+        &mut stream_one,
+        &mut connection_one,
+        close_id,
+        Duration::from_secs(30),
+    )
+    .expect("pane.close --force must answer within a bound");
     assert!(
         matches!(response, Response::Ok(_)),
         "pane.close --force failed: {response:?}"
@@ -1735,7 +1751,17 @@ fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_deta
     // one outcome TASK-1.125's own "silent stream" bug produced.
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
-    let response = call_and_read_reply(&mut stream_two, &mut connection_two, "pane.detach", params);
+    let (detach_id, bytes) = connection_two
+        .call("pane.detach", params)
+        .expect("a valid call");
+    stream_two.write_all(&bytes).unwrap();
+    let response = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        detach_id,
+        Duration::from_secs(15),
+    )
+    .expect("pane.detach must answer within a bound");
     match response {
         Response::Error(error) => {
             assert_eq!(error.code, steg_sdk::ErrorCode::NoSuchTarget, "{error:?}");

@@ -2011,6 +2011,25 @@ error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app paste_keystroke` exited 0 at 2026-11-17T23:41:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test paste_keystroke_tests::a_different_key_with_the_command_key_is_not_the_paste_keystroke ... ok
+test paste_keystroke_tests::a_plain_cmd_v_is_the_paste_keystroke ... ok
+test paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke ... ok
+test paste_keystroke_tests::v_with_no_command_key_is_not_the_paste_keystroke ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

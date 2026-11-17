@@ -175,6 +175,49 @@ fn open_pty(
     }
 }
 
+/// What every attempt failing looks like once it crosses into
+/// [`Error::Pty`] (TASK-1.112 review, round 2): `attempts` and `cause`
+/// kept as fields, not folded into one formatted string, so
+/// `source()` below still reaches the real cause - `.claude/rules/
+/// rust.md`: "add context where an error crosses a boundary, never by
+/// turning it into a string." Every other `Error::Pty(cause.into())`
+/// call site in this file already does this; this is the one exhaustion
+/// path AC #4 itself asks to report the attempt count for, which is what
+/// first made it look like a `format!` was the easy way to do both at
+/// once - it is not, since that discards the source chain `source()`
+/// needs.
+#[derive(Debug)]
+struct OpenExhausted {
+    attempts: u32,
+    cause: Box<dyn std::error::Error + Send + Sync>,
+}
+
+impl std::fmt::Display for OpenExhausted {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "failed to openpty after {} attempt(s): {}",
+            self.attempts, self.cause
+        )
+    }
+}
+
+impl std::error::Error for OpenExhausted {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.cause.as_ref())
+    }
+}
+
+/// Builds the error [`RealLauncher::spawn`] returns once every attempt
+/// has failed - kept as its own function, taking the already-boxed
+/// cause [`open_pty`] produced rather than a real pty's own error type,
+/// so the unit tests below drive it with a synthetic cause and no real
+/// I/O at all (TASK-1.112 review: the same seam-not-a-mock shape
+/// [`open_with_retry`]'s own tests already use).
+fn open_exhausted(attempts: u32, cause: Box<dyn std::error::Error + Send + Sync>) -> Error {
+    Error::Pty(Box::new(OpenExhausted { attempts, cause }))
+}
+
 /// How many times [`RealLauncher::default`] retries a failed `openpty()`
 /// call in total (TASK-1.112): from the measured cross-process rate
 /// (worst local figure, ~0.4% of opens failing under heavy concurrent
@@ -259,11 +302,7 @@ impl ProgramLauncher for RealLauncher {
         let (cols, rows) = spec.size;
         let (pair, open_attempts) = match open_pty(self.max_open_attempts, cols, rows) {
             (Ok(pair), attempts) => (pair, attempts),
-            (Err(cause), attempts) => {
-                return Err(Error::Pty(
-                    format!("failed to openpty after {attempts} attempt(s): {cause}").into(),
-                ));
-            }
+            (Err(cause), attempts) => return Err(open_exhausted(attempts, cause)),
         };
 
         let mut command =
@@ -325,7 +364,7 @@ impl ProgramLauncher for RealLauncher {
 
 #[cfg(test)]
 mod tests {
-    use super::open_with_retry;
+    use super::{open_exhausted, open_with_retry};
 
     #[test]
     fn succeeds_first_time_needs_no_retry() {
@@ -360,6 +399,40 @@ mod tests {
         assert_eq!(
             calls, 3,
             "must stop at exactly the bound, neither short nor long"
+        );
+    }
+
+    /// AC #4 ("the last error surfaces") plus the review's own finding:
+    /// the attempt count is in the message, *and* the real cause is
+    /// still reachable through `source()`, not stringified away. A
+    /// synthetic cause, no real pty - `open_exhausted` is the one seam
+    /// that needs this proof, the same reason `open_with_retry` has its
+    /// own tests above rather than trusting `RealLauncher::spawn`'s own
+    /// real I/O to exercise this branch on cue.
+    #[test]
+    fn exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source() {
+        let cause: Box<dyn std::error::Error + Send + Sync> =
+            Box::new(std::io::Error::other("synthetic cause"));
+        let error = open_exhausted(3, cause);
+
+        assert!(
+            error.to_string().contains("3 attempt"),
+            "expected the attempt count in the message, got: {error}"
+        );
+
+        // Walks the whole chain, not just one level - `Error::Pty` wraps
+        // `OpenExhausted`, which wraps the real cause, so "the last
+        // underlying error" (the review's own wording) means following
+        // `source()` until it runs out, not stopping at the first hop.
+        let mut last: &dyn std::error::Error = &error;
+        while let Some(next) = last.source() {
+            last = next;
+        }
+        assert_eq!(
+            last.to_string(),
+            "synthetic cause",
+            "the last underlying error must be the real cause itself, not a formatted message \
+             anywhere in the chain - that would mean the cause was turned into a string"
         );
     }
 }

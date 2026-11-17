@@ -1321,6 +1321,37 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-app a_teardown_that_races_in_before_the_slot_is_published_is_not_lost` exited 101 at 2026-11-17T02:16:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 85da77e96e15 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.86s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_teardown_that_races_in_before_the_slot_is_published_is_not_lost ... FAILED
+
+failures:
+
+---- startup::tests::a_teardown_that_races_in_before_the_slot_is_published_is_not_lost stdout ----
+
+thread 'startup::tests::a_teardown_that_races_in_before_the_slot_is_published_is_not_lost' (48910487) panicked at crates/app/src/startup.rs:892:9:
+a startup that finds the slot already cancelled before it could publish must bail immediately, not wait out any part of the read timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::a_teardown_that_races_in_before_the_slot_is_published_is_not_lost
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.30s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

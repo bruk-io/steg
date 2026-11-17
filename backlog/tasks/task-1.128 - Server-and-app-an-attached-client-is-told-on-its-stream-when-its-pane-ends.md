@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T03:51:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.117
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

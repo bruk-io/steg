@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T03:51:00Z'
+updated_date: '2026-11-17T04:05:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -82,6 +82,121 @@ I am not picking one now because it depends on timing outside this task's own co
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's criteria and decision-2 by @bruk.o (plan b734cfaf5683): the plan does what it says, but it shows the task as accepted does not fix what the client sees. The wire has no way to tell a client its stream has ended: a stream's control frames carry screen updates and nothing else. So after this fix the server's own records are right and a later pane.detach answers correctly, but a client that was told it is attached still hears nothing. The plan also found the same silence in the ordinary case: a pane whose program ends while a client is attached and armed sends nothing on the stream; only tree events report it. Put to the engineer: either approve this as the small server-side tidy it is and draft the real fix separately (an update that says the pane has ended, sent to every attachment, which the window needs for a program that has ended, TASK-1.61), or widen this task to that.
+
+Check FAILED: `cargo test -p steg-server --lib arm_attachment_answers_false_once_the_pane_has_already_closed` exited 101 at 2026-11-17T03:55:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at d41ba8a5d63d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed ... FAILED
+
+failures:
+
+---- runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed stdout ----
+
+thread 'runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed' (50117161) panicked at crates/server/src/runtime.rs:2956:9:
+arm_attachment must answer false once the pane it was meant for has already closed, not arm a worker that no longer has anywhere to send anything
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib arm_attachment_answers_false_once_the_pane_has_already_closed` exited 0 at 2026-11-17T03:55:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at d41ba8a5d63d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.02s
+```
+
+Check FAILED: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 101 at 2026-11-17T03:58:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 702b3f8be73d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... FAILED
+
+failures:
+
+---- runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock stdout ----
+
+thread 'runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock' (50145335) panicked at crates/server/src/runtime.rs:2887:17:
+an unrelated pane.show must answer within a bound even while a different pane's own attach is stuck on its worker
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 191 filtered out; finished in 2.08s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Check passed: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 0 at 2026-11-17T03:58:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 702b3f8be73d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.08s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T04:05:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 16eb3fcd79df:
+
+```text
+ok      format check (0.3s)
+ok      lint (30.0s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (55.0s)
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.5s)
+ok      test (steg-sdk, local-socket) (2.8s)
+ok      build (steg-kernel) (42.7s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (0.6s)
+ok      test (steg-server) (25.2s)
+ok      test (steg-server, race-fixture) (27.2s)
+ok      test (steg-server, pty-race-fixture) (34.2s)
+ok      test (steg-server, accept-backoff-fixture) (36.9s)
+ok      build (steg) (0.2s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (7.3s)
+ok      build (steg-ui) (14.9s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.8s)
+ok      test (steg-app) (0.9s)
+ok      tool tests (12.9s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

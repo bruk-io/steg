@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T04:04:00Z'
+updated_date: '2026-11-17T16:17:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
 asdlc_branch: task-1.126-app-the-terminal-draws-in-an-installed
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '128dd5e761a6'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -106,3 +109,16 @@ From the engineer's second run, 2026-11-16, after installing JetBrains Mono: the
 
 Plan checked against the task's criteria, doc-17 and the design by @bruk.o: ok. The cause is read from gpui 0.2.2, not guessed: resolving a font tries the family asked for and then gpui's own fixed list, which reaches Helvetica; the fallbacks on a Font are used only for a glyph missing from a family already found. The plan picks the family once, in one place, for both measuring and painting, and paints a run as one shaped line only when every glyph is checked to sit on its own column, otherwise cell by cell. On the inset, which the worker could not read: the design gives 6px between panes and to the window edge (the gutter), and names no inset for the terminal's text inside a pane. So this task's duty is that column 0 is fully drawn; an inset inside the pane is a gap in the design for the engineer to settle with the pane work (TASK-1.55). JetBrains Mono's licence, SIL OFL 1.1, is not on the licence check's allow list, so shipping the font needs that list changed as well as the engineer's decision.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-17T16:17:00Z
+
+---
+
+Plan approved by @bruk (128dd5e761a6, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

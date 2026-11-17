@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:37:00Z'
+updated_date: '2026-11-17T01:50:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1298,6 +1298,18 @@ Status: the pure functions (keys.rs/size.rs/ime.rs), the merge of 1.117+1.114, a
 Separately: one more flake observed and confirmed not mine - crates/server/tests/attach.rs's own an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once under load (a timing-sensitive "stays within its bound" assertion), passed cleanly alone afterward. Noting it here in case it recurs for someone else; not acted on further since it isn't this task's own code.
 
 Blocked on the live-window check (typing/resizing demonstrated, and the recording) pending the orchestrator's guidance on the disconnect reported on the task's own channel.
+
+---
+
+created: 2026-11-17T01:50:00Z
+
+---
+
+Root-caused the disconnect reported earlier, at the orchestrator's request to bisect. It is not commit-specific and not server-side: it is a pre-existing bug in TASK-1.117's own main.rs. AppWindow::stop_startup() unconditionally shuts down the startup thread's own interrupt handle (a socket clone published in a ShutdownSlot for a window-close race), and apply_startup_result() calls stop_startup() as its first line regardless of whether the result is a success - so every successful attach immediately shuts down its own just-established connection before handing it to the reader thread. Nothing panics or logs on either side.
+
+Verified with a scratch cargo test (crates/server/tests/scratch_1121_diagnose.rs, deleted, never committed) replicating startup.rs's own call sequence against a real server: stayed connected 10s with no issue, pointing at the app's own code rather than the server. Confirmed by a temporary, reverted patch (join the thread without re-shutting-down the handle) run against a live window: the window showed a live prompt, stayed connected, typing and resizing (echo + stty size showing the new dimensions) both worked end to end.
+
+Not my fix to make (TASK-1.117's file); reported to the orchestrator with the exact mechanism. My own wiring is now confirmed working against a real server/window, not only unit-tested.
 
 ---
 <!-- COMMENTS:END -->

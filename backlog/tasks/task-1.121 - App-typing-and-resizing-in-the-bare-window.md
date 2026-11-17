@@ -1484,4 +1484,12 @@ Recording held, as instructed: it waits for TASK-1.117's own fixed head (and 1.1
 What would have caught this at my own wiring's level: nothing in my own tests does, today, because the bug lives one level up (TASK-1.117's own stop_startup/apply_startup_result, not anything this task's Writer or Client touch) and because Writer::send_input/declare_size are deliberately fire-and-forget (a write that fails is not specially recovered from, by design - TASK-1.114's own "best effort" reasoning for the same shape). A real-socket test that calls declare_size and then asserts a reply is actually observable on the connection - not just that the outgoing request's own bytes are shaped correctly, which is all today's two Writer tests check - would at least demonstrate the class of bug is catchable at this level: added one (client.rs), with a server-side reply sent back and read through a real decode Connection the same way the reader thread would, and a control that shuts the connection down first (same shape stop_startup's own bug produces) and asserts the reply never arrives within the test's own bound. Recorded as a failing-then-passing cycle like the others. just check: exit 0.
 
 ---
+
+created: 2026-11-17T01:59:00Z
+
+---
+
+Added the two tests described above (commit fa0b33fc): declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive (recorded failing-then-passing: the server never replying is what fails it) and once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen (the exact shape of the real bug, as a standing assertion). just check: exit 0.
+
+---
 <!-- COMMENTS:END -->

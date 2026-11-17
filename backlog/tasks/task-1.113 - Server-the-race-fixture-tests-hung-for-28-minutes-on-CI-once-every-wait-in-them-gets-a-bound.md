@@ -3,14 +3,13 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:46:00Z'
+updated_date: '2026-11-17T05:55:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -1259,6 +1258,16 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 0.
+
+Fixed the remaining finding: wait_child_bounded's watchdog and the main thread now share one Mutex<bool> (finished) for the whole decision, not two independently-timed atomics. The watchdog checks-and-kills as a single critical section under the lock; the main thread sets finished = true under that same lock strictly before calling the real child.wait() to reap. A kill can only be sent while holding the lock with finished still false; a reap can only happen after the main thread has held that same lock and set finished - so a kill can never follow a reap, whichever way the two threads interleave. Neither critical section blocks (the kill is non-blocking; waitid and the real reap both run outside the lock), so no deadlock risk; a poisoned lock is recovered (PoisonError::into_inner), not panicked on, on both sides. Rewrote the doc comment to state this invariant in exactly those terms and removed the earlier "always safe however the two threads interleave" claim, which was true in form but not in substance given the two-atomics implementation it described.
+
+As asked: a deterministic test of the closed interleaving itself isn't practical (the window is not one a test can reliably hold open on demand) - said so in the doc comment rather than claiming one. The existing timeout test (a real, never-exiting `sleep 30` child; confirms the panic fires and the pid is fully gone - ESRCH on signal-0 - afterward) still exercises the same path unchanged.
+
+Re-ran and re-recorded the watchdog-kill control against the edited code, both halves via asdlc record-check: ran once unrecorded first (STEG_QUIET_TIMEOUT_S=5 through steg-quiet, kill call removed) and read the output before recording - compiler warnings naming our own file/line/variable and "running 1 test", nothing from the environment - then recorded that failing run, restored the kill, and recorded the passing run.
+
+Checks after the fix: cargo test -p steg-server --features race-fixture (full crate, includes the edited test) and --features pty-race-fixture (full crate), both green. just check, full workspace: one run hit an unrelated flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, "the backgrounded grandchild's own pid file never appeared" - a timing-sensitive test in a file this task never touches; reran it alone and it passed, consistent with load on a shared machine, not a regression from this change) - recorded that run and the clean rerun both, for the record. ps checked clean of leftover processes throughout, including after the unrecorded and recorded failing control runs.
+
+PR #69, pushed (head 174ab452), CI green (run 44026476589, 7m55s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

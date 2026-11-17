@@ -1288,4 +1288,16 @@ created: 2026-11-17T01:12:00Z
 The just check recorded above (exit 101, race-fixture) was stopped by the team lead: it hung in steg-server's own outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails, the known intermittent hang recorded on TASK-1.113, not this task's own code. Re-running now.
 
 ---
+
+created: 2026-11-17T01:37:00Z
+
+---
+
+Status: the pure functions (keys.rs/size.rs/ime.rs), the merge of 1.117+1.114, and the writer/EntityInputHandler/focus/declared-size wiring are all committed, each proof item recorded through asdlc record-check as a failing run (the mechanism reverted) then a passing run: the key table, the floor, the coalescer, ImeState's own commit-clears-composition, the Writer's two real-socket tests (declare_size's own target, send_input's own stream), and Model's Full-update-changes-size behaviour. just check is green (exit 0) as of this comment.
+
+Separately: one more flake observed and confirmed not mine - crates/server/tests/attach.rs's own an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once under load (a timing-sensitive "stays within its bound" assertion), passed cleanly alone afterward. Noting it here in case it recurs for someone else; not acted on further since it isn't this task's own code.
+
+Blocked on the live-window check (typing/resizing demonstrated, and the recording) pending the orchestrator's guidance on the disconnect reported on the task's own channel.
+
+---
 <!-- COMMENTS:END -->

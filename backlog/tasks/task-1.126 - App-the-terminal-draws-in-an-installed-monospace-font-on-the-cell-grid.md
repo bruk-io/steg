@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T16:17:00Z'
+updated_date: '2026-11-17T16:18:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -119,6 +119,15 @@ created: 2026-11-17T16:17:00Z
 ---
 
 Plan approved by @bruk (128dd5e761a6, size-2): its worker may build it.
+
+---
+
+created: 2026-11-17T16:18:00Z
+
+---
+
+Departures from the approved plan:
+- Build base: the plan's own "Build base" section said to merge origin's task-1.117 branch. By the time the plan was approved, TASK-1.117 (PR 65), TASK-1.125 (PR 68) and TASK-1.113 (PR 69) were already merged to main and the task-1.117 branch deleted - merged origin/main instead (same content plus TASK-1.113's hang fix), per team-lead. No other change to the plan.
 
 ---
 <!-- COMMENTS:END -->

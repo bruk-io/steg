@@ -34,6 +34,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=0'
 asdlc_review_policies: ["review", "testing"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2485,6 +2486,15 @@ created: 2026-11-16T15:10:00Z
 ---
 
 2026-11-16, @bruk.o: released to free a slot, not abandoned: the work is built and pushed (1ce276d), its controls are recorded, and it can do nothing more until TASK-1.46 merges to main. Reclaim as bruk.w4 then: merge main (TASK-1.46's commits come from main and the rebased copies drop out), re-run, CI green, finish.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T01:20:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

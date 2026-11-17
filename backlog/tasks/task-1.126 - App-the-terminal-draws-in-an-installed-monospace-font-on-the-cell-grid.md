@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T21:19:00Z'
+updated_date: '2026-11-17T21:22:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '128dd5e761a6'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1065,6 +1065,37 @@ created: 2026-11-17T21:19:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.126: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T21:22:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff matches the plan.
+
+Second round, scoped to the diff 2bf5d974..67c972b3 (crates/app/src/terminal_element.rs only), against round 1's three findings.
+
+Finding 1 (coordinate-space bug): fixed correctly. Confirmed against gpui 0.2.2's own source (not just the notes): TextSystem::shape_line's doc on ShapedGlyph.position says "The position of this glyph in its containing line" (gpui-0.2.2/src/text_system/line_layout.rs:46), and shape_and_check_run calls shape_text with only the run's own text (window.text_system().shape_line(text, ...) where text is &run.text, never the row) - so a glyph's position.x is relative to the run's own shaped line, never an absolute row column. The fix removes run_start_column entirely from every_glyph_position_is_safe's comparison (terminal_element.rs:291-319); expected_x is now cell_width * (grapheme_rank * columns_per_grapheme) with no row offset. The real absolute placement is untouched: paint_cached_run still computes column = placement.start_column (+ grapheme_rank * columns_per_grapheme for the slow path) and passes it to cell_origin for both the CachedRun::Whole and CachedRun::PerGrapheme paths (terminal_element.rs:341-372) - the painting origin arithmetic is unchanged by this fix, only the fast/slow-path decision changed.
+
+Finding 2 (evidence): every_glyph_position_is_safe is a pure function (text: &str, glyph_positions: &[(usize, Pixels)], cell_width, columns_per_grapheme) -> bool, no gpui type in its signature. every_glyph_sits_on_its_own_column, the gpui-facing wrapper, is thin: it only flat_maps shaped.runs/glyphs into (glyph.index, glyph.position.x) pairs and delegates (terminal_element.rs:264-277) - confirmed the untested part really is just pair-collection. Three tests: a_run_whose_glyphs_are_all_on_grid_is_safe (on-grid, safe), a_glyph_off_by_more_than_the_tolerance_is_unsafe (off-grid by 2px, unsafe), and positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column (the regression case: run-relative positions that round 1's bug would have flagged unsafe once a non-zero row column entered the comparison). All three call the real function, no mocking.
+
+Control repeated myself: edited every_glyph_position_is_safe's expected_x to add a hardcoded non-zero offset (reintroducing round 1's "absolute row column enters the comparison" bug) in a scratch edit, ran `cargo test -p steg-app positions_relative_to_the_run_are_safe_even_when_the_run_starts_at_a_non_zero_column`, which failed exactly as expected (assertion failed, the previously-safe run-relative positions now compared unsafe against the offset expectation). Reverted the file completely with `git checkout --`; `git status` confirmed clean afterward.
+
+Third PR image (task-1126-wide-and-fallback.png): shows "abc中[emoji]xyz" on one line - ASCII before and after a wide CJK character and an emoji (forcing the fallback family), with consistent letter spacing before and after, no visible drift - and a second line "red"/"green"/"blue"/"end" in four different styles/colours with no gap or overlap between the colour runs, staying on the grid. Consistent with the claim; not yet on the PR itself (per the brief, not a finding - the engineer attaches it).
+
+Nit 3 (run_key hashes style.wide): confirmed present at terminal_element.rs:504.
+
+New nit found this round: the doc comment above shape_and_check_run (terminal_element.rs:225-229) still reads "`run_start_column` is where this run's own first cell sits on its row" - that parameter was removed from the function's own signature by this round's fix (it's no longer passed into shape_and_check_run at all; paint_grid's call site also dropped it). The doc was not updated to match and now describes a parameter that does not exist - stale enough to mislead a future reader (or another agent) into thinking the function still carries row-column semantics it no longer does. [Bugs, Nit] terminal_element.rs:226.
+
+Recorded checks: confirmed against 67c972b3 (head of the fetched branch, matching the worktree HEAD) - `just check` and all five controls (resolve_family, cell_origin, and the three every_glyph_position_is_safe tests) recorded clean at 67c972b3 with no uncommitted changes; CI green on PR 70.
+
+Not checked: the live run itself (relied on the worker's recorded run and CI, both at 67c972b3), and the EPSILON tolerance's behaviour under subpixel rendering on fonts other than what this machine has installed (same gap round 1 left unchecked).
+
+Verdict: clean. No Important findings.
 
 ---
 <!-- COMMENTS:END -->

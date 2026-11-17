@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:14:00Z'
+updated_date: '2026-11-17T01:18:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -913,6 +913,29 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:18:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9d6518c41040 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 1.9s)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: variable does not need to be mutable
+   --> crates/app/src/client.rs:287:14
+    |
+287 |         let (mut server_side, app_side) = UnixStream::pair().expect("a socket pair");
+    |              ----^^^^^^^^^^^
+    |              |
+    |              help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -25,6 +25,39 @@ steg-sdk = { path = "../sdk", features = ["local-socket"] }
 # routing.rs` already builds, and `steg-sdk` does not re-export either
 # type. Not used by `crates/steg/src/main.rs` itself.
 serde_json = "1"
+# The CLI's whole command tree, built at run time from `steg_sdk::description::
+# description()` (TASK-1.49, decision-1 sections 2, 6 and 7). The builder API
+# only (`Command`/`Arg`/`PossibleValue`), never `#[derive(Parser)]` - a derive
+# would name every command by hand in a struct, exactly what "nothing names a
+# method by hand" forbids. Pinned to the exact version decision-1's own
+# licence table measured (4.6.7). Checked directly against clap_builder's
+# own Cargo.toml (not assumed, and not docs.rs's own always-every-feature
+# build, which is misleading here): `Str`/`Id`'s `From<String>` impls are
+# gated behind clap's own "string" feature (`string = []` in clap_builder's
+# manifest - no extra dependency, pure conditional compilation), off by
+# default, which is why decision-1's own finding ("Str and Id have no
+# From<String>") holds for an ordinary build and this task turns "string"
+# on explicitly rather than leaking every name to `'static` the way the
+# decision-1 spike did.
+# `deny-features` for `clap` in `boundaries.toml` denies its "default"
+# feature outright (the check's own documented behaviour whenever a crate
+# has any `deny-features` entry), so this spells out exactly the features
+# clap's own `default` draws together (its Cargo.toml, checked directly),
+# plus "string" above - never "derive", which was never a default feature
+# and is the one this task's `deny-features` entry exists to keep out
+# explicitly too.
+clap = { version = "=4.6.7", default-features = false, features = [
+    "std",
+    "string",
+    "color",
+    "help",
+    "usage",
+    "error-context",
+    "suggestions",
+] }
+# Generates `completion <shell>`'s shell scripts from the same tree, since the
+# whole command set exists with no server reachable (decision-1 section 7).
+clap_complete = "=4.6.11"
 
 [features]
 # Gates `server_start.rs`'s own two fixture binaries and the integration test

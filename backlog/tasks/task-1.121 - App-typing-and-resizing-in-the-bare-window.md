@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T00:32:00Z'
+updated_date: '2026-11-17T00:40:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -799,6 +799,41 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T00:40:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 724fe9aca809 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 0.8s)
+    Blocking waiting for file lock on package cache
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: large size difference between variants
+  --> crates/app/src/main.rs:56:1
+   |
+56 | / enum Phase {
+57 | |     Connecting,
+58 | |     Attached(AttachedState),
+   | |     ----------------------- the largest variant contains at least 304 bytes
+59 | |     Disconnected(String),
+   | |     -------------------- the second-largest variant contains at least 24 bytes
+60 | | }
+   | |_^ the entire enum is at least 304 bytes
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#large_enum_variant
+   = note: `-D clippy::large-enum-variant` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::large_enum_variant)]`
+help: consider boxing the large fields or introducing indirection in some other way to reduce the total size of the enum
+   |
+58 -     Attached(AttachedState),
+58 +     Attached(Box<AttachedState>),
+   |
+
+error: could not compile `steg-app` (bin "steg-app") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

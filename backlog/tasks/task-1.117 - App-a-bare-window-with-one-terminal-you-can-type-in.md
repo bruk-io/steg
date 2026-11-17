@@ -1,11 +1,11 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T03:56:00Z'
+updated_date: '2026-11-17T16:15:00Z'
 labels:
   - size-5
   - review-passed

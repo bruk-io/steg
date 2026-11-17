@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T23:27:00Z'
+updated_date: '2026-11-17T23:28:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -506,6 +506,50 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates
          &mut stream_a,
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T23:28:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at d7a34f46b4ee with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 4.4s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/steg)
+error: value assigned to `saw_ended` is never read
+    --> crates/server/src/pane.rs:2958:29
+     |
+2958 |         let mut saw_ended = false;
+     |                             ^^^^^ this value is reassigned later and never used
+...
+2970 |                         saw_ended = true;
+     |                         ---------------- `saw_ended` is overwritten here before the previous value is read
+     |
+     = note: `-D unused-assignments` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(unused_assignments)]`
+
+error: could not compile `steg-server` (lib test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: doc list item without indentation
+    --> crates/server/tests/attach.rs:1988:5
+     |
+1988 | /// the one that happened to ask first.
+     |     ^
+     |
+     = help: if this is supposed to be its own paragraph, add a blank line
+     = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#doc_lazy_continuation
+     = note: `-D clippy::doc-lazy-continuation` implied by `-D warnings`
+     = help: to override `-D warnings` add `#[allow(clippy::doc_lazy_continuation)]`
+help: indent this line
+     |
+1988 | ///   the one that happened to ask first.
+     |     ++
+
+error: could not compile `steg-server` (test "attach") due to 1 previous error
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

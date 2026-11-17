@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T18:30:00Z'
+updated_date: '2026-11-17T18:32:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -357,6 +357,41 @@ running 1 test
 test terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T18:32:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 2bf5d974438e:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg-app) (0.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (22.2s)
+ok      test (steg-server, race-fixture) (22.5s)
+ok      test (steg-server, pty-race-fixture) (28.7s)
+ok      test (steg-server, accept-backoff-fixture) (22.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (4.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

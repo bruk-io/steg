@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T15:54:00Z'
+updated_date: '2026-11-17T00:09:00Z'
 labels:
   - size-4
 milestone: m-3
@@ -23,11 +23,9 @@ asdlc_branch: task-1.49-cli-commands-generated-from-the-api
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '37c4dd0b7f74'
 asdlc_plan_approved_size: size-4
-asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -1093,6 +1091,15 @@ created: 2026-11-16T15:54:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r1 released its review claim on TASK-1.49; another reviewer may claim it with asdlc review-next.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T16:37:00Z'
+updated_date: '2026-11-17T16:38:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1579,6 +1579,29 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Commits since the review: 105, 93 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --test attach -- --exact a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach detaching_a_pane_that_already_closed_still_releases_the_stream two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other detaching_a_pane_this_connection_never_attached_to_is_a_bad_request an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane` exited 0 at 2026-11-17T16:38:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at d9e418242ffc:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.25s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 6 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 27.48s
 ```
 
 Commits since the review: 105, 93 without the Asdlc-Worker trailer.

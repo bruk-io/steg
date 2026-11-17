@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T03:47:00Z'
+updated_date: '2026-11-17T03:51:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
 asdlc_branch: task-1.125-server-a-pane-that-closes-between-attach
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'b734cfaf5683'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -80,3 +83,16 @@ I am not picking one now because it depends on timing outside this task's own co
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's criteria and decision-2 by @bruk.o (plan b734cfaf5683): the plan does what it says, but it shows the task as accepted does not fix what the client sees. The wire has no way to tell a client its stream has ended: a stream's control frames carry screen updates and nothing else. So after this fix the server's own records are right and a later pane.detach answers correctly, but a client that was told it is attached still hears nothing. The plan also found the same silence in the ordinary case: a pane whose program ends while a client is attached and armed sends nothing on the stream; only tree events report it. Put to the engineer: either approve this as the small server-side tidy it is and draft the real fix separately (an update that says the pane has ended, sent to every attachment, which the window needs for a program that has ended, TASK-1.61), or widen this task to that.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-17T03:51:00Z
+
+---
+
+Plan approved by @bruk (b734cfaf5683, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

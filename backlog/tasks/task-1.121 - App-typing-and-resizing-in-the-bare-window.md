@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:12:00Z'
+updated_date: '2026-11-17T02:46:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -880,6 +880,617 @@ Caused by:
 full output: .quiet/test-steg-server-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
 ```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:14:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 724fe9aca809 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (24.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (21.8s)
+ok      test (steg-server, race-fixture) (21.1s)
+ok      test (steg-server, accept-backoff-fixture) (23.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:18:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9d6518c41040 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 1.9s)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: variable does not need to be mutable
+   --> crates/app/src/client.rs:287:14
+    |
+287 |         let (mut server_side, app_side) = UnixStream::pair().expect("a socket pair");
+    |              ----^^^^^^^^^^^
+    |              |
+    |              help: remove this `mut`
+    |
+    = note: `-D unused-mut` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(unused_mut)]`
+
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:20:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9d6518c41040 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (every crate) (24.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.2s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (19.7s)
+ok      test (steg-server, race-fixture) (21.7s)
+ok      test (steg-server, accept-backoff-fixture) (21.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:29:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (24.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (23.5s)
+ok      test (steg-server, race-fixture) (24.8s)
+ok      test (steg-server, accept-backoff-fixture) (26.1s)
+ok      build (steg) (0.2s)
+ok      test (steg) (0.2s)
+ok      test (steg, fixtures) (3.9s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (3.1s)
+ok      build (steg-app) (2.2s)
+ok      test (steg-app) (1.0s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:30:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test model::tests::a_wide_runs_columns_are_twice_its_own_grapheme_count ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size ... ok
+test model::tests::a_combining_mark_is_one_grapheme_and_one_column_not_two ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... FAILED
+
+failures:
+
+---- client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 stdout ----
+
+thread 'client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0' (47538010) panicked at crates/app/src/client.rs:307:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0
+
+test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:30:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test ime::tests::committing_a_resolved_composition_sends_its_own_bytes_and_closes_it ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... FAILED
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+
+failures:
+
+---- client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size stdout ----
+
+thread 'client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size' (47549823) panicked at crates/app/src/client.rs:320:9:
+assertion `left == right` failed
+  left: None
+ right: Some("sess/tab-1")
+
+
+failures:
+    client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size
+
+test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:31:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e, last 40 of 71 lines:
+
+```text
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 173 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+     Running tests/attach.rs (target/debug/deps/attach-d38d78534eadc4dd)
+
+running 15 tests
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test input_clears_a_finished_status ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (47558807) panicked at crates/server/tests/attach.rs:1255:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.54s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:34:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (26.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.6s)
+ok      test (steg-sdk, local-socket) (0.8s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (31.3s)
+ok      test (steg-server) (26.6s)
+ok      test (steg-server, race-fixture) (26.1s)
+ok      test (steg-server, accept-backoff-fixture) (29.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.4s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:35:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test metrics::tests::a_pixel_size_that_does_not_divide_evenly_floors_not_rounds ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size ... FAILED
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+
+failures:
+
+---- model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size stdout ----
+
+thread 'model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size' (47750717) panicked at crates/app/src/model.rs:284:9:
+assertion `left == right` failed
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    model::tests::a_full_update_replaces_the_whole_grid_and_its_own_reported_size
+
+test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:37:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (21.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.3s)
+ok      test (steg-server) (22.6s)
+ok      test (steg-server, race-fixture) (22.5s)
+ok      test (steg-server, accept-backoff-fixture) (22.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.5s)
+ok      build (steg-app) (1.1s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.7s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:53:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e:
+
+```text
+ok      format check (0.3s)
+ok      lint (6.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (29.3s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.8s)
+ok      test (steg-sdk, local-socket) (2.4s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (26.0s)
+ok      test (steg-server, race-fixture) (26.4s)
+ok      test (steg-server, accept-backoff-fixture) (29.6s)
+ok      build (steg) (1.4s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (2.8s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-17T01:56:29+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 64 lines:
+
+```text
+test ime::tests::a_multi_line_commit_sends_carriage_returns_like_enter_does ... ok
+test ime::tests::committing_with_no_composition_open_still_sends_the_text ... ok
+test size::tests::a_drag_emits_only_the_distinct_sizes_it_crosses_and_always_ends_on_the_last_one ... ok
+test size::tests::a_viewport_many_cells_wide_and_tall_divides_evenly ... ok
+test keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says ... ok
+test size::tests::a_viewport_smaller_than_one_cell_floors_to_one_column_and_one_row_not_zero ... ok
+test size::tests::a_viewport_that_does_not_divide_evenly_floors_the_remainder ... ok
+test size::tests::an_unchanged_computed_size_declares_nothing ... ok
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test size::tests::a_zero_cell_width_is_a_caller_bug_not_a_zero_grid - should panic ... ok
+test startup::tests::publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test client::tests::once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen ... ok
+test client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive ... FAILED
+
+failures:
+
+---- client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive stdout ----
+
+thread 'client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive' (48494690) panicked at crates/app/src/client.rs:426:9:
+a reply should be observable on a live connection, got None
+
+
+failures:
+    client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive
+
+test result: FAILED. 40 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:57:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes, last 40 of 74 lines:
+
+```text
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/connection.rs (target/debug/deps/connection-954ecb1969526d55)
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-1079895324ddf99e)
+
+running 6 tests
+test spawn_fails_promptly_when_the_binarys_path_does_not_exist ... ok
+test spawn_fails_when_the_binary_exists_but_is_not_executable ... ok
+test refuses_to_start_one_when_autostart_is_false ... ok
+test connects_without_spawning_when_a_listener_is_already_bound ... FAILED
+test gives_up_with_a_timeout_when_nothing_ever_binds ... ok
+test starts_one_and_waits_when_nothing_is_listening_and_autostart_is_true ... ok
+
+failures:
+
+---- connects_without_spawning_when_a_listener_is_already_bound stdout ----
+
+thread 'connects_without_spawning_when_a_listener_is_already_bound' (48506911) panicked at crates/sdk/tests/local_socket.rs:91:54:
+called `Result::unwrap()` on an `Err` value: Os { code: 48, kind: AddrInUse, message: "Address already in use" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connects_without_spawning_when_a_listener_is_already_bound
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+error: test failed, to rerun pass `-p steg-sdk --test local_socket`
+full output: .quiet/test-steg-sdk-local-socket.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:59:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (20.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (19.6s)
+ok      test (steg-server, race-fixture) (20.4s)
+ok      test (steg-server, accept-backoff-fixture) (21.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.4s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T02:38:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at fa0b33fc801c with uncommitted changes, last 40 of 71 lines:
+
+```text
+test runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 34994: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 34953: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... FAILED
+
+failures:
+
+---- login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open stdout ----
+
+thread 'login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open' (49419642) panicked at crates/server/src/login_env.rs:659:13:
+the backgrounded grandchild's own pid file never appeared
+
+
+failures:
+    login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open
+
+test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.01s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T02:43:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at fa0b33fc801c with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (31.9s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (2.2s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (29.2s)
+ok      test (steg-server, race-fixture) (31.0s)
+ok      test (steg-server, pty-race-fixture) (37.3s)
+ok      test (steg-server, accept-backoff-fixture) (34.8s)
+ok      build (steg) (2.0s)
+ok      test (steg) (3.3s)
+ok      test (steg, fixtures) (9.8s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (1.5s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -913,6 +1524,60 @@ created: 2026-11-17T01:12:00Z
 ---
 
 The just check recorded above (exit 101, race-fixture) was stopped by the team lead: it hung in steg-server's own outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails, the known intermittent hang recorded on TASK-1.113, not this task's own code. Re-running now.
+
+---
+
+created: 2026-11-17T01:37:00Z
+
+---
+
+Status: the pure functions (keys.rs/size.rs/ime.rs), the merge of 1.117+1.114, and the writer/EntityInputHandler/focus/declared-size wiring are all committed, each proof item recorded through asdlc record-check as a failing run (the mechanism reverted) then a passing run: the key table, the floor, the coalescer, ImeState's own commit-clears-composition, the Writer's two real-socket tests (declare_size's own target, send_input's own stream), and Model's Full-update-changes-size behaviour. just check is green (exit 0) as of this comment.
+
+Separately: one more flake observed and confirmed not mine - crates/server/tests/attach.rs's own an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once under load (a timing-sensitive "stays within its bound" assertion), passed cleanly alone afterward. Noting it here in case it recurs for someone else; not acted on further since it isn't this task's own code.
+
+Blocked on the live-window check (typing/resizing demonstrated, and the recording) pending the orchestrator's guidance on the disconnect reported on the task's own channel.
+
+---
+
+created: 2026-11-17T01:50:00Z
+
+---
+
+Root-caused the disconnect reported earlier, at the orchestrator's request to bisect. It is not commit-specific and not server-side: it is a pre-existing bug in TASK-1.117's own main.rs. AppWindow::stop_startup() unconditionally shuts down the startup thread's own interrupt handle (a socket clone published in a ShutdownSlot for a window-close race), and apply_startup_result() calls stop_startup() as its first line regardless of whether the result is a success - so every successful attach immediately shuts down its own just-established connection before handing it to the reader thread. Nothing panics or logs on either side.
+
+Verified with a scratch cargo test (crates/server/tests/scratch_1121_diagnose.rs, deleted, never committed) replicating startup.rs's own call sequence against a real server: stayed connected 10s with no issue, pointing at the app's own code rather than the server. Confirmed by a temporary, reverted patch (join the thread without re-shutting-down the handle) run against a live window: the window showed a live prompt, stayed connected, typing and resizing (echo + stty size showing the new dimensions) both worked end to end.
+
+Not my fix to make (TASK-1.117's file); reported to the orchestrator with the exact mechanism. My own wiring is now confirmed working against a real server/window, not only unit-tested.
+
+---
+
+created: 2026-11-17T01:55:00Z
+
+---
+
+Cleanup done: scratchpad bisection binaries removed, worktree back on task-1.121-app-typing-and-resizing-in-the-bare, clean (just the one commit from before), ps sweep clean.
+
+What was checked by hand, in words, no output kept: with a temporary, reverted one-line local change to TASK-1.117's stop_startup (skip the shutdown when the startup result is a success - the diagnosis's own fix shape), I ran the real app against a real server, both with a throwaway socket and a throwaway HOME. The window showed a live shell prompt instead of "disconnected". I typed a short echo command and pressed enter: it appeared on its own line, the shell's own output line followed it, and a fresh prompt came after - typing reaching the program and its output drawing, both through this task's own on_key_down/Writer wiring. I then resized the window larger and ran `stty size` in the same shell: it printed the new row and column counts, matching the resize, not the original size - confirming declare_size and the coalescer reach the real pty too. The change was reverted immediately afterward and nothing was committed.
+
+Recording held, as instructed: it waits for TASK-1.117's own fixed head (and 1.114's), since the recording must be made from committed code, and for the engineer's Screen Recording grant.
+
+What would have caught this at my own wiring's level: nothing in my own tests does, today, because the bug lives one level up (TASK-1.117's own stop_startup/apply_startup_result, not anything this task's Writer or Client touch) and because Writer::send_input/declare_size are deliberately fire-and-forget (a write that fails is not specially recovered from, by design - TASK-1.114's own "best effort" reasoning for the same shape). A real-socket test that calls declare_size and then asserts a reply is actually observable on the connection - not just that the outgoing request's own bytes are shaped correctly, which is all today's two Writer tests check - would at least demonstrate the class of bug is catchable at this level: added one (client.rs), with a server-side reply sent back and read through a real decode Connection the same way the reader thread would, and a control that shuts the connection down first (same shape stop_startup's own bug produces) and asserts the reply never arrives within the test's own bound. Recorded as a failing-then-passing cycle like the others. just check: exit 0.
+
+---
+
+created: 2026-11-17T01:59:00Z
+
+---
+
+Added the two tests described above (commit fa0b33fc): declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive (recorded failing-then-passing: the server never replying is what fails it) and once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen (the exact shape of the real bug, as a standing assertion). just check: exit 0.
+
+---
+
+created: 2026-11-17T02:46:00Z
+
+---
+
+Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you at f8967015 (merge commit 7ba220a4, pushed to origin). Conflicts in main.rs/startup.rs (re-threaded this task's writer/focus/declared-size/IME additions through 1.117's new Slot-based startup/teardown, unchanged) and five server-side files (pane_streams/tab.declare-size/AttachmentId-shaped additive conflicts, both sides kept). just check: exit 0. Live run against committed code only, no local patch: prompt draws, stays connected 10s, typed command echoes and its output draws, a resize is followed (stty size), close-and-relaunch shows the earlier output - all yes.
 
 ---
 <!-- COMMENTS:END -->

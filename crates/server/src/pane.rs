@@ -547,31 +547,33 @@ impl PaneHandle {
             .map_err(|_| Error::PaneGone)
     }
 
-    /// Registers a new attachment to this pane's screen and returns its
-    /// own [`AttachmentId`] alongside its snapshot (TASK-1.47; AC #1, #7).
-    /// The caller mints `stream` (a connection concern - the frame tag,
-    /// connection-local) but the `AttachmentId` returned here, not
-    /// `stream`, is what [`PaneHandle::arm`]/[`PaneHandle::detach`] must
-    /// be called with (TASK-1.114: `stream` alone is not unique across
-    /// different connections attached to the same pane - see
-    /// [`AttachmentId`]'s own doc). Call `arm` once this reply is queued
-    /// and the stream is opened with the writer - decision-2 section 3's
-    /// ordering rule; see [`PaneCommand::Attach`]'s own doc for why attach
-    /// and arm are two separate steps.
+    /// A cheap, cloneable handle onto just this pane's own command
+    /// channel, for registering a new attachment to this pane's screen
+    /// (TASK-1.47; AC #1, #7) *without* holding anything else while its
+    /// own reply is awaited - most importantly, `Runtime`'s state lock,
+    /// which a caller reaching this pane through a locked `state.panes.
+    /// get(...)` would otherwise still be holding (TASK-1.47 review: a
+    /// pane whose worker is busy, e.g. a program flooding its own stdin
+    /// mid-`write_all`, must never stall every other request on the
+    /// server behind the same lock). Cloning `Sender<PaneCommand>` is
+    /// cheap (an `Arc` bump inside `std::sync::mpsc`), and pins the
+    /// caller to *this* worker's own channel - even if the pane's own id
+    /// is later reused by a new pane after the lock is released, a stale
+    /// clone still only ever reaches the original worker (or finds it
+    /// gone, `Error::PaneGone`), never a different one that happens to
+    /// share the same id.
     ///
-    /// # Errors
-    ///
-    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
-    /// longer there, or whatever the terminal itself failed with.
-    pub(crate) fn attach(&self, stream: u32) -> Result<(AttachmentId, Screen), Error> {
-        let (reply_tx, reply_rx) = mpsc::channel();
-        self.commands
-            .send(PaneCommand::Attach {
-                stream,
-                reply: reply_tx,
-            })
-            .map_err(|_| Error::PaneGone)?;
-        reply_rx.recv().map_err(|_| Error::PaneGone)?
+    /// [`AttachSender::attach`]'s own `AttachmentId`, not `stream`
+    /// (a connection concern - the frame tag, connection-local), is what
+    /// [`PaneHandle::arm`]/[`PaneHandle::detach`] must be called with
+    /// (TASK-1.114: `stream` alone is not unique across different
+    /// connections attached to the same pane - see [`AttachmentId`]'s
+    /// own doc). Call `arm` once that reply is queued and the stream is
+    /// opened with the writer - decision-2 section 3's ordering rule;
+    /// see [`PaneCommand::Attach`]'s own doc for why attach and arm are
+    /// two separate steps.
+    pub(crate) fn attach_sender(&self) -> AttachSender {
+        AttachSender(self.commands.clone())
     }
 
     /// Hands an already-registered attachment the `Outbound` it sends
@@ -742,6 +744,47 @@ impl PaneHandle {
     /// which is not a bug in this method itself.
     pub(crate) fn join_worker(self, timeout: Duration) -> bool {
         join_with_bound(self.worker, timeout)
+    }
+}
+
+/// Sends `PaneCommand::Attach` on `commands` and waits for its reply -
+/// shared by [`PaneHandle::attach`] (over its own `&self.commands`) and
+/// [`AttachSender::attach`] (over a clone taken out from under whatever
+/// lock found the handle), so the two have one definition between them,
+/// never two copies that could drift.
+fn send_attach(
+    commands: &Sender<PaneCommand>,
+    stream: u32,
+) -> Result<(AttachmentId, Screen), Error> {
+    let (reply_tx, reply_rx) = mpsc::channel();
+    commands
+        .send(PaneCommand::Attach {
+            stream,
+            reply: reply_tx,
+        })
+        .map_err(|_| Error::PaneGone)?;
+    reply_rx.recv().map_err(|_| Error::PaneGone)?
+}
+
+/// A cheap, cloneable handle onto one pane's own command channel
+/// (TASK-1.47 review) - see [`PaneHandle::attach_sender`]'s own doc for
+/// why this exists: `Runtime::attach_pane` clones one out from under its
+/// state lock, drops the lock, then calls [`AttachSender::attach`]
+/// unlocked, so a pane whose worker is busy (a program flooding its own
+/// stdin, mid-`write_all`) never holds every other request on the server
+/// hostage behind the same lock.
+#[derive(Clone)]
+pub(crate) struct AttachSender(Sender<PaneCommand>);
+
+impl AttachSender {
+    /// # Errors
+    ///
+    /// Returns [`Error::PaneGone`] if the pane's worker thread is no
+    /// longer there, or whatever the terminal itself failed with - the
+    /// same errors [`PaneHandle::attach`] gives, since this sends the
+    /// identical command to the identical channel.
+    pub(crate) fn attach(&self, stream: u32) -> Result<(AttachmentId, Screen), Error> {
+        send_attach(&self.0, stream)
     }
 }
 
@@ -2248,7 +2291,7 @@ mod attach_tests {
         // Nothing has been sent yet - deterministically blank, no race to
         // synchronise with.
         let stream = 7;
-        let (attachment_id, attached_screen) = handle.attach(stream).unwrap();
+        let (attachment_id, attached_screen) = handle.attach_sender().attach(stream).unwrap();
         assert!(
             screen_text(&attached_screen).trim().is_empty(),
             "nothing was written yet: {:?}",
@@ -2317,7 +2360,7 @@ mod attach_tests {
         .unwrap();
 
         let stream = 3;
-        let (attachment_id, _) = handle.attach(stream).unwrap();
+        let (attachment_id, _) = handle.attach_sender().attach(stream).unwrap();
 
         handle.send_input(b"before arm\n".to_vec()).unwrap();
         // Lets the worker's own tick (1ms) run several times over with
@@ -2356,7 +2399,7 @@ mod attach_tests {
         )
         .unwrap();
         let stream = 9;
-        let (attachment_id, _) = handle.attach(stream).unwrap();
+        let (attachment_id, _) = handle.attach_sender().attach(stream).unwrap();
         let frames = FramePair::new();
         handle
             .arm(attachment_id, Arc::clone(&frames.outbound))

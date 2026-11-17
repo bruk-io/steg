@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:03:00Z'
+updated_date: '2026-11-17T00:15:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1656,6 +1656,53 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test --workspace` exited 0 at 2026-11-17T00:15:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33, last 40 of 1059 lines:
+
+```text
+test foundations::tests::hex_of_round_trips_a_near_neutral_colour ... ok
+test foundations::tests::the_session_colour_is_whatever_new_was_given ... ok
+test foundations::tests::with_default_session_matches_ramp_1_violets_own_form ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests gallery/main.rs (target/debug/deps/gallery-ca66282f5e4f5c40)
+
+running 5 tests
+test tests::an_unrecognised_value_falls_back_to_light_rather_than_failing ... ok
+test tests::the_gallery_theme_carries_the_appearance_asked_for ... ok
+test tests::light_is_explicit_too ... ok
+test tests::dark_is_recognised_in_any_case ... ok
+test tests::unset_is_light ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_server
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_ui
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

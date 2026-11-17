@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:57:00Z'
+updated_date: '2026-11-17T05:01:00Z'
 labels:
   - size-2
   - changes-requested
@@ -761,6 +761,43 @@ Check passed: `just test-openpty-race-control` exited 0 at 2026-11-17T04:57:00+0
 
 ```text
 ok      openpty race control (0.7s)
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T05:01:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at dc5ac181fb37 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (30.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (36.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.1s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (29.0s)
+ok      test (steg-server) (27.9s)
+ok      test (steg-server, race-fixture) (27.7s)
+ok      test (steg-server, pty-race-fixture) (34.5s)
+ok      test (steg-server, accept-backoff-fixture) (30.2s)
+ok      build (steg) (0.9s)
+ok      test (steg) (3.0s)
+ok      test (steg, fixtures) (9.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.8s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

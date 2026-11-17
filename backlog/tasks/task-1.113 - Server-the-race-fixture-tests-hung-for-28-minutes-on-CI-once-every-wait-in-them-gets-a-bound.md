@@ -3,14 +3,13 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:10:00Z'
+updated_date: '2026-11-17T05:20:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -1015,6 +1014,27 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+All four review findings fixed and verified.
+
+1. (Bugs, Important) wait_child_bounded's pid-reuse race: fixed by detecting the child's exit through waitid(WEXITED|WNOWAIT) before ever reaping it (crates/server/tests/support/mod.rs, wait_for_exit_without_reaping) - this leaves an exited child a zombie, which still unambiguously owns its own pid (never reused) until the now-ordinary child.wait() actually reaps it afterward, so the watchdog's SIGKILL can only ever reach this process's own still-held child, whichever way the two threads interleave. Stated as the explicit invariant in the doc comment. nix::sys::wait::waitid excludes apple targets in its own cfg (checked by reading nix-0.28.0/src/sys/wait.rs) - not a real platform limit, since Darwin's own waitid(2) documents WNOWAIT and libc already binds it there - so this goes through nix::libc (nix's own public re-export, nix-0.28.0/src/lib.rs: `pub use libc;`) rather than adding a new direct dependency. Added wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound (a real, never-exiting `sleep 30` child; confirms the function panics on its own bound, and confirms the pid is fully gone - ESRCH on a signal-0 probe - not merely reported killed). Recorded failing (watchdog's kill call removed, bounded through steg-quiet with STEG_QUIET_TIMEOUT_S=5 to turn the hang into a clean "TIMED OUT" rather than an open-ended one) and passing pairs via asdlc record-check.
+
+2. (Evidence, Important) all four controls this task's mechanisms need are now recorded failing+passing pairs via asdlc record-check, against the code as it stands:
+   - outbound.rs's close()-on-broken-write (removed/restored) - a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails
+   - test_support.rs's run_bounded timeout (recv_timeout->recv, removed/restored) - a_body_that_never_returns_fails_fast_naming_what_it_waited_for, bounded through steg-quiet (STEG_QUIET_TIMEOUT_S=5) the same way
+   - tools/src/steg_tools/quiet.py's killpg call (commented out/restored) - tools/tests/functional/test_quiet_timeout.py
+   - wait_child_bounded's own watchdog kill (see #1)
+   Each was verified failing with its mechanism removed before being restored and reverified passing, then both halves recorded.
+
+3. (Nit) DEFAULT_TIMEOUT_S widened from 300s past the plan's own 600s to 900s: test_openpty_race.rs's own CONTROL_SAFETY_NET is 600s, and this task's own recorded run of test-openpty-race-control took 214.2s (71% of the old 300s bound) under ordinary load - a bound at or near 600s would risk steg-quiet pre-empting that test's own clear internal message with a bare "TIMED OUT". No cold Zig/ghostty-vt CI build was ever measured in this task's own history either. 900s clears the 600s internal bound with real headroom, clears every just check/build/test-all step measured several times over, and still leaves half of CI's 30-minute job limit free; test-openpty-race-control, just build, and just test-all all run through this same steg-quiet bound, not a separate one - reasoning recorded in quiet.py's own comment.
+
+4. (Nit) AC mapping, by the task's current numbering (not the plan's older draft, which the plan text itself still has a stale "AC #4" label the reviewer correctly flagged as pre-existing - left as is, since the plan section is not touched after approval):
+   - AC #1 (the step identified, or notes say what was tried): the Findings section of this task's own notes/plan - the CLOEXEC race, confirmed by reading the toolchain's std source and reproduced directly (a scratch probe, not committed).
+   - AC #2 (a fixture process made to hang fails within the bound, leaves no process behind, recorded negative control): wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound (crates/server/tests/support/mod.rs) - a real process, the exact shape AC #2 names.
+   - AC #3 (just check cannot spend its whole CI limit on one hung test): tools/tests/functional/test_quiet_timeout.py's two tests prove the mechanism (Popen + killpg on a timeout) directly; this is the mechanism now wired into every just check step via steg-quiet, not a literal end-to-end just check run (that would itself take 900s+ to demonstrate and isn't a standing test).
+   - AC #4 (every wait in outbound.rs/race.rs/openpty_race.rs has a bound, kills and reaps, names what it waited for; the rest is TASK-1.123's): outbound.rs's own eleven tests (AlwaysFailsToWrite + run_bounded + ClosingWriterGuard), race.rs's three wait_child_bounded call sites plus its own new test, openpty_race.rs's wait_child_bounded/run_bounded wiring. ReapOnDrop's own Drop impls in both tests files are left as plain kill()+wait() - documented inline why: wait_child_bounded panics on timeout, and panicking inside Drop during an unwind aborts the process rather than reporting one clean failure.
+
+Checks recorded via asdlc record-check (final pass, after all fixes): cargo test -p steg-server --lib (193 passed); --features race-fixture (full crate, includes the new test); --features pty-race-fixture (full crate); just test-tools; just test-openpty-race-control (one miss, one reproduction, both recorded, consistent with its own documented variance); just check, full workspace, clean. ps checked clean of leftover processes after every run, including after the bounded failing controls. PR #69, pushed, CI green (run 44022219151, 8m48s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

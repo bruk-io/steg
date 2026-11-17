@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:54:00Z'
+updated_date: '2026-11-17T23:27:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -461,6 +461,51 @@ For more information about this error, try `rustc --explain E0432`.
 error: could not compile `steg-sdk` (lib) due to 1 previous error
 full output: .quiet/test-steg-kernel.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-17T23:27:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at d7a34f46b4ee with uncommitted changes, last 40 of 55 lines:
+
+```text
+(B[m[32m+        assert!(
+(B[m[32m+            queued > 0,
+(B[m[32m+            "this test needs a real, non-empty backlog first"
+(B[m[32m+        );
+(B[m 
+         let mut attachments = vec![Attachment {
+             id: AttachmentId(0),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/server/src/pane.rs:2958:
+                 Ok(Some(frame)) => {
+                     let update: ScreenUpdate = serde_json::from_slice(&frame.payload)
+                         .expect("every frame here is a real ScreenUpdate");
+[31m-                    if matches!(update, ScreenUpdate::Ended { reason: EndReason::Closed }) {
+(B[m[32m+                    if matches!(
+(B[m[32m+                        update,
+(B[m[32m+                        ScreenUpdate::Ended {
+(B[m[32m+                            reason: EndReason::Closed
+(B[m[32m+                        }
+(B[m[32m+                    ) {
+(B[m                         saw_ended = true;
+                         break;
+                     }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/server/tests/attach.rs:2009:
+         Duration::from_secs(5),
+     );
+     let expected = EndReason::ProgramExited { exit_code: 4 };
+[31m-    assert_eq!(reason_a, expected, "connection A must see the real exit code");
+(B[m[31m-    assert_eq!(reason_b, expected, "connection B must see the real exit code too");
+(B[m[32m+    assert_eq!(
+(B[m[32m+        reason_a, expected,
+(B[m[32m+        "connection A must see the real exit code"
+(B[m[32m+    );
+(B[m[32m+    assert_eq!(
+(B[m[32m+        reason_b, expected,
+(B[m[32m+        "connection B must see the real exit code too"
+(B[m[32m+    );
+(B[m 
+     assert_nothing_more_arrives_on(
+         &mut stream_a,
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

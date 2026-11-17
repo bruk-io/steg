@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T03:37:00Z'
+updated_date: '2026-11-17T03:40:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.113-server-the-race-fixture-tests-hung-for
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '2eb24f415089'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -273,6 +276,15 @@ created: 2026-11-17T03:37:00Z
 ---
 
 2026-11-16, @bruk.o: criterion 2 narrowed to the files this task names, after the engineer accepted the split: the wider sweep is TASK-1.123, the question of a pane's program inheriting a connection is TASK-1.124.
+
+---
+
+author: @bruk
+created: 2026-11-17T03:40:00Z
+
+---
+
+Plan approved by @bruk (2eb24f415089, size-2): its worker may build it.
 
 ---
 <!-- COMMENTS:END -->

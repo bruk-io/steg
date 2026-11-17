@@ -649,6 +649,38 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; fin
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app the_cell_after_an_eighty_character_line_sits_at_column_eighty` exited 101 at 2026-11-17T19:00:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 67c972b3a769 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty ... FAILED
+
+failures:
+
+---- terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty stdout ----
+
+thread 'terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty' (53640493) panicked at crates/app/src/terminal_element.rs:571:9:
+assertion `left == right` failed
+  left: Point { x: 648px, y: 0px }
+ right: Point { x: 640px, y: 0px }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

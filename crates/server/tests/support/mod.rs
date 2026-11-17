@@ -56,16 +56,19 @@ where
 /// it wraps (`pub use libc;`, `nix-0.28.0/src/lib.rs`) - rather than
 /// adding a direct `libc` dependency for one call.
 ///
-/// # Safety invariant this exists to establish
-/// `wait_child_bounded`, below, needs to know a child has exited before
-/// it is safe for its own watchdog thread to signal that pid - signalling
-/// an already-*reaped* pid risks hitting a different, unrelated process
-/// the OS has since reused that same number for. Waiting with `WNOWAIT`
-/// first means the watchdog can only ever observe this child either
-/// still running or exited-but-still-a-zombie, in which case it still
-/// unambiguously owns its own pid - never reaped, so never reused -
-/// which is the one invariant that makes a kill from a second thread
-/// always safe here, however the two threads happen to interleave.
+/// # What this gives `wait_child_bounded`, below
+/// Signalling an already-*reaped* pid risks hitting a different,
+/// unrelated process the OS has since reused that same number for.
+/// `WNOWAIT` is half of what rules that out: it leaves an exited child
+/// a zombie, still owning its own pid - never reaped, so never reused -
+/// right up until something later actually reaps it, so a kill sent
+/// before that reap cannot land on another process. That is necessary,
+/// not sufficient, on its own: it says nothing about *when* the reap
+/// happens relative to a concurrent kill decision, only that the pid is
+/// safe to signal until the reap. The other half - ordering the kill
+/// before the reap even when they race - is `wait_child_bounded`'s own
+/// lock; see its doc comment for the invariant the two together
+/// establish, not restated here.
 ///
 /// `unsafe`: `waitid` only ever reads the exit status of a pid this
 /// process already owns as a direct child into a `siginfo_t` this call

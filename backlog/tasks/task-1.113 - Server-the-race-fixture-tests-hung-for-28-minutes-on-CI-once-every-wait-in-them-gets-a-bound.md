@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:15:00Z'
+updated_date: '2026-11-17T04:19:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -521,6 +521,41 @@ ok      tool tests (13.6s)
 ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T04:19:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at dc5ac181fb37:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (29.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.7s)
+ok      test (steg-server) (25.8s)
+ok      test (steg-server, race-fixture) (28.2s)
+ok      test (steg-server, pty-race-fixture) (33.6s)
+ok      test (steg-server, accept-backoff-fixture) (29.1s)
+ok      build (steg) (0.7s)
+ok      test (steg) (2.5s)
+ok      test (steg, fixtures) (8.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->

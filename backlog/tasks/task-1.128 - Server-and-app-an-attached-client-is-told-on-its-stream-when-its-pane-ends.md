@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:44:00Z'
+updated_date: '2026-11-17T22:45:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -428,4 +428,6 @@ own decision-records-by-pull-request convention, not edited by this plan.
 
 <!-- SECTION:NOTES:BEGIN -->
 Split by @bruk.o on 2026-11-17, as the plan recommended: this task keeps the wire message and the server side (former AC #1, #2, #3, #5). Former AC #4 (the bare window's reaction) moved to a draft task, 'App: the bare window shows that its program has ended, and stops taking keys', which depends on this task and TASK-1.121. This task still has to leave the app compiling: a minimal placeholder arm for the new update, replaced by that task.
+
+Plan (ffc63839f742) checked against doc-14 and decision-2 by @bruk.o: ok. It builds only the server/sdk half after the split; the final update's shape and ordering match the task description; proof maps to the four criteria, with the forced-close and attach-after-end socket tests covering the two bugs the first draft had. The contract text (doc-14 bullet, decision-2 section 3 addendum by its own PR) is the orchestrator's to make, timed with the build. Three open questions go to the engineer with the plan: Closed carries no exit code; PROTOCOL_VERSION stays 1; server stop is best-effort.
 <!-- SECTION:NOTES:END -->

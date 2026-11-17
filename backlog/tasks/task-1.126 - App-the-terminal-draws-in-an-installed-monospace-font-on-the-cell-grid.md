@@ -1,13 +1,14 @@
 ---
 id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T18:42:00Z'
+updated_date: '2026-11-17T18:51:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -21,8 +22,10 @@ asdlc_branch: task-1.126-app-the-terminal-draws-in-an-installed
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '128dd5e761a6'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -470,6 +473,29 @@ created: 2026-11-17T18:42:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.126: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T18:51:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 1 nit. Cites: review. The diff matches the plan.
+
+[Bugs, Important] crates/app/src/terminal_element.rs:285-287 - every_glyph_sits_on_its_own_column compares the wrong coordinate space. shape_and_check_run shapes only this run's own text (shape_text -> window.text_system().shape_line(text, ...) with just this run's text, no row context), so ShapedLine's glyph.position.x is relative to that run's own start (near 0 for its first glyph), confirmed by reading gpui 0.2.2's line_layout.rs ("the position of this glyph in its containing line", where "line" here is the single-run shaped line). But expected_x is computed from an *absolute* row column (run_start_column + grapheme_rank*columns_per_grapheme) * cell_width. For any run whose own start_column isn't 0 - i.e. any row with more than one styled run, such as an ordinary colour change mid-line - every glyph's position will differ from expected_x by roughly run_start_column*cell_width, far past EPSILON, so the check always fails and that run always takes the slow per-grapheme path, regardless of whether it is actually safe. Output stays visually correct (the slow path still paints correctly), but this falsifies the notes' own claim that "the common case, ASCII in a genuinely monospace font" is painted as one line - that is only true for a run that happens to start at column 0. Fix: drop run_start_column from the comparison entirely (expected_x = cell_width * f32::from(grapheme_rank * columns_per_grapheme)), matching the run-relative origin gpui actually reports, and re-add run_start_column only to where cell_origin computes the real paint position (which it already does correctly, separately).
+
+[Evidence, Important] crates/app/src/terminal_element.rs:253 - every_glyph_sits_on_its_own_column, the function AC#3 itself names ("a glyph narrower or wider than a cell cannot move what follows it"), has no automated test. The notes disclose this plainly and the plan itself sanctioned the fallback (gpui's TestAppContext needs a gated test-support feature with a new licence surface, and ShapedGlyph's own GlyphId has a private field blocking a hand-built fake) - that part is not a finding. But the substituted evidence, the two PR images, both checked by hand: a line of ASCII digits and a listing of ASCII words. Neither contains a glyph narrower or wider than a cell (no CJK, no emoji, no fallback glyph), so neither image can distinguish a working per-glyph safety check from a no-op - this is exactly the branch finding 1 above shows is in fact broken for most runs, and an ASCII-only screenshot could never have caught it. Needs a third image (or equivalent recorded run) with a wide character, combining mark, or a glyph that forces the fallback family, showing the grid still holds.
+
+[Compliance, Nit] crates/app/src/terminal_element.rs:447 (run_key) - the cache key hashes row, column, text and the colour/weight/decoration style fields, but not style.wide. Correctness today relies on an unstated invariant: that identical text always carries the same east-asian-width classification, so no two cache entries with the same key ever actually need a different columns_per_grapheme. True in practice, but worth a one-line comment saying so, since the plan's own risk about the cache key "covering which path a run took" is otherwise easy to misread as fully closed by CachedRun's enum tag alone.
+
+Control repeated: broke resolve_family (crates/app/src/metrics.rs) to ignore `installed` and always return the candidate list's own first entry, in a scratch edit; ran `cargo test -p steg-app the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list`, which failed exactly as the task's recorded control describes (expected "Menlo", got "JetBrains Mono"); reverted the file completely and confirmed `git status` clean on the worktree. Confirmed the task's recorded checks (resolve_family's and cell_origin's failing-then-passing controls, and the final `just check`) are all against head 2bf5d974, matching the worktree's current HEAD.
+
+Checked: both PR images (cursor after a 70-character line; a 4-column listing) - a neutral prompt, nothing personal on screen, monospace alignment consistent with the fix, cursor immediately after the text with no drift - support the claim they're cited for, aside from finding 2's gap. The 70-vs-80 departure's deferred-wrap explanation is correct terminal behaviour; AC#3's "column after an 80-character line" is proven as a property of cell_origin's own recorded test, not of the pty, which is the only way it can be proven on a pty fixed at 80 columns. The merge-base and build-order departures match what the notes say. Row cache: the key is unchanged, but CachedRun tags which path a run took in the cached value itself, and paint_cached_run dispatches on that tag - satisfies the plan's own invariant by one of the two alternatives it named, disclosed in the notes.
+
+Not checked: the live run itself (not re-run; relied on the recorded check and CI, both green at 2bf5d974), and every_glyph_sits_on_its_own_column's EPSILON tolerance under subpixel rendering on fonts other than what this machine has installed.
 
 ---
 <!-- COMMENTS:END -->

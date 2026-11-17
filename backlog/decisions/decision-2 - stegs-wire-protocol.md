@@ -135,6 +135,17 @@ have and start from this".
   rows it got (`first_row`), and a client can tell "here is your page" from "those rows are
   gone".
 
+**Addendum, 2026-11-17 (TASK-1.128).** An update gains a third form, `Ended`: the pane has ended
+and nothing more will follow on this stream. It carries `ProgramExited` with the exit code, or
+`Closed` with none, and is sent once, after any update still owed; the stream is then closed on
+both sides. It brings the first rule's mirror image: **queue the last frame before tearing the
+stream down, never the reverse.** Closing a stream drops whatever is still queued for it, so a
+final frame queued and then closed in the ordinary way races the writer and can be lost; the
+server ends a stream by queueing its last frame and letting the writer tear the stream down once
+that frame is written. The protocol version (section 7) does not change for this, as it did not
+when a screen gained its size: nothing built against version 1 has shipped. doc-14 holds the
+wire shape.
+
 ## 4. The measurements
 
 Every number below is the recorded output of `spikes/task-1.2-wire-protocol/measure`, run through

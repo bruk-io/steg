@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:13:00Z'
+updated_date: '2026-11-17T23:16:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1635,6 +1635,53 @@ Check passed: `just test` exited 0 at 2026-11-17T23:13:58+00:00 in /Users/brukha
 
 ```text
 ok      tests (-p steg -p steg-app -p steg-server) (59.1s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just test` exited 101 at 2026-11-17T23:16:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty ... ok
+test client::tests::once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive ... ok
+test startup::tests::teardown_while_the_server_is_silent_mid_handshake_ends_quickly ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test startup::tests::a_successful_attach_survives_interrupt_called_right_after ... ok
+
+failures:
+
+---- keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does stdout ----
+
+thread 'keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does' (54635410) panicked at crates/app/src/keys.rs:523:13:
+assertion `left == right` failed: named_key_bytes("f6", false).is_some() = false, but the table's own claim that it is mapped = true - these must agree
+  left: false
+ right: true
+
+---- keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says stdout ----
+
+thread 'keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says' (54635411) panicked at crates/app/src/keys.rs:483:13:
+assertion `left == right` failed: row "f6": key="f6" key_char=None modifiers=Modifiers { control: false, alt: false, shift: false, platform: false, function: false }
+  left: None
+ right: Some([27, 91, 49, 55, 126])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does
+    keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says
+
+test result: FAILED. 53 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 
 Commits since the review: 0.

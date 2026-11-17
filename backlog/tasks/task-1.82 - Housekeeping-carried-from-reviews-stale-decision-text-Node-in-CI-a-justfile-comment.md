@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-16T15:45:00Z'
+updated_date: '2026-11-17T00:58:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -34,6 +34,10 @@ Small things reviews and workers noted that belong to no open task. Decision rec
 
 <!-- SECTION:NOTES:BEGIN -->
 Added by @bruk.o 2026-11-15: the LikeC4 MCP smoke test in tools/ has timed out in CI on two unrelated pull requests (TASK-1.40's and TASK-1.76's), green on re-run each time. Find why it is slow or flaky on the runner and bound or fix it; a check that fails at random teaches people to re-run failures.
+
+Follow-up to draft (from the independent read of TASK-1.46's merge, 2026-11-16): no test runs idle stop and an event subscriber together through a session closing by its program ending. Follow-up to draft (TASK-1.117 review nits): the terminal element's run cache key leaves out the underline colour; StartupError::Protocol holds a string where an enum would tell causes apart.
+
+Follow-up to draft (TASK-1.49 review nit, 2026-11-16): the CLI holds a path argument as a string (crates/steg/src/cli/values.rs, params.rs) where the approved plan's table said a path type. Follow-up to draft (TASK-1.112 review nit): tests/openpty_race.rs wait_timeout_or_kill polls with a 5 ms sleep, the same pattern as tests/race.rs; TASK-1.113 bounds those waits and could replace both.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

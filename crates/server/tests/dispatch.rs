@@ -143,7 +143,7 @@ fn every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing() {
         ("server.show", vec![], "socket and lifecycle"),
         ("server.start", vec![], "socket and lifecycle"),
         ("server.stop", vec![], "socket and lifecycle"),
-        ("event.watch", vec![], "events"),
+        ("event.watch", vec![], "Runtime::subscribe"),
         ("client.list", vec![], "client model"),
         (
             "client.show",
@@ -366,7 +366,7 @@ fn session_set_and_unset_change_and_clear_the_label() {
         &mut Settings::new(),
         &api,
         &context,
-        &request("session.unset", vec![("label", json!(""))]),
+        &request("session.unset", vec![("label", json!(true))]),
         moment(0),
     ));
     assert_eq!(
@@ -375,6 +375,123 @@ fn session_set_and_unset_change_and_clear_the_label() {
             .label(),
         None
     );
+}
+
+/// TASK-1.49's own fix: `label` is now a switch on `unset` (sdk's
+/// `unset_s_label_is_a_switch_not_a_value_taking_flag`), the same shape
+/// `pane.unset`'s own `zoomed` already has - and the same rule already
+/// documented on `dispatch/pane.rs`'s `unset`: it clears regardless of
+/// the switch's own boolean value. Proved directly here, for `label`,
+/// across all three nouns that have one, rather than assumed from the
+/// `zoomed` precedent: `--label` (`true`) clears it, `--no-label`
+/// (`false`) *also* clears it, and leaving the flag out entirely leaves
+/// the label untouched.
+///
+/// **Negative control, run once and not re-run (`dispatch`'s own logic is
+/// untouched by this task - only the description's declared `ValueKind`
+/// changed):** with `crates/server/src/dispatch/session.rs`'s `unset`
+/// temporarily changed from `param_present(request, "label")` to
+/// `param_bool(request, "label") == Some(true)`, the `false`-clears
+/// assertion below failed (the label was left as `"work"`, not cleared) -
+/// confirming this test does distinguish "clears on any presence" from
+/// "clears only when true", not merely that *something* runs. Reverted
+/// before this test was committed.
+#[test]
+fn unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given() {
+    for noun in ["session", "tab", "pane"] {
+        let (mut tree, context, api) = fresh();
+        let set = format!("{noun}.set");
+        let unset = format!("{noun}.unset");
+        let label = |tree: &Tree| -> Option<String> {
+            match noun {
+                "session" => tree
+                    .session(context.default_session.unwrap())
+                    .unwrap()
+                    .label()
+                    .map(str::to_owned),
+                "tab" => tree
+                    .session(context.default_session.unwrap())
+                    .unwrap()
+                    .tab(context.default_tab.unwrap())
+                    .unwrap()
+                    .label()
+                    .map(str::to_owned),
+                "pane" => tree
+                    .session(context.default_session.unwrap())
+                    .unwrap()
+                    .tab(context.default_tab.unwrap())
+                    .unwrap()
+                    .pane(context.default_pane.unwrap())
+                    .unwrap()
+                    .label()
+                    .map(str::to_owned),
+                other => panic!("no case for {other}"),
+            }
+        };
+
+        // `--label` (true) clears a label that was set.
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&set, vec![("label", json!("x"))]),
+            moment(0),
+        ));
+        assert_eq!(label(&tree), Some("x".to_owned()), "{noun}: set first");
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&unset, vec![("label", json!(true))]),
+            moment(0),
+        ));
+        assert_eq!(label(&tree), None, "{noun}: --label should clear");
+
+        // `--no-label` (false) *also* clears it - the value is discarded.
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&set, vec![("label", json!("y"))]),
+            moment(0),
+        ));
+        assert_eq!(label(&tree), Some("y".to_owned()), "{noun}: set again");
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&unset, vec![("label", json!(false))]),
+            moment(0),
+        ));
+        assert_eq!(label(&tree), None, "{noun}: --no-label should also clear");
+
+        // Neither flag given: the label is left alone.
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&set, vec![("label", json!("z"))]),
+            moment(0),
+        ));
+        ok(dispatch(
+            &mut tree,
+            &mut Settings::new(),
+            &api,
+            &context,
+            &request(&unset, vec![]),
+            moment(0),
+        ));
+        assert_eq!(
+            label(&tree),
+            Some("z".to_owned()),
+            "{noun}: no label flag at all should leave it unchanged"
+        );
+    }
 }
 
 #[test]
@@ -2101,7 +2218,7 @@ fn extra_params_for(
         }
         "session.unset" => {
             let other = tree.new_session(None).unwrap();
-            vec![("target", json!(other.to_string())), ("label", json!(""))]
+            vec![("target", json!(other.to_string())), ("label", json!(true))]
         }
 
         "tab.list" | "tab.new" => {
@@ -2138,7 +2255,7 @@ fn extra_params_for(
             let other_tab = tree.new_tab(other_session, None).unwrap();
             vec![
                 ("target", json!(other_tab.to_string())),
-                ("label", json!("")),
+                ("label", json!(true)),
             ]
         }
         "tab.declare-size" => {
@@ -2220,7 +2337,7 @@ fn extra_params_for(
                 .unwrap();
             vec![
                 ("target", json!(other_pane.to_string())),
-                ("label", json!("")),
+                ("label", json!(true)),
             ]
         }
         "pane.focus" => {
@@ -2468,7 +2585,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 ("position", json!(1)),
             ],
             "session.set" => vec![("label", json!("x"))],
-            "session.unset" => vec![("label", json!(""))],
+            "session.unset" => vec![("label", json!(true))],
             "session.new" => vec![],
             "tab.close" => vec![("target", json!(tab_to_close.to_string()))],
             "tab.move" => vec![
@@ -2476,7 +2593,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 ("position", json!(1)),
             ],
             "tab.set" => vec![("label", json!("x"))],
-            "tab.unset" => vec![("label", json!(""))],
+            "tab.unset" => vec![("label", json!(true))],
             "tab.focus" => vec![("target", json!(tab_to_focus.to_string()))],
             "tab.new" => vec![],
             "pane.close" => vec![("target", json!(pane_to_close.to_string()))],
@@ -2485,7 +2602,7 @@ fn every_nothing_or_identifier_returning_method_matches_its_declared_shape() {
                 ("to", json!(tab_for_pane_move.to_string())),
             ],
             "pane.set" => vec![("label", json!("x"))],
-            "pane.unset" => vec![("label", json!(""))],
+            "pane.unset" => vec![("label", json!(true))],
             "pane.focus" => vec![("target", json!(context.default_pane.unwrap().to_string()))],
             "pane.swap" => vec![
                 ("target", json!(context.default_pane.unwrap().to_string())),

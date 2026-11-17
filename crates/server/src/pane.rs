@@ -247,7 +247,7 @@ pub(crate) fn join_with_bound(handle: thread::JoinHandle<()>, timeout: Duration)
 /// it registers one (TASK-1.114) - never the connection-supplied `stream`
 /// number, which is only unique *within* the connection that minted it:
 /// two different connections attached to this same pane can (and, proven
-/// by this task's own two-client test, did) both mint `stream == 1` for
+/// by TASK-1.114's own two-client test, did) both mint `stream == 1` for
 /// their own first attachment, and `PaneCommand::Arm`/`Detach` matching
 /// on the bare `stream` number alone found whichever entry happened to
 /// come first in `attachments`, regardless of which connection the
@@ -334,6 +334,18 @@ pub enum PaneEvent {
         /// The command's exit code, if the shell reported one.
         exit_code: Option<i32>,
     },
+    /// `pane`'s pseudo-terminal did not open on the first try, but did
+    /// succeed after `attempts` attempts in total (TASK-1.112) - a retry
+    /// is never silent. Not sent at all when `attempts` would be `1`
+    /// (no retry needed).
+    OpenRetried {
+        /// The pane whose pseudo-terminal needed more than one attempt to
+        /// open.
+        pane: PaneId,
+        /// How many attempts the open took in total, including the one
+        /// that finally succeeded - always greater than `1`.
+        attempts: u32,
+    },
 }
 
 /// A command sent to a pane's worker thread. Private: [`PaneHandle`] is
@@ -365,6 +377,14 @@ enum PaneCommand {
         /// The new run's relay thread, joined once its own `Exited`
         /// arrives.
         relay_handle: thread::JoinHandle<()>,
+        /// How many attempts opening the new run's pseudo-terminal took
+        /// (TASK-1.112) - carried here, not read back out of
+        /// `SpawnedProgram` a second time, because `PaneHandle::restart`
+        /// has already split `SpawnedProgram` apart by the time this is
+        /// built. The worker thread sends [`PaneEvent::OpenRetried`] for
+        /// this when it is greater than `1`, the same as [`start`] does
+        /// for a pane's first run.
+        open_attempts: u32,
     },
     /// End the worker thread, without touching whatever is running
     /// (`PaneHandle::shutdown`'s own long-named gap: this alone does not
@@ -654,6 +674,7 @@ impl PaneHandle {
                 writer: spawned.writer,
                 resize: spawned.resize,
                 relay_handle,
+                open_attempts: spawned.open_attempts,
             })
             .map_err(|_| Error::PaneGone)
     }
@@ -755,6 +776,16 @@ pub fn start(
 ) -> Result<PaneHandle, Error> {
     let (cols, rows) = spec.size;
     let spawned = launcher.spawn(&spec)?;
+    // A retry is never silent (TASK-1.112): sent right away, before
+    // anything else below - the first thing that could observe this
+    // pane at all is this same caller, synchronously, so there is no
+    // earlier point to send it from.
+    if spawned.open_attempts > 1 {
+        let _ = events.send(PaneEvent::OpenRetried {
+            pane,
+            attempts: spawned.open_attempts,
+        });
+    }
 
     let (commands_tx, commands_rx) = mpsc::channel::<PaneCommand>();
     // The gate's own run starts *before* `child` moves into `spawn_relay`,
@@ -903,6 +934,7 @@ fn worker_loop(
                 writer,
                 resize,
                 relay_handle,
+                open_attempts,
             } => {
                 // The shared `RunGate` was already started by
                 // `PaneHandle::restart`, synchronously, before this was
@@ -912,6 +944,14 @@ fn worker_loop(
                     resize,
                     relay_handle,
                 });
+                // A retry is never silent (TASK-1.112): sent only when
+                // more than one attempt was actually needed.
+                if open_attempts > 1 {
+                    let _ = events.send(PaneEvent::OpenRetried {
+                        pane,
+                        attempts: open_attempts,
+                    });
+                }
             }
             PaneCommand::PtyBytes(bytes) => {
                 terminal.write(&bytes);
@@ -1407,7 +1447,7 @@ mod tests {
         // `child.wait()` and leaving a zombie. This program ends on its
         // own a second later either way, which is what lets this assert
         // cleanly.
-        let spawned = RealLauncher
+        let spawned = RealLauncher::default()
             .spawn(&real_spec(vec!["sh", "-c", "sleep 1; echo done"]))
             .unwrap();
         let pid = spawned.child.process_id().unwrap();
@@ -1595,7 +1635,7 @@ mod ending_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exit 0"]),
             steg_sdk::PaneId::from_raw(1),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -1632,7 +1672,7 @@ mod ending_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exec sleep 1000"]),
             steg_sdk::PaneId::from_raw(2),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -1679,7 +1719,7 @@ mod ending_tests {
                 &format!("trap '' HUP; touch {}; exec sleep 1000", marker.display()),
             ]),
             steg_sdk::PaneId::from_raw(3),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -1732,7 +1772,7 @@ mod ending_tests {
                 &format!("(sleep 1000; touch {}) & exec sleep 1000", marker.display()),
             ]),
             steg_sdk::PaneId::from_raw(4),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -1791,7 +1831,7 @@ mod ending_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exit 0"]),
             steg_sdk::PaneId::from_raw(5),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -1863,7 +1903,7 @@ mod ending_tests {
             let handle = start(
                 real_spec(vec!["sh", "-c", "exit 0"]),
                 steg_sdk::PaneId::from_raw(pane),
-                Arc::new(RealLauncher),
+                Arc::new(RealLauncher::default()),
                 events_tx,
                 TEST_TICK,
             )
@@ -2360,7 +2400,7 @@ mod attach_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exec cat"]),
             PaneId::from_raw(1),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -2431,7 +2471,7 @@ mod attach_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exec sleep 1000"]),
             PaneId::from_raw(2),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             TEST_TICK,
         )
@@ -2471,7 +2511,7 @@ mod attach_tests {
         let handle = start(
             real_spec(vec!["sh", "-c", "exec sleep 1000"]),
             PaneId::from_raw(4),
-            Arc::new(RealLauncher),
+            Arc::new(RealLauncher::default()),
             events_tx,
             Duration::from_secs(60), // a deadline far in the future if armed
         )

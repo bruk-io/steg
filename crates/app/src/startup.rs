@@ -1,22 +1,42 @@
 //! Connects to a server, finds or makes the labelled session, attaches to its first tab's
 //! first pane, and hands the result back (TASK-1.117's plan §1/§3). Blocking, start to
-//! finish - run on its own dedicated thread (`Startup::spawn`), never on gpui's own
-//! background executor, whose own dispatcher backs a small, fixed pool
-//! (`BackgroundExecutor::num_cpus`) this task's own real, multi-second `connect()` retry
-//! loop would otherwise occupy.
+//! finish - run on its own dedicated thread (`spawn`), never on gpui's own background
+//! executor, whose own dispatcher backs a small, fixed pool (`BackgroundExecutor::num_cpus`)
+//! this task's own real, multi-second `connect()` retry loop would otherwise occupy.
 //!
-//! **Interrupting it (review finding, TASK-1.117).** Once `connect()` returns a socket,
-//! every further step is a blocking `read()` with no timeout of its own - a server that
-//! accepts the connection and then stalls (never answers the handshake, or a request)
-//! would otherwise hang this thread, and so `AppWindow::teardown`'s own `join()`, forever.
-//! `spawn`'s own third return value is a shared slot a `try_clone()`'d handle is published
-//! into the moment `connect()` succeeds, *before* any blocking read follows it - exactly
-//! the reader thread's own mechanism (`client.rs`'s `Client::stop`), just published
-//! earlier, since here the socket does not exist yet when the window might need to
-//! interrupt it. Closing the window while still inside `connect()`'s own retry loop is the
-//! one phase this cannot reach into - there is no socket yet to shut down - but that phase
-//! is itself bounded by `ConnectOptions::connect_timeout` (10s, below), so the worst case
-//! is a bounded wait, never the unbounded one a stalled-after-connecting server causes.
+//! **What is actually guaranteed (three review rounds on this one mechanism settled this;
+//! read it before changing any of the three pieces below).**
+//!
+//! 1. Closing the window never blocks the main thread on this thread, in any phase.
+//!    `AppWindow::teardown` never calls `.join()` on a startup thread that has not already
+//!    sent its result - a thread this side cannot be sure of unblocking must not be joined
+//!    on the main thread. It marks the thread cancelled (`interrupt`, below) and lets go of
+//!    the `JoinHandle` without joining it; `apply_startup_result` is the only place that
+//!    joins, and only once the startup thread's own oneshot has already resolved - at that
+//!    point `sender.send(result)` has already run and the thread's closure has nothing left
+//!    to do, so the join is bounded and effectively instant.
+//! 2. The startup thread always ends on its own within a stated bound, whether or not the
+//!    main thread is still watching. While still inside `connect()`'s own retry loop (sdk-
+//!    owned, not this crate's), that bound is `ConnectOptions::connect_timeout`
+//!    ([`CONNECT_TIMEOUT`]) - the one phase nothing here can shorten, since no socket exists
+//!    yet to act on. From the moment `connect()` returns a socket, every blocking read
+//!    carries [`READ_TIMEOUT`] (a timeout on a blocking read is a bound, not polling) -
+//!    cleared again the moment a successful attach is claimed, since the reader thread this
+//!    socket moves to next (`client.rs`) blocks without limit by design. A `teardown`'s own
+//!    `interrupt` call may still end a blocked thread sooner, by shutting down the socket it
+//!    finds published - but this is an acceleration only; correctness never depends on its
+//!    timing, only the read timeout does.
+//! 3. A successful attach never has its socket shut down, and never carries the startup read
+//!    timeout onward. [`Slot`] is the sticky state a racing `interrupt` and `attach_over`'s
+//!    own last step share one lock over, so this is decided atomically rather than by a
+//!    single check that might be looking at the wrong moment - see `attach_over`'s own final
+//!    claim for the exact race and which side wins it.
+//!
+//! The one place a precise, strict guarantee still matters (rather than "ends within a
+//! bound") is requirement 3: a connection already handed over as attached must never be
+//! undone by a `teardown` that merely arrived late. [`Slot`]'s claim-on-success exists for
+//! exactly that; everything else - the two bounds above - tolerates an imprecise race, since
+//! nothing worse than "takes up to the stated bound" can follow from it.
 
 use std::env;
 use std::io::{Read, Write};
@@ -110,9 +130,36 @@ fn resolve_binary() -> Result<PathBuf, StartupError> {
     }
 }
 
-/// What a concurrent `teardown` can interrupt a still-running [`run`] with: `None` until
-/// `connect()` succeeds, `Some(handle)` from that point on - see the module doc.
-pub type ShutdownSlot = Arc<Mutex<Option<UnixStream>>>;
+/// The sticky state a racing `teardown` and [`attach_over`] share one lock over - see the
+/// module doc for why a plain `Option<UnixStream>`, checked once, missed two races a single
+/// check cannot tell apart.
+pub(crate) enum Slot {
+    /// Not yet connected, or connected but not yet published - `interrupt` finds this when
+    /// it races in too early; replaced with [`Slot::Cancelled`] either way (module doc).
+    Pending,
+    /// Interruptible right now: a `try_clone()`'d handle of the live socket, published the
+    /// moment `connect()` succeeds, before any blocking read follows it.
+    Connected(UnixStream),
+    /// Terminal: either `interrupt` has already run (and already shut down whatever
+    /// `Connected` handle it found, if any), or `attach_over`'s own final claim already
+    /// took the handle to report success. Nothing further to do either way.
+    Cancelled,
+}
+
+/// What a concurrent `teardown` locks to interrupt a still-running [`run`] - see the
+/// module doc.
+pub type ShutdownSlot = Arc<Mutex<Slot>>;
+
+/// What a racing `teardown` calls: the one lock-and-replace both races in the module doc
+/// are decided by. Always leaves [`Slot::Cancelled`] behind, and shuts down whatever
+/// handle it displaces if it was actually [`Slot::Connected`] - a no-op, otherwise, that
+/// still leaves the sticky mark `attach_over`'s own checks rely on finding later.
+pub fn interrupt(slot: &ShutdownSlot) {
+    let mut guard = slot.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Slot::Connected(handle) = std::mem::replace(&mut *guard, Slot::Cancelled) {
+        let _ = handle.shutdown(std::net::Shutdown::Both);
+    }
+}
 
 /// Starts the whole blocking sequence on its own dedicated thread and hands the result
 /// back over a oneshot the caller `.await`s - never gpui's own background executor
@@ -123,7 +170,7 @@ pub fn spawn() -> (
     oneshot::Receiver<Result<Attached, StartupError>>,
     ShutdownSlot,
 ) {
-    let shutdown_slot: ShutdownSlot = Arc::new(Mutex::new(None));
+    let shutdown_slot: ShutdownSlot = Arc::new(Mutex::new(Slot::Pending));
     let (sender, receiver) = oneshot::channel();
     let slot = Arc::clone(&shutdown_slot);
     let handle = thread::spawn(move || {
@@ -132,25 +179,72 @@ pub fn spawn() -> (
     (handle, receiver, shutdown_slot)
 }
 
+/// How long `connect()`'s own retry loop (sdk-owned, not this crate's) may run before
+/// giving up - the one phase a closing window cannot shorten (module doc).
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// The bound every blocking read during [`attach_over`] carries, cleared again the moment
+/// a successful attach is claimed (module doc, requirement 3: a success never carries a
+/// timeout onward) - the real guarantee behind "the startup thread always ends on its own",
+/// independent of whether a racing `interrupt` ever manages to shut the socket down sooner.
+const READ_TIMEOUT: Duration = Duration::from_secs(10);
+
 fn run(shutdown_slot: &ShutdownSlot) -> Result<Attached, StartupError> {
     let binary = resolve_binary()?;
     let options = ConnectOptions {
         binary,
         socket_path: None,
         autostart: true,
-        connect_timeout: Duration::from_secs(10),
+        connect_timeout: CONNECT_TIMEOUT,
     };
     let stream = connect(&options).map_err(StartupError::Connect)?;
+    attach_over(stream, shutdown_slot, READ_TIMEOUT)
+}
+
+/// Everything after `connect()` has a socket in hand: the handshake, finding or making the
+/// session, resolving the pane, and attaching to it - split out from [`run`] so a test can
+/// drive it directly over a real socket pair, with no real `connect()`/autostart involved
+/// (module doc's own second finding: this is also where the slot-clearing race is decided).
+/// `read_timeout` is a parameter (not always [`READ_TIMEOUT`]) so a test can use a short one
+/// and stay fast rather than waiting out a production-sized bound.
+fn attach_over(
+    stream: UnixStream,
+    shutdown_slot: &ShutdownSlot,
+    read_timeout: Duration,
+) -> Result<Attached, StartupError> {
+    stream.set_read_timeout(Some(read_timeout)).map_err(|err| {
+        StartupError::Protocol(format!("could not set the socket's read timeout: {err}"))
+    })?;
     let shutdown_handle = stream
         .try_clone()
         .map_err(|err| StartupError::Protocol(format!("could not clone the socket: {err}")))?;
-    // Published *before* the first blocking read that follows (module doc) - a
-    // `teardown` racing this thread sees either `None` (still inside `connect()`, its own
-    // bounded wait) or `Some` (every read from here on can be interrupted).
+    // Published *before* the first blocking read that follows (module doc) - a `teardown`
+    // racing this thread sees either `Pending` (still inside `connect()`, its own bounded
+    // wait, or in the tiny gap before this very publish) or `Connected` (every read from
+    // here on can be interrupted). Finding `Cancelled` here means `interrupt` already ran
+    // too early for a handle to have existed yet to shut down - the module doc's "too
+    // early" race - so this socket, which `interrupt` never got the chance to touch, must
+    // be shut down here instead, and startup reported as failed rather than continuing
+    // into reads nothing could interrupt a second time.
     let interrupt_handle = shutdown_handle
         .try_clone()
         .map_err(|err| StartupError::Protocol(format!("could not clone the socket: {err}")))?;
-    *shutdown_slot.lock().unwrap_or_else(PoisonError::into_inner) = Some(interrupt_handle);
+    let already_cancelled = {
+        let mut guard = shutdown_slot.lock().unwrap_or_else(PoisonError::into_inner);
+        match *guard {
+            Slot::Cancelled => true,
+            Slot::Pending | Slot::Connected(_) => {
+                *guard = Slot::Connected(interrupt_handle);
+                false
+            }
+        }
+    };
+    if already_cancelled {
+        let _ = shutdown_handle.shutdown(std::net::Shutdown::Both);
+        return Err(StartupError::Protocol(
+            "the window closed while this connection was being set up".into(),
+        ));
+    }
     let mut stream = stream;
 
     let hello = Connection::send_hello("steg-app", ClientKind::App, None);
@@ -216,6 +310,44 @@ fn run(shutdown_slot: &ShutdownSlot) -> Result<Attached, StartupError> {
     let write_handle = stream
         .try_clone()
         .map_err(|err| StartupError::Protocol(format!("could not clone the socket: {err}")))?;
+
+    // The "too late" decision point from the module doc: this is the last step before
+    // declaring success, and the same lock `interrupt` uses to shut the connection down
+    // guards it. Taking `Connected` back means this thread got here first - no concurrent
+    // `teardown` has touched (or will touch) the socket, so the handle taken is simply
+    // dropped, never shut down, and success is safe to report. Finding `Cancelled` instead
+    // means `interrupt` already ran, under the same lock - its own `shutdown()` call has
+    // therefore already completed by the time this side observes it - so this reports
+    // failure instead of handing over a connection already known to be dead. `Pending`
+    // cannot happen here: this function is the only writer, and it already moved the slot
+    // to `Connected` (or returned early on `Cancelled`) before any of the reads above ran.
+    let claimed = {
+        let mut guard = shutdown_slot.lock().unwrap_or_else(PoisonError::into_inner);
+        match std::mem::replace(&mut *guard, Slot::Cancelled) {
+            Slot::Connected(handle) => {
+                drop(handle);
+                true
+            }
+            Slot::Pending | Slot::Cancelled => false,
+        }
+    };
+    if !claimed {
+        return Err(StartupError::Protocol(
+            "the window closed while this connection was being set up".into(),
+        ));
+    }
+
+    // Requirement 3's second half: a success never carries the startup read timeout
+    // onward - the reader thread this socket moves to next (`client.rs`) blocks without
+    // limit by design, and shares the same underlying socket (both are `try_clone()`'d
+    // from it), so clearing it on either clears it for both; cleared on both anyway, not
+    // relying on that alone.
+    stream.set_read_timeout(None).map_err(|err| {
+        StartupError::Protocol(format!("could not clear the socket's read timeout: {err}"))
+    })?;
+    shutdown_handle.set_read_timeout(None).map_err(|err| {
+        StartupError::Protocol(format!("could not clear the socket's read timeout: {err}"))
+    })?;
 
     Ok(Attached {
         stream,
@@ -421,8 +553,13 @@ fn block_until<T>(
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc;
+    use std::time::Instant;
 
     use super::*;
+
+    /// Short enough that every test using it stays fast, and long enough to leave a clear
+    /// margin between "ended quickly, via the accelerator" and "waited the bound out".
+    const TEST_READ_TIMEOUT: Duration = Duration::from_millis(300);
 
     /// `JoinHandle::join` has no timeout - every test below that could hang if this
     /// task's own mechanism were broken instead runs the blocking call on its own thread
@@ -492,33 +629,33 @@ mod tests {
         }
     }
 
-    // --- review finding: the startup thread can be interrupted before it is joined ------
-
-    #[test]
-    fn publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read() {
-        let (client_side, _server_side) = UnixStream::pair().expect("a socket pair");
-        let shutdown_handle = client_side.try_clone().expect("clone the socket");
-        let slot: ShutdownSlot = Arc::new(Mutex::new(Some(shutdown_handle)));
-
-        let mut stream = client_side;
-        let worker = thread::spawn(move || {
-            let mut connection = Connection::new(WireRole::Client, description());
-            // Never matches - this call only returns when the read it is blocked in
-            // returns, which is exactly what `AppWindow::stop_startup` (main.rs) needs to
-            // force from outside this thread.
-            block_until(&mut stream, &mut connection, |_: Incoming| None::<()>)
-        });
-
-        // The same two steps `AppWindow::stop_startup` takes: lock the slot, take and
-        // shut down whatever handle is published there.
-        if let Some(handle) = slot.lock().unwrap_or_else(PoisonError::into_inner).take() {
-            let _ = handle.shutdown(std::net::Shutdown::Both);
+    /// The hello handshake's own server half - not a `Control` frame, so `answer_one`
+    /// doesn't cover it. `Connection::accept_or_refuse` is the sdk's own server-side
+    /// handshake logic (`wire/connection.rs`), the same one `crates/server` itself calls.
+    fn answer_hello(server_side: &mut UnixStream, server_connection: &mut Connection) {
+        loop {
+            match server_connection.poll() {
+                Some(Incoming::Hello(payload)) => {
+                    let (_, bytes) = Connection::accept_or_refuse(
+                        &payload,
+                        "steg-test",
+                        "0.1.0",
+                        steg_sdk::ClientId::from_raw(1),
+                    );
+                    server_side
+                        .write_all(&bytes)
+                        .expect("write the hello reply");
+                    return;
+                }
+                Some(_) => continue,
+                None => {
+                    let mut buf = [0_u8; 65536];
+                    let n = server_side.read(&mut buf).expect("read the hello");
+                    assert_ne!(n, 0, "the client side closed before sending hello");
+                    server_connection.receive(&buf[..n]);
+                }
+            }
         }
-        let result = bounded_join(worker);
-        assert!(
-            result.is_err(),
-            "an interrupted read should surface as an error, not hang forever"
-        );
     }
 
     // --- find_or_make_session ------------------------------------------------------------
@@ -620,6 +757,240 @@ mod tests {
         assert_eq!(
             result.expect("a fresh tab's pane is returned"),
             ("tab-2".to_owned(), "pane-2".to_owned())
+        );
+    }
+
+    // --- second review finding: a successful attach must not be torn down by a racing
+    // --- teardown that finds nothing left to interrupt (this task's own live-run bug) ---
+
+    fn sample_pane_attached() -> PaneAttached {
+        PaneAttached {
+            stream: 7,
+            snapshot: steg_sdk::Screen {
+                rows: Vec::new(),
+                cursor: steg_sdk::Cursor {
+                    x: 0,
+                    y: 0,
+                    visible: true,
+                    blinking: false,
+                    shape: steg_sdk::CursorShape::Block,
+                },
+                size: steg_sdk::Size::new(80, 24),
+            },
+        }
+    }
+
+    /// Drives `attach_over` to a real success over a fake server, then calls the real
+    /// `interrupt` - exactly what a racing `teardown` could still do right after success -
+    /// and proves the connection `attach_over` handed back is still usable afterwards: one
+    /// more request, one more reply, over the same stream and the same `Connection`, and
+    /// its read timeout cleared (requirement 3's two halves). Proves the "too late" race
+    /// from the module doc is closed: a `teardown` that only ever lands *after* a
+    /// successful attach must find nothing left to interrupt.
+    ///
+    /// Recorded failing against the code before this fix (the slot was never cleared on
+    /// success): the verification call's own reply never arrived, because `interrupt`,
+    /// called unconditionally after every result, shut the connection down first.
+    #[test]
+    fn a_successful_attach_survives_interrupt_called_right_after() {
+        let (client_side, mut server_side) = bounded_pair();
+        let slot: ShutdownSlot = Arc::new(Mutex::new(Slot::Pending));
+        let slot_for_worker = Arc::clone(&slot);
+        let worker =
+            thread::spawn(move || attach_over(client_side, &slot_for_worker, TEST_READ_TIMEOUT));
+
+        let mut server_connection = Connection::new(WireRole::Server, description());
+        answer_hello(&mut server_side, &mut server_connection);
+        answer_one(
+            &mut server_side,
+            &mut server_connection,
+            "session.list",
+            json!([{"id": "sess", "label": SESSION_LABEL}]),
+        );
+        answer_one(
+            &mut server_side,
+            &mut server_connection,
+            "tab.list",
+            json!([{"id": "tab-1"}]),
+        );
+        answer_one(
+            &mut server_side,
+            &mut server_connection,
+            "pane.list",
+            json!([{"id": "pane-1", "program_status": "running"}]),
+        );
+        let attached_value =
+            serde_json::to_value(sample_pane_attached()).expect("PaneAttached serialises");
+        answer_one(
+            &mut server_side,
+            &mut server_connection,
+            "pane.attach",
+            attached_value,
+        );
+
+        let attached = bounded_join(worker).expect("attach_over succeeds");
+        assert_eq!(
+            attached
+                .stream
+                .read_timeout()
+                .expect("read_timeout() succeeds"),
+            None,
+            "a successful attach must not carry its startup read timeout onward"
+        );
+        assert_eq!(
+            attached
+                .shutdown_handle
+                .read_timeout()
+                .expect("read_timeout() succeeds"),
+            None,
+            "a successful attach must not carry its startup read timeout onward on any clone"
+        );
+        let mut attached = attached;
+
+        // The real function `AppWindow::teardown` calls, racing in right after success -
+        // this must find the slot already `Cancelled` from `attach_over`'s own final claim,
+        // and do nothing to the socket.
+        interrupt(&slot);
+
+        // Prove the handed-back connection is still usable: one more request, one more
+        // reply, over the same stream and the same `Connection` `attach_over` returned.
+        let (id, bytes) = attached
+            .connection
+            .call("server.show", Map::new())
+            .expect("a valid call");
+        attached
+            .stream
+            .write_all(&bytes)
+            .expect("write the verification request");
+        answer_one(
+            &mut server_side,
+            &mut server_connection,
+            "server.show",
+            json!({"version": "test", "uptime": 0, "sessions": 0, "clients": 0}),
+        );
+        let response =
+            bounded(move || {
+                block_until(&mut attached.stream, &mut attached.connection, |incoming| {
+                    match incoming {
+                        Incoming::Reply {
+                            id: reply_id,
+                            response,
+                        } if reply_id == id => Some(response),
+                        Incoming::Reply { .. }
+                        | Incoming::Hello(_)
+                        | Incoming::Request { .. }
+                        | Incoming::Event { .. }
+                        | Incoming::UnknownEvent { .. }
+                        | Incoming::StreamControl { .. }
+                        | Incoming::Data { .. }
+                        | Incoming::UnknownStream { .. }
+                        | Incoming::Malformed(_) => None,
+                    }
+                })
+            });
+        assert!(
+            matches!(response, Ok(Response::Ok(_))),
+            "the connection a successful attach_over returns must still be usable"
+        );
+    }
+
+    /// Review comment #6's finding #1 (test c, "teardown before connect has returned"): a
+    /// `teardown` landing before `attach_over` ever reaches its own publish point must not
+    /// be lost. `connect()` itself is sdk-owned and not something this crate can fake a
+    /// mid-retry state for without inventing scope the module doc already says is out of
+    /// this crate's hands (bounded by `CONNECT_TIMEOUT` instead) - this test simulates the
+    /// same ordering the real race produces without depending on a timing window actually
+    /// landing: `interrupt` runs before `attach_over` is even entered, exactly as it would
+    /// if `connect()` had not yet returned when the window closed.
+    ///
+    /// Recorded failing against the code before this fix (a plain `Option<UnixStream>`
+    /// slot, checked once by `stop_startup`): finding `None` so early, it shut nothing down
+    /// and fell straight into an unconditional `join()` that then waited on every
+    /// subsequent read, each with no timeout of its own.
+    #[test]
+    fn a_teardown_that_races_in_before_the_slot_is_published_is_not_lost() {
+        let (client_side, mut server_side) = bounded_pair();
+        let slot: ShutdownSlot = Arc::new(Mutex::new(Slot::Pending));
+
+        let before_interrupt = Instant::now();
+        interrupt(&slot);
+        assert!(
+            before_interrupt.elapsed() < Duration::from_millis(50),
+            "interrupt must never block the calling thread"
+        );
+
+        let started = Instant::now();
+        let result = attach_over(client_side, &slot, TEST_READ_TIMEOUT);
+        assert!(
+            started.elapsed() < TEST_READ_TIMEOUT / 2,
+            "a startup that finds the slot already cancelled before it could publish must \
+             bail immediately, not wait out any part of the read timeout"
+        );
+        assert!(
+            matches!(result, Err(StartupError::Protocol(_))),
+            "a startup that finds the slot already cancelled before it could publish must \
+             fail, not continue into reads nothing could interrupt a second time"
+        );
+
+        // Not just reported as failed - the socket itself must actually be shut down.
+        let mut buf = [0_u8; 1];
+        let read = server_side.read(&mut buf);
+        assert!(
+            matches!(read, Ok(0) | Err(_)),
+            "a startup cancelled before publishing must still shut the socket down"
+        );
+    }
+
+    /// Review comment #6's finding #1 (test b, "teardown while the server is silent
+    /// mid-handshake"): once the thread is blocked waiting for the hello reply the fake
+    /// server deliberately never sends, `interrupt` must still end it quickly - by shutting
+    /// down the socket it finds published and unblocking the stuck read - rather than
+    /// leaving it to wait out the full read timeout. Waits for the fake server to actually
+    /// receive at least one byte of the client's hello before calling `interrupt`, so the
+    /// ordering is real rather than a timing guess.
+    ///
+    /// Recorded failing against the code with `interrupt`'s own shutdown-if-`Connected`
+    /// branch removed (the slot still gets marked cancelled, but nothing wakes the blocked
+    /// read): the thread no longer ends "quickly" - it waits out the whole read timeout
+    /// instead, bounded but no longer accelerated, exactly the gap this test exists to
+    /// catch (team-lead: "check that yourself before recording").
+    #[test]
+    fn teardown_while_the_server_is_silent_mid_handshake_ends_quickly() {
+        let (client_side, mut server_side) = bounded_pair();
+        let slot: ShutdownSlot = Arc::new(Mutex::new(Slot::Pending));
+        let slot_for_worker = Arc::clone(&slot);
+        let started = Instant::now();
+        let worker =
+            thread::spawn(move || attach_over(client_side, &slot_for_worker, TEST_READ_TIMEOUT));
+
+        // Confirms the worker reached its first blocked read (waiting for a hello reply
+        // the fake server never sends) before this test interrupts it - deterministic,
+        // not a sleep-based guess.
+        let mut buf = [0_u8; 1];
+        let read = server_side
+            .read(&mut buf)
+            .expect("read at least one byte of the client's hello");
+        assert_ne!(
+            read, 0,
+            "the client should not close before this test interrupts it"
+        );
+
+        let before_interrupt = Instant::now();
+        interrupt(&slot);
+        assert!(
+            before_interrupt.elapsed() < Duration::from_millis(50),
+            "interrupt must never block the calling thread"
+        );
+
+        let result = bounded_join(worker);
+        assert!(
+            result.is_err(),
+            "an interrupted mid-handshake read must surface as an error"
+        );
+        assert!(
+            started.elapsed() < TEST_READ_TIMEOUT / 2,
+            "a teardown landing mid-read should end the thread quickly via the early \
+             shutdown, well inside the read timeout, not by waiting the timeout out"
         );
     }
 }

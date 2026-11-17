@@ -48,7 +48,7 @@ pub(super) fn dispatch(
 /// Builds the `SessionRecord` for the session at `index` in
 /// `tree.sessions()` — the record's `position` is that index, one-based
 /// (doc-15 R10).
-fn record_at(sessions: &[steg_kernel::Session], index: usize) -> SessionRecord {
+pub(super) fn record_at(sessions: &[steg_kernel::Session], index: usize) -> SessionRecord {
     let session = &sessions[index];
     SessionRecord {
         id: session.id(),
@@ -93,8 +93,8 @@ fn new(tree: &mut Tree, request: &Request) -> Result<Outcome, ApiError> {
 /// with `ErrorCode::ProgramRunning`, touching nothing - the same
 /// dispatch-level policy `pane::close`/`tab::close` use, over every pane
 /// the session holds. With `--force`, this always proceeds - see
-/// `pane::close`'s own doc for why nothing is left running by the time
-/// this unconditional `tree.close_session` runs.
+/// `pane::close`'s own doc for why ending whatever was still running is
+/// not this function's own job either.
 fn close(tree: &mut Tree, context: &Context, request: &Request) -> Result<Outcome, ApiError> {
     let id = target_session(tree, context, request)?;
     let force = param_bool(request, "force").unwrap_or(false);

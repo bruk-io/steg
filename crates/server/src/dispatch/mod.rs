@@ -11,6 +11,7 @@
 //! unchanged.
 
 mod api;
+mod event;
 mod kernel_error;
 mod lookup;
 pub(crate) mod outcome;
@@ -20,6 +21,7 @@ mod setting;
 mod tab;
 
 pub(crate) use api::resolve as resolve_api_call;
+pub(crate) use event::{Filter, resolve_filter, tree_snapshot};
 pub(crate) use kernel_error::map_kernel_error;
 pub(crate) use lookup::{
     any_pane_running, find_tab, pane_mut, panes_in_close_scope, param_bool, param_i64,
@@ -162,11 +164,24 @@ pub(crate) fn program_running() -> ApiError {
     )
 }
 
-/// Dispatches one request against `description`, over `tree`, with
-/// `context`'s defaults for any target part left out. `settings` is the
-/// server's remembered overrides (R80, decision-9; TASK-1.48) — orthogonal
-/// to `tree`: a setting's target is its own name, never a session/tab/pane
-/// path, so it needs no `Context` either.
+/// The core of [`dispatch`] (TASK-1.46): validates, then routes to the
+/// matching noun's own arm, returning the *typed* [`Outcome`] rather than
+/// the `Value` it becomes. `dispatch` itself is the one public entry point
+/// every existing caller keeps using unchanged; this is `pub(crate)`
+/// specifically so `Runtime::close_and_dispatch` can read a close's own
+/// kernel-reported cascade (`Outcome::PaneClosed`/`TabClosed`) directly,
+/// rather than re-deriving it with a second read of the tree after the
+/// fact - the bug a review of this task found and this split fixes.
+///
+/// Never called with `request.method == "api.call"`: `api.call` recurses
+/// into another method entirely and returns that inner call's own
+/// `Response`, which has no single `Outcome` to give back - callers that
+/// might still be holding an unresolved `api.call` request (the generic
+/// path in `Runtime::handle`) go through [`dispatch`] instead, which
+/// resolves it first. `close_and_dispatch` and `start_and_dispatch` never
+/// have this problem: both are only ever reached with an already-resolved
+/// method name (`Runtime::handle` resolves `api.call` once, up front,
+/// before either match arm is chosen).
 ///
 /// # Panics
 ///
@@ -178,29 +193,30 @@ pub(crate) fn program_running() -> ApiError {
 /// own arms (TASK-1.47/TASK-1.114, each built but never reached this way
 /// in the real system), which `mod.rs`'s own completeness test checks
 /// against `description()` directly.
-#[must_use]
-pub fn dispatch(
+/// Panics instead, rather than silently misrouting, if ever called with
+/// `"api.call"` itself - the one case the doc above says never to pass
+/// here.
+pub(crate) fn dispatch_raw(
     tree: &mut Tree,
     settings: &mut Settings,
     description: &Description,
     context: &Context,
     request: &Request,
     now: steg_kernel::Moment,
-) -> Response {
-    if request.method == "api.call" {
-        return api::call(tree, settings, description, context, request, now);
-    }
+) -> Result<Outcome, ApiError> {
+    debug_assert_ne!(
+        request.method, "api.call",
+        "dispatch_raw is never called with an unresolved api.call - dispatch resolves it first"
+    );
 
-    if let Err(error) = validate(description, request) {
-        return Response::Error(error);
-    }
+    validate(description, request)?;
 
     let noun_verb = request
         .method
         .split_once('.')
         .expect("validate already confirmed this method is in the description");
 
-    let result = match noun_verb {
+    match noun_verb {
         (noun, verb) if session::HANDLED.contains(&(noun, verb)) => {
             session::dispatch(tree, context, request, verb)
         }
@@ -219,7 +235,20 @@ pub fn dispatch(
         ("server", _) => Err(not_implemented_yet(
             "the server's own socket and lifecycle (TASK-1.44)",
         )),
-        ("event", _) => Err(not_implemented_yet("events (TASK-1.46)")),
+        // `event.watch` (TASK-1.46) is never actually routed here in
+        // production: it needs a connection's own registered subscriber
+        // (its `Outbound`) to reply atomically with the filter it sets,
+        // which this function has no access to (`dispatch` is a plain
+        // function over `&mut Tree`, no socket in its signature) -
+        // `Runtime::subscribe` answers it directly, before `dispatch`
+        // would ever be called with it. This arm stays only so the
+        // method is still "handled" by `mod.rs`'s own completeness test
+        // and so a test that calls `dispatch` directly with it (bypassing
+        // `Runtime`) gets a clear refusal rather than a panic.
+        ("event", _) => Err(not_implemented_yet(
+            "event.watch is answered by Runtime::subscribe, not dispatch::dispatch - this \
+             path is unreachable through a real connection",
+        )),
         ("client", _) => Err(not_implemented_yet("a client model (TASK-1.42)")),
         ("pane", "attach" | "detach") => Err(not_implemented_yet(
             "connection.rs's own interception (TASK-1.47) - a described method, fully built, \
@@ -236,9 +265,28 @@ pub fn dispatch(
             "validate already refused any method not in the description, and every \
              described method is in one of the lists above"
         ),
-    };
+    }
+}
 
-    match result {
+/// Dispatches one request against `description`, over `tree`, with
+/// `context`'s defaults for any target part left out. `settings` is the
+/// server's remembered overrides (R80, decision-9; TASK-1.48) — orthogonal
+/// to `tree`: a setting's target is its own name, never a session/tab/pane
+/// path, so it needs no `Context` either.
+#[must_use]
+pub fn dispatch(
+    tree: &mut Tree,
+    settings: &mut Settings,
+    description: &Description,
+    context: &Context,
+    request: &Request,
+    now: steg_kernel::Moment,
+) -> Response {
+    if request.method == "api.call" {
+        return api::call(tree, settings, description, context, request, now);
+    }
+
+    match dispatch_raw(tree, settings, description, context, request, now) {
         Ok(outcome) => Response::Ok(outcome.into_value()),
         Err(error) => Response::Error(error),
     }

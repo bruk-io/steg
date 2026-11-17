@@ -12,10 +12,8 @@ mod startup;
 mod terminal_element;
 
 use std::cell::{Cell, RefCell};
-use std::net::Shutdown;
 use std::ops::Range;
 use std::rc::Rc;
-use std::sync::PoisonError;
 use std::thread::JoinHandle;
 
 use futures::StreamExt as _;
@@ -68,9 +66,10 @@ pub struct AppWindow {
     /// window's own lifetime ends (TASK-1.117's plan: every thread started is joined on
     /// every path). `stop_startup` is the one place that takes it.
     startup_thread: Option<JoinHandle<()>>,
-    /// What `stop_startup` locks to interrupt a still-running startup thread before
-    /// joining it (review finding: `startup`'s own module doc explains the mechanism and
-    /// its one unavoidable gap, the bounded wait inside `connect()`'s own retry loop).
+    /// What `stop_startup` passes to [`startup::interrupt`] to interrupt a still-running
+    /// startup thread before joining it (`startup`'s own module doc explains the
+    /// mechanism, the two races its sticky state resolves, and its one unavoidable gap -
+    /// the bounded wait inside `connect()`'s own retry loop).
     startup_shutdown: ShutdownSlot,
     _startup_task: Task<()>,
     _appearance_subscription: Subscription,
@@ -115,38 +114,21 @@ impl AppWindow {
         }
     }
 
-    /// Interrupts a still-running startup thread before joining it, and is a cheap no-op
-    /// once it has already finished (`startup_thread` already `None`) - the one place
-    /// `startup_thread`/`startup_shutdown` are touched, called from both
-    /// `apply_startup_result` (the thread has already finished by then; this is just the
-    /// join) and `teardown` (the thread may still be running - this is the fix the review
-    /// asked for). Locks `startup_shutdown` *before* joining, never after: the whole point
-    /// is to unblock a read the join would otherwise wait on forever.
-    fn stop_startup(&mut self) {
-        let Some(thread) = self.startup_thread.take() else {
-            return;
-        };
-        if let Some(handle) = self
-            .startup_shutdown
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take()
-        {
-            let _ = handle.shutdown(Shutdown::Both);
-        }
-        let _ = thread.join();
-    }
-
     /// Joins the startup thread (it has already sent its one result, or the channel was
     /// dropped - either way it is finishing or finished) and moves the window into
-    /// [`Phase::Attached`] or [`Phase::Disconnected`].
+    /// [`Phase::Attached`] or [`Phase::Disconnected`]. Joining here is safe and bounded
+    /// (startup.rs's module doc): the oneshot has already resolved, so the thread's own
+    /// closure, `sender.send(result)` then return, has nothing left to do - unlike
+    /// `teardown`, which must never join a thread that might still be running.
     fn apply_startup_result(
         &mut self,
         result: Result<Result<Attached, StartupError>, futures::channel::oneshot::Canceled>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.stop_startup();
+        if let Some(thread) = self.startup_thread.take() {
+            let _ = thread.join();
+        }
         let attached = match result {
             Ok(Ok(attached)) => attached,
             Ok(Err(error)) => {
@@ -251,11 +233,18 @@ impl AppWindow {
         }
     }
 
-    /// Stops the client (if attached) and interrupts-then-joins the startup thread (if the
-    /// window closes before it ever resolved) - called from `on_window_should_close`, so
-    /// no thread or socket outlives the window on any path (TASK-1.117's plan).
+    /// Stops the client (if attached) and, if the startup thread hasn't resolved yet,
+    /// marks it cancelled and lets go of it - called from `on_window_should_close`, so
+    /// closing the window never blocks the main thread on a thread that might still be
+    /// running (startup.rs's module doc: a thread this side cannot be sure of unblocking
+    /// must not be joined here). `interrupt` ends it sooner if it already has a socket to
+    /// shut down, but either way the thread finishes on its own - bounded by its own read
+    /// timeout once connected, or by `connect_timeout` while still inside `connect()`'s own
+    /// retry loop - never by this call waiting for it. If `apply_startup_result` already
+    /// ran, `startup_thread` is already `None` and this is a no-op for it.
     fn teardown(&mut self) {
-        self.stop_startup();
+        startup::interrupt(&self.startup_shutdown);
+        drop(self.startup_thread.take());
         if let Phase::Attached(state) = &mut self.phase {
             state.client.stop();
         }

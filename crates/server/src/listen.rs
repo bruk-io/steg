@@ -750,10 +750,10 @@ mod tests {
     #[test]
     fn build_idle_wiring_spawns_no_thread_when_idle_timeout_is_none() {
         let runtime = crate::runtime::Runtime::new(
-            std::sync::Arc::new(crate::pty::RealLauncher),
+            std::sync::Arc::new(crate::pty::RealLauncher::default()),
             crate::runtime::LoginShell::default(),
             Duration::from_millis(1),
-            crate::config::DEFAULT_ATTACH_TICK,
+            Duration::from_millis(1),
         );
         let stop = super::Stopper::new();
 

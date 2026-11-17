@@ -1,11 +1,11 @@
 ---
 id: TASK-1.46
 title: 'Server: the tree, and events a client subscribes to'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w2'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-16T16:59:00Z'
+updated_date: '2026-11-17T00:08:00Z'
 labels:
   - size-3
   - review-passed
@@ -1836,6 +1836,14 @@ Confirmed per the team-lead's own question: a session closed by a request (pane.
 listen.rs: confirmed untouched by this task at any point - git log --oneline <merge-base-with-main>..ca699ee -- crates/server/src/listen.rs is empty, and the merge itself produced no conflict there; TASK-1.98 merges in as-is.
 
 Not pushing per instruction - will push once the verdict on ca699ee is in and I'm told to.
+
+---
+
+created: 2026-11-17T00:03:00Z
+
+---
+
+2026-11-16, @bruk.o: independent read of the merge with main (60b973d, parents ca699ee reviewed and 2c6bece main) by a separate agent that did not build or review this task. Verdict: correct. Only connection.rs and runtime.rs differ from git's own merge. Nothing from TASK-1.86 or TASK-1.98 is lost, nothing from this task is lost, nothing is defined twice. In the exit-driven closure both the tree events and the session-count notice are sent, with no nested lock. The argument that a requested close needs no notice of its own holds against idle.rs. Gap found, not a defect: no test runs idle stop and a subscriber together; noted on TASK-1.82 as a follow-up. PR 63 CI is green on 60b973d. The third review covered ca699ee; this read covers the merge.
 
 ---
 <!-- COMMENTS:END -->

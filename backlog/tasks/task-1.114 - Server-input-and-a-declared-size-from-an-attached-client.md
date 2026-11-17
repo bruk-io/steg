@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T18:04:00Z'
+updated_date: '2026-11-16T18:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -848,6 +848,85 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-16T18:09:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 4c3f03035468, last 40 of 46 lines:
+
+```text
+   --> crates/server/src/connection.rs:924:28
+    |
+924 |             let _cleanup = ConnectionCleanup {
+    |                            ^^^^^^^^^^^^^^^^^ missing `events`
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates/server/src/listen.rs:752:23
+    |
+752 |           let runtime = crate::runtime::Runtime::new(
+    |  _______________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+753 | |             std::sync::Arc::new(crate::pty::RealLauncher),
+754 | |             crate::runtime::LoginShell::default(),
+755 | |             Duration::from_millis(1),
+756 | |         );
+    | |_________- argument #4 of type `std::time::Duration` is missing
+    |
+note: associated function defined here
+   --> crates/server/src/runtime.rs:269:12
+    |
+269 |     pub fn new(
+    |            ^^^
+...
+273 |         attach_tick: Duration,
+    |         ---------------------
+help: provide the argument
+    |
+752 |         let runtime = crate::runtime::Runtime::new(
+...
+755 |             Duration::from_millis(1),
+756 ~             /* std::time::Duration */,
+757 ~         );
+    |
+
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/steg)
+Some errors have detailed explanations: E0061, E0063.
+For more information about an error, try `rustc --explain E0061`.
+error: could not compile `steg-server` (lib test) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-16T18:13:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 4c3f03035468 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (1.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (57.0s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (28.6s)
+ok      test (steg-server) (27.0s)
+ok      test (steg-server, race-fixture) (28.8s)
+ok      test (steg-server, accept-backoff-fixture) (29.4s)
+ok      build (steg) (1.0s)
+ok      test (steg) (0.5s)
+ok      test (steg, fixtures) (6.8s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

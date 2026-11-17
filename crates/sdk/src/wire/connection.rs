@@ -242,8 +242,10 @@ impl Connection {
     /// since an event carries none (decision-2 section 3).
     ///
     /// `target` names the session to watch (`None` for the current
-    /// session's own default); `for_` narrows to these event names only
-    /// (empty for every event); `all` watches every session on the host.
+    /// session's own default); `for_` narrows to this one event name only
+    /// (`None` for every event — the description's own `for` is a single
+    /// closed-set value, `ValueKind::Choice`, not a list); `all` watches
+    /// every session on the host.
     ///
     /// # Errors
     /// The same as [`Connection::call`].
@@ -253,22 +255,15 @@ impl Connection {
     pub fn watch(
         &mut self,
         target: Option<&str>,
-        for_: &[&str],
+        for_: Option<&str>,
         all: bool,
     ) -> Result<(u64, Vec<u8>), ApiError> {
         let mut params = Map::new();
         if let Some(target) = target {
             params.insert("target".to_owned(), Value::String(target.to_owned()));
         }
-        if !for_.is_empty() {
-            params.insert(
-                "for".to_owned(),
-                Value::Array(
-                    for_.iter()
-                        .map(|name| Value::String((*name).to_owned()))
-                        .collect(),
-                ),
-            );
+        if let Some(name) = for_ {
+            params.insert("for".to_owned(), Value::String(name.to_owned()));
         }
         if all {
             params.insert("all".to_owned(), Value::Bool(true));

@@ -3,11 +3,11 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Review
+status: Done
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T06:22:00Z'
+updated_date: '2026-11-17T16:17:00Z'
 labels:
   - size-2
   - review-passed

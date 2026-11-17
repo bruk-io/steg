@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:34:00Z'
+updated_date: '2026-11-17T05:39:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1036,6 +1036,36 @@ All four review findings fixed and verified.
    - AC #4 (every wait in outbound.rs/race.rs/openpty_race.rs has a bound, kills and reaps, names what it waited for; the rest is TASK-1.123's): outbound.rs's own eleven tests (AlwaysFailsToWrite + run_bounded + ClosingWriterGuard), race.rs's three wait_child_bounded call sites plus its own new test, openpty_race.rs's wait_child_bounded/run_bounded wiring. ReapOnDrop's own Drop impls in both tests files are left as plain kill()+wait() - documented inline why: wait_child_bounded panics on timeout, and panicking inside Drop during an unwind aborts the process rather than reporting one clean failure.
 
 Checks recorded via asdlc record-check (final pass, after all fixes): cargo test -p steg-server --lib (193 passed); --features race-fixture (full crate, includes the new test); --features pty-race-fixture (full crate); just test-tools; just test-openpty-race-control (one miss, one reproduction, both recorded, consistent with its own documented variance); just check, full workspace, clean. ps checked clean of leftover processes after every run, including after the bounded failing controls. PR #69, pushed, CI green (run 44022219151, 8m48s).
+
+Check FAILED: `uv run --quiet --project tools steg-quiet 'wait_child_bounded timeout control v2 (watchdog kill under lock, removed)' -- cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` exited 1 at 2026-11-17T05:39:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at db191fde8ced with uncommitted changes:
+
+```text
+TIMED OUT wait_child_bounded timeout control v2 (watchdog kill under lock, removed) (bound 5s, ran 5.0s)
+warning: unused imports: `Signal` and `self`
+  --> crates/server/tests/support/mod.rs:14:24
+   |
+14 | use nix::sys::signal::{self, Signal};
+   |                        ^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `pid`
+   --> crates/server/tests/support/mod.rs:163:9
+    |
+163 |     let pid = Pid::from_raw(raw_pid);
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_pid`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (test "race") generated 2 warnings (run `cargo fix --test "race" -p steg-server` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 1 test
+full output: .quiet/wait-child-bounded-timeout-control-v2-watchdog-kill-under-lock-removed.log
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

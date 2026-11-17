@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:30:00Z'
+updated_date: '2026-11-17T01:31:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1092,6 +1092,51 @@ failures:
 test result: FAILED. 38 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-every-crate.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:31:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at b3d13d41ef5e, last 40 of 71 lines:
+
+```text
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 173 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+     Running tests/attach.rs (target/debug/deps/attach-d38d78534eadc4dd)
+
+running 15 tests
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test input_clears_a_finished_status ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (47558807) panicked at crates/server/tests/attach.rs:1255:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.54s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
 ```

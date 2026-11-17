@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:22:00Z'
+updated_date: '2026-11-17T02:23:00Z'
 labels:
   - size-5
 milestone: m-3
@@ -33,6 +33,7 @@ asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2738,6 +2739,15 @@ Checked and found sound: the pane worker's own tick (recv() with no timeout when
 plan-matched: no - AttachmentId (crates/server/src/pane.rs:246-260) and the ConnectionCleanup attachment sweep are both real design decisions the plan's own order of work never named (found during implementation, after TASK-1.114's own worker hit the bare-stream-number bug), even though the task's notes explain both in detail.
 
 No policy cited by either finding - no earlier review was found citing the same policy for this task, so no rule-change draft was filed.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T02:23:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T00:13:00Z'
+updated_date: '2026-11-17T00:15:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -454,6 +454,51 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates
          assert_eq!(sent, vec![size(81, 24), size(81, 25)]);
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 147 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T00:15:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at f377b58d5d92 with uncommitted changes, last 40 of 65 lines:
+
+```text
+    Checking tokio-rustls v0.26.6
+    Checking hyper-rustls v0.27.10
+    Checking zed-reqwest v0.12.15-zed
+   Compiling toml v0.8.23
+   Compiling half v2.7.1
+    Checking gpui_http_client v0.2.2
+    Checking tiff v0.11.3
+    Checking exr v1.74.3
+    Checking ravif v0.13.0
+    Checking image v0.25.10
+    Checking blade-graphics v0.7.1
+    Checking blade-util v0.3.0
+   Compiling gpui v0.2.2
+    Checking steg-ui v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/ui)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: this `if` statement can be collapsed
+  --> crates/app/src/keys.rs:50:5
+   |
+50 | /     if modifiers.control {
+51 | |         if let Some(byte) = control_byte(key) {
+52 | |             return Some(vec![byte]);
+53 | |         }
+54 | |     }
+   | |_____^
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#collapsible_if
+   = note: `-D clippy::collapsible-if` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+   |
+50 ~     if modifiers.control
+51 ~         && let Some(byte) = control_byte(key) {
+52 |             return Some(vec![byte]);
+53 ~         }
+   |
+
+error: could not compile `steg-app` (bin "steg-app" test) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

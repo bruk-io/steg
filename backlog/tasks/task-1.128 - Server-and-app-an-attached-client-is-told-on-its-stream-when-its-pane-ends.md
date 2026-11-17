@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:51:00Z'
+updated_date: '2026-11-17T22:54:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -433,6 +433,35 @@ own decision-records-by-pull-request convention, not edited by this plan.
 Split by @bruk.o on 2026-11-17, as the plan recommended: this task keeps the wire message and the server side (former AC #1, #2, #3, #5). Former AC #4 (the bare window's reaction) moved to a draft task, 'App: the bare window shows that its program has ended, and stops taking keys', which depends on this task and TASK-1.121. This task still has to leave the app compiling: a minimal placeholder arm for the new update, replaced by that task.
 
 Plan (ffc63839f742) checked against doc-14 and decision-2 by @bruk.o: ok. It builds only the server/sdk half after the split; the final update's shape and ordering match the task description; proof maps to the four criteria, with the forced-close and attach-after-end socket tests covering the two bugs the first draft had. The contract text (doc-14 bullet, decision-2 section 3 addendum by its own PR) is the orchestrator's to make, timed with the build. Three open questions go to the engineer with the plan: Closed carries no exit code; PROTOCOL_VERSION stays 1; server stop is best-effort.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T22:54:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at d7a34f46b4ee:
+
+```text
+ok      format check (0.3s)
+ok      lint (83.4s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.3s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (41.1s)
+FAILED  test (steg-kernel) (exit 101, 0.4s)
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128/crates/sdk)
+error[E0432]: unresolved import `screen::EndReason`
+  --> crates/sdk/src/lib.rs:49:37
+   |
+49 |     CellStyle, Cursor, CursorShape, EndReason, Page, PaneAttached, Rgb, Row, RowId, Run, Screen,
+   |                                     ^^^^^^^^^ no `EndReason` in `screen`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `steg-sdk` (lib) due to 1 previous error
+full output: .quiet/test-steg-kernel.log
+error: recipe `check-packages` failed with exit code 101
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

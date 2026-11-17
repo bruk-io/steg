@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T01:44:00Z'
+updated_date: '2026-11-17T01:45:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1114,6 +1114,20 @@ failures:
 test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 14 filtered out; finished in 5.04s
 
 error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach -- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream two_connections_attached_to_one_pane` exited 0 at 2026-11-17T01:45:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 2 tests
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.09s
 ```
 <!-- SECTION:NOTES:END -->
 

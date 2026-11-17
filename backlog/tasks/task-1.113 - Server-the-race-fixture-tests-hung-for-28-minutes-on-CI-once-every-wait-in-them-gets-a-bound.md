@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T01:27:00Z'
+updated_date: '2026-11-17T01:32:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -35,7 +35,7 @@ On 2026-11-16 pull request 55's check run 43802834909 (attempt 1, commit 51c1659
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-## Findings (settle AC #1 and the orchestrator's question #1)
+## Findings (settle AC #1 and the orchestrator's question #1 - revised after team-lead review)
 
 Read `crates/server/src/outbound.rs:267-298` (`run_writer`'s wait loop) and `:253-256`
 (`close`): every mutation of `Queues.closed`/the queues happens under the same `Mutex`
@@ -43,71 +43,113 @@ the waiter re-checks before calling `Condvar::wait`, and `wait` is only ever cal
 while already holding that lock - a `close()`/`enqueue_*` landing between the check and
 the wait cannot be missed. Read `crates/server/src/connection.rs:274-322`
 (`ConnectionCleanup::drop`): `outbound.close()` runs on every path out of
-`run_post_handshake` - normal return, early return, or a panic unwinding through a
-request handler - because it is a local's `Drop`, which Rust runs on unwind too. So no
-production path ever abandons a connection without calling `close()`: there is no
-"writer thread that never ends" in the product. This is a test bug, not a product bug.
+`run_post_handshake` - normal return, early return, or a panic unwind - because it is a
+local's `Drop`. So no production path ever abandons a connection without calling
+`close()`: there is no "writer thread that never ends" in the product.
 
-The sighted stack (TASK-1.113's notes) named
-`outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`
-blocked in `Condvar::wait`. Read as written, that test's own thread can only reach
-`wait` if `write_all` on a `UnixStream` whose peer was just `drop`ped *succeeds* instead
-of failing (`outbound.rs:477-490`) - probed 800,000/800,000 failures on this machine,
-serial and under 16-way concurrent load (scratch probe, not committed), so that exact
-mechanism could not be forced to reproduce here. A demonstrably real, timing-independent
-mechanism exists two tests over: `control_is_drained_before_any_data_...` (:342-360),
-`data_streams_are_drained_round_robin_...` (:363-387), `a_stream_with_nothing_queued_...`
-(:390-407), and `a_genuine_flood_on_a_data_stream_...` (:581-637) each spawn a writer
-thread and call `outbound.close()`/`writer.join()` only *after* assertions that can
-panic - one of them (`a_genuine_flood_...`, line 621) has a hard 500ms latency
-assertion, exactly the kind of thing heavy CI/local load (already the suspected cause of
-other flakes on TASK-1.82) can trip. If any of those assertions panics, the spawned
-writer thread leaks, permanently parked in `Condvar::wait` with nothing left to ever
-notify it - the identical symptom, reproducible by construction, no OS timing needed.
-Both candidates get the same fix below; I am not picking one as "the" cause since the
-fix (bound the wait, guarantee cleanup on every exit path) covers both regardless of
-which actually fired on CI.
+My first pass at the test-side cause (a panicking assertion elsewhere in this file
+leaking a background writer thread) was wrong, as team-lead's review caught: a parked
+non-main thread does not keep the test binary alive. The harness collects each
+dispatched test's own result on its own thread and the process exits once that
+collection is done; a thread some other, already-failed test spawned and never joined is
+abandoned at process exit, with no effect on the next test or the run's own completion.
+The sampled stack was the hanging test's *own* thread, inside its own direct,
+synchronous `run_writer` call - consistent with only
+`a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`, the one test in this
+file that calls `run_writer` without a `thread::spawn` in between.
 
-AC #2's literal scope ("every wait in the tests run under the race-fixture feature") is
-larger than size-2: `cargo test -p steg-server --features race-fixture` (the step that
-hung, `justfile:135`) runs the *whole* crate - every `#[cfg(test)]` unit test plus every
-file in `crates/server/tests/`, not only `race.rs`. The sweep (grep for `.join()`,
-`.recv()`, `.wait()`, `read_exact`/`read_line`) found unbounded waits across
-`tests/{shutdown,idle_stop,program,events,routing,handshake,runtime,real_pty}.rs`,
-`crates/steg/tests/{idle_stop,server_start,login_environment}.rs`, and `#[cfg(test)]`
-blocks in `src/{arbiter,bind,connection,dispatch/*,env,idle,listen,login_env,pane,paths,
-program_param,pty,runtime,signal}.rs` - roughly 60 sites, most never reported hanging.
-Per the standing preference to split: this task fixes the file that actually hung
-(`outbound.rs`), the two files the task's own title and TASK-1.82's notes name
-(`race.rs`, `openpty_race.rs`), and ships a bound that is independent of the Rust-level
-sweep's completeness (below). A follow-up task takes the rest, reusing the shapes built
-here. Flagging this for the engineer to rule on rather than narrowing AC #2 myself.
+Confirmed instead, per team-lead's direction: on macOS, `UnixStream::pair()` cannot set
+`CLOEXEC` atomically. Read the toolchain's own std source
+(`sys/net/connection/socket/unix.rs:111-144`, `Socket::new_pair`): the atomic
+`SOCK_CLOEXEC`-on-`socketpair()` path is gated to Linux-like targets only
+(`target_os = "linux"/"freebsd"/"netbsd"/...`, not `apple`); on macOS it calls
+`socketpair()` plain, then sets `CLOEXEC` on each fd with two separate, later `fcntl`
+calls (`:134-140`). A `fork`+`exec` landing in that gap inherits both fds regardless of
+what `CLOEXEC` is set to a moment later in the parent - inheritance happens at `fork`,
+`CLOEXEC` only matters at `exec`. `UnixListener::accept()` has the identical shape
+(`:243-273`): atomic `accept4(..., SOCK_CLOEXEC)` on Linux-like targets, plain `accept()`
+plus a later `fcntl` on macOS.
+
+`outbound.rs`'s own unit tests run in the same compiled test binary, and by default the
+same process, as every other `#[cfg(test)]` module in this crate - several of which fork
+real processes from their own test threads, concurrently, under libtest's default
+parallelism: `signal.rs:111-144` spawns `sh` children directly, `login_env.rs:209-228`
+and `:632-667` spawn a real shell and a background `sleep ... &`, `pty.rs`'s
+`RealLauncher` opens a pty and spawns a program through `portable_pty`, `pane.rs:952`
+spawns `kill`. Any of these landing in the `socketpair()`-to-`set_cloexec()` gap of
+`a_broken_write_closes_the_queue_...`'s own `UnixStream::pair()` call would have the
+forked child inherit the `client` end; `drop(client)` in the test then closes only the
+parent's own reference, the kernel still sees an open reference held by the forked
+child, and the next `write_all` on `server` succeeds instead of failing.
+
+Reproduced directly (scratch probe,
+`/private/tmp/.../scratchpad/task-1.113-sockprobe/probe3.rs`, not committed, run in the
+foreground, every spawned child explicitly `wait()`ed): with no concurrent forking, 0
+successes in 800,000+ trials (serial and 16-way concurrent, both already run before
+team-lead's review and recorded in the earlier plan revision). With 8 threads
+continuously forking+exec'ing short-lived `sh -c true` children (the same shape
+`signal.rs`'s own tests use) while 8 other threads repeated
+`pair(); drop(client); write_all(server)`: **406,116 of 1,600,000 writes succeeded**
+(roughly 1 in 4, once real concurrent forking is happening) - confirming the mechanism
+directly, not just by reading the std source. `run_writer` then loops back to an empty,
+unclosed queue and calls `Condvar::wait`, which nothing in that test will ever notify
+again. This is the real cause: a test-side assumption (dropping one half of a freshly
+made pair makes the other half's very next write fail at once) that macOS's own
+non-atomic `CLOEXEC` makes unreliable whenever another thread in the same process forks
+at the wrong moment - which this crate's own test suite does, routinely, by design.
+
+Checked the rest of `outbound.rs`'s own tests for the same assumption: none of the
+others depend on it - `closing_drains_what_is_already_queued_then_the_writer_returns`
+calls `outbound.close()` explicitly before running the writer, never drops a peer to end
+it, and the four spawn-then-join tests all end their writer via `outbound.close()` too,
+not a dropped socket. Checked the other `drop(client)`/`drop(stream)` sites across
+`crates/server/tests/{shutdown,idle_stop,routing}.rs`: all of them wait on an event with
+seconds of slack (`recv_timeout(Duration::from_secs(5))` or similar) for the *server's*
+own read loop to see the disconnect, not a bare, zero-slack "the very next local call
+must fail" - a stray inherited fd from this same race would not survive seconds, so
+these are not at the same risk and need no change.
+
+**Product-adjacent finding, named but not fixed here** (team-lead's point 4): the same
+non-atomic `accept()` applies to every connection `listen.rs` accepts on macOS. Grepped
+`crates/server/src/*.rs` for `close_fds`/`CLOEXEC`/`set_cloexec`/`FD_CLOEXEC`: none of
+this crate's own code does anything to scrub inherited descriptors before a pane's
+program execs. `pty.rs`'s `RealLauncher` hands the command to `portable_pty`
+(`CommandBuilder`/`PtyPair::slave.spawn_command`, not `std::process::Command` directly
+for real panes), so whatever protection exists against a freshly accepted connection fd
+being inherited by a concurrently-spawned pane's program lives entirely inside
+`portable_pty`'s own spawn path, which I have not read. Whether that crate's spawn
+already closes everything but its own wired-up pty fds, or shares the same gap, is
+unverified - naming it for a follow-up task to check, not building anything for it here.
+
+AC #2's literal scope is still larger than size-2 for the reasons already found (the
+sweep across `tests/*.rs` and `#[cfg(test)]` `src/*.rs` blocks, ~60 sites) - unchanged
+by this revision, see the "Files that change"/split note below.
 
 ## Files that change
 
+- `crates/server/src/outbound.rs`: `a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails`
+  no longer uses a real `UnixStream` at all. A tiny test-only `Write` type
+  (`AlwaysFailsToWrite` or similar), whose `write`/`write_all` unconditionally returns
+  `Err(io::Error::new(ErrorKind::BrokenPipe, ...))`, replaces the dropped-peer
+  `UnixStream::pair()` - `run_writer` is already generic over `W: Write`, so this needs
+  no change to the production code. This removes the dependence on `CLOEXEC`/fork timing
+  entirely, rather than merely bounding around it; a bound alone would only have turned
+  the hang into an intermittent ~1-in-4-when-contended failure, per the 406,116/1,600,000
+  reproduction above. The call is still wrapped in `run_bounded` (below) as a second,
+  independent guard for AC #2's literal "every wait has a bound", not as the fix for this
+  test's own flakiness. `enqueue_data`/`enqueue_control` cap tests and the four
+  spawn-then-assert-then-`close()` tests are unaffected (they don't depend on a dropped
+  peer); those four gain a `ClosingWriterGuard` (below) purely as cleanup hygiene - stated
+  as hygiene, not as a fix for any hang, per team-lead's review.
 - `crates/server/src/lib.rs`: add `#[cfg(test)] mod test_support;`.
 - `crates/server/src/test_support.rs` (new): `run_bounded(what, bound, body)` - runs
   `body` on a thread, `mpsc::Receiver::recv_timeout(bound)` on the result, panics naming
   `what` and `bound` on timeout; `ClosingWriterGuard` - owns the `Arc<Outbound>` and the
   writer's `JoinHandle`, and on `Drop` calls `outbound.close()` then joins with a bound,
-  logging (not panicking - this can run mid-unwind) if the join itself ever times out.
+  logging (never panicking - this can run mid-unwind) if the join itself ever times out.
   Mirrors `connection.rs:274-322`'s own "a local's `Drop` cleans up every exit path"
-  idiom, moved into test code for the same reason.
-- `crates/server/src/outbound.rs`: the four spawn-then-assert-then-cleanup tests use
-  `ClosingWriterGuard` instead of a bare `outbound.close(); writer.join().unwrap();` at
-  the end, so cleanup runs on a panicking path too. A `bounded_pair()` helper wraps
-  `UnixStream::pair()` and sets a read timeout on the client half (closes the unbounded
-  `read_exact`/`read_line` reads throughout this file); every test switches to it.
-  `a_broken_write_closes_the_queue_...` wraps its direct `run_writer` call in
-  `run_bounded` too (defense in depth, independent of which mechanism caused the
-  sighting). New test `a_panicking_assertion_does_not_leak_the_writer_thread`:
-  constructs a `ClosingWriterGuard` inside `std::panic::catch_unwind`, panics before any
-  assertion runs, then proves (via a short `run_bounded` join on a handle obtained before
-  the panic) that the thread is already gone - the demonstrated reproduction of the leak
-  this task is fixing. New test `run_bounded_fails_fast_on_a_body_that_never_returns`:
-  `#[should_panic(expected = "timed out")]`, calls `run_bounded` with a closure that
-  waits forever on a fresh, never-closed `Outbound`'s own condvar directly, with a short
-  (e.g. 200ms) bound - the negative control AC #3 asks for, for the thread case.
+  idiom, moved into test code as the same hygiene, for the same reason - not presented as
+  explaining the sighted hang.
 - `crates/server/tests/support/mod.rs` (new): the same `run_bounded` shape (duplicated,
   not shared from `src/` - integration tests are separate compilation units and cannot
   import a crate-private module; stated plainly rather than hidden), plus
@@ -116,33 +158,32 @@ here. Flagging this for the engineer to rule on rather than narrowing AC #2 myse
   before giving up with a message naming the child and the bound.
 - `crates/server/tests/race.rs`: `mod support;`. `ReapOnDrop::drop` (:54-59) and the
   explicit `kill()`/`wait()` pairs (:135-146, 176-180) use `wait_child_bounded` instead
-  of a bare `child.wait()`. `wait_until_accepting`'s poll (:75-86) is left as is and
-  called out in a comment: it retries an external, cross-process readiness condition
-  with no in-process event to subscribe to, and already has an explicit deadline - not
-  the same risk as a bare `join()`/`wait()`.
+  of a bare `child.wait()`. `wait_until_accepting`'s poll (:75-86) is left as is, with a
+  comment: it retries an external, cross-process readiness condition with no in-process
+  event to subscribe to, and already has an explicit deadline.
 - `crates/server/tests/openpty_race.rs`: `mod support;`. `wait_timeout_or_kill` (:367+)
   is replaced by a call to the shared `wait_child_bounded`, removing its 5ms sleep-poll
   (`.claude/rules/testing-rust.md`: "no test sleeps to wait for something; it waits on
   the event") - the exact replacement TASK-1.82's notes already named this task for.
-- `tools/src/steg_tools/quiet.py`: bounds the whole step, not only the Rust-level waits
-  this task's sweep could have missed. `main` switches from `subprocess.run` to a
-  `Popen(..., start_new_session=True)` plus `communicate(timeout=bound)`; on
-  `TimeoutExpired`, `os.killpg(os.getpgid(proc.pid), signal.SIGKILL)` (the direct child
-  alone would leave a hung test binary's own children behind), drains the already
-  -captured output, and reports through a new `timed_out_report(label, bound, seconds,
-  output, log)` (same one-line-plus-tail shape as `failed_report`, "TIMED OUT" in
-  place of "FAILED", naming the bound). The bound is `STEG_QUIET_TIMEOUT_S`
-  (env, default 600 - checked against `.quiet/*.log` timings from a recent `just check`
-  run so the default clears every legitimate step, including the Zig/ghostty-vt build,
-  with real headroom, and sits far under CI's 30-minute job limit).
+- `tools/src/steg_tools/quiet.py`: bounds the whole step, independent of Rust-level
+  coverage. `main` switches from `subprocess.run` to `Popen(..., start_new_session=True)`
+  plus `communicate(timeout=bound)`; on `TimeoutExpired`,
+  `os.killpg(os.getpgid(proc.pid), signal.SIGKILL)` (the direct child alone would leave a
+  hung test binary's own children behind), drains the already-captured output, and
+  reports through a new `timed_out_report(label, bound, seconds, output, log)` (same
+  one-line-plus-tail shape as `failed_report`, "TIMED OUT" in place of "FAILED", naming
+  the bound). The bound is `STEG_QUIET_TIMEOUT_S` (env, default 600 - checked against
+  `.quiet/*.log` timings from a recent `just check` run so the default clears every
+  legitimate step, including the Zig/ghostty-vt build, with real headroom, far under
+  CI's 30-minute job limit).
 - `tools/tests/unit/test_quiet.py`: a unit test for `timed_out_report`'s formatting,
   beside the existing `failed_report` test.
 - `tools/tests/functional/test_quiet_timeout.py` (new): runs real `steg-quiet` as a
-  subprocess against a command that outlives a very short `STEG_QUIET_TIMEOUT_S`
-  (a Python one-liner that sleeps and then writes a sentinel file), asserts `steg-quiet`
-  itself returns within a small bound, reports "TIMED OUT", and that the sentinel file
-  is never written - proving the process group was actually killed, not just the
-  immediate child abandoned.
+  subprocess against a command that outlives a very short `STEG_QUIET_TIMEOUT_S` (a
+  Python one-liner that sleeps and then writes a sentinel file), asserts `steg-quiet`
+  itself returns within a small bound, reports "TIMED OUT", and that the sentinel file is
+  never written - proving the process group was actually killed, not just the immediate
+  child abandoned.
 
 ## Order of work
 
@@ -150,41 +191,45 @@ here. Flagging this for the engineer to rule on rather than narrowing AC #2 myse
    most independent piece, and the one that makes every later step safe to run even if
    something in it still hangs.
 2. `crates/server/src/test_support.rs` + `lib.rs`'s one-line addition.
-3. `crates/server/src/outbound.rs`: `bounded_pair()`, `ClosingWriterGuard` wired into the
-   four existing tests, the `a_broken_write_...` test wrapped in `run_bounded`, then the
-   two new tests (the leak reproduction and the negative control).
+3. `crates/server/src/outbound.rs`: the `AlwaysFailsToWrite` sink and the rewritten
+   `a_broken_write_closes_the_queue_...` test (deterministic fix), `run_bounded` wrapped
+   around its call, `ClosingWriterGuard` wired into the four spawn-then-assert tests as
+   hygiene, then `run_bounded_fails_fast_on_a_body_that_never_returns` as the generic
+   negative control for the bound mechanism itself.
 4. `crates/server/tests/support/mod.rs`, then `race.rs` and `openpty_race.rs` wired to
    it.
-5. Record checks (Proof, below); write the findings above into this task's notes; draft
-   the follow-up task for the rest of the sweep and link it.
+5. Record checks (Proof, below); write the findings above into this task's notes
+   (including the product-adjacent `accept()`/`portable_pty` question, named for a
+   follow-up); draft the follow-up task for the rest of the sweep and link it.
 
 ## Risks
 
 - `ClosingWriterGuard`'s `Drop` runs during an active panic if the guard itself is being
   unwound past; it must never panic itself (a second panic during unwind aborts the
-  process) - its timeout path only logs. Mitigation: the new leak-reproduction test
-  exercises exactly this path.
+  process) - its timeout path only logs.
 - `os.killpg` needs the child's own process group to actually contain what hung
   (`start_new_session=True` at spawn, not added after) - get this wrong and the backstop
-  silently keeps the old behaviour. Mitigation: the functional test's sentinel-file
-  check proves the kill really reached the process, not just the immediate `cargo`.
+  silently keeps the old behaviour. Mitigation: the functional test's sentinel-file check
+  proves the kill really reached the process, not just the immediate `cargo`.
 - The chosen `STEG_QUIET_TIMEOUT_S` default could be too tight for a slow CI runner and
   turn a slow-but-fine step into a false failure. Mitigation: set it from this task's own
-  own recorded `just check`/`just test-all` timings with real headroom, not a guess, and
-  say in the notes what the slowest observed step was.
+  recorded `just check`/`just test-all` timings with real headroom, not a guess, and say
+  in the notes what the slowest observed step was.
 - Converting `wait_timeout_or_kill` changes `openpty_race.rs`'s own already-passing
   control test's timing characteristics. Mitigation: re-run
   `test-openpty-race-control` after the change and record it.
-- The 800,000-trial probe does not prove the EPIPE-timing mechanism is impossible, only
-  that it didn't reproduce here; the plan does not rely on that probe to justify the fix
-  - both candidate mechanisms get the same bound regardless.
+- The same `CLOEXEC` race could, in principle, affect any other test that drops one half
+  of a freshly made pair and expects the other half's very next call to fail with no
+  slack - checked and found none in this crate today (see Findings), but a future test
+  written the same way would reintroduce it; worth a line in `testing-rust.md` or the
+  follow-up task, not built here.
 
 ## Proof
 
 - `asdlc record-check -- cargo test -p steg-server --features race-fixture outbound::tests`
-  (AC #1, #2 for the sighted file): the new leak-reproduction and negative-control tests
-  pass; a described-in-notes-only manual check (never raw output pasted) that reverting
-  `ClosingWriterGuard` back to the bare `close()`/`join()` makes the leak test fail.
+  (AC #1, #2 for the sighted file): the rewritten test passes deterministically (no
+  socket, no fork timing involved); `run_bounded_fails_fast_on_a_body_that_never_returns`
+  passes as the negative control for the bound mechanism (AC #3).
 - `asdlc record-check -- cargo test -p steg-server --features race-fixture` and
   `--features pty-race-fixture` (AC #2 for `race.rs`/`openpty_race.rs`), plus
   `just test-openpty-race-control` recorded again.
@@ -192,8 +237,8 @@ here. Flagging this for the engineer to rule on rather than narrowing AC #2 myse
   AC #4).
 - `asdlc record-check -- just check` at the end, full run.
 - Note on the task naming the follow-up task created for the rest of the sweep (AC #2's
-  literal, whole-crate reading), and asking the engineer to confirm the split rather than
-  silently narrowing AC #2.
+  literal, whole-crate reading) and the unverified `portable_pty`/`accept()` question,
+  asking the engineer to confirm the split rather than silently narrowing AC #2.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes

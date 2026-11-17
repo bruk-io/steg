@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:01:00Z'
+updated_date: '2026-11-17T05:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -801,6 +801,220 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails` exited 101 at 2026-11-17T05:03:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.57s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... FAILED
+
+failures:
+
+---- outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails stdout ----
+
+thread 'outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails' (51098358) panicked at crates/server/src/outbound.rs:490:9:
+assertion `left == right` failed: the writer's own broken-write exit must close the queue, the same as an explicit Outbound::close() would
+  left: Ok(())
+ right: Err(Closed)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 192 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails` exited 0 at 2026-11-17T05:03:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 192 filtered out; finished in 0.00s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools steg-quiet 'run_bounded timeout control (mechanism removed)' -- cargo test -p steg-server --lib test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for -- --exact` exited 1 at 2026-11-17T05:04:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+TIMED OUT run_bounded timeout control (mechanism removed) (bound 5s, ran 5.0s)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+full output: .quiet/run-bounded-timeout-control-mechanism-removed.log
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for -- --exact` exited 0 at 2026-11-17T05:04:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 192 filtered out; finished in 0.21s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools pytest -q tools/tests/functional/test_quiet_timeout.py` exited 1 at 2026-11-17T05:04:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_a_captured_step_past_its_bound_is_killed_group_and_all __________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-623/test_a_captured_step_past_its_0')
+
+    def test_a_captured_step_past_its_bound_is_killed_group_and_all(tmp_path: Path) -> None:
+        sentinel = tmp_path / "sentinel"
+        command = [sys.executable, "-c", _OUTLIVES_THE_BOUND_WITH_A_GRANDCHILD, str(sentinel)]
+    
+        code, output, seconds = run_captured(command, BOUND_S)
+    
+        assert code is None
+        assert output == ""
+>       assert seconds < 2.0, f"a killed step should return close to its {BOUND_S}s bound, took {seconds}s"
+E       AssertionError: a killed step should return close to its 0.2s bound, took 10.036291625001468s
+E       assert 10.036291625001468 < 2.0
+
+tools/tests/functional/test_quiet_timeout.py:37: AssertionError
+___________ test_a_live_step_past_its_bound_is_killed_group_and_all ____________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-623/test_a_live_step_past_its_boun0')
+
+    def test_a_live_step_past_its_bound_is_killed_group_and_all(tmp_path: Path) -> None:
+        sentinel = tmp_path / "sentinel"
+        command = [sys.executable, "-c", _OUTLIVES_THE_BOUND_WITH_A_GRANDCHILD, str(sentinel)]
+    
+        code, seconds = run_live(command, BOUND_S)
+    
+        assert code is None
+>       assert seconds < 2.0, f"a killed step should return close to its {BOUND_S}s bound, took {seconds}s"
+E       AssertionError: a killed step should return close to its 0.2s bound, took 10.035902749979869s
+E       assert 10.035902749979869 < 2.0
+
+tools/tests/functional/test_quiet_timeout.py:49: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_timeout.py::test_a_captured_step_past_its_bound_is_killed_group_and_all
+FAILED tools/tests/functional/test_quiet_timeout.py::test_a_live_step_past_its_bound_is_killed_group_and_all
+2 failed, 1 passed in 20.13s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `uv run --quiet --project tools pytest -q tools/tests/functional/test_quiet_timeout.py` exited 0 at 2026-11-17T05:05:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+...                                                                      [100%]
+3 passed in 1.89s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools steg-quiet 'wait_child_bounded timeout control (watchdog kill removed)' -- cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` exited 1 at 2026-11-17T05:05:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+TIMED OUT wait_child_bounded timeout control (watchdog kill removed) (bound 5s, ran 5.0s)
+warning: unused imports: `Signal` and `self`
+  --> crates/server/tests/support/mod.rs:14:24
+   |
+14 | use nix::sys::signal::{self, Signal};
+   |                        ^^^^  ^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `pid`
+   --> crates/server/tests/support/mod.rs:130:9
+    |
+130 |     let pid = Pid::from_raw(raw_pid);
+    |         ^^^ help: if this is intentional, prefix it with an underscore: `_pid`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (test "race") generated 2 warnings (run `cargo fix --test "race" -p steg-server` to apply 2 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 1 test
+full output: .quiet/wait-child-bounded-timeout-control-watchdog-kill-removed.log
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` exited 0 at 2026-11-17T05:05:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 1 test
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.31s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T05:10:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (32.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (1.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.3s)
+ok      test (steg-server) (28.2s)
+ok      test (steg-server, race-fixture) (30.3s)
+ok      test (steg-server, pty-race-fixture) (36.8s)
+ok      test (steg-server, accept-backoff-fixture) (31.3s)
+ok      build (steg) (1.0s)
+ok      test (steg) (3.1s)
+ok      test (steg, fixtures) (9.6s)
+ok      build (steg-ui) (0.6s)
+ok      test (steg-ui) (6.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (13.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

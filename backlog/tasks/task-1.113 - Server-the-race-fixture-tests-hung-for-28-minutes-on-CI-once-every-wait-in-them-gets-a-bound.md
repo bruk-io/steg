@@ -878,6 +878,52 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 192 filtered out; fi
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check FAILED: `uv run --quiet --project tools pytest -q tools/tests/functional/test_quiet_timeout.py` exited 1 at 2026-11-17T05:04:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_a_captured_step_past_its_bound_is_killed_group_and_all __________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-623/test_a_captured_step_past_its_0')
+
+    def test_a_captured_step_past_its_bound_is_killed_group_and_all(tmp_path: Path) -> None:
+        sentinel = tmp_path / "sentinel"
+        command = [sys.executable, "-c", _OUTLIVES_THE_BOUND_WITH_A_GRANDCHILD, str(sentinel)]
+    
+        code, output, seconds = run_captured(command, BOUND_S)
+    
+        assert code is None
+        assert output == ""
+>       assert seconds < 2.0, f"a killed step should return close to its {BOUND_S}s bound, took {seconds}s"
+E       AssertionError: a killed step should return close to its 0.2s bound, took 10.036291625001468s
+E       assert 10.036291625001468 < 2.0
+
+tools/tests/functional/test_quiet_timeout.py:37: AssertionError
+___________ test_a_live_step_past_its_bound_is_killed_group_and_all ____________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-623/test_a_live_step_past_its_boun0')
+
+    def test_a_live_step_past_its_bound_is_killed_group_and_all(tmp_path: Path) -> None:
+        sentinel = tmp_path / "sentinel"
+        command = [sys.executable, "-c", _OUTLIVES_THE_BOUND_WITH_A_GRANDCHILD, str(sentinel)]
+    
+        code, seconds = run_live(command, BOUND_S)
+    
+        assert code is None
+>       assert seconds < 2.0, f"a killed step should return close to its {BOUND_S}s bound, took {seconds}s"
+E       AssertionError: a killed step should return close to its 0.2s bound, took 10.035902749979869s
+E       assert 10.035902749979869 < 2.0
+
+tools/tests/functional/test_quiet_timeout.py:49: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_timeout.py::test_a_captured_step_past_its_bound_is_killed_group_and_all
+FAILED tools/tests/functional/test_quiet_timeout.py::test_a_live_step_past_its_bound_is_killed_group_and_all
+2 failed, 1 passed in 20.13s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

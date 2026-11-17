@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T04:26:00Z'
+updated_date: '2026-11-17T16:19:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1559,6 +1559,14 @@ The chosen mechanism is well-reasoned on its own terms (the code comments trace 
 Not checked beyond this: I did not re-run the full proof table past the one control above; the recorded failing/passing pairs in the notes look legitimate and consistent with the final head (93780eae, matching the PR). I did not check doc-9 in detail beyond its reference in the task's citation list.
 
 Informational, not a finding, answering the team-lead's question about TASK-1.125: this task's stream_panes.insert(stream, pane) (connection.rs, pane.attach's Ok arm) sits right after runtime.arm_attachment's call, alongside the pre-existing pane_streams insert. If TASK-1.125 wraps arm_attachment's effect in an "if armed" branch, stream_panes's insert can safely move inside it or stay outside: Runtime::send_input already no-ops (state.panes.get(&pane) is None) for a pane with no worker, the same precondition under which arm_attachment itself no-ops, so an unarmed attachment's input is silently dropped either way - inside send_input if stream_panes still routes it, or in connection.rs's own "nothing to route to" branch if it doesn't. No test depends on which side of that branch it ends up on. For symmetry with pane_streams (which stays unconditional, since ConnectionCleanup::drop's sweep needs it regardless of arming), leaving stream_panes unconditional too is the simpler, lower-risk choice for whoever merges second.
+
+---
+
+created: 2026-11-17T16:19:00Z
+
+---
+
+Decision by @bruk (2026-11-17, relayed by @bruk.o): keep the built behaviour for size changes (a full screen at the new size per size-stale attachment; a delta never carries a size). doc-14's Size section is reworded to match (board commit db68d8f8). The review's finding is answered by departure 4 in the notes plus this spec change; no code change is asked for. Cost of full screens during a window drag is noted for TASK-1.122.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,9 +1,9 @@
 ---
-id: DRAFT-2
+id: TASK-1.124
 title: >-
   Server: a pane's program must not inherit a client's connection or the
   listener
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T01:33:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-0
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

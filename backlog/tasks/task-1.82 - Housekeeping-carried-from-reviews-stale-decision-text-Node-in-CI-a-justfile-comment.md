@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-17T01:59:00Z'
+updated_date: '2026-11-17T02:44:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -40,6 +40,12 @@ Follow-up to draft (from the independent read of TASK-1.46's merge, 2026-11-16):
 Follow-up to draft (TASK-1.49 review nit, 2026-11-16): the CLI holds a path argument as a string (crates/steg/src/cli/values.rs, params.rs) where the approved plan's table said a path type. Follow-up to draft (TASK-1.112 review nit): tests/openpty_race.rs wait_timeout_or_kill polls with a 5 ms sleep, the same pattern as tests/race.rs; TASK-1.113 bounds those waits and could replace both.
 
 Flake sightings, 2026-11-16 (names and symptoms only): steg-sdk's local_socket test failed once in a full just check by a socket path colliding under parallel tests, passed alone (seen by TASK-1.121's worker); a login_env test from TASK-1.87 failed once under load and passed on retry (seen by TASK-1.114's worker); crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane missed its bound once under load (noted on TASK-1.114, which owns it). The outbound hang is now explained on TASK-1.113: a socket pair inherited by a forked child.
+
+Follow-up to draft (TASK-1.47, 2026-11-16): the unit test attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock uses a flood of about 70 MB and measures through an unbounded lock, so its control can in principle pass by the worker catching up, or hang. The reviewer's repeat of the control did fail as recorded. Its worker has a stronger version (a flood of about 1 GB, a check before and after that the attach is still unanswered, the measurement waited on with a bounded receive). TASK-1.114 brings a socket-level test of the same property with a large flood. Replace the unit test with the stronger version in a small change.
+
+Follow-up to decide (TASK-1.117 third review, 2026-11-16): the app keeps running after its window is closed; nothing in doc-10 says whether closing the last window quits. Decide and record it with the window work in m-4.
+
+Patches kept for follow-ups, 2026-11-16, in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/follow-up-patches-2026-11-16: task-1.47-arm-returns-armed.patch (the starting point for the drafted task on a pane closing between attach and arm; applies to f91a8f27), task-1.47-stronger-lock-test.patch (a stronger version of attach's lock test; applies to f91a8f27), task-1.117-startup-stop-variant.patch (holds a test that drives a genuinely stalled connect through the real run(); applies to f8967015).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -106,6 +112,14 @@ created: 2026-11-16T15:45:00Z
 ---
 
 2026-11-16, @bruk.o: one timeout of outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails during TASK-1.86's review, while two full suites ran at once on this machine; five of five passed alone. Also noted there, to be drafted as tasks once the first window's work has slots to spare: (1) a panic in a launcher's spawn during session new, tab new or pane split skips pane::start's rollback of the half-made session (from TASK-1.76, crates/server/src/pane.rs near line 565); (2) the scoped thread spawn for a connection in listen::run panics the whole server if a thread cannot be created (from TASK-1.98's review); (3) a pane's screen freezes while its program refuses input, because the pty write blocks the pane's worker (TASK-1.114's plan); (4) the API description has no one-line summary for a noun, so steg --help lists nouns bare (TASK-1.49's review).
+
+---
+
+created: 2026-11-17T02:17:00Z
+
+---
+
+Flake sighting, 2026-11-16 (from TASK-1.114's worktree, bruk.w7): login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open failed once under just check's own heavy concurrent CPU contention (many test binaries running at once), then passed cleanly on an isolated rerun. Not touched - not this task's code, and the retry was clean.
 
 ---
 <!-- COMMENTS:END -->

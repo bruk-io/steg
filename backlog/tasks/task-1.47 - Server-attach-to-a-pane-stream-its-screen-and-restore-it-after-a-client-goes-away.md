@@ -3,15 +3,15 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Progress
+status: In Review
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:13:00Z'
+updated_date: '2026-11-17T02:36:00Z'
 labels:
   - size-5
-  - changes-requested
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.40
@@ -32,7 +32,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '9cff507ccc3f'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: no
 ---
 
@@ -2642,6 +2642,8 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Review findings fixed: (1) Important - Runtime::attach_pane held the state lock across PaneHandle::attach's own unbounded wait for the worker's reply, stalling every other request behind one busy pane's own worker. Fixed with PaneHandle::attach_sender/AttachSender: the lock covers only resolving the target and cloning the pane's own command-channel sender, released before the (now unlocked) wait. arm_attachment/detach_pane/forget_attachment checked and documented as never waiting on the worker (unbounded mpsc sends). Proof: runtime.rs's attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock - floods a pane's own worker, attaches it on a detached thread, repeatedly samples an unrelated pane.show over several seconds with a per-sample bound. Recorded failing (lock held across the wait) then passing. (2) Nit - pane.detach failed at tree-based target resolution for an already-closed pane, leaking the connection's own stream. Fixed with a fallback in connection.rs: parse the target's own pane segment directly (PaneId's FromStr) when tree resolution fails, and use it only if this connection's own pane_streams still holds that id. Proof: attach.rs's detaching_a_pane_that_already_closed_still_releases_the_stream. Recorded failing (fallback dropped) then passing. Plan departures named per the review's own plan-matched-no flags: AttachmentId (TASK-1.114's real bug, reproduced by hand since their branch and mine were not separable) and the ConnectionCleanup sweep (a real leak the plan implied through correctness but never named). Re-recorded the ordering-rule and bad-request-on-unattached-detach controls against the edited code. just check green, head f91a8f27, PR https://github.com/bruk-io/steg/pull/62, CI green.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2737,6 +2739,36 @@ Checked and found sound: the pane worker's own tick (recv() with no timeout when
 plan-matched: no - AttachmentId (crates/server/src/pane.rs:246-260) and the ConnectionCleanup attachment sweep are both real design decisions the plan's own order of work never named (found during implementation, after TASK-1.114's own worker hit the bare-stream-number bug), even though the task's notes explain both in detail.
 
 No policy cited by either finding - no earlier review was found citing the same policy for this task, so no rule-change draft was filed.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T02:23:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.47: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T02:36:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Second-pass review of TASK-1.47, scoped to the diff since the prior review's head (69680a39), four files: crates/server/src/{connection.rs,pane.rs,runtime.rs}, crates/server/tests/attach.rs. Both findings from the prior review are genuinely fixed.
+
+1. [Bugs] Runtime::attach_pane no longer holds the state lock across PaneHandle::attach's wait. Verified: attach_pane (runtime.rs:527-542) resolves the target and clones a new AttachSender (pane.rs:566-575, wrapping Sender<PaneCommand>) under the lock, releases it, then calls AttachSender::attach unlocked. arm_attachment/detach_pane/forget_attachment (runtime.rs) each only call PaneHandle::arm/detach (pane.rs:590-609), both plain unbounded mpsc sends with no reply wait, so holding the lock across them costs nothing extra - confirmed by reading their bodies directly. Repeated the test's own negative control myself: edited attach_pane to fold attach_sender.attach(stream) back inside the locked block (restoring the pre-fix shape), ran `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock`, got the same failure already recorded on the task ("an unrelated pane.show must answer within a bound ... elapsed 1.94s"); reverted with `git checkout --`, re-ran, passed; `git status --porcelain` empty afterward. The test is real, not vacuous. The unlocked wait is still itself unbounded in the pathological case of a pane worker permanently stuck in write_all (a program that never reads stdin and never exits) - that connection's own reader thread, and its ConnectionCleanup, would not run until the worker answers - but this is unchanged from the pre-fix code (PaneHandle::attach's wait was already unbounded before this round) and was already reasoned through and accepted by the prior review (#8) as bounded in the backlog-depth sense; this round only removes the global-lock side effect, which it does cleanly.
+
+2. [Nit] pane.detach's fallback for an already-closed pane (connection.rs:498-514, parse_target_pane_id; 592-623) parses the target's trailing path segment as a bare PaneId only when tree resolution already failed, and only accepts it if that exact PaneId is a key in `pane_streams` - a RefCell<HashMap<PaneId,...>> local to this one connection (connection.rs:316/422), never shared. So the fallback cannot reach another connection's attachment or an unrelated pane; it can only recover this connection's own already-recorded entry. detaching_a_pane_this_connection_never_attached_to_is_a_bad_request (attach.rs) still gets the original BadRequest/NoSuchTarget on a genuinely bad target, since that control never produces a tree error that reaches the fallback with a matching key. detaching_a_pane_that_already_closed_still_releases_the_stream is the new, matching test and I read it in full; it is a straightforward close-then-detach proof, not read as a control myself but its recorded failing/passing pair (shown on the task) matches the code (removing the fallback branch reproduces the recorded NoSuchTarget failure).
+
+Evidence: CI confirmed green independently via `gh pr checks 62` (job "check", pass, head f91a8f27). `just check` run once by me on this head, clean (format, lint, boundaries, licences, all crate tests, architecture, recipe names, ui levels/colours). Worktree left clean throughout.
+
+Not checked beyond the stated scope: the rest of the implementation (pane worker tick, back-pressure, AttachmentId, ConnectionCleanup sweep, API description/sdk types) - already reviewed and found sound in review #8, not re-reviewed here since the brief scoped this pass to the two named fixes only. plan-matched is "no" only because AttachmentId and the ConnectionCleanup sweep remain real departures from the plan's own order of work (explained in the task's notes, per review.md's Compliance pass) - unchanged from the prior round; this round's own fixes (AttachSender, the detach fallback) are direct responses to the prior review's findings, not further departures.
 
 ---
 <!-- COMMENTS:END -->

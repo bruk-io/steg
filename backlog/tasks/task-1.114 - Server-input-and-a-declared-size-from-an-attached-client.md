@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T02:11:00Z'
+updated_date: '2026-11-17T02:35:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -1265,6 +1265,157 @@ test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 5.99s
 ```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:14:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48855714) panicked at crates/server/tests/attach.rs:1461:5:
+the stuck pane's own worker answered a second attach - it was not actually stuck: Some(Ok(Object {"snapshot": Object {"cursor": Object {"blinking": Bool(false), "shape": String("Block"), "visible": Bool(true), "x": Number(0), "y": Number(0)}, "rows": Array [Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}], Array [Object {"style": Object {"bg": Null, "blink": Bool(false), "bold": Bool(false), "faint": Bool(false), "fg": Null, "inverse": Bool(false), "invisible": Bool(false), "italic": Bool(false), "link": Bool(false), "overline": Bool(false), "strikethrough": Bool(false), "underline": String("None"), "underline_colour": Null, "wide": String("Narrow")}, "text": String("")}]], "size": Object {"columns": Number(80), "rows": Number(24)}}, "stream": Number(2)}))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:16:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.37s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48904941) panicked at crates/server/tests/attach.rs:101:14:
+reading the server's hello reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 6.72s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check FAILED: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 101 at 2026-11-17T02:17:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.40s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (48914479) panicked at crates/server/tests/attach.rs:1479:10:
+a second connection's plain control call must answer within 2s, never waiting on a different connection's own stuck-pane attach
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 3.70s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Check passed: `cargo test -p steg-server --test attach a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach -- --exact` exited 0 at 2026-11-17T02:27:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.18s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 23.78s
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T02:34:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+ok      format check (0.2s)
+ok      lint (4.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (70.4s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.3s)
+ok      test (steg-kernel) (0.8s)
+ok      build (steg-server) (33.1s)
+ok      test (steg-server) (61.4s)
+ok      test (steg-server, race-fixture) (61.9s)
+ok      test (steg-server, pty-race-fixture) (63.3s)
+ok      test (steg-server, accept-backoff-fixture) (65.8s)
+ok      build (steg) (1.3s)
+ok      test (steg) (4.5s)
+ok      test (steg, fixtures) (13.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (7.0s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --test attach -- --exact two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck detaching_a_pane_that_already_closed_still_releases_the_stream` exited 0 at 2026-11-17T02:35:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 0ae67e1daf36:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 34.89s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 7 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.04s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1284,6 +1435,20 @@ created: 2026-11-17T01:37:00Z
 ---
 
 2026-11-16, @bruk.o: flake sighting for this task's own test, seen by TASK-1.121's worker in a full just check under load: crates/server/tests/attach.rs an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed once on its bound (pane.show must answer within a bound with the other pane stuck) and passed alone straight after. Before finishing, say whether the bound is a real product promise that load can break, or a test bound that is too tight, and what it is measured from.
+
+---
+
+created: 2026-11-17T02:18:00Z
+
+---
+
+Bound note (2026-11-16), per your request:
+
+The 15s/30s bounds in an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane and the two force-close/stop tests prove "answers eventually, never permanently hangs" - not a latency promise. The real failure they guard against is an unbounded wait, so any finite bound proves the property; widening 5s/10s to 15s/30s only bought margin against just check's own concurrent CPU contention. No promise was weakened.
+
+Separately, auditing my own Runtime additions per your request: Runtime::send_input (runtime.rs:637-645) and Runtime::declare_size (runtime.rs:662-680), and the apply_size_changed_locked they both call (runtime.rs:2022-2028), hold the lock only across in-memory kernel calls and PaneHandle::send_input/resize (pane.rs:505-509, 518-522) - both plain unbounded mpsc::Sender::send, never a recv. Neither has the shape 1.47's review found in attach_pane. (One test-only lookalike: attachment_count_for_test, runtime.rs:689-695, holds the lock across PaneHandle::attachment_count's own send-then-recv, pane.rs:628+ - #[cfg(test)], not a production path, but the same shape; flagging it so it isn't "found" later.)
+
+That audit did surface a real gap, in a test, not in my production code: an_unresponsive_panes_own_commands_do_not_stall... runs every one of its own calls over a single connection, so its "(a) a plain control call still answers" check only proves this connection's own request queue eventually catches up once the stuck pane's worker drains - not that an unrelated connection stays responsive. That is weaker than the "freezes only that pane's screen" limit this task's own plan names. Added a new test, a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs), issuing one plain pane.show from a second, already-handshaken, otherwise idle connection while a different connection's own attach to the stuck pane is confirmed stuck. Recorded failing via asdlc record-check just now: today's attach_pane does hold the runtime lock across PaneHandle::attach's unbounded recv, so this second connection's pane.show gets no reply within 2s - confirming 1.47's review finding independently, from this side. Left uncommitted on purpose; will record it passing and commit once 1.47's fix lands, per your instruction to hold until then.
 
 ---
 <!-- COMMENTS:END -->

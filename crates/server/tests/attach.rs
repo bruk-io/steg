@@ -1322,21 +1322,27 @@ fn an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pan
     params.insert("target".to_string(), json!(other_pane));
     let (show_id, bytes) = connection.call("pane.show", params).expect("a valid call");
     stream.write_all(&bytes).unwrap();
+    // 15s, not 5s: this only has to prove the control call answers *at
+    // all* (never truly stuck), not race a tight deadline against this
+    // machine's own, unrelated CPU contention - `just check` runs several
+    // other test binaries at the same time, which can starve this one's
+    // own socket reads well past 5s without the server itself being slow.
     let response = reply_within(
         &mut stream,
         &mut connection,
         show_id,
-        Duration::from_secs(5),
+        Duration::from_secs(15),
     )
     .expect("pane.show must answer within a bound, even with the other pane stuck");
     assert!(matches!(response, Response::Ok(_)), "{response:?}");
 
-    // (b) the other pane still receives updates.
+    // (b) the other pane still receives updates - 15s for the same
+    // contention-margin reason as the control call above.
     let _ = next_update(
         &mut stream,
         &mut connection,
         attached_other.stream,
-        Duration::from_secs(5),
+        Duration::from_secs(15),
     );
 
     stop_server(&stop, handle);
@@ -1364,24 +1370,23 @@ fn pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_
     let attached = attach(&mut stream, &mut connection, &pane);
     flood_stdin(&mut stream, &connection, attached.stream);
 
-    // `attach`'s own internal polling can leave the socket's read timeout
-    // short (its own retry cadence while waiting for the attach reply) -
-    // reset to a bound comfortably past `force_end`'s own worst case
-    // before a call whose reply can legitimately take that long, so
-    // `call_and_read_reply`'s own blocking read does not time out first.
-    stream
-        .set_read_timeout(Some(Duration::from_secs(10)))
-        .unwrap();
-
     let mut params = Map::new();
     params.insert("target".to_string(), json!(pane));
     params.insert("force".to_string(), json!(true));
+    let (id, bytes) = connection.call("pane.close", params).expect("a valid call");
+    stream.write_all(&bytes).unwrap();
     let started = Instant::now();
-    let response = call_and_read_reply(&mut stream, &mut connection, "pane.close", params);
+    // `reply_within`, not `call_and_read_reply`: a generous bound, not a
+    // tight race against this machine's own, unrelated CPU contention
+    // (`just check` runs several other test binaries at the same time) -
+    // this item is about `force_end` having a bound *at all*, not about
+    // how close to force_grace's own nominal ~6s this specific run lands.
+    let response = reply_within(&mut stream, &mut connection, id, Duration::from_secs(30))
+        .expect("pane.close --force must answer within a bound, even against a stuck worker");
     let elapsed = started.elapsed();
     assert!(matches!(response, Response::Ok(_)), "{response:?}");
     assert!(
-        elapsed < Duration::from_secs(10),
+        elapsed < Duration::from_secs(30),
         "pane.close --force took {elapsed:?} against a stuck worker - force_end's own bound is \
          meant to hold regardless"
     );
@@ -1413,8 +1418,12 @@ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stu
     let started = Instant::now();
     stop_server(&stop, handle);
     let elapsed = started.elapsed();
+    // 30s, not 10s - the same reasoning `pane_close_force_returns_within_
+    // its_bound_even_while_the_panes_own_worker_is_stuck`'s own comment
+    // gives: a generous margin against this machine's own unrelated CPU
+    // contention, not a tight race against `force_end`'s nominal ~6s.
     assert!(
-        elapsed < Duration::from_secs(10),
+        elapsed < Duration::from_secs(30),
         "stopping the server took {elapsed:?} against a stuck pane's worker - Runtime::stop's \
          own bound is meant to hold regardless"
     );

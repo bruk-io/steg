@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:29:00Z'
+updated_date: '2026-11-17T00:33:00Z'
 labels:
   - size-2
   - changes-requested
@@ -677,6 +677,46 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --lib pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source` exited 101 at 2026-11-17T00:33:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112/crates/server)
+warning: struct `OpenExhausted` is never constructed
+   --> crates/server/src/pty.rs:190:8
+    |
+190 | struct OpenExhausted {
+    |        ^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source ... FAILED
+
+failures:
+
+---- pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source stdout ----
+
+thread 'pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source' (46368026) panicked at crates/server/src/pty.rs:434:9:
+assertion `left == right` failed: the last underlying error must be the real cause itself, not a formatted message anywhere in the chain - that would mean the cause was turned into a string
+  left: "failed to openpty after 3 attempt(s): synthetic cause"
+ right: "synthetic cause"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 
 Commits since the review: 62, 55 without the Asdlc-Worker trailer.

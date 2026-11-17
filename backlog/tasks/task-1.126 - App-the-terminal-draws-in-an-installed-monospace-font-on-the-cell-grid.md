@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T19:00:00Z'
+updated_date: '2026-11-17T19:01:00Z'
 labels:
   - size-2
   - changes-requested
@@ -789,6 +789,23 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app a_run_whose_glyphs_are_all_on_grid_is_safe` exited 0 at 2026-11-17T19:01:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 67c972b3a769:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::a_run_whose_glyphs_are_all_on_grid_is_safe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 32 filtered out; finished in 0.00s
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

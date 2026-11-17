@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T16:50:00Z'
+updated_date: '2026-11-17T18:29:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -267,6 +267,36 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `cargo test -p steg-app the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list` exited 101 at 2026-11-17T18:29:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.126 on task-1.126-app-the-terminal-draws-in-an-installed at 2bf5d974438e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test metrics::tests::the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list ... FAILED
+
+failures:
+
+---- metrics::tests::the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list stdout ----
+
+thread 'metrics::tests::the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list' (53455632) panicked at crates/app/src/metrics.rs:141:9:
+assertion `left == right` failed
+  left: "JetBrains Mono"
+ right: "Menlo"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    metrics::tests::the_first_installed_candidate_is_chosen_even_when_it_is_not_first_in_the_list
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 <!-- SECTION:NOTES:END -->
 

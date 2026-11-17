@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2106,6 +2107,15 @@ created: 2026-11-17T16:19:00Z
 ---
 
 Decision by @bruk (2026-11-17, relayed by @bruk.o): keep the built behaviour for size changes (a full screen at the new size per size-stale attachment; a delta never carries a size). doc-14's Size section is reworded to match (board commit db68d8f8). The review's finding is answered by departure 4 in the notes plus this spec change; no code change is asked for. Cost of full screens during a window drag is noted for TASK-1.122.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T18:28:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

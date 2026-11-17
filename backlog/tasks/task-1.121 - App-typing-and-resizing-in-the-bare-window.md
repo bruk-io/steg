@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T22:57:00Z'
+updated_date: '2026-11-17T22:58:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -22,6 +22,8 @@ asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1701,6 +1703,15 @@ HOME did not: steg server start's own real path (not the test fixture path) reso
 What this means for "nothing personal on screen": held, but not because of the throwaway HOME - it held because the prompt theme itself shows no path, hostname or username (just a generic arrow and a bare tilde), and because every command I typed into it was a generic demo (echo/stty), never anything that would surface a real path or other real content. I did not use, read, or write to the engineer's own session or socket at any point - that part of the isolation was real.
 
 Separately: PR 71 is green on 2c127d4f, controls and just check already recorded against this exact head (clean tree, confirmed above), the three files in pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov) are described in the PR body as checked by the orchestrator and awaiting the engineer's own upload. Calling asdlc finish now.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T22:58:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

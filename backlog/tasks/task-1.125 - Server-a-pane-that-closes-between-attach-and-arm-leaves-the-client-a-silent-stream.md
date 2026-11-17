@@ -149,6 +149,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 191 filtered out
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 0 at 2026-11-17T03:58:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 702b3f8be73d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.08s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

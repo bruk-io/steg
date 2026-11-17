@@ -1,16 +1,19 @@
 ---
 id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T18:41:00Z'
+updated_date: '2026-11-17T18:42:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.117
+references:
+  - task-1.126-app-the-terminal-draws-in-an-installed
+  - https://github.com/bruk-io/steg/pull/70
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -393,6 +396,22 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Root cause, confirmed by reading gpui 0.2.2's own source (text_system.rs), not guessed: TextSystem::resolve_font tries the requested family, then gpui's own hardcoded fallback stack - never a Font's own fallbacks field, which only substitutes a missing glyph in an already-resolved family. Asking for "JetBrains Mono" when it isn't installed falls through to Helvetica, a proportional font - the measured cell width then drifts from every glyph actually painted.
+
+Fix: CellMetrics resolves the first of FONT_TERMINAL that TextSystem::all_font_names() reports installed, once, and carries that family alongside cell_width/line_height; terminal_element.rs reads it from there instead of re-deriving it independently (the same bug class, reintroduced at the next font change, if left as two sources of truth).
+
+Per-cell placement (AC#3): every run is shaped once, then every glyph it produced is checked (ShapedLine derefs to LineLayout, exposing each glyph's own position and byte index) against the column its own grapheme owns. If all match - the common case, ASCII in a genuinely monospace font - it's painted as one line. If not, it's re-shaped and painted one grapheme at a time, each at its own explicit column origin, so a glyph that isn't exactly one cell wide can never move what follows it - the invariant holds unconditionally, the fast path is a guarded optimisation, not a quiet exception. cell_origin is the one shared placement function, kept clean of painting, for TASK-1.127's own cursor fade to build on.
+
+Tests, no window: resolve_family and cell_origin each have a recorded failing-then-passing control, re-recorded cleanly against the committed head (2bf5d974) with no uncommitted changes. every_glyph_sits_on_its_own_column has no unit test - checked both routes and found them closed: gpui's TestAppContext needs its own test-support feature (new dependencies, a new licence surface), and ShapedGlyph's own GlyphId has a crate-private inner field, blocking a hand-built fake regardless. Verified instead by the live run and the PR's own images.
+
+Column 0/row 0: not clipped - verified in code, not just by eye: nothing paints before bounds.origin. The "shaved" look in the engineer's own screenshot is the complete absence of the design's own inset (16px horizontal, 14px vertical - found directly in design/canvas/project/Details.dc.html's own terminal-theme swatches, since I have no Artifact tool to read the live design), not truncation - named precisely in the task's notes for whoever exports it; this task does not apply it itself (R120).
+
+Images (AC#4): both checked (nothing personal on screen), held by the orchestrator at /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/pr-images/ for the engineer to attach directly - neither I nor the orchestrator has a signed-in browser session. A seventy-character line with the cursor after it (not eighty - the pane's pty is fixed at eighty columns until TASK-1.121's resize work, and exactly eighty characters is the standard deferred-wrap case, cursor stuck on the last column, not a placement bug - confirmed via a ten-character control showing no drift; column eighty itself is cell_origin's own proof). A four-column listing with a neutral prompt (PROMPT='%# ', no rc files - the first attempt's default zsh prompt carried this machine's hostname and could not go on a public PR).
+
+Corrections to standing assumptions, found while building: $HOME does not affect font resolution on this machine (CoreText's own font enumeration, core_text::font_collection::create_for_all_families(), is session-scoped, not per-process) - both images resolved to JetBrains Mono regardless of a throwaway HOME.
+
+Checks: cargo test -p steg-app (30 tests) and just check both recorded clean at 2bf5d974, with no uncommitted changes. CI green on PR 70. Live run (draws, stays connected fifteen seconds idle, close and relaunch re-attaches) done specifically on 2bf5d974, reported on the task; ps confirmed clean throughout, the engineer's own task-1.121 instances never touched.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

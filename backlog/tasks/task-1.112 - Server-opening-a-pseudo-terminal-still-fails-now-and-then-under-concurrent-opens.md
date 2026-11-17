@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:33:00Z'
+updated_date: '2026-11-17T00:36:00Z'
 labels:
   - size-2
   - changes-requested
@@ -732,6 +732,43 @@ running 1 test
 test pty::tests::exhausted_error_reports_the_attempt_count_and_keeps_the_real_cause_as_its_source ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 0.00s
+```
+
+Commits since the review: 62, 55 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T00:36:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.112 on task-1.112-server-opening-a-pseudo-terminal-still at 38e596bd3cbe with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (54.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.7s)
+ok      test (steg-server) (25.8s)
+ok      test (steg-server, race-fixture) (27.2s)
+ok      test (steg-server, pty-race-fixture) (31.9s)
+ok      test (steg-server, accept-backoff-fixture) (27.2s)
+ok      build (steg) (0.4s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (7.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 
 Commits since the review: 62, 55 without the Asdlc-Worker trailer.

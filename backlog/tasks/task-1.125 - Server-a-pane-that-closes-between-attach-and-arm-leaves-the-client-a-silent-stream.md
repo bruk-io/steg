@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:13:00Z'
+updated_date: '2026-11-17T05:00:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -23,8 +24,9 @@ asdlc_branch: task-1.125-server-a-pane-that-closes-between-attach
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b734cfaf5683'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -204,6 +206,132 @@ ok      ui colours (0.1s)
 ```
 
 AC #1 and #2: Runtime::arm_attachment now returns bool (false once the pane is already gone from state.panes); connection.rs's pane.attach success arm checks it, closing both sides of the stream and recording nothing in pane_streams when false, so a later pane.detach answers as never-attached. Proof: arm_attachment_answers_false_once_the_pane_has_already_closed, recorded failing (control: report armed unconditionally) then passing. Taken from the durable patch task-1.47-arm-returns-armed.patch. AC #3: honest account, not built. No implemented method on this worktree's main can create sustained backpressure on a pane's own worker from a socket-level test (pane.send is still NotImplementedYet; confirmed directly). PR #66 (TASK-1.114) had not merged by the time everything else here was done and green, so per the plan I did not wait on it. The two-connection socket test to add once it lands is named in the plan and the PR description. The stronger lock-contention test from TASK-1.47 (not driven by this task's own criteria, approved by the engineer as a separate, named addition) is carried here as its own commit, recorded failing (control: hold the lock across the wait) then passing. just check green. Expected conflict with TASK-1.114's own branch in connection.rs's pane.attach arm is named in the plan; not yet hit since PR #66 has not merged - if it merges after this one, their stream_panes.insert(stream, pane) belongs inside the if armed branch this change adds.
+
+Check FAILED: `cargo test -p steg-server --lib finish_attach_with_armed_false_closes_both_sides_and_records_nothing` exited 101 at 2026-11-17T04:35:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at cfa9f41ab0c9 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing ... FAILED
+
+failures:
+
+---- connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing stdout ----
+
+thread 'connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing' (50713234) panicked at crates/server/src/connection.rs:1054:9:
+an unarmed attach must record nothing in pane_streams: {PaneId(2): (AttachmentId(0), 1)}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib finish_attach_with_armed_false_closes_both_sides_and_records_nothing` exited 0 at 2026-11-17T04:35:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at cfa9f41ab0c9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test connection::tests::finish_attach_with_armed_false_closes_both_sides_and_records_nothing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.01s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 101 at 2026-11-17T04:36:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at cfa9f41ab0c9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... FAILED
+
+failures:
+
+---- runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock stdout ----
+
+thread 'runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock' (50724778) panicked at crates/server/src/runtime.rs:2887:17:
+an unrelated pane.show must answer within a bound even while a different pane's own attach is stuck on its worker
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 193 filtered out; finished in 2.10s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 0 at 2026-11-17T04:37:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at cfa9f41ab0c9 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.79s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 0.08s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T04:44:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 89049cabf8e6:
+
+```text
+ok      format check (0.3s)
+ok      lint (32.0s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (58.1s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.9s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (0.9s)
+ok      test (steg-server) (25.9s)
+ok      test (steg-server, race-fixture) (27.7s)
+ok      test (steg-server, pty-race-fixture) (34.2s)
+ok      test (steg-server, accept-backoff-fixture) (28.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (9.3s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (4.8s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (12.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 23, 22 without the Asdlc-Worker trailer.
+
+Review findings fixed. (1) Important: finish_attach extracted from connection.rs's pane.attach arm (same code, no behaviour change) so a unit test can run the if armed {..} else {..} branch directly - finish_attach_with_armed_false_closes_both_sides_and_records_nothing checks every part of criterion 1 (pane_streams empty, outbound refuses, this connection's own decode side answers UnknownStream not Data, a real pane.detach through handle_request answers BadRequest) and finish_attach_with_armed_true_records_the_attachment_as_today is the armed baseline. Recorded failing (control: the false branch records as if armed anyway) then passing. (2) Nit: removed the vacuous done_rx check right after spawning in the lock-contention test (could pass before that thread even started); the check after the real wait, which is the one that matters, is unchanged. Re-recorded that test's own control against the edit. The ~1GB flood stays, as asked, with the reason (TASK-1.114's own worker found a tenth of that size let the worker catch up before the real check ran) stated in the test's own comment. PR 66 (TASK-1.114) was still open when everything else here was done and green - checked again right before finishing - so AC #3's honest account stands unchanged from the first round; did not wait on it. just check green. Head ef7357c9.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -224,6 +352,59 @@ created: 2026-11-17T04:13:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T04:26:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Compliance, Important] crates/server/src/connection.rs:582-601 - AC #1 claims the client's stream closes and the connection keeps no record, and that a later pane.detach then answers as for a pane never attached. No test, in this diff or pre-existing, ever executes this `if armed {...} else {...}` branch: `arm_attachment_answers_false_once_the_pane_has_already_closed` (runtime.rs) proves only that `Runtime::arm_attachment` returns false - it calls that method directly, never `handle_request`, so it never reaches `pane_streams`, `outbound.close_stream`, `connection.close_stream`, or the `pane.detach` arm this criterion is actually about. The notes assert AC #1 is covered by this one test ("so a later pane.detach answers correctly") - an inference from reading the code, not a recorded run. Per review.md's clause-by-clause rule, a clause with nothing behind it is unmet whatever the summary says. I could not find a way to build this test that does not face the exact same obstacle AC #3's own honest account names (no implemented method widens the attach-to-arm window from outside `handle_request`'s own two back-to-back calls without a busy worker), but the plan never says this, and treats AC #1 as already delivered rather than flagging the same gap it gave AC #3. The real proof is the same deferred two-connection test AC #3 names for once `pane.send` lands; until then this is an honest account still owed, not a delivered criterion.
+
+[Bugs, Nit] crates/server/src/runtime.rs:2810 - the lock-contention test's flood is 15 live 70 MB chunks (~1 GB) queued in the worker's own mpsc channel at once. It ran in 0.10s in this repeat and `just check`'s own recorded run shows steg-server's tests finishing in 25.2s, so it is not slow, but it is a lot of simultaneous memory for a unit test, more so under `cargo test`'s default parallelism; worth a comment on why 70 MB/15 was chosen over something smaller, or bounding it if CI ever gets memory-constrained.
+
+[Bugs, Nit] crates/server/src/runtime.rs:2862 - the first `done_rx.try_recv().is_err()` assertion runs immediately after `thread::spawn`, before the spawned attach has necessarily even started, so it can pass vacuously on a slow scheduler without the flood having proven anything yet; only the second check at line 2894 (after the real `pane.show` wait) actually establishes the attach was still stuck throughout.
+
+Checked and found sound, not findings: the false-arm branch correctly leaves nothing in `pane_streams` and closes both `outbound`/`connection` stream sides before any frame can be queued (verified `Outbound`/`Connection` `open_stream`/`close_stream` are local bookkeeping only, idempotent, no wire frame); `arm_attachment`'s `state.panes.get` check and `handle.arm(...).is_ok()` both correctly return false whether the pane's handle is already removed from the map or its worker's receiver has already dropped; the pane worker's own inert attachment record is bounded by the worker's own shutdown, which `close_and_dispatch`/`force_end`/`join_worker` already guarantees for a request-driven close (the path this task's own test and race use); `Tree::close_pane` already drops the pane from every client's attachment/viewing data (TASK-1.42) independent of this race, so the false-arm path leaves no stale view claim. Repeated myself: reverted `arm_attachment` to report armed unconditionally - `arm_attachment_answers_false_once_the_pane_has_already_closed` failed as expected, reverted, tree clean; reverted `attach_pane` to hold its lock across the wait - the lock-contention test failed by its 2s bound in 2.08s, not by hanging, reverted, tree clean. `just check` was recorded passing at 16eb3fcd79df; the merge to cfa9f41a (this PR's head) only touched `backlog/*.md` files, confirmed by diff --stat, so that run is not stale. Did not check: whether the kernel's close-pane cascade or `force_end`'s join bound could themselves ever leave a worker thread outliving its removal from `state.panes` on a path other than the request-driven close this task's own race uses (the implementation notes already name this as a separate, larger, pre-existing gap out of this task's scope); did not re-run the full `just check` myself.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T04:53:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T05:00:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second-round review of the Nov-17 fix, scoped to the diff since cfa9f41a (crates/server/src/connection.rs, runtime.rs), at head ef7357c9 (PR #68, CI green).
+
+Both findings from the prior review are genuinely fixed, verified independently rather than taken on the worker's word:
+
+1. Important (criterion 1, no test executed the if armed{..}else{..} branch): finish_attach is now a standalone function, extracted verbatim from the pane.attach arm in handle_request (diffed the before/after bodies line by line - identical logic, same argument values, same call order; no behaviour change). Two new tests exercise both branches directly. For the armed=false branch (finish_attach_with_armed_false_closes_both_sides_and_records_nothing): reproduced the worker's own control myself (patched finish_attach to always insert into pane_streams, i.e. "record as if armed") - the test failed, as recorded. Then went further than the brief's control to rule out a vacuous detach assertion: with the same "always record" patch applied AND the first assert (pane_streams empty) disabled so execution reaches the pane.detach call, the detach answered Ok(Null) (success) rather than BadRequest - proof the BadRequest assertion is actually keyed to pane_streams state, not to some independent target-resolution failure. Reverted both edits; git status clean both times.
+
+2. Nit (vacuous done_rx check right after thread::spawn in the lock-contention test): removed; the real check after the wait (line 2894) is unchanged and still present. The task's own recorded check pair for that test (04:36:45 FAILED / 04:37:03 passed, both at cfa9f41a-with-uncommitted-changes) fails at the real assertion (line 2887, the timeout-bound one), confirming the control was run against the edited test body, not the removed vacuous one.
+
+Ran the full steg-server lib suite myself at this head: 194 passed, 0 failed. CI on PR #68 is green (head ef7357c9). diff --stat cfa9f41a..ef7357c9 -- crates touches only connection.rs and runtime.rs, confirming the merge commit brought in no other crate changes and the recorded check pairs (taken at cfa9f41a with uncommitted changes, before the final commit) are not stale.
+
+What I did not check: the junction itself - that handle_request's pane.attach arm passes arm_attachment's literal return value into finish_attach with no transformation - is verified only by reading the diff, not by a test that forces the live race end-to-end through handle_request (AC #1's criterion is met by composition: AC #2's runtime-level test proves arm_attachment answers false in that state, this round's test proves finish_attach handles false correctly, and the glue is a trivial, inspectable pass-through). Did not independently re-verify whether the recorded check pair for the carried TASK-1.47 lock-test patch (not driven by this task's own criteria) was taken against the exact uncommitted tree state claimed - unresolvable from the board, and not one of this task's three criteria. AC #3 remains an honest "not built" (no implemented method creates socket-level backpressure until TASK-1.114's pane.send lands); unchanged from the first round and not in this round's scope. Did not re-run just check myself (relied on the task's own recorded green run plus CI).
+
+No findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

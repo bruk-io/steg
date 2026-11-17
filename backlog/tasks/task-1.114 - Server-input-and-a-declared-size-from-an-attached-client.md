@@ -1,16 +1,19 @@
 ---
 id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T03:46:00Z'
+updated_date: '2026-11-17T04:14:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.47
+references:
+  - task-1.114-server-input-and-a-declared-size-from-an
+  - https://github.com/bruk-io/steg/pull/66
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -1470,6 +1473,18 @@ test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held
 
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 26.74s
 ```
+
+Built: AC #1 (input reaches the real program and makes the sender R91's latest, clearing a Finished/Failed status), AC #2 (tab.declare-size, carried only on Screen.size, never on ScreenUpdate::Delta), AC #3 (two clients, release, and the survivor's own declared size), and R101's sdk surface (Connection::declare_size). Every proof item has a test with a named negative control, recorded failing then passing via asdlc record-check.
+
+Checks: just check green (recorded). gh pr checks 66 green on 93780eae and again on the final head 93780eae after merging main (CI run itself took ~12-13 minutes each time - slow, not hung).
+
+Departures/decisions, with reasons:
+
+1. Widened bound (5s/10s to 15s/30s) in an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane and the two force-close/stop bound tests: these prove "answers eventually, never permanently hangs," not a latency promise. Any finite bound proves that against the real failure (an unbounded wait); the widening only bought margin against just check's own concurrent CPU contention, no promise weakened.
+
+2. Added a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs): auditing my own Runtime::send_input/declare_size for TASK-1.47's review finding (attach_pane holding the runtime lock across an unbounded worker wait) confirmed neither has that shape, but surfaced a gap in the existing test instead - it runs every call over one connection, so it only proved that connection's own request queue eventually catches up, not that an unrelated connection stays responsive. The new test proves the real property with a second, pre-handshaken, otherwise idle connection. Recorded failing against pre-fix attach_pane, then passing after merging TASK-1.47's fix - both recorded via asdlc record-check.
+
+3. Accepted limit, unchanged from the approved plan but now proven at the point team-lead asked about: a pane whose program refuses to read input freezes only that pane's own screen and delays an attach to that one pane - proven not to freeze the server or any other connection's plain control calls, by the test in (2) above and by an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane's own (a)/(b) checks.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

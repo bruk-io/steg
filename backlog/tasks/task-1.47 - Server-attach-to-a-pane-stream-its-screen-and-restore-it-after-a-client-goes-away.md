@@ -2132,6 +2132,44 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; fini
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_this_connection_never_attached_to_is_a_bad_request` exited 101 at 2026-11-17T00:27:50+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: unused import: `bad_request`
+  --> crates/server/src/connection.rs:23:32
+   |
+23 | use crate::dispatch::{Context, bad_request, resolve_api_call};
+   |                                ^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... FAILED
+
+failures:
+
+---- detaching_a_pane_this_connection_never_attached_to_is_a_bad_request stdout ----
+
+thread 'detaching_a_pane_this_connection_never_attached_to_is_a_bad_request' (46142468) panicked at crates/server/tests/attach.rs:501:28:
+detaching a pane never attached to must not succeed
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_this_connection_never_attached_to_is_a_bad_request
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

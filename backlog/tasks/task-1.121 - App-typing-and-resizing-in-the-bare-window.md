@@ -907,4 +907,12 @@ Model (crates/app/src/model.rs) departs from the plan's section 4 as written, be
 just check: exit 0 after the merge and this fix.
 
 ---
+
+created: 2026-11-17T01:12:00Z
+
+---
+
+The just check recorded above (exit 101, race-fixture) was stopped by the team lead: it hung in steg-server's own outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails, the known intermittent hang recorded on TASK-1.113, not this task's own code. Re-running now.
+
+---
 <!-- COMMENTS:END -->

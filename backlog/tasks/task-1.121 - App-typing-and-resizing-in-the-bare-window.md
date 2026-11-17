@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:40:00Z'
+updated_date: '2026-11-17T23:41:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1978,6 +1978,36 @@ running 1 test
 test client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app cmd_v_with_another_modifier` exited 101 at 2026-11-17T23:41:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke ... FAILED
+
+failures:
+
+---- paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke stdout ----
+
+thread 'paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke' (54982418) panicked at crates/app/src/main.rs:398:13:
+assertion failed: !is_paste_keystroke(&keystroke("v", modifiers))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

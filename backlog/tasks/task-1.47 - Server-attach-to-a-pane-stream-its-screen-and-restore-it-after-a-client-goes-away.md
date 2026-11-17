@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:44:00Z'
+updated_date: '2026-11-17T01:05:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2382,6 +2382,43 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 300, 276 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T01:05:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 93e4694b8aff:
+
+```text
+ok      format check (0.2s)
+ok      lint (32.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (63.2s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (2.8s)
+ok      test (steg-sdk, local-socket) (3.7s)
+ok      build (steg-kernel) (1.0s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (1.0s)
+ok      test (steg-server) (29.1s)
+ok      test (steg-server, race-fixture) (30.6s)
+ok      test (steg-server, pty-race-fixture) (37.4s)
+ok      test (steg-server, accept-backoff-fixture) (32.1s)
+ok      build (steg) (1.9s)
+ok      test (steg) (4.7s)
+ok      test (steg, fixtures) (14.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.1s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 319, 288 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

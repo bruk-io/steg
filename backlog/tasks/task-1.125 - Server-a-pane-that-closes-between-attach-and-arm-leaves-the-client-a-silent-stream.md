@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T03:51:00Z'
+updated_date: '2026-11-17T03:55:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -82,6 +82,33 @@ I am not picking one now because it depends on timing outside this task's own co
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's criteria and decision-2 by @bruk.o (plan b734cfaf5683): the plan does what it says, but it shows the task as accepted does not fix what the client sees. The wire has no way to tell a client its stream has ended: a stream's control frames carry screen updates and nothing else. So after this fix the server's own records are right and a later pane.detach answers correctly, but a client that was told it is attached still hears nothing. The plan also found the same silence in the ordinary case: a pane whose program ends while a client is attached and armed sends nothing on the stream; only tree events report it. Put to the engineer: either approve this as the small server-side tidy it is and draft the real fix separately (an update that says the pane has ended, sent to every attachment, which the window needs for a program that has ended, TASK-1.61), or widen this task to that.
+
+Check FAILED: `cargo test -p steg-server --lib arm_attachment_answers_false_once_the_pane_has_already_closed` exited 101 at 2026-11-17T03:55:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at d41ba8a5d63d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed ... FAILED
+
+failures:
+
+---- runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed stdout ----
+
+thread 'runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed' (50117161) panicked at crates/server/src/runtime.rs:2956:9:
+arm_attachment must answer false once the pane it was meant for has already closed, not arm a worker that no longer has anywhere to send anything
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

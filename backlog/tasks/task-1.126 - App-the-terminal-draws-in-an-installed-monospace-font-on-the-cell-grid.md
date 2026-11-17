@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T21:18:00Z'
+updated_date: '2026-11-17T21:19:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1055,6 +1056,15 @@ true of the fix, not merely claimed.
 
 All five controls (resolve_family, cell_origin, and the three new tests) re-recorded
 cleanly against 67c972b3 with no uncommitted changes, alongside the full just check.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T21:19:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.126: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

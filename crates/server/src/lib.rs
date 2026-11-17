@@ -34,6 +34,8 @@ mod program_param;
 mod pty;
 mod runtime;
 mod signal;
+#[cfg(test)]
+mod test_support;
 
 pub use arbiter::{Arbitration, Reason as ArbitrationReason, ServerHandle, attempt};
 pub use config::{

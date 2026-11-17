@@ -5,12 +5,16 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T02:35:00Z'
+updated_date: '2026-11-17T16:19:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.47
+references:
+  - task-1.114-server-input-and-a-declared-size-from-an
+  - https://github.com/bruk-io/steg/pull/66
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
@@ -18,6 +22,10 @@ asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ec385ef4d563'
 asdlc_plan_approved_size: size-3
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1416,6 +1424,80 @@ test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_i
 
 test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 3.04s
 ```
+
+Check passed: `just check` exited 0 at 2026-11-17T03:45:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (61.5s)
+ok      build (steg-sdk) (0.4s)
+ok      test (steg-sdk) (1.6s)
+ok      test (steg-sdk, local-socket) (1.9s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (1.6s)
+ok      build (steg-server) (32.6s)
+ok      test (steg-server) (67.4s)
+ok      test (steg-server, race-fixture) (60.5s)
+ok      test (steg-server, pty-race-fixture) (69.4s)
+ok      test (steg-server, accept-backoff-fixture) (72.7s)
+ok      build (steg) (0.2s)
+ok      test (steg) (2.8s)
+ok      test (steg, fixtures) (8.0s)
+ok      build (steg-ui) (0.5s)
+ok      test (steg-ui) (10.9s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.6s)
+ok      tool tests (12.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `cargo test -p steg-server --test attach -- --exact a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other detaching_a_pane_that_already_closed_still_releases_the_stream an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane` exited 0 at 2026-11-17T03:46:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 93780eae87e1:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.45s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 4 tests
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 26.74s
+```
+
+Built: AC #1 (input reaches the real program and makes the sender R91's latest, clearing a Finished/Failed status), AC #2 (tab.declare-size, carried only on Screen.size, never on ScreenUpdate::Delta), AC #3 (two clients, release, and the survivor's own declared size), and R101's sdk surface (Connection::declare_size). Every proof item has a test with a named negative control, recorded failing then passing via asdlc record-check.
+
+Checks: just check green (recorded). gh pr checks 66 green on 93780eae and again on the final head 93780eae after merging main (CI run itself took ~12-13 minutes each time - slow, not hung).
+
+Departures/decisions, with reasons:
+
+1. Widened bound (5s/10s to 15s/30s) in an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane and the two force-close/stop bound tests: these prove "answers eventually, never permanently hangs," not a latency promise. Any finite bound proves that against the real failure (an unbounded wait); the widening only bought margin against just check's own concurrent CPU contention, no promise weakened.
+
+2. Added a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs): auditing my own Runtime::send_input/declare_size for TASK-1.47's review finding (attach_pane holding the runtime lock across an unbounded worker wait) confirmed neither has that shape, but surfaced a gap in the existing test instead - it runs every call over one connection, so it only proved that connection's own request queue eventually catches up, not that an unrelated connection stays responsive. The new test proves the real property with a second, pre-handshaken, otherwise idle connection. Recorded failing against pre-fix attach_pane, then passing after merging TASK-1.47's fix - both recorded via asdlc record-check.
+
+3. Accepted limit, unchanged from the approved plan but now proven at the point team-lead asked about: a pane whose program refuses to read input freezes only that pane's own screen and delays an attach to that one pane - proven not to freeze the server or any other connection's plain control calls, by the test in (2) above and by an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane's own (a)/(b) checks.
+
+4. Size-on-Delta departure from the approved plan and from doc-14 (review finding, bruk.r2, 2026-11-17): the plan's section 2, quoting doc-14 verbatim, specifies ScreenUpdate::Delta gaining an optional `size: Option<Size>`, with a resize never promoted to a full screen (that promotion reserved for back-pressure/!is_current). What was actually built instead: `Screen` gained a `size` field (Delta never carries one), and `pane.rs` added a per-attachment `Attachment::last_told_size`; any attachment whose `last_told_size` differs from the terminal's current size gets a fresh, independent `Full` on its next tick, even when there is no content change at all.
+
+The race the planned design would have had, specifically: a single pane-wide "size changed" flag, set once when a resize happens and cleared by whichever tick/attachment consumes it first. Order: client A is already attached and armed; client B calls `pane.attach` for the same pane, declares a size that changes the tab's current size as a side effect (R91's "latest" rule), and is about to call `pane.attach-arm` next, but has not yet sent it. Before B's own arm command reaches the pane worker, the pane's next tick runs, sees the pane-wide flag set, and delivers the size-changed Delta to A (the only armed attachment at that moment) - and clears the flag. When B's arm now lands, the flag is already clear, so B's own attachment is never told the size at all: B's own Screen is stale from the moment it attaches until some unrelated future content change happens to also need a Full (which may be never, if the program then goes idle). The per-attachment `last_told_size` design avoids this because staleness is tracked separately for every attachment, not spent globally by whichever one gets there first - this is exactly what `two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other` and the new unit test `a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` (pane.rs) prove, though neither names the planned design's race directly - that is corrected here, in the notes, for the first time.
+
+Cost on the wire compared with the planned form: the planned Delta+Option<size> would have added a handful of bytes to an already-outgoing Delta only on the tick a resize actually happened - the marginal cost of one Size (two u16s) plus its JSON key, well under 50 bytes regardless of screen size. What ships instead sends every size-stale attachment a full, independent `ScreenUpdate::Full { screen, seq }` - the whole grid's rows, not a diff - on the first tick after that attachment's own size goes stale, once per attachment, not once per pane. Rough JSON-encoded size, per full screen (every cell carries a style object today - doc-14's own `Row`/cell shape, not something this task changed): an 80x24 screen is 1,920 cells; a 200x60 screen is 12,000 cells. At roughly 150-250 bytes of JSON per populated cell's `{style: {...}, text: ...}` entry (less for blank cells, which still carry the full style object), that is very roughly 300KB-500KB for 80x24 and 2MB-3MB for 200x60 per size-stale attachment, once - not per keystroke, but a real spike compared to tens of bytes.
+
+What a window drag does with it, given TASK-1.121 declares a size on each cell boundary crossed: every one of those declarations is a separate `tab.declare-size` call: if it changes the tab's current size (R91 latest-client rules), it marks every attachment viewing that tab stale (`last_told_size` differs), and each such attachment gets a full, independent `Full` screen on its own next tick - not just the dragging client's own attachment, but every other client currently viewing the same tab, once per boundary crossed. A drag that crosses many cell boundaries (which an unthrottled resize stream easily does) sends one full-screen's worth of JSON to every viewer of that tab, once per boundary crossed, for the duration of the drag - the MB-scale cost above, repeated at drag speed, not the few bytes the planned Delta+size form would have cost on the same drag.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1449,6 +1531,42 @@ The 15s/30s bounds in an_unresponsive_panes_own_commands_do_not_stall_the_connec
 Separately, auditing my own Runtime additions per your request: Runtime::send_input (runtime.rs:637-645) and Runtime::declare_size (runtime.rs:662-680), and the apply_size_changed_locked they both call (runtime.rs:2022-2028), hold the lock only across in-memory kernel calls and PaneHandle::send_input/resize (pane.rs:505-509, 518-522) - both plain unbounded mpsc::Sender::send, never a recv. Neither has the shape 1.47's review found in attach_pane. (One test-only lookalike: attachment_count_for_test, runtime.rs:689-695, holds the lock across PaneHandle::attachment_count's own send-then-recv, pane.rs:628+ - #[cfg(test)], not a production path, but the same shape; flagging it so it isn't "found" later.)
 
 That audit did surface a real gap, in a test, not in my production code: an_unresponsive_panes_own_commands_do_not_stall... runs every one of its own calls over a single connection, so its "(a) a plain control call still answers" check only proves this connection's own request queue eventually catches up once the stuck pane's worker drains - not that an unrelated connection stays responsive. That is weaker than the "freezes only that pane's screen" limit this task's own plan names. Added a new test, a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach (crates/server/tests/attach.rs), issuing one plain pane.show from a second, already-handshaken, otherwise idle connection while a different connection's own attach to the stuck pane is confirmed stuck. Recorded failing via asdlc record-check just now: today's attach_pane does hold the runtime lock across PaneHandle::attach's unbounded recv, so this second connection's pane.show gets no reply within 2s - confirming 1.47's review finding independently, from this side. Left uncommitted on purpose; will record it passing and commit once 1.47's fix lands, per your instruction to hold until then.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:14:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:23:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/sdk/src/screen.rs:146 (Screen/ScreenUpdate shapes) and crates/server/src/pane.rs:276 (Attachment::last_told_size): the approved plan's section 2, quoting doc-14 verbatim ("an update gains an optional size"), specifies adding size: Option<Size> to ScreenUpdate::Delta. The diff never adds this field; instead Screen gained size and a new per-attachment Attachment::last_told_size in pane.rs forces any size-stale attachment onto a fresh, independent Full on its next tick, even with no content change. This is a real, substantial departure from both the plan's named mechanism and the contract's (doc-14) literal wording, and it is not in the task's "Departures/decisions, with reasons" list (which has three unrelated items: the 5s/10s->15s/30s bound widening, the added a_second_connections... test, and the accepted stuck-pane limit). The only place the departure and its reasoning appear is a source comment in screen.rs ("doc-14's own wording... was tried and dropped") - never surfaced on the board for a reviewer or for doc-14 to be reconciled with reality.
+
+The chosen mechanism is well-reasoned on its own terms (the code comments trace a real bug the plan's single pane-wide "size changed" flag would have had with a newly-arming attachment, confirmed by the two-client ordering test), and the behavioural clause of AC #2 ("an update on every attachment's stream reports the terminal's size when it changes") is still met empirically - I repeated one proof's control myself (declaring_a_size_of_zero_is_refused, widening connection.rs's range check from 1..=u16::MAX to 0..=u16::MAX in a scratch edit, reverted after): it failed as the task's notes claim, confirming that control is real. But soundness of the new design does not substitute for recording the departure: the plan's own section 2 explicitly says a resize must never be "promoted to a full, scrollback-free resync it does not need... reserved for !is_current/back-pressure" - the shipped mechanism does exactly that for every size change, unflagged as the policy exception it now is.
+
+Not checked beyond this: I did not re-run the full proof table past the one control above; the recorded failing/passing pairs in the notes look legitimate and consistent with the final head (93780eae, matching the PR). I did not check doc-9 in detail beyond its reference in the task's citation list.
+
+Informational, not a finding, answering the team-lead's question about TASK-1.125: this task's stream_panes.insert(stream, pane) (connection.rs, pane.attach's Ok arm) sits right after runtime.arm_attachment's call, alongside the pre-existing pane_streams insert. If TASK-1.125 wraps arm_attachment's effect in an "if armed" branch, stream_panes's insert can safely move inside it or stay outside: Runtime::send_input already no-ops (state.panes.get(&pane) is None) for a pane with no worker, the same precondition under which arm_attachment itself no-ops, so an unarmed attachment's input is silently dropped either way - inside send_input if stream_panes still routes it, or in connection.rs's own "nothing to route to" branch if it doesn't. No test depends on which side of that branch it ends up on. For symmetry with pane_streams (which stays unconditional, since ConnectionCleanup::drop's sweep needs it regardless of arming), leaving stream_panes unconditional too is the simpler, lower-risk choice for whoever merges second.
+
+---
+
+created: 2026-11-17T16:19:00Z
+
+---
+
+Decision by @bruk (2026-11-17, relayed by @bruk.o): keep the built behaviour for size changes (a full screen at the new size per size-stale attachment; a delta never carries a size). doc-14's Size section is reworded to match (board commit db68d8f8). The review's finding is answered by departure 4 in the notes plus this spec change; no code change is asked for. Cost of full screens during a window drag is noted for TASK-1.122.
 
 ---
 <!-- COMMENTS:END -->

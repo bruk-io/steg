@@ -1,11 +1,11 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T02:40:00Z'
+updated_date: '2026-11-17T16:15:00Z'
 labels:
   - size-5
   - review-passed
@@ -1608,6 +1608,14 @@ What I checked:
 6. The app process staying alive after the window closes is pre-existing (unchanged by this diff - confirmed main.rs has no cx.quit() call before or after this round) and out of scope for this fix. Nothing in doc-10 or this task's acceptance criteria (which are about the connection/session lifecycle, not the process) speaks to quit-on-last-window-close, so I'm not raising it as a finding; worth a follow-up task if single-instance-process behaviour ever matters, but not this one.
 
 Not checked: the app was not run; client.rs (unchanged this round, outside the stated diff scope); R19/TASK-1.122's latency budget; TASK-1.47's own mechanism (its own PR).
+
+---
+
+created: 2026-11-17T03:56:00Z
+
+---
+
+2026-11-16, @bruk.o: after the third review passed at f8967015, the worker merged main (bringing TASK-1.47's attach from PR 62) and pushed a91b204b. My read of that merge: its parents are f8967015 and main; its tree is identical to git's own merge of the two, so nothing was resolved by hand; the app's files are unchanged from the reviewed head; against main the branch changes only crates/app, its manifest lines, boundaries.toml and Cargo.lock. Reported by the worker and not recordable because the task is locked: just check exited 0 on a second run (the first failed once in steg-server's login_env grandchild test, a known sighting on TASK-1.82, not this task's code); a live run on the merged head drew a prompt, stayed connected fifteen seconds idle, and re-attached after a relaunch. PR 65 CI is green on a91b204b. The review covered f8967015; this read covers the merge.
 
 ---
 <!-- COMMENTS:END -->

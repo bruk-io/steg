@@ -39,5 +39,5 @@ reason = "the ui package is the app's components and the design's named values, 
 allow = ["gpui"]
 
 [steg-app]
-reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101); steg-ui is where the server's records become what a component is given (doc-17)"
-allow = ["steg-sdk", "steg-ui", "gpui"]
+reason = "the app is a client of the server like any other, through the sdk and the public API, with no private channel (doc-16 R98, R101); steg-ui is where the server's records become what a component is given (doc-17); the sdk's local-socket feature is what finds or starts a local server (R103); serde_json builds request params and decodes ScreenUpdate off the attachment's stream, the same reason steg's own serde_json entry states; futures is the channel between the thread that blocks on the socket and the task on the window's own executor that applies an update - awaited, not polled - and is already resolved in the workspace through gpui's own dependency on it; unicode-segmentation recovers a Run's own cell count from its grapheme clusters for column bookkeeping, already resolved in the workspace and already a direct dependency of gpui's own examples/input.rs for the identical reason (TASK-1.117)"
+allow = ["steg-sdk", "steg-ui", "gpui", "serde_json", "futures", "unicode-segmentation"]

@@ -1607,3 +1607,144 @@ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stu
          own bound is meant to hold regardless"
     );
 }
+
+/// TASK-1.125's own race, reproduced over two real connections rather
+/// than inferred from `finish_attach`'s own unit tests (which exercise
+/// `armed: bool` as a given, not the real timing that produces it) - the
+/// end-to-end test TASK-1.125 could not build on its own, now possible
+/// with this task's own flood/stuck-pane machinery plus TASK-1.125's fix.
+///
+/// Connection two's own `pane.attach` is deliberately queued behind a
+/// large, deterministic flood on the pane's own worker (the same
+/// technique `a_second_connections_control_call_is_not_blocked_by_a_
+/// stuck_panes_lock_held_attach` uses, and for the same reason: a fixed
+/// small batch risks draining before the race below gets a chance to
+/// run). While it is still queued, connection one force-closes the pane.
+/// `Runtime`'s own close-and-force removes the pane from its own map
+/// under the lock, synchronously, *before* `force_end`'s signal/kill
+/// passes even run (`crates/server/src/runtime.rs`, the `to_force`
+/// extraction ahead of `force_end`) - so the pane is already gone by the
+/// time connection two's queued attach is finally reached. The worker
+/// thread itself is not torn down until `force_end`'s own later passes,
+/// so it drains its backlog and answers that queued attach normally,
+/// unaware the pane it belongs to has already been removed - exactly the
+/// gap between "attach succeeded" and "arm found nothing to arm" TASK-
+/// 1.125 named. `arm_attachment` (runtime.rs) checks the pane is still in
+/// its own map before arming; `finish_attach` (connection.rs) does not
+/// record the attachment when it is not. What this test checks is not
+/// connection two's own `pane.attach` reply (which may itself report
+/// success - the "silent stream" TASK-1.125's own title names), but that
+/// a later `pane.detach` for the same target never succeeds, rather than
+/// succeeding against nothing or leaking (the exact error code observed
+/// is `NoSuchTarget`, not `BadRequest` - the target itself is gone too,
+/// not merely never attached by this connection; see this test's own
+/// real check for why).
+///
+/// Control: reverted `arm_attachment` to `fn arm_attachment(...) -> bool
+/// { let state = self.lock(); if let Some(handle) = state.panes.get(&pane)
+/// { let _ = handle.arm(attachment_id, outbound); } true }` (armed
+/// unconditionally, TASK-1.125's own bug) - the `pane.detach` below then
+/// answered `Ok`, not an error, confirmed via `asdlc record-check`
+/// before being reverted back.
+#[test]
+fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach() {
+    let _flood_guard = FLOOD_TEST_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_one, mut connection_one) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream_one,
+        &mut connection_one,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached_one = attach(&mut stream_one, &mut connection_one, &pane);
+
+    // A dedicated, large, synchronous flood - deterministic regardless
+    // of this machine's own real pty throughput (see the lock-contention
+    // test above for the same reasoning): big enough that the worker has
+    // not drained it by the time this test reaches its own real check.
+    let chunk = vec![b'x'; 7 * 1024 * 1024];
+    for _ in 0..120 {
+        send_input(
+            &mut stream_one,
+            &connection_one,
+            attached_one.stream,
+            &chunk,
+        );
+    }
+
+    let (mut stream_two, mut connection_two) = connect_and_handshake(&socket_path);
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    let (attach_id, bytes) = connection_two
+        .call("pane.attach", params)
+        .expect("a valid call");
+    stream_two.write_all(&bytes).unwrap();
+
+    // Proof connection two's own attach really is still queued, same
+    // shape as this file's own other stuck-pane proofs: no reply within
+    // a short, bounded window.
+    let reply = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        attach_id,
+        Duration::from_secs(1),
+    );
+    assert!(
+        reply.is_none(),
+        "connection two's own attach answered before the flood drained - this test's own race \
+         never had a chance to run: {reply:?}"
+    );
+
+    // Connection one force-closes the pane while connection two's attach
+    // is still queued behind the flood.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    params.insert("force".to_string(), json!(true));
+    let response = call_and_read_reply(&mut stream_one, &mut connection_one, "pane.close", params);
+    assert!(
+        matches!(response, Response::Ok(_)),
+        "pane.close --force failed: {response:?}"
+    );
+
+    // Connection two's own queued attach now resolves - the worker
+    // thread is still alive at this point (torn down only by `force_
+    // end`'s own later passes), so it drains its backlog and answers the
+    // queued command normally. This reply's own content is not what this
+    // test checks (see this test's own doc); only draining it so
+    // connection two is free to send its next request matters here.
+    let _ = reply_within(
+        &mut stream_two,
+        &mut connection_two,
+        attach_id,
+        Duration::from_secs(15),
+    );
+
+    // The real check: a `pane.detach` for the same target must not
+    // succeed - this connection holds no real attachment to arm or
+    // release, and `pane.close --force` already removed the target from
+    // the tree too, so the actual code observed is `NoSuchTarget` (the
+    // target itself is gone), not the `BadRequest` a merely-never-
+    // attached-but-still-live pane would answer with (`detaching_a_pane_
+    // this_connection_never_attached_to_is_a_bad_request`, above) -
+    // `connection.rs`'s own already-closed-pane fallback only resolves
+    // through this connection's `pane_streams`, which has nothing here
+    // either way. Either error code is a correct refusal; `Ok` is the
+    // one outcome TASK-1.125's own "silent stream" bug produced.
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    let response = call_and_read_reply(&mut stream_two, &mut connection_two, "pane.detach", params);
+    match response {
+        Response::Error(error) => {
+            assert_eq!(error.code, steg_sdk::ErrorCode::NoSuchTarget, "{error:?}");
+        }
+        Response::Ok(_) => panic!(
+            "pane.detach for a pane that closed between attach and arm must not succeed - \
+             TASK-1.125's own 'silent stream' bug"
+        ),
+    }
+
+    stop_server(&stop, handle);
+}

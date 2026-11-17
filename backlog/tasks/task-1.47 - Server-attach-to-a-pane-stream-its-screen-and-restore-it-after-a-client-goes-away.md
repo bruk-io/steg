@@ -3,12 +3,12 @@ id: TASK-1.47
 title: >-
   Server: attach to a pane, stream its screen, and restore it after a client
   goes away
-status: In Review
+status: Done
 assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T02:36:00Z'
+updated_date: '2026-11-17T03:38:00Z'
 labels:
   - size-5
   - review-passed

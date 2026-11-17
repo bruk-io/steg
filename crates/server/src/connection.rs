@@ -545,6 +545,38 @@ fn parse_target_pane_id(context: &Context, request: &Request) -> Option<PaneId> 
     }
 }
 
+/// Finishes a successful `pane.attach`, once `arm_attachment` has
+/// answered whether it actually armed something (TASK-1.125 review):
+/// pulled out of `handle_request`'s own match arm, unchanged, so a unit
+/// test can exercise both branches directly - most importantly `armed
+/// == false`, which in production only a real race (the pane closing
+/// between `attach_pane` releasing its lock and this call) produces.
+/// `true`: records the attachment in `pane_streams`, as always. `false`:
+/// the pane (or its tab) closed in that window - the reply already went
+/// out, truthfully (a real snapshot, taken while the pane was still
+/// there), but there is nothing left to ever send on this stream. Closed
+/// on both sides at once, and never recorded: nothing to leak, and
+/// nothing a later `pane.detach` could find either way, the same answer
+/// a target that never existed gets.
+fn finish_attach(
+    armed: bool,
+    pane: PaneId,
+    attachment_id: crate::pane::AttachmentId,
+    stream: u32,
+    outbound: &Outbound,
+    connection: &mut Connection,
+    pane_streams: &RefCell<HashMap<PaneId, (crate::pane::AttachmentId, u32)>>,
+) {
+    if armed {
+        pane_streams
+            .borrow_mut()
+            .insert(pane, (attachment_id, stream));
+    } else {
+        outbound.close_stream(stream);
+        connection.close_stream(stream);
+    }
+}
+
 /// Handles one decoded request, replying on `state.outbound` - `false`
 /// means the connection should end (the reply queue is closed or full),
 /// `true` to keep reading. `pane.attach`/`pane.detach` (TASK-1.47) and
@@ -614,12 +646,24 @@ fn handle_request(
                     // may only now pull data frames for this stream, and
                     // the worker is only now handed something to send to.
                     outbound.open_stream(stream);
-                    runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
+                    let armed = runtime.arm_attachment(pane, attachment_id, Arc::clone(outbound));
                     connection.open_stream(stream);
-                    pane_streams
-                        .borrow_mut()
-                        .insert(pane, (attachment_id, stream));
-                    stream_panes.borrow_mut().insert(stream, pane);
+                    finish_attach(
+                        armed,
+                        pane,
+                        attachment_id,
+                        stream,
+                        outbound,
+                        connection,
+                        pane_streams,
+                    );
+                    // TASK-1.114: nothing to route input to for a stream
+                    // `finish_attach` is about to close (not armed) -
+                    // `stream_panes` only ever names a stream this
+                    // connection can still send `Incoming::Data` on.
+                    if armed {
+                        stream_panes.borrow_mut().insert(stream, pane);
+                    }
                     true
                 }
                 Err(error) => {
@@ -836,12 +880,17 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::time_remaining;
-    use super::{Arc, ConnectionCleanup, HashMap, Outbound, RefCell, Runtime, UnixStream};
+    use std::io::Read;
+
+    use super::{
+        Arc, Connection, ConnectionCleanup, ConnectionState, HashMap, Outbound, RefCell, Role,
+        Runtime, UnixStream, encode_frame, finish_attach, handle_request,
+    };
     use crate::dispatch::Context;
     use crate::outbound::spawn_writer;
     use crate::pty::RealLauncher;
     use crate::runtime::{Attaching, LoginShell};
-    use steg_sdk::{ClientKind, Request, Response};
+    use steg_sdk::{ClientKind, ErrorCode, Frame, Incoming, Request, Response};
 
     const TEST_GRACE: Duration = Duration::from_millis(30);
     const TEST_TICK: Duration = Duration::from_millis(1);
@@ -1013,6 +1062,213 @@ mod tests {
         }
 
         wait_for_attachment_count(&runtime, pane, 0);
+    }
+
+    /// TASK-1.125 review's own Important finding: the lower-level
+    /// `arm_attachment` test proves that method's own answer, but never
+    /// runs `finish_attach`'s own `if armed { .. } else { .. }` branch -
+    /// the code this task's first criterion is actually about. Calls
+    /// `finish_attach` directly with `armed = false` (the state a real
+    /// race between `attach_pane` releasing its lock and this call
+    /// produces, without needing to reproduce that race), then checks
+    /// every part of the criterion: `pane_streams` holds nothing for the
+    /// pane, a later frame on that stream decodes as `UnknownStream`
+    /// rather than `Data` (this connection's own decode-side registry
+    /// agrees it is closed, not merely `outbound`'s write-side one), and
+    /// a real `pane.detach` for that same target, sent through
+    /// `handle_request` itself - not asserted by reasoning about what it
+    /// would do - answers `BadRequest`, exactly as for a pane never
+    /// attached.
+    #[test]
+    fn finish_attach_with_armed_false_closes_both_sides_and_records_nothing() {
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = Context::none();
+        let path = new_pane_path(&runtime, &description, &context);
+
+        let (client_writer, mut server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let _writer = spawn_writer(Arc::clone(&outbound), client_writer);
+
+        let stream = 1_u32;
+        let client_id = runtime.connect_client(ClientKind::App, None);
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(path));
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params,
+        };
+        let (pane, attachment_id) = runtime
+            .attach_pane(
+                &description,
+                &context,
+                Attaching {
+                    client: client_id,
+                    id: 1,
+                    stream,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("attach_pane succeeds");
+        outbound.open_stream(stream);
+
+        let pane_streams = RefCell::new(HashMap::new());
+        let mut connection = Connection::new(Role::Server, description.clone());
+        connection.open_stream(stream);
+
+        finish_attach(
+            false,
+            pane,
+            attachment_id,
+            stream,
+            &outbound,
+            &mut connection,
+            &pane_streams,
+        );
+
+        assert!(
+            pane_streams.borrow().is_empty(),
+            "an unarmed attach must record nothing in pane_streams: {:?}",
+            pane_streams.borrow()
+        );
+
+        assert!(
+            matches!(
+                outbound.enqueue_data(stream, b"x".to_vec()),
+                Err(crate::outbound::EnqueueDataError::NotOpen)
+            ),
+            "outbound must have this stream closed, not merely never armed"
+        );
+
+        let frame = encode_frame(&Frame::data(stream, b"x".to_vec())).unwrap();
+        connection.receive(&frame);
+        assert!(
+            matches!(
+                connection.poll(),
+                Some(Incoming::UnknownStream { stream: s, .. }) if s == stream
+            ),
+            "connection must also have this stream closed on its own decode side, \
+             not just outbound's write side"
+        );
+
+        // A real `pane.detach` for the same target, through `handle_request`
+        // itself - not asserted by reasoning about what it would do.
+        let state = ConnectionState {
+            runtime: &runtime,
+            description: description.clone(),
+            context,
+            outbound: &outbound,
+            client_id,
+            pane_streams: &pane_streams,
+            stream_panes: &RefCell::new(HashMap::new()),
+            next_stream: &RefCell::new(stream),
+        };
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(path));
+        let detach_request = Request {
+            method: "pane.detach".to_string(),
+            params,
+        };
+        handle_request(&state, &mut connection, 2, detach_request);
+
+        server_reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut client_side = Connection::new(Role::Client, steg_sdk::description());
+        let response = loop {
+            // `attach_pane` above already enqueued its own reply (id 1,
+            // never drained) - both replies can arrive in the same
+            // socket read, so this drains every already-decoded frame
+            // (polling until `None`) before reading more, rather than
+            // reading again after the first non-matching poll, which
+            // would then block forever on a socket with nothing further
+            // to send.
+            match client_side.poll() {
+                Some(Incoming::Reply { id: 2, response }) => break response,
+                Some(_) => continue,
+                None => {
+                    let mut buf = [0_u8; 4096];
+                    let n = server_reader.read(&mut buf).expect("reading the reply");
+                    assert!(n > 0, "the writer thread closed before replying");
+                    client_side.receive(&buf[..n]);
+                }
+            }
+        };
+        let Response::Error(error) = response else {
+            panic!(
+                "detaching a pane this attach never really armed must not succeed: {response:?}"
+            );
+        };
+        assert_eq!(error.code, ErrorCode::BadRequest);
+    }
+
+    /// The baseline `finish_attach` is still responsible for: `armed ==
+    /// true` records the attachment exactly as before this task's own
+    /// change (no behaviour change for the common case).
+    #[test]
+    fn finish_attach_with_armed_true_records_the_attachment_as_today() {
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
+        let description = steg_sdk::description();
+        let context = Context::none();
+        let path = new_pane_path(&runtime, &description, &context);
+
+        let (client_writer, _server_reader) = UnixStream::pair().unwrap();
+        let outbound = Arc::new(Outbound::new());
+        let _writer = spawn_writer(Arc::clone(&outbound), client_writer);
+
+        let stream = 1_u32;
+        let client_id = runtime.connect_client(ClientKind::App, None);
+        let mut params = serde_json::Map::new();
+        params.insert("target".to_string(), serde_json::json!(path));
+        let attach_request = Request {
+            method: "pane.attach".to_string(),
+            params,
+        };
+        let (pane, attachment_id) = runtime
+            .attach_pane(
+                &description,
+                &context,
+                Attaching {
+                    client: client_id,
+                    id: 1,
+                    stream,
+                },
+                &attach_request,
+                &outbound,
+            )
+            .expect("attach_pane succeeds");
+        outbound.open_stream(stream);
+
+        let pane_streams = RefCell::new(HashMap::new());
+        let mut connection = Connection::new(Role::Server, description.clone());
+        connection.open_stream(stream);
+
+        finish_attach(
+            true,
+            pane,
+            attachment_id,
+            stream,
+            &outbound,
+            &mut connection,
+            &pane_streams,
+        );
+
+        assert_eq!(
+            pane_streams.borrow().get(&pane),
+            Some(&(attachment_id, stream)),
+            "an armed attach must record exactly this attachment, as it always has"
+        );
     }
 
     /// `Instant::now()` is read exactly once here, as a base - every

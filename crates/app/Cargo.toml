@@ -9,5 +9,21 @@ workspace = true
 
 [dependencies]
 gpui.workspace = true
-steg-sdk = { path = "../sdk" }
+steg-sdk = { path = "../sdk", features = ["local-socket"] }
 steg-ui = { path = "../ui" }
+# Request/response params and ScreenUpdate decoding (doc-16 R102: the sdk does no
+# serialisation of its own for the shapes a consumer builds calls from; boundaries.toml's
+# `[steg-app]` names the same reason `[steg]`'s own serde_json entry already states).
+serde_json = "1"
+# The channel between the reader thread that blocks on the socket and the task on the
+# window's own executor that applies an update and calls notify - awaited, not polled
+# (TASK-1.117's plan). Not reachable through gpui's own public surface (gpui.rs re-exports
+# only smol::Timer/util::smol_timeout), but adds no new crate to the licence graph: 0.3.34
+# is already resolved in this workspace's Cargo.lock through gpui's own dependency on it.
+futures = "0.3"
+# A Run's own text is one grapheme cluster per cell it covers (crates/sdk/src/screen.rs's
+# own doc) and same-styled cells merge into one Run by string concatenation - recovering
+# how many cells a run's text spans (the column bookkeeping painting needs) means counting
+# grapheme clusters, not chars. Already resolved in the workspace's Cargo.lock at 1.13.3
+# (gpui's own examples/input.rs already depends on it directly, for the identical reason).
+unicode-segmentation = "1"

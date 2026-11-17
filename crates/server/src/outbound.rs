@@ -283,7 +283,8 @@ pub(crate) fn spawn_writer<W: Write + Send + 'static>(
 #[cfg(test)]
 mod tests {
     use super::{DATA_CAP, EnqueueControlError, EnqueueDataError, Outbound, run_writer};
-    use std::io::Read;
+    use crate::test_support::{ClosingWriterGuard, run_bounded};
+    use std::io::{self, Read, Write};
     use std::os::unix::net::UnixStream;
     use std::sync::Arc;
     use std::sync::Barrier;
@@ -310,6 +311,12 @@ mod tests {
         let (mut client, server) = UnixStream::pair().unwrap();
         let writer_outbound = Arc::clone(&outbound);
         let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
+        // Built right after the spawn, before any assertion that could
+        // panic: its `Drop` closes the queue and bound-joins the writer
+        // on every exit from this function, not only the happy one
+        // (`test_support.rs`'s own doc - hygiene, not a fix for any
+        // particular hang).
+        let _writer_guard = ClosingWriterGuard::new(Arc::clone(&outbound), writer);
 
         assert_eq!(
             read_exact_bytes(&mut client, b"control-second".len()),
@@ -319,12 +326,6 @@ mod tests {
             read_exact_bytes(&mut client, b"data-first".len()),
             b"data-first"
         );
-
-        // `close()`, not just dropping `client`: the writer may be
-        // blocked on the condvar (nothing queued, not yet closed), which
-        // only a `notify` - not a dropped socket - ever wakes.
-        outbound.close();
-        writer.join().unwrap();
     }
 
     #[test]
@@ -340,6 +341,7 @@ mod tests {
         let (mut client, server) = UnixStream::pair().unwrap();
         let writer_outbound = Arc::clone(&outbound);
         let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
+        let _writer_guard = ClosingWriterGuard::new(Arc::clone(&outbound), writer);
 
         // Round robin in the order the streams were opened: one frame from
         // stream 1, one from stream 2, then back to each one's own second
@@ -349,9 +351,6 @@ mod tests {
         assert_eq!(read_exact_bytes(&mut client, 2), b"2a");
         assert_eq!(read_exact_bytes(&mut client, 2), b"1b");
         assert_eq!(read_exact_bytes(&mut client, 2), b"2b");
-
-        outbound.close();
-        writer.join().unwrap();
     }
 
     #[test]
@@ -364,14 +363,12 @@ mod tests {
         let (mut client, server) = UnixStream::pair().unwrap();
         let writer_outbound = Arc::clone(&outbound);
         let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
+        let _writer_guard = ClosingWriterGuard::new(Arc::clone(&outbound), writer);
 
         assert_eq!(
             read_exact_bytes(&mut client, b"only-this".len()),
             b"only-this"
         );
-
-        outbound.close();
-        writer.join().unwrap();
     }
 
     #[test]
@@ -405,14 +402,50 @@ mod tests {
         );
     }
 
+    /// A `Write` that always fails, standing in for a broken socket.
+    ///
+    /// An earlier version of this test used a real `UnixStream::pair()`
+    /// with the client half dropped, reasoning that the very next write
+    /// on the other half would fail at once. TASK-1.113's own hang
+    /// (`run_writer` sitting forever in `Condvar::wait`, CI, 2026-11-16)
+    /// traced to exactly that assumption being unreliable on macOS:
+    /// `std`'s own `UnixStream::pair` cannot set `CLOEXEC` atomically
+    /// there (`sys/net/connection/socket/unix.rs`'s own `Socket::
+    /// new_pair` - the atomic `SOCK_CLOEXEC` path is Linux-like targets
+    /// only; macOS calls plain `socketpair()` then two separate, later
+    /// `fcntl` calls), so a `fork` from another thread of this same test
+    /// binary landing in that gap - and this crate's own test suite
+    /// forks real processes routinely, concurrently, by design
+    /// (`signal.rs`, `login_env.rs`, `pty.rs`, `pane.rs`) - inherits the
+    /// dropped client's own fd and keeps the "closed" socket's write
+    /// from failing at all. Reproduced directly while finding this (a
+    /// scratch probe, not committed): 0 failures in 800,000+ trials with
+    /// nothing else forking, versus roughly 1 success in 4 once eight
+    /// threads were forking real processes alongside the probe. A bound
+    /// alone would only turn that hang into an intermittent failure
+    /// under exactly the contention this suite creates for itself; this
+    /// type removes the dependency on socket or fork timing entirely.
+    struct AlwaysFailsToWrite;
+
+    impl Write for AlwaysFailsToWrite {
+        fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+            Err(io::Error::new(
+                io::ErrorKind::BrokenPipe,
+                "AlwaysFailsToWrite always fails",
+            ))
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
     /// A review of this task found: if the writer thread ends because
     /// the write itself fails (a broken socket, not the "client never
     /// reads" case `Outbound::close` already covers from the reader's
     /// own side), nothing used to mark the queue closed or notify the
     /// reader - it could keep computing and queueing replies nobody
-    /// will ever send, up to `CONTROL_CAP`, before anything noticed. A
-    /// peer that has dropped its own end makes the very next write fail
-    /// immediately, with no thread or wait needed to prove it.
+    /// will ever send, up to `CONTROL_CAP`, before anything noticed.
     ///
     /// **Why this stays a direct `Outbound`/`run_writer` test, with no
     /// routing-level counterpart over a real connection** (a second
@@ -442,12 +475,18 @@ mod tests {
     /// routing-level shape cannot.
     #[test]
     fn a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails() {
-        let outbound = Outbound::new();
-        let (client, server) = UnixStream::pair().unwrap();
-        drop(client); // the peer is gone: the next write on `server` fails
-
+        let outbound = Arc::new(Outbound::new());
         outbound.enqueue_control(b"first".to_vec()).unwrap();
-        run_writer(&outbound, server); // returns once write_all fails
+
+        // Bounded too (AC #2's own letter), in addition to the sink above
+        // removing the dependency on the write actually failing: belt
+        // and suspenders, not the fix itself.
+        let writer_outbound = Arc::clone(&outbound);
+        run_bounded(
+            "run_writer to end once its one write fails",
+            Duration::from_secs(5),
+            move || run_writer(&writer_outbound, AlwaysFailsToWrite),
+        );
 
         assert_eq!(
             outbound.enqueue_control(b"second".to_vec()),
@@ -582,6 +621,14 @@ mod tests {
         let (mut client, server) = UnixStream::pair().unwrap();
         let writer_outbound = Arc::clone(&outbound);
         let writer = std::thread::spawn(move || run_writer(&writer_outbound, server));
+        // On the happy path this is a no-op by the time it drops (`drain`,
+        // below, already joins the writer indirectly - `client` only
+        // sees EOF once the writer's own sink is dropped, which is after
+        // `run_writer` returns). It earns its keep on the panicking path:
+        // the latency assertion below, under real load, is exactly the
+        // kind of thing that could trip - without this, that would leave
+        // both `writer` and `flooder` parked with nothing to end them.
+        let _writer_guard = ClosingWriterGuard::new(Arc::clone(&outbound), writer);
 
         let received = read_exact_bytes(&mut client, b"control-under-flood".len());
         let latency = enqueued_control_at.elapsed();
@@ -600,7 +647,6 @@ mod tests {
             let mut sink = [0_u8; 65536];
             while client.read(&mut sink).unwrap_or(0) > 0 {}
         });
-        writer.join().unwrap();
         drain.join().unwrap();
     }
 }

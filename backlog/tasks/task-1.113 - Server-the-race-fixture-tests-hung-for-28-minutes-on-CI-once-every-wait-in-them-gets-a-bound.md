@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1364,6 +1365,15 @@ Findings: 1 Important, 1 nit. Cites: review. The diff does not match the plan.
 Evidence, checked and satisfied (no finding): all four negative-control pairs this task's mechanisms need (outbound.rs's close-on-broken-write, test_support.rs's run_bounded timeout, quiet.py's killpg, and support/mod.rs's watchdog kill) are recorded via asdlc record-check between 2026-11-17T05:03:28 and 05:05:55 UTC, strictly after the fix commit 0ee7df1a (05:01:53 UTC) that touches both files, and no later commit before the branch head (db191fde) edits either file again (checked via git log). Each failing half failed for its stated reason (an assertion mismatch for outbound.rs; two assertion failures on elapsed time/sentinel for quiet.py's functional test; a TIMED OUT via steg-quiet, the sanctioned way to bound a hang, for both run_bounded's and wait_child_bounded's own controls), not an unrelated one. I repeated the watchdog-kill control myself in the review worktree: commented out `signal::kill` at mod.rs:140, ran `cargo test -p steg-server --features race-fixture --test race wait_child_bounded_kills_and_reaps` under steg-quiet's default 900s bound - it failed (the disabled path now blocks for the real child's full 30s lifetime instead of the 300ms bound before panicking on its own elapsed-time assertion), confirming the kill is load-bearing. Reverted; `git status --short` clean; `ps` showed no leftover sleep/race process.
 
 What I did not check: did not run `just check` myself (relied on this head's CI green at db191fde plus the targeted cargo/pytest runs above, within the review's own time budget); did not re-derive whether a true mutex-based fix would itself introduce new deadlock risk (out of scope - this review only judges the diff as submitted); did not read portable_pty's spawn path (TASK-1.124's own scope, not this task's).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T05:55:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.113: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

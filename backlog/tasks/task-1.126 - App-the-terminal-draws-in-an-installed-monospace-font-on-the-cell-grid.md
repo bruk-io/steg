@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T19:03:00Z'
+updated_date: '2026-11-17T19:05:00Z'
 labels:
   - size-2
   - changes-requested
@@ -997,6 +997,53 @@ Control repeated: broke resolve_family (crates/app/src/metrics.rs) to ignore `in
 Checked: both PR images (cursor after a 70-character line; a 4-column listing) - a neutral prompt, nothing personal on screen, monospace alignment consistent with the fix, cursor immediately after the text with no drift - support the claim they're cited for, aside from finding 2's gap. The 70-vs-80 departure's deferred-wrap explanation is correct terminal behaviour; AC#3's "column after an 80-character line" is proven as a property of cell_origin's own recorded test, not of the pty, which is the only way it can be proven on a pty fixed at 80 columns. The merge-base and build-order departures match what the notes say. Row cache: the key is unchanged, but CachedRun tags which path a run took in the cached value itself, and paint_cached_run dispatches on that tag - satisfies the plan's own invariant by one of the two alternatives it named, disclosed in the notes.
 
 Not checked: the live run itself (not re-run; relied on the recorded check and CI, both green at 2bf5d974), and every_glyph_sits_on_its_own_column's EPSILON tolerance under subpixel rendering on fonts other than what this machine has installed.
+
+---
+
+created: 2026-11-17T19:05:00Z
+
+---
+
+Review findings fixed (head 67c972b3):
+
+1. [Bug, confirmed myself by reading shape_and_check_run/shape_text before touching
+   anything]: shape_and_check_run shapes only the run's own text (window.text_system().
+   shape_line(text, ...) with just that text, no row context) - confirmed in gpui's own
+   line_layout.rs that a glyph's position is relative to the shaped line it came from, so
+   for a lone-run shape that is relative to the run's own start, never the row. The check
+   compared this run-relative position against an absolute row column
+   (run_start_column + grapheme_rank*columns_per_grapheme), so any run not starting at
+   column 0 always "failed" and took the slow path regardless of whether it was actually
+   safe. Fixed: run_start_column no longer enters the comparison at all - it stays
+   cell_origin's own job alone, applied separately when painting, which it already did
+   correctly.
+
+2. [Evidence]: split every_glyph_sits_on_its_own_column into a pure function,
+   every_glyph_position_is_safe, over (byte index, x position) pairs plus the text, cell
+   width and columns-per-grapheme - no gpui type in its signature - with the gpui-facing
+   function reduced to collecting those pairs from a ShapedLine. Three new tests, each with
+   a recorded failing-then-passing control: a run whose glyphs are all on grid (safe), a
+   glyph off by more than the tolerance (unsafe), and the regression case for finding 1
+   itself - run-relative positions for a run that would sit at a non-zero column, judged
+   safe purely on their own terms. A third PR image added: a line mixing ASCII with a wide
+   CJK character and an emoji (forcing the fallback family), with ASCII following on the
+   same line, plus a multi-styled (colour-change) line - task-1126-wide-and-fallback.png,
+   held durably alongside the other two.
+
+3. [Nit]: run_key now hashes style.wide too, rather than relying on the unstated (if true
+   in practice) invariant that identical text always carries the same east-asian-width
+   classification.
+
+Corrected claim: the module doc and these notes previously said ASCII in a genuinely
+monospace font is "the common case" taking the single-line path, which was true only for a
+run starting at column 0 while finding 1's bug stood - verified with a scratch debug count
+(removed before this commit) on a real line mixing several mid-row, differently-coloured
+ASCII runs with the CJK+emoji run described above: every ASCII run, wherever it sat on the
+row, took the fast path; only the run needing the fallback took the slow one. That is now
+true of the fix, not merely claimed.
+
+All five controls (resolve_family, cell_origin, and the three new tests) re-recorded
+cleanly against 67c972b3 with no uncommitted changes, alongside the full just check.
 
 ---
 <!-- COMMENTS:END -->

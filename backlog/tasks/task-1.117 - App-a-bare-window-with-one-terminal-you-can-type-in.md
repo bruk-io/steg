@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T01:35:00Z'
+updated_date: '2026-11-17T01:36:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=3,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1310,6 +1311,15 @@ What I did not find wrong: the no-polling design (startup and the reader each bl
 The PR's image (https://github.com/user-attachments/assets/3b6e9d01-2556-4101-a6bf-a4b3873166d2): a bare dark window titled "steg", a `$` prompt and a violet block cursor, nothing else drawn - matches §2's letterboxing (the grid at top-left, empty terminal-background filling the rest of a window taller than the fixed grid) and decision-8/R26's session colour on the cursor (TerminalTheme::cursor). Nothing personal in it.
 
 Not checked: the app was not run (out of scope for this review); R19's latency budget (explicitly deferred to TASK-1.122 by this task's own narrowed scope); TASK-1.47's own mechanism and tests (its own PR, out of scope here beyond the reconciliation above).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T01:36:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

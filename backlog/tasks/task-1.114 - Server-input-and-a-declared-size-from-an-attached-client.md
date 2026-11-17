@@ -1,14 +1,13 @@
 ---
 id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
 updated_date: '2026-11-17T18:28:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.47
@@ -2036,6 +2035,8 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; fin
 Commits since the review: 1, all with the Asdlc-Worker trailer.
 
 Review round 2 summary (2026-11-17), head 400ac97a: merged origin/main (PR 65/68/69 - the window, TASK-1.125's own arm_attachment fix, the outbound hang fix), resolving one conflict in connection.rs's pane.attach arm (kept finish_attach's armed/not-armed shape; this task's own stream_panes.insert moved inside the "if armed" branch) and two unrelated build breaks the merge exposed in crates/app (two Screen literals predating this task's own size field, given an arbitrary valid size since neither reads it). screen.rs's comment on why size is never carried on Delta updated to say doc-14 now specifies this, per the engineer's decision (comment #6). Added the socket-level TASK-1.125 race test requested (departure 5, above) and, after PR 66's CI caught it, fixed a bound in that same new test that used call_and_read_reply's plain 5s socket timeout instead of reply_within's generous one - exactly the fix this file already applies elsewhere for the identical reason. just check green at 400ac97a (recorded); the pre-existing, unrelated login_env grandchild flake (comment #2's own kind) was unusually persistent today - failed 4 of 6 just check attempts, 0 of 3 when run alone - confirmed pure contention (not a regression: login_env.rs is untouched by this task) before the 5th attempt came back clean; noted, not fixed, per standing instruction. gh pr checks 66 green on 400ac97a.
+
+Review round 2 complete at head 400ac97a. Fixed per the engineer's decision (comment #6, keep built behaviour) and team-lead's three asks: merged origin/main (PR 65/68/69), wrote the size-on-delta departure into the notes (departure 4), confirmed no code change was needed for the review finding itself (doc-14 reworded instead), added the requested socket-level TASK-1.125 race test (departure 5) with a recorded failing/passing control pair, and fixed a flaky bound CI caught in that new test. just check and gh pr checks 66 both green on 400ac97a.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

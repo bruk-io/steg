@@ -193,7 +193,9 @@ mod tests {
     use std::time::Duration;
 
     use serde_json::Value;
-    use steg_sdk::{Connection, Description, Frame, ScreenUpdate, WireRole, encode_frame};
+    use steg_sdk::{
+        Connection, Description, Frame, Response, ScreenUpdate, WireRole, encode_frame,
+    };
 
     use super::*;
 
@@ -342,5 +344,120 @@ mod tests {
         };
         assert_eq!(stream, 7);
         assert_eq!(bytes, b"hello");
+    }
+
+    // --- a reply is actually observable on the connection (or isn't, silently) -----------
+    //
+    // What found TASK-1.117's own stop_startup bug (a connection shut down right after a
+    // successful attach, before this task's own writer or reader ever touch it again) was
+    // never that a request's own bytes were shaped wrong - they weren't; `declare_size`'s
+    // own request above is correct either way. It was that nothing this task's own two
+    // tests above check would ever have noticed the connection was already dead: `Writer::
+    // send_input`/`declare_size` are deliberately fire-and-forget (`client.rs`'s own doc -
+    // the same "best effort" shape TASK-1.114's plan gives `Runtime::send_input`), so a
+    // `write_all` that silently fails (or silently succeeds into a half-closed socket
+    // nothing ever reads again) leaves nothing to assert on at the call site itself. These
+    // two tests are what closes that gap at this level: one proves a reply really is
+    // observable over the same real socket when the connection is alive (what the real
+    // reader thread would eventually decode); the other proves the exact shape of the real
+    // bug - once the connection is already shut down, `declare_size` neither panics nor
+    // reports anything, and no reply is ever observed, within a bound.
+
+    /// Like `start_writer`, but also returns a *separate* read handle on the same socket -
+    /// standing in for the real reader thread's own handle (`Client::start`'s own `stream`
+    /// parameter), which is who actually decodes a `tab.declare-size` reply in production
+    /// (`Writer::declare_size`'s own doc: the reply lands on the reader's connection, not
+    /// this one).
+    fn start_writer_with_reader_handle(
+        stream: u32,
+    ) -> (UnixStream, Connection, Writer, UnixStream) {
+        let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
+        server_side
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("set a read timeout");
+        let app_read_side = app_side
+            .try_clone()
+            .expect("clone the app's own socket handle");
+        app_read_side
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .expect("set a read timeout");
+        let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(stream);
+        let writer = Writer::new(app_side, writer_connection, stream, "sess/tab-1".to_owned());
+        let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
+        server_connection.open_stream(stream);
+        (server_side, server_connection, writer, app_read_side)
+    }
+
+    /// Reads from `read_side` for up to half a second total, decoding with `connection` -
+    /// `None` if nothing arrives in that bound (a dead connection, or a slow one; this
+    /// test's own control only ever produces the former). A bounded, non-panicking read,
+    /// unlike this file's other tests' own `.expect()` on every read - deliberately, since
+    /// "nothing ever arrives" is this test's own passing case for the control below, not a
+    /// broken test harness.
+    fn try_read_reply(read_side: &mut UnixStream, connection: &mut Connection) -> Option<Incoming> {
+        let deadline = std::time::Instant::now() + Duration::from_millis(500);
+        loop {
+            if let Some(incoming) = connection.poll() {
+                return Some(incoming);
+            }
+            if std::time::Instant::now() >= deadline {
+                return None;
+            }
+            let mut buf = [0_u8; 65536];
+            match read_side.read(&mut buf) {
+                Ok(0) | Err(_) => return None,
+                Ok(n) => connection.receive(&buf[..n]),
+            }
+        }
+    }
+
+    #[test]
+    fn declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive() {
+        let (mut server_side, mut server_connection, mut writer, mut app_read_side) =
+            start_writer_with_reader_handle(7);
+        writer.declare_size(80, 24);
+
+        let Incoming::Request { id, .. } = read_one(&mut server_side, &mut server_connection)
+        else {
+            panic!("expected a request, not something else decoded off the same bytes");
+        };
+        let reply_bytes = Connection::reply(id, Response::Ok(serde_json::Value::Null));
+        server_side
+            .write_all(&reply_bytes)
+            .expect("write the reply");
+
+        // The same decode-only shape the real reader thread uses (`client.rs`'s own
+        // `read_loop`), on its own separate handle to the same socket.
+        let mut reader_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        let reply = try_read_reply(&mut app_read_side, &mut reader_connection);
+        assert!(
+            matches!(reply, Some(Incoming::Reply { .. })),
+            "a reply should be observable on a live connection, got {reply:?}",
+        );
+    }
+
+    #[test]
+    fn once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen()
+     {
+        let (_server_side, _server_connection, mut writer, mut app_read_side) =
+            start_writer_with_reader_handle(7);
+        // The exact shape of TASK-1.117's own bug: the connection is shut down (by
+        // something upstream of this task's own code) before this task's own writer is
+        // ever asked to do anything with it.
+        app_read_side
+            .shutdown(std::net::Shutdown::Both)
+            .expect("shut the connection down, simulating the real bug");
+
+        // Best-effort, by design (this module's own doc) - does not panic even though the
+        // connection underneath it is already dead.
+        writer.declare_size(80, 24);
+
+        let mut reader_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        let reply = try_read_reply(&mut app_read_side, &mut reader_connection);
+        assert!(
+            reply.is_none(),
+            "no reply should ever be observed on an already-shut-down connection, got {reply:?}",
+        );
     }
 }

@@ -3,11 +3,11 @@ id: TASK-1.125
 title: >-
   Server: a pane that closes between attach and arm leaves the client a silent
   stream
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T05:00:00Z'
+updated_date: '2026-11-17T16:17:00Z'
 labels:
   - size-2
   - review-passed

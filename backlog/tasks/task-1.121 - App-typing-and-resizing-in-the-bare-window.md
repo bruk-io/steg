@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:17:00Z'
+updated_date: '2026-11-17T23:20:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1874,6 +1874,14 @@ Verified the keys.rs control myself: reverted a scratch edit removing the `"tab"
 Recorded checks are against 2c127d4f, matching the branch's current head; PR 71's CI is green on the same commit. The two PNGs held off-PR (task-1121-typing.png, task-1121-resize.png) do show what the PR and notes claim: typing.png shows `echo final-check` with its output and a fresh prompt; resize.png shows the same scrollback in a visibly wider window with `stty size` reporting `32 141`, consistent with a resize having been declared and drawn. I could not open the .mov with my own tools - not checked. The PR body accurately states the images/recording are held by the orchestrator pending the engineer's own upload (AC #4's first clause is therefore not yet met on the PR itself, but this is the disclosed, expected state per the claim, not a new finding). Merge history reviewed in full (comments #2, #8, #9): confirmed nothing from TASK-1.126 (font-family resolution tests, cell_origin, per-glyph safety checks, run_key hashing) or TASK-1.117 (the three-state startup slot's own tests) was lost - all still present and passing. The crates/server/src/connection.rs change is a pure match-arm reorder from a merge, no semantic change.
 
 Not checked: the .mov recording's contents; whether the plan-approval hash still matches the plan as shipped beyond what the notes already state; any machine other than this one.
+
+---
+
+created: 2026-11-17T23:20:00Z
+
+---
+
+Decision by @bruk (2026-11-17, relayed by @bruk.o) on review finding 1: fix it in this task. Input and declared sizes must not be written to the socket on the UI thread; a key press never waits on the socket. This overrides the approved plan's section 3 ('directly on the main thread - no channel, no lock'); the change is an engineer-approved departure, to be recorded in the notes' Departures list.
 
 ---
 <!-- COMMENTS:END -->

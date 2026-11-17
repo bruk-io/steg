@@ -1272,6 +1272,38 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-app a_successful_attach_survives_interrupt_called_right_after` exited 101 at 2026-11-17T02:16:19+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 85da77e96e15 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test startup::tests::a_successful_attach_survives_interrupt_called_right_after ... FAILED
+
+failures:
+
+---- startup::tests::a_successful_attach_survives_interrupt_called_right_after stdout ----
+
+thread 'startup::tests::a_successful_attach_survives_interrupt_called_right_after' (48905884) panicked at crates/app/src/startup.rs:789:9:
+assertion `left == right` failed: a successful attach must not carry its startup read timeout onward
+  left: Some(300ms)
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    startup::tests::a_successful_attach_survives_interrupt_called_right_after
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

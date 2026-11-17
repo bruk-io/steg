@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:53:00Z'
+updated_date: '2026-11-17T05:00:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -24,10 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b734cfaf5683'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -381,6 +380,31 @@ created: 2026-11-17T04:53:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.125: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T05:00:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second-round review of the Nov-17 fix, scoped to the diff since cfa9f41a (crates/server/src/connection.rs, runtime.rs), at head ef7357c9 (PR #68, CI green).
+
+Both findings from the prior review are genuinely fixed, verified independently rather than taken on the worker's word:
+
+1. Important (criterion 1, no test executed the if armed{..}else{..} branch): finish_attach is now a standalone function, extracted verbatim from the pane.attach arm in handle_request (diffed the before/after bodies line by line - identical logic, same argument values, same call order; no behaviour change). Two new tests exercise both branches directly. For the armed=false branch (finish_attach_with_armed_false_closes_both_sides_and_records_nothing): reproduced the worker's own control myself (patched finish_attach to always insert into pane_streams, i.e. "record as if armed") - the test failed, as recorded. Then went further than the brief's control to rule out a vacuous detach assertion: with the same "always record" patch applied AND the first assert (pane_streams empty) disabled so execution reaches the pane.detach call, the detach answered Ok(Null) (success) rather than BadRequest - proof the BadRequest assertion is actually keyed to pane_streams state, not to some independent target-resolution failure. Reverted both edits; git status clean both times.
+
+2. Nit (vacuous done_rx check right after thread::spawn in the lock-contention test): removed; the real check after the wait (line 2894) is unchanged and still present. The task's own recorded check pair for that test (04:36:45 FAILED / 04:37:03 passed, both at cfa9f41a-with-uncommitted-changes) fails at the real assertion (line 2887, the timeout-bound one), confirming the control was run against the edited test body, not the removed vacuous one.
+
+Ran the full steg-server lib suite myself at this head: 194 passed, 0 failed. CI on PR #68 is green (head ef7357c9). diff --stat cfa9f41a..ef7357c9 -- crates touches only connection.rs and runtime.rs, confirming the merge commit brought in no other crate changes and the recorded check pairs (taken at cfa9f41a with uncommitted changes, before the final commit) are not stale.
+
+What I did not check: the junction itself - that handle_request's pane.attach arm passes arm_attachment's literal return value into finish_attach with no transformation - is verified only by reading the diff, not by a test that forces the live race end-to-end through handle_request (AC #1's criterion is met by composition: AC #2's runtime-level test proves arm_attachment answers false in that state, this round's test proves finish_attach handles false correctly, and the glue is a trivial, inspectable pass-through). Did not independently re-verify whether the recorded check pair for the carried TASK-1.47 lock-test patch (not driven by this task's own criteria) was taken against the exact uncommitted tree state claimed - unresolvable from the board, and not one of this task's three criteria. AC #3 remains an honest "not built" (no implemented method creates socket-level backpressure until TASK-1.114's pane.send lands); unchanged from the first round and not in this round's scope. Did not re-run just check myself (relied on the task's own recorded green run plus CI).
+
+No findings. Verdict: clean.
 
 ---
 <!-- COMMENTS:END -->

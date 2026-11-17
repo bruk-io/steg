@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T03:55:00Z'
+updated_date: '2026-11-17T03:58:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -121,6 +121,33 @@ running 1 test
 test runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.02s
+```
+
+Check FAILED: `cargo test -p steg-server --lib attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock` exited 101 at 2026-11-17T03:58:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125 on task-1.125-server-a-pane-that-closes-between-attach at 702b3f8be73d with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.125/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... FAILED
+
+failures:
+
+---- runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock stdout ----
+
+thread 'runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock' (50145335) panicked at crates/server/src/runtime.rs:2887:17:
+an unrelated pane.show must answer within a bound even while a different pane's own attach is stuck on its worker
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 191 filtered out; finished in 2.08s
+
+error: test failed, to rerun pass `-p steg-server --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

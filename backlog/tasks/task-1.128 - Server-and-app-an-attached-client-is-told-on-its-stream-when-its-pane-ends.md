@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T22:39:00Z'
+updated_date: '2026-11-17T22:40:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -30,8 +30,7 @@ Found by TASK-1.125's plan on 2026-11-16, and seen by the engineer the same day:
 - [ ] #1 When a pane's program ends or the pane is closed, every client attached to it receives one final update on its stream saying so, with the exit status when there is one, after any screen update still owed and before the stream is closed; no frame arrives on that stream afterwards
 - [ ] #2 The same final update is sent when a pane has closed between attach and arm, in place of TASK-1.125's silent close
 - [ ] #3 The sdk's typed update carries the final form, the API description and doc-14 describe it, and the drift tests cover it; a client built before this change that meets the final form does not crash
-- [ ] #4 The bare window, on the final update, keeps the last screen, shows in words that the program has ended and with what status, and sends no further input; running the app again makes a new tab as it does today
-- [ ] #5 Tests at the socket level cover a program that exits by itself, a forced close, and two clients attached to one pane, each with a recorded failing control and passing run; every wait has a bound
+- [ ] #4 Tests at the socket level cover a program that exits by itself, a forced close, and two clients attached to one pane, each with a recorded failing control and passing run; every wait has a bound
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -499,3 +498,9 @@ usual `{"Variant":{...}}`.)
    the pane.rs test is a narrower, useful check of the flag logic alone,
    and should be described as that.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Split by @bruk.o on 2026-11-17, as the plan recommended: this task keeps the wire message and the server side (former AC #1, #2, #3, #5). Former AC #4 (the bare window's reaction) moved to a draft task, 'App: the bare window shows that its program has ended, and stops taking keys', which depends on this task and TASK-1.121. This task still has to leave the app compiling: a minimal placeholder arm for the new update, replaced by that task.
+<!-- SECTION:NOTES:END -->

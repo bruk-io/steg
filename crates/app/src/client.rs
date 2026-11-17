@@ -82,7 +82,7 @@ pub(crate) struct Writer {
     handle: UnixStream,
     connection: Connection,
     stream: u32,
-    /// `{session}/{tab}` - `tab.declare_size`'s own target (TASK-1.114 §2).
+    /// `{session}/{tab}` - `tab.declare-size`'s own target (TASK-1.114 §2).
     tab_target: String,
 }
 
@@ -164,7 +164,7 @@ fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> 
                 }
             }
             // TASK-1.121's own writer (a second `Connection` instance, `Writer` above)
-            // calls `tab.declare_size` after startup, whose reply lands here, on the
+            // calls `tab.declare-size` after startup, whose reply lands here, on the
             // reader's own decode-only `Connection` - ignored, not correlated to anything
             // (this app acts the same way whether it succeeds or not, `Writer::declare_
             // size`'s own doc), and not the protocol-level surprise it would have been
@@ -192,6 +192,7 @@ mod tests {
     use std::sync::mpsc;
     use std::time::Duration;
 
+    use serde_json::Value;
     use steg_sdk::{Connection, Description, Frame, ScreenUpdate, WireRole, encode_frame};
 
     use super::*;
@@ -274,5 +275,72 @@ mod tests {
         // is what keeps this test from hanging if `shutdown()` ever stopped unblocking
         // the reader's own `read()` (the mechanism this proves).
         bounded(move || client.stop());
+    }
+
+    // --- Writer (TASK-1.121 plan §6: "a real socket, no server, no window") -------------
+
+    /// `server_side`'s own `Connection` must `open_stream` the same id too, mirroring what
+    /// a real server's own per-connection bookkeeping does - `Connection::poll`'s own
+    /// `open_streams` check is symmetric on both sides of the wire (`wire/connection.rs`),
+    /// not something only a client needs.
+    fn start_writer(stream: u32) -> (UnixStream, Connection, Writer) {
+        let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
+        server_side
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .expect("set a read timeout");
+        let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(stream);
+        let writer = Writer::new(app_side, writer_connection, stream, "sess/tab-1".to_owned());
+        let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
+        server_connection.open_stream(stream);
+        (server_side, server_connection, writer)
+    }
+
+    fn read_one(server_side: &mut UnixStream, server_connection: &mut Connection) -> Incoming {
+        loop {
+            if let Some(incoming) = server_connection.poll() {
+                return incoming;
+            }
+            let mut buf = [0_u8; 65536];
+            let n = server_side
+                .read(&mut buf)
+                .expect("read what the writer wrote");
+            assert_ne!(n, 0, "the writer's own handle closed with nothing to read");
+            server_connection.receive(&buf[..n]);
+        }
+    }
+
+    #[test]
+    fn declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size() {
+        let (mut server_side, mut server_connection, mut writer) = start_writer(7);
+        writer.declare_size(80, 24);
+
+        let Incoming::Request { request, .. } = read_one(&mut server_side, &mut server_connection)
+        else {
+            panic!("expected a request, not something else decoded off the same bytes");
+        };
+        assert_eq!(request.method, "tab.declare-size");
+        assert_eq!(
+            request.params.get("target").and_then(Value::as_str),
+            Some("sess/tab-1"),
+        );
+        assert_eq!(
+            request.params.get("columns").and_then(Value::as_i64),
+            Some(80)
+        );
+        assert_eq!(request.params.get("rows").and_then(Value::as_i64), Some(24));
+    }
+
+    #[test]
+    fn send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0() {
+        let (mut server_side, mut server_connection, mut writer) = start_writer(7);
+        writer.send_input(b"hello".to_vec());
+
+        let Incoming::Data { stream, bytes } = read_one(&mut server_side, &mut server_connection)
+        else {
+            panic!("expected a data frame, not something else decoded off the same bytes");
+        };
+        assert_eq!(stream, 7);
+        assert_eq!(bytes, b"hello");
     }
 }

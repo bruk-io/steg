@@ -172,7 +172,7 @@ impl AppWindow {
 
         // The writer: a second, encode-only `Connection`, seeded the same way the reader's
         // was (`Connection::open_stream` on the same id) - TASK-1.121 plan §3, TASK-1.117's
-        // plan §1's own slot for this. Its own `tab.declare_size` reply lands on the
+        // plan §1's own slot for this. Its own `tab.declare-size` reply lands on the
         // reader's connection instead (`client.rs`'s own `drain`, which tolerates it).
         let mut writer_connection =
             steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());

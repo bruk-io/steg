@@ -1,5 +1,5 @@
 //! Pixels to a terminal grid, with a floor, and the coalescing that keeps a window drag from
-//! flooding `tab.declare_size` calls (TASK-1.121 plan, section 4). Pure state and functions -
+//! flooding `tab.declare-size` calls (TASK-1.121 plan, section 4). Pure state and functions -
 //! no `gpui::Window`, no socket. Dimensions are plain pixel values (`f32`, matching
 //! `gpui::Pixels`'s own representation, `geometry.rs:2573`); the real call site converts via
 //! `f32::from(pixels)`.
@@ -40,7 +40,7 @@ pub(crate) fn grid_size(width: f32, height: f32, cell_width: f32, line_height: f
 }
 
 /// One step of the resize coalescer: given the size last actually declared and a freshly
-/// computed size, decides whether a new `tab.declare_size` call is due. A pure state
+/// computed size, decides whether a new `tab.declare-size` call is due. A pure state
 /// transition driven only by the caller feeding it each resize event as it happens - no
 /// timer, no debounce. `Some(computed)` exactly when `computed != declared`, which is what
 /// keeps a drag within one cell's width or height from sending anything at all.

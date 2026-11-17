@@ -84,7 +84,7 @@ pub struct Attached {
     /// through directly - the same socket, a second handle (TASK-1.117's plan §1: "two
     /// `Connection` instances... writing directly over its own cloned handle").
     pub write_handle: UnixStream,
-    /// `{session}/{tab}` - `tab.declare_size`'s own target (TASK-1.114 §2: declaring a
+    /// `{session}/{tab}` - `tab.declare-size`'s own target (TASK-1.114 §2: declaring a
     /// size targets a tab, not the pane this startup attached to).
     pub tab_target: String,
 }

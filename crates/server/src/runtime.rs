@@ -2799,12 +2799,16 @@ mod tests {
         // negative control (reverting `attach_pane` to hold the lock
         // across its wait makes the assertion below fail, not hang: the
         // flood itself, independent of that revert, is what the stuck
-        // -ness depends on).
+        // -ness depends on). Sized generously (TASK-1.114's own worker
+        // found, independently, that a much smaller flood - 70 MB - let
+        // the worker catch up before the real check ran at all, passing
+        // for the wrong reason) so the stuck window comfortably outlasts
+        // this test's own bound, confirmed below rather than assumed.
         {
             let state = runtime.state.lock().unwrap();
             let handle = state.panes.get(&busy_pane).unwrap();
-            let chunk = vec![b'x'; 7 * 1024 * 1024];
-            for _ in 0..10 {
+            let chunk = vec![b'x'; 70 * 1024 * 1024];
+            for _ in 0..15 {
                 let _ = handle.send_input(chunk.clone());
             }
         }
@@ -2821,6 +2825,15 @@ mod tests {
         let stuck_runtime = Arc::clone(&runtime);
         let stuck_description = description.clone();
         let stuck_context = context;
+        // Signals when (if ever, within this test's own lifetime) the
+        // stuck attach finally answers - not joined (there is no bound
+        // on how long a program that never reads its own stdin keeps a
+        // `write_all` blocked, even once this is fixed), but checked
+        // below with a non-blocking `try_recv`, so this test confirms
+        // the stuck attach is genuinely still unanswered at the moment
+        // the real check runs, rather than assuming the flood above was
+        // large enough.
+        let (done_tx, done_rx) = mpsc::channel::<()>();
         thread::spawn(move || {
             let _ = stuck_runtime.attach_pane(
                 &stuck_description,
@@ -2833,19 +2846,23 @@ mod tests {
                 &attach_request,
                 &outbound,
             );
+            let _ = done_tx.send(());
         });
 
-        // Samples repeatedly over several seconds, rather than once right
-        // after spawning: the spawned attach's own lock hold, once fixed,
-        // is microseconds long - far too narrow for any single sample to
-        // reliably land inside, spawn timing being what it is - but the
-        // stuck window this is actually proving the absence of, were the
-        // bug still here, lasts many seconds (confirmed directly: the
-        // negative control for this test, holding the lock across the
-        // same wait, failed this same assertion at several seconds
-        // elapsed, not by hanging), so repeated sampling across that
-        // whole stretch is what actually gives this a real chance to
-        // catch it rather than racing a single narrow instant.
+        // `std::sync::Mutex::lock` has no bound of its own - if this
+        // test called `runtime.handle` directly and the bug were real,
+        // *this* call would then also block forever, hanging the test
+        // instead of failing it (confirmed directly: an earlier version
+        // did exactly that, found by actually running the control, not
+        // assumed). Run on its own thread instead, answered through a
+        // channel this test waits on with a real, bounded `recv_timeout`
+        // - the one thing in `std` that can actually time out a wait on
+        // another thread's own lock.
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the stuck attach already answered before the real check even ran - \
+             the flood above was not large enough to prove anything"
+        );
         let show_request = Request {
             method: "pane.show".to_string(),
             params: serde_json::json!({"target": other_target})
@@ -2853,21 +2870,31 @@ mod tests {
                 .unwrap()
                 .clone(),
         };
-        let sampling_until = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < sampling_until {
-            let start = Instant::now();
-            let response = runtime.handle(&description, &context, &show_request);
-            let elapsed = start.elapsed();
-            assert!(
-                elapsed < Duration::from_millis(500),
-                "an unrelated pane.show must answer within a bound even while a \
-                 different pane's own attach is stuck on its worker, elapsed {elapsed:?}"
-            );
-            assert!(
-                matches!(response, steg_sdk::Response::Ok(_)),
-                "{response:?}"
-            );
-        }
+        let (show_tx, show_rx) = mpsc::channel();
+        let show_runtime = Arc::clone(&runtime);
+        let show_description = description.clone();
+        let show_context = context;
+        thread::spawn(move || {
+            let response = show_runtime.handle(&show_description, &show_context, &show_request);
+            let _ = show_tx.send(response);
+        });
+        let response = show_rx
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap_or_else(|_| {
+                panic!(
+                    "an unrelated pane.show must answer within a bound even while a \
+                 different pane's own attach is stuck on its worker"
+                )
+            });
+        assert!(
+            matches!(response, steg_sdk::Response::Ok(_)),
+            "{response:?}"
+        );
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the stuck attach answered during the real check - it was not actually \
+             stuck, so this run proves nothing"
+        );
     }
 
     /// TASK-1.47 review: releasing `attach_pane`'s own lock before

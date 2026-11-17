@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T01:12:00Z'
+updated_date: '2026-11-17T01:14:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -879,6 +879,40 @@ Caused by:
   process didn't exit successfully: `/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/target/debug/deps/steg_server-12505e9af74cc0ed` (signal: 15, SIGTERM: termination signal)
 full output: .quiet/test-steg-server-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T01:14:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 724fe9aca809 with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (0.5s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (every crate) (24.7s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.4s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (21.8s)
+ok      test (steg-server, race-fixture) (21.1s)
+ok      test (steg-server, accept-backoff-fixture) (23.3s)
+ok      build (steg) (0.1s)
+ok      test (steg) (0.1s)
+ok      test (steg, fixtures) (3.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.3s)
+ok      tool tests (11.8s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T02:38:00Z'
+updated_date: '2026-11-17T02:43:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1455,6 +1455,41 @@ test result: FAILED. 190 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/tests-every-crate.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T02:43:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at fa0b33fc801c with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.9s)
+ok      tests (every crate) (31.9s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (2.2s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (29.9s)
+ok      test (steg-server) (29.2s)
+ok      test (steg-server, race-fixture) (31.0s)
+ok      test (steg-server, pty-race-fixture) (37.3s)
+ok      test (steg-server, accept-backoff-fixture) (34.8s)
+ok      build (steg) (2.0s)
+ok      test (steg) (3.3s)
+ok      test (steg, fixtures) (9.8s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.9s)
+ok      test (steg-app) (1.5s)
+ok      tool tests (11.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

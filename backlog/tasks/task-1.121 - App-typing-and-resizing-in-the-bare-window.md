@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T02:46:00Z'
+updated_date: '2026-11-17T22:32:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -1490,6 +1490,41 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T22:32:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 7ba220a481d3 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (11.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (93.7s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (3.0s)
+ok      build (steg-kernel) (1.2s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (1.3s)
+ok      test (steg-server) (57.7s)
+ok      test (steg-server, race-fixture) (60.1s)
+ok      test (steg-server, pty-race-fixture) (66.0s)
+ok      test (steg-server, accept-backoff-fixture) (60.7s)
+ok      build (steg) (1.9s)
+ok      test (steg) (3.7s)
+ok      test (steg, fixtures) (10.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.4s)
+ok      tool tests (13.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -1,9 +1,11 @@
 ---
 id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
+updated_date: '2026-11-17T03:37:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-4
+asdlc_branch: task-1.126-app-the-terminal-draws-in-an-installed
 ---
 
 ## Description

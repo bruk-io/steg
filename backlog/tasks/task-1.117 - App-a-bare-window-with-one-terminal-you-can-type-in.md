@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T01:46:00Z'
+updated_date: '2026-11-17T02:16:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1256,6 +1256,22 @@ individual control needed separate re-recording beyond that.
 
 ps confirmed clean (no leftover processes) before each push. CI green on
 the PR (gh pr checks --watch) after the final push.
+
+Check passed: `cargo test -p steg-app a_successful_attach_survives_interrupt_called_right_after -- --exact` exited 0 at 2026-11-17T02:16:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at 85da77e96e15 with uncommitted changes:
+
+```text
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

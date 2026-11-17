@@ -1156,6 +1156,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 190 filtered out
 
 error: test failed, to rerun pass `-p steg-server --lib`
 ```
+
+Check passed: `cargo test -p steg-server --lib a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report` exited 0 at 2026-11-17T01:45:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 1fc112e6c735:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_stale_recorded_size_gets_a_fresh_screen_even_with_nothing_else_to_report ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -2857,12 +2857,12 @@ mod tests {
         // assumed). Run on its own thread instead, answered through a
         // channel this test waits on with a real, bounded `recv_timeout`
         // - the one thing in `std` that can actually time out a wait on
-        // another thread's own lock.
-        assert!(
-            done_rx.try_recv().is_err(),
-            "the stuck attach already answered before the real check even ran - \
-             the flood above was not large enough to prove anything"
-        );
+        // another thread's own lock. (TASK-1.125 review's own nit: a
+        // `done_rx` check right here, immediately after spawning, would
+        // prove nothing - the spawned thread may not even have started
+        // yet, so it could pass regardless of whether the flood below
+        // ever stuck anything. The one check that matters is after the
+        // real wait, below.)
         let show_request = Request {
             method: "pane.show".to_string(),
             params: serde_json::json!({"target": other_target})

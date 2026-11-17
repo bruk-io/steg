@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T01:26:00Z'
+updated_date: '2026-11-17T01:27:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -210,6 +210,14 @@ created: 2026-11-16T13:14:00Z
 ---
 
 2026-11-16, @bruk.o: a second kind of hung test, for the same lesson: TASK-1.98's new accept-backoff tests joined a reader thread with no bound and hung for 30 minutes on CI (run 43866214322) and three times on the worker's machine. Fixed in that task; when this task bounds the race tests, consider a suite-level guard so that no single test binary can run past a few minutes in just check (the fourth criterion here).
+
+---
+
+created: 2026-11-17T01:27:00Z
+
+---
+
+2026-11-16, @bruk.o, plan check (fbc7088082a8): not yet for approval; the finding needs one more step. (1) The second mechanism cannot be the hang: a leaked parked thread does not keep a Rust test binary alive, the process exits when the harness returns; and the sampled stack was the test's own thread under the harness, inside the direct run_writer call. So the write to the stream whose peer was dropped did succeed. (2) A mechanism that fits and that the 800,000-trial probe could not show: UnixStream::pair on macOS makes the pair and sets close-on-exec afterwards, not atomically. Other tests in the same binary fork and exec programs (pty and pane tests). A fork between the pair being made and drop(client) leaves a child holding the client end, so the peer is not gone, the write succeeds, and run_writer waits forever on an empty queue. Test this: repeat the probe while other threads spawn short-lived processes. (3) If confirmed, bounding that test only turns a hang into an intermittent failure. The test should not depend on a closed peer at all: run_writer is generic over Write, so give it a sink that always fails. (4) If confirmed it is also a product question, to note as a follow-up and not fix here: sockets the server accepts are likewise marked close-on-exec after the fact on macOS, so a pane's program started in that window could inherit a client's connection. Keep the rest: the step bound in steg-quiet, the helper, race.rs and openpty_race.rs, and the split of the wider sweep.
 
 ---
 <!-- COMMENTS:END -->

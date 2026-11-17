@@ -3,15 +3,18 @@ id: TASK-1.113
 title: >-
   Server: the race-fixture tests hung for 28 minutes on CI once; every wait in
   them gets a bound
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T04:19:00Z'
+updated_date: '2026-11-17T04:26:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.113-server-the-race-fixture-tests-hung-for
+  - https://github.com/bruk-io/steg/pull/69
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -558,6 +561,18 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.1s)
 ```
+
+Built per the approved, revised plan. Root cause (AC #1): confirmed via the toolchain's own std source (sys/net/connection/socket/unix.rs) that UnixStream::pair/accept cannot set CLOEXEC atomically on macOS; a fork from another thread of the same test binary (signal.rs, login_env.rs, pty.rs, pane.rs all fork real processes) can inherit the dropped client fd before close() lands, keeping the write from failing. Reproduced directly (scratch probe, not committed): 0/800,000+ failures with nothing else forking, ~1 in 4 successes with 8 threads forking concurrently. connection.rs's own ConnectionCleanup::drop confirms close() always runs on every production exit path, so this is a test-only defect, not a product bug.
+
+Fix: a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails now uses a sink that always fails (AlwaysFailsToWrite) instead of a dropped-peer socket, removing the dependency on fork timing entirely; also wrapped in the new run_bounded helper as a second, independent guard. Added crates/server/src/test_support.rs (run_bounded, ClosingWriterGuard - the latter gives the four spawn-then-assert outbound.rs tests panic-safe cleanup, mirroring connection.rs's own Drop idiom; stated as hygiene, not a fix for the hang). Added crates/server/tests/support/mod.rs (same run_bounded shape plus wait_child_bounded, a watchdog-thread design, not a sleep-poll) and wired it into race.rs (the kill()-then-wait() sites) and openpty_race.rs (replacing wait_timeout_or_kill's 5ms poll, per TASK-1.82's own forward reference, and bounding the reader-thread join). ReapOnDrop's own Drop impls in both files are left as plain kill()+wait(): wait_child_bounded panics on timeout, and a panic inside Drop during an unwind would abort the process rather than report one clean failure - documented inline.
+
+steg-quiet (tools/src/steg_tools/quiet.py) now bounds every just check step independently of Rust-level coverage: Popen with start_new_session=True, killpg on a per-step timeout (STEG_QUIET_TIMEOUT_S, default 300s). Default set from real recorded timings: 132.2s was the slowest step seen across ~15 sampled CI runs, 109.2s the slowest single-package step, 92s a cold full-workspace build with no cache at all on this machine; no CI run sampled ever hit a cold Zig/ghostty-vt build (cache stayed warm every time), so 300s clears every observed case with real headroom and still leaves CI's 30-minute job limit room to report several timeouts rather than exhaust it on one.
+
+Checks recorded via asdlc record-check: cargo test -p steg-server --lib (193 passed); cargo test -p steg-server --features race-fixture (full crate); cargo test -p steg-server --features pty-race-fixture (full crate); just test-openpty-race-control (re-run per the plan's own risk - one run missed the reproduction at 0/100,000, a second run reproduced in 0.8s, both within the control's own documented variance, nothing weakened); just test-tools (new quiet.py unit + functional tests, including a real grandchild-process-and-sentinel-file proof that killpg reaches the whole group, not only the direct child); just check, full workspace, twice (once before, once after rebasing onto origin/main's latest board commits).
+
+Two negative controls run by hand, not committed, not posted as raw output (description only, per the safety rule): reverting outbound.rs's close()-on-broken-write made the rewritten test fail with a clear assertion mismatch, confirming it still tests what it claims; reverting run_bounded's own timeout (rx.recv() instead of recv_timeout) made its own negative-control test hang indefinitely (confirmed by wrapping it in an external 8s timeout, which fired), confirming the bound mechanism itself is load-bearing. Both restored and re-verified passing before any check was recorded.
+
+Scope: criterion 2 was narrowed to outbound.rs, race.rs and openpty_race.rs per the engineer's split (TASK-1.123 for the wider sweep, TASK-1.124 for the accept()/portable_pty product question) before this build started. ps checked clean of leftover processes after every run. PR #69, CI green (6m21s, gh pr checks --watch).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

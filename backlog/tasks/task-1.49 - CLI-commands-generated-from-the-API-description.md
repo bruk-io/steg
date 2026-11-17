@@ -26,6 +26,8 @@ asdlc_plan_approved_size: size-4
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -1100,6 +1102,15 @@ created: 2026-11-17T00:09:00Z
 ---
 
 @bruk.r1 released its review claim on TASK-1.49; another reviewer may claim it with asdlc review-next.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T00:09:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.49: a same-machine review: it waited 8h 14m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

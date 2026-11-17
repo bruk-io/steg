@@ -3,11 +3,11 @@ id: TASK-1.112
 title: >-
   Server: opening a pseudo-terminal still fails now and then under concurrent
   opens
-status: In Review
+status: Done
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:51:00Z'
+updated_date: '2026-11-17T00:57:00Z'
 labels:
   - size-2
   - review-passed

@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:05:00Z'
+updated_date: '2026-11-17T05:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -975,6 +975,43 @@ running 1 test
 test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.31s
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-17T05:10:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (32.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (1.1s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.4s)
+ok      build (steg-server) (30.3s)
+ok      test (steg-server) (28.2s)
+ok      test (steg-server, race-fixture) (30.3s)
+ok      test (steg-server, pty-race-fixture) (36.8s)
+ok      test (steg-server, accept-backoff-fixture) (31.3s)
+ok      build (steg) (1.0s)
+ok      test (steg) (3.1s)
+ok      test (steg, fixtures) (9.6s)
+ok      build (steg-ui) (0.6s)
+ok      test (steg-ui) (6.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.5s)
+ok      tool tests (13.9s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 26, 25 without the Asdlc-Worker trailer.

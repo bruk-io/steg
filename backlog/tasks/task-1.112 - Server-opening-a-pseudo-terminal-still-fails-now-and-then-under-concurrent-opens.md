@@ -7,9 +7,10 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T04:53:00Z'
-updated_date: '2026-11-17T00:46:00Z'
+updated_date: '2026-11-17T00:51:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -24,10 +25,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '4592947e385d'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
-asdlc_review_policies: ["rust", "testing-rust"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r3
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -902,6 +901,29 @@ created: 2026-11-17T00:46:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:51:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Re-review of PR 67 (head 8009af4) against main: only crates/server/src/pty.rs changed, 79 insertions/6 deletions, exactly the first pass's one Important finding and what serves it.
+
+1. Fixed. The exhaustion path now calls open_exhausted(attempts, cause), which builds Error::Pty(Box::new(OpenExhausted { attempts, cause })); OpenExhausted::source() returns Some(cause.as_ref()), so the real cause stays reachable instead of being folded into a string. Checked every other Error::Pty call site in the file (lines 326, 337, 341, 352): all still use cause.into() directly, unchanged - no other error in this diff was turned into a string.
+
+2. The new test (pty.rs:424) walks source() to the end of the chain and asserts the last error's text is the synthetic cause itself, plus asserts the formatted message still contains the attempt count. The worker's recorded control pair (fail at 38e596bd3cbe+uncommitted 00:33:13, pass at 00:33:26) is for this same change: git diff 38e596bd3cbe..HEAD -- crates/server/src/pty.rs equals the PR's own diff against main, so the committed fix is byte-identical to what was tested uncommitted - the recorded control applies unchanged at the head. I also repeated it myself: reverted open_exhausted to the format! string form in a scratch edit at head 8009af41, ran the test, got the same failure shape (left: the formatted string, right: "synthetic cause"), then `git checkout --` the file clean. Ran cargo test -p steg-server --lib pty::tests at head: all 4 pass, no warnings (OpenExhausted's earlier dead_code warning is gone now that both real code and the test construct it).
+
+3. Nothing else changed in the diff beyond this fix and what serves it - no other file touched, no test weakened, no behaviour beyond the fix.
+
+plan-matched=yes for this diff: it touches only crates/server/src/pty.rs (named in the plan's "Files that change") and does only what the plan's error-message line already called for, now done without losing the source chain; a private error type added to satisfy a review finding is not a plan departure. (The task-level plan-matched=no from the first pass, about the #[ignore]d control and the justfile recipe, stands on its own record and isn't re-litigated here - it predates and is outside PR 67's diff.)
+
+Not checked: did not re-run the first pass's nit (tests/openpty_race.rs's 5ms poll) - that file isn't in this diff, and the first pass already closed it as precedented. Did not run `just check` (ten-minute budget); relying on the recorded green at this exact head (8009af415d44, 00:39:32) and CI green (run 43989431067), plus my own targeted pty::tests run at head.
 
 ---
 <!-- COMMENTS:END -->

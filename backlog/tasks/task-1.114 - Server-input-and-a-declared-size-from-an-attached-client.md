@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-16T18:13:00Z'
+updated_date: '2026-11-17T01:31:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -927,6 +927,51 @@ ok      architecture (0.7s)
 ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T01:31:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.114 on task-1.114-server-input-and-a-declared-size-from-an at 6b5b5634e3a6, last 40 of 79 lines:
+
+```text
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/attach.rs (target/debug/deps/attach-6be417ce8cb1688e)
+
+running 16 tests
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test input_clears_a_finished_status ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (47562804) panicked at crates/server/tests/attach.rs:1331:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 15 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.55s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

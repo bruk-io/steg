@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T23:28:00Z'
+updated_date: '2026-11-17T23:31:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -550,6 +550,51 @@ help: indent this line
 error: could not compile `steg-server` (test "attach") due to 1 previous error
 full output: .quiet/lint.log
 error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-17T23:31:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at d7a34f46b4ee with uncommitted changes, last 40 of 79 lines:
+
+```text
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::tests::an_unfiltered_subscriber_receives_nothing ... ok
+kill: 87422: No such process
+test runtime::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test outbound::tests::end_stream_still_delivers_the_final_frame_when_the_queue_was_already_full ... ok
+kill: 87724: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 87414: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+failures:
+
+---- pane::attach_tests::flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full stdout ----
+
+thread 'pane::attach_tests::flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full' (54842990) panicked at crates/server/src/pane.rs:2979:62:
+called `Result::unwrap()` on an `Err` value: Os { code: 22, kind: InvalidInput, message: "Invalid argument" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane::attach_tests::flush_ended_still_delivers_its_frame_when_the_attachments_own_queue_is_already_full
+
+test result: FAILED. 202 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

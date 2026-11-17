@@ -1,9 +1,11 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
+updated_date: '2026-11-17T22:19:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -14,6 +16,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.128-server-and-app-an-attached-client-is
 ---
 
 ## Description

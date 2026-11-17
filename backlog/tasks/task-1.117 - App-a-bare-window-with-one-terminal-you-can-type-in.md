@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T02:28:00Z'
+updated_date: '2026-11-17T02:29:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1568,6 +1569,15 @@ Re-judged per the brief: no polling/periodic wake-up anywhere in the app (confir
 I ran just check once myself (clean, exit 0, ~5 minutes, no server-side hang) and confirmed no leftover processes in ps afterward.
 
 Not checked: the app was not run; R19's latency budget (deferred to TASK-1.122); TASK-1.47's own mechanism (its own PR).
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T02:29:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["rust", "testing-rust"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -892,6 +893,15 @@ Checked and clear: the retry (any failure of the open step, no sleep, OpenRetrie
 plan-matched=no: this is the orchestrator-approved, notes-recorded departure from the plan's own words (the no-retry control moved from a permanent just-check gate to an #[ignore]d, on-demand test, with criterion 2 reworded to match) plus the justfile recipe (test-openpty-race-control) that departure needed, which the plan's own "Files that change" list did not name. Not counted as an Important finding: the notes explain it in detail with real numbers (the 15% miss rate at the plan's original density, the redesign, the final 100,000-open bound's 3/3 local and 3/3 CI reproductions), matching the review brief's own framing of this as a disclosed, agreed departure.
 
 Not checked: whether anything outside crates/server/src/pty.rs's error-handling (this one exhaustion path) also silently drops a source chain elsewhere in the crate - only this task's own new code was in scope.
+
+---
+
+author: @bruk.r3
+created: 2026-11-17T00:46:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.112: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

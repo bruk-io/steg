@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T05:01:00Z'
+updated_date: '2026-11-17T05:03:00Z'
 labels:
   - size-2
   - changes-requested
@@ -801,6 +801,40 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --lib outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails` exited 101 at 2026-11-17T05:03:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 11f5e0ce3676 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 29.57s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... FAILED
+
+failures:
+
+---- outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails stdout ----
+
+thread 'outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails' (51098358) panicked at crates/server/src/outbound.rs:490:9:
+assertion `left == right` failed: the writer's own broken-write exit must close the queue, the same as an explicit Outbound::close() would
+  left: Ok(())
+ right: Err(Closed)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 192 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 26, 25 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

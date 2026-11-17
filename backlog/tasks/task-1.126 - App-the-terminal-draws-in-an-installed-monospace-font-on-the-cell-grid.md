@@ -1,11 +1,11 @@
 ---
 id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-17T03:36:00Z'
-updated_date: '2026-11-17T21:22:00Z'
+updated_date: '2026-11-17T22:18:00Z'
 labels:
   - size-2
   - review-passed

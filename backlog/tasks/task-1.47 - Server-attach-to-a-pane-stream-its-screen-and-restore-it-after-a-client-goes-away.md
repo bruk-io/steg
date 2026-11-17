@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T00:24:00Z'
+updated_date: '2026-11-17T00:25:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1872,6 +1872,21 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.09s
 
 error: test failed, to rerun pass `-p steg-server --lib`
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-server --lib pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking` exited 0 at 2026-11-17T00:25:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.90s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 1 test
+test pane::attach_tests::a_full_queue_marks_the_attachment_for_resync_without_blocking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.00s
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.

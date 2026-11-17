@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T00:15:00Z'
+updated_date: '2026-11-17T00:16:00Z'
 labels:
   - size-5
   - changes-requested
@@ -1058,6 +1058,42 @@ running 1 test
 test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `sh -c 'cd /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 && cargo test -p steg-app two_runs_differing_only_in_underline_colour_get_different_keys'` exited 101 at 2026-11-17T00:16:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117 on task-1.117-app-a-bare-window-with-one-terminal-you at dd0dbb811b11 with uncommitted changes:
+
+```text
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.117/crates/app)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.00s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... FAILED
+
+failures:
+
+---- terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys stdout ----
+
+thread 'terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys' (45749255) panicked at crates/app/src/terminal_element.rs:332:9:
+assertion `left != right` failed
+  left: 2340915883340319987
+ right: 2340915883340319987
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 
 Commits since the review: 0.

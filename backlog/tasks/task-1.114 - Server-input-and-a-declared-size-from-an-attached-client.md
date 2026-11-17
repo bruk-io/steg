@@ -1,13 +1,14 @@
 ---
 id: TASK-1.114
 title: 'Server: input and a declared size from an attached client'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T04:14:00Z'
+updated_date: '2026-11-17T04:23:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.47
@@ -21,8 +22,10 @@ asdlc_branch: task-1.114-server-input-and-a-declared-size-from-an
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ec385ef4d563'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1529,6 +1532,25 @@ created: 2026-11-17T04:14:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T04:23:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/sdk/src/screen.rs:146 (Screen/ScreenUpdate shapes) and crates/server/src/pane.rs:276 (Attachment::last_told_size): the approved plan's section 2, quoting doc-14 verbatim ("an update gains an optional size"), specifies adding size: Option<Size> to ScreenUpdate::Delta. The diff never adds this field; instead Screen gained size and a new per-attachment Attachment::last_told_size in pane.rs forces any size-stale attachment onto a fresh, independent Full on its next tick, even with no content change. This is a real, substantial departure from both the plan's named mechanism and the contract's (doc-14) literal wording, and it is not in the task's "Departures/decisions, with reasons" list (which has three unrelated items: the 5s/10s->15s/30s bound widening, the added a_second_connections... test, and the accepted stuck-pane limit). The only place the departure and its reasoning appear is a source comment in screen.rs ("doc-14's own wording... was tried and dropped") - never surfaced on the board for a reviewer or for doc-14 to be reconciled with reality.
+
+The chosen mechanism is well-reasoned on its own terms (the code comments trace a real bug the plan's single pane-wide "size changed" flag would have had with a newly-arming attachment, confirmed by the two-client ordering test), and the behavioural clause of AC #2 ("an update on every attachment's stream reports the terminal's size when it changes") is still met empirically - I repeated one proof's control myself (declaring_a_size_of_zero_is_refused, widening connection.rs's range check from 1..=u16::MAX to 0..=u16::MAX in a scratch edit, reverted after): it failed as the task's notes claim, confirming that control is real. But soundness of the new design does not substitute for recording the departure: the plan's own section 2 explicitly says a resize must never be "promoted to a full, scrollback-free resync it does not need... reserved for !is_current/back-pressure" - the shipped mechanism does exactly that for every size change, unflagged as the policy exception it now is.
+
+Not checked beyond this: I did not re-run the full proof table past the one control above; the recorded failing/passing pairs in the notes look legitimate and consistent with the final head (93780eae, matching the PR). I did not check doc-9 in detail beyond its reference in the task's citation list.
+
+Informational, not a finding, answering the team-lead's question about TASK-1.125: this task's stream_panes.insert(stream, pane) (connection.rs, pane.attach's Ok arm) sits right after runtime.arm_attachment's call, alongside the pre-existing pane_streams insert. If TASK-1.125 wraps arm_attachment's effect in an "if armed" branch, stream_panes's insert can safely move inside it or stay outside: Runtime::send_input already no-ops (state.panes.get(&pane) is None) for a pane with no worker, the same precondition under which arm_attachment itself no-ops, so an unarmed attachment's input is silently dropped either way - inside send_input if stream_panes still routes it, or in connection.rs's own "nothing to route to" branch if it doesn't. No test depends on which side of that branch it ends up on. For symmetry with pane_streams (which stays unconditional, since ConnectionCleanup::drop's sweep needs it regardless of arming), leaving stream_panes unconditional too is the simpler, lower-risk choice for whoever merges second.
 
 ---
 <!-- COMMENTS:END -->

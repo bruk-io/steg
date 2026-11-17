@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:08:00Z'
+updated_date: '2026-11-17T23:12:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1583,6 +1583,53 @@ Honest note on the live run's own environment: the socket was genuinely isolated
 Images/recording held by the orchestrator in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov), described in the PR body as checked here, awaiting the engineer's own upload.
 
 PR 71's CI is green on 2c127d4f.
+
+Check FAILED: `just test` exited 101 at 2026-11-17T23:12:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test startup::tests::teardown_while_the_server_is_silent_mid_handshake_ends_quickly ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test client::tests::once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test startup::tests::a_successful_attach_survives_interrupt_called_right_after ... ok
+
+failures:
+
+---- ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length stdout ----
+
+thread 'ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length' (54597871) panicked at crates/app/src/ime.rs:146:9:
+assertion `left == right` failed
+  left: Some(0..0)
+ right: Some(0..2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero stdout ----
+
+thread 'ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero' (54597872) panicked at crates/app/src/ime.rs:134:9:
+assertion `left == right` failed
+  left: Some(0..0)
+ right: Some(0..1)
+
+
+failures:
+    ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length
+    ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero
+
+test result: FAILED. 53 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

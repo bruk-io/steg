@@ -3,16 +3,19 @@ id: TASK-1.125
 title: >-
   Server: a pane that closes between attach and arm leaves the client a silent
   stream
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T02:40:00Z'
-updated_date: '2026-11-17T04:05:00Z'
+updated_date: '2026-11-17T04:13:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.47
+references:
+  - task-1.125-server-a-pane-that-closes-between-attach
+  - https://github.com/bruk-io/steg/pull/68
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -197,6 +200,8 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+AC #1 and #2: Runtime::arm_attachment now returns bool (false once the pane is already gone from state.panes); connection.rs's pane.attach success arm checks it, closing both sides of the stream and recording nothing in pane_streams when false, so a later pane.detach answers as never-attached. Proof: arm_attachment_answers_false_once_the_pane_has_already_closed, recorded failing (control: report armed unconditionally) then passing. Taken from the durable patch task-1.47-arm-returns-armed.patch. AC #3: honest account, not built. No implemented method on this worktree's main can create sustained backpressure on a pane's own worker from a socket-level test (pane.send is still NotImplementedYet; confirmed directly). PR #66 (TASK-1.114) had not merged by the time everything else here was done and green, so per the plan I did not wait on it. The two-connection socket test to add once it lands is named in the plan and the PR description. The stronger lock-contention test from TASK-1.47 (not driven by this task's own criteria, approved by the engineer as a separate, named addition) is carried here as its own commit, recorded failing (control: hold the lock across the wait) then passing. just check green. Expected conflict with TASK-1.114's own branch in connection.rs's pane.attach arm is named in the plan; not yet hit since PR #66 has not merged - if it merges after this one, their stream_panes.insert(stream, pane) belongs inside the if armed branch this change adds.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

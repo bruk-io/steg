@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T03:40:00Z'
+updated_date: '2026-11-17T03:49:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -250,6 +250,12 @@ by this revision, see the "Files that change"/split note below.
 Sighting with a stack, 2026-11-16 by @bruk.o: on this machine, in TASK-1.121's worktree, 'just check' hung for 29 minutes in the step 'test (steg-server, race-fixture)'. A sample of the test binary showed one test thread still alive: outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails. Its stack: the test calls outbound::run_writer on a UnixStream, which sits in Condvar::wait on the Queues lock (pthread_cond_wait), never woken. So the test calls run_writer on its own thread and relies on a write failing to end it; when the queue is empty at that moment the writer waits for work with nothing left to wake it. This is likely the same hang as the 28 minutes on CI, and it is in the unit tests built with the race-fixture feature, not in the race-fixture integration tests. Fix belongs here: the test must not be able to block forever (enqueue before running the writer, or run the writer on a thread joined with a bound), and check whether run_writer itself can miss a wake-up when the queue is closed while it waits.
 
 Plan checked against the task's criteria and the testing rules by @bruk.o (plan 2eb24f415089): ok. The cause is confirmed, not guessed: on macOS a socket pair is marked close-on-exec after it is made, other unit tests in the same binary fork, and a child that inherits the dropped end keeps the peer open, so the write succeeds and run_writer waits forever (probe: about one write in four succeeded with concurrent forks, none without). The test gets a sink that always fails, so it no longer depends on a closed peer. Kept: a bound on every step in steg-quiet with a process-group kill, the helpers, race.rs and openpty_race.rs. Split, for the engineer to accept: the wider sweep and the product question of a pane's program inheriting a connection are drafted as separate tasks; criterion 2 here is to be narrowed to the files this task names once the engineer agrees.
+
+Check passed: `just test-tools` exited 0 at 2026-11-17T03:49:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 5d22d48902f2 with uncommitted changes:
+
+```text
+ok      tool tests (14.0s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

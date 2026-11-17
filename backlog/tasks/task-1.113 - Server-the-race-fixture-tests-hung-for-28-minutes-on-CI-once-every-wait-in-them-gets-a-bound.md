@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-16T05:42:00Z'
-updated_date: '2026-11-17T06:04:00Z'
+updated_date: '2026-11-17T06:10:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1269,6 +1269,43 @@ Re-ran and re-recorded the watchdog-kill control against the edited code, both h
 Checks after the fix: cargo test -p steg-server --features race-fixture (full crate, includes the edited test) and --features pty-race-fixture (full crate), both green. just check, full workspace: one run hit an unrelated flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, "the backgrounded grandchild's own pid file never appeared" - a timing-sensitive test in a file this task never touches; reran it alone and it passed, consistent with load on a shared machine, not a regression from this change) - recorded that run and the clean rerun both, for the record. ps checked clean of leftover processes throughout, including after the unrecorded and recorded failing control runs.
 
 PR #69, pushed (head 174ab452), CI green (run 44026476589, 7m55s).
+
+Check passed: `just check` exited 0 at 2026-11-17T06:10:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.113 on task-1.113-server-the-race-fixture-tests-hung-for at 174ab452d86d with uncommitted changes:
+
+```text
+ok      format check (0.2s)
+ok      lint (31.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.6s)
+ok      tests (every crate) (27.3s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (22.0s)
+ok      test (steg-server, race-fixture) (22.9s)
+ok      test (steg-server, pty-race-fixture) (30.4s)
+ok      test (steg-server, accept-backoff-fixture) (22.9s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.3s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.117
 title: 'App: a bare window with one terminal you can type in'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-16T12:54:00Z'
-updated_date: '2026-11-17T01:36:00Z'
+updated_date: '2026-11-17T01:46:00Z'
 labels:
   - size-5
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.47
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8551f6bb93b8'
 asdlc_plan_approved_size: size-5
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=3,nit=2'
+asdlc_review_findings: 'important=2,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1320,6 +1320,31 @@ created: 2026-11-17T01:36:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.117: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-17T01:46:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Second pass after @bruk.r2's first review (changes requested). Findings 3 and 4 (unicode-segmentation undisclosed, underline-colour cache key) are fixed: the dependency is now recorded with reason and licence in boundaries.toml/Cargo.toml, and run_key hashes underline_colour with two new tests. Finding 2 (startup.rs untested) is fixed well: resolve_pane is extracted and covered by five new tests against a real UnixStream::pair(), the stale-pane/tab.new branch is genuinely reached with the real request sequence, the fake server now fails loudly on EOF instead of spinning, and no test relies on dropping one socket half to make the peer fail (the TASK-1.113 hazard) - every new test uses an explicit .shutdown() or a bounded read timeout instead.
+
+Finding 1 (teardown can block the main thread forever) is only partly fixed.
+
+[Bugs, Important] crates/app/src/main.rs:108-121 (AppWindow::stop_startup) and crates/app/src/startup.rs:132-148. stop_startup locks the ShutdownSlot exactly once, then calls thread.join(). startup::run() only populates that slot after connect() returns (startup.rs:139-142), with no lock held across the gap between connect() returning and the slot being written. If stop_startup's one lock happens before that write - plausible any time teardown races a startup thread that is about to finish connecting - it sees None, shuts nothing down, and falls into join(). The thread then proceeds through write_all(hello) and every subsequent block_until/call (hello, session.list, tab.list, resolve_pane's pane.list/tab.new, attach): plain reads with no timeout at all (steg_sdk's connect() sets no read timeout on the stream - crates/sdk/src/local_socket.rs only has connect_timeout, which bounds connecting, not anything after). A server that accepts and then stalls at any of those steps now hangs join() forever through this race instead of deterministically as before - the same unbounded block finding #1 described, narrowed to a timing window, not closed. The module doc's claim that "the worst case is a bounded wait up to connect_timeout (10s)" (startup.rs:16-19) is false for this path, and nothing in the notes accounts for it.
+
+[Evidence, Important] crates/app/src/startup.rs:479-504 (publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read), cited as proof finding #1 is fixed. It never calls run() or stop_startup: it builds its own Arc<Mutex<Some(handle)>> already populated and calls block_until directly, so it only proves shutdown() on an already-published handle unblocks a waiting read (POSIX semantics), not that run()'s own publish timing is safe against a concurrent stop_startup. Control I ran myself and reverted: commented out the one line in run() that publishes interrupt_handle into the slot (startup.rs:142), then ran cargo test -p steg-app publishing_a_shutdown_handle_in_the_slot_unblocks_a_blocked_read - still passes (ok), confirming the test is decoupled from the mechanism it is cited to prove. just check was clean again afterward with the revert applied (confirmed via git diff/status, no residual changes).
+
+Re-judged per the brief: no polling/periodic wake-up anywhere in the app (confirmed again reading client.rs/startup.rs/main.rs in full - every wait is a real blocking read, an .await on a channel, or (new) a lock-check); the recorded controls for model/metrics/client (ec8d9f46e04c) and the underline-colour fix (dd0dbb811b11) are unaffected by the two merges since (crates/app untouched by both, just check green again at the final head 85da77e96e15, matching the notes); I did not find separately-recorded failing/passing pairs for the five new startup.rs tests at the final head in the task's own history, only at dd0dbb811b11 - acceptable here since crates/app is confirmed byte-for-byte unchanged by both merges and just check re-ran the full suite green at head.
+
+I ran just check once myself (clean, exit 0, ~5 minutes, no server-side hang) and confirmed no leftover processes in ps afterward.
+
+Not checked: the app was not run; R19's latency budget (deferred to TASK-1.122); TASK-1.47's own mechanism (its own PR).
 
 ---
 <!-- COMMENTS:END -->

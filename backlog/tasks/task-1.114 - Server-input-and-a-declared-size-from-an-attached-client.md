@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T08:39:00Z'
-updated_date: '2026-11-17T18:28:00Z'
+updated_date: '2026-11-17T18:32:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.47
@@ -22,10 +23,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ec385ef4d563'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -2116,6 +2115,32 @@ created: 2026-11-17T18:28:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.114: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T18:32:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Round 2 (narrow), head 400ac97a. No findings.
+
+Checked:
+- connection.rs's resolved pane.attach arm (finish_attach): if armed, records in pane_streams as before; else closes both outbound and connection sides and records nothing. stream_panes.insert is now inside the `if armed` branch, so an unarmed stream is never given to stream_panes for input routing. runtime.rs's arm_attachment now returns bool (false when the pane is gone from state.panes), matching finish_attach's contract. Shape matches TASK-1.125 as asked.
+- doc-14's reworded Size section ("...sent a full screen at the new size on its next update, even when nothing else changed; a delta never carries a size") agrees with the shipped code (pane.rs's Attachment::last_told_size / AttachState handling) and with screen.rs's updated comment, which now says "doc-14's own Size section now specifies this" rather than "tried and dropped" - no source comment still claims the departure is undocumented or provisional.
+- The new socket-level test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach (crates/server/tests/attach.rs): traced the mechanism - attach_pane's attach_sender.attach(stream) blocks on the pane worker's own command channel; the flood of 120x7MB send_input calls from connection one queues ahead of connection two's attach on that same channel; pane.close --force removes the pane from state.panes (runtime.rs's to_force extraction) synchronously under the lock before force_end's signal/kill ever runs, so by the time the worker drains the backlog and finally answers the queued attach, arm_attachment's state.panes.get(&pane) is already None. This is deterministic given the flood is large enough to still be draining when force-close runs (confirmed by the test's own `reply_within(..1s)).is_none()` check before close), not a lucky race.
+- Repeated the control myself in a scratch edit (reverted): changed Runtime::arm_attachment back to the pre-1.125 shape (arm unconditionally, always return true). Ran `cargo test -p steg-server --test attach -- --exact a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach`: failed with the exact panic the test's own doc predicts ("pane.detach for a pane that closed between attach and arm must not succeed"). Reverted with `git checkout --`; `git status` clean afterward. Ran the real (fixed) test three more times after reverting: passed every time.
+- Commit 400ac97a's bound fix (call_and_read_reply's plain 5s default -> reply_within with explicit 30s/15s bounds for pane.close --force and the final pane.detach in this same new test) matches the stated CI failure and mirrors the existing pattern in pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck.
+- Recorded checks (just check, the targeted cargo test for the three attach-queue tests, gh pr checks 66) are all against head 400ac97ac3e1, the branch's current head.
+- The build-break fixes in crates/app (model.rs, startup.rs) from the origin/main merge are trivial Screen-literal additions with an arbitrary valid size, commented as not read by either file's logic; consistent with the merge commit's own description.
+
+Not checked: the rest of the origin/main merge content (crates/app's own window/client code from PR 65, outbound.rs's broken-write fix from PR 69) beyond confirming it doesn't conflict with this task's own files - those are each other PRs' own reviewed work, out of this round's scope per the brief.
+
+No rule-change draft filed (none of the findings from round 1 repeat; there are no findings this round).
 
 ---
 <!-- COMMENTS:END -->

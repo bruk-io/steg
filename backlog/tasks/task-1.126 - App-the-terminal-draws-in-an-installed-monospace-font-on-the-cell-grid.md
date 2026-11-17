@@ -1,7 +1,7 @@
 ---
-id: DRAFT-4
+id: TASK-1.126
 title: 'App: the terminal draws in an installed monospace font, on the cell grid'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T03:36:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.117
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-4
 ---
 
 ## Description

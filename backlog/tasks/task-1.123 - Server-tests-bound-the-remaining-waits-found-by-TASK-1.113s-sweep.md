@@ -1,7 +1,7 @@
 ---
-id: DRAFT-1
+id: TASK-1.123
 title: 'Server tests: bound the remaining waits found by TASK-1.113''s sweep'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T01:33:00Z'
 labels:
@@ -11,6 +11,7 @@ dependencies:
   - TASK-1.113
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

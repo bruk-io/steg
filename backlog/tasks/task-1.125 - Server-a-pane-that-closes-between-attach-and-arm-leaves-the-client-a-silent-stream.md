@@ -1,9 +1,9 @@
 ---
-id: DRAFT-3
+id: TASK-1.125
 title: >-
   Server: a pane that closes between attach and arm leaves the client a silent
   stream
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-17T02:40:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.47
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

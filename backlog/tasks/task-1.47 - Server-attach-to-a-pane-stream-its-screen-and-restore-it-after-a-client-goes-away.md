@@ -1919,6 +1919,21 @@ error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 170, 151 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply` exited 0 at 2026-11-17T00:25:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at c828ea3e5a33 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.76s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test description::methods::tests::pane_attachs_stream_id_field_names_a_real_field_of_its_own_reply ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 163 filtered out; finished in 0.00s
+```
+
+Commits since the review: 170, 151 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

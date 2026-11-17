@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T00:31:00Z'
+updated_date: '2026-11-17T00:32:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -811,6 +811,20 @@ created: 2026-11-17T00:07:00Z
 ---
 
 Plan approved by @bruk (344be7f33227, size-2): its worker may build it.
+
+---
+
+created: 2026-11-17T00:32:00Z
+
+---
+
+Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you (clean) and origin/task-1.114-server-input-and-a-declared-size-from-an (two conflicts) into this branch.
+
+Conflicts: crates/server/src/connection.rs (pane_streams's key type - took 1.114's side, the AttachmentId fix per the orchestrator's note) and crates/server/src/listen.rs (a test-only Duration literal for the now-shared attach_tick parameter - kept the named DEFAULT_ATTACH_TICK constant, incidental to that test's own assertion either way).
+
+Model (crates/app/src/model.rs) departs from the plan's section 4 as written, because 1.117's own model changed shape before this merge: it now tracks only a row count (columns are cropped by pixel bounds, not counted), not the full (columns, rows) the plan's prose assumed. Updated it to read that row count from Screen.size (now real, from TASK-1.114) instead of rows.len(), and to update it from a Full resync's own size. Renamed/replaced the two tests the plan named as falsified, under their real current names: from_snapshot_reads_its_fixed_row_count_once -> from_snapshot_reads_its_row_count_from_the_snapshots_own_size; a_full_update_replaces_the_whole_grid_but_not_the_fixed_row_count_it_was_built_with -> a_full_update_replaces_the_whole_grid_and_its_own_reported_size (now asserts the size changes, the opposite of its old name). a_delta_touches_only_the_rows_it_names_... is left asserting "unchanged" for now and renamed to say so plainly, because ScreenUpdate::Delta carries no size field on the branch this was merged against yet - TASK-1.114's own section 2 adds one; this is the known, named gap to close at the next re-merge, not a decision that Delta should stay size-blind.
+
+just check: exit 0 after the merge and this fix.
 
 ---
 <!-- COMMENTS:END -->

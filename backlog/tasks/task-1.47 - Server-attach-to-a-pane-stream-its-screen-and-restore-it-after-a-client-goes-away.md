@@ -8,7 +8,7 @@ assignee:
   - '@bruk'
   - '@bruk.w4'
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T01:58:00Z'
+updated_date: '2026-11-17T02:01:00Z'
 labels:
   - size-5
   - changes-requested
@@ -2461,6 +2461,44 @@ running 1 test
 test runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 190 filtered out; finished in 3.03s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach detaching_a_pane_that_already_closed_still_releases_the_stream` exited 101 at 2026-11-17T02:01:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47 on task-1.47-server-attach-to-a-pane-stream-its at 69680a39670b with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.47/crates/server)
+warning: function `parse_target_pane_id` is never used
+   --> crates/server/src/connection.rs:510:4
+    |
+510 | fn parse_target_pane_id(context: &Context, request: &Request) -> Option<PaneId> {
+    |    ^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.91s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... FAILED
+
+failures:
+
+---- detaching_a_pane_that_already_closed_still_releases_the_stream stdout ----
+
+thread 'detaching_a_pane_that_already_closed_still_releases_the_stream' (48598364) panicked at crates/server/tests/attach.rs:677:5:
+detaching an already-closed pane must still succeed, not fail at target resolution: Error(ApiError { code: NoSuchTarget, message: "\"00000001\" matches nothing among 0 candidate(s)", candidates: [] })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    detaching_a_pane_that_already_closed_still_releases_the_stream
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.

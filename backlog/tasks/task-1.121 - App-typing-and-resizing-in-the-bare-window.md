@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:24:00Z'
+updated_date: '2026-11-17T23:27:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1919,6 +1919,30 @@ created: 2026-11-17T23:20:00Z
 ---
 
 Decision by @bruk (2026-11-17, relayed by @bruk.o) on review finding 1: fix it in this task. Input and declared sizes must not be written to the socket on the UI thread; a key press never waits on the socket. This overrides the approved plan's section 3 ('directly on the main thread - no channel, no lock'); the change is an engineer-approved departure, to be recorded in the notes' Departures list.
+
+---
+
+created: 2026-11-17T23:27:00Z
+
+---
+
+Findings 2 and 3 fixed (commit 26f06705).
+
+Finding 2: marked_text_range returned a fixed Some(0..0) instead of the plan's own formula - an undisclosed departure, not deliberate; I found no reason the real form was hard to build once I looked. Built ImeState::marked_range_utf16 exactly as planned (0..s.encode_utf16().count()), with two new pure tests (single-unit and multi-character compositions each reporting their own real length) and a recorded failing-then-passing control (reverted to the old 0..0 shape; both new tests failed exactly as expected, restored, both pass). Removed is_composing, now redundant and otherwise dead code.
+
+Finding 3: the coverage test compared a hardcoded list against its own fixture, never against named_key_bytes - and only named 4 of 8 function-key rows. Added the missing rows (f2/f3/f6-f11) and rewrote the test to ask named_key_bytes itself, per candidate key, whether it answers Some, asserting that agrees with whether the table has a row proving it (expected: Some(_), not merely naming the key - the existing "f13 (dropped)" row proves the negative case and must not count as positive coverage). Recorded failing-then-passing: removed the f6 arm from named_key_bytes, both this test and the existing per-row test failed exactly as expected, restored, both pass.
+
+just check: exit 0 after both fixes.
+
+Facts for finding 1 (holding, not fixing, per your instruction) - sent to you directly as well:
+
+Under what conditions the write can block: Writer::send_input/declare_size's write_all blocks when the kernel's own Unix-domain-socket send buffer fills and the server's own connection-read loop isn't draining it. Read crates/server/src/connection.rs's own read loop and Runtime::send_input/PaneHandle::send_input directly: input is enqueued onto an unbounded std::sync::mpsc::channel (pane.rs:833), never a bounded one, so a pane's program not reading its own stdin backs up only that in-process channel, never the socket - the connection's read loop keeps draining the kernel buffer regardless of pane backpressure. For the write to actually block, the server's own connection-handling thread would have to stop reading from the socket for some other reason (the process itself unresponsive, not scheduled, or stuck elsewhere) - not because a pane's program refuses its input, which this task's own plan already named as an accepted, different limit (one pane's screen freezing, not the server's read loop stalling).
+
+How big the socket buffer is in practice: measured on this machine, not guessed - sysctl net.local.stream.sendspace and net.local.stream.recvspace both report 8192 bytes, the macOS default for Unix domain stream sockets; steg sets neither explicitly.
+
+Whether a single large paste alone can do it against a healthy server: Cmd-V paste is not implemented in this task's own shipped code at all - grepped crates/app/src for clipboard/paste, nothing calls it; keys.rs/ime.rs's own comments cite the plan's "For the engineer" point 3 as a future item, not something built. The only paths that call send_input today are on_key_down (one keystroke, a handful of bytes at most) and replace_text_in_range (a resolved IME composition, realistically short). So this specific risk is accurate as a future one, once paste is built, not one this PR's own shipped code can trigger today.
+
+How large the smallest honest fix is: a dedicated writer thread owning the UnixStream write handle, fed by an mpsc channel Writer::send_input/declare_size send onto instead of writing directly - the same shape this task already built for the reader thread (client.rs's own Client/read_loop), blocking on recv() with no polling, writing on receipt, looping. Ordering between input and declared sizes is preserved by construction if both go through the same channel and thread (a single FIFO queue, one consumer) - not two separate ones. On disconnect, the same shutdown mechanism the reader thread already uses (a cloned handle's own shutdown() call from teardown(), unblocking a stuck write) extends naturally, since the infrastructure already exists in this file for the read side. Estimate: comparable in size to the reader thread already built here - a few hours, not a redesign.
 
 ---
 <!-- COMMENTS:END -->

@@ -433,6 +433,35 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuw8M55` does not 
 ..                                                                       [100%]
 2 passed, 19 deselected in 0.01s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_line'` exited 1 at 2026-11-18T02:48:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpamCIbH` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_the_wait_line_names_the_count_and_has_no_bound_by_default ________
+
+    def test_the_wait_line_names_the_count_and_has_no_bound_by_default() -> None:
+        line = wait_line("tests (steg-server)", 2, None)
+        assert line.startswith("wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2)")
+>       assert "STEG_CHECK_SLOT_WAIT_S is unset" in line
+E       assert 'STEG_CHECK_SLOT_WAIT_S is unset' in "wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free; this step's own STEG_QUIET_TIMEOUT_S bound has not started yet"
+
+tools/tests/unit/test_quiet.py:118: AssertionError
+______________ test_the_wait_line_names_the_bound_when_one_is_set ______________
+
+    def test_the_wait_line_names_the_bound_when_one_is_set() -> None:
+        line = wait_line("tests (steg-server)", 2, 120.0)
+>       assert "told it may wait up to 120s (STEG_CHECK_SLOT_WAIT_S)" in line
+E       assert 'told it may wait up to 120s (STEG_CHECK_SLOT_WAIT_S)' in "wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free; this step's own STEG_QUIET_TIMEOUT_S bound has not started yet"
+
+tools/tests/unit/test_quiet.py:124: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_count_and_has_no_bound_by_default
+FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_bound_when_one_is_set
+2 failed, 19 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

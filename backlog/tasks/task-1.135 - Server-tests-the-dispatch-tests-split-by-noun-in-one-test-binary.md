@@ -647,6 +647,10 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Review fixes landed (commit 94d88814, after merging origin/main at 2ab6a7a6 - TASK-1.130 merged, touches crates/sdk and crates/app only, clean merge, nothing in crates/server/tests): routing.rs:418 now matches the plan's literal replacement text; dispatch/api.rs carries its own module doc comment naming the six cross-noun tests and why, matching tab.rs/cross_cutting.rs. Re-ran proof (c) at this head - fixing a stale hardcoded line range in the comparison script (api.rs grew by 8 lines from its own new doc comment) - and found api.rs is still byte-identical to its original slice: the new doc comment sits before this comparison's own body-start boundary, the same way cross_cutting.rs's own added marker comment does, so it's excluded as module-level scaffolding rather than counted as a body change. Re-recorded proof (b) (77/77) and `cargo clippy -p steg-server --all-targets --all-features -- -D warnings` (clean) at this same head.
+
+Local `just check` run once more with the machine quiet (uptime 2.65/3.39/4.04): full green, including crates/server's attach tests - confirms the five failures reported earlier really were this machine's concurrent-build load, not a regression. Pushed at 94d88814.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

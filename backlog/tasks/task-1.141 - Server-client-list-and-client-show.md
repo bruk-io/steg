@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:27:00Z'
+updated_date: '2026-11-18T22:35:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
 asdlc_branch: task-1.141-server-client-list-and-client-show
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '48ee00882225'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -97,3 +100,16 @@ Split from TASK-1.88 by its plan on 2026-11-18 (its fifth criterion). doc-2 sect
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (section 8, client rows; section 5 --all) and decision-5 by @bruk.o: ok. The methods, the --all filter for command line clients, and the target errors match the spec; no description, error code or wire change. Its edits beside TASK-1.88 are on different list entries and match arms; whichever lands second rebases. For the engineer: last_active empty for M1 (recommended), and the consequence that a plain 'steg client list' does not list itself without --all.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T22:35:00Z
+
+---
+
+Plan approved by @bruk (48ee00882225, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

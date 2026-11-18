@@ -1,11 +1,11 @@
 ---
 id: TASK-1.129
 title: 'App: the bare window shows that its program has ended, and stops taking keys'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T03:10:00Z'
+updated_date: '2026-11-18T04:27:00Z'
 labels:
   - size-2
   - review-passed

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:38:00Z'
+updated_date: '2026-11-18T03:39:00Z'
 labels:
   - size-2
   - changes-requested
@@ -693,6 +693,29 @@ Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpqXH9Cl` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 ..                                                                       [100%]
 2 passed in 0.03s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value"'` exited 1 at 2026-11-18T03:39:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmphh0Dfw` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value ___
+
+    def test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value() -> None:
+>       with pytest.raises(ValueError, match=r"STEG_CHECK_SLOT_WAIT_S must be a number, got 'soon'"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: "STEG_CHECK_SLOT_WAIT_S must be a number, got 'soon'"
+E         Actual message: "could not convert string to float: 'soon'"
+
+tools/tests/unit/test_quiet.py:141: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value
+1 failed in 0.01s
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

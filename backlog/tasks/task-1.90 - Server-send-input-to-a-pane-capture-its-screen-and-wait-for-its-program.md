@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:12:00Z'
+updated_date: '2026-11-18T14:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.90-server-send-input-to-a-pane-capture-its
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '8826c78b9232'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -90,3 +93,16 @@ Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps pane se
 
 Plan checked against doc-2 section 8, doc-16 and the task's three criteria by @bruk.o: ok, subject to the engineer's answers. pane send is validated in dispatch and delivered by a new Runtime::send_and_dispatch with a plain non-blocking hand-off to the pane's worker; capture and wait keep answering not implemented, citing their own tasks. Three things in it change a contract or cross a boundary and go to the engineer with the plan: a new error code ProgramNotRunning (exit status 1) in the API description, which doc-2's error table must then name; moving the named-key table from crates/app/src/keys.rs into the sdk so the server and the app share one, with the app's function becoming a one-line delegation; and the key parameter becoming a choice of the table's names so an unknown name is refused by validation. Repeated --key is deferred; text with key together is BadRequest.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T14:15:00Z
+
+---
+
+Plan approved by @bruk (8826c78b9232, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

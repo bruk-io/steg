@@ -1,15 +1,18 @@
 ---
 id: TASK-1.131
 title: 'Server: runtime.rs split into modules by concern'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:01:00Z'
+updated_date: '2026-11-18T05:51:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies: []
+references:
+  - task-1.131-server-runtime-rs-split-into-modules-by
+  - https://github.com/bruk-io/steg/pull/79
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -17,6 +20,8 @@ asdlc_branch: task-1.131-server-runtime-rs-split-into-modules-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6b3f731e72f1'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -464,6 +469,455 @@ test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_progra
 
 test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
 ```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-18T05:06:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at c8ed7dbad242 with uncommitted changes, last 40 of 216 lines:
+
+```text
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::start::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test pane::attach_tests::attaching_to_a_pane_that_already_ended_gets_a_final_full_then_ended ... ok
+test test_support::tests::a_body_that_returns_promptly_is_not_delayed ... ok
+test runtime::start::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::start::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+kill: 12921: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::start::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::attach::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 12744: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 13003: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 12709: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-18T05:08:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at c16123d9994b with uncommitted changes, last 40 of 216 lines:
+
+```text
+test runtime::start::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test runtime::start::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test test_support::tests::a_body_that_returns_promptly_is_not_delayed ... ok
+test pane::attach_tests::attaching_to_a_pane_that_already_ended_gets_a_final_full_then_ended ... ok
+kill: 14222: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::start::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::start::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::attach::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 14042: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+kill: 14306: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 14014: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check FAILED: `sh -c 'diff <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main before) <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main after); echo CONTROL-widened-pub-surface-must-fail'` exited 2 at 2026-11-18T05:09:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes:
+
+```text
+sh: -c: line 0: syntax error near unexpected token `('
+sh: -c: line 0: `diff <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main before) <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main after); echo CONTROL-widened-pub-surface-must-fail'
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-a.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 1 at 2026-11-18T05:09:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes:
+
+```text
+2a3
+> pub fn broadcast(state: &State, event: &steg_sdk::TreeEvent, scope: SessionId) {
+```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-a.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 0 at 2026-11-18T05:10:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a:
+
+```text
+
+```
+
+Check passed: `git diff --exit-code origin/main -- crates/server/src/lib.rs crates/server/src/config.rs crates/server/src/connection.rs crates/server/src/listen.rs` exited 0 at 2026-11-18T05:10:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a:
+
+```text
+
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-b.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before-raw.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before.txt` exited 1 at 2026-11-18T05:11:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes:
+
+```text
+raw count before: 203
+raw count after:  203
+--- normalised name diff (empty below this line = identical) ---
+--- running: ignored count must be exactly 0 ---
+
+FAIL: expected 0 ignored tests
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-b.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before-raw.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before.txt` exited 1 at 2026-11-18T05:12:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a:
+
+```text
+raw count before: 203
+raw count after:  203
+--- normalised name diff (empty below this line = identical) ---
+--- running: ignored count must be exactly 0 ---
+
+FAIL: expected 0 ignored tests
+```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-b.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before-raw.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before.txt` exited 0 at 2026-11-18T05:13:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a:
+
+```text
+raw count before: 203
+raw count after:  203
+--- normalised name diff (empty below this line = identical) ---
+--- running: ignored count must be exactly 0 ---
+test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-c.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 1 at 2026-11-18T05:18:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 64 lines:
+
+```text
+> fn emit_close_cascade(
+1439a1441
+> fn login() -> crate::runtime::LoginShell {
+1441d1442
+< fn login() -> super::LoginShell {
+1487c1488
+< fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
+---
+> fn test_state(
+1514d1514
+< force_end,
+1555a1556
+> if !stragglers.contains(pane) {
+1584d1584
+< if stragglers.contains(pane) {
+2261a2262
+> panes: HashMap<steg_sdk::PaneId, PaneHandle>,
+2356d2356
+< Response, SessionId, Size, validate,
+2395a2396
+> scope: SessionId,
+2516a2518
+> state: &State,
+2680c2682
+< super::LoginShell {
+---
+> super::close::emit_close_cascade(state, closed, scope);
+2718a2721,2722
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env,
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
+2764a2769
+> tree: steg_kernel::Tree,
+2795c2800,2801
+< use steg_kernel::{
+---
+> use crate::runtime::testing::{
+> use crate::runtime::testing::{
+2797d2802
+< use super::{
+FAIL: the body-diff output no longer matches the accounted-for baseline
+```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-c.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 0 at 2026-11-18T05:18:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 59 lines:
+
+```text
+1374d1375
+< Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, broadcast,
+1424c1425
+< fn emit_close_cascade(state: &State, closed: &steg_kernel::ClosedPane, scope: SessionId) {
+---
+> fn emit_close_cascade(
+1439a1441
+> fn login() -> crate::runtime::LoginShell {
+1441d1442
+< fn login() -> super::LoginShell {
+1487c1488
+< fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
+---
+> fn test_state(
+1514d1514
+< force_end,
+2261a2262
+> panes: HashMap<steg_sdk::PaneId, PaneHandle>,
+2356d2356
+< Response, SessionId, Size, validate,
+2395a2396
+> scope: SessionId,
+2517a2519
+> state: &State,
+2680c2682
+< super::LoginShell {
+---
+> super::close::emit_close_cascade(state, closed, scope);
+2718a2721,2722
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env,
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
+2764a2769
+> tree: steg_kernel::Tree,
+2795c2800,2801
+< use steg_kernel::{
+---
+> use crate::runtime::testing::{
+> use crate::runtime::testing::{
+2797d2802
+< use super::{
+```
+
+Check passed: `cargo test -p steg-server --lib` exited 0 at 2026-11-18T05:18:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 216 lines:
+
+```text
+test pane::attach_tests::an_attachment_gets_nothing_before_it_is_armed_even_if_output_happens_first ... ok
+test runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test signal::tests::send_reaches_a_real_process_with_the_named_signal ... ok
+test runtime::start::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test runtime::start::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test test_support::tests::a_body_that_returns_promptly_is_not_delayed ... ok
+test pane::attach_tests::attaching_to_a_pane_that_already_ended_gets_a_final_full_then_ended ... ok
+kill: 27079: No such process
+test signal::tests::send_reaches_the_whole_process_group_not_only_the_leader ... ok
+test runtime::start::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::start::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::attach::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_never_finishes_in_time ... ok
+test pane::attach_tests::attaching_returns_the_panes_current_screen_and_updates_follow_it ... ok
+test pane::attach_tests::a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code_after_its_last_content ... ok
+test pane::attach_tests::mark_closing_sent_before_a_programs_own_exit_is_the_reason_ended_reports ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test pane::ending_tests::await_exit_is_not_delayed_by_a_backlog_on_the_workers_own_queue ... ok
+kill: 26896: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+test test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for - should panic ... ok
+test pane::ending_tests::signal_hangup_reaches_a_backgrounded_grandchild_too ... ok
+test idle::tests::the_checker_blocks_with_no_timeout_while_ineligible_and_waits_exactly_once_while_eligible ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test login_env::tests::capture_login_environment_falls_back_on_a_shell_that_exits_non_zero ... ok
+test pane::ending_tests::signal_kill_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+test login_env::tests::capture_login_environment_prints_noise_before_the_marker_without_corrupting_the_dump ... ok
+kill: 27177: No such process
+test login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open ... ok
+kill: 26868: No such process
+test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
+
+test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-colormoved.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 0 at 2026-11-18T05:20:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 269 lines:
+
+```text
++use crate::dispatch::{self, Context, Outcome};
++use crate::dispatch::{self, Context};
++use crate::outbound::Outbound;
++use crate::pane;
++use crate::pane::{self, DEFAULT_PANE_SIZE};
++use crate::pane::PaneEvent;
++use crate::pty::LaunchSpec;
++use crate::pty::ProgramLauncher;
++use events::{apply_event_locked, broadcast, emit_focus_event};
++use input::{apply_size_changed_locked, reapply_every_sized_tab};
++use std::sync::Arc;
++use std::sync::mpsc::Sender;
++use std::time::Instant;
++use steg_kernel::{CommandEnded, CommandOutputStarted, ExitOutcome, Moment};
++use steg_kernel::{Moment, Settings, Tree};
++use steg_kernel::{Moment, Tree};
++use steg_kernel::Moment;
++use steg_kernel::SizeChanged;
++use steg_kernel::Tree;
++use steg_sdk::{
++use steg_sdk::{ApiError, ClientId, Description, PaneId, Request, Size, validate};
++use steg_sdk::{ApiError, Description, ErrorCode, PaneId, Program, Request, Response, validate};
++use steg_sdk::{ApiError, Description, PaneId, Request, Response, SessionId};
++use steg_sdk::{ApiError, Description, PaneId, Request, SessionId, validate};
++use steg_sdk::{ClientId, ClientKind};
++use steg_sdk::{ClientId, Description, PaneId, Request, Response};
++use steg_sdk::{Connection, PaneId, Request, SessionId};
++use steg_sdk::{Description, Request, Response};
++use steg_sdk::Program;
++use super::{FORCE_JOIN_TIMEOUT, Runtime, apply_size_changed_locked};
++use super::{FORCE_JOIN_TIMEOUT, Runtime, State, broadcast, reapply_every_sized_tab};
++use super::{LoginShell, State};
++use super::{Runtime, State, broadcast, reapply_every_sized_tab};
++use super::{Runtime, State};
++use super::{Runtime, Subscriber, apply_size_changed_locked};
++use super::{State, broadcast, reapply_every_sized_tab};
++use super::close::force_end;
++use super::Runtime;
++use super::State;
++use super::tree::session_owning_tab;
+```
+
+Check FAILED: `sh -c 'git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -vE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 1 at 2026-11-18T05:22:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
+
+Check passed: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -qvE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 0 at 2026-11-18T05:23:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
+
+Check FAILED: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -qvE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 1 at 2026-11-18T05:23:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
+
+Check passed: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -qvE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 0 at 2026-11-18T05:23:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
+
+Check passed: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -qvE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 0 at 2026-11-18T05:24:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T05:31:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at 290383e665e3:
+
+```text
+ok      format check (0.3s)
+ok      lint (4.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (85.6s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (1.1s)
+ok      test (steg-server) (54.9s)
+ok      test (steg-server, race-fixture) (61.2s)
+ok      test (steg-server, pty-race-fixture) (63.7s)
+ok      test (steg-server, accept-backoff-fixture) (59.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (8.2s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (3.3s)
+ok      build (steg-app) (2.4s)
+ok      test (steg-app) (1.9s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T05:38:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cf81bcfd7857:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (89.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.8s)
+ok      test (steg-server) (57.2s)
+ok      test (steg-server, race-fixture) (56.9s)
+ok      test (steg-server, pty-race-fixture) (64.7s)
+ok      test (steg-server, accept-backoff-fixture) (60.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (8.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.3s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.7s)
+ok      tool tests (40.0s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.1s)
+```
+
+Built: crates/server/src/runtime.rs (4,959 lines) split into crates/server/src/runtime/ - mod.rs, login.rs, tree.rs, events.rs, attach.rs, input.rs, lifecycle.rs, start.rs, close.rs, moving.rs, testing.rs - exactly the layout the approved plan named, in 14 commits (git mv, one per seam in plan order, a final tidy, an fmt/import-fix commit, and the comments-only commit for the 8 external files). PR #79, CI green (10m41s).
+
+Checks recorded, each with its own control (recorded failing with the control in place, then passing once reverted):
+- Baseline `just check`, run before the git mv (every step passed; the affected-tests step read "skip: this change touches no crate", correctly, since nothing had changed against origin/main yet), and again at the final head after rebasing (every step passed; the same step now reads "ok tests (-p steg -p steg-server)" since there are changes to run by then) - same set of steps both times, nothing missing.
+- cargo test -p steg-server --lib, 203 tests, recorded repeatedly through the build and once more at the final head: 0 failed, 0 ignored throughout.
+- Proof (a), public surface unchanged: git diff origin/main empty on lib.rs/config.rs/connection.rs/listen.rs (config.rs's own comment reword aside); a grep-based before/after pub-item listing matches exactly. Control: widened broadcast to plain pub, caught, reverted.
+- Proof (b), same test names, none ignored: normalised test-name list matches (203/203); a real cargo test run's own "ignored" count is 0 - checked after finding mid-build that `--list` alone does not catch a #[ignore] (cargo lists an ignored test the same as a runnable one; only a real run's summary line reports the ignored count). Control: a scratch #[ignore], caught by the real-run check, not by --list; reverted.
+- Proof (c), no function body changed beyond imports and visibility: sorted-line multiset diff over normalised source (comments/blank lines/use+mod lines/mod-tests-and-impl-Runtime boilerplate/pub-visibility-tokens stripped). Not empty - every remaining line is accounted for: import-list redistribution across files, two signatures rustfmt rewrapped once pub(super) pushed them past the line limit, and the two disclosed import-path fixes below. Frozen as the expected output; a real run must match it exactly. Control: inverted a condition in force_end's pass 3, caught as an unaccounted new line pair, reverted.
+- A supplementary git diff --color-moved=blocks pass over the real (non-normalised) text: ~3980/~4590 changed lines classified as moved blocks; the ~620 not moved are, on inspection, entirely doc-comment headers for new files, mod/impl/#[cfg(test)] boilerplate, and import-list lines - not logic.
+- The comments-only commit: git diff -U0, restricted to lines not starting with ///, //!, or //, is empty across the seven files it touches. Control: a scratch non-comment line in config.rs, caught, reverted.
+
+Departures from the plan, both disclosed in their own commit messages:
+- FORCE_JOIN_TIMEOUT stayed in mod.rs rather than moving into close.rs with force_end - it turned out to be used directly by lifecycle.rs's own stop() too (crate::pane::join_with_bound(drain, FORCE_JOIN_TIMEOUT)), not only inside force_end, so it is genuinely cross-seam. ESCALATE_CONFIRM_TIMEOUT, used only inside force_end, moved as planned.
+- Several helpers the plan described as shared turned out, on inspection of their actual call sites, to be used only within one seam's own tests: register_subscriber/register_slow_subscriber/read_one_event/assert_nothing_arrives_within/EVENT_TIMEOUT and the whole "typed command marks" helper group (moment_now, pane_status, start_real_pane, login_for_marks, show_pane_and_tab, etc.) moved directly into events.rs's own test module rather than into testing.rs. testing.rs ended up holding only login/test_base_env/test_state/fresh_state_with_one_pane/TEST_GRACE/TEST_TICK - the set actually used by more than one seam's tests.
+
+One slip, disclosed plainly rather than glossed over: while writing lifecycle.rs I first reconstructed mod stop_tests from an earlier point in this session's own context instead of reading the current file fresh, and it was wrong in several real details (a pid-file mechanism vs. the actual screen-read one, an extra atomic counter, a trap-ready marker file that doesn't exist in the real source). I caught this myself, before any commit, by diffing my draft against the actual source text and rewriting it verbatim from that diff - the lifecycle.rs commit that landed on this branch carries the correct text throughout; no commit on this branch ever held the wrong version. Every other file was written by reading the current source immediately before writing the new file, not from memory, and each was spot-checked against the original with a direct diff before its own commit.
+
+Recommendation for a follow-up task (not drafted by me, per the engineer's own instruction - they are drafting it): crates/server/src/pane.rs (about 2,600 lines) is a good candidate for the same treatment, on two concrete signals read during this task's own plan: TASK-1.90's capture/wait and TASK-1.115's scrollback paging both read PaneHandle's own screen/terminal state the same way attach_pane already does, and are likely to land in roughly the same area of that file at close to the same time. connection.rs (about 1,300 lines) was not read as warranting a split from size alone - recommend checking its own per-file merge-touch count first.
+
+Which file a new method or event now touches, for whoever picks up the eight server tasks named in the plan: a start.new/tab.new/pane.split change -> start.rs; pane.close/tab.close/session.close -> close.rs; pane.move -> moving.rs; attach/detach/subscribe -> attach.rs; send_input/declare_size/apply_size_changed -> input.rs; connect_client/disconnect_client/stop/session_counter -> lifecycle.rs; a new TreeEvent or broadcast-site change -> events.rs; the tree-lookup helpers (session_owning_tab, resolve_pane_target) -> tree.rs; the login shell identity -> login.rs. The plan's own collision table (1.109 x 1.116 on events.rs; 1.109 x 1.88 and 1.116 x 1.88 on lifecycle.rs) still holds - the split narrows each task's own blast radius to one or two files, not the whole 4,959-line original, but does not remove those three pairs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -475,6 +929,15 @@ created: 2026-11-18T02:30:00Z
 ---
 
 Plan approved by @bruk (6b3f731e72f1, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T05:51:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.131: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

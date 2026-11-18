@@ -1154,6 +1154,32 @@ fn worker_loop(
                     // for this pane again on account of this attachment.
                     if let Some(position) = attachments.iter().position(|a| a.id == id) {
                         let attachment = attachments.remove(position);
+                        // A real race this task's own socket-level tests
+                        // found: `Attach`'s own reply snapshot (on stream
+                        // 0, not this attachment's own stream) can be
+                        // stale by the time this arrives - the pane can
+                        // end in the gap between a caller's `attach` and
+                        // its own, separate `arm` call, same as decision-2
+                        // section 3's ordering rule already treats those
+                        // two steps as a real window, not an instant.
+                        // AC #1's "after any screen update still owed" is
+                        // owed on *this* stream regardless, so a fresh
+                        // `Full` goes out first - best-effort, like every
+                        // other send on this stream; if it is dropped,
+                        // `Ended` below still goes out.
+                        if let Ok(screen) = terminal.screen() {
+                            let full = ScreenUpdate::Full {
+                                screen,
+                                seq: tracked_seq,
+                            };
+                            let payload = serde_json::to_vec(&full)
+                                .expect("ScreenUpdate always serialises to JSON");
+                            if let Ok(bytes) =
+                                encode_frame(&Frame::control(attachment.stream, payload))
+                            {
+                                let _ = outbound.enqueue_data(attachment.stream, bytes);
+                            }
+                        }
                         let payload = serde_json::to_vec(&ScreenUpdate::Ended { reason })
                             .expect("ScreenUpdate always serialises to JSON");
                         let bytes = encode_frame(&Frame::control(attachment.stream, payload))
@@ -2855,8 +2881,20 @@ mod attach_tests {
     /// `Exited` arm that runs `flush_ended`) before ever calling `attach`/
     /// `arm`, so there is no race to synchronise with: the pane is already,
     /// unambiguously ended by the time this test's own attach happens.
+    ///
+    /// A fresh `Full` arrives first, then `Ended` - never bare `Ended` -
+    /// found by this task's own first draft asserting the opposite and a
+    /// *different* test in this same file (a real `echo`'d program,
+    /// attached and armed right away, with no deliberate wait for the
+    /// exit the way this test's own helper above does) occasionally
+    /// failing against it under heavy machine load: `Attach`'s own reply
+    /// snapshot (on stream 0, taken at attach time) is not "on this
+    /// stream," and a client can race it closing ahead of its own,
+    /// separate `arm` call - AC #1's "after any screen update still
+    /// owed" is owed on this attachment's own stream regardless of how
+    /// it got here.
     #[test]
-    fn attaching_to_a_pane_that_already_ended_gets_ended_on_arm_with_no_tick_first() {
+    fn attaching_to_a_pane_that_already_ended_gets_a_final_full_then_ended() {
         let (events_tx, events_rx) = mpsc::channel();
         let handle = start(
             real_spec(vec!["sh", "-c", "exit 0"]),
@@ -2880,14 +2918,21 @@ mod attach_tests {
             .arm(attachment_id, Arc::clone(&frames.outbound))
             .unwrap();
 
-        let (frame_stream, update) = frames.next_update(Duration::from_secs(2));
-        assert_eq!(frame_stream, stream);
+        let (full_stream, full) = frames.next_update(Duration::from_secs(2));
+        assert_eq!(full_stream, stream);
+        assert!(
+            matches!(full, ScreenUpdate::Full { .. }),
+            "a fresh Full must arrive first: got {full:?}"
+        );
+
+        let (ended_stream, ended) = frames.next_update(Duration::from_secs(2));
+        assert_eq!(ended_stream, stream);
         assert_eq!(
-            update,
+            ended,
             ScreenUpdate::Ended {
                 reason: EndReason::ProgramExited { exit_code: 0 }
             },
-            "the first and only update on a late attach to an already-ended pane must be Ended"
+            "Ended must follow the catch-up Full"
         );
         frames.assert_nothing_arrives(Duration::from_millis(100));
 

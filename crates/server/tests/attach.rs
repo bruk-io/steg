@@ -2060,17 +2060,19 @@ fn attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else()
 
     let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
     let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
-    let second = next_update(
+    // A fresh `Full` arrives first (`Attach`'s own reply snapshot is not
+    // "on this stream," and a client can race it closing ahead of its
+    // own, separate `arm` call - pane.rs's own equivalent unit test has
+    // the full argument), then `Ended`.
+    let reason_b = next_ended(
         &mut stream_b,
         &mut connection_b,
         attached_b.stream,
         Duration::from_secs(5),
     );
     assert_eq!(
-        second,
-        ScreenUpdate::Ended {
-            reason: EndReason::ProgramExited { exit_code: 0 }
-        },
+        reason_b,
+        EndReason::ProgramExited { exit_code: 0 },
         "the first and only update on a late attach to an already-ended pane must be Ended"
     );
     assert_nothing_more_arrives_on(

@@ -398,6 +398,14 @@ tools/tests/unit/test_quiet.py:112: AssertionError
 FAILED tools/tests/unit/test_quiet.py::test_lock_directory_override_wins_over_everything
 1 failed, 2 passed, 18 deselected in 0.01s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k lock_directory'` exited 0 at 2026-11-18T02:47:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpIjJJh5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+...                                                                      [100%]
+3 passed, 18 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

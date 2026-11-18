@@ -277,6 +277,14 @@ tools/tests/functional/test_quiet_slots.py:248: AssertionError
 FAILED tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory
 1 failed in 0.21s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory'` exited 0 at 2026-11-18T02:45:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnt4yga` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.20s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

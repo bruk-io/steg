@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T22:34:00Z'
+updated_date: '2026-11-18T22:44:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -98,6 +98,42 @@ Split from TASK-1.90 by its plan on 2026-11-18 (its second criterion). doc-2 sec
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 (sections 5, 6, 8: pane capture, --scrollback, capture after the program ends) and doc-1 R35 by @bruk.o: ok. No description parameter, error list or wire change; capture of an ended pane is allowed as doc-2 section 6 says; the pane's terminal is read on its own thread with the runtime lock released and a bound. For the engineer: a timed-out capture answers EngineFailed (status 1), not NoSuchTarget and not TASK-1.140's TimedOut; each row has trailing whitespace trimmed (doc-2 is silent on the text's exact shape; blank rows are kept); the 5 s bound and the 2 MB wedge payload are first guesses to be measured in the build. Collisions: cross_cutting.rs rows beside TASK-1.88 and TASK-1.141; TASK-1.140 follows in dispatch/pane.rs.
+
+Check passed: `just check` exited 0 at 2026-11-18T22:44:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.139 on task-1.139-server-capture-a-pane-s-screen-and-its at 633ca1b9d4a8:
+
+```text
+ok      format check (0.3s)
+ok      lint (87.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.6s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (44.6s)
+ok      test (steg-kernel) (1.5s)
+ok      build (steg-server) (43.2s)
+ok      test (steg-server) (58.7s)
+ok      test (steg-server, race-fixture) (65.1s)
+ok      test (steg-server, pty-race-fixture) (73.8s)
+ok      test (steg-server, accept-backoff-fixture) (90.7s)
+wait    build (steg) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg) (2.5s)
+ok      test (steg) (2.9s)
+ok      test (steg, fixtures) (7.2s)
+ok      build (steg-ui) (19.4s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (2.6s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (41.2s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

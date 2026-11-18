@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:25:00Z'
+updated_date: '2026-11-18T02:26:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -364,6 +364,51 @@ design system doc-10 describes.
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (95871fc3dfbf) checked against doc-14's 'The end of a pane, on its stream', doc-10 and TASK-1.128/1.121 as merged by @bruk.o: ok. It builds only the window's reaction; Ended is its own client event; input stops by disarming the writer without touching the shared socket, so no disconnect follows; the not-ended render tree is unchanged. Three questions go to the engineer with the plan (nothing beyond the line and refusing keys; quit-on-last-window not addressed; the wording). For criterion 3 the orchestrator asks for the offered control on the existing resolve_pane test to be recorded. Criterion 4's images come from the engineer's own run: workers do not drive the app on this machine.
+
+Check FAILED: `cargo test -p steg-app -- describe_end` exited 101 at 2026-11-18T02:26:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes, last 40 of 43 lines:
+
+```text
+124 | pub(crate) fn describe_end(reason: EndReason) -> String {
+    |                            ^^^^^^ help: if this is intentional, prefix it with an underscore: `_reason`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 2 tests
+test model::tests::describe_end_names_the_programs_own_exit_status ... FAILED
+test model::tests::describe_end_names_the_pane_as_closed ... FAILED
+
+failures:
+
+---- model::tests::describe_end_names_the_programs_own_exit_status stdout ----
+
+thread 'model::tests::describe_end_names_the_programs_own_exit_status' (56589636) panicked at crates/app/src/model.rs:136:9:
+assertion `left == right` failed
+  left: ""
+ right: "the program ended with status 3"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- model::tests::describe_end_names_the_pane_as_closed stdout ----
+
+thread 'model::tests::describe_end_names_the_pane_as_closed' (56589635) panicked at crates/app/src/model.rs:144:9:
+assertion `left == right` failed
+  left: ""
+ right: "the pane was closed"
+
+
+failures:
+    model::tests::describe_end_names_the_pane_as_closed
+    model::tests::describe_end_names_the_programs_own_exit_status
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

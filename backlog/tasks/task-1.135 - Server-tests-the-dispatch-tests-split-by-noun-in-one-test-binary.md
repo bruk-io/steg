@@ -543,6 +543,22 @@ sys	0m1.011s
 ```
 
 Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Review fix (Important, AC #4 timing): the plan's own method, in full, run at final head e527e603+ (after the review-fix commits below). "Before" measured in a separate scratch worktree at dae0c095 (the commit this branch started from - the single dispatch.rs file, pre-move), not by checking out an old commit in this task worktree; "after" measured in this worktree at the current split. Same command both sides: `cargo clean -p steg-server` then `time cargo test -p steg-server [--test dispatch] --no-run`, first run after each clean discarded as cache-filling, two more recorded. Load was quiet throughout (uptime 3.7-5.2 the whole time; one `before` worktree had an initial `cargo clean` removing 2.1GiB of this session's own accumulated target/ cache, so that one discard sample read higher - irrelevant, it was discarded, not recorded).
+
+Whole-crate (12 test binaries, the lib, every target under steg-server):
+- Before (dae0c095, single file): 2.142s, 2.179s (discard sample 2.147s)
+- After (e527e603+, split): 2.181s, 2.147s (discard sample 2.916s, inflated by the one-off 2.1GiB cache clear noted above)
+- Essentially identical both sides - expected, since every other test target's own compilation is unaffected by this task either way.
+
+`--test dispatch`-scoped (the lib + only the dispatch target - the number AC #4 actually asks for):
+- Before (dae0c095, single file): 1.488s (discard), 1.521s, 1.454s recorded
+- After (e527e603+, split): 1.450s (discard), 1.389s, 1.407s recorded
+- After reads very slightly faster than before (roughly 0.05-0.1s), well inside this measurement's own sample-to-sample spread (before's two recorded samples alone differ by 0.07s) - read as within noise, not a real improvement or regression. Confirms the plan's own "one binary either way, delta of zero by construction" conclusion with the actual requested number measured, not assumed.
+
+Scratch worktree (`git worktree add <scratchpad>/task-1135-before dae0c095`) removed after use (`git worktree remove --force`).
+
+Review fix (Nit, comments-only verification wording): the plan's own "Comments-only commit (step 10)" text states the mechanical check as "confirm every +/- content line matches `^[+-]\s*//`" - that pattern is too narrow for what the commit actually contains: three of the six changed lines are `reason = "..."` strings inside a `#![expect(...)]` attribute, not `//` comments. The actual verification run (and the one quoted correctly in commit 660ea304's own message) used `^[+-]\s*(//|reason)`, which does match every changed line in that commit - re-confirmed now: `git diff 660ea304^ 660ea304 -- crates/server/tests/runtime.rs crates/server/tests/events.rs crates/server/tests/routing.rs | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-]\s*(//|reason)'` prints nothing. Not editing the plan's own text (out of scope for a worker); recording the correct pattern here since that's what was actually run.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

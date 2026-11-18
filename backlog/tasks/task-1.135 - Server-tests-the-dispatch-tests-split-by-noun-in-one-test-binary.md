@@ -219,6 +219,12 @@ Check FAILED: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.r
  
  #[test]
 ```
+
+Check passed: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt && echo '"'"'PROOF (c) api.rs: byte-identical again after revert'"'"''` exited 0 at 2026-11-18T03:02:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+PROOF (c) api.rs: byte-identical again after revert
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -409,6 +409,21 @@ test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 68 filtered out;
 
 error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
+
+Check passed: `cargo test -p steg-app -- describe_end` exited 0 at 2026-11-18T02:26:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 2 tests
+test model::tests::describe_end_names_the_pane_as_closed ... ok
+test model::tests::describe_end_names_the_programs_own_exit_status ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -285,6 +285,51 @@ test pane_send_with_an_unknown_key_name_is_bad_request ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
 ```
+
+Check FAILED: `just check` exited 1 at 2026-11-18T14:38:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes, last 40 of 64 lines:
+
+```text
+[31m-        assert_eq!(named_key_bytes("tab", true).as_deref(), Some(&b"\x1b[Z"[..]));
+(B[m[32m+        assert_eq!(
+(B[m[32m+            named_key_bytes("tab", true).as_deref(),
+(B[m[32m+            Some(&b"\x1b[Z"[..])
+(B[m[32m+        );
+(B[m         assert_eq!(named_key_bytes("tab", false).as_deref(), Some(&b"\t"[..]));
+         assert_eq!(
+             named_key_bytes("left", true).as_deref(),
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:409:
+     let mut params = Map::new();
+     params.insert("target".to_string(), json!(pane));
+     params.insert("text".to_string(), json!("hello"));
+[31m-    let response =
+(B[m[31m-        call_and_read_reply(&mut sender_stream, &mut sender_connection, "pane.send", params);
+(B[m[32m+    let response = call_and_read_reply(
+(B[m[32m+        &mut sender_stream,
+(B[m[32m+        &mut sender_connection,
+(B[m[32m+        "pane.send",
+(B[m[32m+        params,
+(B[m[32m+    );
+(B[m     assert!(
+         matches!(response, Response::Ok(Value::Null)),
+         "pane.send --text: {response:?}"
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:419:
+     let mut params = Map::new();
+     params.insert("target".to_string(), json!(pane));
+     params.insert("key".to_string(), json!("enter"));
+[31m-    let response =
+(B[m[31m-        call_and_read_reply(&mut sender_stream, &mut sender_connection, "pane.send", params);
+(B[m[32m+    let response = call_and_read_reply(
+(B[m[32m+        &mut sender_stream,
+(B[m[32m+        &mut sender_connection,
+(B[m[32m+        "pane.send",
+(B[m[32m+        params,
+(B[m[32m+    );
+(B[m     assert!(
+         matches!(response, Response::Ok(Value::Null)),
+         "pane.send --key enter: {response:?}"
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

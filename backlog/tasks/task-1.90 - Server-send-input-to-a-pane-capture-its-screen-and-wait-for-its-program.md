@@ -1,11 +1,11 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T19:17:00Z'
+updated_date: '2026-11-18T22:09:00Z'
 labels:
   - size-3
   - review-passed

@@ -11,7 +11,9 @@ use steg_sdk::{
 use super::{Runtime, Subscriber, apply_size_changed_locked};
 use crate::dispatch::{self, Context};
 use crate::outbound::Outbound;
-use crate::pane::{self, PaneHandle};
+use crate::pane;
+#[cfg(test)]
+use crate::pane::PaneHandle;
 
 /// The three identifying values one `pane.attach` call needs beyond its
 /// own request/description/context (TASK-1.47) - grouped only so

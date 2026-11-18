@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:44:00Z'
+updated_date: '2026-11-18T02:45:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -247,6 +247,35 @@ Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpDSSMx2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 .                                                                        [100%]
 1 passed in 4.13s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory'` exited 1 at 2026-11-18T02:45:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpOViqc2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_no_limit_never_creates_the_lock_directory ________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-673/test_no_limit_never_creates_th0')
+
+    def test_no_limit_never_creates_the_lock_directory(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        proc, _, end_file, _ = _spawn_heavy(tmp_path=tmp_path, bin_dir=bin_dir, label="a", duration_s=0.1, lock_dir=lock_dir, slots="0")
+        assert proc.communicate(timeout=5)[0] is not None
+        assert end_file.exists()
+>       assert not lock_dir.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-673/test_no_limit_never_creates_th0/slots').exists
+
+tools/tests/functional/test_quiet_slots.py:248: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory
+1 failed in 0.21s
 ```
 <!-- SECTION:NOTES:END -->
 

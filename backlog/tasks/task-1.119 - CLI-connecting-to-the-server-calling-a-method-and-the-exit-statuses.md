@@ -580,6 +580,16 @@ test cli::exit::tests::every_connect_error_maps_to_4 ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 1 at 2026-11-18T03:16:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+error: unexpected argument 'a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts' found
+
+Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
+
+For more information, try '--help'.
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

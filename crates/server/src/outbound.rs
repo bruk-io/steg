@@ -882,8 +882,10 @@ mod tests {
         let (done_tx, done_rx) = mpsc::channel();
         let wait_outbound = Arc::clone(&outbound);
         std::thread::spawn(move || {
-            let result = wait_outbound
-                .enqueue_control_and_wait_until_written(b"stop-reply".to_vec(), Duration::from_secs(5));
+            let result = wait_outbound.enqueue_control_and_wait_until_written(
+                b"stop-reply".to_vec(),
+                Duration::from_secs(5),
+            );
             let _ = done_tx.send(result);
         });
 

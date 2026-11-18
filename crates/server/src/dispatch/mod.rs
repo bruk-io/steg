@@ -137,11 +137,8 @@ const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
 /// [`server`]). Every pair here answers `ErrorCode::NotImplementedYet`,
 /// naming what it waits on. Test-only, for the same reason as [`handled`].
 #[cfg(test)]
-const NOT_YET_NOUNS: &[(&str, &str)] = &[
-    ("event", "watch"),
-    ("client", "list"),
-    ("client", "show"),
-];
+const NOT_YET_NOUNS: &[(&str, &str)] =
+    &[("event", "watch"), ("client", "list"), ("client", "show")];
 
 /// Builds the `ApiError` a not-yet-built method or branch answers with
 /// (AC #2's second half): a distinct code naming what it waits on, never

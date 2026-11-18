@@ -140,14 +140,19 @@ fn server_show_and_server_stop_work_through_the_real_binary() {
     assert_eq!(show.status.code(), Some(0), "{show:?}");
     let value: serde_json::Value =
         serde_json::from_str(stdout_of(&show).trim()).expect("server show --json prints JSON");
-    assert!(value.get("version").is_some_and(|v| v.is_string()), "{value}");
+    assert!(
+        value.get("version").is_some_and(|v| v.is_string()),
+        "{value}"
+    );
     assert!(value.get("uptime").is_some_and(|v| v.is_u64()), "{value}");
     assert_eq!(value["sessions"], serde_json::json!(0));
     // At least this very call's own connection counts as a client - not
     // asserted as exactly 1, since nothing here rules out another
     // process on this machine also having one open at the same instant.
     assert!(
-        value["clients"].as_u64().is_some_and(|clients| clients >= 1),
+        value["clients"]
+            .as_u64()
+            .is_some_and(|clients| clients >= 1),
         "{value}"
     );
 

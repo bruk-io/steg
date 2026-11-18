@@ -9,8 +9,8 @@
 
 use serde_json::Value;
 use steg_sdk::{
-    Description, Method, PaneId, PaneRecord, ServerRecord, SessionId, SessionRecord,
-    SettingRecord, TabId, TabRecord,
+    Description, Method, PaneId, PaneRecord, ServerRecord, SessionId, SessionRecord, SettingRecord,
+    TabId, TabRecord,
 };
 
 /// A served method's typed result, before it becomes the `Value` a

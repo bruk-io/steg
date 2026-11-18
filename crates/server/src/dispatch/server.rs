@@ -77,7 +77,10 @@ mod tests {
             panic!("server.show must answer with a ServerRecord");
         };
         assert_eq!(record.version, SERVER_VERSION);
-        assert_eq!(record.uptime, 123, "uptime is now's own duration, passed through exactly");
+        assert_eq!(
+            record.uptime, 123,
+            "uptime is now's own duration, passed through exactly"
+        );
         assert_eq!(record.sessions, 2);
         assert_eq!(record.clients, 1);
     }

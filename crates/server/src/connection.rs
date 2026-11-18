@@ -829,7 +829,8 @@ fn handle_request(
             // `Stopper::stop()` call just below safe to issue right after:
             // nothing downstream can discard a reply that has already
             // left `write_all`.
-            let _ = outbound.enqueue_control_and_wait_until_written(bytes, STOP_REPLY_FLUSH_TIMEOUT);
+            let _ =
+                outbound.enqueue_control_and_wait_until_written(bytes, STOP_REPLY_FLUSH_TIMEOUT);
 
             if let Some(stopper) = runtime.stopper() {
                 stopper.stop();
@@ -1412,7 +1413,12 @@ mod tests {
     /// silently succeed.
     #[test]
     fn server_stop_without_force_while_a_session_exists_refuses_and_keeps_the_connection_open() {
-        let runtime = Runtime::new(Arc::new(RealLauncher::default()), login(), TEST_GRACE, TEST_TICK);
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         let description = steg_sdk::description();
         let no_context = Context::none();
         match runtime.handle(
@@ -1488,7 +1494,12 @@ mod tests {
     /// reachable from here).
     #[test]
     fn server_stop_with_no_sessions_succeeds_flushes_the_reply_and_ends_the_connection() {
-        let runtime = Runtime::new(Arc::new(RealLauncher::default()), login(), TEST_GRACE, TEST_TICK);
+        let runtime = Runtime::new(
+            Arc::new(RealLauncher::default()),
+            login(),
+            TEST_GRACE,
+            TEST_TICK,
+        );
         runtime.set_stopper(crate::listen::Stopper::new());
 
         let (client_writer, mut server_reader) = UnixStream::pair().unwrap();

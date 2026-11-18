@@ -182,10 +182,7 @@ fn server_stop_without_force_while_a_session_exists_refuses_and_the_server_keeps
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let mut new_params = Map::new();
-    new_params.insert(
-        "program".to_string(),
-        json!(["sh", "-c", "sleep 100"]),
-    );
+    new_params.insert("program".to_string(), json!(["sh", "-c", "sleep 100"]));
     let response = call_and_read_reply(&mut stream, &mut connection, "session.new", new_params);
     assert!(
         matches!(response, Response::Ok(_)),
@@ -322,7 +319,10 @@ fn server_stop_with_force_ends_a_real_running_programs_process() {
         {
             break pid;
         }
-        assert!(Instant::now() < deadline, "never saw a pid written to {pid_file:?}");
+        assert!(
+            Instant::now() < deadline,
+            "never saw a pid written to {pid_file:?}"
+        );
         std::thread::sleep(Duration::from_millis(10));
     };
     let _ = std::fs::remove_file(&pid_file);

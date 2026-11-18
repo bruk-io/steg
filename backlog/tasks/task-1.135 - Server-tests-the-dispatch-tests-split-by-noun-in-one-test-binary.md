@@ -203,6 +203,22 @@ Known, disclosed non-identical modules (expected, see task notes):
 cross_cutting.rs, api.rs and setting.rs are byte-identical to their
 original slices.
 ```
+
+Check FAILED: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt'` exited 1 at 2026-11-18T03:02:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23 with uncommitted changes:
+
+```text
+--- /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt	2026-11-17 22:02:05
++++ /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt	2026-11-17 22:02:31
+@@ -11,7 +11,7 @@
+         moment(0),
+     ));
+ 
+-    assert_eq!(value.as_array().unwrap().len(), api.methods.len());
++    assert_eq!(value.as_array().unwrap().len(), api.methods.len() + 0);
+ }
+ 
+ #[test]
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

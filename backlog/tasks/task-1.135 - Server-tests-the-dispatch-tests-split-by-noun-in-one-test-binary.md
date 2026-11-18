@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:39:00Z'
+updated_date: '2026-11-18T04:40:00Z'
 labels:
   - size-2
   - changes-requested
@@ -695,6 +695,34 @@ test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg --test server_start`
 full output: .quiet/test-steg-fixtures.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 18, 15 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo test -p steg --features fixtures --test server_start'` exited 0 at 2026-11-18T04:40:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 72a924a372a5:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 15 tests
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test server_start_help_prints_the_generated_help_and_starts_nothing ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test on_demand_given_after_no_on_demand_wins ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... ok
+test no_on_demand_given_after_on_demand_wins ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.37s
 ```
 
 Commits since the review: 18, 15 without the Asdlc-Worker trailer.

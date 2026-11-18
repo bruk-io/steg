@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:32:00Z'
+updated_date: '2026-11-18T02:43:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -94,6 +94,51 @@ Check passed: `just test-tools` exited 0 at 2026-11-18T02:32:09+00:00 in /Users/
 
 ```text
 ok      tool tests (15.1s)
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once'` exited 1 at 2026-11-18T02:43:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes, last 40 of 60 lines:
+
+```text
+        assert proc_b.communicate(timeout=10)[0] is not None
+    
+        first_start, first_end = _read_timestamp(start_a), _read_timestamp(end_a)
+        second_start, second_end = _read_timestamp(start_b), _read_timestamp(end_b)
+        if second_start < first_start:
+            first_start, first_end, second_start, second_end = second_start, second_end, first_start, first_end
+>       assert second_start >= first_end - SLACK_S, "the second run must not start until the first has finished"
+E       AssertionError: the second run must not start until the first has finished
+E       assert 1794969780.248864 >= (1794969780.85402 - 0.5)
+
+tools/tests/functional/test_quiet_slots.py:132: AssertionError
+_________________ test_the_variable_sets_how_many_run_at_once __________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-664/test_the_variable_sets_how_man0')
+
+    def test_the_variable_sets_how_many_run_at_once(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        duration = 1.0
+    
+        procs = [
+            _spawn_heavy(tmp_path=tmp_path, bin_dir=bin_dir, label=f"p{i}", duration_s=duration, lock_dir=lock_dir, slots="2") for i in range(3)
+        ]
+        for proc, _, _, _ in procs:
+            assert proc.communicate(timeout=10)[0] is not None
+    
+        spans = sorted((_read_timestamp(start), _read_timestamp(end)) for _, start, end, _ in procs)
+        first, second, third = spans
+        assert second[0] - first[0] <= SLACK_S, "two of the three should start together - the limit is 2"
+>       assert third[0] >= min(first[1], second[1]) - SLACK_S, "the third must wait for one of the first two to free a slot"
+E       AssertionError: the third must wait for one of the first two to free a slot
+E       assert 1794969780.952976 >= (1794969781.958216 - 0.5)
+E        +  where 1794969781.958216 = min(1794969781.958217, 1794969781.958216)
+
+tools/tests/functional/test_quiet_slots.py:204: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap
+FAILED tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once
+2 failed in 1.82s
 ```
 <!-- SECTION:NOTES:END -->
 

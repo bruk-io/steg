@@ -11,7 +11,6 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -20,6 +19,10 @@ use steg_sdk::{
     encode_frame, parse_server_hello,
 };
 use steg_server::{ConnectionEvent, ServerConfig, Stopper, serve};
+
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, scoped_socket_path};
 
 /// Reads one whole frame's payload off `stream`, looping reads until the
 /// sdk's own `Decoder` has a complete frame - the length-prefixed
@@ -43,20 +46,15 @@ fn read_one_frame_payload(stream: &mut UnixStream) -> Vec<u8> {
     }
 }
 
-/// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
-/// (`crates/server/src/bind.rs`'s own doc comment found this matters).
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{suffix}.sock", std::process::id()))
-}
-
 /// Starts `serve` on a background thread with a short, injected
 /// handshake timeout, and waits (on the socket actually accepting, not a
-/// sleep) until it is up. Returns the socket path, the `Stopper` to end
-/// it with, and the thread's join handle.
-fn start_server(handshake_timeout: Duration) -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
-    let socket_path = unique_socket_path();
+/// sleep) until it is up. Returns the directory the socket lives in (kept
+/// alive for as long as the caller needs the socket), the socket path,
+/// the `Stopper` to end it with, and the thread's join handle.
+fn start_server(
+    handshake_timeout: Duration,
+) -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout,
@@ -81,7 +79,7 @@ fn start_server(handshake_timeout: Duration) -> (PathBuf, Stopper, std::thread::
         );
         std::thread::sleep(Duration::from_millis(5));
     }
-    (socket_path, stop, handle)
+    (socket_dir, socket_path, stop, handle)
 }
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
@@ -91,7 +89,7 @@ fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
 
 #[test]
 fn a_version_mismatch_names_both_versions_over_a_real_connection() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let wrong_protocol = PROTOCOL_VERSION + 1;
@@ -119,7 +117,7 @@ fn a_version_mismatch_names_both_versions_over_a_real_connection() {
 
 #[test]
 fn a_connection_that_never_sends_a_hello_is_closed_after_the_timeout() {
-    let (socket_path, stop, handle) = start_server(Duration::from_millis(100));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_millis(100));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     // Sends nothing. The server's own timeout is 100ms; this read waits
@@ -150,7 +148,7 @@ fn a_connection_that_never_sends_a_hello_is_closed_after_the_timeout() {
 #[test]
 fn a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout() {
     let handshake_timeout = Duration::from_millis(100);
-    let (socket_path, stop, handle) = start_server(handshake_timeout);
+    let (_socket_dir, socket_path, stop, handle) = start_server(handshake_timeout);
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
@@ -193,7 +191,7 @@ fn a_completed_handshake_is_not_closed_for_sitting_idle_past_the_timeout() {
 /// the client has sent anything at all.
 #[test]
 fn a_connection_is_reported_connected_before_it_sends_its_hello() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         ..ServerConfig::default()
@@ -271,7 +269,7 @@ fn assert_closes_after_the_reply(stream: &mut UnixStream) {
 /// before this review.
 #[test]
 fn a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let payload = serde_json::to_vec(&serde_json::json!({
@@ -299,7 +297,7 @@ fn a_hello_with_the_wrong_magic_gets_a_malformed_hello_refusal() {
 /// `a_version_mismatch_names_both_versions_over_a_real_connection`).
 #[test]
 fn a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let payload = serde_json::to_vec(&serde_json::json!({
@@ -329,7 +327,7 @@ fn a_hello_missing_the_protocol_field_gets_a_malformed_hello_refusal() {
 /// shape `check_hello` would have produced.
 #[test]
 fn undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     // A well-formed length prefix and header, but an unknown kind tag
@@ -358,7 +356,7 @@ fn undecodable_bytes_as_the_first_frame_get_a_malformed_hello_refusal() {
 /// a second way to hit "wrong framing".
 #[test]
 fn a_control_frame_arriving_first_gets_a_malformed_hello_refusal() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let event = Control::Event {
@@ -389,7 +387,7 @@ fn a_control_frame_arriving_first_gets_a_malformed_hello_refusal() {
 /// timeout, as the stalled-handshake test below does.
 #[test]
 fn an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly() {
-    let (socket_path, stop, handle) = start_server(Duration::from_secs(5));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_secs(5));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     stream.write_all(&0xFFFF_FFFF_u32.to_be_bytes()).unwrap();
@@ -421,7 +419,7 @@ fn an_oversized_declared_length_gets_a_malformed_hello_refusal_promptly() {
 /// refuse).
 #[test]
 fn a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_with_no_reply() {
-    let (socket_path, stop, handle) = start_server(Duration::from_millis(100));
+    let (_socket_dir, socket_path, stop, handle) = start_server(Duration::from_millis(100));
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
@@ -463,7 +461,7 @@ fn a_client_that_sends_half_a_frame_and_then_stalls_is_closed_at_the_timeout_wit
 #[test]
 fn a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline() {
     let handshake_timeout = Duration::from_millis(300);
-    let (socket_path, stop, handle) = start_server(handshake_timeout);
+    let (_socket_dir, socket_path, stop, handle) = start_server(handshake_timeout);
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let connected_at = Instant::now();
@@ -533,7 +531,7 @@ fn a_client_trickling_one_byte_at_a_time_is_still_closed_at_the_deadline() {
 #[test]
 fn a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted() {
     let handshake_timeout = Duration::from_secs(5);
-    let (socket_path, stop, handle) = start_server(handshake_timeout);
+    let (_socket_dir, socket_path, stop, handle) = start_server(handshake_timeout);
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
@@ -567,7 +565,7 @@ fn a_hello_sent_one_byte_at_a_time_completing_inside_the_deadline_is_accepted() 
 #[test]
 fn a_hello_completing_well_after_the_deadline_is_closed_with_no_reply() {
     let handshake_timeout = Duration::from_millis(300);
-    let (socket_path, stop, handle) = start_server(handshake_timeout);
+    let (_socket_dir, socket_path, stop, handle) = start_server(handshake_timeout);
 
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);

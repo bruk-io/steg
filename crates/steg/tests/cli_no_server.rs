@@ -22,11 +22,9 @@ fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
 }
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-noserver-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 /// Runs `args` against the real binary with `STEG_SOCKET_PATH` pointed at
 /// `socket` - a path something *is* listening on, so a command that
@@ -59,7 +57,7 @@ fn assert_never_accepted(listener: UnixListener, window: Duration) {
 }
 
 fn assert_contacts_no_server(args: &[&str], expected_status: i32) {
-    let socket = unique_socket_path();
+    let (_socket_dir, socket) = scoped_socket_path("s.sock");
     let listener = UnixListener::bind(&socket).expect("binding the throwaway listener");
 
     let output = run_with_a_real_listener_at(args, &socket);
@@ -91,7 +89,7 @@ fn a_commands_own_help_contacts_no_server() {
 
 #[test]
 fn completion_contacts_no_server() {
-    let socket = unique_socket_path();
+    let (_socket_dir, socket) = scoped_socket_path("s.sock");
     let listener = UnixListener::bind(&socket).expect("binding the throwaway listener");
 
     let output = run_with_a_real_listener_at(&["completion", "zsh"], &socket);
@@ -115,7 +113,7 @@ fn completion_contacts_no_server() {
 /// failing with status 2.
 #[test]
 fn bare_steg_lists_the_nouns_and_exits_0_and_contacts_no_server() {
-    let socket = unique_socket_path();
+    let (_socket_dir, socket) = scoped_socket_path("s.sock");
     let listener = UnixListener::bind(&socket).expect("binding the throwaway listener");
 
     let output = run_with_a_real_listener_at(&[], &socket);
@@ -135,7 +133,7 @@ fn bare_steg_lists_the_nouns_and_exits_0_and_contacts_no_server() {
 /// The same decision, for `steg <noun>` alone.
 #[test]
 fn bare_noun_lists_its_verbs_and_exits_0_and_contacts_no_server() {
-    let socket = unique_socket_path();
+    let (_socket_dir, socket) = scoped_socket_path("s.sock");
     let listener = UnixListener::bind(&socket).expect("binding the throwaway listener");
 
     let output = run_with_a_real_listener_at(&["pane"], &socket);
@@ -160,7 +158,7 @@ fn bare_noun_lists_its_verbs_and_exits_0_and_contacts_no_server() {
 /// detect an accepted connection rather than always timing out).
 #[test]
 fn assert_never_accepted_itself_fails_when_a_connection_is_made() {
-    let socket = unique_socket_path();
+    let (_socket_dir, socket) = scoped_socket_path("s.sock");
     let listener = UnixListener::bind(&socket).expect("binding the throwaway listener");
 
     let connecting_socket = socket.clone();

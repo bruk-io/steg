@@ -162,10 +162,23 @@ mod tests {
         let status =
             wait_within(child, Duration::from_secs(5)).expect("the signalled shell must exit");
         assert!(!status.success());
-        assert!(
-            !process_exists(background_pid),
-            "the backgrounded child, in the same process group, must be gone too"
-        );
+        // A bounded *poll*, not a single snapshot (TASK-1.123): `kill -0`
+        // reports success for a zombie too, and once the leading `sh`
+        // is reaped, the backgrounded `sleep` - still in the same
+        // process group `killpg` above already reached - is reparented
+        // to this machine's own init/subreaper, which then reaps *it* on
+        // its own schedule, not synchronously with anything this test
+        // does. A single check right after `wait_within` returns
+        // assumes that second reap already happened - true on a quiet
+        // machine, not guaranteed under load or even on a plain CI
+        // runner's own scheduler latency (this exact assertion was
+        // sighted failing once on CI alone, with no other load on the
+        // machine - TASK-1.123's own notes). The group being reached at
+        // all is still proved the same way (`killpg` above, and the
+        // group membership this test's own `process_group(0)` plus the
+        // shell's own un-job-controlled background job already
+        // establish) - only the *timing* of this check changes.
+        wait_until_gone(background_pid, Duration::from_secs(5));
     }
 
     /// Whether a process with this id still exists at all (reaped or not)
@@ -176,5 +189,27 @@ mod tests {
             .status()
             .expect("kill(1) is on PATH on every platform this runs on")
             .success()
+    }
+
+    /// Polls [`process_exists`] until it reports the process gone, or
+    /// panics naming `pid` and `bound` once that bound is crossed - a
+    /// cross-process liveness check with no in-process event to
+    /// subscribe to instead (`.claude/rules/testing-rust.md`'s "no test
+    /// sleeps to wait for something; it waits on the event" names
+    /// exactly this as the exception: nothing in this *process* ever
+    /// learns when another process, reparented to a subreaper this test
+    /// does not control, gets reaped - the same exception
+    /// `race.rs::wait_until_accepting` already takes, for the same
+    /// reason).
+    fn wait_until_gone(pid: u32, bound: Duration) {
+        let deadline = std::time::Instant::now() + bound;
+        while process_exists(pid) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "pid {pid} (the backgrounded child, in the same process group) was never \
+                 reaped within {bound:?}"
+            );
+            std::thread::sleep(Duration::from_millis(20));
+        }
     }
 }

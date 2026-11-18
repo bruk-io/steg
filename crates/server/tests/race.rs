@@ -10,29 +10,17 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 #[path = "support/mod.rs"]
 mod support;
-use support::wait_child_bounded;
+use support::{scoped_socket_path, wait_child_bounded};
 
 /// Bounded wait for an already-`kill()`ed child to actually exit -
 /// generous, since `kill()` already ran: this is a backstop against the
 /// OS somehow not reaping a `SIGKILL`ed process promptly, not a wait for
 /// the process to do anything further.
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
-
-/// `label` names the test in a comment or a variable, never in the path
-/// itself: kept short against `sockaddr_un`'s 104-byte `sun_path`
-/// budget (`crates/server/src/bind.rs`'s own doc comment found this
-/// matters - a first version of this helper embedded the label and
-/// failed with exactly that error, not assumed safe).
-fn unique_socket_path(_label: &str) -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{suffix}.sock", std::process::id()))
-}
 
 fn fixture_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_race-attempt"))
@@ -110,7 +98,7 @@ fn wait_until_accepting(path: &std::path::Path, deadline: Instant) {
 /// is never itself a failure).
 #[test]
 fn eight_simultaneous_starts_leave_exactly_one_server() {
-    let socket_path = unique_socket_path("eight-way");
+    let (_socket_dir, socket_path) = scoped_socket_path("eight-way.sock");
     let lock_path = {
         let mut p = socket_path.as_os_str().to_owned();
         p.push(".lock");
@@ -172,7 +160,7 @@ fn eight_simultaneous_starts_leave_exactly_one_server() {
 /// because anything in this task detected the death itself.
 #[test]
 fn a_socket_file_left_by_a_real_dead_process_is_replaced() {
-    let socket_path = unique_socket_path("dead-holder");
+    let (_socket_dir, socket_path) = scoped_socket_path("dead-holder.sock");
     let lock_path = {
         let mut p = socket_path.as_os_str().to_owned();
         p.push(".lock");
@@ -216,7 +204,7 @@ fn a_socket_file_left_by_a_real_dead_process_is_replaced() {
 /// waiting out the production default.
 #[test]
 fn attempt_times_out_when_the_lock_stays_contended_and_nothing_answers() {
-    let socket_path = unique_socket_path("timeout");
+    let (_socket_dir, socket_path) = scoped_socket_path("timeout.sock");
     let lock_path = {
         let mut p = socket_path.as_os_str().to_owned();
         p.push(".lock");

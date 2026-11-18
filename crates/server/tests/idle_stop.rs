@@ -3,12 +3,14 @@
 //! `crates/steg/tests/idle_stop.rs` is the real-process proof ("shown end
 //! to end with a real server process").
 //!
-//! Reuses `shutdown.rs`'s own `unique_socket_path`/`wait_until_accepting`/
-//! `join_within` shape and `routing.rs`'s own `test_login`/
-//! `connect_and_handshake`/`call_and_read_reply` shape - each duplicated
-//! here rather than shared, the same convention this crate's other test
-//! files already follow (an integration test file is its own crate; there
-//! is no shared test-support module in this repository).
+//! Reuses `shutdown.rs`'s own `wait_until_accepting`/`join_within` shape
+//! and `routing.rs`'s own `test_login`/`connect_and_handshake`/
+//! `call_and_read_reply` shape - each duplicated here rather than shared,
+//! the same convention this crate's other test files already follow for
+//! anything beyond `tests/support/mod.rs` (TASK-1.113/TASK-1.123's own
+//! shared module, the one exception: an integration test file is its own
+//! crate, but every file under one crate's own `tests/` can still include
+//! that single module by path).
 
 #![expect(
     clippy::unwrap_used,
@@ -18,7 +20,6 @@
 use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -31,11 +32,9 @@ use steg_server::{
     Error, LaunchSpec, LoginShell, ProgramLauncher, ServerConfig, SpawnedProgram, Stopper, serve,
 };
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-idle-stop-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 /// A working `PATH` is required by `program_from_request`'s own default
 /// `cwd` fallback landing on a real directory (`login.home`) - not by the
@@ -303,7 +302,7 @@ const MARGIN: Duration = Duration::from_millis(800);
 
 #[test]
 fn a_genuinely_idle_server_stops_itself_within_a_bound() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = session_config(
         socket_path,
         Some(IDLE_TIMEOUT),
@@ -318,7 +317,7 @@ fn a_genuinely_idle_server_stops_itself_within_a_bound() {
 #[test]
 fn a_session_that_exists_prevents_the_idle_stop() {
     let (launcher, _drivers) = FakeLauncher::new();
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = session_config(socket_path.clone(), Some(IDLE_TIMEOUT), Arc::new(launcher));
     let (socket_path, stop, server_thread) = start_server(config);
 
@@ -385,7 +384,7 @@ fn a_session_that_exists_prevents_the_idle_stop() {
 #[test]
 fn closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_checker() {
     let (launcher, drivers) = FakeLauncher::new();
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = session_config(socket_path, Some(IDLE_TIMEOUT), Arc::new(launcher));
     let (socket_path, _stop, server_thread) = start_server(config);
 
@@ -412,7 +411,7 @@ fn closing_a_shell_panes_last_session_with_no_client_connected_still_wakes_the_c
 #[test]
 fn every_sender_dropping_is_what_lets_run_return_after_stop() {
     let (launcher, drivers) = FakeLauncher::new();
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     // A long `idle_timeout` here, deliberately: this test's own `stop()`
     // call is what ends the server, not the idle checker's own decision -
     // if `idle_timeout` were short, this test could not tell "stopped
@@ -453,7 +452,7 @@ fn every_sender_dropping_is_what_lets_run_return_after_stop() {
 #[test]
 fn an_explicit_starts_runtime_behaves_correctly_through_a_full_lifecycle() {
     let (launcher, _drivers) = FakeLauncher::new();
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = session_config(socket_path, None, Arc::new(launcher));
     let (socket_path, stop, server_thread) = start_server(config);
 
@@ -530,7 +529,7 @@ impl ProgramLauncher for PanickingLauncher {
 /// actually about: the live-client count, not the mint/rollback pairing.
 #[test]
 fn a_panicking_request_handler_still_sends_disconnected_and_the_server_idles_out() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = session_config(socket_path, Some(IDLE_TIMEOUT), Arc::new(PanickingLauncher));
     let (socket_path, _stop, server_thread) = start_server(config);
 

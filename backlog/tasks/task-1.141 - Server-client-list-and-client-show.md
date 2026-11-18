@@ -643,6 +643,21 @@ error: test failed, to rerun pass `--test dispatch`
 ```
 
 Commits since the review: 0.
+
+Check passed: `sh -c 'cd crates/server && cargo test --test dispatch client::client_list_returns_every_connected_client_by_default_except_cli 2>&1'` exited 0 at 2026-11-18T23:53:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 191fbf539235:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.89s
+     Running tests/dispatch/main.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+running 1 test
+test client::client_list_returns_every_connected_client_by_default_except_cli ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 84 filtered out; finished in 0.00s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

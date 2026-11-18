@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:59:00Z'
+updated_date: '2026-11-18T03:00:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -522,6 +522,24 @@ created: 2026-11-18T02:31:00Z
 ---
 
 Plan approved by @bruk (d9a4c4cb7361, size-2): its worker may build it.
+
+---
+
+created: 2026-11-18T03:00:00Z
+
+---
+
+Built per the approved plan (per the engineer's own tightening of the plan's proof wording, reported earlier). Summary for the record:
+
+WHAT A WORKER SEES WHEN ITS CHECK WAITS: nothing extra on the fast path (at least one of STEG_CHECK_SLOTS slots free - the common case). Only when every slot is busy, one line, flushed before the real wait: "wait    <label> (N of N slots busy, STEG_CHECK_SLOTS=N) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet" (or, with the bound set, "told it may wait up to Xs (STEG_CHECK_SLOT_WAIT_S)" in place of "with no bound..."). That line is the only thing distinguishing "still waiting" from "broken" if a worker's own harness timeout cuts its output short mid-wait.
+
+THE TWO VARIABLES: STEG_CHECK_SLOTS sets how many heavy cargo steps (build/test/clippy) may run machine-wide at once - default 2, 0 means no limit and takes no lock at all, unset defaults to no limit under CI automatically (GitHub Actions sets CI=true; its own concurrency group already runs one check job per ref). STEG_CHECK_SLOT_WAIT_S optionally bounds how long a waiter will wait before failing the step outright with a clear message - unset by default (unbounded), so a worker's own command timeout is the only thing that currently cuts a long wait short, with no special message from this mechanism. Both documented in the justfile's own header comment and in quiet.py's module docstring.
+
+WHAT THIS DOES NOT FIX: CPU/disk contention from non-cargo work on the machine (another process entirely, a browser, an editor's own indexer) is invisible to this limiter - it only ever counts cargo build/test/clippy invocations against each other, so a machine busy with unrelated load can still make the timing-sensitive tests flaky even with every slot "free" by this mechanism's own count. It coordinates only processes on one machine sharing the same lock directory - a second machine, or a sandboxed environment with its own distinct $HOME/XDG_CACHE_HOME, is invisible to it and not meant to be (TASK-1.132's own scope is one machine). And it assumes a local, POSIX-flock-honouring filesystem under the lock directory; a network-mounted home directory would make flock's own guarantees unreliable across hosts, which is named as a known limitation in the plan with STEG_CHECK_SLOTS_DIR as the escape hatch to point at local disk if that's ever actually hit - nothing here detects or warns about that case automatically.
+
+Checks recorded: an initial just test-tools baseline before any change; the full implementation's own just test-tools and the new functional/unit tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls) covering lock acquisition (tests a, d), the SIGKILL release property (test c, via a scratch edit that made the slot's fd inheritable into the fake-cargo child - showing the slot is NOT freed without the deliberate close-on-exec/close_fds=True this task relies on), the first-to-free race (test e, via a scratch fallback to a fixed slot - showing the waiter gets stuck behind the long holder instead of the quick one), the no-limit path (test f), heavy-step detection (test g), and each of the five pure functions (heavy_cargo_command, effective_slot_count, lock_directory, wait_bound_seconds, wait_line) with their own unit tests. Tree was clean between every pair and at the end (git status, and ps checked for leftover processes after the SIGKILL and cheap-step tests, which deliberately kill or race real subprocesses). Finally, a full just check recorded with the limiter live for the first time, against the real default lock directory, while five other workers were building on this machine - completed clean in under 8 minutes with no wait needed that particular run (the other workers' heavy steps didn't happen to collide with mine at the moments that mattered, but the mechanism was live throughout).
+
+No departures from the approved plan.
 
 ---
 <!-- COMMENTS:END -->

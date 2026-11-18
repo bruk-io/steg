@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T02:02:00Z'
+updated_date: '2026-11-18T02:06:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -23,10 +24,8 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
-asdlc_review_policies: ["review"]
-asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r1
+asdlc_review_findings: 'important=0,nit=0'
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -2722,6 +2721,37 @@ created: 2026-11-18T02:02:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T02:06:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff does not match the plan.
+
+Third, narrow round. Scope: diff 78de7a12..d67e61bf, excluding backlog/. Two things happened in that range: the paste fix (commit 0533d5ff, "make Cmd-V paste testable without a real pasteboard") and a merge of origin/main bringing TASK-1.128 (commits through ae5e8ed1/e66a783f/ee0f804a) plus a follow-up (d67e61bf, adopt main's exact connection.rs).
+
+No findings.
+
+Paste fix: on_key_down is now one line (reads cx.read_from_clipboard(), passes the text to send_pasted_text(&mut state.writer, ...)). Confirmed send_pasted_text/writer.send_input routes through Writer::try_send onto the writer's queue (client.rs:173-188), consumed by the dedicated writer thread - never a direct socket write from the UI thread (round 1's finding-1 fix). Tests (send_pasted_text_tests in main.rs) run against a real UnixStream + steg_sdk::Connection pair, with bounded reads (2s timeout in writer_and_server, 200ms in nothing_arrives_within_bound).
+
+Repeated the control myself: emptied send_pasted_text's body in a scratch edit, ran `cargo test -p steg-app --bin steg-app send_pasted_text_tests` under a 190s hard timeout. The two tests expecting bytes to arrive (text_with_crlf_and_bare_lf_arrives_normalised_as_one_send, a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own) failed cleanly with a WouldBlock panic at the 2s bound, not a hang; the two "nothing sent" tests still correctly passed. Reverted (git checkout -- crates/app/src/main.rs), git status confirmed clean. Matches the worker's own recorded failing-then-passing cycle at 78de7a12 exactly.
+
+What remains untested: the one line in on_key_down calling cx.read_from_clipboard() itself - reading the real pasteboard is exactly what must not be exercised by a test. Acceptable: it's the thinnest possible wrapper around an OS call, and the function it delegates to (the actual logic) is fully covered.
+
+The merge: crates/app/src/model.rs keeps main's ScreenUpdate::Ended { .. } => {} arm verbatim (line 111); grepped crates/app/src/main.rs for "Ended" - nothing matches it, so no reaction to Ended is built in this branch (correctly left for TASK-1.129). `git diff origin/main -- crates/server/src/connection.rs` is empty (identical to main's). `git diff origin/main -- crates/server crates/sdk crates/kernel` is empty - nothing of TASK-1.128's was lost or altered.
+
+Recorded checks: just check failed twice at d67e61bf on the disclosed, known login_env grandchild-pipe flake (crates/server, untouched by this task), then passed clean (exit 0, clean tree) at d67e61bf per the task's own comments. The new paste control pair was recorded failing-then-passing at 78de7a12 with uncommitted changes during development, and the committed test file is unchanged from there through to d67e61bf (confirmed via diff), so the recorded control still describes the code at the head reviewed.
+
+plan-matched: no. The branch carries an engineer-approved departure from the approved plan's section 3 ("directly on the main thread - no channel, no lock") - a dedicated writer thread and channel were substituted instead (comments #13/#15, correctly recorded in the task's Departures list). The policy counts any departure as "no" even when the notes explain and an engineer approved it; this is not a new finding, since it is disclosed and approved.
+
+Known and disclosed, not findings, per the claim: nothing after 2c127d4f was exercised in a real window by the worker; the PR images/recording are from 2c127d4f.
+
+Not checked: the .mov recording's contents; any machine other than this one; rounds 1 and 2's own code beyond what this round's diff (78de7a12..d67e61bf) touches; whether the plan-approval hash still matches the plan as shipped beyond what the notes state.
 
 ---
 <!-- COMMENTS:END -->

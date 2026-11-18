@@ -3,9 +3,11 @@ id: TASK-1.130
 title: >-
   sdk and server tests: one file per noun for the API description and the
   dispatch tests
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
+updated_date: '2026-11-18T02:11:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +15,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.130-sdk-and-server-tests-one-file-per-noun
 ---
 
 ## Description

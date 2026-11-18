@@ -657,6 +657,51 @@ Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk
 < use super::{
 FAIL: the body-diff output no longer matches the accounted-for baseline
 ```
+
+Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-c.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main` exited 0 at 2026-11-18T05:18:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes, last 40 of 59 lines:
+
+```text
+1374d1375
+< Filter, LoginShell, Moment, Runtime, State, Subscriber, apply_event_locked, broadcast,
+1424c1425
+< fn emit_close_cascade(state: &State, closed: &steg_kernel::ClosedPane, scope: SessionId) {
+---
+> fn emit_close_cascade(
+1439a1441
+> fn login() -> crate::runtime::LoginShell {
+1441d1442
+< fn login() -> super::LoginShell {
+1487c1488
+< fn test_state(tree: steg_kernel::Tree, panes: HashMap<steg_sdk::PaneId, PaneHandle>) -> State {
+---
+> fn test_state(
+1514d1514
+< force_end,
+2261a2262
+> panes: HashMap<steg_sdk::PaneId, PaneHandle>,
+2356d2356
+< Response, SessionId, Size, validate,
+2395a2396
+> scope: SessionId,
+2517a2519
+> state: &State,
+2680c2682
+< super::LoginShell {
+---
+> super::close::emit_close_cascade(state, closed, scope);
+2718a2721,2722
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env,
+> TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
+2764a2769
+> tree: steg_kernel::Tree,
+2795c2800,2801
+< use steg_kernel::{
+---
+> use crate::runtime::testing::{
+> use crate::runtime::testing::{
+2797d2802
+< use super::{
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

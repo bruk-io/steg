@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:43:00Z'
+updated_date: '2026-11-18T00:49:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2173,6 +2173,45 @@ Also built Cmd-V paste (approved plan's own "For the engineer" §3, previously u
 Live run: not performed by me on the current head. Synthetic keyboard/mouse input cannot be safely aimed at a specific window on a desktop someone else is actively using concurrently - confirmed during an attempt (two processes sharing the app's name defeated accessibility-tree window queries, and keyboard focus kept reverting to a different, actively-used process). Stopped per team-lead's explicit instruction rather than work around it; the engineer will run the app themselves from this branch as the live proof for this head. Full detail, including the confirmation that Cmd-V was never pressed and the clipboard never touched outside unit tests (which use no real clipboard access), is recorded on the task's own comments.
 
 Checks: just check recorded clean (exit 0) at the final head (78de7a12, clean tree). gh pr checks 71 --watch passed (11m54s). PR body updated to state plainly which head its images/recording are from (2c127d4f, before this round's fixes) and that the live run is pending the engineer's own check.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app send_pasted_text` exited 101 at 2026-11-18T00:49:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 78de7a12b196 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test send_pasted_text_tests::no_clipboard_text_sends_nothing ... ok
+test send_pasted_text_tests::an_empty_clipboard_string_sends_nothing ... ok
+test send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own ... FAILED
+test send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send ... FAILED
+
+failures:
+
+---- send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own stdout ----
+
+thread 'send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own' (55927982) panicked at crates/app/src/main.rs:651:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send stdout ----
+
+thread 'send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send' (55927985) panicked at crates/app/src/main.rs:651:18:
+read what the writer wrote: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    send_pasted_text_tests::a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own
+    send_pasted_text_tests::text_with_crlf_and_bare_lf_arrives_normalised_as_one_send
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 64 filtered out; finished in 2.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

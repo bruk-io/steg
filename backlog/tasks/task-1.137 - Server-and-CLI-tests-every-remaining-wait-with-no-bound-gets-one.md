@@ -4,6 +4,7 @@ title: 'Server and CLI tests: every remaining wait with no bound gets one'
 status: To Do
 assignee: []
 created_date: '2026-11-18T14:03:00Z'
+updated_date: '2026-11-18T23:29:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,3 +28,9 @@ Split from TASK-1.123 by its plan on 2026-11-18. TASK-1.113's sweep counted abou
 - [ ] #3 No test waits by sleeping in a loop where an event can be waited on; each remaining poll and each fixed sleep is listed in the notes with the reason no event exists, including the 100 ms sleep in crates/sdk/src/local_socket.rs's test fixture
 - [ ] #4 The files TASK-1.88 and TASK-1.90 are editing are done last and re-checked against main first; just check passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Sighting after TASK-1.123 merged, noted by @bruk.o on 2026-11-18: TASK-1.88's worker, on a branch that already contained TASK-1.123's fixes, had two local just check runs fail under three concurrent builds - one in login_env.rs's backgrounded-grandchild test, one in attach.rs's pty-race tests - each green on a single retry; CI was green. So TASK-1.123 narrowed these clashes but did not end them under heavy load. Which attach.rs tests failed was not recorded; whoever takes this task should try to reproduce with three worktrees building at once.
+<!-- SECTION:NOTES:END -->

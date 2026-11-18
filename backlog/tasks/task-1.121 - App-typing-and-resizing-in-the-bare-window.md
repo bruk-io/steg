@@ -1,14 +1,13 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
 updated_date: '2026-11-18T00:35:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -2161,6 +2160,18 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.
+
+Review findings 1-3 fixed:
+
+Finding 1 (no socket write on the UI thread): a dedicated writer thread (crates/app/src/client.rs) now owns the write half of the socket, fed by one bounded std::sync::mpsc::sync_channel(64) carrying both input and declared sizes in the order the UI issued them. send_input/declare_size call try_send (never blocking) and return at once. A full or dead queue, or a write failure on the writer thread, is reported exactly once through the same ClientEvent::Disconnected path the reader already uses (a shared Arc<AtomicBool> guard proven not to double-report). Writer::stop drops the sender and shuts down a cloned handle unconditionally, so it never joins a thread that could still be running. Engineer-approved departure from plan section 3, recorded on the task's own Departures entry. All four required proofs (prompt return against a stalled peer, ordering, behaviour at the bound, stop joining mid-write) and the once-guard each have a recorded failing-then-passing control.
+
+Finding 2 (marked_text_range) and finding 3 (key coverage) were fixed in an earlier round and remain intact.
+
+Also built Cmd-V paste (approved plan's own "For the engineer" §3, previously unwired): is_paste_keystroke matches plain Cmd-V only, reads the clipboard, normalises line endings, and sends through the new writer - with its own tested, controlled proof.
+
+Live run: not performed by me on the current head. Synthetic keyboard/mouse input cannot be safely aimed at a specific window on a desktop someone else is actively using concurrently - confirmed during an attempt (two processes sharing the app's name defeated accessibility-tree window queries, and keyboard focus kept reverting to a different, actively-used process). Stopped per team-lead's explicit instruction rather than work around it; the engineer will run the app themselves from this branch as the live proof for this head. Full detail, including the confirmation that Cmd-V was never pressed and the clipboard never touched outside unit tests (which use no real clipboard access), is recorded on the task's own comments.
+
+Checks: just check recorded clean (exit 0) at the final head (78de7a12, clean tree). gh pr checks 71 --watch passed (11m54s). PR body updated to state plainly which head its images/recording are from (2c127d4f, before this round's fixes) and that the live run is pending the engineer's own check.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

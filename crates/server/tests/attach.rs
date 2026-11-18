@@ -2038,9 +2038,11 @@ fn two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit() {
 /// the fact - no race, no flood, just a plain second `pane.attach` once
 /// the first client has already seen `Ended`. Proves this is the ordinary
 /// way of looking at an ended pane (R97 keeps it and its scrollback
-/// around), not merely something a tight race happens to produce.
+/// around), not merely something a tight race happens to produce. A
+/// fresh `Full` arrives first (see the comment at this test's own second
+/// `attach`, below), then `Ended`, and nothing at all afterward.
 #[test]
-fn attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else() {
+fn attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended() {
     let (socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh", "-c", "exit 0"]);
@@ -2073,7 +2075,8 @@ fn attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else()
     assert_eq!(
         reason_b,
         EndReason::ProgramExited { exit_code: 0 },
-        "the first and only update on a late attach to an already-ended pane must be Ended"
+        "a late attach to an already-ended pane must eventually see Ended, after its own \
+         catch-up Full"
     );
     assert_nothing_more_arrives_on(
         &mut stream_b,

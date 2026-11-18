@@ -1168,6 +1168,27 @@ fn worker_loop(
                         // other send on this stream; if it is dropped,
                         // `Ended` below still goes out.
                         if let Ok(screen) = terminal.screen() {
+                            // `tracked_seq` can still be `0`, its own
+                            // "no tick has ever run for this pane"
+                            // sentinel, if this is the very first time
+                            // anything is sent for it at all (no
+                            // attachment's own `run_tick` ever had real
+                            // work to do before this pane ended) -
+                            // reviewed and confirmed safe, not merely
+                            // assumed: `seq` exists so a caller can hand
+                            // a point back on its *next* call
+                            // (`ScreenUpdate`'s own doc), and there is no
+                            // next call here - `Ended`, right below,
+                            // closes this stream for good. No production
+                            // reader (`crates/app/src/model.rs`'s own
+                            // `Model::apply`, nor either test harness's
+                            // `apply_update`) ever reads a `Full`'s own
+                            // `seq` at all. `terminal.screen()` itself
+                            // also has no seq of its own to report
+                            // correctly instead - it is a raw read, not
+                            // `changes_since`'s own tracked point - so
+                            // there is no more meaningful value to put
+                            // here than the one already in scope.
                             let full = ScreenUpdate::Full {
                                 screen,
                                 seq: tracked_seq,

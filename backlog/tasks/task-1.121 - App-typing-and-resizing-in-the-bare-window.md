@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T02:01:00Z'
+updated_date: '2026-11-18T02:02:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -2712,6 +2713,15 @@ Controls unaffected: the merge touched none of my own test files (client.rs, mai
 just check needed three runs at the final head (d67e61bf) before a clean one: twice it failed on login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open (crates/server, nothing I've touched - a known flake noted earlier in this task's own history, confirmed passing in isolation both times it failed in the full run). Machine load was 6.17 at the time (867 processes, several other workers' own checks running concurrently), which plausibly explains the timing-sensitive failure. Third run passed clean (exit 0), recorded.
 
 Pushing now and running gh pr checks 71 --watch.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T02:02:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

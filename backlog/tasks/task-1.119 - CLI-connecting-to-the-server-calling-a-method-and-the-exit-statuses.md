@@ -665,6 +665,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 168 filtered out
 
 error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
+
+Check passed: `cargo test -p steg-sdk --lib -- call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare` exited 0 at 2026-11-18T03:17:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

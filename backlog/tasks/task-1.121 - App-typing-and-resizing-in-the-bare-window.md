@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:49:00Z'
+updated_date: '2026-11-18T00:57:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2231,6 +2231,43 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T00:57:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at e6a811b63c89:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-server) (59.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.8s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (63.5s)
+ok      test (steg-server, race-fixture) (70.4s)
+ok      test (steg-server, pty-race-fixture) (63.1s)
+ok      test (steg-server, accept-backoff-fixture) (137.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.6s)
+ok      test (steg, fixtures) (7.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.2s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 20, 19 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

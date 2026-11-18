@@ -1,13 +1,14 @@
 ---
 id: TASK-1.135
 title: 'Server tests: the dispatch tests split by noun, in one test binary'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T03:49:00Z'
+updated_date: '2026-11-18T04:00:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.135-server-tests-the-dispatch-tests-split-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'a5fe3026a112'
 asdlc_plan_approved_size: size-2
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -545,6 +548,31 @@ created: 2026-11-18T03:49:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.135: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T04:00:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 4 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] Task notes / PR body: AC #4's timing clause is only half met. The plan's own Timing section (task notes) requires four numbers - whole-crate before/after AND `--test dispatch`-scoped before/after, each a cold-cache-discarded ("cargo clean -p steg-server", second run after discarding a cache-filling first) wall time - and says explicitly the dispatch-scoped number is "the number AC #4 actually asks for". What was recorded: only whole-crate numbers (PR body: before ~0.38-0.41s, after ~0.40-0.89s, "touch-then-relink, a few samples each side", no cargo clean), and no `--test dispatch`-scoped pair anywhere, in either the task's own Implementation Notes (which have only one single number, 0.438s, no before at all) or the PR body. This methodology/scope departure from the plan is not listed in the 5-item Departures section in either place. Per the review policy, "treat a clause with nothing behind it as unmet, whatever the summary says," and an undisclosed departure from the plan is itself a finding. The structural argument (one target named `dispatch` before and after, so the delta is zero by construction) is sound and I don't dispute the conclusion - the gap is that the specific measurement the plan and AC #4 called for was never run and recorded.
+
+[Compliance, Nit] Task notes, "Comments-only commit" section: the stated mechanical verification ("confirm every +/- content line matches `^[+-]\s*//`") doesn't actually match the diff I read in crates/server/tests/{runtime,events,routing}.rs - three of the six changed lines are `reason = "..."` strings inside a `#![expect(...)]` attribute, which don't start with `//`. The substance is still correct (every changed line is a comment or a reason string, no code changed, confirmed by my own read of the diff), just the notes' own stated grep pattern is imprecise.
+
+[Compliance, Nit] crates/server/tests/routing.rs:418: the plan's "Fix" instructions (task notes) specify the replacement wording "dispatch/main.rs's own tests already cover"; what landed is "the `dispatch` test binary's own tests already cover" - a different, if equally clear, wording than the plan specified. Minor undisclosed deviation from the plan's literal text.
+
+[Compliance, Nit] crates/server/tests/dispatch/api.rs:237-243,342-348: the two section comments explain what the api.call tests prove but, unlike tab.rs's and cross_cutting.rs's doc comments (which say "lives here, not in <other file>"), never name setting.rs/pane.rs/tab.rs/session.rs as the file a reader would otherwise look for these tests in. The plan itself flagged these six tests as "the least obvious" of the span-noun placements, so the weaker in-code signpost here is worth tightening.
+
+[Evidence, Nit] Task notes: the recorded proof (b)/(c) runs and the clippy -D warnings run are at pre-merge commits (f3053c6eae23, 0eb92c1e2403), not the final head e527e603 that CI passed on. I re-ran the test-identity listing, the moved-line/body check, and clippy -D warnings myself directly at e527e603 and got the same clean results (77/77 identical names, 0 ignored, clippy clean, no code-line changes beyond disclosed comment/blank/pub(super) differences), and the final commit is a pure merge of origin/main with no changes of its own to the touched files, so this is low-risk - but the letter of "a check recorded before the last commit... is a finding" still applies.
+
+What I independently verified, not relying on the worker's own proofs: test name sets at origin/main and at HEAD are set-identical (77/77, module:: prefix only, 0 ignored both sides) via my own `--list` runs in separate worktrees; the binary is still named `dispatch`; crates/server/Cargo.toml is unchanged; a git diff --color-moved=zebra scan of dispatch.rs vs dispatch/*.rs classified every line outside mod/use/doc-comment/pub(super)/blank/marker-comment-removal as moved (no unexplained non-moved code line); clippy -D warnings on -p steg-server --test dispatch is clean with no new #[allow]/#[expect] anywhere outside the one crate-root #![expect] in main.rs; the comments-only files (runtime.rs, events.rs, routing.rs) change only comments/reason strings; the six cross-noun api.rs tests and the one cross-noun tab.rs test are each explained in-code; CI (gh pr checks 76) is green on exactly e527e603, matching the PR's headRefOid, and the PR body's own account of the local just-check attach.rs failures matches the recorded check logs. Control, run for real: diffed origin/main (two-dot, so it sees the working tree) after changing `before + 1` to `before + 2` in one assertion inside a moved test in dispatch/session.rs - my moved-line scan correctly flagged that exact line (and only that line) as a non-moved red/green pair; reverted with `git checkout --`, confirmed `git status` clean again. (Note: my first attempt used `origin/main...HEAD`, a fixed commit range that doesn't see uncommitted edits, and showed nothing - re-running against `origin/main` directly is what surfaced it.)
+
+What I did not check: TASK-1's linked parent intent/contract documents - for a test-file move with no behaviour or API-surface change, I judged this low-risk, but did not read them. I did not re-run the full `just check` or the attach test suite (per instructions, given machine load).
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:42:00Z'
+updated_date: '2026-11-18T04:28:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -193,6 +193,51 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `sh -c 'cargo build -p steg-server && cargo test -p steg-server --lib -- --list --format=terse'` exited 0 at 2026-11-18T04:28:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at 3d143d5e1761 with uncommitted changes, last 40 of 212 lines:
+
+```text
+runtime::stop_tests::stop_ends_a_silent_program: test
+runtime::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended: test
+runtime::stop_tests::stop_with_no_panes_at_all_returns_at_once: test
+runtime::tests::a_command_panes_exit_emits_pane_exited: test
+runtime::tests::a_command_panes_exit_reaches_pane_show_through_runtime_handle: test
+runtime::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status: test
+runtime::tests::a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic: test
+runtime::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic: test
+runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call: test
+runtime::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle: test
+runtime::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs: test
+runtime::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment: test
+runtime::tests::a_shell_panes_exit_emits_the_whole_cascade_in_order: test
+runtime::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives: test
+runtime::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full: test
+runtime::tests::a_typed_command_still_running_stays_running_until_told_otherwise: test
+runtime::tests::a_typed_command_that_fails_is_failed_with_its_exit_code: test
+runtime::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it: test
+runtime::tests::a_typed_commands_start_and_end_emit_pane_status_changed: test
+runtime::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle: test
+runtime::tests::an_unfiltered_subscriber_receives_nothing: test
+runtime::tests::apply_event_closes_a_shell_pane_through_the_same_cascade_as_a_manual_close: test
+runtime::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking: test
+runtime::tests::apply_event_records_an_exit_and_leaves_a_command_pane_in_place: test
+runtime::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so: test
+runtime::tests::apply_size_changed_resizes_only_the_panes_the_change_names: test
+runtime::tests::arm_attachment_answers_false_once_the_pane_has_already_closed: test
+runtime::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock: test
+runtime::tests::disconnect_client_reapplies_the_next_latest_declared_size: test
+runtime::tests::login_shell_default_is_a_fixed_zero_io_value: test
+runtime::tests::login_shell_resolve_identity_never_panics_and_is_never_empty: test
+runtime::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists: test
+runtime::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd: test
+runtime::tests::runtime_new_does_not_panic_and_starts_empty: test
+runtime::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env: test
+runtime::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap: test
+signal::tests::send_reaches_a_real_process_with_the_named_signal: test
+signal::tests::send_reaches_the_whole_process_group_not_only_the_leader: test
+test_support::tests::a_body_that_never_returns_fails_fast_naming_what_it_waited_for: test
+test_support::tests::a_body_that_returns_promptly_is_not_delayed: test
 ```
 <!-- SECTION:NOTES:END -->
 

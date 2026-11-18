@@ -1,16 +1,19 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:29:00Z'
+updated_date: '2026-11-18T04:28:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies:
   - TASK-1.49
+references:
+  - task-1.119-cli-connecting-to-the-server-calling-a
+  - https://github.com/bruk-io/steg/pull/77
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -18,6 +21,8 @@ asdlc_branch: task-1.119-cli-connecting-to-the-server-calling-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b60acf121e04'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -901,6 +906,22 @@ error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
 ```
+
+Built per the approved plan. connect_handshaken (sdk) finds or starts a server through the existing, unchanged connect() and retries the whole arbitration exactly once on EOF-before-hello (AC #4); Connection::call_unvalidated is api.call's own escape hatch past client-side validate() (AC #5); two new global clap flags (--autostart/--no-autostart, --json); exit-status mapping read from the description's own errors table (AC #2), CLI-local statuses (0, 2, 4, 130 - left at default signal disposition, no handler) mapped in exit.rs; api_call.rs reads stdin as one JSON object and always prints JSON (AC #3, AC #5). run.rs/cli_run_placeholder.rs deleted outright per TASK-1.49's own appendix.
+
+Every proof named in the plan has a recorded failing-then-passing control pair on the task (the errors-table mapping, ConnectError->4, the exactly-once retry in both modes, call_unvalidated skipping validate, the global-arg propagation, the --json/no-json contrast, and api call's stdin merge).
+
+Two real bugs the controls caught, fixed before landing:
+1. The EOF-before-hello detector originally only recognised a clean zero-byte read. A connection closed the instant it is accepted can instead fail the client's write, set_read_timeout, or read outright, with different errno values depending on timing (BrokenPipe, NotConnected, even EINVAL were all observed for the identical fixture). Fixed by treating every such failure in that window (other than the read's own explicit timeout) as the same EOF-before-hello signal.
+2. A connection-arbitration test fixture whose hostile listener never stopped accepting, starving the retry of ever reaching a real server - fixed by having the fixture accept exactly once then stop.
+
+Departure from the approved plan: the plan described ConnectError::Io as connect_handshaken's path for a post-connect I/O failure. Per bug 1 above, every I/O failure in the handshake window (not just a subset of errno kinds) is now folded into the EOF-before-hello retry instead of surfacing as ConnectError::Io. The variant itself is unchanged and still used elsewhere (the real request/reply, once past the handshake).
+
+Note for TASK-1.50/1.51: a bare, one-segment target (just a tab or pane id) is read as "in the current session" (doc-2 section 4), which a CLI connection with no STEG_SESSION context does not have - the full session/tab or session/tab/pane path is needed. Hit this building the api call effect test.
+
+Follow-up named, not built here: move crates/app/src/startup.rs's own run/attach_over onto local_socket::connect_handshaken and delete its local hello-sending/reading, so the app gets the same retry-once protection - left for its own task since crates/app is off limits here.
+
+Checks: local just check was not green at several points on this shared dev machine - crates/server/tests/attach.rs's own stuck-pane timing test (an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane) failed repeatedly under this machine's concurrent load (6 users, other workers' builds, load average up to ~11), but passed reliably - together with its whole 23-test file - when run alone or against a clean origin/main worktree under matched conditions, confirming it is a pre-existing, environment-dependent flake unrelated to this PR (nothing here touches crates/server/src or crates/server/tests). CI is green on 5a456f3a (bruk-io/steg#77) - the clean check for this head, confirmed by the engineer. crates/sdk and crates/steg's own full test suites passed repeatedly throughout, including after merging TASK-1.130's description/methods.rs split.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -912,6 +933,15 @@ created: 2026-11-18T02:30:00Z
 ---
 
 Plan approved by @bruk (b60acf121e04, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T04:28:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

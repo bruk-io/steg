@@ -1,10 +1,11 @@
 ---
 id: TASK-1.127
 title: 'App: the cursor dissolves and re-forms while it waits for a key'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-17T21:24:00Z'
+updated_date: '2026-11-18T04:27:00Z'
 labels:
   - size-3
 milestone: m-4
@@ -14,6 +15,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.127-app-the-cursor-dissolves-and-re-forms
 ---
 
 ## Description

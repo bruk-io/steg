@@ -166,6 +166,32 @@ test pane_send_refuses_a_pane_with_no_running_program ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
 ```
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_text_and_key_together` exited 101 at 2026-11-18T14:36:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_text_and_key_together ... FAILED
+
+failures:
+
+---- pane_send_refuses_text_and_key_together stdout ----
+
+thread 'pane_send_refuses_text_and_key_together' (60511464) panicked at crates/server/tests/pane_send.rs:492:9:
+expected pane.send to refuse text and key together, got Ok(Null)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_text_and_key_together
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

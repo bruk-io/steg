@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:58:00Z'
+updated_date: '2026-11-18T02:59:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -504,6 +504,12 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `just test-tools` exited 0 at 2026-11-18T02:59:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 700bc6f420b7:
+
+```text
+ok      tool tests (22.4s)
 ```
 <!-- SECTION:NOTES:END -->
 

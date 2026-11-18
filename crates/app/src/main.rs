@@ -298,17 +298,15 @@ impl AppWindow {
     fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
         let keystroke = &event.keystroke;
         if is_paste_keystroke(keystroke) {
-            // Plain bytes, no bracketed paste (approved plan's "For the engineer" §3):
-            // whatever the clipboard's own text is, normalised the same way a committed
-            // IME composition already is (`ime::normalize_line_endings`'s own doc - a
-            // pasted document is exactly the kind of text with CRLF or bare CR line
-            // endings that doc describes), sent as input on the one raw-keystroke path.
-            // Consumed either way once recognised as the gesture, even when the clipboard
-            // holds nothing - never falls through to `key_to_bytes` (which would return
-            // `None` for it regardless, `keys.rs`'s own `modifiers.platform` check) or to
-            // the IME path.
-            if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
-                self.send_bytes(ime::normalize_line_endings(&text).into_bytes());
+            // The one line that reads the real clipboard - `send_pasted_text` is the
+            // rest, and is what review's own second round asked be testable without one
+            // (its own module-level doc). Consumed either way once recognised as the
+            // gesture, even when the clipboard holds nothing - never falls through to
+            // `key_to_bytes` (which would return `None` for it regardless, `keys.rs`'s
+            // own `modifiers.platform` check) or to the IME path.
+            if let Phase::Attached(state) = &mut self.phase {
+                let clipboard_text = cx.read_from_clipboard().and_then(|item| item.text());
+                send_pasted_text(&mut state.writer, clipboard_text.as_deref());
             }
             cx.stop_propagation();
             return;
@@ -333,6 +331,24 @@ fn is_paste_keystroke(keystroke: &gpui::Keystroke) -> bool {
         && !keystroke.modifiers.shift
         && !keystroke.modifiers.alt
         && !keystroke.modifiers.function
+}
+
+/// The testable half of Cmd-V (review's own second round: "pull the mechanism out of the
+/// gpui handler into a function that takes the clipboard text as an argument... and the
+/// writer, so the handler is one line"). Plain bytes, no bracketed paste (approved plan's
+/// "For the engineer" §3): `clipboard_text`, normalised the same way a committed IME
+/// composition already is (`ime::normalize_line_endings`'s own doc - a pasted document is
+/// exactly the kind of text with CRLF or bare CR line endings that doc describes), sent as
+/// one `send_input` call on the same writer ordinary input already goes through - so a
+/// paste interleaved with typing keeps the order the UI issued them in, the same guarantee
+/// review finding 1 gave `Writer`'s own single queue. Sends nothing - not even an empty
+/// frame - when the clipboard held no text, or held an empty string: there is nothing a
+/// real paste of nothing would ever produce, so nothing is the honest thing to send.
+fn send_pasted_text(writer: &mut Writer, clipboard_text: Option<&str>) {
+    let Some(text) = clipboard_text.filter(|text| !text.is_empty()) else {
+        return;
+    };
+    writer.send_input(ime::normalize_line_endings(text).into_bytes());
 }
 
 impl EntityInputHandler for AppWindow {
@@ -585,5 +601,133 @@ mod paste_keystroke_tests {
         ] {
             assert!(!is_paste_keystroke(&keystroke("v", modifiers)));
         }
+    }
+}
+
+#[cfg(test)]
+mod send_pasted_text_tests {
+    use std::io::Read as _;
+    use std::os::unix::net::UnixStream;
+
+    use steg_sdk::{Connection, Incoming, WireRole};
+
+    use super::{Writer, send_pasted_text};
+
+    /// A real socket pair standing in for the server (testing-rust.md: a real socket in
+    /// one process is cheap and is not a double) - the same shape `client.rs`'s own
+    /// `start_writer` uses, duplicated here since it is private to that module's own
+    /// tests.
+    fn writer_and_server() -> (UnixStream, Connection, Writer) {
+        let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
+        // Bounded, like `client.rs`'s own `start_writer`: a test expecting a frame that
+        // never arrives (a real regression, not only this file's own temporary control)
+        // must fail with a read error, not hang the test process until something kills it.
+        server_side
+            .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+            .expect("set a read timeout");
+        let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(7);
+        let (events, _receiver) = futures::channel::mpsc::unbounded();
+        let writer = Writer::new(
+            app_side,
+            writer_connection,
+            7,
+            "sess/tab-1".to_owned(),
+            events,
+        );
+        let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
+        server_connection.open_stream(7);
+        (server_side, server_connection, writer)
+    }
+
+    fn read_one(server_side: &mut UnixStream, server_connection: &mut Connection) -> Incoming {
+        loop {
+            if let Some(incoming) = server_connection.poll() {
+                return incoming;
+            }
+            let mut buf = [0_u8; 65536];
+            let n = server_side
+                .read(&mut buf)
+                .expect("read what the writer wrote");
+            assert_ne!(n, 0, "the writer's own handle closed with nothing to read");
+            server_connection.receive(&buf[..n]);
+        }
+    }
+
+    /// Half a second, bounded, non-panicking: nothing ever arriving is this test's own
+    /// passing case (the empty/non-text clipboard tests below), not a broken harness -
+    /// the same shape `client.rs`'s own `try_read_reply` uses.
+    fn nothing_arrives_within_bound(server_side: &mut UnixStream) -> bool {
+        server_side
+            .set_read_timeout(Some(std::time::Duration::from_millis(200)))
+            .expect("set a read timeout");
+        let mut buf = [0_u8; 64];
+        matches!(
+            server_side.read(&mut buf),
+            Err(err) if err.kind() == std::io::ErrorKind::WouldBlock
+                || err.kind() == std::io::ErrorKind::TimedOut
+        )
+    }
+
+    #[test]
+    fn text_with_crlf_and_bare_lf_arrives_normalised_as_one_send() {
+        let (mut server_side, mut server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, Some("one\r\ntwo\nthree"));
+
+        let Incoming::Data { stream, bytes } = read_one(&mut server_side, &mut server_connection)
+        else {
+            panic!("expected a data frame, not something else decoded off the same bytes");
+        };
+        assert_eq!(stream, 7);
+        assert_eq!(
+            bytes, b"one\rtwo\rthree",
+            "both the CRLF and the bare LF should become a single \\r, the same \
+             normalisation a committed IME composition already gets",
+        );
+    }
+
+    #[test]
+    fn a_paste_between_two_inputs_arrives_in_order_as_exactly_one_send_of_its_own() {
+        let (mut server_side, mut server_connection, mut writer) = writer_and_server();
+        writer.send_input(b"before".to_vec());
+        send_pasted_text(&mut writer, Some("pasted"));
+        writer.send_input(b"after".to_vec());
+
+        let first = read_one(&mut server_side, &mut server_connection);
+        let second = read_one(&mut server_side, &mut server_connection);
+        let third = read_one(&mut server_side, &mut server_connection);
+
+        assert!(
+            matches!(&first, Incoming::Data { bytes, .. } if bytes == b"before"),
+            "expected the input before the paste, got {first:?}"
+        );
+        assert!(
+            matches!(&second, Incoming::Data { bytes, .. } if bytes == b"pasted"),
+            "expected the paste as exactly one send, got {second:?}"
+        );
+        assert!(
+            matches!(&third, Incoming::Data { bytes, .. } if bytes == b"after"),
+            "expected the input after the paste, got {third:?}"
+        );
+    }
+
+    #[test]
+    fn no_clipboard_text_sends_nothing() {
+        let (mut server_side, _server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, None);
+        assert!(
+            nothing_arrives_within_bound(&mut server_side),
+            "a clipboard with no text at all must send nothing, not an empty frame",
+        );
+    }
+
+    #[test]
+    fn an_empty_clipboard_string_sends_nothing() {
+        let (mut server_side, _server_connection, mut writer) = writer_and_server();
+        send_pasted_text(&mut writer, Some(""));
+        assert!(
+            nothing_arrives_within_bound(&mut server_side),
+            "an empty clipboard string must send nothing, not an empty frame",
+        );
     }
 }

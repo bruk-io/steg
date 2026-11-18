@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:39:00Z'
+updated_date: '2026-11-18T02:48:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -184,6 +184,51 @@ test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/test-steg-server-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-18T02:48:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+running 7 tests
+test cli::exit::tests::every_connect_error_maps_to_4 ... ok
+test cli::exit::tests::api_error_status_follows_the_table_not_a_parallel_match ... ok
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-b011cf352425d3e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-0e563f4919d1f569)
+
+running 2 tests
+test api_call_prints_json_with_no_json_flag_given ... ok
+test api_call_sends_stdin_params_flat_to_the_named_method ... FAILED
+
+failures:
+
+---- api_call_sends_stdin_params_flat_to_the_named_method stdout ----
+
+thread 'api_call_sends_stdin_params_flat_to_the_named_method' (57170303) panicked at crates/steg/tests/cli_api_call.rs:121:54:
+pane.list prints a JSON array: Error("EOF while parsing a value", line: 1, column: 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_sends_stdin_params_flat_to_the_named_method
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

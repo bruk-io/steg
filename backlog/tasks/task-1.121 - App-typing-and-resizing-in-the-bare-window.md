@@ -1,11 +1,11 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T02:06:00Z'
+updated_date: '2026-11-18T02:07:00Z'
 labels:
   - size-2
   - review-passed

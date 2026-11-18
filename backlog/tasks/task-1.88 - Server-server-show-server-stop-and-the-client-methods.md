@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:28:00Z'
+updated_date: '2026-11-18T22:32:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -369,6 +369,42 @@ test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finis
 test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
 
 test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 169 filtered out; finished in 0.63s
+```
+
+Check passed: `cargo test -p steg-server --lib outbound::` exited 0 at 2026-11-18T22:32:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at a44e55e51cd6 with uncommitted changes:
+
+```text
+warning: unused import: `server::SERVER_VERSION`
+  --> crates/server/src/dispatch/mod.rs:33:16
+   |
+33 | pub(crate) use server::SERVER_VERSION;
+   |                ^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib test) generated 1 warning (run `cargo fix --lib -p steg-server --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+
+running 16 tests
+test outbound::tests::a_full_control_queue_refuses_rather_than_growing_without_bound ... ok
+test outbound::tests::a_broken_write_closes_the_queue_so_the_readers_next_enqueue_fails ... ok
+test outbound::tests::closing_drains_what_is_already_queued_then_the_writer_returns ... ok
+test outbound::tests::a_stream_with_nothing_queued_is_skipped_not_given_an_empty_turn ... ok
+test outbound::tests::a_full_data_queue_drops_the_new_frame_rather_than_growing_or_blocking ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_returns_promptly_once_the_queue_is_already_closed ... ok
+test outbound::tests::control_is_drained_before_any_data_even_when_data_was_enqueued_first ... ok
+test outbound::tests::data_streams_are_drained_round_robin_one_frame_at_a_time ... ok
+test outbound::tests::enqueue_data_on_a_closed_stream_is_refused_the_same_way ... ok
+test outbound::tests::enqueue_data_on_a_never_opened_stream_is_refused ... ok
+test outbound::tests::end_stream_still_delivers_the_final_frame_when_the_queue_was_already_full ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_delivers_the_frame_over_a_real_writer ... ok
+test outbound::tests::end_stream_tears_the_stream_down_only_once_the_writer_actually_drains_it ... ok
+test outbound::tests::enqueue_refuses_once_closed ... ok
+test outbound::tests::a_genuine_flood_on_a_data_stream_never_delays_a_control_reply ... ok
+test outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 196 filtered out; finished in 0.36s
 ```
 <!-- SECTION:NOTES:END -->
 

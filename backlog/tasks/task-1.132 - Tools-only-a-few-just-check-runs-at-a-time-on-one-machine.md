@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:39:00Z'
+updated_date: '2026-11-18T03:40:00Z'
 labels:
   - size-2
   - changes-requested
@@ -729,6 +729,14 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuJxgTb` does not 
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `just test-tools` exited 0 at 2026-11-18T03:40:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at fdc17a76504b:
+
+```text
+ok      tool tests (40.1s)
+```
+
+Commits since the review: 64, 63 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

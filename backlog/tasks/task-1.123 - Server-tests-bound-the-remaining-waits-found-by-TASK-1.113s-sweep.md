@@ -25,8 +25,10 @@ Split from TASK-1.113 by its plan on 2026-11-16, under the engineer's standing d
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Every wait on a thread, a channel, a child process or a socket in the tests of crates/server and crates/steg has a bound, through the shared helpers, and a wait that passes its bound fails the test with a message naming what it waited for
-- [ ] #2 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
+- [ ] #1 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
+- [ ] #2 Each clash recorded in this task's notes on 2026-11-18 is fixed: the attach flood tests starving when two worktrees run that test binary at once; login_env's backgrounded-grandchild test under load; signal's process-group test; and temporary socket paths colliding across processes in crates/steg's tests. For each, the failure is reproduced first and recorded, and the same reproduction is recorded passing after the fix
+- [ ] #3 The helper call_and_read_reply's read bound in crates/server/tests/attach.rs is a liveness bound in line with the rest of that file, and every per-test temporary path in crates/steg's tests comes from one shared helper that cannot collide across processes
+- [ ] #4 The notes say what is not fixed here and where it went: the remaining unbounded waits, the tools check, the sdk fixture's sleep, and the terminal-scrolling sighting that could not be located
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -509,4 +511,6 @@ Sightings gathered by @bruk.o on 2026-11-18, while six workers built on one mach
 Fifth sighting class, 2026-11-18 (TASK-1.135's worker, load about 3): crates/steg/tests/server_start.rs::an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason failed writing a plain file because a socket already existed at the same temporary path - a path collision between two worktrees running crates/steg's tests at once (TASK-1.119's worker was running them). Passed alone and as the whole file. The helper that makes 'unique' socket paths is duplicated across this crate's test files and is evidently not unique across processes; a per-test temporary directory would remove the class. An earlier sdk local_socket path collision is logged on TASK-1.82.
 
 From TASK-1.119's third review (2026-11-18), two test nits left because the task locked on passing: crates/sdk/src/local_socket.rs's cooperative test fixture (Behaviour::CooperativeHeldOpen, near line 586) sleeps 100 ms so the peer does not close before the client clears its timeouts - it passed 300 of 300 runs at load 3, but it is a timing margin, not a synchronised event; have the listener thread hold the stream until the test signals it instead. And a_hello_sent_then_closed_immediately_never_reports_closed_before_hello loosened its attempt-count assertion from exactly 1 to at least 1 without needing to.
+
+Narrowed and split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the cross-worktree clashes and the tightest bounds, which cost three tasks their local checks on 2026-11-18, plus the rule line (the criterion kept from before). The mechanical bounding of the remaining waits and the tools check that enforces it moved to two draft tasks. Orchestrator's answers to the plan's questions: the terminal-scrolling sighting (class c) is accepted as unlocated - TASK-1.128's worker reported it from one CI run without naming the test; the temporary-directory helper is to be built on the standard library (create_dir fails if the name exists, so a name from process id, a counter and the clock can be retried) so no dependency or package boundary changes - tempfile stays the named alternative if the engineer prefers it.
 <!-- SECTION:NOTES:END -->

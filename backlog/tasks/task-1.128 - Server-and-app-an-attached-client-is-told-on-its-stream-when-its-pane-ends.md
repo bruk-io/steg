@@ -1,11 +1,11 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T01:21:00Z'
+updated_date: '2026-11-18T01:41:00Z'
 labels:
   - size-3
   - review-passed

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:18:00Z'
+updated_date: '2026-11-18T03:19:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -797,6 +797,19 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.34s
 
 error: test failed, to rerun pass `-p steg --test cli_api_call`
+```
+
+Check passed: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_sends_stdin_params_flat_to_the_named_method` exited 0 at 2026-11-18T03:19:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_sends_stdin_params_flat_to_the_named_method ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
 ```
 <!-- SECTION:NOTES:END -->
 

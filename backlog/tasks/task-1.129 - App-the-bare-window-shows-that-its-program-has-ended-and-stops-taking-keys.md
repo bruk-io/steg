@@ -1,17 +1,20 @@
 ---
 id: TASK-1.129
 title: 'App: the bare window shows that its program has ended, and stops taking keys'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:51:00Z'
+updated_date: '2026-11-18T03:03:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.128
   - TASK-1.121
+references:
+  - task-1.129-app-the-bare-window-shows-that-its
+  - https://github.com/bruk-io/steg/pull/74
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -771,6 +774,41 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built per the approved plan. Departures from the plan (its own wording):
+
+- None beyond what the plan's "Design decided by this plan" section
+  already named as findings from the two advisor reviews before any code
+  existed (Writer::disarm, not Writer::stop; stopping the receive loop
+  rather than guarding Disconnected; the render split keeping the
+  not-ended tree unchanged). Built exactly as planned.
+
+One honest note on the render split's own verification: the plan said to
+check it with a plain git diff showing the None branch's own lines as
+unchanged context. In the actual edit, wrapping the existing div chain in
+an if/else necessarily re-indents it, so git's own diff shows those lines
+as touched even though their content (same methods, same arguments, no
+flex wrapper) is unchanged - confirmed by reading the two branches side
+by side, not by the diff's own shape. Said so here rather than silently
+claiming the literal check passed as worded.
+
+Checks recorded via asdlc record-check against TASK-1.129:
+- describe_end's own two tests, failing (stub) then passing.
+- client.rs's three new tests (own client event; close_stream's own
+  effect; disarm's own no-op), each failing (its own mechanism disabled)
+  then passing.
+- startup.rs's existing, unmodified an_ended_panes_program_gets_a_fresh_
+  tab_in_the_same_session, failing (resolve_pane's own program_status
+  check scratch-disabled) then passing - AC #3's own control, recorded
+  on request even though this diff does not touch that mechanism.
+- just check, clean at the final pushed head (fbcf6702); one login_env
+  grandchild flake hit and reran clean, the known hazard.
+- CI green on the same commit (gh pr checks 74 --watch, 10m10s).
+
+AC #4's own two screenshots are pending your own live run - the PR body
+says exactly what to run and what to look for (program exit with a
+status; a forced close; typing after the message does nothing; the
+terminal's own size before the message appears is unchanged from main).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

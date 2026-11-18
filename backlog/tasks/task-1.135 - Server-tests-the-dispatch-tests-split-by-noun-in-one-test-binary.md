@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T03:07:00Z'
+updated_date: '2026-11-18T03:21:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -309,6 +309,51 @@ failures:
     an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
 
 test result: FAILED. 21 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.58s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:21:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... FAILED
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57930745) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck stdout ----
+
+thread 'pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck' (57930769) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+    pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck
+
+test result: FAILED. 21 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 149.48s
 
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-p-steg-p-steg-server.log

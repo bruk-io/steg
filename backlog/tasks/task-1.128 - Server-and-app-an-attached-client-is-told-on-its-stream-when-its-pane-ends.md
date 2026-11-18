@@ -866,6 +866,20 @@ error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- pane_close_force_reports_ended_closed_not_the_signals_own_exit_code --exact` exited 0 at 2026-11-18T00:48:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.33s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

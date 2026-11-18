@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T23:29:00Z'
+updated_date: '2026-11-18T23:37:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,8 +24,10 @@ asdlc_branch: task-1.88-server-server-show-server-stop-and-the
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'c42e82b251d6'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -656,6 +659,33 @@ created: 2026-11-18T23:29:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.88: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T23:37:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+Verdict: clean (0 Important, 2 Nit). Reviewed origin/task-1.88-server-server-show-server-stop-and-the at 285d5adf822b in a detached worktree against origin/main.
+
+Read every changed file in full (18 files, 1494/41 lines). Matches the approved, rewritten (server-noun-only) plan file-by-file and in order of work: Moment::since_origin, ServerRecord/Outcome variant, dispatch/server.rs's plain show/start arms, mod.rs's HANDLED guard and narrowed catch-all for server.stop, config.rs's force_grace, listen.rs's unconditional set_stopper, runtime State/lifecycle's set_stopper/session_count/stopper(), outbound.rs's ControlItem/enqueue_control_and_wait_until_written flush primitive, connection.rs's server.stop interception, and the three test layers (dispatch/server.rs, server_stop.rs socket-level, steg/tests/server_show_stop.rs end-to-end CLI). cross_cutting.rs and dispatch/mod.rs's not-yet lists touch only server rows; client.list/client.show rows (TASK-1.141's parallel task) are untouched, confirmed by grep.
+
+Repeated one control myself: edited outbound.rs's enqueue_control_and_wait_until_written to stop waiting on the ack (`let _ = sent_rx;` instead of `sent_rx.recv_timeout(bound)`), re-ran `cargo test -p steg-server --lib outbound::tests::enqueue_control_and_wait_until_written_does_not_return_until_write_all_itself_returns`: it failed exactly as the mechanism's claim predicts (assertion "the wait must not return while run_writer is still inside write_all" - got Ok(Ok(())) instead of the expected Timeout). Reverted; file is clean (confirmed via git diff). This is the one test standing behind AC #2's flush-before-stop ordering, and it is genuinely load-bearing.
+
+Checked `just check` green at the final head (285d5adf, 23:14:12 run) and PR CI green at the same head. The one `just check` failure recorded (23:03:51, attach.rs pty-race and a different attach.rs size test) is in a file this branch's diff never touches (`git diff --stat origin/main...HEAD -- crates/server/tests/attach.rs crates/server/tests/login_env.rs` is empty) - an unrelated flake under this machine's concurrent load, as the notes say, confirmed independently.
+
+Findings:
+1. [Evidence, Nit] crates/server/tests/server_stop.rs - the plan's own section J named a specific negative control for AC #2's proof table: a scratch-reverted edit using plain `enqueue_control` + immediate `stopper.stop()` (skipping the wait), expected to show the reply lost/truncated under this file's own load. The notes disclose this was attempted (60 trials) and found 0 failures - honestly reported as not reproducing the race reliably on this machine, substituting the StepWriter-based unit test's own negative control instead. That substitute is real and I reproduced it myself (above), so the flush mechanism itself is controlled - but the specific control the plan named for this file is not delivered, and a reader of the plan's proof table would not otherwise know that.
+2. [Compliance, Nit] doc-2 section 9's prose ("close and server stop refuse while programs are still running") still disagrees with section 8's table and with this task's own criterion 2 ("any session exists"). The code correctly follows the criterion/section 8 (session_count() > 0, not any_pane_running), and the task already raises this discrepancy as a question for Bruk to reword section 9 - not a code defect, just flagging that the spec text itself is still inconsistent until that edit lands.
+
+No Important findings: AC #1-#4 each have a test reaching the clause they claim (uptime pass-through, session/client counts, the refusal-vs-session_count distinction, server.start's always-Ok(null), the completeness test routing all three methods off NOT_YET_NOUNS). Signals (AC #3) are left unhandled for M1 per the approved plan/digest c42e82b251d6 - the plan's own hedge on what a signal leaves behind for a running pane is something the engineer approved as written, not re-litigated here.
+
+--plan-matched no: files and order of work match throughout, but the plan's own section J names a specific negative control that was not delivered as specified (see finding 1) - a real departure from what the plan's proof table promised, even though the notes explain it honestly.
 
 ---
 <!-- COMMENTS:END -->

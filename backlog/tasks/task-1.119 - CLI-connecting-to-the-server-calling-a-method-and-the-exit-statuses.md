@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:44:00Z'
+updated_date: '2026-11-18T04:45:00Z'
 labels:
   - size-2
   - changes-requested
@@ -965,6 +965,34 @@ running 1 test
 test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_prints_json_with_no_json_flag_given` exited 101 at 2026-11-18T04:45:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_prints_json_with_no_json_flag_given ... FAILED
+
+failures:
+
+---- api_call_prints_json_with_no_json_flag_given stdout ----
+
+thread 'api_call_prints_json_with_no_json_flag_given' (58817260) panicked at crates/steg/tests/cli_api_call.rs:192:48:
+api call prints JSON with no --json given: Error("EOF while parsing a value", line: 1, column: 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_prints_json_with_no_json_flag_given
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.

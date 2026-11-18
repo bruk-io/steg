@@ -182,6 +182,24 @@ ok: errors.rs
 ok: tests.rs
 FAIL
 ```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-c.sh` exited 0 at 2026-11-18T03:00:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+ok: shared.rs
+ok: shared.rs
+ok: session.rs
+ok: tab.rs
+ok: pane.rs
+ok: server.rs
+ok: event.rs
+ok: client.rs
+ok: setting.rs
+ok: api.rs
+ok: errors.rs
+ok: tests.rs
+PASS: every extracted file's real content matches its exact pre-task source range, unchanged but for the pub(super) visibility this split adds
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

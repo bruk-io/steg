@@ -462,6 +462,14 @@ FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_count_and_ha
 FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_bound_when_one_is_set
 2 failed, 19 deselected in 0.01s
 ```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_line'` exited 0 at 2026-11-18T02:48:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6LjShv` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed, 19 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

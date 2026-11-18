@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T19:13:00Z'
+updated_date: '2026-11-18T19:17:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=0'
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -846,6 +846,27 @@ created: 2026-11-18T19:13:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T19:17:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Third round, scoped to the diff 92b0a149..e7821a98 (the real code change is b79dd271; the merge commit e7821a98 brought in only board/task-file updates from origin/main, confirmed via diff --stat against the merge's first parent). Only crates/server/tests/pane_send.rs changed.
+
+No findings. Round 2's single Important finding (the "held" binding compared with itself) is fixed: pane_send_refuses_a_pane_with_no_running_program now takes a real second read via a fresh attach() call (a genuine new pane.attach RPC, opening its own stream) after the refused pane.send, compared against the first attach's own snapshot - both reads are through the bounded call_and_read_reply/attach helpers, no sleep.
+
+Checked the worker's "no control by this route" claim rather than taking it on faith: crates/server/src/pane.rs:989-993 confirms PaneCommand::Input(bytes) is a no-op once `current` is None (the exact precondition once the program has exited), so no implementation of the write path can make this screen comparison fail. I repeated the any_pane_running-inverted control myself in a scratch edit to crates/server/src/dispatch/pane.rs (inverted the condition, ran the test, reverted): it fails at the error-code assertion (line 872, "got Ok(Null)"), never at the screen comparison - exactly as the worker's notes and the test's own comment claim. The error-code assertion is therefore the real, controlled proof; the screen comparison is honestly corroboration only, matching the policy's "plain statement + error-code assertion as controlled proof" allowance. git status was clean after reverting; no stray processes.
+
+Confirmed cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program passes at e7821a98.
+
+plan-matched: no, unchanged from round 2 - the already-disclosed departures (od-pair plumbing with a declared tall tab size instead of the plan's plain od; the Ended-event wait instead of pane.show polling) are still present in this diff's base and were already judged acceptable, disclosed departures in the prior round; this round's own change (the second-read fix) is not itself an undisclosed departure, since it responds directly to this review's own prior finding.
 
 ---
 <!-- COMMENTS:END -->

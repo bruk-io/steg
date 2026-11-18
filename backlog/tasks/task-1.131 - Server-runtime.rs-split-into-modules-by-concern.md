@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:51:00Z'
+updated_date: '2026-11-18T06:17:00Z'
 labels:
   - size-3
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -20,8 +21,10 @@ asdlc_branch: task-1.131-server-runtime-rs-split-into-modules-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6b3f731e72f1'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -938,6 +941,37 @@ created: 2026-11-18T05:51:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.131: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T06:17:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff does not match the plan.
+
+No Important findings.
+
+Independent verification performed (not relying only on the worker's own proofs):
+- Function/test body comparison: wrote an indentation-anchored extractor (handles multi-line signatures and inline `{}` bodies) and matched every function/method/test by name plus enclosing impl/mod context across origin/main's runtime.rs and the 11 new files. 107 occurrences on each side, all matched 1:1 (7 pairs renamed only by module-nesting context, verified identical by hand). Of 107 compared bodies, 103 byte-identical after stripping only a leading pub(...) token; the remaining 4 are exactly the changes the branch's own commit messages disclose: two rustfmt line-wraps (emit_close_cascade's and test_state's signatures, commit 2f328238) and two call/type-path updates forced by the move (apply_event_locked's call becomes `super::close::emit_close_cascade(...)`, matching the plan's own table; mod stop_tests's `super::LoginShell` becomes `crate::runtime::LoginShell`, disclosed in commit 1b385bdb as "an import-path adjustment forced by the move, not a body change"). No undisclosed content change found.
+- `git diff --color-moved=zebra --color-moved-ws=allow-indentation-change origin/main...HEAD` over runtime.rs/runtime/: 269 added+removed lines not classified as moved. Read every one: mod/use lines, blank lines, module doc comments, pub(super) visibility bumps (exactly the plan's 11 items plus 6 #[cfg(test)]-only testing.rs helpers the plan's own testing.rs section calls for), impl-block open/close braces, and signature-line fragments for the same wrapped signatures above - plus the same 2 disclosed path/call changes already found above. Nothing else.
+- Control, run twice independently (both my own tools): in a scratch edit in my own detached review worktree (never the author's worktree), swapped force_end's pass-0 and pass-1 loop bodies (close.rs). Both the color-moved check and the body-comparator flagged `force_end` as changed; reverted with `git checkout --`, confirmed `git status` clean.
+- Visibility/surface: grepped every pub/pub(crate)/pub(super) item declaration before and after. The pre-existing pub/pub(crate) set (24 items) is unchanged at the same visibility on both sides. Exactly 11 new pub(super) items match the plan's table (session_owning_tab, start_and_dispatch, close_and_dispatch, move_and_dispatch, force_end, emit_close_cascade, apply_size_changed_locked, reapply_every_sized_tab, broadcast, emit_focus_event, apply_event_locked); 6 more pub(super) items are testing.rs's #[cfg(test)]-only shared helpers, explicitly called for by the plan's own testing.rs section. Nothing widened to pub(crate) or pub that wasn't already. lib.rs, connection.rs, listen.rs: 0 diff lines (confirmed via diff --stat).
+- Test identity: ran `cargo test -p steg-server --lib -- --list --format=terse` myself at origin/main and at HEAD (ZIG exported). 203/203 raw, 0 ignored both sides, and the full set of bare test names is an identical multiset (the plan's own normalisation example reduces to the bare function name, which is what I compared).
+- Comments-only commit: read the full diff on config.rs, pane.rs, and the 5 test files myself - every changed line in all 7 files is a `///`/`//` comment renaming `runtime.rs` to its new path; zero non-comment changes.
+- Build: `cargo clippy -p steg-server --all-targets -- -D warnings` exits 0; no new #[allow]/#[expect] in the diff.
+- CI: `gh pr checks 79` passes; PR head is cf81bcfd78579134e3146d0ebbf73c1bb78ed3e2, matching the reviewed worktree's HEAD exactly.
+- Plan approval: task comment #1 "Plan approved by @bruk (6b3f731e72f1, size-3)" matches the claim's approved-plan hash.
+- Departures (all true, all disclosed, none Important): FORCE_JOIN_TIMEOUT stayed in mod.rs (used by both close.rs's force_end and lifecycle.rs's stop) rather than moving to close.rs - confirmed by grep. Several testing.rs-bound helpers (register_subscriber, register_slow_subscriber, read_one_event, assert_nothing_arrives_within, EVENT_TIMEOUT, moment_now, pane_status, start_real_pane, login_for_marks, show_pane_and_tab, etc.) landed in events.rs's own test module instead - confirmed present there. mod stop_tests kept its own duplicated login/test_base_env/TEST_GRACE/TEST_TICK, as the plan said not to deduplicate. The branch's commit history also includes a rebase (several recorded-check hashes in the notes, e.g. cdbc6bb5e16a, are no longer ancestors of HEAD) and an extra fmt/import-fix commit (2f328238) not in the plan's 13-step list; I checked the rebase was a clean replay (byte-identical trees) and that proof (c) was run after, not before, the fmt fix landed as an uncommitted change, so it is not stale against the merged tree.
+
+Nits (2):
+1. [Compliance] The departures above are real, even though each is disclosed with a sound reason - hence --plan-matched=no, not because any is Important.
+2. [Evidence] The task's own Implementation Notes say proof (c)'s accounted-for diff includes "the two disclosed import-path fixes below," but no such explanation follows in the notes text itself - the two fixes are only explained in commit messages (2f328238, 1b385bdb), which a reader of the task notes alone would not find without checking git log.
+
+What I did not check: the integration/attach test suites (excluded per instructions - CI's green run covers them) and the UI/app crates (untouched by this diff).
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:48:00Z'
+updated_date: '2026-11-18T02:58:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -229,6 +229,51 @@ test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 error: test failed, to rerun pass `-p steg --test cli_api_call`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-18T02:58:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+            "session",
+(B[m[32m+            "new",
+(B[m[32m+            "--label",
+(B[m[32m+            "status-1-proof",
+(B[m[32m+            "--json",
+(B[m[32m+            "--",
+(B[m[32m+            "/bin/cat",
+(B[m         ],
+         &socket,
+     );
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg/tests/cli_exit_statuses.rs:342:
+         .to_owned();
+ 
+     let close = run_steg(&["session", "close", session_id.as_str()], &socket);
+[31m-    assert_eq!(close.status.code(), Some(1), "stderr: {}", stderr_of(&close));
+(B[m[32m+    assert_eq!(
+(B[m[32m+        close.status.code(),
+(B[m[32m+        Some(1),
+(B[m[32m+        "stderr: {}",
+(B[m[32m+        stderr_of(&close)
+(B[m[32m+    );
+(B[m     assert!(stdout_of(&close).is_empty());
+ 
+     // Cleanup, forced - never leave a program running behind this test.
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg/tests/cli_exit_statuses.rs:350:
+         &["session", "close", session_id.as_str(), "--force"],
+         &socket,
+     );
+[31m-    assert_eq!(forced.status.code(), Some(0), "stderr: {}", stderr_of(&forced));
+(B[m[32m+    assert_eq!(
+(B[m[32m+        forced.status.code(),
+(B[m[32m+        Some(0),
+(B[m[32m+        "stderr: {}",
+(B[m[32m+        stderr_of(&forced)
+(B[m[32m+    );
+(B[m }
+ 
+ // --- status 130: interrupted ------------------------------------------------
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
 ```
 <!-- SECTION:NOTES:END -->
 

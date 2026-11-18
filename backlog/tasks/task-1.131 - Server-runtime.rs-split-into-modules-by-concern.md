@@ -20,6 +20,8 @@ asdlc_branch: task-1.131-server-runtime-rs-split-into-modules-by
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '6b3f731e72f1'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -927,6 +929,15 @@ created: 2026-11-18T02:30:00Z
 ---
 
 Plan approved by @bruk (6b3f731e72f1, size-3): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T05:51:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.131: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

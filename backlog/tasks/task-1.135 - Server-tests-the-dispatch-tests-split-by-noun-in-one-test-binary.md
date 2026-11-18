@@ -601,6 +601,15 @@ PROOF (b) at final head: 77/77 identical
 ```
 
 Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clippy -p steg-server --all-targets --all-features -- -D warnings'` exited 0 at 2026-11-18T04:10:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.79s
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

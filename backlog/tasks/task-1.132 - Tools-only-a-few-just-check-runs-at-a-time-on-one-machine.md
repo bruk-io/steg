@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:43:00Z'
+updated_date: '2026-11-18T02:44:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -186,6 +186,14 @@ tools/tests/functional/test_quiet_slots.py:178: AssertionError
 =========================== short test summary info ============================
 FAILED tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once
 1 failed in 4.34s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once'` exited 0 at 2026-11-18T02:44:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpylTdDZ` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.36s
 ```
 <!-- SECTION:NOTES:END -->
 

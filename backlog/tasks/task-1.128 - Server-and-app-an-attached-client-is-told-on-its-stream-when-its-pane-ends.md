@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:51:00Z'
+updated_date: '2026-11-18T00:52:00Z'
 labels:
   - size-3
   - changes-requested
@@ -1003,6 +1003,45 @@ running 1 test
 test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.34s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach --exact` exited 101 at 2026-11-18T00:52:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+warning: unused imports: `EndReason` and `ScreenUpdate`
+  --> crates/server/src/connection.rs:19:40
+   |
+19 |     ClientId, Connection, Description, EndReason, Frame, Handshake, Incoming, PROTOCOL_VERSION,
+   |                                        ^^^^^^^^^
+20 |     PaneId, Refusal, Request, Response, ScreenUpdate, WireRole as Role, check_hello, description,
+   |                                         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (55961553) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 15s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 19.90s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.

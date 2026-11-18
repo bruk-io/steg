@@ -1,9 +1,11 @@
 ---
 id: TASK-1.139
 title: 'Server: capture a pane''s screen, and its scrollback when asked'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
+updated_date: '2026-11-18T22:19:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
+asdlc_branch: task-1.139-server-capture-a-pane-s-screen-and-its
 ---
 
 ## Description

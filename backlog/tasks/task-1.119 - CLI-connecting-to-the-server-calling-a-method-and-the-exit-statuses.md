@@ -1133,6 +1133,21 @@ error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- oversized_stdin_on_api_call_exits_2_without_panicking` exited 0 at 2026-11-18T04:52:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test oversized_stdin_on_api_call_exits_2_without_panicking ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.21s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

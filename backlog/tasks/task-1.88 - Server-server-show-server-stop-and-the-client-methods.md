@@ -1,10 +1,11 @@
 ---
 id: TASK-1.88
 title: 'Server: server show, server stop, and the client methods'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-16T04:52:00Z'
+updated_date: '2026-11-18T13:48:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +16,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.88-server-server-show-server-stop-and-the
 ---
 
 ## Description

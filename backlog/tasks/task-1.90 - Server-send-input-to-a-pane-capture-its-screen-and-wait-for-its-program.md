@@ -27,7 +27,8 @@ Found on 2026-11-15: TASK-1.50 (CLI: send, capture, wait, watch) needs these thr
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 pane send delivers bytes, text or named keys to the pane's program through its pty, in order, without a client attached; a pane with no running program refuses with the code doc-2 gives
-- [ ] #2 pane capture returns the pane's screen as text, and its scrollback when asked, from the server's own terminal with no window open (R3); the terminal is read on the pane's own thread, never under the runtime's lock for longer than a hand-off
+- [ ] #2 pane send leaves the not-yet list in dispatch; it is proved with a real program in a real pty and bounded waits, and no thread or child is left by any path
+- [ ] #3 Named keys come from one table that the server and the app both use; the plan says where it lives under doc-16's boundaries and what moves
 <!-- AC:END -->
 
 ## Implementation Plan
@@ -108,4 +109,6 @@ Risks:
 
 <!-- SECTION:NOTES:BEGIN -->
 From TASK-1.89's plan (2026-11-15): dispatch is pure and does no I/O by design, so pane send, capture and wait cannot be arms of dispatch; they need a wrapper at the Runtime level, as starting a program has (start_and_dispatch) and as the forced close has (TASK-1.78). The citation dispatch gives for them today (TASK-1.40) is stale; TASK-1.89 corrects it to name this task.
+
+Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps pane send (its first criterion); pane capture and pane wait moved to two draft tasks, to be built in that order because all three land in dispatch/pane.rs and the pane's description. The title still names all three; the criteria are the scope. The plan's questions for the engineer (two new error codes; moving the named-key table out of crates/app; repeated --key) go to the engineer with the rewritten plan.
 <!-- SECTION:NOTES:END -->

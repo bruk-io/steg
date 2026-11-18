@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:37:00Z'
+updated_date: '2026-11-18T14:38:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -230,6 +230,19 @@ failures:
 test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 15.09s
 
 error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_delivers_text_then_a_key_in_order_without_a_client_attached` exited 0 at 2026-11-18T14:38:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_delivers_text_then_a_key_in_order_without_a_client_attached ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
 ```
 <!-- SECTION:NOTES:END -->
 

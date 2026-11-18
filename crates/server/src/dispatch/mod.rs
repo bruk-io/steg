@@ -11,6 +11,7 @@
 //! unchanged.
 
 mod api;
+mod client;
 mod event;
 mod kernel_error;
 mod lookup;
@@ -90,6 +91,7 @@ fn handled() -> Vec<(&'static str, &'static str)> {
     all.extend(pane::HANDLED.iter().copied());
     all.extend(api::HANDLED.iter().copied());
     all.extend(setting::HANDLED.iter().copied());
+    all.extend(client::HANDLED.iter().copied());
     all.extend(NOT_YET_NOUNS.iter().copied());
     all.extend(INTERCEPTED_BEFORE_DISPATCH.iter().copied());
     all
@@ -121,18 +123,16 @@ const INTERCEPTED_BEFORE_DISPATCH: &[(&str, &str)] = &[
     ("tab", "declare-size"),
 ];
 
-/// The nouns with no served arm at all in this task (`server`, `event`,
-/// `client`): every one of their methods answers
-/// `ErrorCode::NotImplementedYet`, naming what it waits on. Test-only, for
-/// the same reason as [`handled`].
+/// The nouns with no served arm at all in this task (`server`, `event`):
+/// every one of their methods answers `ErrorCode::NotImplementedYet`,
+/// naming what it waits on. Test-only, for the same reason as
+/// [`handled`].
 #[cfg(test)]
 const NOT_YET_NOUNS: &[(&str, &str)] = &[
     ("server", "show"),
     ("server", "start"),
     ("server", "stop"),
     ("event", "watch"),
-    ("client", "list"),
-    ("client", "show"),
 ];
 
 /// Builds the `ApiError` a not-yet-built method or branch answers with
@@ -200,7 +200,7 @@ pub(crate) fn program_not_running() -> ApiError {
 /// once `validate` has already confirmed the method is in `description`
 /// (every described method's name is `{noun}.{verb}`, R101), and every
 /// described method is matched by one of the per-noun `HANDLED` lists, the
-/// three not-yet nouns, or `pane.attach`/`pane.detach`/`tab.declare-size`'s
+/// not-yet nouns, or `pane.attach`/`pane.detach`/`tab.declare-size`'s
 /// own arms (TASK-1.47/TASK-1.114, each built but never reached this way
 /// in the real system), which `mod.rs`'s own completeness test checks
 /// against `description()` directly. Panics instead, rather than silently
@@ -242,6 +242,9 @@ pub(crate) fn dispatch_raw(
         (noun, verb) if setting::HANDLED.contains(&(noun, verb)) => {
             setting::dispatch(settings, request, verb)
         }
+        (noun, verb) if client::HANDLED.contains(&(noun, verb)) => {
+            client::dispatch(tree, request, verb)
+        }
         ("server", _) => Err(not_implemented_yet(
             "the server's own socket and lifecycle (TASK-1.44)",
         )),
@@ -259,7 +262,6 @@ pub(crate) fn dispatch_raw(
             "event.watch is answered by Runtime::subscribe, not dispatch::dispatch - this \
              path is unreachable through a real connection",
         )),
-        ("client", _) => Err(not_implemented_yet("a client model (TASK-1.42)")),
         ("pane", "attach" | "detach") => Err(not_implemented_yet(
             "connection.rs's own interception (TASK-1.47) - a described method, fully built, \
              but never reached through dispatch in the real system: answering it needs a \

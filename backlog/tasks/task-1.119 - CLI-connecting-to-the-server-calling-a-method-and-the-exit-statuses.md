@@ -1056,6 +1056,34 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; fini
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- with_json_a_failed_command_still_prints_the_message_on_stderr_not_json` exited 101 at 2026-11-18T04:47:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test with_json_a_failed_command_still_prints_the_message_on_stderr_not_json ... FAILED
+
+failures:
+
+---- with_json_a_failed_command_still_prints_the_message_on_stderr_not_json stdout ----
+
+thread 'with_json_a_failed_command_still_prints_the_message_on_stderr_not_json' (58844851) panicked at crates/steg/tests/cli_exit_statuses.rs:280:5:
+assertion failed: stdout_of(&output).is_empty()
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    with_json_a_failed_command_still_prints_the_message_on_stderr_not_json
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.36s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

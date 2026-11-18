@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T08:41:00Z'
+updated_date: '2026-11-18T08:52:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b60acf121e04'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_findings: 'important=0,nit=2'
 asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1445,6 +1445,37 @@ created: 2026-11-18T08:41:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T08:52:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review, testing-rust. The diff matches the plan.
+
+Round 3 of TASK-1.119 (narrow): reviewed eab279c0..38e853d9, crates/sdk/src/local_socket.rs only (crates/steg untouched this round).
+
+1. The seam: handshake_over<S: HandshakeSocket> and the HandshakeSocket trait, plus `impl HandshakeSocket for UnixStream`, are all module-private (no pub) - confirmed by grep across local_socket.rs and a no-diff on lib.rs; adds nothing to the crate's public surface. UnixStream's impl is pure delegation (send->write_all, recv->read, set_*_timeout -> the real methods). one_handshake_attempt calls connect(options)? for a real stream, then handshake_over(&mut stream, ...) - connect() and connect_handshaken are both byte-for-byte unchanged this round (confirmed by reading and by the diff). Compared handshake_over's body against the prior one_handshake_attempt body line by line: identical operations, order, and error mapping, only parameterised over connect_timeout/send/recv instead of options.connect_timeout/write_all/read. No behavioural difference. .claude/rules/rust.md's "a trait to share code" concern does not apply: this trait exists exactly for its sanctioned use ("swapped for a fake in tests"), matching testing-rust.md's own description of a fake.
+
+2. The two deterministic tests (a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello, a_failure_before_any_hello_is_decoded_is_still_folded_into_the_retry_signal): no sleeps, threads or real sockets - FakeSocket is pure in-memory. Repeated the control: edited handshake_over's hello-decoded branch to fold a clear-timeout failure back into Ok(None) (the old buggy behaviour); the first test failed as expected ("Ok(None)" instead of the required Err(Io)); reverted with `git checkout --`; `git status` confirmed clean. Ran both tests together 200 times in a loop (--test-threads=1, one process per iteration): 200/200 passed.
+
+3. The real-socket corroboration test (renamed a_hello_sent_then_closed_immediately_never_reports_closed_before_hello): asserts only Ok(_) | Err(ConnectError::Io(_)), never ClosedBeforeHello, within its bound - correct per the brief. Ran 200 times: 200/200 passed (uptime load averages ~2.8-2.9, 7 users at the time).
+
+4. a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts (CooperativeHeldOpen, 100ms sleep): ran 300 times in two batches of 150 (uptime load averages ~2.8-3.3, 7 users throughout): 0 failures. Grepped for other sleeps in this task's scope: local_socket.rs:193 (connect()'s own bounded poll, pre-existing, untouched) and :456 (run_fake_server_for_tests, pre-existing fixture) are not new; crates/steg's cli_exit_statuses.rs sleeps (bounded wait_for_socket/wait_bounded polls, and the sigint test's own named-safe 300ms/60s) are all pre-existing, untouched this round, and already audited in the task's own notes.
+
+Findings:
+
+[Bugs, Nit] crates/sdk/src/local_socket.rs:586 (Behaviour::CooperativeHeldOpen). Still sleeps 100ms as a timing margin rather than synchronising on an event (.claude/rules/testing-rust.md: "no test sleeps to wait for something; it waits on the event"). Not necessary: the listener thread already owns the accepted stream, so it could hold the connection open until the test signals done (a second channel, test -> thread) instead of guessing a safe duration - test-fixture-only, touches nothing in connect(). Nit, not Important: 300/300 passed under today's load just now, matching the worker's own probe (1999/2000 failures at 0ms delay, 0 across dozens of runs at 100ms) - a large, now independently reconfirmed margin.
+
+[Evidence, Nit] crates/sdk/src/local_socket.rs (a_hello_sent_then_closed_immediately_never_reports_closed_before_hello). The outcome assertion's loosening (Ok(_) | Err(Io), never ClosedBeforeHello) is correct and is what this round's fix needed. But the same test's counter assertion was also loosened, from assert_eq!(counter, 1, ...) to assert!(counter >= 1, ...), and that part was not necessary: all three paths of CooperativeClosedImmediately (clear-read fails, clear-write fails, both succeed) take exactly one accept, since none produces Ok(None) and connect_handshaken only retries on Ok(None) (any Err propagates via ? with no second attempt, unchanged this round). Restoring assert_eq!(counter, 1, ...) would keep the "not retried on a genuine post-hello error" proof at the real-socket level without reintroducing the flaky outcome check. Nit: the property still holds and has coverage elsewhere - handshake_over's new deterministic test proves the inner boundary, and connect_handshaken's own three-line ?-propagation was read-verified by this round and by round 2's review - so AC #4's "exactly once" stays proven, this is a redundant piece of evidence lost, not an unproven behaviour.
+
+5. Notes: head is 38e853d9, matching the claim; CI confirmed independently green on exactly 38e853d9 (gh pr checks 77, gh pr view --json headRefOid). The task's own last recorded `just check` passed at 433d6a693f9e "with uncommitted changes" - i.e. with this round's handshake_over/HandshakeSocket/FakeSocket edits already present but not yet committed; those were committed as 4d6d8035 immediately after, then 38e853d9 only merges origin/main on top (confirmed: 433d6a693f9e..38e853d9 touches local_socket.rs/api_call.rs/cli_exit_statuses.rs, all from already-reviewed round 1/round 2 work plus 4d6d8035 - no further uncommitted code). Recorded check is against an identical tree to 38e853d9 for this round's purposes. The Departure paragraph: the original "Departure from the approved plan" text is still present verbatim and still inaccurate (notes are append-only) - but a later "CORRECTION to the Departure paragraph recorded earlier" block names what it corrects and states the boundary precisely (failures before a complete hello fold into the retry; failures after do not, via Io). That addresses round 2's Nit in substance, via a correction block rather than an edited paragraph; not re-raised as a new finding per the instruction not to re-file an earlier round's finding.
+
+Not checked: did not re-run cli_exit_statuses.rs/cli_connection_arbitration.rs's real-process suites beyond CI and the task's own recorded checks (neither file changed this round); did not independently re-verify the EINVAL/platform-errno mechanism beyond reproducing the deterministic tests' pass/fail behaviour; did not run architecture/LikeC4 validation (no boundaries.toml/Cargo.toml diff this round).
 
 ---
 <!-- COMMENTS:END -->

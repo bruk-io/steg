@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:17:00Z'
+updated_date: '2026-11-18T22:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -235,6 +235,51 @@ From the independent read of TASK-1.78's merge (2026-11-15): the forced close's 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the server noun (show, stop, start on a running server, and what a signal does); client list and client show moved to a draft task. The two share only additive edits to dispatch/mod.rs's lists and the record and outcome variant lists. The plan's three questions go to the engineer with the rewritten plan: signals left unhandled for M1; last_active (the client half's); and doc-2 section 9's wording against this task's second criterion.
 
 Plan checked against doc-2 sections 8 and 9, doc-8 R99 and the task's four criteria by @bruk.o: ok, subject to the engineer's answers. server show and server start are plain dispatch arms in a new dispatch/server.rs; only server stop is intercepted, because it needs the connection's outbound queue and the server's stopper. Its reply is written before the connection is torn down through a new acknowledged write on the control stream - a different need from TASK-1.128's end_stream, which defers a stream's own teardown and has no caller waiting - preceded by a probe of write-then-shutdown on a Unix socket. Everything after the signal to stop is the existing shutdown path the idle stop already drives: one mechanism. Two questions go to the engineer: signals (default: leave them unhandled for M1 and document what is left behind), and doc-2 section 9's wording against the second criterion. Orchestrator's caution on the signal alternative, for whoever takes it up: blocking signals for a sigwait thread changes the mask that pane programs inherit, so a shell in a pane could start with interrupt blocked unless the mask is reset at spawn; 'no unsafe, no dependency' needs that checked before it is believed.
+
+Check passed: `cargo test -p steg-sdk -p steg-kernel` exited 0 at 2026-11-18T22:22:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at a44e55e51cd6 with uncommitted changes, last 40 of 539 lines:
+
+```text
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+test screen::tests::pane_attached_round_trips_and_carries_both_fields_in_one_object ... ok
+
+test result: ok. 175 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/connection.rs (target/debug/deps/connection-5aaf1820065b9c7d)
+
+running 2 tests
+test a_version_mismatch_is_refused_naming_both_versions ... ok
+test a_client_and_server_connection_shake_hands_and_exchange_a_call_in_memory ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/local_socket.rs (target/debug/deps/local_socket-b8a3fda317535471)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_kernel
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests steg_sdk
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

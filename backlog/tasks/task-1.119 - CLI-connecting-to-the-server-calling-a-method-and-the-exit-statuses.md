@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:13:00Z'
+updated_date: '2026-11-18T03:15:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -497,6 +497,34 @@ test result: FAILED. 19 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `cargo test -p steg --lib every_described_error_maps_to_its_own_exit_status` exited 101 at 2026-11-18T03:15:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... FAILED
+
+failures:
+
+---- cli::exit::tests::every_described_error_maps_to_its_own_exit_status stdout ----
+
+thread 'cli::exit::tests::every_described_error_maps_to_its_own_exit_status' (57830777) panicked at crates/steg/src/cli/exit.rs:75:13:
+assertion `left == right` failed: BadRequest should map to its own exit_status
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::exit::tests::every_described_error_maps_to_its_own_exit_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

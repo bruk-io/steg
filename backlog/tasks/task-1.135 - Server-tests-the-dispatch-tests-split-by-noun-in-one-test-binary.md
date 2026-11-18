@@ -5,9 +5,10 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T05:17:00Z'
+updated_date: '2026-11-18T05:24:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -21,10 +22,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'a5fe3026a112'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_findings: 'important=0,nit=1'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -831,6 +831,33 @@ created: 2026-11-18T05:17:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.135: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T05:24:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+Second round, narrow scope (files changed since round 1, timing evidence, nits, disclosed sighting).
+
+Verified clean on all four items:
+
+1. [Scope] `git -C <review> diff e527e603..72a924a3 -- crates/server/tests/` touches exactly two files, as the lead specified: a 7-line module doc comment added to dispatch/api.rs (naming the six cross-noun api.call tests and why they live there) and routing.rs:418's comment reworded to "`dispatch/main.rs`'s own tests already cover" (plan's literal wording). Nothing else under crates/server/tests/ changed since round 1 - confirmed with a second diff, 94d88814..72a924a3 (empty for that path), covering the two later origin/main merges (TASK-1.130, TASK-1.132) the notes say don't touch it. `cargo test -p steg-server --test dispatch -- --list` at 72a924a3 (own detached worktree, ZIG exported) lists the same 77 names under the same module prefixes as round 1's recorded baseline.
+
+2. [AC #4 timing, round 1's Important finding] Now holds all four numbers: whole-crate before/after (2.142/2.179s vs 2.181/2.147s) and the dispatch-scoped before/after AC #4 actually asks for (1.521/1.454s vs 1.389/1.407s), each a cold cargo-clean, discard-then-two-recorded wall time, "before" from a separate scratch worktree at dae0c095 (the pre-move commit) rather than reconstructing in-place, machine load (uptime) given beside each set, and one honestly-flagged outlier (a 2.1GiB cache-clear inflating a discarded sample, explicitly called irrelevant since discarded). Conclusion is "within noise, one binary either way." [Evidence, Nit] That characterisation is slightly generous: before's two recorded samples (1.454-1.521) and after's (1.389-1.407) don't actually overlap - the split reads consistently a touch faster, not just noisy. Doesn't change the bottom line (no regression either way, since faster-after only strengthens "no regression"), so Nit, not Important. The finding itself is resolved: the measurement the plan and AC #4 called for was run and recorded, and the method/scratch-worktree departure is disclosed in the same notes entry.
+
+3. [Nits from round 1] All resolved and independently re-confirmed, not just re-read: (a) the comments-only wording - ran the corrected pattern (`^[+-]\s*(//|reason)`) against `git diff 660ea304^ 660ea304 -- runtime.rs events.rs routing.rs` myself; it leaves nothing unmatched, so the notes' corrected description is accurate. (b) routing.rs:418 now reads the plan's literal text (confirmed in the scope diff above). (c) api.rs's new doc comment is in place. (d) proof (b)/(c)/clippy re-recorded at 94d88814, and nothing in crates/server/tests/ changed between 94d88814 and the final head 72a924a3 (empty diff, confirmed above), so re-record-at-final-head is satisfied in substance. For (c)'s hardcoded-range fix specifically: confirmed the author's task worktree is clean (`git status --short`, no output) before trusting a re-run there, then re-ran proof-c.sh there and got the same byte-identical result for api.rs as recorded. The window moved from 8-750 to 16-758 (both 743 lines, matching the unchanged 1741-2483 baseline span, also 743 lines) - an 8-line shift matching exactly the 7-line `//!` comment plus its trailing blank, not a narrowing; the comparison was not weakened.
+
+4. [Disclosed sighting] `gh pr checks 76 --repo bruk-io/steg` is green, and `gh pr view 76 --json headRefOid` returns 72a924a372a5a64223f5b85fdee162ed6a0943c9, matching the claimed head exactly. The crates/steg socket-collision sighting is disclosed in the notes as another worktree's concurrent run, not this task's own flake class, and not a file this task touches - no finding.
+
+--plan-matched no: the five disclosed Departures-from-the-plan items, plus the retroactively-measured (scratch-worktree) "before" timing, are departures the notes explain - per policy, disclosure keeps them from being findings, not from making this "no".
+
+What I did not check: TASK-1's parent intent/contract documents (same low-risk judgement round 1 made, for a test-file move with no behaviour/API-surface change); did not re-run the full `just check` or the attach tests, per instructions.
 
 ---
 <!-- COMMENTS:END -->

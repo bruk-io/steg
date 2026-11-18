@@ -582,6 +582,53 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpC7u3kh` does not 
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 1 at 2026-11-18T03:37:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpQcXx7a` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-695/test_a_waiter_gets_whichever_s0')
+
+    def test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one(tmp_path: Path) -> None:
+        """The fix for the convoy review found: a waiter must not be stuck behind one committed slot."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        long_duration, short_duration = 8.0, 2.0
+    
+        long_holder, long_start, long_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="long", duration_s=long_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(long_start)  # claims the first slot alone, so which slot is "long"'s is deterministic
+    
+        short_holder, short_start, short_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="short", duration_s=short_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(short_start)  # both slots are now busy before the waiter is started
+    
+        waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.1, lock_dir=lock_dir, slots="2"
+        )
+        waiter_output, _ = waiter.communicate(timeout=HARNESS_BOUND_S)
+        assert waiter_output is not None
+        assert short_holder.communicate(timeout=HARNESS_BOUND_S)[0] is not None
+        assert long_holder.communicate(timeout=HARNESS_BOUND_S)[0] is not None
+    
+        # Finding #3 (review of TASK-1.132): the wait line itself, not just its formatter, must be printed.
+>       assert "wait    waiter" in waiter_output
+E       AssertionError: assert 'wait    waiter' in 'ok      waiter (0.1s)\n'
+
+tools/tests/functional/test_quiet_slots.py:257: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
+1 failed in 8.14s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

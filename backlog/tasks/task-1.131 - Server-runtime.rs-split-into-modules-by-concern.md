@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:10:00Z'
+updated_date: '2026-11-18T05:11:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -579,6 +579,17 @@ Check passed: `git diff --exit-code origin/main -- crates/server/src/lib.rs crat
 
 ```text
 
+```
+
+Check FAILED: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-proof-b.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before-raw.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-tests-before.txt` exited 1 at 2026-11-18T05:11:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes:
+
+```text
+raw count before: 203
+raw count after:  203
+--- normalised name diff (empty below this line = identical) ---
+--- running: ignored count must be exactly 0 ---
+
+FAIL: expected 0 ignored tests
 ```
 <!-- SECTION:NOTES:END -->
 

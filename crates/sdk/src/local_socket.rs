@@ -285,7 +285,29 @@ fn one_handshake_attempt(
 ) -> Result<Option<(UnixStream, Vec<u8>)>, ConnectError> {
     let mut stream = connect(options)?;
     let hello = Connection::send_hello(client, kind, label);
+    match handshake_over(&mut stream, &hello, options.connect_timeout)? {
+        Some(payload) => Ok(Some((stream, payload))),
+        None => Ok(None),
+    }
+}
 
+/// The handshake protocol itself, over anything that can [`send`][HandshakeSocket::send],
+/// [`recv`][HandshakeSocket::recv] and set its own two timeouts - generic
+/// so a test can run this exact logic over a deterministic double
+/// instead of a real socket (TASK-1.119's second review round: the
+/// earlier version of this test provoked the boundary below through an
+/// unsynchronised OS race, which the review found genuinely flaky - 3
+/// failures in 100 runs of the *correct* code). Production's only
+/// caller, [`one_handshake_attempt`], passes a real [`UnixStream`];
+/// nothing about `connect()` or the public API changes.
+///
+/// Returns the same shape [`one_handshake_attempt`] does, minus the
+/// stream itself (the caller already owns whatever it passed in).
+fn handshake_over<S: HandshakeSocket>(
+    stream: &mut S,
+    hello: &[u8],
+    connect_timeout: Duration,
+) -> Result<Option<Vec<u8>>, ConnectError> {
     // A write timeout is this function's own bound for the opposite
     // direction (a nit from this task's own review: the hello is small
     // enough that a blocked write is not a realistic concern against an
@@ -294,13 +316,10 @@ fn one_handshake_attempt(
     // write happens to never be the one that blocks). Folding a
     // `set_write_timeout` failure itself into `Ok(None)` is the same
     // reasoning as every other pre-hello setup call.
-    if stream
-        .set_write_timeout(Some(options.connect_timeout))
-        .is_err()
-    {
+    if stream.set_write_timeout(Some(connect_timeout)).is_err() {
         return Ok(None);
     }
-    match stream.write_all(&hello) {
+    match stream.send(hello) {
         Ok(()) => {}
         // The write's own explicit way of saying "nothing could be sent
         // within `connect_timeout`" - treated exactly like the read's
@@ -322,10 +341,7 @@ fn one_handshake_attempt(
     // equivalent read): a server that is there but silent for longer than
     // `connect_timeout` is indistinguishable, for this function's
     // purposes, from one that never answers at all.
-    if stream
-        .set_read_timeout(Some(options.connect_timeout))
-        .is_err()
-    {
+    if stream.set_read_timeout(Some(connect_timeout)).is_err() {
         return Ok(None);
     }
 
@@ -345,7 +361,7 @@ fn one_handshake_attempt(
                 // nothing said about it.
                 stream.set_read_timeout(None).map_err(ConnectError::Io)?;
                 stream.set_write_timeout(None).map_err(ConnectError::Io)?;
-                return Ok(Some((stream, frame.payload)));
+                return Ok(Some(frame.payload));
             }
             // A frame that is not the hello, arriving before it ever
             // could in a correct server - ignored rather than treated as
@@ -356,7 +372,7 @@ fn one_handshake_attempt(
             // same treatment as every other failure in this window.
             Err(_) => return Ok(None),
         }
-        match stream.read(&mut buf) {
+        match stream.recv(&mut buf) {
             Ok(0) => return Ok(None), // EOF before any complete hello
             Ok(n) => decoder.push(&buf[..n]),
             // The read's own, explicit way of saying "nothing arrived
@@ -374,6 +390,37 @@ fn one_handshake_attempt(
             }
             Err(_) => return Ok(None),
         }
+    }
+}
+
+/// The handful of socket operations [`handshake_over`] performs - a seam
+/// so a test can run that exact logic over a deterministic double
+/// instead of a real [`UnixStream`] (TASK-1.119's second review round).
+/// `send`/`recv` are named instead of `write`/`read` only to avoid
+/// colliding with `std::io::Write`/`Read`'s own trait methods on the
+/// same type, since [`UnixStream`] already implements both.
+trait HandshakeSocket {
+    fn send(&mut self, buf: &[u8]) -> std::io::Result<()>;
+    fn recv(&mut self, buf: &mut [u8]) -> std::io::Result<usize>;
+    fn set_read_timeout(&mut self, duration: Option<Duration>) -> std::io::Result<()>;
+    fn set_write_timeout(&mut self, duration: Option<Duration>) -> std::io::Result<()>;
+}
+
+impl HandshakeSocket for UnixStream {
+    fn send(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.write_all(buf)
+    }
+
+    fn recv(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.read(buf)
+    }
+
+    fn set_read_timeout(&mut self, duration: Option<Duration>) -> std::io::Result<()> {
+        Self::set_read_timeout(self, duration)
+    }
+
+    fn set_write_timeout(&mut self, duration: Option<Duration>) -> std::io::Result<()> {
+        Self::set_write_timeout(self, duration)
     }
 }
 
@@ -423,7 +470,12 @@ mod tests {
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::mpsc;
 
-    use super::{ConnectError, ConnectOptions, connect_handshaken};
+    use std::collections::VecDeque;
+    use std::time::Duration;
+
+    use super::{
+        ConnectError, ConnectOptions, HandshakeSocket, connect_handshaken, handshake_over,
+    };
     use crate::client_kind::ClientKind;
     use crate::ids::ClientId;
     use crate::wire::{Connection, Decoder, Kind};
@@ -636,10 +688,20 @@ mod tests {
     /// behaviour (discard the decoded hello and retry) has a second
     /// attempt to also consume - under the fix, only the first is ever
     /// reached at all, since the whole call ends on its own first
-    /// genuine error rather than retrying; the counter assertion below
-    /// is itself part of this test's own proof, not incidental.
+    /// genuine error rather than retrying - but this one depends on an
+    /// unsynchronised OS race (closes immediately after sending), which
+    /// a second review round found genuinely flaky: the correct code
+    /// failed 3 times in 100 runs, because the race simply did not land
+    /// and the handshake succeeded cleanly instead. Kept as weaker,
+    /// real-process corroboration only - the deterministic proof is
+    /// [`a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello`]
+    /// below, over [`handshake_over`] directly - so this asserts only
+    /// what holds either way the race falls: the call returns within
+    /// its own bound, and is either a real success or the genuine
+    /// error, *never* `ClosedBeforeHello` (which would mean a hello
+    /// that really arrived got mistaken for no server at all).
     #[test]
-    fn a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello() {
+    fn a_hello_sent_then_closed_immediately_never_reports_closed_before_hello() {
         let path = unique_test_socket_path("mode-c");
         let (counter, ready) = spawn_listener(
             path.clone(),
@@ -657,18 +719,158 @@ mod tests {
         );
 
         assert!(
-            matches!(result, Err(ConnectError::Io(_))),
-            "a hello that was actually decoded must surface as a genuine error, never as \
-             ClosedBeforeHello (which would claim no server ever answered) and never as a \
-             success (which would hand back a stream whose own state is now unknown): {result:?}"
+            matches!(result, Ok(_) | Err(ConnectError::Io(_))),
+            "a hello that was actually sent must never surface as ClosedBeforeHello, whichever \
+             way this run's own OS-level race happened to fall: {result:?}"
         );
-        assert_eq!(
-            counter.load(Ordering::SeqCst),
-            1,
-            "a genuine post-hello error ends the whole call on the first attempt - it is not \
-             retried the way EOF-before-hello is, since there is no \"no server\" condition \
-             here to retry past"
+        assert!(
+            counter.load(Ordering::SeqCst) >= 1,
+            "at least one real accept must have happened"
         );
         let _ = std::fs::remove_file(&path);
+    }
+
+    /// A deterministic double for [`HandshakeSocket`] (TASK-1.119's
+    /// second review round): no OS race, no timing - every outcome is
+    /// chosen by the test that builds one. `recv_steps` is popped once
+    /// per [`HandshakeSocket::recv`] call; running out answers with a
+    /// clean EOF (`Ok(0)`), never a panic, so a test that over-calls
+    /// `recv` gets a believable answer instead of a confusing one.
+    struct FakeSocket {
+        recv_steps: VecDeque<Result<Vec<u8>, std::io::ErrorKind>>,
+        send_result: Result<(), std::io::ErrorKind>,
+        set_write_timeout_result: Result<(), std::io::ErrorKind>,
+        set_read_timeout_result: Result<(), std::io::ErrorKind>,
+        clear_write_timeout_result: Result<(), std::io::ErrorKind>,
+        clear_read_timeout_result: Result<(), std::io::ErrorKind>,
+    }
+
+    impl Default for FakeSocket {
+        /// Every operation succeeds and `recv` has nothing queued (a
+        /// clean EOF on the first call) - a test overrides only the
+        /// field it cares about, starting from "everything is fine".
+        fn default() -> Self {
+            Self {
+                recv_steps: VecDeque::new(),
+                send_result: Ok(()),
+                set_write_timeout_result: Ok(()),
+                set_read_timeout_result: Ok(()),
+                clear_write_timeout_result: Ok(()),
+                clear_read_timeout_result: Ok(()),
+            }
+        }
+    }
+
+    impl HandshakeSocket for FakeSocket {
+        fn send(&mut self, _buf: &[u8]) -> std::io::Result<()> {
+            self.send_result.map_err(std::io::Error::from)
+        }
+
+        fn recv(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            match self.recv_steps.pop_front() {
+                None => Ok(0),
+                Some(Err(kind)) => Err(std::io::Error::from(kind)),
+                Some(Ok(bytes)) => {
+                    buf[..bytes.len()].copy_from_slice(&bytes);
+                    Ok(bytes.len())
+                }
+            }
+        }
+
+        fn set_read_timeout(
+            &mut self,
+            duration: Option<std::time::Duration>,
+        ) -> std::io::Result<()> {
+            let result = if duration.is_some() {
+                self.set_read_timeout_result
+            } else {
+                self.clear_read_timeout_result
+            };
+            result.map_err(std::io::Error::from)
+        }
+
+        fn set_write_timeout(
+            &mut self,
+            duration: Option<std::time::Duration>,
+        ) -> std::io::Result<()> {
+            let result = if duration.is_some() {
+                self.set_write_timeout_result
+            } else {
+                self.clear_write_timeout_result
+            };
+            result.map_err(std::io::Error::from)
+        }
+    }
+
+    /// A real, well-formed server hello, the same shape
+    /// [`read_one_hello`]'s own callers already build and decode, as the
+    /// raw bytes [`FakeSocket::recv`] hands back in one call.
+    fn a_real_hello_frame() -> Vec<u8> {
+        let (_, bytes) = Connection::accept_or_refuse(
+            &serde_json::to_vec(&crate::wire::ClientHello::new(
+                "steg-test",
+                crate::wire::PROTOCOL_VERSION,
+                ClientKind::Cli,
+                None,
+            ))
+            .expect("ClientHello serialises"),
+            "steg-test-server",
+            "1.0",
+            ClientId::from_raw(1),
+        );
+        bytes
+    }
+
+    /// The deterministic proof of this task's own review fix: once a
+    /// complete hello is decoded, a failure clearing either timeout is a
+    /// genuine `ConnectError::Io`, on every run - no OS race involved at
+    /// all, so this needs no repetition to trust.
+    #[test]
+    fn a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello() {
+        let mut socket = FakeSocket {
+            recv_steps: VecDeque::from([Ok(a_real_hello_frame())]),
+            clear_read_timeout_result: Err(std::io::ErrorKind::InvalidInput),
+            ..FakeSocket::default()
+        };
+
+        let result = handshake_over(
+            &mut socket,
+            b"irrelevant - send always succeeds",
+            Duration::from_secs(2),
+        );
+
+        assert!(
+            matches!(result, Err(ConnectError::Io(_))),
+            "a hello that was actually decoded must surface as a genuine error, never as \
+             `Ok(None)` (which `connect_handshaken` reads as EOF-before-hello and retries): \
+             {result:?}"
+        );
+    }
+
+    /// The other side of the same boundary, equally deterministic: the
+    /// identical kind of failure (clearing a timeout) happening *before*
+    /// any hello is decoded is still the EOF-before-hello signal,
+    /// `Ok(None)` - `connect_handshaken`'s own already-proven retry
+    /// (`eof_before_hello_is_retried_exactly_once_then_fails`, over a
+    /// real socket) is what turns that into a second attempt; this test
+    /// is only the inner boundary itself, not the outer retry again.
+    #[test]
+    fn a_failure_before_any_hello_is_decoded_is_still_folded_into_the_retry_signal() {
+        let mut socket = FakeSocket {
+            set_write_timeout_result: Err(std::io::ErrorKind::InvalidInput),
+            ..FakeSocket::default()
+        };
+
+        let result = handshake_over(
+            &mut socket,
+            b"irrelevant - never reached",
+            Duration::from_secs(2),
+        );
+
+        assert!(
+            matches!(result, Ok(None)),
+            "a failure before any hello is decoded must still read as EOF-before-hello, not a \
+             genuine error: {result:?}"
+        );
     }
 }

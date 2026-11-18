@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:20:00Z'
+updated_date: '2026-11-18T05:22:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -791,6 +791,12 @@ Check passed: `bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk
 +use super::Runtime;
 +use super::State;
 +use super::tree::session_owning_tab;
+```
+
+Check FAILED: `sh -c 'git diff -U0 -- crates/server/src/config.rs crates/server/src/pane.rs crates/server/tests/attach.rs crates/server/tests/events.rs crates/server/tests/real_pty.rs crates/server/tests/routing.rs crates/server/tests/runtime.rs | grep -E '"'"'^[+-][^+-]'"'"' | grep -vE '"'"'^[+-][[:space:]]*(///|//!|//)'"'"''` exited 1 at 2026-11-18T05:22:56+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at a551e1090eaa with uncommitted changes:
+
+```text
+
 ```
 <!-- SECTION:NOTES:END -->
 

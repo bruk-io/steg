@@ -232,6 +232,46 @@ impl Connection {
         Ok((id, bytes))
     }
 
+    /// Builds and encodes a call with **no validation at all** (TASK-1.119
+    /// AC #5) - the one escape hatch `api.call` needs and nothing else in
+    /// this crate should reach for. [`Connection::call`] always validates
+    /// against this connection's own `Description` first, which is correct
+    /// for every other method but wrong for `api.call` itself: its own
+    /// description entry declares one parameter, `method`, while a real
+    /// call carries the *named* method's own parameters flat alongside it
+    /// (decision-1; `api.call`'s own doc comment, `steg-sdk`'s
+    /// `description::methods`: "every other parameter given is that
+    /// method's own, by its own declared names - nothing is nested under a
+    /// second key") - `validate` would refuse that before it ever reached
+    /// the wire, for the same reason the *server's* `dispatch::api::call`
+    /// has to intercept `api.call` before its own generic `validate` runs
+    /// (`crates/server/src/dispatch/api.rs`'s own doc, read directly: "a
+    /// real call's own extra parameters... are not declared on `api.call`
+    /// itself, which `validate` would refuse"). This is also exactly right
+    /// for `api.call`'s documented purpose - reaching "a method a plugin
+    /// adds before the CLI knows it" - which client-side `validate` cannot
+    /// know about either, compiled-in description or not.
+    ///
+    /// Returns the id to match against the eventual [`Incoming::Reply`],
+    /// and the bytes to write - the same shape [`Connection::call`] has.
+    ///
+    /// # Panics
+    /// Never in practice: the same as [`Connection::call`].
+    pub fn call_unvalidated(&mut self, method: &str, params: Map<String, Value>) -> (u64, Vec<u8>) {
+        let request = Request {
+            method: method.to_owned(),
+            params,
+        };
+        let id = self.next_id;
+        self.next_id += 1;
+        let payload = Control::Request { id, request }
+            .to_payload()
+            .expect("Control always serializes to JSON");
+        let bytes = encode_frame(&Frame::control(CONTROL_STREAM, payload))
+            .expect("an unvalidated method call fits under the frame cap");
+        (id, bytes)
+    }
+
     /// Subscribes (`event.watch`, TASK-1.46): the same shape [`Connection::
     /// call`] already has - the id to match against the eventual
     /// [`Incoming::Reply`], and the bytes to write. That reply's own
@@ -445,7 +485,10 @@ mod tests {
     use serde_json::json;
 
     use super::{Connection, Incoming, Kind, Role};
-    use crate::description::{Description, Event, Version};
+    use crate::description::{
+        Description, Event, Follows, Method, MethodName, Param, Returns, Role as ParamRole,
+        ValueKind, Version,
+    };
 
     /// This crate's `tests/connection.rs` integration test covers the
     /// full client/server handshake-and-call round trip (AC #2, #4, #5)
@@ -464,6 +507,74 @@ mod tests {
             }],
             errors: Vec::new(),
         }
+    }
+
+    /// A description with one method shaped like `api.call` itself: one
+    /// declared parameter, `method`.
+    fn description_with_an_api_call_shaped_method() -> Description {
+        Description {
+            api_version: Version { major: 1, minor: 0 },
+            methods: vec![Method {
+                name: MethodName {
+                    noun: "api".into(),
+                    verb: "call".into(),
+                },
+                summary: String::new(),
+                details: String::new(),
+                params: vec![Param {
+                    name: "method".into(),
+                    role: ParamRole::Target,
+                    value: ValueKind::Text,
+                    required: true,
+                    summary: String::new(),
+                }],
+                returns: Returns::Text,
+                follows: Follows::Nothing,
+                errors: Vec::new(),
+                since: Version { major: 1, minor: 0 },
+            }],
+            events: Vec::new(),
+            errors: Vec::new(),
+        }
+    }
+
+    /// TASK-1.119 AC #5's own proof that `call_unvalidated` really does
+    /// skip `validate`, not merely that the CLI happens to work: the same
+    /// extra key that makes `call` refuse before it ever reaches the wire
+    /// is accepted here and actually encoded, decodable back into a
+    /// `Request` carrying both keys untouched.
+    #[test]
+    fn call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare() {
+        let mut client =
+            Connection::new(Role::Client, description_with_an_api_call_shaped_method());
+        let mut params = serde_json::Map::new();
+        params.insert("method".into(), json!("pane.split"));
+        params.insert("direction".into(), json!("right")); // pane.split's own, not api.call's
+
+        // The refusal half, proving the problem this method exists to
+        // route around: `call` with the identical params is refused
+        // before anything is encoded.
+        match client.call("api.call", params.clone()) {
+            Err(err) => assert_eq!(err.code, crate::description::ErrorCode::BadRequest),
+            Ok(_) => panic!("call should have refused a key api.call does not declare"),
+        }
+
+        // `call_unvalidated` encodes the same request anyway.
+        let (id, bytes) = client.call_unvalidated("api.call", params);
+        let mut server =
+            Connection::new(Role::Server, description_with_an_api_call_shaped_method());
+        server.receive(&bytes);
+        let Some(Incoming::Request {
+            id: server_side_id,
+            request,
+        }) = server.poll()
+        else {
+            panic!("expected a request");
+        };
+        assert_eq!(server_side_id, id);
+        assert_eq!(request.method, "api.call");
+        assert_eq!(request.params.get("method"), Some(&json!("pane.split")));
+        assert_eq!(request.params.get("direction"), Some(&json!("right")));
     }
 
     #[test]

@@ -17,8 +17,11 @@
 //! version matched `server start`'s literal argv instead, so
 //! `--no-on-demand` fell through to the placeholder below, parsed as
 //! valid, silently. Every other command is built from the API description
-//! at run time (TASK-1.49); `steg::cli::run` is its own placeholder for
-//! calling one for real (TASK-1.119's).
+//! at run time (TASK-1.49); `api.call` is `steg::cli::api_call::run`'s own
+//! case (TASK-1.119 AC #5: parameters from stdin, output always JSON); every
+//! remaining command reaches `steg::cli::run`, which really connects and
+//! calls now (TASK-1.119 AC #1, replacing that task's own placeholder
+//! outright).
 
 use serde_json::Value;
 use steg_server::Arbitration;
@@ -87,8 +90,10 @@ fn run_generated(argv: Vec<String>) -> i32 {
                         .and_then(Value::as_bool)
                         .unwrap_or(false);
                     run_server_start(on_demand)
+                } else if dotted == "api.call" {
+                    steg::cli::api_call::run(&api, verb_matches)
                 } else {
-                    steg::cli::run(method, verb_matches)
+                    steg::cli::run(&api, method, verb_matches)
                 }
             }
         },

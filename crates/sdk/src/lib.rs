@@ -61,7 +61,9 @@ pub use wire::{
 #[cfg(feature = "local-socket")]
 mod local_socket;
 #[cfg(feature = "local-socket")]
-pub use local_socket::{ConnectError, ConnectOptions, connect, run_fake_server_for_tests};
+pub use local_socket::{
+    ConnectError, ConnectOptions, connect, connect_handshaken, run_fake_server_for_tests,
+};
 
 mod paths;
 pub use paths::socket_path;

@@ -4,14 +4,16 @@
 //! part of the split: the tree itself, `--help`, `version` and
 //! `completion`, and the drift test (`tests/cli_drift.rs`). Calling a
 //! method for real, the exit-status mapping, and connecting to a server
-//! are TASK-1.119's; [`run`] below is this part's own placeholder seam,
-//! replaced outright there.
+//! are TASK-1.119's (`connect.rs`, `exit.rs`, `api_call.rs`), which
+//! replace that task's own placeholder (`run.rs`) outright.
 
+pub mod api_call;
+pub mod connect;
+pub mod exit;
 mod params;
-mod run;
 mod tree;
 mod values;
 
+pub use connect::run;
 pub use params::extract_params;
-pub use run::run;
 pub use tree::{NON_METHOD_COMMANDS, build};

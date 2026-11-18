@@ -487,8 +487,8 @@ fn drain_updates_for(
             if let Incoming::StreamControl { stream: s, payload } = incoming
                 && s == attachment_stream
             {
-                let update: ScreenUpdate = serde_json::from_slice(&payload)
-                    .expect("a screen update always deserialises");
+                let update: ScreenUpdate =
+                    serde_json::from_slice(&payload).expect("a screen update always deserialises");
                 apply_update(held, update);
             }
         }
@@ -766,8 +766,7 @@ fn pane_send_delivers_each_named_key_with_its_documented_bytes() {
     let mut consumed = 0_usize;
     for name in key_names() {
         let expected_bytes = documented_bytes(&name);
-        let expected_hex: Vec<String> =
-            expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+        let expected_hex: Vec<String> = expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
 
         let mut params = Map::new();
         params.insert("target".to_string(), json!(pane));

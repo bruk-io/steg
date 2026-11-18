@@ -1,7 +1,7 @@
 ---
-id: DRAFT-2
+id: TASK-1.131
 title: 'Server: runtime.rs split into modules by concern'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T02:09:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-2
 ---
 
 ## Description

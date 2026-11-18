@@ -1,7 +1,7 @@
 ---
-id: DRAFT-3
+id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T02:09:00Z'
 labels:
@@ -10,6 +10,7 @@ milestone: m-3
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-3
 ---
 
 ## Description

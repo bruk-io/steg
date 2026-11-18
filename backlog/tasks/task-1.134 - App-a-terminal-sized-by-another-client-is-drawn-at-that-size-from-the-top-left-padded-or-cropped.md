@@ -1,9 +1,9 @@
 ---
-id: DRAFT-5
+id: TASK-1.134
 title: >-
   App: a terminal sized by another client is drawn at that size from the top
   left, padded or cropped
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T02:09:00Z'
 labels:
@@ -13,6 +13,7 @@ dependencies:
   - TASK-1.121
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-5
 ---
 
 ## Description

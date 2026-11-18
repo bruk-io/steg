@@ -1,9 +1,9 @@
 ---
-id: DRAFT-1
+id: TASK-1.136
 title: >-
   ui: the cursor fade's named values, exported from the design, and whole-number
   lists in the generator
-status: Draft
+status: To Do
 assignee: []
 created_date: '2026-11-18T04:42:00Z'
 labels:
@@ -12,6 +12,7 @@ milestone: m-4
 dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
+asdlc_accepted_from: DRAFT-1
 ---
 
 ## Description

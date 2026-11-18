@@ -1,13 +1,14 @@
 ---
 id: TASK-1.139
 title: 'Server: capture a pane''s screen, and its scrollback when asked'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T23:38:00Z'
+updated_date: '2026-11-18T23:50:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.90
@@ -21,8 +22,10 @@ asdlc_branch: task-1.139-server-capture-a-pane-s-screen-and-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '5f557f50d334'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=4'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -359,6 +362,27 @@ created: 2026-11-18T23:38:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.139: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T23:50:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 4 nit. Cites: review. The diff does not match the plan.
+
+[Evidence, Important] crates/server/src/pane.rs:934 (capture_tests::capture_returns_the_screen_a_real_program_actually_wrote) and crates/server/tests/pane_capture.rs:410 (pane_capture_returns_the_screen_a_real_program_wrote), also crates/server/tests/pane_capture.rs:462-484 (pane_capture_scrollback_includes_earlier_lines_only_when_asked): the recorded negative control for render_rows's trim_end ("fails on trailing padding") does not hold. Repeated it: with trim_end removed, both the worker-level unit test and the real-socket scrollback test still pass unchanged. Confirmed why with a scratch debug print: neither Terminal::screen() nor Terminal::page() ever produce trailing padding for an unwritten cell - an untouched cell's grapheme is an empty string, not a space, on both paths. So "the terminal's own screen is padded to its full column width" is false for this engine, and no test in this diff demonstrates that render_rows's trim_end does anything; the recorded failing-then-passing pair could not have happened as described.
+
+[Compliance, Nit] Departures from the plan section lists four real departures (the AC #2 proof moved out of the planned real-socket test, the timeout test replaced with a channel-only one, no declared tab size for scrollback, and details filled in beyond the bare minimum) - each explained, but per policy a departure is still recorded, so --plan-matched is no, not yes.
+
+[Bugs, Nit] crates/server/src/pane.rs CaptureSender::capture: reply_rx.recv_timeout(timeout).map_err(|_| Error::Timeout) folds both RecvTimeoutError::Timeout and ::Disconnected into Error::Timeout. A worker that panics/dies after the command was sent but before answering is reported as EngineFailed (via Timeout) rather than PaneGone - the exact busy-vs-gone distinction Error::Timeout was minted to preserve (plan's open question 1) blurs back together on this one path.
+
+[Compliance, Nit] pane.capture's details (crates/sdk/src/description/methods/pane.rs) doesn't say that --scrollback addresses only the active screen's own scrollback: both screen() and page() read the engine's current (possibly alternate) screen, so a pane in the alternate screen (e.g. a full-screen program) returns alternate-screen content with --scrollback, not the primary screen's scrollback, and the method's self-description is silent on this.
+
+[Evidence, Nit] No just check run recorded green at the final head c14bda12: both recorded runs at that head hit the same pre-existing login_env flake; CI (gh pr checks) green at that head is cited instead. The flake is well-diagnosed (unrelated file, isolated reruns passed) and the claim's own "CI green" field confirms it, so this is minor, but the plan's Proof step literally asked for "just check green at the final head, recorded."
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:30:00Z'
+updated_date: '2026-11-18T00:35:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2386,6 +2386,20 @@ Status: findings 1-3 fixed and Cmd-V built, pushed to origin at 78de7a12 (branch
 Also fixed two gaps a second pass found in the finding-1 writer: (1) Writer's own doc claimed Disconnected is reported once, but try_send had no guard against reporting it again on every further failed send - added a shared Arc<AtomicBool> guard, with a recorded failing-then-passing control. (2) WRITER_QUEUE_CAPACITY's justification claimed detection "well within a second" of continued typing, which doesn't hold arithmetically (single-byte keystrokes take minutes to exhaust the kernel's own 8 KiB buffer first); lowered the bound to 64 and reworded the justification to say what it actually bounds (the backlog after a single oversized command, like a large paste, has already exceeded the kernel buffer - not a detection-speed guarantee for ordinary typing).
 
 Holding before the interactive live run: with two steg-app processes running under the same name (mine, and the one I must never touch), macOS accessibility queries (osascript/System Events) conflate the two by name, returning the wrong window's position for either. Fixed the capture side with pid-scoped CGWindowID (CGWindowListCopyWindowInfo + screencapture -l), confirmed working and confirmed the other process's window is unaffected throughout. But bringing my own window to the front for keystroke injection keeps losing focus to a long-running terminal process whose CPU time is actively increasing - genuine concurrent live use of this desktop, not an idle leftover. Posting synthetic keystrokes goes wherever real OS focus is at that instant, so I stopped rather than risk sending them into someone else's live session. Reported to team-lead with options, holding for direction. My own throwaway server/app processes are stopped and cleaned up; nothing of mine still running.
+
+---
+
+created: 2026-11-18T00:35:00Z
+
+---
+
+Confirming, plainly: Cmd-V was never pressed by me, and the clipboard was never read or written by me outside unit tests, at any point in this task - not via the live app, not via pbcopy/pbpaste or any other tool. No test touches the real pasteboard: the paste unit tests (main.rs, paste_keystroke_tests) only exercise is_paste_keystroke, the pure gesture-detection function - none of them call cx.read_from_clipboard() or anything that reaches the real clipboard. The one interaction I did have with an unrelated window during the investigation was a single osascript "click at {x,y}" that landed in a Ghostty window (a mouse click only, before I'd found the focus problem - no keystroke followed, nothing typed, nothing read or changed). Checked the scratchpad and pr-images for leftover captures: /tmp/steg-1121-live (where the two wrong screenshots were written) no longer exists at all - confirmed via `ls`, it was rm -rf'd along with the whole throwaway directory the moment each was taken. pr-images/ holds only the three already-approved files from 2c127d4f (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov), nothing from this investigation.
+
+Live run and PR images/recording: all made on 2c127d4f, before the writer thread (review finding 1), the IME range fix (finding 2), the key-table rows (finding 3), and Cmd-V. Nothing after that head has been exercised by me in a real window - I did not start the app or a server again after your instruction, and will not. Why: synthetic keyboard/mouse input cannot be aimed safely at a specific window on a desktop someone else is actively using at the same time (confirmed concurrent use, not an idle process, during the investigation) - any further attempt risks sending input into the wrong, live session. The engineer's own run from this branch is the live proof for the final head.
+
+Answering the two things asked for the reviewer:
+- Queue bound: corrected to 64 (not 256 - that was an earlier number I'd since lowered and re-justified before your message crossed with mine; see the two commits and the board's earlier departures note for the full reasoning). try_send never blocks regardless of the number; the bound caps how large the backlog can grow once the kernel's own 8 KiB socket buffer is also exhausted, which plain keystroke-at-a-time typing would take minutes to do - the bound mainly matters after a single oversized command (a large paste) has already filled the kernel buffer by itself.
+- A full queue, from the user's side: the window moves to Phase::Disconnected (the same "disconnected: <message>" placeholder a reader-side drop already shows) and stays there - there is no reconnect path in this app's own code once that happens. The only way back is relaunching the app, which re-runs startup and reattaches to the same session with its scrollback (already verified live on 2c127d4f). A paste is one queue entry regardless of its own size, so the backlog's memory is bounded by whatever the clipboard holds for that one entry, not by the queue's own count.
 
 ---
 <!-- COMMENTS:END -->

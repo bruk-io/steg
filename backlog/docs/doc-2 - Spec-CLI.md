@@ -208,7 +208,7 @@ Outside a steg terminal there is no context, so a command that needs a target an
 | `--by <cells>` | `pane resize` | How far to move the border, in character cells |
 | `--with <target>` | `pane swap` | The pane to exchange places with |
 | `--all` | `event watch`, `client list` | Every session on the host, not just the target's; or command line clients as well |
-| `--force` | `close`, `server stop` | Do it even though programs are still running |
+| `--force` | `close`, `server stop` | Do it even though programs are still running (`close`) or sessions exist (`server stop`) |
 | `--focus`, `--no-focus` | `session new`, `tab new`, `pane split` | Whether the new thing takes focus. It does by default |
 | `--wrap` | `pane focus` | With `--direction`, continue from the other side at the edge |
 | `--client <target>` | `session focus` | The client that is asked to show the session |
@@ -308,7 +308,7 @@ Showing a file in a pane (R63 to R68, M2) adds no verb: `pane split --file <path
 Decided by Bruk on 2026-11-13:
 
 - **A program to run is given after `--`.** `steg pane split -- htop -d 5`, and the same on `session new` and `tab new`. It is the one exception to a single positional, and follows `env`, `ssh` and `sudo`.
-- **`close` and `server stop` refuse while programs are still running,** with status 1 and a message naming `--force`. With `--force` they go ahead.
+- **`close` refuses while programs are still running, and `server stop` refuses while any session exists,** with status 1 and a message naming `--force`. With `--force` they go ahead. `server stop` asks about sessions, not programs, because a pane whose program has ended still holds output a person may want (section 6).
 - **`pane send` refuses a pane with no running program,** with status 1: the API's `ProgramNotRunning`, the mirror of the refusal above. `--key` takes one of a fixed list of names (enter, tab, backspace, escape, the arrows, home, end, pageup, pagedown, insert, delete, f1 to f12) and an unknown name is bad usage, status 2; so is `--text` together with `--key`. In M1 a call sends one key: `--key` given more than once waits on list-valued flags in the API description.
 - **A target's parts are separated by `/`,** as in `work/2/logs`.
 

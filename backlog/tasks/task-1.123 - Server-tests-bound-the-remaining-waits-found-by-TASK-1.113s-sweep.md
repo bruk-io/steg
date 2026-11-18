@@ -26,8 +26,7 @@ Split from TASK-1.113 by its plan on 2026-11-16, under the engineer's standing d
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [ ] #1 Every wait on a thread, a channel, a child process or a socket in the tests of crates/server and crates/steg has a bound, through the shared helpers, and a wait that passes its bound fails the test with a message naming what it waited for
-- [ ] #2 A check in tools fails just check when a test file in those crates calls join, recv, a child wait or a blocking socket read with no bound, with a message saying which helper to use and why; it has its own tests
-- [ ] #3 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
+- [ ] #2 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
 <!-- AC:END -->
 
 ## Implementation Plan

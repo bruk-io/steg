@@ -406,6 +406,25 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpIjJJh5` does not 
 ...                                                                      [100%]
 3 passed, 18 deselected in 0.01s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_bound'` exited 1 at 2026-11-18T02:47:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpDasgVW` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_____________________ test_wait_bound_honours_the_variable _____________________
+
+    def test_wait_bound_honours_the_variable() -> None:
+>       assert wait_bound_seconds({"STEG_CHECK_SLOT_WAIT_S": "45"}) == 45.0
+E       AssertionError: assert None == 45.0
+E        +  where None = wait_bound_seconds({'STEG_CHECK_SLOT_WAIT_S': '45'})
+
+tools/tests/unit/test_quiet.py:132: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_wait_bound_honours_the_variable
+1 failed, 1 passed, 19 deselected in 0.01s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

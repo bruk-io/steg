@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:49:00Z'
+updated_date: '2026-11-18T00:51:00Z'
 labels:
   - size-3
   - changes-requested
@@ -961,6 +961,34 @@ running 1 test
 test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.65s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else --exact` exited 101 at 2026-11-18T00:51:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... FAILED
+
+failures:
+
+---- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else stdout ----
+
+thread 'attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else' (55947372) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.999999958s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 
 Commits since the review: 0.

@@ -261,6 +261,51 @@ test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 77 filtered out;
 
 error: test failed, to rerun pass `--test dispatch`
 ```
+
+Check FAILED: `sh -c 'cd crates/server && cargo test --test dispatch client:: 2>&1'` exited 101 at 2026-11-18T22:52:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes, last 40 of 105 lines:
+
+```text
+
+thread 'client::client_show_matches_exactly_the_fields_the_description_declares' (62919055) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_list_with_all_includes_cli_clients_too stdout ----
+
+thread 'client::client_list_with_all_includes_cli_clients_too' (62919053) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target stdout ----
+
+thread 'client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target' (62919054) panicked at crates/server/tests/dispatch/client.rs:187:5:
+assertion `left == right` failed
+  left: NotImplementedYet
+ right: NoSuchTarget
+
+---- client::client_show_resolves_by_id_label_position_and_suffix stdout ----
+
+thread 'client::client_show_resolves_by_id_label_position_and_suffix' (62919057) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+---- client::client_show_reports_the_sessions_it_views stdout ----
+
+thread 'client::client_show_reports_the_sessions_it_views' (62919056) panicked at crates/server/tests/dispatch/fixtures.rs:54:35:
+expected Response::Ok, got ApiError { code: NotImplementedYet, message: "not implemented yet: waiting on a client model (TASK-1.42)", candidates: [] }
+
+
+failures:
+    client::client_list_and_show_change_nothing_in_the_tree
+    client::client_list_matches_exactly_the_fields_the_description_declares
+    client::client_list_returns_every_connected_client_by_default_except_cli
+    client::client_list_with_all_includes_cli_clients_too
+    client::client_show_an_unknown_target_is_no_such_target_and_an_ambiguous_one_is_ambiguous_target
+    client::client_show_matches_exactly_the_fields_the_description_declares
+    client::client_show_reports_the_sessions_it_views
+    client::client_show_resolves_by_id_label_position_and_suffix
+
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 77 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--test dispatch`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

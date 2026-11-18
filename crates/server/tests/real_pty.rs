@@ -349,7 +349,7 @@ fn a_shell_panes_real_exit_reaches_the_kernels_cascade() {
 /// redirected - but not here, and not by `portable-pty`, since this
 /// experiment is exactly why that is the wrong layer to fix it at (no
 /// error reaches this call at all). `Runtime::start_and_dispatch`
-/// (`crates/server/src/runtime.rs`) checks `program.cwd()` itself,
+/// (`crates/server/src/runtime/start.rs`) checks `program.cwd()` itself,
 /// before calling down to this function, and refuses with
 /// `ErrorCode::ProgramFailed` rather than ever reaching this silent
 /// substitution; see `crates/server/tests/runtime.rs`'s

@@ -2023,7 +2023,7 @@ mod ending_tests {
         // long this waits - a killed job never reaches it, at all, not
         // "not yet". This short, bounded sleep is only to let the OS
         // finish actually delivering/acting on the signal before the
-        // check below reads the filesystem, the same margin `runtime.rs`'s
+        // check below reads the filesystem, the same margin `runtime/lifecycle.rs`'s
         // own `stop_is_a_no_op_for_a_pane_whose_program_has_already_ended`
         // test gives for the same reason.
         std::thread::sleep(Duration::from_millis(300));

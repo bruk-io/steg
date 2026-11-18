@@ -1,7 +1,7 @@
 //! Functional tests for [`Runtime`]: real programs on a real pty, driven
 //! only through `Runtime::handle` (`.claude/rules/testing-rust.md`), the
 //! way a real connection will call it once TASK-1.44/1.45 build the
-//! socket. `crates/server/src/runtime.rs`'s own `#[cfg(test)]` module
+//! socket. `crates/server/src/runtime/`'s own `#[cfg(test)]` modules
 //! covers what only has access to `Runtime`'s private pieces (the
 //! `apply_event`/`apply_size_changed` cascades, deterministically); this
 //! file covers what a real client-shaped caller sees.
@@ -299,7 +299,7 @@ impl steg_server::ProgramLauncher for AlwaysFailsToOpenLauncher {
 /// to how the error arose) leaves nothing behind here either.
 ///
 /// Control, recorded via `asdlc record-check` both ways: with
-/// `rollback_mint`'s own call site in `runtime.rs` temporarily commented
+/// `rollback_mint`'s own call site in `runtime/start.rs` temporarily commented
 /// out, this test fails (`counts` differs) - restored, it passes.
 #[test]
 fn a_panes_pty_that_cannot_be_opened_after_every_attempt_fails_cleanly_and_leaves_nothing_behind() {
@@ -385,7 +385,7 @@ fn pane_split_with_a_bad_command_leaves_no_new_pane_behind() {
     assert_eq!(counts(&runtime, &api), before);
 }
 
-// `pane_split_inherits_the_live_cwd_...` lives in `src/runtime.rs`'s own
+// `pane_split_inherits_the_live_cwd_...` lives in `src/runtime/start.rs`'s own
 // `#[cfg(test)]` module instead of here: confirming the OSC 7 has landed
 // before splitting needs `PaneHandle::cwd()` directly (rule B's own
 // source of truth), which only internal test code can reach - `pane.show`
@@ -961,7 +961,7 @@ fn pane_close_on_an_already_ended_pane_succeeds_without_force() {
     // the idle-handle fix itself (TASK-1.78 §5, item 2 - a stale
     // `PaneHandle` and its worker thread, never visible through this
     // public API) is proven at the kernel-access level instead, in
-    // `src/runtime.rs`'s own `#[cfg(test)]` module, where `state.panes`
+    // `src/runtime/close.rs`'s own `#[cfg(test)]` module, where `state.panes`
     // can actually be read (DRAFT-1: this test's own assertions below
     // would pass identically with or without that fix, so it is not
     // offered as proof of it).

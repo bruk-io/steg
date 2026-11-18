@@ -844,7 +844,7 @@ fn the_server_stops_promptly_with_a_connection_mid_request() {
 /// the `Runtime` - ending every real program - then remove the socket
 /// file, then release the arbiter lock) proved end to end, with a real
 /// pane's real program, through a real connection and a real `stop()` -
-/// not `Runtime::stop()` called directly, which `runtime.rs`'s own
+/// not `Runtime::stop()` called directly, which `runtime/lifecycle.rs`'s own
 /// `stop_tests` module already proves on its own. The ordering itself is
 /// structurally guaranteed by `run`'s own sequential, synchronous body
 /// (confirmed by reading it: each step is a plain statement after the
@@ -858,7 +858,7 @@ fn stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     // A real program that writes its own pid to a file, then sleeps -
-    // the same technique `runtime.rs`'s own `stop_tests` module already
+    // the same technique `runtime/lifecycle.rs`'s own `stop_tests` module already
     // uses, since no API method reports a pane's pid directly.
     let pid_file = std::env::temp_dir().join(format!(
         "steg-routing-stop-test-{}-{}.pid",
@@ -942,7 +942,7 @@ fn stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the
 }
 
 /// Whether a process with this id still exists, reaped or not - the same
-/// `kill -0` probe `runtime.rs`'s own `stop_tests` module already uses.
+/// `kill -0` probe `runtime/lifecycle.rs`'s own `stop_tests` module already uses.
 fn process_exists(pid: u32) -> bool {
     std::process::Command::new("kill")
         .args(["-0", &pid.to_string()])
@@ -1133,7 +1133,7 @@ fn bytes_available_to_read(stream: &UnixStream) -> usize {
 /// full buffer, or finished), never a fixed sleep standing in for
 /// "probably by now". No OS primitive blocks on an exact byte count
 /// staying put, so this is a bounded poll, the same shape this crate's
-/// own `runtime.rs` tests already use for a fact with no event of its
+/// own `runtime/start.rs` tests already use for a fact with no event of its
 /// own (e.g. waiting for a real OSC 7 to land) - the sleep between polls
 /// is pacing, not the wait itself; the wait is the condition checked
 /// before it.

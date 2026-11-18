@@ -24,6 +24,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=3'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -865,6 +866,15 @@ Timing margins: widened every wall-clock assertion in test_quiet_slots.py. Two n
 Re-ran the full tools suite (329 tests) and a full just check locally after merging origin/main - both clean, no leftover processes (checked ps). CI green on PR #75 after the push (run 44232766603).
 
 No departures from the approved plan.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T03:58:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.132: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

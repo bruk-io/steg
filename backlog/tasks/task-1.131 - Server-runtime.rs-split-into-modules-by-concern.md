@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:11:00Z'
+updated_date: '2026-11-18T02:25:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -29,3 +29,116 @@ Agreed with the engineer on 2026-11-17 to let more server tasks run at once. run
 - [ ] #3 No function body changes beyond imports and visibility, shown mechanically: a recorded comparison of function bodies or of moved lines before and after
 - [ ] #4 The list of test names that run is identical before and after, none ignored; just check passes
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Move-only. `git mv crates/server/src/runtime.rs crates/server/src/runtime/mod.rs` first (keeps git's rename detection), then split `mod.rs`'s own content into one file per concern under `crates/server/src/runtime/`. No behaviour, no renames, no content change anywhere outside this module beyond the `mod` declarations and `use` lines the move forces.
+
+## Seams and layout
+
+`runtime/mod.rs` keeps only what every seam needs and nothing seam-specific: the module doc comment, imports, `mod` declarations, `struct State`, `struct Subscriber`, `Runtime` itself, `FORCE_GRACE_DEFAULT`, `Runtime::new`, `Runtime::handle` (the dispatch entry and its generic `_` arm), `Runtime::lock`, `impl Drop for Runtime`, and `pub(crate) use` re-exports (below). Two unit tests stay here too: `a_panic_while_holding_the_lock_does_not_poison_a_later_call` and `runtime_new_does_not_panic_and_starts_empty` - both exercise construction/`lock` directly, nothing seam-specific.
+
+Everything else moves to a sibling file, named for the task's own seam list where it gives one:
+
+- **`runtime/login.rs`** - "login shell identity." `LoginShell`, its `Default` impl, `LoginShell::resolve_identity`, `build_login_shell`. No later task in the eight read below touches this - pure identity/environment capture, never dispatch.
+- **`runtime/tree.rs`** - "the tree and its lookups." `session_owning_tab` (free fn), `Runtime::resolve_pane_target`. Read by close/moving/events/start below.
+- **`runtime/start.rs`** - "starting panes." `Runtime::start_and_dispatch`, `resolve_default_cwd`, `launch_spec`, `PANE_TERM`, `new_pane_from`, `rollback_mint`, `emit_creation_events`. TASK-1.124 (fd inheritance on spawn) is the only later task that touches program-starting at all, and from what AC #1-#3 of it describe (reading portable-pty's own spawn, a descriptor-count test), the fix lands in `pty.rs`'s `RealLauncher::spawn`, not here - flagged as "probably clear," not certain, since the notes it asks for could still turn up something `launch_spec` itself has to pass through.
+- **`runtime/attach.rs`** - "attach and arm." `Runtime::attach_pane`, `arm_attachment`, `detach_pane`, `forget_attachment`, `register_subscriber`, `deregister_subscriber`, `subscribe`, `attachment_count_for_test`, and `map_pane_error` (used only by `attach_pane`).
+- **`runtime/input.rs`** - "input and declared size." `Runtime::send_input`, `declare_size`, `apply_size_changed` (the public, self-locking wrapper), `apply_size_changed_locked`, `reapply_every_sized_tab`.
+- **`runtime/close.rs`** - "close and force_end with its numbered passes" - the task's own pairing, not mine: `Runtime::close_and_dispatch`, `ClosePre`, `capture_close_pre`, `emit_close_events`, `emit_close_cascade`, `force_end` (and its two consts, `ESCALATE_CONFIRM_TIMEOUT`/`FORCE_JOIN_TIMEOUT`, used only inside it).
+- **`runtime/moving.rs`** - `Runtime::move_and_dispatch` (`pane.move`). Not named in the task's own seam list; added because it shares `close.rs`'s own shape (a cascade that can close a tab/session) but is a different dispatch method with its own event emission, and because TASK-1.111 (move a *tab* to another session) is likely to extend exactly this shape - isolating it now keeps that extension out of `close.rs`. Not `move.rs`: that word is reserved.
+- **`runtime/events.rs`** - not named in the task's own list either, added because it is the one real cross-cutting concern left: `emit_pane_status_changed`, `emit_focus_event`, `apply_event_locked`, both `note_mark_applied` cfg variants, `broadcast`. TASK-1.109 (new events) and TASK-1.116 (status expiry) both live here - see Collisions.
+- **`runtime/lifecycle.rs`** - "start and stop and idle," the task's own second use of "start" (Runtime's own construction/teardown, not program-starting): `Runtime::connect_client`, `disconnect_client`, `session_counter`, `set_idle_notifier`, `stop`.
+- **`runtime/testing.rs`** (`#[cfg(test)]` only) - the helpers today's `mod tests` builds once and every one of its tests reuses: `login`, `test_base_env`, `test_state`, `fresh_state_with_one_pane`, `TEST_GRACE`, `TEST_TICK`, `register_test_subscriber`, `register_slow_subscriber`, `read_one_event`, `assert_nothing_arrives_within`, `EVENT_TIMEOUT`, `moment_now`, `find_pane`, `pane_status`, `pane_program_status`, `tree_next_status_deadline`, `wait_for_pane_status`, `wait_for_applied_mark_count`, the `send_input` test helper, `start_real_pane`, `login_for_marks`, `show_pane_and_tab`. Marked `pub(super)` so every seam's own `mod tests` can `use super::super::testing::*;`. Named `testing`, not `test_support`, so it is never confused with the crate-root `crates/server/src/test_support.rs` (a different, narrower helper: `run_bounded`), which this does not touch.
+
+  `mod stop_tests` keeps its own, separately-defined `login`/`test_base_env`/`TEST_GRACE`/`TEST_TICK` inside `lifecycle.rs`, duplicated rather than folded into `testing.rs` - read both copies (lines 2264-2291 and 4662-4692 of today's file): they are identical in content, but that file's own doc comment at line 4662 says the duplication across test modules is this crate's deliberate, existing style, not an oversight. Deleting one copy to share it would be a real content change (removing a function definition), which this task's own "out of scope" line does not allow; the task asks for a move, not a cleanup.
+
+## Why each is a real boundary - the eight later tasks, read in full
+
+| Task | What it needs | Where it lands | Collides with |
+|---|---|---|---|
+| 1.88 (server show/stop, client list/show) | `stop`, `session_counter`, `connect_client`/`disconnect_client` for a server's own uptime/session/client accounting | `lifecycle.rs` | 1.116 (both touch `stop`'s own body - see below) |
+| 1.90 (send input, capture, wait) | `send_input` as it stands today | `input.rs` | Possibly 1.110, see below - `send_input` itself is untouched by 1.110, but both are size/pane-dispatch adjacent |
+| 1.109 (layout/session/tab/client events, `session.focus`) | every dispatch path that changes a layout, a session/tab record, or who is connected/viewing | `events.rs` primarily, plus a call site in `start.rs` (`emit_creation_events`'s own sibling), `close.rs`, `moving.rs`, and `input.rs` (a layout change from resizing) for the new `tab.layout_changed`/`session.changed` calls; `connect_client`/`disconnect_client` in `lifecycle.rs` for `client.connected`/`client.left`; `attach_pane`/`detach_pane` in `attach.rs` for `client.started_viewing`/`stopped_viewing` | 1.116 on `events.rs`; 1.88 on `lifecycle.rs` (both touch `connect_client`/`disconnect_client`); itself touches five of the nine files - the split narrows its own blast radius but does not remove it, named below |
+| 1.115 (scrollback pages) | reads `PaneHandle`'s own screen/scrollback, the same way `attach_pane` already does | `attach.rs`, lightly, if anything - most of its own work is in `pane.rs` and the sdk, not here |
+| 1.116 (status expiry thread) | a new thread beside the drain thread (`Runtime::new`, `mod.rs`), its own join on every path out (`stop`, `lifecycle.rs`), and reuses `emit_pane_status_changed` (`events.rs`) at its own deadline | `mod.rs` (construction, a new field) + `lifecycle.rs` (`stop`) + `events.rs` | 1.109 on `events.rs`; 1.88 on `lifecycle.rs`'s own `stop` |
+| 1.110 (pane resize) | "proved through `Runtime::handle`" - its own AC names no new `Runtime` method; most plausibly reaches the kernel through the already-generic `_` arm in `mod.rs`, which already reapplies every sized tab unconditionally. Flagged, not certain: if the design settles on a dedicated reapply (the way `declare_size` has one), it touches `input.rs` instead | `mod.rs`, probably untouched beyond the existing generic arm; `input.rs` only if the design needs its own call | None confidently; `input.rs` with 1.90 only if it does land there |
+| 1.111 (move a tab to another session) | the kernel operation is new (`crates/kernel`), but `tab.move --to`, "proved through `Runtime::handle`," needs the same cascade-aware event emission `move_and_dispatch` already has for `pane.move` | `moving.rs` | None of the other seven |
+| 1.124 (fd inheritance on spawn) | reading `portable-pty`'s own spawn and, if needed, closing/marking descriptors before/around it | `pty.rs` (`RealLauncher::spawn`), not `runtime/` at all, on the evidence read so far | None |
+
+**Pairs that still collide after the split**, stated plainly rather than claimed away: **1.109 × 1.116 on `events.rs`**; **1.109 × 1.88 on `lifecycle.rs`** (`connect_client`/`disconnect_client`); **1.116 × 1.88 on `lifecycle.rs`** (`stop`'s own body, from two directions - one adds a thread to join, the other rewrites what stopping means for an explicit server). 1.109 is the task the split does not fix: its own AC #1 ("every dispatch path... found by reading and listed in the plan one by one") means its plan will touch most of this module's new files for one call site each, even though each individual file's own existing code stays small. The split still helps it: each of those touches is a one- or two-line addition at an already-small, already-understood call site, not a scroll through a 4,900-line file to find it.
+
+## Visibility: methods vs free functions, and the full pub(super) list
+
+Inherent methods on `Runtime` resolve by type, not by path: moving `attach_pane` out of the old single file costs it nothing but the `pub(super)` bump below (if it needs one) - no caller anywhere writes a new `use` line for it, because `self.attach_pane(...)` already finds it through `Runtime` wherever `Runtime` is in scope (already true everywhere today). The only things that force a `use`-line change are **free functions** called from a file other than the one they are defined in - each such change is exactly one import line moving from `use super::foo;` to `use super::some_module::foo;` (or the reverse, while `foo` still lives in `mod.rs`), already allowed by AC #3's own wording ("no function body changed beyond imports and visibility").
+
+Rust's own privacy rule does most of the work for free: an item with no modifier, defined in `mod.rs`, is visible to every submodule underneath it (descendants see an ancestor's private items) - so `State`'s fields, `Subscriber`, `Runtime::lock`, and `FORCE_GRACE_DEFAULT` need **no** visibility change at all, wherever they are called from, as long as they stay in `mod.rs`. The reverse direction - a submodule's own item, needed by `mod.rs` or by a sibling submodule - is the only case that needs `pub(super)` (visible from the parent down, which covers every sibling too, exactly matching the item's old, single-file-private visibility; never `pub(crate)`, which would leak it past `runtime` itself).
+
+Full list, each a free function or method defined in one new file and called from another:
+
+| Item | Defined in | Called from | Kind |
+|---|---|---|---|
+| `session_owning_tab` | `tree.rs` | `start.rs`, `close.rs`, `moving.rs`, `events.rs` | free fn - `use` line at each caller |
+| `start_and_dispatch` | `start.rs` | `mod.rs` (`handle`) | method - no `use` needed |
+| `close_and_dispatch` | `close.rs` | `mod.rs` (`handle`) | method |
+| `move_and_dispatch` | `moving.rs` | `mod.rs` (`handle`) | method |
+| `force_end` | `close.rs` | `lifecycle.rs` (`stop`) | free fn - `use` line |
+| `emit_close_cascade` | `close.rs` | `events.rs` (`apply_event_locked`) | free fn - `use` line |
+| `apply_size_changed_locked` | `input.rs` | `lifecycle.rs` (`disconnect_client`), `attach.rs` (`detach_pane`) | free fn - `use` line at each |
+| `reapply_every_sized_tab` | `input.rs` | `mod.rs` (`handle`), `start.rs`, `close.rs`, `moving.rs` | free fn - `use` line at each |
+| `broadcast` | `events.rs` | `start.rs` (`emit_creation_events`), `close.rs`, `moving.rs` | free fn - `use` line at each |
+| `emit_focus_event` | `events.rs` | `mod.rs` (`handle`) | free fn - `use` line |
+| `apply_event_locked` | `events.rs` | `mod.rs` (`Runtime::new`'s drain-thread closure) | free fn - `use` line |
+
+Eleven items get `pub(super)`; nothing gets `pub` or `pub(crate)` that wasn't already. `Attaching` moves to `attach.rs` (its only real user) and keeps its existing `pub(crate)` - `mod.rs` re-exports it (`pub(crate) use attach::Attaching;`) so `connection.rs`'s own `crate::runtime::Attaching` keeps resolving unchanged. `LoginShell`/`build_login_shell` move to `login.rs` and keep their existing `pub` - `mod.rs` re-exports both (`pub use login::{LoginShell, build_login_shell};`) for the same reason, feeding straight into `lib.rs`'s own `pub use runtime::{FORCE_GRACE_DEFAULT, LoginShell, Runtime, build_login_shell};`, which does not change at all. The crisp, cheap version of "the crate-external surface is unchanged": **`git diff origin/main -- crates/server/src/lib.rs` is empty**, and so is the diff on every file that names `crate::runtime::*` today (`config.rs`, `connection.rs`, `listen.rs`, `pty.rs`'s doc comment, `env.rs`'s doc comment) - verified in the proof below, not assumed.
+
+## Mechanical proofs, each recorded with `asdlc record-check`, each with a control
+
+**(a) Runtime's public surface is unchanged.** Two parts, both cheap and both real:
+1. `git diff origin/main -- crates/server/src/lib.rs crates/server/src/config.rs crates/server/src/connection.rs crates/server/src/listen.rs` is empty except for the merge of `origin/main` the task's own commits bring in anyway - these five are the only files outside `runtime/` naming `crate::runtime::*` today (confirmed by `git grep -n "crate::runtime\|runtime::" crates/server/src`). No import in any of them should need to change, since every path they use (`Runtime`, `LoginShell`, `build_login_shell`, `Attaching`, `FORCE_GRACE_DEFAULT`) is re-exported from `mod.rs` at its original visibility.
+2. A grep-based before/after listing as a second, independent check: `grep -nE '^\s*(pub(\(\w+\))?\s+)?(fn|struct|enum|const)\s' crates/server/src/runtime.rs` (before, from `origin/main`) vs the same over every file under `crates/server/src/runtime/` (after), each line stripped of its leading visibility keyword and sorted, then diffed restricted to lines that still say `pub ` or `pub(crate) ` after stripping only `pub(super) ` - i.e. "is anything that was not already crate-visible now crate-visible, or vice versa." Expected: empty.
+
+Control for (2): temporarily widen one `pub(super)` item (say `broadcast`) to plain `pub` in a scratch edit, rerun, confirm the script reports it; `git checkout` the file back.
+
+**(b) The same test names run, none ignored.** `cargo test -p steg-server --lib -- --list --format=terse` is a narrower command than `just test` on purpose: `just test`'s own output is pass/fail per crate, not a structured list of test names, and a listing is exactly what this proof needs. Run once before any edit (baseline, alongside the first `record-check`) and once after the last commit. Normalise each line by stripping everything up to and including the last `runtime` segment of its module path (so `runtime::tests::foo` and `runtime::events::tests::foo` both become `foo`), since the module path prefix is expected to change and is not what this proves; sort both lists; diff. Expected: empty, and the raw (pre-strip) counts equal too, so a test silently gaining an `#[ignore]` would not hide inside the stripped comparison.
+
+Control: add `#[ignore]` to one test in a scratch edit, confirm the raw count changes and is caught; revert.
+
+**(c) No function body changed beyond imports and visibility.** Not a hand-rolled Rust parser - this file's own `serde_json::json!({...})` calls and string literals full of braces would make a brace-matching splitter unreliable, and debugging the prover is not this task's job. Instead: normalise both sides by stripping every `//`/`///`/`//!` comment line, every blank line, every bare `use ...;` line, every `mod ...;` line, and the leading `pub `/`pub(crate) `/`pub(super) ` token from any line that also contains `fn `/`struct `/`enum `/`impl`; concatenate the "after" set of files in `mod.rs`'s own declared order; `sort` both normalised streams; `diff`. A pure move produces two identical multisets - the "numbers" the task asks for are the line counts on each side (equal) and the diff's own line count (zero). Keep the script in the session scratchpad (`task-1131-body-diff.sh`), not committed - a one-off verification, not a repository recipe; run it through `asdlc record-check <task> --in <worktree> -- sh task-1131-body-diff.sh` (no `cd`, the script referenced by its path inside the worktree).
+
+Control: in a scratch edit, swap one `if`/`else` branch's two bodies in, say, `force_end`'s pass 3; rerun; confirm the diff is non-empty and names lines from that function; revert.
+
+## Order of commits
+
+One seam per commit, each leaving the whole crate compiling and `cargo test -p steg-server --lib -- --list` unchanged in content, chosen so a submodule never needs a `pub(super)` item that does not exist yet (anything still resident in `mod.rs` is already visible to every submodule for free, by the descendant rule above; only a *moved* item needs the bump, made in the same commit that moves it):
+
+1. `git mv` to `runtime/mod.rs`; no other change - proves the rename alone compiles and the baseline proofs (a)/(b)/(c) are run against this starting point.
+2. `login.rs` - no cross-file dependency either way.
+3. `testing.rs` - the shared test helpers, extracted with no consumer yet pointed at it (dead code allowed under `#[cfg(test)]` only transiently, within this one commit - every later commit's own test-module move starts consuming it).
+4. `tree.rs` - `session_owning_tab` gains `pub(super)` now, ahead of its own consumers, which is fine: nothing stops a `pub(super)` item from sitting unused by a sibling for a few commits.
+5. `events.rs` - gains `pub(super)` on `broadcast`, `emit_focus_event`, `apply_event_locked`; `mod.rs`'s own `Runtime::new`/`handle` update their `use` lines to point at it. Tests move, consuming `testing.rs`.
+6. `attach.rs` - `Attaching` moves here with its `pub(crate)` kept; `mod.rs` gains the re-export line. Tests move.
+7. `input.rs` - `apply_size_changed_locked`/`reapply_every_sized_tab` gain `pub(super)`; every caller still in `mod.rs` or already-moved files (`attach.rs`) updates its `use` line. Tests move.
+8. `lifecycle.rs` - consumes `input.rs`'s now-`pub(super)` `apply_size_changed_locked`. Tests move (`disconnect_client_reapplies_the_next_latest_declared_size`, the whole `mod stop_tests`, with its own independent helpers kept exactly as they are today).
+9. `start.rs` - `start_and_dispatch` gains `pub(super)`; `mod.rs`'s `handle` updates its call. Consumes `tree.rs`'s `session_owning_tab` and `events.rs`'s `broadcast`/`reapply_every_sized_tab` via `use`. Tests move.
+10. `close.rs` - `close_and_dispatch` gains `pub(super)`; `force_end`/`emit_close_cascade` gain theirs; `mod.rs`'s `handle` and `events.rs`'s `apply_event_locked` (import only) and `lifecycle.rs`'s `stop` (import only) update their `use` lines. Tests move.
+11. `moving.rs` - `move_and_dispatch` gains `pub(super)`; `mod.rs`'s `handle` updates its call. No tests to move (`pane.move` is exercised only by `crates/server/tests/{dispatch,events,runtime}.rs`, confirmed by grep - none of it is inside today's unit-test modules).
+12. Final tidy commit: confirm `mod.rs` now holds exactly the list given above, re-run every proof ((a), (b), (c)) end to end, run `just check`.
+
+## If `origin/main` moves underneath this
+
+Before starting and before every `record-check`, fetch and check `git log origin/main --oneline -- crates/server/src/runtime.rs crates/server/src/runtime/` since the branch point. This task is meant to run while nothing else touches this file (the task's own description, and TASK-1.130/1.119 confirmed clear of it by their own descriptions - 1.130 splits `crates/sdk/src/description/methods.rs` and `crates/server/tests/dispatch.rs`, 1.119 works in `crates/steg`/`crates/sdk`, neither names `runtime.rs`). If the log is non-empty anyway, stop rather than merge: a move-only refactor merging against a real logic change in the same file is exactly the conflict this task exists to prevent, and resolving it by hand would risk exactly the silent body change the proofs above are built to catch. Flag it as a plan/contract risk for the engineer instead. Otherwise, for the ordinary case (`origin/main` moved elsewhere in the crate, not in this file), rebase before continuing, since the branch has not been pushed yet at that point.
+
+## Stale doc-comment cross-references this move creates - left out of scope, named here
+
+`crates/server/src/runtime.rs` is named by path, or `runtime.rs`'s own `stop_tests`/test module is named by name, in doc comments outside this file: `crates/server/src/config.rs:95`, `crates/server/src/pane.rs:2026,2105`, `crates/server/tests/attach.rs:1587,1633,1679,1686`, `crates/server/tests/events.rs:883`, `crates/server/tests/real_pty.rs:352,355`, `crates/server/tests/routing.rs:847,861,945,1136`, `crates/server/tests/runtime.rs:4,302,388,964` (this last one is the crate's own separate integration-test binary, `tests/runtime.rs` - a different file from `src/runtime.rs`/`src/runtime/mod.rs`, untouched by this move; its own doc comments about `src/runtime.rs`'s internals go stale the same way the others do). None of these are code paths - every one is prose inside a doc comment, naming a file path or a module name (`runtime.rs`'s own `stop_tests`, `arm_attachment (runtime.rs)`) that stops being exactly true once the split lands. Fixing them is editing a file this task has no code reason to touch, which the task's own "out of scope" line does not clearly cover either way - left alone here, named in full so a reviewer finds a decision already made rather than a gap. If the engineer would rather these land in the same PR, say so and they are a small, mechanical follow-up (reword each to name the new file instead).
+
+## Architecture checks: confirmed, not inferred
+
+Read `boundaries.toml` and `.claude/rules/architecture.md`: both operate at the crate level (`[steg-server]`'s own dependency list; `just check-boundaries`/`check-architecture` check which crate depends on which, and the LikeC4 model's own components are packages, doc-16's own level 3). Nothing in either names a module inside a crate. Reorganising `crates/server/src/runtime.rs` into `crates/server/src/runtime/*.rs` changes no crate dependency and adds no external dependency, so `just check-boundaries`, `just check-architecture`, and `just deny` are expected to pass unchanged and need no new entry in either file.
+
+## pane.rs and connection.rs: recommend a follow-up for pane.rs, not connection.rs yet
+
+`pane.rs` (about 2,600 lines) is a good candidate for the same treatment now, on two independent signals read above: TASK-1.90's own capture/wait and TASK-1.115's own scrollback paging both read `PaneHandle`'s own screen/terminal state the same way `attach_pane` already does, and are likely to land inside it, in roughly the same area, at close to the same time. `connection.rs` (about 1,300 lines) is smaller and its own merge-churn was not read here (no per-file touch count was pulled the way runtime.rs's "12 of the last 40 merges" was given in this task's own description) - recommend checking that count before committing to a split, rather than assuming one is warranted from size alone; TASK-1.109's own `client.connected`/`client.left`/`client.started_viewing`/`client.stopped_viewing` events are the one concrete signal that touches it, and that alone may not be enough to warrant a split.
+<!-- SECTION:PLAN:END -->

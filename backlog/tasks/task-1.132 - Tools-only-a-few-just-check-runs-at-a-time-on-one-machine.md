@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:48:00Z'
+updated_date: '2026-11-18T02:58:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -469,6 +469,41 @@ Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/
 warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6LjShv` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
 ..                                                                       [100%]
 2 passed, 19 deselected in 0.01s
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T02:58:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+ok      format check (0.3s)
+ok      lint (85.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (104.9s)
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.9s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (42.3s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (41.3s)
+ok      test (steg-server) (55.1s)
+ok      test (steg-server, race-fixture) (55.5s)
+ok      test (steg-server, pty-race-fixture) (59.8s)
+ok      test (steg-server, accept-backoff-fixture) (60.3s)
+ok      build (steg) (2.3s)
+ok      test (steg) (2.1s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (15.0s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (23.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

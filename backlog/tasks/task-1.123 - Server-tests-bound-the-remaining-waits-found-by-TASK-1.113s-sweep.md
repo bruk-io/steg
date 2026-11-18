@@ -1,10 +1,11 @@
 ---
 id: TASK-1.123
 title: 'Server tests: bound the remaining waits found by TASK-1.113''s sweep'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T08:53:00Z'
+updated_date: '2026-11-18T13:48:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -13,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
+asdlc_branch: task-1.123-server-tests-bound-the-remaining-waits
 ---
 
 ## Description

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T17:11:00Z'
+updated_date: '2026-11-18T17:26:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -23,10 +24,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
-asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -687,6 +687,31 @@ created: 2026-11-18T17:11:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T17:26:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 0 nit. Cites: review. The diff does not match the plan.
+
+Second round, scoped to the diff 2bc23c84..92b0a149 (head 92b0a149, CI green, just check reconfirmed green by me at this head).
+
+Round 1 findings 1 and 3 are genuinely fixed:
+- Key coverage: pane_send_delivers_each_named_key_with_its_documented_bytes now sends every name from steg_sdk::key_names() through the real pane.send -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty path, checked against an independently hand-written documented_bytes() table (never derived from the sdk's own table, so a wrong byte in the sdk can't agree with itself). I repeated this control myself (not the recorded "home" one - a fresh, independent repeat): corrupted "f5"'s bytes in crates/sdk/src/keys.rs, confirmed pane_send_delivers_each_named_key_with_its_documented_bytes fails naming "f5" with the wrong hex, reverted, confirmed it passes again; git status clean afterward, no stray processes.
+- The exit wait now uses next_ended (the real Ended event via attach, TASK-1.128), not a poll of pane.show.
+
+Round 1 finding 2 ("both refusal tests read the pane's screen before and after and assert it unchanged") is only half fixed.
+
+[Evidence, Important] crates/server/tests/pane_send.rs:803-869 (pane_send_refuses_a_pane_with_no_running_program): `held` is bound once from `attached.snapshot` (line 819, not `mut`, never passed to `apply_update`) and is never mutated before the final `assert_eq!(screen_text(&held), before, ...)` at line 861. `before` (line 845) and the final read are the same expression over the same unchanged binding, so this assertion compares a value to itself and cannot fail under any implementation, correct or broken. It is also unreachable when the real mechanism breaks: `let Response::Error(error) = response else { panic!(...) }` at line 856 already panics before this line runs if `pane.send` is wrongly accepted, which is exactly what the worker's own recorded control (any_pane_running inverted) shows failing at the error-code assertion, never at the screen comparison. The worker's own comment (lines 833-844) says this plainly - "corroboration only... the error code is the real proof" - which is honest, but it means the thing round 1 asked for (a before/after screen proof) does not actually exist for this test; it exists only for pane_send_refuses_text_and_key_together, where `held` is correctly drained via drain_updates_for and the recorded control shows the screen assertion itself failing with real content ("hello...") when the both-given check is removed.
+
+Everything else checked clean: diff --stat against origin/main confirms this round touched only the task file and crates/server/tests/pane_send.rs (no scope creep); no sleeps anywhere in the new code (drain_updates_for uses a bounded real-time window for an absence, the same shape attach.rs's own assert_nothing_more_arrives_on already uses - verified it exists at attach.rs:511); all waits bounded via deadlines; explicit pane programs (sh -c with stty/dd/od, never $SHELL); `just check` green at 92b0a149 in my own run (lint 45s, full test suite, etc.); `cargo test -p steg-server --test pane_send` 5/5 passed in my run; no leftover processes after.
+
+plan-matched: no - the plan's own text (od alone, no declared tab size) was departed from, disclosed in the notes; the Ended-event wait is now correct but was itself a prior departure.
 
 ---
 <!-- COMMENTS:END -->

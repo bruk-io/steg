@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:17:00Z'
+updated_date: '2026-11-18T15:36:00Z'
 labels:
   - size-3
   - changes-requested
@@ -416,6 +416,36 @@ New crates/server/tests/pane_send.rs (real socket, real pty, explicit programs, 
 Checks recorded: just check clean baseline before any change; four recorded failing-then-passing negative controls (any_pane_running inverted; the text+key-together check removed; send_bytes disabled; key's ValueKind reverted from Choice to Text) each proving its own test fails without the mechanism; just check green at the final head (a86e8706, rebased onto origin/main - the branch had never been pushed before this). gh pr checks 80 green (14m46s). crates/app/src/keys.rs's own tests (steg-app --bin steg-app) and steg-sdk's cli::exit tests re-run and pass unchanged.
 
 Departure from the plan: none in substance; the socket-path helper in pane_send.rs uses a short pid+counter-named per-test directory (no nanosecond suffix) after a first version with a longer name overflowed macOS's ~104-byte AF_UNIX path limit and made every test in the file fail with 'server never started accepting' - caught immediately, not a design question.
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_delivers_each_named_key_with_its_documented_bytes` exited 101 at 2026-11-18T15:36:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_delivers_each_named_key_with_its_documented_bytes ... FAILED
+
+failures:
+
+---- pane_send_delivers_each_named_key_with_its_documented_bytes stdout ----
+
+thread 'pane_send_delivers_each_named_key_with_its_documented_bytes' (60872112) panicked at crates/server/tests/pane_send.rs:796:9:
+assertion `left == right` failed: key "home"
+  left: ["1b", "5b", "5a"]
+ right: ["1b", "5b", "48"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_delivers_each_named_key_with_its_documented_bytes
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

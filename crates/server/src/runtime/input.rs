@@ -113,8 +113,10 @@ mod tests {
     use steg_sdk::Size;
 
     use super::Runtime;
-    use crate::runtime::testing::{TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env};
     use crate::pty::RealLauncher;
+    use crate::runtime::testing::{
+        TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, login, test_base_env,
+    };
 
     #[test]
     fn apply_size_changed_resizes_only_the_panes_the_change_names() {

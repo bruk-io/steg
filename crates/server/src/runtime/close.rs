@@ -285,7 +285,11 @@ fn emit_close_events(
 /// names it too - the same id, read once by the caller, since this
 /// cascade can never reach a session other than the one the pane itself
 /// was in.
-pub(super) fn emit_close_cascade(state: &State, closed: &steg_kernel::ClosedPane, scope: SessionId) {
+pub(super) fn emit_close_cascade(
+    state: &State,
+    closed: &steg_kernel::ClosedPane,
+    scope: SessionId,
+) {
     use steg_sdk::TreeEvent;
 
     broadcast(state, &TreeEvent::PaneClosed { id: closed.pane }, scope);
@@ -425,8 +429,8 @@ mod tests {
     use std::time::Duration;
 
     use super::Runtime;
-    use crate::runtime::testing::{TEST_GRACE, TEST_TICK, login};
     use crate::pty::RealLauncher;
+    use crate::runtime::testing::{TEST_GRACE, TEST_TICK, login};
 
     /// The idle-handle fix itself (TASK-1.78 §5, item 2), proven where it
     /// can actually be observed - `state.panes`, private to this module,

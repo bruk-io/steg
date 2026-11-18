@@ -6,7 +6,7 @@
 use std::time::Instant;
 
 use steg_kernel::{CommandEnded, CommandOutputStarted, ExitOutcome, Moment};
-use steg_sdk::{Connection, PaneId, SessionId};
+use steg_sdk::{Connection, PaneId, Request, SessionId};
 
 use super::State;
 use super::tree::session_owning_tab;
@@ -58,7 +58,7 @@ fn emit_pane_status_changed(state: &State, pane: PaneId, status: Option<steg_sdk
 /// mutation would produce it; `session.focus` (R87) is a different verb
 /// entirely, addressed to a client, not a tree change, and owned by
 /// TASK-1.109 under its own event name (`session.focus_requested`).
-pub(super) fn emit_focus_event(state: &State, context: &Context, request: &steg_sdk::Request) {
+pub(super) fn emit_focus_event(state: &State, context: &Context, request: &Request) {
     use steg_sdk::TreeEvent;
 
     let tab_id = match request.method.as_str() {
@@ -336,10 +336,10 @@ mod tests {
     use crate::outbound::{Outbound, spawn_writer};
     use crate::pane::PaneEvent;
     use crate::pty::RealLauncher;
+    use crate::runtime::close::force_end;
     use crate::runtime::testing::{
         TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
     };
-    use crate::runtime::close::force_end;
     use crate::runtime::{Filter, LoginShell, Runtime, Subscriber};
 
     /// Registers a subscriber in `state` with a real writer thread

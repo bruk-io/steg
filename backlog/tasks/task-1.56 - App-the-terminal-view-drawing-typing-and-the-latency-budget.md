@@ -4,7 +4,7 @@ title: 'App: the terminal view: drawing, typing, and the latency budget'
 status: To Do
 assignee: []
 created_date: '2026-11-15T01:33:00Z'
-updated_date: '2026-11-17T03:51:00Z'
+updated_date: '2026-11-18T02:09:00Z'
 labels:
   - size-5
 milestone: m-4
@@ -34,7 +34,6 @@ doc-9 R19; doc-10 R23, R29; doc-13 R59 (the view is written fresh, with nothing 
 - [ ] #2 What is fed to the screen in one frame is capped, and printing 100 MB neither freezes the window nor delays input to another pane
 - [ ] #3 The app's own instrumentation reports key to paint within 12 ms and key to frame within 20 ms, at the 95th percentile on a 120 Hz display, and the run is recorded
 - [ ] #4 The terminal font, size, line height, ligatures and fallbacks can be set
-- [ ] #5 A terminal whose size was set by another client is drawn at that size from the top left, padded or cropped, never rescaled
 <!-- AC:END -->
 
 ## Implementation Notes

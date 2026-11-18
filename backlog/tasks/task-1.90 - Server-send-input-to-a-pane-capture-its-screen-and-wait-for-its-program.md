@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T19:12:00Z'
+updated_date: '2026-11-18T19:13:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -26,6 +26,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=0'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r1
 ---
 
 ## Description
@@ -836,6 +837,15 @@ Round 1 finding 2 ("both refusal tests read the pane's screen before and after a
 Everything else checked clean: diff --stat against origin/main confirms this round touched only the task file and crates/server/tests/pane_send.rs (no scope creep); no sleeps anywhere in the new code (drain_updates_for uses a bounded real-time window for an absence, the same shape attach.rs's own assert_nothing_more_arrives_on already uses - verified it exists at attach.rs:511); all waits bounded via deadlines; explicit pane programs (sh -c with stty/dd/od, never $SHELL); `just check` green at 92b0a149 in my own run (lint 45s, full test suite, etc.); `cargo test -p steg-server --test pane_send` 5/5 passed in my run; no leftover processes after.
 
 plan-matched: no - the plan's own text (od alone, no declared tab size) was departed from, disclosed in the notes; the Ended-event wait is now correct but was itself a prior departure.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T19:13:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

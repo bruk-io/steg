@@ -195,6 +195,51 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpylTdDZ` does not 
 .                                                                        [100%]
 1 passed in 0.36s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 1 at 2026-11-18T02:44:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes, last 40 of 42 lines:
+
+```text
+=================================== FAILURES ===================================
+________ test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-670/test_a_waiter_gets_whichever_s0')
+
+    def test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one(tmp_path: Path) -> None:
+        """The fix for the convoy review found: a waiter must not be stuck behind one committed slot."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        long_duration, short_duration = 4.0, 0.3
+    
+        long_holder, long_start, long_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="long", duration_s=long_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(long_start)  # claims the first slot alone, so which slot is "long"'s is deterministic
+    
+        short_holder, short_start, short_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="short", duration_s=short_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(short_start)  # both slots are now busy before the waiter is started
+    
+        waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.1, lock_dir=lock_dir, slots="2"
+        )
+        assert waiter.communicate(timeout=10)[0] is not None
+        assert short_holder.communicate(timeout=10)[0] is not None
+        assert long_holder.communicate(timeout=10)[0] is not None
+    
+        waiter_started_at = _read_timestamp(waiter_start)
+        short_ended_at = _read_timestamp(short_end)
+        long_ended_at = _read_timestamp(long_end)
+>       assert waiter_started_at <= short_ended_at + SLACK_S * 2, "the waiter should acquire the slot that freed quickly"
+E       AssertionError: the waiter should acquire the slot that freed quickly
+E       assert 1794969872.30465 <= (1794969868.634326 + (0.5 * 2))
+
+tools/tests/functional/test_quiet_slots.py:236: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
+1 failed in 4.23s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

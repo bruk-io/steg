@@ -33,7 +33,6 @@ doc-9 R19; doc-10 R23, R29; doc-13 R59 (the view is written fresh, with nothing 
 - [ ] #1 A pane draws its terminal's rows and cursor from its attachment, and typing reaches the program
 - [ ] #2 What is fed to the screen in one frame is capped, and printing 100 MB neither freezes the window nor delays input to another pane
 - [ ] #3 The app's own instrumentation reports key to paint within 12 ms and key to frame within 20 ms, at the 95th percentile on a 120 Hz display, and the run is recorded
-- [ ] #4 The terminal font, size, line height, ligatures and fallbacks can be set
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -44,6 +43,8 @@ Carried (2026-11-15): Terminal::resize and the pty are given a pixel cell size o
 From the engineer's first run of the bare window, 2026-11-16, for this task's cursor work: the cursor never blinks though the server reports whether it should; a block cursor is painted over the character and hides it where it should show it inverted; nothing changes when the window loses focus. Blink is periodic by nature, so decide with the engineer how it sits with the rule against periodic wake-ups (for example a timer that runs only while the window is focused and the cursor is set to blink).
 
 2026-11-16: the cursor's fade is now its own task, drafted from the design's choice (Cursor atom, option 2B of the cursor motion board). What stays here for the cursor: the hollow outline in an unfocused pane, and the bar and underline shapes.
+
+Re-scoped by @bruk.o on 2026-11-17, agreed with the engineer. The bare window already draws rows and a cursor from an attachment, types, resizes and uses an exact cell grid (TASK-1.117, 1.121, 1.126), so much of criterion 1 exists for one pane; what remains of it is the same view inside the pane layout. Criteria 4 (font settings) and 5 (drawn at another client's size) moved to two draft tasks that do not need panes. The size label is unchanged and may now be too large; that is the engineer's to change.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

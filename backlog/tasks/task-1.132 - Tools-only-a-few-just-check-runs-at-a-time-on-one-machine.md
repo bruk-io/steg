@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:31:00Z'
+updated_date: '2026-11-18T02:32:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -89,6 +89,12 @@ Mechanism: N slot lock files under one directory; a non-blocking scan on the fas
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (d9a4c4cb7361) checked against the task's criteria by @bruk.o: ok. A slot per heavy step, held by the steg-quiet parent through an advisory file lock so a killed run frees it with no cleanup; a waiter takes whichever slot frees first (one blocked thread per slot, late acquirers release at once), with no polling; two slots by default, 0 for no limit, CI unlimited; the wait is unbounded unless STEG_CHECK_SLOT_WAIT_S is set. The first plan queued every waiter on slot 0; revised at the orchestrator's request. What a worker does when a queued check exceeds its own ten-minute command limit is the orchestrator's to handle in briefs.
+
+Check passed: `just test-tools` exited 0 at 2026-11-18T02:32:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 87ced82aa6b7:
+
+```text
+ok      tool tests (15.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

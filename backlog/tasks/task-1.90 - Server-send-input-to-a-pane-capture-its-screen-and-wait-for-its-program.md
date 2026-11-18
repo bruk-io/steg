@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:07:00Z'
+updated_date: '2026-11-18T14:09:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -29,7 +29,6 @@ Found on 2026-11-15: TASK-1.50 (CLI: send, capture, wait, watch) needs these thr
 - [ ] #1 pane send delivers bytes, text or named keys to the pane's program through its pty, in order, without a client attached; a pane with no running program refuses with the code doc-2 gives
 - [ ] #2 pane capture returns the pane's screen as text, and its scrollback when asked, from the server's own terminal with no window open (R3); the terminal is read on the pane's own thread, never under the runtime's lock for longer than a hand-off
 - [ ] #3 pane wait answers when the pane's program exits with its exit code, or when the timeout given passes, without holding the runtime's lock or a connection's reader while it waits; a pane closed while being waited on answers at once; the plan says how a waiting request is held now that a reply is written by the connection's writer (TASK-1.45)
-- [ ] #4 The three methods leave the not-yet list in dispatch; each is proved with a real program in a real pty and bounded waits, and no thread or child is left by any path, including a client that disconnects while waiting
 <!-- AC:END -->
 
 ## Implementation Plan

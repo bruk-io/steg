@@ -1,17 +1,20 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:53:00Z'
+updated_date: '2026-11-18T15:09:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies:
   - TASK-1.45
   - TASK-1.78
+references:
+  - task-1.90-server-send-input-to-a-pane-capture-its
+  - https://github.com/bruk-io/steg/pull/80
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -400,6 +403,14 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built pane.send: dispatch::pane::send validates target, refuses --text with --key together (BadRequest), and refuses ErrorCode::ProgramNotRunning when nothing is running; Runtime::send_and_dispatch (crates/server/src/runtime/input.rs) delivers the bytes via a plain, non-blocking PaneHandle::send_input, never Tree::note_input (AC #1's unattached, one-shot path). Named keys: lifted named_key_bytes's own match arms into a new crates/sdk/src/keys.rs; crates/app/src/keys.rs's named_key_bytes now delegates to it, same signature, its own existing tests re-run unchanged and pass. pane.send's key flag is now ValueKind::Choice(key_names()), so validate() refuses an unknown name as BadRequest. Added ErrorCode::ProgramNotRunning (exit status 1, matching doc-2's own wording) to shapes.rs/errors.rs/methods/pane.rs/methods/tests.rs. pane.capture/pane.wait stay NotImplementedYet in dispatch/pane.rs, reworded with no task id (their sibling tasks are still drafts); cross_cutting.rs's own NotYetCase rows updated the same way, and its pane.send row removed; its every_nothing_or_identifier_returning_method_matches_its_declared_shape fixture now records a running program on the default pane so pane.send's own success path is exercised there too.
+
+New crates/server/tests/pane_send.rs (real socket, real pty, explicit programs, each test's own small per-test temp directory - not attach.rs, which TASK-1.123 is actively fixing bounds in): delivers text then a named key in order with the sending connection never attached to the pane (verified via a second, observing connection's own pane.attach); refuses an already-ended pane with ProgramNotRunning; refuses text+key together with BadRequest; refuses an unknown key name with BadRequest.
+
+Checks recorded: just check clean baseline before any change; four recorded failing-then-passing negative controls (any_pane_running inverted; the text+key-together check removed; send_bytes disabled; key's ValueKind reverted from Choice to Text) each proving its own test fails without the mechanism; just check green at the final head (a86e8706, rebased onto origin/main - the branch had never been pushed before this). gh pr checks 80 green (14m46s). crates/app/src/keys.rs's own tests (steg-app --bin steg-app) and steg-sdk's cli::exit tests re-run and pass unchanged.
+
+Departure from the plan: none in substance; the socket-path helper in pane_send.rs uses a short pid+counter-named per-test directory (no nanosecond suffix) after a first version with a longer name overflowed macOS's ~104-byte AF_UNIX path limit and made every test in the file fail with 'server never started accepting' - caught immediately, not a design question.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

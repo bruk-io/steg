@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T20:49:00Z'
+updated_date: '2026-11-18T20:50:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -21,6 +21,8 @@ asdlc_branch: task-1.123-server-tests-bound-the-remaining-waits
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'a21307bb73f5'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r2
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -804,6 +806,15 @@ created: 2026-11-18T19:12:00Z
 ---
 
 Plan approved by @bruk (a21307bb73f5, size-3): its worker may build it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T20:50:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.123: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

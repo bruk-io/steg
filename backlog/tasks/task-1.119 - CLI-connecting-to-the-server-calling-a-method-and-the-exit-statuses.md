@@ -1,9 +1,11 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
+updated_date: '2026-11-18T02:10:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -12,6 +14,7 @@ dependencies:
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
+asdlc_branch: task-1.119-cli-connecting-to-the-server-calling-a
 ---
 
 ## Description

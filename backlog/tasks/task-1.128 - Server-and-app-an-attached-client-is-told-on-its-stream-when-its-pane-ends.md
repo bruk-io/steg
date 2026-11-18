@@ -27,6 +27,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -1153,6 +1154,15 @@ Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
 What I checked: full diff against origin/main (excluding backlog/) across sdk/screen.rs+lib.rs+description/methods.rs, kernel/terminal.rs, app/model.rs, server/outbound.rs, server/pane.rs, server/runtime.rs, server/connection.rs, server/tests/attach.rs; doc-14 and decision-2 section 3 (including its 2026-11-17 addendum, already landed on main, matching the wire shape in code); the approved plan (ffc63839f742) and its departures section; every exhaustive ScreenUpdate match (all have named arms, no wildcards); Outbound::end_stream/pop_next's deferred-teardown logic and its real two-thread test; MarkClosing's ordering via a live negative control (above); the TASK-1.125 race fix in finish_attach; the call_and_read_reply drain-before-block fix (does not swallow or weaken any existing assertion - it only changes what happens after a non-matching poll(), matching reply_within's established shape). Confirmed the final recorded clean check (at local commit 493786d3aec6) has an identical code tree to pushed HEAD 2ca675d7 (git diff shows only backlog/ task-file differences), so the recorded evidence is against the right code modulo the AC #4 gap above. The three reported flakes (login_env grandchild test timing out on its pid file; a stuck-pane timing test coinciding with a concurrent just check from TASK-1.121; a terminal-scrolling timing assertion failing on CI's first run and passing on rerun) match what the worker described and are not findings.
 
 What I did not check: a real SSH channel (out of scope per decision-2), the app's own future reaction to Ended (explicitly out of scope, moved to a draft task), and I did not re-run the full CI suite myself (trusted the claim that CI is green on 2ca675d7 after the reported rerun).
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T01:17:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

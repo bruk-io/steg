@@ -1,11 +1,11 @@
 ---
 id: TASK-1.131
 title: 'Server: runtime.rs split into modules by concern'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T06:17:00Z'
+updated_date: '2026-11-18T13:47:00Z'
 labels:
   - size-3
   - review-passed

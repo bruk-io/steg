@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:37:00Z'
+updated_date: '2026-11-18T03:38:00Z'
 labels:
   - size-2
   - changes-requested
@@ -626,6 +626,16 @@ tools/tests/functional/test_quiet_slots.py:257: AssertionError
 =========================== short test summary info ============================
 FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
 1 failed in 8.14s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 0 at 2026-11-18T03:38:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpjhdOYG` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 8.12s
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.

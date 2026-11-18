@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T02:41:00Z'
+updated_date: '2026-11-18T03:03:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -116,6 +116,159 @@ Closing sentence for the notes: a later task's new dispatch test for an existing
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (a5fe3026a112) checked against the task's four criteria by @bruk.o: ok. Move only: dispatch.rs becomes dispatch/main.rs plus fixtures, session, tab, pane, api, setting and cross_cutting, still one test binary; the rename is its own commit and each module one commit, with a lint check after the first noun. Proofs with controls: the test list apart from module prefixes; a per-module sequence diff against the original file's own marked sections, stricter than the task's suggested comparison; build and link time measured before and after. The starting point's claim about a shared 'mod support' was wrong and is corrected (the helpers file is fixtures.rs). Comments elsewhere that name dispatch.rs are fixed in a final comments-only commit; TASK-1.131 edits other comment lines in the same test files, so whichever merges second merges main first.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo test -p steg-server --test dispatch -- --list'` exited 0 at 2026-11-18T02:45:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at b83b80543d5c, last 40 of 81 lines:
+
+```text
+session_close_removes_it: test
+session_list_matches_exactly_the_fields_the_description_declares_per_record: test
+session_move_converts_the_wire_position_before_calling_the_kernel: test
+session_move_rejects_a_zero_position_without_touching_the_tree: test
+session_new_creates_a_plain_shell_session: test
+session_set_and_unset_change_and_clear_the_label: test
+session_show_matches_exactly_the_fields_the_description_declares: test
+session_show_with_an_unknown_target_is_no_such_target: test
+setting_list_returns_every_registered_setting_with_its_current_value: test
+setting_set_changes_the_value_the_next_read_sees: test
+setting_set_rejects_a_value_outside_the_closed_set_with_bad_request: test
+setting_set_rejects_an_unknown_name_with_no_such_target: test
+setting_show_an_unknown_name_is_no_such_target: test
+setting_show_returns_one_setting_in_full: test
+setting_unset_an_unknown_name_is_no_such_target: test
+setting_unset_reverts_to_the_default: test
+split_set_label_then_close_the_session: test
+tab_close_removes_it: test
+tab_focus_makes_it_current: test
+tab_list_returns_every_tab_of_the_session_in_order: test
+tab_list_with_an_ambiguous_session_target_is_ambiguous_target: test
+tab_list_with_an_unknown_session_is_no_such_target: test
+tab_move_with_position_reorders: test
+tab_new_makes_the_new_tab_current_by_default: test
+tab_new_with_a_middle_position_places_the_new_tab_there: test
+tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus: test
+tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing: test
+tab_new_with_no_focus_leaves_the_original_tab_current: test
+tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first: test
+tab_new_with_no_focus_restores_the_previous_current_tab: test
+tab_new_with_no_position_appends_at_the_end_as_before: test
+tab_new_with_position_one_places_the_new_tab_first: test
+tab_new_with_position_zero_is_refused_and_creates_nothing: test
+tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order: test
+tab_show_returns_the_tabs_record: test
+tab_show_with_an_ambiguous_target_is_ambiguous_target: test
+tab_show_with_an_unknown_target_is_no_such_target: test
+unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given: test
+
+77 tests, 0 benchmarks
+```
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clippy -p steg-server --test dispatch --all-features -- -D warnings'` exited 0 at 2026-11-18T02:48:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 0eb92c1e2403:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt && echo '"'"'PROOF (b): 77/77 test names identical apart from module:: prefix'"'"''` exited 0 at 2026-11-18T03:01:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): 77/77 test names identical apart from module:: prefix
+```
+
+Check passed: `sh -c 'bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-proof-c.sh'` exited 0 at 2026-11-18T03:02:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+DIFF  fixtures: 6 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-fixtures.diff
+PASS  cross_cutting: byte-identical
+DIFF  session: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-session.diff
+DIFF  tab: 8 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-tab.diff
+DIFF  pane: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-pane.diff
+PASS  api: byte-identical
+PASS  setting: byte-identical
+---
+Known, disclosed non-identical modules (expected, see task notes):
+  fixtures: one doc-comment reworded (no longer true that helpers live in
+    'this file' once moved) - 2 lines changed, 0 lines of logic.
+  session: one blank line added at the seam where the span-noun test was
+    excised from the middle of the block.
+  tab: a 5-line explanatory comment added to pane_list_with_an_ambiguous_
+    target_is_ambiguous_target (why it lives in tab.rs, not pane.rs) - the
+    plan called for this.
+  pane/tab/fixtures/session/cross_cutting: a one-line, end-of-slice diff is
+    an artifact of the comparison's own line-range boundaries (the
+    original file's trailing blank before its next marker comment isn't
+    reproduced at a module file's own end) - not a body change.
+cross_cutting.rs, api.rs and setting.rs are byte-identical to their
+original slices.
+```
+
+Check FAILED: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt'` exited 1 at 2026-11-18T03:02:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23 with uncommitted changes:
+
+```text
+--- /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt	2026-11-17 22:02:05
++++ /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt	2026-11-17 22:02:31
+@@ -11,7 +11,7 @@
+         moment(0),
+     ));
+ 
+-    assert_eq!(value.as_array().unwrap().len(), api.methods.len());
++    assert_eq!(value.as_array().unwrap().len(), api.methods.len() + 0);
+ }
+ 
+ #[test]
+```
+
+Check passed: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt && echo '"'"'PROOF (c) api.rs: byte-identical again after revert'"'"''` exited 0 at 2026-11-18T03:02:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+PROOF (c) api.rs: byte-identical again after revert
+```
+
+Check FAILED: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-control-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-control-check.txt'` exited 1 at 2026-11-18T03:03:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+24c24
+< pane_close_removes_the_pane: test
+---
+> pane_close_removes_the_pane_x: test
+```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt && echo '"'"'PROOF (b): passes again after revert'"'"''` exited 0 at 2026-11-18T03:03:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): passes again after revert
+```
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; time cargo test -p steg-server --no-run'` exited 0 at 2026-11-18T03:03:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+  Executable unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+  Executable tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+  Executable tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+  Executable tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+  Executable tests/handshake.rs (target/debug/deps/handshake-9dd8ae3de7443a80)
+  Executable tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+  Executable tests/program.rs (target/debug/deps/program-f5767e65ccefb070)
+  Executable tests/real_pty.rs (target/debug/deps/real_pty-8cd47141942cd298)
+  Executable tests/routing.rs (target/debug/deps/routing-aec039aa3c8fee71)
+  Executable tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+  Executable tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+  Executable tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+real	0m0.438s
+user	0m0.387s
+sys	0m2.166s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

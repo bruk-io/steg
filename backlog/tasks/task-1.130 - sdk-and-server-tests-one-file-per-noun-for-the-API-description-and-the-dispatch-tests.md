@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:30:00Z'
+updated_date: '2026-11-18T03:01:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -130,6 +130,89 @@ After this lands, a new API method touches: the one noun file under crates/sdk/s
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 
 Plan checked against the task's three criteria by @bruk.o: ok. Move only: methods.rs becomes methods/ with a file per noun plus shared.rs, errors.rs and tests.rs; one commit per noun after the rename. Three mechanical proofs, each with a control: the description's serialised form byte for byte, the sdk's test list, and a normalised-line hash of the bodies. The byte-for-byte dump uses a scratch, uncommitted test file calling the real description(); the reviewer is to repeat it. methods/tests.rs remains the one file every new method still touches, named as a follow-up.
+
+Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-before.json'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-control.json'"'"''` exited 1 at 2026-11-18T02:57:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+12c12
+<       "summary": "Every session on the host",
+---
+>       "summary": "Every session on the hostX",
+```
+
+Check passed: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-before.json'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-final.json'"'"' && echo '"'"'proof (a): description() is byte-for-byte identical before and after'"'"''` exited 0 at 2026-11-18T02:58:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+proof (a): description() is byte-for-byte identical before and after
+```
+
+Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-before.txt'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-control.txt'"'"''` exited 1 at 2026-11-18T02:58:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+23c23
+< description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pairs: test
+---
+> description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pair: test
+```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-b.sh` exited 0 at 2026-11-18T02:59:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+proof (b): the sdk's test-name list is identical before and after, and no test is ignored
+```
+
+Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-c.sh` exited 1 at 2026-11-18T03:00:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+ok: shared.rs
+ok: shared.rs
+ok: session.rs
+ok: tab.rs
+MISMATCH: pane.rs (before 600,1014 vs after 7,421)
+84c84
+<             summary: "Split a pane and run a program in the new one".into(),
+---
+>             summary: "Split a pane and run a program in the new oneX".into(),
+ok: server.rs
+ok: event.rs
+ok: client.rs
+ok: setting.rs
+ok: api.rs
+ok: errors.rs
+ok: tests.rs
+FAIL
+```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-c.sh` exited 0 at 2026-11-18T03:00:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+ok: shared.rs
+ok: shared.rs
+ok: session.rs
+ok: tab.rs
+ok: pane.rs
+ok: server.rs
+ok: event.rs
+ok: client.rs
+ok: setting.rs
+ok: api.rs
+ok: errors.rs
+ok: tests.rs
+PASS: every extracted file's real content matches its exact pre-task source range, unchanged but for the pub(super) visibility this split adds
+```
+
+Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 1 at 2026-11-18T03:01:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+0a1
+> #[allow(dead_code)]
+```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 0 at 2026-11-18T03:01:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+proof (c), attributes: the set of attribute lines is identical before and after
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

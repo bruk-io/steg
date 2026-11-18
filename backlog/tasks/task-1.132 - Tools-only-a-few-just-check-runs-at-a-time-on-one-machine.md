@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:32:00Z'
+updated_date: '2026-11-18T03:00:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -95,6 +95,422 @@ Check passed: `just test-tools` exited 0 at 2026-11-18T02:32:09+00:00 in /Users/
 ```text
 ok      tool tests (15.1s)
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once'` exited 1 at 2026-11-18T02:43:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes, last 40 of 60 lines:
+
+```text
+        assert proc_b.communicate(timeout=10)[0] is not None
+    
+        first_start, first_end = _read_timestamp(start_a), _read_timestamp(end_a)
+        second_start, second_end = _read_timestamp(start_b), _read_timestamp(end_b)
+        if second_start < first_start:
+            first_start, first_end, second_start, second_end = second_start, second_end, first_start, first_end
+>       assert second_start >= first_end - SLACK_S, "the second run must not start until the first has finished"
+E       AssertionError: the second run must not start until the first has finished
+E       assert 1794969780.248864 >= (1794969780.85402 - 0.5)
+
+tools/tests/functional/test_quiet_slots.py:132: AssertionError
+_________________ test_the_variable_sets_how_many_run_at_once __________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-664/test_the_variable_sets_how_man0')
+
+    def test_the_variable_sets_how_many_run_at_once(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        duration = 1.0
+    
+        procs = [
+            _spawn_heavy(tmp_path=tmp_path, bin_dir=bin_dir, label=f"p{i}", duration_s=duration, lock_dir=lock_dir, slots="2") for i in range(3)
+        ]
+        for proc, _, _, _ in procs:
+            assert proc.communicate(timeout=10)[0] is not None
+    
+        spans = sorted((_read_timestamp(start), _read_timestamp(end)) for _, start, end, _ in procs)
+        first, second, third = spans
+        assert second[0] - first[0] <= SLACK_S, "two of the three should start together - the limit is 2"
+>       assert third[0] >= min(first[1], second[1]) - SLACK_S, "the third must wait for one of the first two to free a slot"
+E       AssertionError: the third must wait for one of the first two to free a slot
+E       assert 1794969780.952976 >= (1794969781.958216 - 0.5)
+E        +  where 1794969781.958216 = min(1794969781.958217, 1794969781.958216)
+
+tools/tests/functional/test_quiet_slots.py:204: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap
+FAILED tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once
+2 failed in 1.82s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_two_heavy_steps_with_one_slot_do_not_overlap tools/tests/functional/test_quiet_slots.py::test_the_variable_sets_how_many_run_at_once'` exited 0 at 2026-11-18T02:43:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmptVJ9ft` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed in 3.47s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once'` exited 1 at 2026-11-18T02:43:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpsN50Mm` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_a_sigkilled_holder_frees_its_slot_at_once ________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-667/test_a_sigkilled_holder_frees_0')
+
+    def test_a_sigkilled_holder_frees_its_slot_at_once(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=4.0, lock_dir=lock_dir, slots="1"
+        )
+        waiter_pid = tmp_path / "waiter.pid"
+        try:
+            _wait_for(holder_start)  # the holder has acquired the one slot and is now sleeping
+            os.kill(holder.pid, signal.SIGKILL)  # kill steg-quiet itself, not its fake-cargo child
+    
+            started = time.monotonic()
+            waiter, waiter_start, waiter_end, waiter_pid = _spawn_heavy(
+                tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.2, lock_dir=lock_dir, slots="1"
+            )
+            assert waiter.communicate(timeout=5)[0] is not None
+            elapsed = time.monotonic() - started
+>           assert elapsed < 2.0, "a slot held by a killed process must free at once, not after the 4s it was holding for"
+E           AssertionError: a slot held by a killed process must free at once, not after the 4s it was holding for
+E           assert 4.222133833973203 < 2.0
+
+tools/tests/functional/test_quiet_slots.py:178: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once
+1 failed in 4.34s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once'` exited 0 at 2026-11-18T02:44:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpylTdDZ` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.36s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 1 at 2026-11-18T02:44:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes, last 40 of 42 lines:
+
+```text
+=================================== FAILURES ===================================
+________ test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-670/test_a_waiter_gets_whichever_s0')
+
+    def test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one(tmp_path: Path) -> None:
+        """The fix for the convoy review found: a waiter must not be stuck behind one committed slot."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        long_duration, short_duration = 4.0, 0.3
+    
+        long_holder, long_start, long_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="long", duration_s=long_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(long_start)  # claims the first slot alone, so which slot is "long"'s is deterministic
+    
+        short_holder, short_start, short_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="short", duration_s=short_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(short_start)  # both slots are now busy before the waiter is started
+    
+        waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.1, lock_dir=lock_dir, slots="2"
+        )
+        assert waiter.communicate(timeout=10)[0] is not None
+        assert short_holder.communicate(timeout=10)[0] is not None
+        assert long_holder.communicate(timeout=10)[0] is not None
+    
+        waiter_started_at = _read_timestamp(waiter_start)
+        short_ended_at = _read_timestamp(short_end)
+        long_ended_at = _read_timestamp(long_end)
+>       assert waiter_started_at <= short_ended_at + SLACK_S * 2, "the waiter should acquire the slot that freed quickly"
+E       AssertionError: the waiter should acquire the slot that freed quickly
+E       assert 1794969872.30465 <= (1794969868.634326 + (0.5 * 2))
+
+tools/tests/functional/test_quiet_slots.py:236: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
+1 failed in 4.23s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 0 at 2026-11-18T02:44:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpDSSMx2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 4.13s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory'` exited 1 at 2026-11-18T02:45:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpOViqc2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_no_limit_never_creates_the_lock_directory ________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-673/test_no_limit_never_creates_th0')
+
+    def test_no_limit_never_creates_the_lock_directory(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        proc, _, end_file, _ = _spawn_heavy(tmp_path=tmp_path, bin_dir=bin_dir, label="a", duration_s=0.1, lock_dir=lock_dir, slots="0")
+        assert proc.communicate(timeout=5)[0] is not None
+        assert end_file.exists()
+>       assert not lock_dir.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-673/test_no_limit_never_creates_th0/slots').exists
+
+tools/tests/functional/test_quiet_slots.py:248: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory
+1 failed in 0.21s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_no_limit_never_creates_the_lock_directory'` exited 0 at 2026-11-18T02:45:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnt4yga` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.20s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots'` exited 1 at 2026-11-18T02:45:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp4UZSVA` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots ________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-676/test_a_cheap_step_is_never_slo0')
+
+    def test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=3.0, lock_dir=lock_dir, slots="1"
+        )
+        try:
+            _wait_for(holder_start)  # the single slot is now held for the next 3s
+    
+>           assert not heavy_cargo_command([sys.executable, "-c", "print('ok')"])
+E           assert not True
+E            +  where True = heavy_cargo_command(['/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132/tools/.venv/bin/python', '-c', "print('ok')"])
+
+tools/tests/functional/test_quiet_slots.py:262: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots
+1 failed in 0.12s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots'` exited 0 at 2026-11-18T02:45:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpMH0CMk` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.15s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k heavy'` exited 1 at 2026-11-18T02:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpJBUzxu` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+__________________ test_cargo_build_test_and_clippy_are_heavy __________________
+
+    def test_cargo_build_test_and_clippy_are_heavy() -> None:
+>       assert heavy_cargo_command(["cargo", "build", "-p", "steg-sdk"])
+E       AssertionError: assert False
+E        +  where False = heavy_cargo_command(['cargo', 'build', '-p', 'steg-sdk'])
+
+tools/tests/unit/test_quiet.py:65: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_cargo_build_test_and_clippy_are_heavy
+1 failed, 1 passed, 19 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k heavy'` exited 0 at 2026-11-18T02:46:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpXZpQBB` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed, 19 deselected in 0.01s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k slot_count'` exited 1 at 2026-11-18T02:47:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpn1BPZ2` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+....F.                                                                   [100%]
+=================================== FAILURES ===================================
+_________________ test_slot_count_defaults_to_unlimited_in_ci __________________
+
+    def test_slot_count_defaults_to_unlimited_in_ci() -> None:
+>       assert effective_slot_count({"CI": "true"}) is None
+E       AssertionError: assert 2 is None
+E        +  where 2 = effective_slot_count({'CI': 'true'})
+
+tools/tests/unit/test_quiet.py:96: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_slot_count_defaults_to_unlimited_in_ci
+1 failed, 5 passed, 15 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k slot_count'` exited 0 at 2026-11-18T02:47:17+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpPO4ub5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+......                                                                   [100%]
+6 passed, 15 deselected in 0.01s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k lock_directory'` exited 1 at 2026-11-18T02:47:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpV5P5lw` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+______________ test_lock_directory_override_wins_over_everything _______________
+
+    def test_lock_directory_override_wins_over_everything() -> None:
+>       assert lock_directory({"XDG_CACHE_HOME": "/tmp/cache", "STEG_CHECK_SLOTS_DIR": "/tmp/slots"}) == Path("/tmp/slots")
+E       AssertionError: assert PosixPath('/tmp/cache/steg/check-slots') == PosixPath('/tmp/slots')
+E        +  where PosixPath('/tmp/cache/steg/check-slots') = lock_directory({'XDG_CACHE_HOME': '/tmp/cache', 'STEG_CHECK_SLOTS_DIR': '/tmp/slots'})
+E        +  and   PosixPath('/tmp/slots') = Path('/tmp/slots')
+
+tools/tests/unit/test_quiet.py:112: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_lock_directory_override_wins_over_everything
+1 failed, 2 passed, 18 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k lock_directory'` exited 0 at 2026-11-18T02:47:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpIjJJh5` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+...                                                                      [100%]
+3 passed, 18 deselected in 0.01s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_bound'` exited 1 at 2026-11-18T02:47:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpDasgVW` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_____________________ test_wait_bound_honours_the_variable _____________________
+
+    def test_wait_bound_honours_the_variable() -> None:
+>       assert wait_bound_seconds({"STEG_CHECK_SLOT_WAIT_S": "45"}) == 45.0
+E       AssertionError: assert None == 45.0
+E        +  where None = wait_bound_seconds({'STEG_CHECK_SLOT_WAIT_S': '45'})
+
+tools/tests/unit/test_quiet.py:132: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_wait_bound_honours_the_variable
+1 failed, 1 passed, 19 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_bound'` exited 0 at 2026-11-18T02:48:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuw8M55` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed, 19 deselected in 0.01s
+```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_line'` exited 1 at 2026-11-18T02:48:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpamCIbH` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_the_wait_line_names_the_count_and_has_no_bound_by_default ________
+
+    def test_the_wait_line_names_the_count_and_has_no_bound_by_default() -> None:
+        line = wait_line("tests (steg-server)", 2, None)
+        assert line.startswith("wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2)")
+>       assert "STEG_CHECK_SLOT_WAIT_S is unset" in line
+E       assert 'STEG_CHECK_SLOT_WAIT_S is unset' in "wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free; this step's own STEG_QUIET_TIMEOUT_S bound has not started yet"
+
+tools/tests/unit/test_quiet.py:118: AssertionError
+______________ test_the_wait_line_names_the_bound_when_one_is_set ______________
+
+    def test_the_wait_line_names_the_bound_when_one_is_set() -> None:
+        line = wait_line("tests (steg-server)", 2, 120.0)
+>       assert "told it may wait up to 120s (STEG_CHECK_SLOT_WAIT_S)" in line
+E       assert 'told it may wait up to 120s (STEG_CHECK_SLOT_WAIT_S)' in "wait    tests (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free; this step's own STEG_QUIET_TIMEOUT_S bound has not started yet"
+
+tools/tests/unit/test_quiet.py:124: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_count_and_has_no_bound_by_default
+FAILED tools/tests/unit/test_quiet.py::test_the_wait_line_names_the_bound_when_one_is_set
+2 failed, 19 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_line'` exited 0 at 2026-11-18T02:48:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp6LjShv` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed, 19 deselected in 0.01s
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T02:58:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+ok      format check (0.3s)
+ok      lint (85.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (every crate) (104.9s)
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.9s)
+ok      test (steg-sdk, local-socket) (2.7s)
+ok      build (steg-kernel) (42.3s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (41.3s)
+ok      test (steg-server) (55.1s)
+ok      test (steg-server, race-fixture) (55.5s)
+ok      test (steg-server, pty-race-fixture) (59.8s)
+ok      test (steg-server, accept-backoff-fixture) (60.3s)
+ok      build (steg) (2.3s)
+ok      test (steg) (2.1s)
+ok      test (steg, fixtures) (6.7s)
+ok      build (steg-ui) (15.0s)
+ok      test (steg-ui) (1.2s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (23.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just test-tools` exited 0 at 2026-11-18T02:59:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 700bc6f420b7:
+
+```text
+ok      tool tests (22.4s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -106,6 +522,24 @@ created: 2026-11-18T02:31:00Z
 ---
 
 Plan approved by @bruk (d9a4c4cb7361, size-2): its worker may build it.
+
+---
+
+created: 2026-11-18T03:00:00Z
+
+---
+
+Built per the approved plan (per the engineer's own tightening of the plan's proof wording, reported earlier). Summary for the record:
+
+WHAT A WORKER SEES WHEN ITS CHECK WAITS: nothing extra on the fast path (at least one of STEG_CHECK_SLOTS slots free - the common case). Only when every slot is busy, one line, flushed before the real wait: "wait    <label> (N of N slots busy, STEG_CHECK_SLOTS=N) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet" (or, with the bound set, "told it may wait up to Xs (STEG_CHECK_SLOT_WAIT_S)" in place of "with no bound..."). That line is the only thing distinguishing "still waiting" from "broken" if a worker's own harness timeout cuts its output short mid-wait.
+
+THE TWO VARIABLES: STEG_CHECK_SLOTS sets how many heavy cargo steps (build/test/clippy) may run machine-wide at once - default 2, 0 means no limit and takes no lock at all, unset defaults to no limit under CI automatically (GitHub Actions sets CI=true; its own concurrency group already runs one check job per ref). STEG_CHECK_SLOT_WAIT_S optionally bounds how long a waiter will wait before failing the step outright with a clear message - unset by default (unbounded), so a worker's own command timeout is the only thing that currently cuts a long wait short, with no special message from this mechanism. Both documented in the justfile's own header comment and in quiet.py's module docstring.
+
+WHAT THIS DOES NOT FIX: CPU/disk contention from non-cargo work on the machine (another process entirely, a browser, an editor's own indexer) is invisible to this limiter - it only ever counts cargo build/test/clippy invocations against each other, so a machine busy with unrelated load can still make the timing-sensitive tests flaky even with every slot "free" by this mechanism's own count. It coordinates only processes on one machine sharing the same lock directory - a second machine, or a sandboxed environment with its own distinct $HOME/XDG_CACHE_HOME, is invisible to it and not meant to be (TASK-1.132's own scope is one machine). And it assumes a local, POSIX-flock-honouring filesystem under the lock directory; a network-mounted home directory would make flock's own guarantees unreliable across hosts, which is named as a known limitation in the plan with STEG_CHECK_SLOTS_DIR as the escape hatch to point at local disk if that's ever actually hit - nothing here detects or warns about that case automatically.
+
+Checks recorded: an initial just test-tools baseline before any change; the full implementation's own just test-tools and the new functional/unit tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls) covering lock acquisition (tests a, d), the SIGKILL release property (test c, via a scratch edit that made the slot's fd inheritable into the fake-cargo child - showing the slot is NOT freed without the deliberate close-on-exec/close_fds=True this task relies on), the first-to-free race (test e, via a scratch fallback to a fixed slot - showing the waiter gets stuck behind the long holder instead of the quick one), the no-limit path (test f), heavy-step detection (test g), and each of the five pure functions (heavy_cargo_command, effective_slot_count, lock_directory, wait_bound_seconds, wait_line) with their own unit tests. Tree was clean between every pair and at the end (git status, and ps checked for leftover processes after the SIGKILL and cheap-step tests, which deliberately kill or race real subprocesses). Finally, a full just check recorded with the limiter live for the first time, against the real default lock directory, while five other workers were building on this machine - completed clean in under 8 minutes with no wait needed that particular run (the other workers' heavy steps didn't happen to collide with mine at the moments that mattered, but the mechanism was live throughout).
+
+No departures from the approved plan.
 
 ---
 <!-- COMMENTS:END -->

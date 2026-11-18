@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:30:00Z'
+updated_date: '2026-11-18T02:42:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -159,6 +159,41 @@ Read `boundaries.toml` and `.claude/rules/architecture.md`: both operate at the 
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's four criteria by @bruk.o: ok. Move only: runtime.rs becomes runtime/mod.rs plus login, tree, start, attach, input, close, moving, events and lifecycle, with test helpers in a test-only module; eleven private items widen to pub(super) and no further. Proofs with controls: public surface unchanged; test list identical apart from module prefixes; a sorted normalised-line comparison of bodies, with moved-line counts recorded to cover what that comparison cannot see. Stale comments naming runtime.rs elsewhere are fixed in a final comments-only commit. Collisions that remain after the split are stated: TASK-1.109 touches most of the new files and pairs with 1.116 and 1.88.
+
+Check passed: `just check` exited 0 at 2026-11-18T02:42:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at c7330d672fc4:
+
+```text
+ok      format check (0.3s)
+ok      lint (90.8s)
+ok      boundaries (0.2s)
+ok      foundations (0.2s)
+ok      foundations public surface (0.1s)
+ok      design pages (0.1s)
+ok      licences (1.2s)
+skip    tests: this change touches no crate
+ok      build (steg-sdk) (3.4s)
+ok      test (steg-sdk) (2.6s)
+ok      test (steg-sdk, local-socket) (2.9s)
+ok      build (steg-kernel) (45.1s)
+ok      test (steg-kernel) (2.3s)
+ok      build (steg-server) (47.0s)
+ok      test (steg-server) (54.5s)
+ok      test (steg-server, race-fixture) (137.4s)
+ok      test (steg-server, pty-race-fixture) (143.6s)
+ok      test (steg-server, accept-backoff-fixture) (116.8s)
+ok      build (steg) (2.5s)
+ok      test (steg) (2.0s)
+ok      test (steg, fixtures) (6.5s)
+ok      build (steg-ui) (20.4s)
+ok      test (steg-ui) (1.6s)
+ok      build (steg-app) (2.6s)
+ok      test (steg-app) (2.2s)
+ok      tool tests (14.6s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

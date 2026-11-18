@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:39:00Z'
+updated_date: '2026-11-18T03:01:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -183,6 +183,184 @@ test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/test-steg-server-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just test` exited 101 at 2026-11-18T02:48:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+running 7 tests
+test cli::exit::tests::every_connect_error_maps_to_4 ... ok
+test cli::exit::tests::api_error_status_follows_the_table_not_a_parallel_match ... ok
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+test cli::tree::tests::autostart_defaults_to_true_with_neither_flag_given ... ok
+test cli::tree::tests::autostart_given_after_no_autostart_wins ... ok
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+test cli::tree::tests::json_is_read_from_the_leaf_subcommand ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/steg-b011cf352425d3e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-0e563f4919d1f569)
+
+running 2 tests
+test api_call_prints_json_with_no_json_flag_given ... ok
+test api_call_sends_stdin_params_flat_to_the_named_method ... FAILED
+
+failures:
+
+---- api_call_sends_stdin_params_flat_to_the_named_method stdout ----
+
+thread 'api_call_sends_stdin_params_flat_to_the_named_method' (57170303) panicked at crates/steg/tests/cli_api_call.rs:121:54:
+pane.list prints a JSON array: Error("EOF while parsing a value", line: 1, column: 0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_sends_stdin_params_flat_to_the_named_method
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 1 at 2026-11-18T02:58:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+(B[m[32m+            "session",
+(B[m[32m+            "new",
+(B[m[32m+            "--label",
+(B[m[32m+            "status-1-proof",
+(B[m[32m+            "--json",
+(B[m[32m+            "--",
+(B[m[32m+            "/bin/cat",
+(B[m         ],
+         &socket,
+     );
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg/tests/cli_exit_statuses.rs:342:
+         .to_owned();
+ 
+     let close = run_steg(&["session", "close", session_id.as_str()], &socket);
+[31m-    assert_eq!(close.status.code(), Some(1), "stderr: {}", stderr_of(&close));
+(B[m[32m+    assert_eq!(
+(B[m[32m+        close.status.code(),
+(B[m[32m+        Some(1),
+(B[m[32m+        "stderr: {}",
+(B[m[32m+        stderr_of(&close)
+(B[m[32m+    );
+(B[m     assert!(stdout_of(&close).is_empty());
+ 
+     // Cleanup, forced - never leave a program running behind this test.
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg/tests/cli_exit_statuses.rs:350:
+         &["session", "close", session_id.as_str(), "--force"],
+         &socket,
+     );
+[31m-    assert_eq!(forced.status.code(), Some(0), "stderr: {}", stderr_of(&forced));
+(B[m[32m+    assert_eq!(
+(B[m[32m+        forced.status.code(),
+(B[m[32m+        Some(0),
+(B[m[32m+        "stderr: {}",
+(B[m[32m+        stderr_of(&forced)
+(B[m[32m+    );
+(B[m }
+ 
+ // --- status 130: interrupted ------------------------------------------------
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T02:59:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 4.2s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/steg/src/cli/api_call.rs:29:1
+   |
+29 | pub fn run(api: &Description, matches: &ArgMatches) -> i32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/steg/src/cli/api_call.rs:30:23
+   |
+30 |       let method_name = matches
+   |  _______________________^
+31 | |         .get_one::<String>("method")
+32 | |         .expect("api.call's own target is required")
+   | |____________________________________________________^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: wildcard match will also match any future added variants
+   --> crates/steg/src/cli/connect.rs:146:17
+    |
+146 |                 _ => continue,
+    |                 ^ help: try: `Incoming::Hello(_) | Incoming::Request { .. } | Incoming::Reply { .. } | Incoming::Event { .. } | Incoming::UnknownEvent { .. } | Incoming::StreamControl { .. } | Incoming::Data { .. } | Incoming::UnknownStream { .. }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:01:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 74 lines:
+
+```text
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_whole ... ok
+test screen::tests::a_screen_with_every_cell_style_round_trips ... ok
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... ok
+test wire::frame::tests::an_oversized_declared_length_is_refused_before_anything_past_it_is_read ... ok
+test screen::tests::screen_update_full_round_trips ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::frame_constructors_set_the_expected_kind_and_stream ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+test screen::tests::pane_attached_round_trips_and_carries_both_fields_in_one_object ... ok
+
+failures:
+
+---- local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails stdout ----
+
+thread 'local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails' (57502416) panicked at crates/sdk/src/local_socket.rs:485:9:
+Err(Io(Os { code: 22, kind: InvalidInput, message: "Invalid argument" }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails
+
+test result: FAILED. 171 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+full output: .quiet/test-steg-sdk-local-socket.log
 error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->

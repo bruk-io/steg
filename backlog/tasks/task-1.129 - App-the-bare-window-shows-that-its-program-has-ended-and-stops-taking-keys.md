@@ -1,17 +1,20 @@
 ---
 id: TASK-1.129
 title: 'App: the bare window shows that its program has ended, and stops taking keys'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:42:00Z'
+updated_date: '2026-11-18T03:03:00Z'
 labels:
   - size-2
 milestone: m-4
 dependencies:
   - TASK-1.128
   - TASK-1.121
+references:
+  - task-1.129-app-the-bare-window-shows-that-its
+  - https://github.com/bruk-io/steg/pull/74
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -19,6 +22,8 @@ asdlc_branch: task-1.129-app-the-bare-window-shows-that-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '95871fc3dfbf'
 asdlc_plan_approved_size: size-2
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -701,6 +706,111 @@ error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/test-steg-server-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
 ```
+
+Check passed: `just check` exited 0 at 2026-11-18T02:46:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg-app) (0.8s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (54.8s)
+ok      test (steg-server, race-fixture) (55.4s)
+ok      test (steg-server, pty-race-fixture) (58.7s)
+ok      test (steg-server, accept-backoff-fixture) (56.5s)
+ok      build (steg) (2.7s)
+ok      test (steg) (2.2s)
+ok      test (steg, fixtures) (6.9s)
+ok      build (steg-ui) (3.3s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.5s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (14.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T02:51:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at b8cb8ee027f1:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.6s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg-app) (1.7s)
+ok      build (steg-sdk) (0.2s)
+ok      test (steg-sdk) (0.8s)
+ok      test (steg-sdk, local-socket) (0.8s)
+ok      build (steg-kernel) (0.2s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (0.2s)
+ok      test (steg-server) (56.3s)
+ok      test (steg-server, race-fixture) (51.3s)
+ok      test (steg-server, pty-race-fixture) (56.6s)
+ok      test (steg-server, accept-backoff-fixture) (52.3s)
+ok      build (steg) (0.2s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (3.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Built per the approved plan. Departures from the plan (its own wording):
+
+- None beyond what the plan's "Design decided by this plan" section
+  already named as findings from the two advisor reviews before any code
+  existed (Writer::disarm, not Writer::stop; stopping the receive loop
+  rather than guarding Disconnected; the render split keeping the
+  not-ended tree unchanged). Built exactly as planned.
+
+One honest note on the render split's own verification: the plan said to
+check it with a plain git diff showing the None branch's own lines as
+unchanged context. In the actual edit, wrapping the existing div chain in
+an if/else necessarily re-indents it, so git's own diff shows those lines
+as touched even though their content (same methods, same arguments, no
+flex wrapper) is unchanged - confirmed by reading the two branches side
+by side, not by the diff's own shape. Said so here rather than silently
+claiming the literal check passed as worded.
+
+Checks recorded via asdlc record-check against TASK-1.129:
+- describe_end's own two tests, failing (stub) then passing.
+- client.rs's three new tests (own client event; close_stream's own
+  effect; disarm's own no-op), each failing (its own mechanism disabled)
+  then passing.
+- startup.rs's existing, unmodified an_ended_panes_program_gets_a_fresh_
+  tab_in_the_same_session, failing (resolve_pane's own program_status
+  check scratch-disabled) then passing - AC #3's own control, recorded
+  on request even though this diff does not touch that mechanism.
+- just check, clean at the final pushed head (fbcf6702); one login_env
+  grandchild flake hit and reran clean, the known hazard.
+- CI green on the same commit (gh pr checks 74 --watch, 10m10s).
+
+AC #4's own two screenshots are pending your own live run - the PR body
+says exactly what to run and what to look for (program exit with a
+status; a forced close; typing after the message does nothing; the
+terminal's own size before the message appears is unchanged from main).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -712,6 +822,15 @@ created: 2026-11-18T02:25:00Z
 ---
 
 Plan approved by @bruk (95871fc3dfbf, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:03:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.129: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

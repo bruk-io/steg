@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:30:00Z'
+updated_date: '2026-11-18T02:57:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -130,6 +130,15 @@ After this lands, a new API method touches: the one noun file under crates/sdk/s
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 
 Plan checked against the task's three criteria by @bruk.o: ok. Move only: methods.rs becomes methods/ with a file per noun plus shared.rs, errors.rs and tests.rs; one commit per noun after the rename. Three mechanical proofs, each with a control: the description's serialised form byte for byte, the sdk's test list, and a normalised-line hash of the bodies. The byte-for-byte dump uses a scratch, uncommitted test file calling the real description(); the reviewer is to repeat it. methods/tests.rs remains the one file every new method still touches, named as a follow-up.
+
+Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-before.json'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-control.json'"'"''` exited 1 at 2026-11-18T02:57:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+12c12
+<       "summary": "Every session on the host",
+---
+>       "summary": "Every session on the hostX",
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

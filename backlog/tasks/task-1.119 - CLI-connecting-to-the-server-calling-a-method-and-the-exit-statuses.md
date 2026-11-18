@@ -590,6 +590,41 @@ Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
 
 For more information, try '--help'.
 ```
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket -- eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 101 at 2026-11-18T03:16:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 2 tests
+test local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails ... FAILED
+test local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts ... FAILED
+
+failures:
+
+---- local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails stdout ----
+
+thread 'local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails' (57857876) panicked at crates/sdk/src/local_socket.rs:498:9:
+assertion `left == right` failed: exactly two connection attempts: the first EOF, then one retry - not one, not three or more
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts stdout ----
+
+thread 'local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts' (57857875) panicked at crates/sdk/src/local_socket.rs:524:40:
+the retry's own hello should succeed: ClosedBeforeHello
+
+
+failures:
+    local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts
+    local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

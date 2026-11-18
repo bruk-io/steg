@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:27:00Z'
+updated_date: '2026-11-18T02:30:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -14,6 +14,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.131-server-runtime-rs-split-into-modules-by
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: '6b3f731e72f1'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -157,3 +160,16 @@ Read `boundaries.toml` and `.claude/rules/architecture.md`: both operate at the 
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against the task's four criteria by @bruk.o: ok. Move only: runtime.rs becomes runtime/mod.rs plus login, tree, start, attach, input, close, moving, events and lifecycle, with test helpers in a test-only module; eleven private items widen to pub(super) and no further. Proofs with controls: public surface unchanged; test list identical apart from module prefixes; a sorted normalised-line comparison of bodies, with moved-line counts recorded to cover what that comparison cannot see. Stale comments naming runtime.rs elsewhere are fixed in a final comments-only commit. Collisions that remain after the split are stated: TASK-1.109 touches most of the new files and pairs with 1.116 and 1.88.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T02:30:00Z
+
+---
+
+Plan approved by @bruk (6b3f731e72f1, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

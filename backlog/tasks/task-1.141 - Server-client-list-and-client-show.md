@@ -1,9 +1,11 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
+updated_date: '2026-11-18T22:19:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -11,6 +13,7 @@ dependencies: []
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-5
+asdlc_branch: task-1.141-server-client-list-and-client-show
 ---
 
 ## Description

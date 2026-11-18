@@ -1,11 +1,11 @@
 ---
 id: TASK-1.135
 title: 'Server tests: the dispatch tests split by noun, in one test binary'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T05:24:00Z'
+updated_date: '2026-11-18T13:49:00Z'
 labels:
   - size-2
   - review-passed

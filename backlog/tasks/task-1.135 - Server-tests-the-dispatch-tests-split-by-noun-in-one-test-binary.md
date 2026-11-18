@@ -237,6 +237,15 @@ Check FAILED: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo te
 ---
 > pane_close_removes_the_pane_x: test
 ```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt && echo '"'"'PROOF (b): passes again after revert'"'"''` exited 0 at 2026-11-18T03:03:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): passes again after revert
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

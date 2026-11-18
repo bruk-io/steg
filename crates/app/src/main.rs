@@ -146,16 +146,24 @@ impl AppWindow {
         let metrics = CellMetrics::measure(window);
         let model = Rc::new(RefCell::new(Model::from_snapshot(attached.snapshot)));
         let row_cache = terminal_element::row_cache();
-        let (client, mut receiver) = Client::start(
+
+        // One shared event channel for both threads (review finding 1): the reader's own
+        // `Disconnected` and the writer thread's own now travel the exact same path to the
+        // window, so either side losing the connection is handled identically.
+        let (events, mut receiver) = futures::channel::mpsc::unbounded();
+        let client = Client::start(
             attached.stream,
             attached.connection,
             attached.shutdown_handle,
+            events.clone(),
         );
 
         // The writer: a second, encode-only `Connection`, seeded the same way the reader's
         // was (`Connection::open_stream` on the same id) - TASK-1.121 plan §3, TASK-1.117's
-        // plan §1's own slot for this. Its own `tab.declare-size` reply lands on the
-        // reader's connection instead (`client.rs`'s own `drain`, which tolerates it).
+        // plan §1's own slot for this; now (review finding 1) its own dedicated thread, fed
+        // by a bounded queue, never a socket write on this thread. Its own `tab.declare-
+        // size` reply lands on the reader's connection instead (`client.rs`'s own `drain`,
+        // which tolerates it).
         let mut writer_connection =
             steg_sdk::Connection::new(steg_sdk::WireRole::Client, steg_sdk::description());
         writer_connection.open_stream(attached.stream_id);
@@ -164,6 +172,7 @@ impl AppWindow {
             writer_connection,
             attached.stream_id,
             attached.tab_target,
+            events,
         );
 
         // Declared once on open (TASK-1.121 plan §4), from whatever the window's own
@@ -247,6 +256,7 @@ impl AppWindow {
         drop(self.startup_thread.take());
         if let Phase::Attached(state) = &mut self.phase {
             state.client.stop();
+            state.writer.stop();
         }
     }
 
@@ -287,6 +297,22 @@ impl AppWindow {
     /// macOS backend already enforces).
     fn on_key_down(&mut self, event: &KeyDownEvent, _window: &mut Window, cx: &mut Context<Self>) {
         let keystroke = &event.keystroke;
+        if is_paste_keystroke(keystroke) {
+            // Plain bytes, no bracketed paste (approved plan's "For the engineer" §3):
+            // whatever the clipboard's own text is, normalised the same way a committed
+            // IME composition already is (`ime::normalize_line_endings`'s own doc - a
+            // pasted document is exactly the kind of text with CRLF or bare CR line
+            // endings that doc describes), sent as input on the one raw-keystroke path.
+            // Consumed either way once recognised as the gesture, even when the clipboard
+            // holds nothing - never falls through to `key_to_bytes` (which would return
+            // `None` for it regardless, `keys.rs`'s own `modifiers.platform` check) or to
+            // the IME path.
+            if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+                self.send_bytes(ime::normalize_line_endings(&text).into_bytes());
+            }
+            cx.stop_propagation();
+            return;
+        }
         if let Some(bytes) = keys::key_to_bytes(
             &keystroke.key,
             keystroke.key_char.as_deref(),
@@ -296,6 +322,17 @@ impl AppWindow {
             cx.stop_propagation();
         }
     }
+}
+
+/// A plain Cmd-V: the command key and nothing else besides the key itself (not Cmd-Shift-V,
+/// not Cmd-Option-V) - the exact gesture the approved plan names, no more.
+fn is_paste_keystroke(keystroke: &gpui::Keystroke) -> bool {
+    keystroke.key == "v"
+        && keystroke.modifiers.platform
+        && !keystroke.modifiers.control
+        && !keystroke.modifiers.shift
+        && !keystroke.modifiers.alt
+        && !keystroke.modifiers.function
 }
 
 impl EntityInputHandler for AppWindow {
@@ -486,4 +523,67 @@ fn main() {
         }
         cx.activate(true);
     });
+}
+
+#[cfg(test)]
+mod paste_keystroke_tests {
+    use gpui::Modifiers;
+
+    use super::is_paste_keystroke;
+
+    fn keystroke(key: &str, modifiers: Modifiers) -> gpui::Keystroke {
+        gpui::Keystroke {
+            modifiers,
+            key: key.to_owned(),
+            key_char: None,
+        }
+    }
+
+    #[test]
+    fn a_plain_cmd_v_is_the_paste_keystroke() {
+        let modifiers = Modifiers {
+            platform: true,
+            ..Modifiers::default()
+        };
+        assert!(is_paste_keystroke(&keystroke("v", modifiers)));
+    }
+
+    #[test]
+    fn v_with_no_command_key_is_not_the_paste_keystroke() {
+        assert!(!is_paste_keystroke(&keystroke("v", Modifiers::default())));
+    }
+
+    #[test]
+    fn a_different_key_with_the_command_key_is_not_the_paste_keystroke() {
+        let modifiers = Modifiers {
+            platform: true,
+            ..Modifiers::default()
+        };
+        assert!(!is_paste_keystroke(&keystroke("c", modifiers)));
+    }
+
+    /// Cmd-Shift-V, Cmd-Option-V and the like are a different gesture - the approved
+    /// plan names plain Cmd-V only, no more.
+    #[test]
+    fn cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke() {
+        for modifiers in [
+            Modifiers {
+                platform: true,
+                shift: true,
+                ..Modifiers::default()
+            },
+            Modifiers {
+                platform: true,
+                alt: true,
+                ..Modifiers::default()
+            },
+            Modifiers {
+                platform: true,
+                control: true,
+                ..Modifiers::default()
+            },
+        ] {
+            assert!(!is_paste_keystroke(&keystroke("v", modifiers)));
+        }
+    }
 }

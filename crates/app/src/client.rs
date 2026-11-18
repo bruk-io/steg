@@ -1,30 +1,37 @@
 //! The connection, once startup has handed it over: a dedicated thread blocks on the
 //! socket and decodes with the sdk's own `Connection`; each update reaches the foreground
-//! task over a channel it `.await`s - never polled (TASK-1.117's plan §1).
+//! task over a channel it `.await`s - never polled (TASK-1.117's plan §1). A second,
+//! dedicated thread owns the write half (review finding 1, `Writer` below): no socket
+//! write ever happens on the UI thread, for input or for declared sizes alike.
 
 use std::io::{self, Read, Write as _};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::thread::{self, JoinHandle};
 
-use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc::UnboundedSender;
 use steg_sdk::{Connection, Incoming, ScreenUpdate};
 
-/// What the reader thread hands the foreground task.
+/// What the reader thread, and now the writer thread too, hand the foreground task - one
+/// shared channel, so either side reporting the connection lost reaches the window through
+/// the exact same path (review finding 1: "a write error or disconnect on the writer
+/// thread reaches the window the same way a reader-side disconnect does today").
 #[derive(Debug)]
 pub enum ClientEvent {
     Update(ScreenUpdate),
-    /// The connection ended - a clean EOF, an error, or a frame this read-only app's own
-    /// design does not expect after startup (TASK-1.117's plan §1: part 1 makes no call
-    /// at all once attached, so anything but a `StreamControl` on the one open stream is
-    /// a protocol-level surprise, not specially recovered from).
+    /// The connection ended - a clean EOF, a write that failed, this task's own writer
+    /// queue filling up behind a peer that never reads (`Writer`'s own module doc), or a
+    /// frame this read-only app's own design does not expect after startup (TASK-1.117's
+    /// plan §1: part 1 makes no call at all once attached, so anything but a
+    /// `StreamControl` on the one open stream is a protocol-level surprise, not specially
+    /// recovered from).
     Disconnected,
 }
 
 /// The connection's own reader thread, kept only so [`Client::stop`] can end it - the
-/// channel it feeds is returned separately by [`Client::start`] and owned directly by
-/// whichever foreground task `.await`s it (nothing else needs to reach through this type
-/// to use the channel).
+/// channel it feeds is created by the caller and shared with [`Writer`] (module doc), so
+/// either side's own `Disconnected` reaches the one place the window listens.
 pub struct Client {
     shutdown_handle: UnixStream,
     reader: Option<JoinHandle<()>>,
@@ -33,24 +40,19 @@ pub struct Client {
 impl Client {
     /// Starts the reader thread, which owns `stream` and `connection` from here on - this
     /// call never touches either again. `shutdown_handle` is a clone of the same socket,
-    /// kept only so [`Client::stop`] can unblock the reader's own `read()`. Returns the
-    /// `Client` itself (for `stop`) and the channel's receiving end, moved into whichever
-    /// foreground task `.await`s it.
-    #[must_use]
+    /// kept only so [`Client::stop`] can unblock the reader's own `read()`. `events` is
+    /// the shared sender [`Writer::new`] also holds a clone of.
     pub fn start(
         stream: UnixStream,
         connection: Connection,
         shutdown_handle: UnixStream,
-    ) -> (Self, UnboundedReceiver<ClientEvent>) {
-        let (sender, receiver) = mpsc::unbounded();
-        let reader = thread::spawn(move || read_loop(stream, connection, &sender));
-        (
-            Self {
-                shutdown_handle,
-                reader: Some(reader),
-            },
-            receiver,
-        )
+        events: UnboundedSender<ClientEvent>,
+    ) -> Self {
+        let reader = thread::spawn(move || read_loop(stream, connection, &events));
+        Self {
+            shutdown_handle,
+            reader: Some(reader),
+        }
     }
 
     /// Unblocks the reader thread's own `read()` (`shutdown()` on one fd of a socket ends
@@ -73,59 +75,170 @@ impl Drop for Client {
     }
 }
 
-/// The main thread's own, encode-only `Connection` (TASK-1.117's plan §1: "two `Connection`
-/// instances, not one shared behind a lock" - the reader thread owns the decode-only one,
-/// `read_loop` above; this is the other half, TASK-1.121's own writer). Writes directly over
-/// its own cloned handle to the same socket - no channel, no lock, because only the main
-/// thread ever builds a new request after startup.
+/// One thing the UI thread asked the writer thread to send, in the order it asked - a
+/// single queue and a single consuming thread is what keeps input and declared sizes in
+/// the order the UI issued them (review finding 1's own ordering requirement): two
+/// separate queues could not promise that once either one's own write actually blocks.
+enum WriterCommand {
+    Input(Vec<u8>),
+    DeclareSize { columns: u16, rows: u16 },
+}
+
+/// How many commands the writer's own queue holds before a sender is told it is full
+/// (review finding 1: "say what bounds the queue"). Generous for ordinary interactive
+/// use: a person typing, even fast, or one resize's own coalesced declarations, comes
+/// nowhere near this many commands a second. Still small enough that a genuinely stalled
+/// peer (the kernel's own 8 KiB socket buffer already full, and nothing draining it) is
+/// noticed well within a second of continued typing, not left to grow without bound - an
+/// unbounded queue behind a stalled server is a memory problem instead of a frozen
+/// window, which is the one risk this task's own writer thread exists to remove, not
+/// reintroduce in a different shape.
+const WRITER_QUEUE_CAPACITY: usize = 256;
+
+/// The main thread's own writer (review finding 1): owns nothing about the socket
+/// directly any more - every `send_input`/`declare_size` call hands its own bytes to a
+/// dedicated thread over a bounded channel and returns at once, never blocking on the
+/// socket itself. That thread blocks on the channel's own `recv()` until there is
+/// something to send - no polling, no timer, the same shape the reader thread's own
+/// blocking `read()` already has. `try_send`'s own non-blocking contract is what makes
+/// "returns at once" true even when the queue is full, not merely when it has room.
 pub(crate) struct Writer {
-    handle: UnixStream,
-    connection: Connection,
-    stream: u32,
-    /// `{session}/{tab}` - `tab.declare-size`'s own target (TASK-1.114 §2).
-    tab_target: String,
+    commands: Option<SyncSender<WriterCommand>>,
+    thread: Option<JoinHandle<()>>,
+    /// A clone of the write handle, kept only to unblock the writer thread's own blocking
+    /// `write_all` from [`Writer::stop`] - the same mechanism [`Client::stop`] already
+    /// uses for the reader (`shutdown()` on one fd fails a blocked write on another fd of
+    /// the same socket, the identical POSIX guarantee, not a different one).
+    shutdown_handle: UnixStream,
+    /// Reported once, the first time either a `try_send` finds the queue full or the
+    /// writer thread's own write fails - never twice for the same writer, since nothing
+    /// after that first report is still true to say twice, and a second
+    /// `ClientEvent::Disconnected` would be redundant, not incorrect (`handle_client_
+    /// event`'s own arm is already idempotent) but still worth not doing needlessly.
+    events: UnboundedSender<ClientEvent>,
 }
 
 impl Writer {
     /// `connection` must already have `stream` open (`Connection::open_stream`), mirroring
     /// what the reader's own `Connection` did with the same id - two independent sdk state
-    /// objects representing the one logical attachment, seeded the same way.
+    /// objects representing the one logical attachment, seeded the same way. `events` is
+    /// the shared sender [`Client::start`] also holds a clone of (module doc).
     pub(crate) fn new(
         handle: UnixStream,
         connection: Connection,
         stream: u32,
         tab_target: String,
+        events: UnboundedSender<ClientEvent>,
     ) -> Self {
+        let shutdown_handle = handle
+            .try_clone()
+            .expect("clone the write handle for Writer::stop");
+        let (commands_tx, commands_rx) = sync_channel(WRITER_QUEUE_CAPACITY);
+        let thread_events = events.clone();
+        let thread = thread::spawn(move || {
+            write_loop(
+                handle,
+                connection,
+                stream,
+                tab_target,
+                &commands_rx,
+                &thread_events,
+            );
+        });
         Self {
-            handle,
-            connection,
-            stream,
-            tab_target,
+            commands: Some(commands_tx),
+            thread: Some(thread),
+            shutdown_handle,
+            events,
         }
     }
 
-    /// Sends `bytes` as input on the attachment's own stream (TASK-1.121 plan §1/§3).
-    /// Best-effort: a write that fails here is not specially recovered from - the same
-    /// underlying socket failing will also end the reader thread's own `read()` shortly
-    /// after, which is what actually moves this window to `Phase::Disconnected`.
+    /// Hands `bytes` to the writer thread as input on the attachment's own stream
+    /// (TASK-1.121 plan §1/§3) - a non-blocking enqueue, never a socket write on this
+    /// thread (review finding 1). If the queue is already full (the stalled-peer case
+    /// `WRITER_QUEUE_CAPACITY`'s own doc names) or the writer thread has already ended,
+    /// the connection is treated as lost: reported once, the same way a reader-side
+    /// disconnect already is, never silently dropped with no consequence at all.
     pub(crate) fn send_input(&mut self, bytes: Vec<u8>) {
-        if let Ok(frame) = self.connection.send_data(self.stream, &bytes) {
-            let _ = self.handle.write_all(&frame);
+        self.try_send(WriterCommand::Input(bytes));
+    }
+
+    /// Hands `columns`/`rows` to the writer thread to declare for this attachment's own
+    /// tab (TASK-1.121 plan §4) - the same non-blocking enqueue `send_input` uses, through
+    /// the same single queue, which is what keeps the two in the order the UI issued them.
+    pub(crate) fn declare_size(&mut self, columns: u16, rows: u16) {
+        self.try_send(WriterCommand::DeclareSize { columns, rows });
+    }
+
+    fn try_send(&mut self, command: WriterCommand) {
+        let Some(commands) = &self.commands else {
+            return;
+        };
+        match commands.try_send(command) {
+            Ok(()) => {}
+            Err(TrySendError::Full(_) | TrySendError::Disconnected(_)) => {
+                let _ = self.events.unbounded_send(ClientEvent::Disconnected);
+            }
         }
     }
 
-    /// Declares `columns`/`rows` for this attachment's own tab (TASK-1.121 plan §4). The
-    /// reply (`Response::Ok(Null)` or an error) lands on stream 0, decoded by the *reader's*
-    /// own `Connection`, not this one - `client.rs`'s own `drain` tolerates an
-    /// `Incoming::Reply` for exactly this reason, and this app acts the same way whether it
-    /// arrives or not: there is nothing to do differently on a `BadRequest` here, since
-    /// `size::grid_size`'s own floor already keeps a zero size from ever being sent.
-    pub(crate) fn declare_size(&mut self, columns: u16, rows: u16) {
-        if let Ok((_id, frame)) =
-            self.connection
-                .declare_size(Some(&self.tab_target), columns, rows)
-        {
-            let _ = self.handle.write_all(&frame);
+    /// Unblocks the writer thread - whether it is idle in `commands_rx.recv()` (dropping
+    /// the sender ends that wait, since no further command can ever arrive) or stuck
+    /// inside its own blocking `write_all` (`shutdown_handle`'s own `shutdown()` call ends
+    /// that instead, module doc) - and joins it. Called once, on window close, the same
+    /// shape [`Client::stop`] already has for the reader: no thread outlives the window,
+    /// and this never joins a thread that could still be running for an unbounded reason,
+    /// since one of these two calls is guaranteed to end it first (review finding 1: "must
+    /// not join a thread that can never finish").
+    pub(crate) fn stop(&mut self) {
+        self.commands = None;
+        let _ = self.shutdown_handle.shutdown(Shutdown::Both);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
+    }
+}
+
+impl Drop for Writer {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// The writer thread's own body: blocks on `commands.recv()` (no polling, no timer) until
+/// there is something to send, builds the frame for it, and writes it - ending the moment
+/// either the channel closes (nothing further can ever arrive, module doc on
+/// `Writer::stop`) or a write fails (the connection is gone; reported once, the same
+/// `ClientEvent::Disconnected` path the reader thread already uses, and nothing further is
+/// attempted on an already-dead socket).
+fn write_loop(
+    mut handle: UnixStream,
+    mut connection: Connection,
+    stream: u32,
+    tab_target: String,
+    commands: &Receiver<WriterCommand>,
+    events: &UnboundedSender<ClientEvent>,
+) {
+    while let Ok(command) = commands.recv() {
+        let frame = match command {
+            WriterCommand::Input(bytes) => connection.send_data(stream, &bytes).ok(),
+            WriterCommand::DeclareSize { columns, rows } => connection
+                .declare_size(Some(&tab_target), columns, rows)
+                .ok()
+                .map(|(_id, frame)| frame),
+        };
+        let Some(frame) = frame else {
+            // Validation failed against this task's own well-formed input (never expected
+            // in practice - `size::grid_size`'s own floor already keeps a zero size from
+            // reaching here, and `send_data` only refuses a stream this connection has not
+            // itself opened, which this one always has) - best-effort, same as before this
+            // task's own writer thread existed: skip this one command, keep serving the
+            // queue rather than treating a validation bug as a dead connection.
+            continue;
+        };
+        if handle.write_all(&frame).is_err() {
+            let _ = events.unbounded_send(ClientEvent::Disconnected);
+            return;
         }
     }
 }
@@ -163,12 +276,12 @@ fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> 
                     Err(_) => return false,
                 }
             }
-            // TASK-1.121's own writer (a second `Connection` instance, `Writer` above)
-            // calls `tab.declare-size` after startup, whose reply lands here, on the
-            // reader's own decode-only `Connection` - ignored, not correlated to anything
-            // (this app acts the same way whether it succeeds or not, `Writer::declare_
-            // size`'s own doc), and not the protocol-level surprise it would have been
-            // before this task, when nothing on this connection ever called again.
+            // TASK-1.121's own writer thread calls `tab.declare-size` after startup, whose
+            // reply lands here, on the reader's own decode-only `Connection` - ignored,
+            // not correlated to anything (this app acts the same way whether it succeeds
+            // or not, `Writer`'s own doc), and not the protocol-level surprise it would
+            // have been before this task, when nothing on this connection ever called
+            // again.
             Incoming::Reply { .. } => continue,
             // Still a protocol-level surprise this app's own design does not produce or
             // expect: no event subscription, no second attachment, no handshake replay.
@@ -190,8 +303,9 @@ fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> 
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc;
-    use std::time::Duration;
+    use std::time::{Duration, Instant};
 
+    use futures::channel::mpsc::UnboundedReceiver;
     use serde_json::Value;
     use steg_sdk::{
         Connection, Description, Frame, Response, ScreenUpdate, WireRole, encode_frame,
@@ -224,7 +338,8 @@ mod tests {
         let shutdown_handle = app_side.try_clone().expect("clone the socket");
         let mut connection = Connection::new(WireRole::Client, description_with_no_methods());
         connection.open_stream(7);
-        let (client, receiver) = Client::start(app_side, connection, shutdown_handle);
+        let (events, receiver) = futures::channel::mpsc::unbounded();
+        let client = Client::start(app_side, connection, shutdown_handle, events);
         (server_side, client, receiver)
     }
 
@@ -234,12 +349,19 @@ mod tests {
     /// a plain, timeout-capable `std::sync::mpsc` channel from the test's own thread: a
     /// broken mechanism fails the assertion, not the test process.
     fn bounded<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> T {
+        bounded_within(Duration::from_secs(2), f)
+    }
+
+    fn bounded_within<T: Send + 'static>(
+        timeout: Duration,
+        f: impl FnOnce() -> T + Send + 'static,
+    ) -> T {
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
             let _ = sender.send(f());
         });
         receiver
-            .recv_timeout(Duration::from_secs(2))
+            .recv_timeout(timeout)
             .expect("did not finish within the test's own bound")
     }
 
@@ -285,17 +407,31 @@ mod tests {
     /// a real server's own per-connection bookkeeping does - `Connection::poll`'s own
     /// `open_streams` check is symmetric on both sides of the wire (`wire/connection.rs`),
     /// not something only a client needs.
-    fn start_writer(stream: u32) -> (UnixStream, Connection, Writer) {
+    fn start_writer(
+        stream: u32,
+    ) -> (
+        UnixStream,
+        Connection,
+        Writer,
+        UnboundedReceiver<ClientEvent>,
+    ) {
         let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
         server_side
             .set_read_timeout(Some(Duration::from_secs(2)))
             .expect("set a read timeout");
         let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
         writer_connection.open_stream(stream);
-        let writer = Writer::new(app_side, writer_connection, stream, "sess/tab-1".to_owned());
+        let (events, receiver) = futures::channel::mpsc::unbounded();
+        let writer = Writer::new(
+            app_side,
+            writer_connection,
+            stream,
+            "sess/tab-1".to_owned(),
+            events,
+        );
         let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
         server_connection.open_stream(stream);
-        (server_side, server_connection, writer)
+        (server_side, server_connection, writer, receiver)
     }
 
     fn read_one(server_side: &mut UnixStream, server_connection: &mut Connection) -> Incoming {
@@ -314,7 +450,7 @@ mod tests {
 
     #[test]
     fn declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size() {
-        let (mut server_side, mut server_connection, mut writer) = start_writer(7);
+        let (mut server_side, mut server_connection, mut writer, _events) = start_writer(7);
         writer.declare_size(80, 24);
 
         let Incoming::Request { request, .. } = read_one(&mut server_side, &mut server_connection)
@@ -335,7 +471,7 @@ mod tests {
 
     #[test]
     fn send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0() {
-        let (mut server_side, mut server_connection, mut writer) = start_writer(7);
+        let (mut server_side, mut server_connection, mut writer, _events) = start_writer(7);
         writer.send_input(b"hello".to_vec());
 
         let Incoming::Data { stream, bytes } = read_one(&mut server_side, &mut server_connection)
@@ -346,31 +482,58 @@ mod tests {
         assert_eq!(bytes, b"hello");
     }
 
+    #[test]
+    fn input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them() {
+        let (mut server_side, mut server_connection, mut writer, _events) = start_writer(7);
+        writer.send_input(b"a".to_vec());
+        writer.declare_size(80, 24);
+        writer.send_input(b"b".to_vec());
+
+        let first = read_one(&mut server_side, &mut server_connection);
+        let second = read_one(&mut server_side, &mut server_connection);
+        let third = read_one(&mut server_side, &mut server_connection);
+
+        assert!(
+            matches!(&first, Incoming::Data { bytes, .. } if bytes == b"a"),
+            "expected the first input, got {first:?}"
+        );
+        assert!(
+            matches!(&second, Incoming::Request { request, .. } if request.method == "tab.declare-size"),
+            "expected the declared size between the two inputs, got {second:?}"
+        );
+        assert!(
+            matches!(&third, Incoming::Data { bytes, .. } if bytes == b"b"),
+            "expected the second input, got {third:?}"
+        );
+    }
+
     // --- a reply is actually observable on the connection (or isn't, silently) -----------
     //
     // What found TASK-1.117's own stop_startup bug (a connection shut down right after a
     // successful attach, before this task's own writer or reader ever touch it again) was
     // never that a request's own bytes were shaped wrong - they weren't; `declare_size`'s
     // own request above is correct either way. It was that nothing this task's own two
-    // tests above check would ever have noticed the connection was already dead: `Writer::
-    // send_input`/`declare_size` are deliberately fire-and-forget (`client.rs`'s own doc -
-    // the same "best effort" shape TASK-1.114's plan gives `Runtime::send_input`), so a
-    // `write_all` that silently fails (or silently succeeds into a half-closed socket
-    // nothing ever reads again) leaves nothing to assert on at the call site itself. These
-    // two tests are what closes that gap at this level: one proves a reply really is
+    // tests above check would ever have noticed the connection was already dead. These two
+    // tests are what closes that gap at this level: one proves a reply really is
     // observable over the same real socket when the connection is alive (what the real
     // reader thread would eventually decode); the other proves the exact shape of the real
-    // bug - once the connection is already shut down, `declare_size` neither panics nor
-    // reports anything, and no reply is ever observed, within a bound.
+    // bug - once the connection is already shut down, declaring a size neither panics nor
+    // reports a reply, and instead reaches the window as `ClientEvent::Disconnected`
+    // (review finding 1's own requirement, superseding the plain "fire and forget, nothing
+    // observable" shape these two tests were first written to prove).
 
     /// Like `start_writer`, but also returns a *separate* read handle on the same socket -
     /// standing in for the real reader thread's own handle (`Client::start`'s own `stream`
-    /// parameter), which is who actually decodes a `tab.declare-size` reply in production
-    /// (`Writer::declare_size`'s own doc: the reply lands on the reader's connection, not
-    /// this one).
+    /// parameter), which is who actually decodes a `tab.declare-size` reply in production.
     fn start_writer_with_reader_handle(
         stream: u32,
-    ) -> (UnixStream, Connection, Writer, UnixStream) {
+    ) -> (
+        UnixStream,
+        Connection,
+        Writer,
+        UnixStream,
+        UnboundedReceiver<ClientEvent>,
+    ) {
         let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
         server_side
             .set_read_timeout(Some(Duration::from_secs(2)))
@@ -383,10 +546,23 @@ mod tests {
             .expect("set a read timeout");
         let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
         writer_connection.open_stream(stream);
-        let writer = Writer::new(app_side, writer_connection, stream, "sess/tab-1".to_owned());
+        let (events, receiver) = futures::channel::mpsc::unbounded();
+        let writer = Writer::new(
+            app_side,
+            writer_connection,
+            stream,
+            "sess/tab-1".to_owned(),
+            events,
+        );
         let mut server_connection = Connection::new(WireRole::Server, steg_sdk::description());
         server_connection.open_stream(stream);
-        (server_side, server_connection, writer, app_read_side)
+        (
+            server_side,
+            server_connection,
+            writer,
+            app_read_side,
+            receiver,
+        )
     }
 
     /// Reads from `read_side` for up to half a second total, decoding with `connection` -
@@ -396,12 +572,12 @@ mod tests {
     /// "nothing ever arrives" is this test's own passing case for the control below, not a
     /// broken test harness.
     fn try_read_reply(read_side: &mut UnixStream, connection: &mut Connection) -> Option<Incoming> {
-        let deadline = std::time::Instant::now() + Duration::from_millis(500);
+        let deadline = Instant::now() + Duration::from_millis(500);
         loop {
             if let Some(incoming) = connection.poll() {
                 return Some(incoming);
             }
-            if std::time::Instant::now() >= deadline {
+            if Instant::now() >= deadline {
                 return None;
             }
             let mut buf = [0_u8; 65536];
@@ -414,7 +590,7 @@ mod tests {
 
     #[test]
     fn declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive() {
-        let (mut server_side, mut server_connection, mut writer, mut app_read_side) =
+        let (mut server_side, mut server_connection, mut writer, mut app_read_side, _events) =
             start_writer_with_reader_handle(7);
         writer.declare_size(80, 24);
 
@@ -427,8 +603,6 @@ mod tests {
             .write_all(&reply_bytes)
             .expect("write the reply");
 
-        // The same decode-only shape the real reader thread uses (`client.rs`'s own
-        // `read_loop`), on its own separate handle to the same socket.
         let mut reader_connection = Connection::new(WireRole::Client, steg_sdk::description());
         let reply = try_read_reply(&mut app_read_side, &mut reader_connection);
         assert!(
@@ -438,9 +612,9 @@ mod tests {
     }
 
     #[test]
-    fn once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen()
+    fn once_the_connection_is_already_shut_down_declare_size_reports_disconnected_and_no_reply_is_ever_seen()
      {
-        let (_server_side, _server_connection, mut writer, mut app_read_side) =
+        let (_server_side, _server_connection, mut writer, mut app_read_side, mut events) =
             start_writer_with_reader_handle(7);
         // The exact shape of TASK-1.117's own bug: the connection is shut down (by
         // something upstream of this task's own code) before this task's own writer is
@@ -449,9 +623,17 @@ mod tests {
             .shutdown(std::net::Shutdown::Both)
             .expect("shut the connection down, simulating the real bug");
 
-        // Best-effort, by design (this module's own doc) - does not panic even though the
-        // connection underneath it is already dead.
         writer.declare_size(80, 24);
+
+        // The writer thread's own write fails on the now-dead socket, which it reports as
+        // `Disconnected` - review finding 1's own requirement, where this used to be
+        // silent (the plain "fire and forget" shape the original two tests here proved).
+        let event =
+            bounded(move || futures::executor::block_on(futures::StreamExt::next(&mut events)));
+        assert!(
+            matches!(event, Some(ClientEvent::Disconnected)),
+            "a write failure must be reported the same way a reader-side disconnect is, got {event:?}",
+        );
 
         let mut reader_connection = Connection::new(WireRole::Client, steg_sdk::description());
         let reply = try_read_reply(&mut app_read_side, &mut reader_connection);
@@ -459,5 +641,88 @@ mod tests {
             reply.is_none(),
             "no reply should ever be observed on an already-shut-down connection, got {reply:?}",
         );
+    }
+
+    // --- review finding 1: no socket write on the UI thread ------------------------------
+
+    /// A peer that holds the socket open but never reads from it again - the exact
+    /// condition review finding 1 named. Returns the still-open peer handle too, since
+    /// dropping it would make every further write fail with a plain broken-pipe error
+    /// instead of genuinely filling the kernel's own socket buffer, which is what this
+    /// test (and its own control) actually needs to exercise.
+    fn writer_against_a_peer_that_never_reads(
+        stream: u32,
+    ) -> (UnixStream, Writer, UnboundedReceiver<ClientEvent>) {
+        let (server_side, app_side) = UnixStream::pair().expect("a socket pair");
+        let mut writer_connection = Connection::new(WireRole::Client, steg_sdk::description());
+        writer_connection.open_stream(stream);
+        let (events, receiver) = futures::channel::mpsc::unbounded();
+        let writer = Writer::new(
+            app_side,
+            writer_connection,
+            stream,
+            "sess/tab-1".to_owned(),
+            events,
+        );
+        (server_side, writer, receiver)
+    }
+
+    /// Comfortably past both the kernel's own 8 KiB default socket buffer (measured on
+    /// this machine, `net.local.stream.sendspace`/`recvspace`, not assumed) and this
+    /// task's own `WRITER_QUEUE_CAPACITY` - enough calls that the old, direct-write
+    /// implementation is guaranteed to block on this exact test, not merely "probably".
+    const PROMPT_RETURN_CALLS: usize = 8192 / 64 + WRITER_QUEUE_CAPACITY + 32;
+
+    #[test]
+    fn send_input_returns_promptly_even_when_the_peer_never_reads() {
+        let (_server_side, mut writer, _events) = writer_against_a_peer_that_never_reads(7);
+        let bytes = vec![b'x'; 64];
+
+        let elapsed = bounded_within(Duration::from_secs(5), move || {
+            let started = Instant::now();
+            for _ in 0..PROMPT_RETURN_CALLS {
+                writer.send_input(bytes.clone());
+            }
+            started.elapsed()
+        });
+
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "send_input must never block on the socket itself, however many calls \
+             the queue behind it has already dropped",
+        );
+    }
+
+    #[test]
+    fn once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost() {
+        let (_server_side, mut writer, mut events) = writer_against_a_peer_that_never_reads(7);
+        let bytes = vec![b'x'; 64];
+        for _ in 0..PROMPT_RETURN_CALLS {
+            writer.send_input(bytes.clone());
+        }
+
+        let event =
+            bounded(move || futures::executor::block_on(futures::StreamExt::next(&mut events)));
+        assert!(
+            matches!(event, Some(ClientEvent::Disconnected)),
+            "a queue that never drains must be reported the same way a dead connection \
+             is, not silently dropped with no consequence at all, got {event:?}",
+        );
+    }
+
+    #[test]
+    fn stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write() {
+        let (_server_side, mut writer, _events) = writer_against_a_peer_that_never_reads(7);
+        let bytes = vec![b'x'; 64];
+        // Enough to guarantee the writer thread's own `write_all` is genuinely stuck
+        // inside the kernel's own full socket buffer, not merely queued behind it -
+        // `stop`'s own job is to unblock exactly this, not only an idle `recv()`.
+        for _ in 0..PROMPT_RETURN_CALLS {
+            writer.send_input(bytes.clone());
+        }
+        // `Writer::stop` itself calls `JoinHandle::join`, which has no timeout - `bounded`
+        // is what keeps this test from hanging if `shutdown()` ever stopped unblocking a
+        // writer thread stuck in its own `write_all` (the mechanism this proves).
+        bounded(move || writer.stop());
     }
 }

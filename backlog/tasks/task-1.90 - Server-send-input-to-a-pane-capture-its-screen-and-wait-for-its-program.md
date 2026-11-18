@@ -1,14 +1,13 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T17:42:00Z'
+updated_date: '2026-11-18T19:12:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -748,6 +747,14 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 7, 6 without the Asdlc-Worker trailer.
+
+Review round 2 finding fixed (@bruk.r1, PR 80):
+
+[Evidence, Important] pane_send_refuses_a_pane_with_no_running_program's held was bound once from attached.snapshot and never updated, so the final assert_eq! compared a value with itself and could not fail under any implementation. Fixed with a real second read: a fresh pane.attach to the same, already-ended pane after the refused pane.send (doc-14: a late attach to an ended pane answers with one more snapshot, then Ended), compared against the first attach's own snapshot - checked before the error-code assertion, so a control breaking the refusal would reach it first.
+
+Checked whether this comparison can be controlled at all, as asked: inverting any_pane_running (the same control already recorded for the error-code assertion) does not make the screen comparison fail - the worker's own PaneCommand::Input arm is a no-op once current is None, so a write that reached it anyway still changes nothing a second attach could see. Not claimed as a control. The test's own comment says this plainly, and the error-code assertion - re-recorded as a failing-then-passing pair against this test's new body - is the real, controlled proof of the refusal; the screen comparison is named as corroboration only.
+
+Checks: just check green at the final head (e7821a98, merged with origin/main - board-only, no code conflicts). gh pr checks 80 green (confirmed via gh run list: completed/success). Worktree clean.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

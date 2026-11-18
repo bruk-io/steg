@@ -218,6 +218,25 @@ pub struct RowId {
     pub offset: u64,
 }
 
+/// Why a pane ended, carried by [`ScreenUpdate::Ended`] (doc-14, "The end
+/// of a pane, on its stream").
+///
+/// A forced close's own real exit code (`SIGHUP`/`SIGKILL`) is not carried
+/// under [`Closed`](EndReason::Closed): once the pane is gone from the
+/// tree, the signal that ended its program is the server's own
+/// implementation detail, not the fact worth telling a client.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EndReason {
+    /// The program ended on its own, with nothing closing the pane around
+    /// it.
+    ProgramExited {
+        /// The program's own exit code.
+        exit_code: i32,
+    },
+    /// The pane itself was closed.
+    Closed,
+}
+
 /// The rows that changed since a point a caller held, or a whole screen
 /// when that point can no longer be served from (AC #4).
 ///
@@ -260,6 +279,15 @@ pub enum ScreenUpdate {
         /// The point to hold and give back on the next call.
         seq: u64,
     },
+    /// The pane has ended: nothing more will ever follow on this stream
+    /// (TASK-1.128; doc-14, "The end of a pane, on its stream"). Sent
+    /// once, after any update still owed, and the stream is then closed
+    /// on both sides - a client decoding this is expected to stop reading
+    /// it as a terminal, not merely apply it as a no-op update.
+    Ended {
+        /// Why the pane ended.
+        reason: EndReason,
+    },
 }
 
 /// A page of rows fetched by absolute identity (AC #2, #3; decision-2
@@ -279,8 +307,8 @@ pub struct Page {
 #[cfg(test)]
 mod tests {
     use super::{
-        CellStyle, Cursor, CursorShape, PaneAttached, Rgb, Run, Screen, ScreenUpdate, Underline,
-        Wide,
+        CellStyle, Cursor, CursorShape, EndReason, PaneAttached, Rgb, Run, Screen, ScreenUpdate,
+        Underline, Wide,
     };
     use crate::layout::Size;
 
@@ -411,6 +439,60 @@ mod tests {
             screen: sample_screen(),
             seq: 7,
         });
+    }
+
+    #[test]
+    fn screen_update_ended_round_trips_for_each_reason() {
+        round_trips(&ScreenUpdate::Ended {
+            reason: EndReason::ProgramExited { exit_code: 3 },
+        });
+        round_trips(&ScreenUpdate::Ended {
+            reason: EndReason::Closed,
+        });
+    }
+
+    /// doc-14's own "On the wire" sentence ("The end of a pane, on its
+    /// stream") gives these two shapes literally - checked against the
+    /// real serialisation, not only round-tripped, so a change to how
+    /// `EndReason` derives `Serialize` (an added `#[serde(rename...)]`, a
+    /// switch away from the external-tagging default) is caught here
+    /// rather than only in the spec's own prose going stale.
+    #[test]
+    fn screen_update_ended_matches_doc_14s_own_literal_wire_shapes() {
+        let program_exited = serde_json::to_value(ScreenUpdate::Ended {
+            reason: EndReason::ProgramExited { exit_code: 3 },
+        })
+        .unwrap();
+        assert_eq!(
+            program_exited,
+            serde_json::json!({"Ended": {"reason": {"ProgramExited": {"exit_code": 3}}}})
+        );
+
+        let closed = serde_json::to_value(ScreenUpdate::Ended {
+            reason: EndReason::Closed,
+        })
+        .unwrap();
+        assert_eq!(closed, serde_json::json!({"Ended": {"reason": "Closed"}}));
+    }
+
+    /// AC #3: "a client built before this change that meets the final
+    /// form does not crash." The guarantee is a property of `ScreenUpdate`'s
+    /// own derived `Deserialize` (serde returns `Err` on an unknown
+    /// variant tag, never panics) - true for any caller of `serde_json::
+    /// from_slice::<ScreenUpdate>`, not specific to how any one client
+    /// happens to handle a decode error today. A made-up variant name is
+    /// used here, not `"Ended"` itself, so this proves the general
+    /// forward-compatibility property a future addition would also need,
+    /// not merely that today's one new variant round-trips.
+    #[test]
+    fn decoding_an_unknown_screen_update_variant_is_an_error_not_a_panic() {
+        let raw = br#"{"SomeFutureVariantNoClientKnowsYet":{}}"#;
+        let result = serde_json::from_slice::<ScreenUpdate>(raw);
+        assert!(
+            result.is_err(),
+            "an unknown ScreenUpdate variant must decode as an error, not succeed with a \
+             wrong value: {result:?}"
+        );
     }
 
     /// `pane.attach`'s own reply shape (TASK-1.46's `Returns::Nested`

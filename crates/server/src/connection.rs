@@ -16,8 +16,9 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{
-    ClientId, Connection, Description, Frame, Handshake, Incoming, PROTOCOL_VERSION, PaneId,
-    Refusal, Request, Response, WireRole as Role, check_hello, description, encode_frame,
+    ClientId, Connection, Description, EndReason, Frame, Handshake, Incoming, PROTOCOL_VERSION,
+    PaneId, Refusal, Request, Response, ScreenUpdate, WireRole as Role, check_hello, description,
+    encode_frame,
 };
 
 use crate::dispatch::{Context, bad_request, param_i64, param_str, resolve_api_call};
@@ -552,12 +553,19 @@ fn parse_target_pane_id(context: &Context, request: &Request) -> Option<PaneId> 
 /// == false`, which in production only a real race (the pane closing
 /// between `attach_pane` releasing its lock and this call) produces.
 /// `true`: records the attachment in `pane_streams`, as always. `false`:
-/// the pane (or its tab) closed in that window - the reply already went
-/// out, truthfully (a real snapshot, taken while the pane was still
-/// there), but there is nothing left to ever send on this stream. Closed
-/// on both sides at once, and never recorded: nothing to leak, and
-/// nothing a later `pane.detach` could find either way, the same answer
-/// a target that never existed gets.
+/// the pane's own *worker* was already gone by the time `arm_attachment`
+/// ran (a different case from a pane whose worker is still alive but
+/// whose program has ended - `crate::pane::flush_ended`'s own job, not
+/// this function's) - the reply already went out, truthfully (a real
+/// snapshot, taken while the pane was still there), but there is nothing
+/// left to ever send on this stream from the worker's own side. TASK-1.128:
+/// told the same way a worker-side end is - one `Ended{Closed}` frame,
+/// queued before the stream is torn down (`Outbound::end_stream`, never
+/// a bare `close_stream`, which would drop a frame queued immediately
+/// before it - see that method's own doc), on both sides at once - and
+/// never recorded: nothing to leak, and nothing a later `pane.detach`
+/// could find either way, the same answer a target that never existed
+/// gets.
 fn finish_attach(
     armed: bool,
     pane: PaneId,
@@ -572,7 +580,13 @@ fn finish_attach(
             .borrow_mut()
             .insert(pane, (attachment_id, stream));
     } else {
-        outbound.close_stream(stream);
+        let payload = serde_json::to_vec(&ScreenUpdate::Ended {
+            reason: EndReason::Closed,
+        })
+        .expect("ScreenUpdate always serialises to JSON");
+        let bytes = encode_frame(&Frame::control(stream, payload))
+            .expect("an Ended update fits under the frame cap");
+        let _ = outbound.end_stream(stream, bytes);
         connection.close_stream(stream);
     }
 }
@@ -1136,6 +1150,44 @@ mod tests {
             pane_streams.borrow().is_empty(),
             "an unarmed attach must record nothing in pane_streams: {:?}",
             pane_streams.borrow()
+        );
+
+        // TASK-1.128: the frame is actually sent, not merely queued and
+        // then dropped by a bare `close_stream` running right after it -
+        // read directly off the real socket `_writer` drains onto, before
+        // checking the stream is torn down.
+        server_reader
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let mut decoder = steg_sdk::Decoder::new();
+        let frame = loop {
+            // `attach_pane`'s own reply (control, stream 0) is already
+            // queued ahead of anything on `stream` (decision-2 section
+            // 3: control is always drained first) - skip past it rather
+            // than assume the very first frame on the wire is this one.
+            match decoder.next_frame() {
+                Ok(Some(frame)) if frame.stream == stream => break frame,
+                Ok(Some(_)) => continue,
+                Ok(None) => {
+                    let mut buf = [0_u8; 65536];
+                    let n = server_reader
+                        .read(&mut buf)
+                        .expect("reading the Ended frame");
+                    assert_ne!(n, 0, "the server closed before sending Ended");
+                    decoder.push(&buf[..n]);
+                }
+                Err(e) => panic!("decode failed: {e}"),
+            }
+        };
+        let update: steg_sdk::ScreenUpdate =
+            serde_json::from_slice(&frame.payload).expect("a real ScreenUpdate");
+        assert_eq!(
+            update,
+            steg_sdk::ScreenUpdate::Ended {
+                reason: steg_sdk::EndReason::Closed
+            },
+            "the pane closing between attach and arm must be told the same way a worker-side \
+             end is, not silently"
         );
 
         assert!(

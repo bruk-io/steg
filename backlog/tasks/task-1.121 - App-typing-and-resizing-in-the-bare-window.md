@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:49:00Z'
+updated_date: '2026-11-18T00:57:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2231,6 +2231,43 @@ test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T00:57:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at e6a811b63c89:
+
+```text
+ok      format check (0.3s)
+ok      lint (1.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-server) (59.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.8s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (63.5s)
+ok      test (steg-server, race-fixture) (70.4s)
+ok      test (steg-server, pty-race-fixture) (63.1s)
+ok      test (steg-server, accept-backoff-fixture) (137.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.6s)
+ok      test (steg, fixtures) (7.5s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.3s)
+ok      build (steg-app) (1.2s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.0s)
+```
+
+Commits since the review: 20, 19 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -2503,6 +2540,22 @@ Verified round-1 fixes:
 Live evidence: plainly disclosed in both the task's notes and the PR body (gh pr view 71) that nothing after 2c127d4f was exercised in a real window, and that the images/recording are from that earlier head - matches the claim's known, expected gap, not a new finding. PR 71 CI green on 78de7a12 (gh pr checks 71), matching the branch head and the recorded `just check` (comment 2026-11-18 00:27, exit 0, clean tree).
 
 Not checked: the .mov recording's contents; any machine other than this one; whether the plan-approval hash still matches beyond what the notes state.
+
+---
+
+created: 2026-11-18T00:57:00Z
+
+---
+
+Second review's finding fixed: pulled the Cmd-V mechanism into send_pasted_text(writer, clipboard_text) - a plain function taking the clipboard's own text as Option<&str> and the writer, so on_key_down is one line that reads the real clipboard and passes the text in. Chose the injected-text shape, not gpui's test-support in-memory clipboard, per your own note about TASK-1.126's prior finding on that feature's footprint.
+
+Tested against a real socket (client.rs's own Writer-test pattern, no gpui test-support needed, no app launch): CRLF and bare LF both normalise to a single \r; a paste between two ordinary inputs arrives as exactly one send, in order with them, over the same single queue review finding 1 already gave every input; no clipboard text, or an empty string, sends nothing at all - not even an empty frame.
+
+Control: removed send_pasted_text's own body (the reviewer's exact regression - all four OLD paste tests still passed because they only tested is_paste_keystroke). Recorded failing: two of the four NEW tests failed (the ones that expect something to actually arrive); the other two (empty/no-text-sends-nothing) correctly still passed on their own - that is the right behaviour either way, not a gap in the control. Restored, recorded passing. Also fixed a real gap the control's first run exposed: the test harness had no read timeout, so the two tests that should fail instead hung until I killed the process by hand - added one (matching client.rs's own convention) so a real regression fails cleanly in bounded time from here on.
+
+What remains untested, as asked: the one line in on_key_down that calls cx.read_from_clipboard() itself - reading the real clipboard is exactly what must not be exercised by a test or a live run.
+
+just check recorded clean (exit 0) at the final head (e6a811b6, clean tree, after merging origin/main - board-only changes, no conflicts).
 
 ---
 <!-- COMMENTS:END -->

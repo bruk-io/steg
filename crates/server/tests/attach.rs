@@ -22,8 +22,8 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
 use steg_sdk::{
-    ClientKind, Connection, ErrorCode, Frame, Incoming, PaneAttached, Response, ScreenUpdate,
-    WireRole as Role, description, encode_frame, parse_server_hello,
+    ClientKind, Connection, EndReason, ErrorCode, Frame, Incoming, PaneAttached, Response,
+    ScreenUpdate, WireRole as Role, description, encode_frame, parse_server_hello,
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
@@ -121,13 +121,25 @@ fn call_and_read_reply(
     stream.write_all(&bytes).unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
-        if let Some(Incoming::Reply {
-            id: reply_id,
-            response,
-        }) = connection.poll()
-        {
-            assert_eq!(reply_id, id, "the reply must carry the id this call minted");
-            return response;
+        // Drains every already-decoded frame before reading more
+        // (TASK-1.128: an attached call like `pane.close --force` can
+        // now also produce a `StreamControl` frame - `Ended` - on the
+        // wire around the same time as its own reply; falling through to
+        // a blocking read on any non-matching `poll()` result, rather
+        // than only on `None`, could then block forever on a socket that
+        // already has the real reply sitting decoded, one `poll()` call
+        // away - the same gap `reply_within`'s own, already-correct loop
+        // shape does not have).
+        match connection.poll() {
+            Some(Incoming::Reply {
+                id: reply_id,
+                response,
+            }) => {
+                assert_eq!(reply_id, id, "the reply must carry the id this call minted");
+                return response;
+            }
+            Some(_) => continue, // some other frame - fine, poll again before reading more
+            None => {}
         }
         assert!(
             Instant::now() < deadline,
@@ -461,9 +473,12 @@ fn next_update(
     }
 }
 
+/// `Ended` is not applied here at all - a caller that cares about it
+/// checks for it before deciding whether there is still a screen update
+/// to apply (TASK-1.128).
 fn apply_update(held: &mut steg_sdk::Screen, update: ScreenUpdate) {
     match update {
-        ScreenUpdate::Unchanged => {}
+        ScreenUpdate::Unchanged | ScreenUpdate::Ended { .. } => {}
         ScreenUpdate::Full { screen, .. } => *held = screen,
         ScreenUpdate::Delta { rows, cursor, .. } => {
             for (position, row) in rows {
@@ -483,6 +498,45 @@ fn screen_text(screen: &steg_sdk::Screen) -> String {
         .map(|row| row.iter().map(|run| run.text.as_str()).collect::<String>())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Asserts nothing arrives on `wanted_stream` for `window` (TASK-1.128,
+/// AC #1's "no frame arrives on that stream afterward") - the same shape
+/// `detach_ends_the_stream_even_though_the_program_keeps_producing_output`'s
+/// own inline check uses, pulled out so every test below that proves this
+/// shares one definition. This connection's own side never calls `close_
+/// stream` for `wanted_stream` in the tests that use this (unlike `detach`),
+/// so a frame the server still sent would decode as `StreamControl`, not
+/// `UnknownStream` - only the former is checked for.
+fn assert_nothing_more_arrives_on(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    wanted_stream: u32,
+    window: Duration,
+) {
+    let quiet_until = Instant::now() + window;
+    while Instant::now() < quiet_until {
+        match connection.poll() {
+            Some(Incoming::StreamControl {
+                stream: frame_stream,
+                ..
+            }) if frame_stream == wanted_stream => {
+                panic!("a frame arrived on stream {wanted_stream} after its own Ended")
+            }
+            Some(_) => {}
+            None => {
+                stream
+                    .set_read_timeout(Some(Duration::from_millis(20)))
+                    .unwrap();
+                let mut buf = [0_u8; 65536];
+                match stream.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => connection.receive(&buf[..n]),
+                    Err(_) => {}
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -1728,14 +1782,46 @@ fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_deta
     // Connection two's own queued attach now resolves - the worker
     // thread is still alive at this point (torn down only by `force_
     // end`'s own later passes), so it drains its backlog and answers the
-    // queued command normally. This reply's own content is not what this
-    // test checks (see this test's own doc); only draining it so
-    // connection two is free to send its next request matters here.
-    let _ = reply_within(
+    // queued command normally, with a real snapshot (truthfully - the
+    // pane was still there when it was read).
+    let reply = reply_within(
         &mut stream_two,
         &mut connection_two,
         attach_id,
         Duration::from_secs(15),
+    )
+    .expect("pane.attach must answer within a bound");
+    let attached: PaneAttached = match reply {
+        Response::Ok(value) => {
+            serde_json::from_value(value).expect("pane.attach's reply is a PaneAttached")
+        }
+        Response::Error(error) => panic!("pane.attach failed: {error:?}"),
+    };
+    connection_two.open_stream(attached.stream);
+
+    // TASK-1.128: told the same way a worker-side end is, in place of
+    // TASK-1.125's own silent close - the pane's worker itself was
+    // already gone by the time `arm_attachment` ran, so this is `finish_
+    // attach`'s own fix (`connection.rs`), not the worker's `flush_ended`.
+    let update = next_update(
+        &mut stream_two,
+        &mut connection_two,
+        attached.stream,
+        Duration::from_secs(15),
+    );
+    assert_eq!(
+        update,
+        ScreenUpdate::Ended {
+            reason: EndReason::Closed
+        },
+        "a pane that closed between attach and arm must be told the same way a worker-side \
+         end is, not silently - TASK-1.125's own bug"
+    );
+    assert_nothing_more_arrives_on(
+        &mut stream_two,
+        &mut connection_two,
+        attached.stream,
+        Duration::from_millis(300),
     );
 
     // The real check: a `pane.detach` for the same target must not
@@ -1771,6 +1857,233 @@ fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_deta
              TASK-1.125's own 'silent stream' bug"
         ),
     }
+
+    stop_server(&stop, handle);
+}
+
+// --- TASK-1.128: the pane ending, on an attachment's own stream -----------
+
+/// Reads updates on `wanted_stream` until `Ended` arrives, discarding
+/// anything else first. The very first tick a pane's own worker ever
+/// runs always delivers a real `Full`, even with nothing printed (the
+/// kernel's own documented rule for a point it has never seen: `None` -
+/// `crates/server/src/pane.rs`'s own `a_new_attachments_first_tick_is_a_
+/// full_screen_not_a_delta`) - `flush_ended`'s own forced last tick is no
+/// exception, so a client already attached and armed before the pane
+/// ends can see that catch-up `Full` land immediately ahead of `Ended`.
+/// This is AC #1's own "after any screen update still owed" working as
+/// designed, not a bug - a bare, single `next_update` call cannot assume
+/// `Ended` is the very first frame read.
+fn next_ended(
+    stream: &mut UnixStream,
+    connection: &mut Connection,
+    wanted_stream: u32,
+    timeout: Duration,
+) -> EndReason {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        assert!(
+            !remaining.is_zero(),
+            "Ended never arrived on stream {wanted_stream}"
+        );
+        if let ScreenUpdate::Ended { reason } =
+            next_update(stream, connection, wanted_stream, remaining)
+        {
+            return reason;
+        }
+    }
+}
+
+/// AC #1: a program that exits by itself (no close, forced or otherwise,
+/// in progress) sends `Ended{ProgramExited}` with its own real exit code,
+/// after any screen update still owed, and nothing arrives on the stream
+/// afterward.
+#[test]
+fn a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 7"]);
+    let attached = attach(&mut stream, &mut connection, &pane);
+
+    let reason = next_ended(
+        &mut stream,
+        &mut connection,
+        attached.stream,
+        Duration::from_secs(5),
+    );
+    assert_eq!(
+        reason,
+        EndReason::ProgramExited { exit_code: 7 },
+        "a program that exits on its own must report its real exit code, not Closed"
+    );
+    assert_nothing_more_arrives_on(
+        &mut stream,
+        &mut connection,
+        attached.stream,
+        Duration::from_millis(300),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// AC #1: `pane.close --force` on a pane with one attached, still-running
+/// client reports `Ended{Closed}`, not the program's own exit code -
+/// `force_end`'s new `MarkClosing` pass, proven here at the one level
+/// that actually exercises its real ordering against pass 1's signal (the
+/// bug an advisor review found in this plan's own first draft: `pane.rs`'s
+/// own unit test for this proves only the worker's flag-precedence logic,
+/// never `force_end`'s pass order, which is a real property only at this,
+/// the socket level).
+#[test]
+fn pane_close_force_reports_ended_closed_not_the_signals_own_exit_code() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream, mut connection) = connect_and_handshake(&socket_path);
+
+    let pane = new_pane_running(
+        &mut stream,
+        &mut connection,
+        vec!["sh", "-c", "exec sleep 100"],
+    );
+    let attached = attach(&mut stream, &mut connection, &pane);
+
+    let mut params = Map::new();
+    params.insert("target".to_string(), json!(pane));
+    params.insert("force".to_string(), json!(true));
+    let (_close_id, bytes) = connection.call("pane.close", params).expect("a valid call");
+    stream.write_all(&bytes).unwrap();
+
+    let reason = next_ended(
+        &mut stream,
+        &mut connection,
+        attached.stream,
+        Duration::from_secs(30),
+    );
+    assert_eq!(
+        reason,
+        EndReason::Closed,
+        "a forced close must report Closed, never the signal's own exit code"
+    );
+    assert_nothing_more_arrives_on(
+        &mut stream,
+        &mut connection,
+        attached.stream,
+        Duration::from_millis(300),
+    );
+    // `pane.close`'s own reply (`_close_id`) is deliberately left
+    // undrained: `next_ended`/`assert_nothing_more_arrives_on` above both
+    // discard any frame that is not what they are each looking for
+    // (`next_update`'s own `Some(_) => {}`), so chasing that reply too,
+    // in either order, would race losing it against one of those two
+    // calls doing exactly that - not worth the fragility for a reply
+    // `pane_close_force_returns_within_its_bound_even_while_the_panes_
+    // own_worker_is_stuck` already covers on its own.
+
+    stop_server(&stop, handle);
+}
+
+/// AC #1: two clients attached to one pane both get `Ended`, independently.
+/// This is the fan-out `flush_ended` does over every armed attachment,
+/// not only the one that happened to ask first.
+#[test]
+fn two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+    let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh", "-c", "exit 4"]);
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+
+    let reason_a = next_ended(
+        &mut stream_a,
+        &mut connection_a,
+        attached_a.stream,
+        Duration::from_secs(5),
+    );
+    let reason_b = next_ended(
+        &mut stream_b,
+        &mut connection_b,
+        attached_b.stream,
+        Duration::from_secs(5),
+    );
+    let expected = EndReason::ProgramExited { exit_code: 4 };
+    assert_eq!(
+        reason_a, expected,
+        "connection A must see the real exit code"
+    );
+    assert_eq!(
+        reason_b, expected,
+        "connection B must see the real exit code too"
+    );
+
+    assert_nothing_more_arrives_on(
+        &mut stream_a,
+        &mut connection_a,
+        attached_a.stream,
+        Duration::from_millis(300),
+    );
+    assert_nothing_more_arrives_on(
+        &mut stream_b,
+        &mut connection_b,
+        attached_b.stream,
+        Duration::from_millis(300),
+    );
+
+    stop_server(&stop, handle);
+}
+
+/// AC #1: attaching to a pane whose program has already ended, well after
+/// the fact - no race, no flood, just a plain second `pane.attach` once
+/// the first client has already seen `Ended`. Proves this is the ordinary
+/// way of looking at an ended pane (R97 keeps it and its scrollback
+/// around), not merely something a tight race happens to produce. A
+/// fresh `Full` arrives first (see the comment at this test's own second
+/// `attach`, below), then `Ended`, and nothing at all afterward.
+#[test]
+fn attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended() {
+    let (socket_path, stop, handle) = start_server();
+    let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
+    let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh", "-c", "exit 0"]);
+    let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
+
+    let reason = next_ended(
+        &mut stream_a,
+        &mut connection_a,
+        attached_a.stream,
+        Duration::from_secs(5),
+    );
+    assert_eq!(
+        reason,
+        EndReason::ProgramExited { exit_code: 0 },
+        "confirms the program has really, fully ended before the second attach below"
+    );
+
+    let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
+    let attached_b = attach(&mut stream_b, &mut connection_b, &pane);
+    // A fresh `Full` arrives first (`Attach`'s own reply snapshot is not
+    // "on this stream," and a client can race it closing ahead of its
+    // own, separate `arm` call - pane.rs's own equivalent unit test has
+    // the full argument), then `Ended`.
+    let reason_b = next_ended(
+        &mut stream_b,
+        &mut connection_b,
+        attached_b.stream,
+        Duration::from_secs(5),
+    );
+    assert_eq!(
+        reason_b,
+        EndReason::ProgramExited { exit_code: 0 },
+        "a late attach to an already-ended pane must eventually see Ended, after its own \
+         catch-up Full"
+    );
+    assert_nothing_more_arrives_on(
+        &mut stream_b,
+        &mut connection_b,
+        attached_b.stream,
+        Duration::from_millis(300),
+    );
 
     stop_server(&stop, handle);
 }

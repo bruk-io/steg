@@ -1650,6 +1650,11 @@ mod tests {
             ScreenUpdate::Full { screen, seq } => (screen, seq),
             ScreenUpdate::Unchanged => panic!("expected Full, got Unchanged"),
             ScreenUpdate::Delta { .. } => panic!("expected Full, got Delta"),
+            // The kernel's own `changes_since` never produces this
+            // variant - it is injected only by the server's own worker
+            // (TASK-1.128), a layer above the kernel - but `ScreenUpdate`
+            // is shared, so this match must still name it.
+            ScreenUpdate::Ended { .. } => panic!("expected Full, got Ended"),
         }
     }
 
@@ -1659,6 +1664,7 @@ mod tests {
             ScreenUpdate::Delta { rows, .. } => rows,
             ScreenUpdate::Unchanged => panic!("expected Delta, got Unchanged"),
             ScreenUpdate::Full { .. } => panic!("expected Delta, got Full"),
+            ScreenUpdate::Ended { .. } => panic!("expected Delta, got Ended"),
         }
     }
 

@@ -1,14 +1,14 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: In Progress
+status: Done
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:49:00Z'
+updated_date: '2026-11-18T01:41:00Z'
 labels:
   - size-3
-  - changes-requested
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.125
@@ -25,8 +25,7 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ffc63839f742'
 asdlc_plan_approved_size: size-3
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=0,nit=0'
 asdlc_plan_matched: yes
 ---
 
@@ -964,6 +963,155 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else --exact` exited 101 at 2026-11-18T00:51:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... FAILED
+
+failures:
+
+---- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else stdout ----
+
+thread 'attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else' (55947372) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 4.999999958s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.05s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else --exact` exited 0 at 2026-11-18T00:51:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.34s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach --exact` exited 101 at 2026-11-18T00:52:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e with uncommitted changes:
+
+```text
+warning: unused imports: `EndReason` and `ScreenUpdate`
+  --> crates/server/src/connection.rs:19:40
+   |
+19 |     ClientId, Connection, Description, EndReason, Frame, Handshake, Incoming, PROTOCOL_VERSION,
+   |                                        ^^^^^^^^^
+20 |     PaneId, Refusal, Request, Response, ScreenUpdate, WireRole as Role, check_hello, description,
+   |                                         ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-server` (lib) generated 1 warning (run `cargo fix --lib -p steg-server` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (55961553) panicked at crates/server/tests/attach.rs:455:17:
+no update arrived on stream 1 within 15s
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 19.90s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+```
+
+Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach --exact` exited 0 at 2026-11-18T00:52:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 7.29s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T01:04:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 7cca969023bd:
+
+```text
+ok      format check (0.3s)
+ok      lint (12.1s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (56.2s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (2.3s)
+ok      test (steg-sdk, local-socket) (3.2s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (58.7s)
+ok      test (steg-server, race-fixture) (62.0s)
+ok      test (steg-server, pty-race-fixture) (64.8s)
+ok      test (steg-server, accept-backoff-fixture) (64.1s)
+ok      build (steg) (1.6s)
+ok      test (steg) (3.9s)
+ok      test (steg, fixtures) (11.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.4s)
+ok      build (steg-app) (0.9s)
+ok      test (steg-app) (1.2s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 27, 26 without the Asdlc-Worker trailer.
+
+Fixed @bruk.r2's review findings (1 Important, 2 nits):
+
+1. [Important] Recorded a failing-then-passing control pair, against the final head, for each of the five new attach.rs socket-level tests - the gap the review found (the board's earlier evidence proved the mechanisms by other means, but never recorded these five tests actually failing against pre-fix code):
+   - pane_close_force_reports_ended_closed_not_the_signals_own_exit_code: disabled force_end's pass 0 (handle.mark_closing() -> a no-op) in runtime.rs. Failed as the reviewer's own control showed (left: ProgramExited { exit_code: 1 }, right: Closed). Reverted, passed.
+   - a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code and two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit: disabled flush_ended's own outbound.end_stream call in pane.rs. Both failed (no update arrived within 5s). Reverted, both passed.
+   - attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended (renamed, see finding 3): disabled the Arm handler's ended-branch body in pane.rs (if false && let Some(position) = ...). Failed (no update arrived within 5s). Reverted, passed.
+   - a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach: reverted finish_attach's armed == false branch to the pre-fix bare close_stream (no Ended) in connection.rs. Failed (no update arrived within 15s - the force-close grace window). Reverted, passed.
+   Every control run unrecorded first, confirmed it failed for the stated reason with nothing from the environment in its output, then recorded; tree clean (git status) between every pair and at the end. All five mechanisms are real - none could not be made to fail.
+
+2. [Nit] pane.rs's Arm handler: documented why the catch-up Full's seq: tracked_seq can safely be 0 (its own "no tick yet" sentinel) - no production reader (Model::apply, either test harness's apply_update) ever reads a Full's own seq, and Ended, right after, closes the stream for good, so there is no next call for it to matter to; terminal.screen() itself has no seq of its own to report instead (it is a raw read, not changes_since's own tracked point).
+
+3. [Nit] attach.rs: reworded the stale assertion message and renamed attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else to attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended, matching pane.rs's own equivalent test's name.
+
+Departures from the plan, in the plan's own terms: late attach to an already-ended pane sends one Full then Ended, where the plan's own first draft said Ended alone - found by a test flaking under load during the build (the first round of this task), fixed before the first review, and doc-14 already reflects it ("a fresh Full... then Ended").
+
+just check recorded clean at the final pushed head (14a11971); CI green on the same commit (gh pr checks 73 --watch, 12m5s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1005,6 +1153,36 @@ Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
 What I checked: full diff against origin/main (excluding backlog/) across sdk/screen.rs+lib.rs+description/methods.rs, kernel/terminal.rs, app/model.rs, server/outbound.rs, server/pane.rs, server/runtime.rs, server/connection.rs, server/tests/attach.rs; doc-14 and decision-2 section 3 (including its 2026-11-17 addendum, already landed on main, matching the wire shape in code); the approved plan (ffc63839f742) and its departures section; every exhaustive ScreenUpdate match (all have named arms, no wildcards); Outbound::end_stream/pop_next's deferred-teardown logic and its real two-thread test; MarkClosing's ordering via a live negative control (above); the TASK-1.125 race fix in finish_attach; the call_and_read_reply drain-before-block fix (does not swallow or weaken any existing assertion - it only changes what happens after a non-matching poll(), matching reply_within's established shape). Confirmed the final recorded clean check (at local commit 493786d3aec6) has an identical code tree to pushed HEAD 2ca675d7 (git diff shows only backlog/ task-file differences), so the recorded evidence is against the right code modulo the AC #4 gap above. The three reported flakes (login_env grandchild test timing out on its pid file; a stuck-pane timing test coinciding with a concurrent just check from TASK-1.121; a terminal-scrolling timing assertion failing on CI's first run and passing on rerun) match what the worker described and are not findings.
 
 What I did not check: a real SSH channel (out of scope per decision-2), the app's own future reaction to Ended (explicitly out of scope, moved to a draft task), and I did not re-run the full CI suite myself (trusted the claim that CI is green on 2ca675d7 after the reported rerun).
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T01:17:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T01:21:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 0 nit. The diff matches the plan.
+
+Second round, scoped to the round-1 fix only.
+
+1. Code diff since round 1 (2ca675d7..14a11971, crates/server/src/pane.rs and crates/server/tests/attach.rs, 27 insertions/3 deletions): exactly a doc comment on flush_ended's catch-up Full carrying seq: tracked_seq possibly 0, a reworded assertion message, and a rename of attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else to ...gets_a_final_full_then_ended. No behaviour changed. Checked the doc comment's claim directly: crates/app/src/model.rs Model::apply (ScreenUpdate::Full { screen, .. }), and both apply_update test helpers (crates/server/src/pane.rs:2616, crates/server/tests/attach.rs:482), all destructure Full with `..` and never read seq; the sdk itself (crates/sdk/src/screen.rs) has no other reader. The claim holds.
+
+2. Evidence: the implementation notes now record a failing-then-passing control pair for each of the five new attach.rs socket-level tests (pane_close_force_reports_ended_closed_not_the_signals_own_exit_code; a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code; two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit; attaching_to_a_pane_whose_program_already_ended... [recorded under its pre-rename name - the rename that followed changed only the name and a comment, not the test's body, so the control still proves the same mechanism]; a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach), each disabling a distinct mechanism (MarkClosing's pass 0, flush_ended's end_stream call, the Arm handler's late-end branch, finish_attach's armed==false fix) and failing for the stated reason. I repeated a different one than round 1's forced-close control: disabled flush_ended's end_stream call in pane.rs (scratch edit), ran `cargo test -p steg-server --test attach -- a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code --exact` (bounded by the test's own 5s wait), it failed with "no update arrived on stream 1 within ~5s" exactly as recorded, then reverted with `git checkout --` and confirmed `git status` clean. The recorded `just check` clean run is at commit 7cca969023bd; diffing it against final head 14a11971 (excluding backlog/) shows no code difference - the recorded evidence is against the final code.
+
+3. The Departures section states the late-attach change: "late attach to an already-ended pane sends one Full then Ended, where the plan's own first draft said Ended alone - found by a test flaking under load during the build ... fixed before the first review, and doc-14 already reflects it." Present and explained.
+
+No findings. What I did not check: anything outside this round's diff and evidence gap (round 1's own findings, the rest of the task's diff, CI) - out of this round's scope per the brief.
 
 ---
 <!-- COMMENTS:END -->

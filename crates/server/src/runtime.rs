@@ -1964,6 +1964,29 @@ fn apply_event_locked(state: &mut State, event: PaneEvent) {
 /// stated bound; takes no lock of its own and must be called with none
 /// held, since its own waits are real (bounded, but real).
 fn force_end(handles: Vec<(PaneId, PaneHandle)>, grace: Duration) {
+    // Pass 0 (TASK-1.128): tells every pane's own worker it is being
+    // closed, *before* anything below signals its program - over the
+    // command queue (`PaneHandle::mark_closing`, not `RunGate`), so the
+    // worker records `EndReason::Closed` ahead of the `Exited` the signal
+    // below is about to cause, never behind it. This ordering holds
+    // because this loop is a plain, synchronous send per handle that
+    // fully returns before pass 1 even starts: the relay thread that
+    // would send that `Exited` cannot observe a death the signal below
+    // has not caused yet, and that signal is not sent until pass 1 runs.
+    // A future change that parallelises this pass with pass 1 (the way
+    // passes 2-6 already use `thread::scope`, for throughput) would
+    // silently reopen the bug this pass exists to fix - keep it a plain,
+    // sequential loop, strictly before pass 1's own loop starts.
+    //
+    // Covers every caller of `force_end`, both `close_and_dispatch`
+    // (forced and plain closes alike - every popped handle lands here
+    // regardless of whether its program was running) and `Runtime::stop`
+    // (server stop) - one new pass fixes the reason for both, with
+    // nothing to change at either call site.
+    for (_, handle) in &handles {
+        handle.mark_closing();
+    }
+
     // Pass 1: signal every pane at once. `signal_hangup` goes straight
     // through `RunGate` (a `Mutex`, held only for the length of the
     // signal call itself - review finding 1), never through the

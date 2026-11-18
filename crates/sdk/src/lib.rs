@@ -46,8 +46,8 @@ pub use record::{
     PaneRecord, SessionRecord, SessionTree, SettingRecord, TabRecord, TabTree, TreeSnapshot,
 };
 pub use screen::{
-    CellStyle, Cursor, CursorShape, Page, PaneAttached, Rgb, Row, RowId, Run, Screen, ScreenUpdate,
-    Underline, Wide,
+    CellStyle, Cursor, CursorShape, EndReason, Page, PaneAttached, Rgb, Row, RowId, Run, Screen,
+    ScreenUpdate, Underline, Wide,
 };
 pub use setting::{Setting, settings};
 pub use status::Status;

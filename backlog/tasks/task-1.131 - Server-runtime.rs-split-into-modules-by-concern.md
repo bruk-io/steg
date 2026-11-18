@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:24:00Z'
+updated_date: '2026-11-18T05:31:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -821,6 +821,41 @@ Check passed: `sh -c '! git diff -U0 -- crates/server/src/config.rs crates/serve
 
 ```text
 
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T05:31:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at 290383e665e3:
+
+```text
+ok      format check (0.3s)
+ok      lint (4.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-server) (85.6s)
+ok      build (steg-sdk) (0.7s)
+ok      test (steg-sdk) (1.7s)
+ok      test (steg-sdk, local-socket) (2.0s)
+ok      build (steg-kernel) (0.5s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (1.1s)
+ok      test (steg-server) (54.9s)
+ok      test (steg-server, race-fixture) (61.2s)
+ok      test (steg-server, pty-race-fixture) (63.7s)
+ok      test (steg-server, accept-backoff-fixture) (59.4s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (8.2s)
+ok      build (steg-ui) (0.4s)
+ok      test (steg-ui) (3.3s)
+ok      build (steg-app) (2.4s)
+ok      test (steg-app) (1.9s)
+ok      tool tests (13.5s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 <!-- SECTION:NOTES:END -->
 

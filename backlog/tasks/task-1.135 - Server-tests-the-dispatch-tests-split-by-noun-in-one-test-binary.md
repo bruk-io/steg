@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T02:48:00Z'
+updated_date: '2026-11-18T03:01:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -166,6 +166,15 @@ Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo 
 
 ```text
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt && echo '"'"'PROOF (b): 77/77 test names identical apart from module:: prefix'"'"''` exited 0 at 2026-11-18T03:01:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): 77/77 test names identical apart from module:: prefix
 ```
 <!-- SECTION:NOTES:END -->
 

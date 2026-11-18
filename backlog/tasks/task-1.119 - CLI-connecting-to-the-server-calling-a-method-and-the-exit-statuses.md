@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:29:00Z'
+updated_date: '2026-11-18T02:30:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
 asdlc_branch: task-1.119-cli-connecting-to-the-server-calling-a
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'b60acf121e04'
+asdlc_plan_approved_size: size-2
 ---
 
 ## Description
@@ -138,3 +141,16 @@ Seven small decisions, each with a recommendation. None blocks the build; all ar
 <!-- SECTION:NOTES:BEGIN -->
 Plan checked against doc-2 sections 5, 6 and 8, doc-16 and the task's five criteria by @bruk.o: ok. The sdk gains connect_handshaken beside an untouched connect() (arbitrate again exactly once when a connection closes before its hello) and call_unvalidated for api call; the CLI's exit status is read from the description's own errors table; --json prints the reply unchanged. It stays inside crates/steg and crates/sdk, touches no package boundary, and leaves crates/app's own start-up on the old path as a named follow-up. Status 130 is the default signal disposition, at the orchestrator's request (the first plan added a handler and libc). Four status choices go to the engineer with the plan.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T02:30:00Z
+
+---
+
+Plan approved by @bruk (b60acf121e04, size-2): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

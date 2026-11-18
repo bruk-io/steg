@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:57:00Z'
+updated_date: '2026-11-18T23:03:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -528,6 +528,51 @@ ok      architecture (0.7s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T23:03:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at 285d5adf822b, last 40 of 80 lines:
+
+```text
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... FAILED
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... FAILED
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+
+failures:
+
+---- detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size stdout ----
+
+thread 'detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size' (63185864) panicked at crates/server/tests/attach.rs:464:17:
+no update arrived on stream 1 within 5s
+
+---- a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream stdout ----
+
+thread 'a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream' (63185851) panicked at crates/server/tests/attach.rs:464:17:
+no update arrived on stream 1 within 5s
+
+
+failures:
+    a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream
+    detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size
+
+test result: FAILED. 29 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 60.27s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server-pty-race-fixture.log
+error: recipe `check-packages` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

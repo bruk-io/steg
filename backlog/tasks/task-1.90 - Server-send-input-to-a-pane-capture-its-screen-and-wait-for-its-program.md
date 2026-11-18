@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T14:15:00Z'
+updated_date: '2026-11-18T14:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -103,6 +103,14 @@ created: 2026-11-18T14:15:00Z
 ---
 
 Plan approved by @bruk (8826c78b9232, size-3): its worker may build it.
+
+---
+
+created: 2026-11-18T14:16:00Z
+
+---
+
+Approved by @bruk with the plan (8826c78b9232): the new error code ProgramNotRunning with exit status 1; the named-key table moves from crates/app/src/keys.rs into the sdk with the app's function delegating to it; --key is a choice of that table's names; one --key per call for now; --text with --key is BadRequest. doc-2's section on refusals now says so (updated on the board by @bruk.o). Follow-up to draft later: list-valued flags in the API description, so --key can be given more than once as doc-2's flag table says.
 
 ---
 <!-- COMMENTS:END -->

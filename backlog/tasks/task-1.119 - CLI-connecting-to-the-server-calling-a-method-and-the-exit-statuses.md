@@ -1,13 +1,14 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T05:51:00Z'
+updated_date: '2026-11-18T05:56:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -22,10 +23,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'b60acf121e04'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=2,nit=2'
-asdlc_review_policies: ["review"]
+asdlc_review_findings: 'important=1,nit=1'
+asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1304,6 +1304,33 @@ created: 2026-11-18T05:51:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T05:56:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 1 nit. Cites: review, testing-rust. The diff matches the plan.
+
+Round 2 of TASK-1.119.
+
+Round 1's two Important findings and two nits are fixed and verified:
+- one_handshake_attempt (crates/sdk/src/local_socket.rs) now returns a genuine ConnectError::Io, never Ok(None)/ClosedBeforeHello, once a complete Hello is decoded. Both the read and write timeouts are cleared before the stream is handed back on success; either clear failing ends the call with Io instead of returning the stream. connect() itself and the single-server arbitration are unchanged (confirmed by reading the whole file). The retry is still exactly once: connect_handshaken calls one_handshake_attempt twice via plain match, any Err (Timeout or the new post-hello Io) propagates immediately via `?` and is never retried - only the EOF-before-hello Ok(None) case retries.
+- api_call_prints_json_with_no_json_flag_given now has a recorded failing-then-passing control (04:45:13 FAILED / 04:45:24 passed, commit 433d6a693f9e). Spot-checked two more from the same audit: malformed_stdin_on_api_call_exits_2 (04:46:47/04:47:08) and with_json_a_failed_command_still_prints_the_message_on_stderr_not_json (04:47:32/04:47:45). The diff between 433d6a693f9e and eab279c0 touches none of this task's files, so these records are against the reviewed head's own code.
+- Nit (write timeout): set_write_timeout(connect_timeout) added, folded pre-hello the same as the read side, cleared together with it on success.
+- Nit (oversized stdin panic): api_call.rs now rejects stdin over MAX_PAYLOAD - 4KiB before parsing, imported directly from steg_sdk (not a second number); confirmed no other sdk file changed in this round's diff (433d6a693f9e..eab279c0 touches only local_socket.rs, api_call.rs, cli_exit_statuses.rs). New test oversized_stdin_on_api_call_exits_2_without_panicking has a recorded failing(101)/passing(2) control.
+
+[Bugs, Important] crates/sdk/src/local_socket.rs:642-666 (test a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello). This test is the only proof that the fix for round 1's bug actually surfaces a genuine error instead of discarding a decoded hello, and it depends entirely on the OS producing a specific race (EINVAL from set_read_timeout once the peer has already closed) rather than on any synchronised event - violating .claude/rules/testing-rust.md ("no test sleeps to wait for something; it waits on the event": here nothing is waited on, the race is just hoped for). I repeated the control the plan asked for (reverted the fix to the old discard-and-retry behaviour in a scratch edit, confirmed the test fails as expected with Err(ClosedBeforeHello), reverted, confirmed `git status` clean), so the test is not vacuous against the old bug. But I also ran the unmodified, fixed test standalone, single-threaded, with no other change: 3 failures in 100 runs (two batches of 40 and 60, on this same shared dev machine), each because the race did not trigger that time (set_read_timeout/set_write_timeout both succeeded, the function returned Ok, and the test's `assert!(matches!(result, Err(ConnectError::Io(_))))` panicked). That means this test can and does fail against the now-correct code under ordinary load - it is not a hypothetical risk, it reproduces. Recommend forcing the post-hello teardown failure deterministically (e.g. close the raw fd out from under the stream, or a test-only seam that fails the clear call directly) instead of relying on real-world scheduling to reproduce a platform errno.
+
+[Compliance, Nit] Task Implementation Notes, the original "Departure from the approved plan" paragraph (recorded before the round-1 fix) still reads "every I/O failure in the handshake window ... is now folded into the EOF-before-hello retry," which stopped being true once the fix drew the boundary at the decoded hello. The corrected boundary is stated precisely elsewhere (finding #1's own fix writeup, and the updated doc comments in local_socket.rs), so no reader is actually misled about the code, but the Departures record itself was never corrected to match.
+
+Checked, no finding: connect() and the arbitration are untouched; the retry is exactly once; no stream is ever returned with a timeout still set; CI is green via `gh pr checks 77` and `gh pr view --json headRefOid` both against eab279c0, the diff's own head; the round-1 diff (5a456f3a..eab279c0, task's files only) touches exactly local_socket.rs, api_call.rs, cli_exit_statuses.rs, nothing else.
+
+Not checked: did not re-run cli_connection_arbitration.rs or cli_exit_statuses.rs's real-process suites beyond what CI/recorded checks already show; did not independently re-verify the EINVAL/errno claim's platform mechanism beyond reproducing the test's own pass/fail behaviour.
 
 ---
 <!-- COMMENTS:END -->

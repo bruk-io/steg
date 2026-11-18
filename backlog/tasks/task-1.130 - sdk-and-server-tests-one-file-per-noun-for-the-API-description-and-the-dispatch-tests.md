@@ -207,6 +207,12 @@ Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-s
 0a1
 > #[allow(dead_code)]
 ```
+
+Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 0 at 2026-11-18T03:01:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+proof (c), attributes: the set of attribute lines is identical before and after
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

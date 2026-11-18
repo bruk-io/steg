@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T05:08:00Z'
+updated_date: '2026-11-18T05:09:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -553,6 +553,13 @@ kill: 14014: No such process
 test pane::tests::a_forward_failing_once_the_worker_is_gone_still_reaps_a_program_that_ends_on_its_own ... ok
 
 test result: ok. 203 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+```
+
+Check FAILED: `sh -c 'diff <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main before) <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main after); echo CONTROL-widened-pub-surface-must-fail'` exited 2 at 2026-11-18T05:09:34+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 on task-1.131-server-runtime-rs-split-into-modules-by at cdbc6bb5e16a with uncommitted changes:
+
+```text
+sh: -c: line 0: syntax error near unexpected token `('
+sh: -c: line 0: `diff <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main before) <(bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1131-pubsurface.sh /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.131 origin/main after); echo CONTROL-widened-pub-surface-must-fail'
 ```
 <!-- SECTION:NOTES:END -->
 

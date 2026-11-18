@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-17T02:44:00Z'
+updated_date: '2026-11-18T04:11:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -46,6 +46,8 @@ Follow-up to draft (TASK-1.47, 2026-11-16): the unit test attach_pane_on_a_busy_
 Follow-up to decide (TASK-1.117 third review, 2026-11-16): the app keeps running after its window is closed; nothing in doc-10 says whether closing the last window quits. Decide and record it with the window work in m-4.
 
 Patches kept for follow-ups, 2026-11-16, in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/follow-up-patches-2026-11-16: task-1.47-arm-returns-armed.patch (the starting point for the drafted task on a pane closing between attach and arm; applies to f91a8f27), task-1.47-stronger-lock-test.patch (a stronger version of attach's lock test; applies to f91a8f27), task-1.117-startup-stop-variant.patch (holds a test that drives a genuinely stalled connect through the real run(); applies to f8967015).
+
+From TASK-1.132's second review (2026-11-18), two nits left because the task locked on passing: (1) tools/tests/functional/test_quiet_slots.py's docstring says widening ORDER_SLACK_S only ever makes the tests more lenient, but two assertions (second_start < first_end - ORDER_SLACK_S; waiter_started_at < long_ended_at - ORDER_SLACK_S) get stricter as it widens - correct the comment before anyone widens it; (2) a malformed STEG_CHECK_SLOT_WAIT_S now fails every step, including cheap ones and under CI where the limiter is off - fail-fast and defensible, but undocumented: say so in quiet.py's docstring.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

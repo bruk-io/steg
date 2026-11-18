@@ -1,13 +1,14 @@
 ---
 id: TASK-1.132
 title: 'Tools: only a few just check runs at a time on one machine'
-status: In Review
+status: Done
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:58:00Z'
+updated_date: '2026-11-18T04:34:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-3
 dependencies: []
 references:
@@ -21,10 +22,9 @@ asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd9a4c4cb7361'
 asdlc_plan_approved_size: size-2
 asdlc_review_kind: same-machine
-asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_findings: 'important=0,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
-asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -875,6 +875,36 @@ created: 2026-11-18T03:58:00Z
 ---
 
 @bruk.r3 is reviewing TASK-1.132: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T04:10:00Z
+
+---
+
+Review by @bruk.r3 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 2 nit. Cites: review. The diff matches the plan.
+
+Second, narrow round: confirms all four round-1 findings fixed.
+
+[Evidence, was Important, now fixed] test_a_bounded_wait_fails_cleanly_without_running_its_command (test_quiet_slots.py:310-349) exercises the plan's step-7 refusal branch with real processes and a temp lock dir: fails with returncode != 0, prints the bound, lock_dir, and both env var names (quiet.py:197-201's message), and the waiter's own start marker file is confirmed absent. Control repeated myself: edited _race_all_slots's `won.wait(timeout=wait_bound)` to `timeout=None` (quiet.py:197), ran the test alone via `uv run --project tools pytest -q .../test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command` - failed exactly as expected (ran unslotted after 8.4s, returncode 0 instead of refusing). Reverted with `git checkout --`; `git status --porcelain` and the diff against the recorded-check commit (94dcbe45..HEAD for tools/justfile) both empty.
+Nits: cargo install documented as intentionally excluded from the heavy set (quiet.py:61-68); the wait line itself asserted in the slow-path test, not just its formatter (test_quiet_slots.py:266-268); non-numeric STEG_CHECK_SLOTS/STEG_CHECK_SLOT_WAIT_S now raise a one-line message naming the variable and value, no traceback (quiet.py:88-99,122-134; tests at unit test_quiet.py and functional test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback) - all confirmed fixed with their own recorded failing/passing control pairs in the task's notes.
+
+New findings, both Nit:
+
+[Bugs, Nit] test_quiet_slots.py:15-18 vs :174,264: the file's own docstring claims ORDER_SLACK_S "only ever gets MORE lenient by widening it" and "can never hide the opposite kind of bug" - true for the "must come after" checks it names, but false for at least two of its actual uses: `assert second_start < first_end - ORDER_SLACK_S` (line 174, the no-limit-overlap control) and `assert waiter_started_at < long_ended_at - ORDER_SLACK_S` (line 264). In both, ORDER_SLACK_S is subtracted from the RHS of a "<" comparison, so widening it makes the check MORE strict, not more lenient. Numerically harmless today (margins of 1.0s and ~3-6s respectively; verified empirically below) and doesn't mask a real regression (a reintroduced bug overshoots the threshold by more than the margin in both cases), but the misleading comment could lead a future widening of ORDER_SLACK_S to break the overlap test rather than relax it.
+
+[Compliance, Nit] quiet.py:383-388 (main()): `wait_bound_seconds(os.environ)` moved from inside the heavy-step branch (only reached for cargo build/test/clippy) to the top-level try, so a malformed STEG_CHECK_SLOT_WAIT_S now fails every step, including cheap ones and steps under CI where the limiter is never engaged. Defensible as fail-fast, but it is a behaviour change beyond the error-message wording the task's own notes describe ("no behaviour change to the locking beyond the error messages"), and it isn't called out as a departure.
+
+Timing-margin check (brief item 3): read every ORDER_SLACK_S/CONCURRENT_SLACK_S use in the file. CONCURRENT_SLACK_S (1.0s, kept below every duration it's compared against) is used correctly. Ran the full functional suite three times (9/9, 9/9, 9/9 passed) at load averages 2.8-4.9 (1-min)/3.6-4.1(5-min)/4.5-4.6(15-min). Then stress-ran the two tightest assertions (the no-limit-overlap test and the three-way slot-count test, the latter exercising CONCURRENT_SLACK_S) 15 times with a fresh lock dir each time: 15/15 passed at load averages 3.1-4.5. No observed flakiness despite the direction mismatch above.
+
+quiet.py's 37-line diff itself: confirmed no change to locking behaviour beyond messages and the wait_bound-scope widening noted above; no polling added (still a single blocking flock per racer thread, Event.wait(timeout=...) for the bound).
+
+Recorded checks verified against an identical tree: `git diff 94dcbe45..fdc17a76 -- tools justfile` is empty, so the task's own `just check`/`just test-tools` runs at fdc17a76 apply unchanged to 94dcbe45's tools/ and justfile content.
+
+Did not check: did not re-run the SIGKILL, fd-inheritance, or convoy-race controls myself this round (read their recorded transcripts and the first reviewer's own repeat of the convoy control); did not stress-test every assertion in the file, only the two with the thinnest margins.
 
 ---
 <!-- COMMENTS:END -->

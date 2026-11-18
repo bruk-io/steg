@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:00:00Z'
+updated_date: '2026-11-18T04:16:00Z'
 labels:
   - size-2
   - changes-requested
@@ -528,6 +528,129 @@ The last just-check run was recorded on this task as it ran (exit 101), confirme
 PR: https://github.com/bruk-io/steg/pull/76 (head e527e603) - the body carries the same local-check/CI-is-clean statement, the five test names, and the Departures list.
 
 Where a later task's new dispatch test goes: for an existing noun, in dispatch/<noun>.rs (session.rs/tab.rs/pane.rs/api.rs/setting.rs). One that tests api.call's own forwarding or targeting for that noun goes in dispatch/api.rs regardless of which noun it names. One that crosses several nouns in one call sequence, or exercises dispatch's own completeness/shape guarantees rather than one noun's behaviour, goes in dispatch/cross_cutting.rs. A genuinely new noun gets its own new dispatch/<noun>.rs, declared with one more mod line in dispatch/main.rs.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clean -p steg-server; time cargo test -p steg-server --test dispatch --no-run'` exited 0 at 2026-11-18T04:07:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+     Removed 692 files, 86.1MiB total
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.35s
+  Executable tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+
+real	0m1.392s
+user	0m2.511s
+sys	0m1.011s
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Review fix (Important, AC #4 timing): the plan's own method, in full, run at final head e527e603+ (after the review-fix commits below). "Before" measured in a separate scratch worktree at dae0c095 (the commit this branch started from - the single dispatch.rs file, pre-move), not by checking out an old commit in this task worktree; "after" measured in this worktree at the current split. Same command both sides: `cargo clean -p steg-server` then `time cargo test -p steg-server [--test dispatch] --no-run`, first run after each clean discarded as cache-filling, two more recorded. Load was quiet throughout (uptime 3.7-5.2 the whole time; one `before` worktree had an initial `cargo clean` removing 2.1GiB of this session's own accumulated target/ cache, so that one discard sample read higher - irrelevant, it was discarded, not recorded).
+
+Whole-crate (12 test binaries, the lib, every target under steg-server):
+- Before (dae0c095, single file): 2.142s, 2.179s (discard sample 2.147s)
+- After (e527e603+, split): 2.181s, 2.147s (discard sample 2.916s, inflated by the one-off 2.1GiB cache clear noted above)
+- Essentially identical both sides - expected, since every other test target's own compilation is unaffected by this task either way.
+
+`--test dispatch`-scoped (the lib + only the dispatch target - the number AC #4 actually asks for):
+- Before (dae0c095, single file): 1.488s (discard), 1.521s, 1.454s recorded
+- After (e527e603+, split): 1.450s (discard), 1.389s, 1.407s recorded
+- After reads very slightly faster than before (roughly 0.05-0.1s), well inside this measurement's own sample-to-sample spread (before's two recorded samples alone differ by 0.07s) - read as within noise, not a real improvement or regression. Confirms the plan's own "one binary either way, delta of zero by construction" conclusion with the actual requested number measured, not assumed.
+
+Scratch worktree (`git worktree add <scratchpad>/task-1135-before dae0c095`) removed after use (`git worktree remove --force`).
+
+Review fix (Nit, comments-only verification wording): the plan's own "Comments-only commit (step 10)" text states the mechanical check as "confirm every +/- content line matches `^[+-]\s*//`" - that pattern is too narrow for what the commit actually contains: three of the six changed lines are `reason = "..."` strings inside a `#![expect(...)]` attribute, not `//` comments. The actual verification run (and the one quoted correctly in commit 660ea304's own message) used `^[+-]\s*(//|reason)`, which does match every changed line in that commit - re-confirmed now: `git diff 660ea304^ 660ea304 -- crates/server/tests/runtime.rs crates/server/tests/events.rs crates/server/tests/routing.rs | grep -E '^[+-]' | grep -v '^[+-][+-][+-]' | grep -vE '^[+-]\s*(//|reason)'` prints nothing. Not editing the plan's own text (out of scope for a worker); recording the correct pattern here since that's what was actually run.
+
+Check passed: `sh -c 'bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-proof-c.sh'` exited 0 at 2026-11-18T04:09:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+DIFF  fixtures: 6 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-fixtures.diff
+PASS  cross_cutting: byte-identical
+DIFF  session: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-session.diff
+DIFF  tab: 8 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-tab.diff
+DIFF  pane: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-pane.diff
+PASS  api: byte-identical
+PASS  setting: byte-identical
+---
+Known, disclosed non-identical modules (expected, see task notes):
+  fixtures: one doc-comment reworded (no longer true that helpers live in
+    'this file' once moved) - 2 lines changed, 0 lines of logic.
+  session: one blank line added at the seam where the span-noun test was
+    excised from the middle of the block.
+  tab: a 5-line explanatory comment added to pane_list_with_an_ambiguous_
+    target_is_ambiguous_target (why it lives in tab.rs, not pane.rs) - the
+    plan called for this.
+  pane/tab/fixtures/session/cross_cutting: a one-line, end-of-slice diff is
+    an artifact of the comparison's own line-range boundaries (the
+    original file's trailing blank before its next marker comment isn't
+    reproduced at a module file's own end) - not a body change.
+cross_cutting.rs, api.rs and setting.rs are byte-identical to their
+original slices (api.rs's own added 7-line module doc comment, naming
+why its six cross-noun tests live there, sits before this comparison's
+own body-start boundary, same as cross_cutting.rs's own added marker
+comment - excluded as module-level scaffolding, not body content).
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-head-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-head-check.txt && echo '"'"'PROOF (b) at final head: 77/77 identical'"'"''` exited 0 at 2026-11-18T04:10:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b) at final head: 77/77 identical
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clippy -p steg-server --all-targets --all-features -- -D warnings'` exited 0 at 2026-11-18T04:10:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.79s
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T04:16:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 94d88814c569:
+
+```text
+ok      format check (0.3s)
+ok      lint (2.3s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-server) (57.7s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (1.4s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (0.9s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (57.0s)
+ok      test (steg-server, race-fixture) (58.6s)
+ok      test (steg-server, pty-race-fixture) (60.5s)
+ok      test (steg-server, accept-backoff-fixture) (58.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.0s)
+ok      test (steg, fixtures) (6.4s)
+ok      build (steg-ui) (20.1s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (2.4s)
+ok      test (steg-app) (2.0s)
+ok      tool tests (14.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 74, 60 without the Asdlc-Worker trailer.
+
+Review fixes landed (commit 94d88814, after merging origin/main at 2ab6a7a6 - TASK-1.130 merged, touches crates/sdk and crates/app only, clean merge, nothing in crates/server/tests): routing.rs:418 now matches the plan's literal replacement text; dispatch/api.rs carries its own module doc comment naming the six cross-noun tests and why, matching tab.rs/cross_cutting.rs. Re-ran proof (c) at this head - fixing a stale hardcoded line range in the comparison script (api.rs grew by 8 lines from its own new doc comment) - and found api.rs is still byte-identical to its original slice: the new doc comment sits before this comparison's own body-start boundary, the same way cross_cutting.rs's own added marker comment does, so it's excluded as module-level scaffolding rather than counted as a body change. Re-recorded proof (b) (77/77) and `cargo clippy -p steg-server --all-targets --all-features -- -D warnings` (clean) at this same head.
+
+Local `just check` run once more with the machine quiet (uptime 2.65/3.39/4.04): full green, including crates/server's attach tests - confirms the five failures reported earlier really were this machine's concurrent-build load, not a regression. Pushed at 94d88814.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

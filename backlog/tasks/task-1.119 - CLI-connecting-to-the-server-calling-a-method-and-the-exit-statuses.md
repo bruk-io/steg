@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:17:00Z'
+updated_date: '2026-11-18T03:18:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -718,6 +718,32 @@ running 1 test
 test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- without_json_a_successful_command_prints_nothing_on_stdout` exited 101 at 2026-11-18T03:18:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test without_json_a_successful_command_prints_nothing_on_stdout ... FAILED
+
+failures:
+
+---- without_json_a_successful_command_prints_nothing_on_stdout stdout ----
+
+thread 'without_json_a_successful_command_prints_nothing_on_stdout' (57916294) panicked at crates/steg/tests/cli_exit_statuses.rs:257:5:
+stdout: "[]\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    without_json_a_successful_command_prints_nothing_on_stdout
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
 ```
 <!-- SECTION:NOTES:END -->
 

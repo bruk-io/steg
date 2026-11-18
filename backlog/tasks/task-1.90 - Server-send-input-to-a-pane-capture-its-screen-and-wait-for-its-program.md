@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T17:26:00Z'
+updated_date: '2026-11-18T17:29:00Z'
 labels:
   - size-3
   - changes-requested
@@ -631,6 +631,34 @@ Review round 1 findings fixed (@bruk.r1, PR 80):
 Departure from the plan, found while building finding 1: a single long-running od buffers its own input and never flushes without end-of-file, which an open pty never sends (confirmed directly - nothing printed for minutes on a 3-byte write). Replaced with one dd+od pair per byte, each giving od the end-of-file it needs to flush immediately; also needed -icrnl (without it, a real \r read back as 0a, not 0d) and a tall declared tab size (the default 24-row screen scrolls hex lines out of the active screen partway through 26 keys, which hex_lines - reading only the active screen - would otherwise lose).
 
 Checks: just check green at the final head (92b0a149, merged with origin/main twice - board-only merges, no code conflicts). All five negative controls (the three original plus the two re-run/new ones above) recorded as failing-then-passing pairs against the tests as they stand at this head. gh pr checks 80 green (confirmed via gh run list: completed/success).
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_a_pane_with_no_running_program` exited 101 at 2026-11-18T17:29:10+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 92b0a1494a67 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_a_pane_with_no_running_program ... FAILED
+
+failures:
+
+---- pane_send_refuses_a_pane_with_no_running_program stdout ----
+
+thread 'pane_send_refuses_a_pane_with_no_running_program' (61300683) panicked at crates/server/tests/pane_send.rs:872:9:
+expected pane.send to refuse an already-ended pane, got Ok(Null)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_a_pane_with_no_running_program
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.02s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

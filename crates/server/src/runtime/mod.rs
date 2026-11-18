@@ -302,7 +302,6 @@ impl Runtime {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
-
 }
 
 /// Dropping a `Runtime` stops it (review finding 3) - the safer of the

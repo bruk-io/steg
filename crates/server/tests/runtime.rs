@@ -8,7 +8,7 @@
 
 #![expect(
     clippy::unwrap_used,
-    reason = "this whole file is a test; see dispatch.rs's own comment"
+    reason = "this whole file is a test; see dispatch/main.rs's own comment"
 )]
 
 use std::sync::Arc;
@@ -1476,7 +1476,7 @@ fn tab_new_through_api_call_starts_a_real_program() {
     // would collide in the same params map. Relying on
     // `context.default_session` instead is exactly what
     // `api_call_of_pane_split_gives_the_same_response_a_direct_call_would`
-    // (dispatch.rs) already does for the same reason.
+    // (dispatch/api.rs) already does for the same reason.
     let tab = ok(runtime.handle(
         &api,
         &context,

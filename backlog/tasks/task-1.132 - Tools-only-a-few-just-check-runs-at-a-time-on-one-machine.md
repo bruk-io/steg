@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:47:00Z'
+updated_date: '2026-11-18T02:48:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -424,6 +424,14 @@ tools/tests/unit/test_quiet.py:132: AssertionError
 =========================== short test summary info ============================
 FAILED tools/tests/unit/test_quiet.py::test_wait_bound_honours_the_variable
 1 failed, 1 passed, 19 deselected in 0.01s
+```
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/unit/test_quiet.py -k wait_bound'` exited 0 at 2026-11-18T02:48:06+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at b3337f0f0605:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuw8M55` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed, 19 deselected in 0.01s
 ```
 <!-- SECTION:NOTES:END -->
 

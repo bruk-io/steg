@@ -2542,4 +2542,20 @@ Live evidence: plainly disclosed in both the task's notes and the PR body (gh pr
 Not checked: the .mov recording's contents; any machine other than this one; whether the plan-approval hash still matches beyond what the notes state.
 
 ---
+
+created: 2026-11-18T00:57:00Z
+
+---
+
+Second review's finding fixed: pulled the Cmd-V mechanism into send_pasted_text(writer, clipboard_text) - a plain function taking the clipboard's own text as Option<&str> and the writer, so on_key_down is one line that reads the real clipboard and passes the text in. Chose the injected-text shape, not gpui's test-support in-memory clipboard, per your own note about TASK-1.126's prior finding on that feature's footprint.
+
+Tested against a real socket (client.rs's own Writer-test pattern, no gpui test-support needed, no app launch): CRLF and bare LF both normalise to a single \r; a paste between two ordinary inputs arrives as exactly one send, in order with them, over the same single queue review finding 1 already gave every input; no clipboard text, or an empty string, sends nothing at all - not even an empty frame.
+
+Control: removed send_pasted_text's own body (the reviewer's exact regression - all four OLD paste tests still passed because they only tested is_paste_keystroke). Recorded failing: two of the four NEW tests failed (the ones that expect something to actually arrive); the other two (empty/no-text-sends-nothing) correctly still passed on their own - that is the right behaviour either way, not a gap in the control. Restored, recorded passing. Also fixed a real gap the control's first run exposed: the test harness had no read timeout, so the two tests that should fail instead hung until I killed the process by hand - added one (matching client.rs's own convention) so a real regression fails cleanly in bounded time from here on.
+
+What remains untested, as asked: the one line in on_key_down that calls cx.read_from_clipboard() itself - reading the real clipboard is exactly what must not be exercised by a test or a live run.
+
+just check recorded clean (exit 0) at the final head (e6a811b6, clean tree, after merging origin/main - board-only changes, no conflicts).
+
+---
 <!-- COMMENTS:END -->

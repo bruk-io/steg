@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T05:56:00Z'
+updated_date: '2026-11-18T06:01:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1250,6 +1250,34 @@ Review findings fixed (back to In Review). Head eab279c0; CI green on this head 
 4. [Nit] api call with stdin over the frame's own cap (MAX_PAYLOAD, already public from steg_sdk) reached Connection::call_unvalidated's own encode_frame(...).expect(...) and panicked (exit 101) instead of exiting 2. Bounded entirely inside crates/steg/src/cli/api_call.rs: a size check against MAX_PAYLOAD less a 4 KiB margin, before any JSON parsing, so oversized input is rejected cheaply and never reaches the sdk at all - no sdk change needed for this one. New test: oversized_stdin_on_api_call_exits_2_without_panicking (a 9 MiB, valid-JSON payload, so the size check is what's proven, not the earlier "is this JSON" check). Control recorded: reverting the check makes the real binary panic (exit 101) under the test, confirmed; reverted back, recorded passing.
 
 Every fix above has a recorded failing-then-passing control pair on the task. Local `just check` was intermittently red across several runs tonight on different crates/server/tests/attach.rs timing tests (none in this PR's files); the final local run at this head (eab279c0) was itself green end to end, and CI is green on the same head.
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello` exited 101 at 2026-11-18T06:01:27+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at eab279c0ff73 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 1 test
+test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... FAILED
+
+failures:
+
+---- local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello stdout ----
+
+thread 'local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello' (59476840) panicked at crates/sdk/src/local_socket.rs:836:9:
+a hello that was actually decoded must surface as a genuine error, never as `Ok(None)` (which `connect_handshaken` reads as EOF-before-hello and retries): Ok(None)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 174 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

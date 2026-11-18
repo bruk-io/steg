@@ -145,6 +145,15 @@ Check passed: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-git
 ```text
 proof (a): description() is byte-for-byte identical before and after
 ```
+
+Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-before.txt'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-control.txt'"'"''` exited 1 at 2026-11-18T02:58:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+
+```text
+23c23
+< description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pairs: test
+---
+> description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pair: test
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

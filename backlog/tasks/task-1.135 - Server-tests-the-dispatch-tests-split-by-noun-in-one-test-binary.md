@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T02:41:00Z'
+updated_date: '2026-11-18T02:45:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -116,6 +116,51 @@ Closing sentence for the notes: a later task's new dispatch test for an existing
 
 <!-- SECTION:NOTES:BEGIN -->
 Plan (a5fe3026a112) checked against the task's four criteria by @bruk.o: ok. Move only: dispatch.rs becomes dispatch/main.rs plus fixtures, session, tab, pane, api, setting and cross_cutting, still one test binary; the rename is its own commit and each module one commit, with a lint check after the first noun. Proofs with controls: the test list apart from module prefixes; a per-module sequence diff against the original file's own marked sections, stricter than the task's suggested comparison; build and link time measured before and after. The starting point's claim about a shared 'mod support' was wrong and is corrected (the helpers file is fixtures.rs). Comments elsewhere that name dispatch.rs are fixed in a final comments-only commit; TASK-1.131 edits other comment lines in the same test files, so whichever merges second merges main first.
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo test -p steg-server --test dispatch -- --list'` exited 0 at 2026-11-18T02:45:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at b83b80543d5c, last 40 of 81 lines:
+
+```text
+session_close_removes_it: test
+session_list_matches_exactly_the_fields_the_description_declares_per_record: test
+session_move_converts_the_wire_position_before_calling_the_kernel: test
+session_move_rejects_a_zero_position_without_touching_the_tree: test
+session_new_creates_a_plain_shell_session: test
+session_set_and_unset_change_and_clear_the_label: test
+session_show_matches_exactly_the_fields_the_description_declares: test
+session_show_with_an_unknown_target_is_no_such_target: test
+setting_list_returns_every_registered_setting_with_its_current_value: test
+setting_set_changes_the_value_the_next_read_sees: test
+setting_set_rejects_a_value_outside_the_closed_set_with_bad_request: test
+setting_set_rejects_an_unknown_name_with_no_such_target: test
+setting_show_an_unknown_name_is_no_such_target: test
+setting_show_returns_one_setting_in_full: test
+setting_unset_an_unknown_name_is_no_such_target: test
+setting_unset_reverts_to_the_default: test
+split_set_label_then_close_the_session: test
+tab_close_removes_it: test
+tab_focus_makes_it_current: test
+tab_list_returns_every_tab_of_the_session_in_order: test
+tab_list_with_an_ambiguous_session_target_is_ambiguous_target: test
+tab_list_with_an_unknown_session_is_no_such_target: test
+tab_move_with_position_reorders: test
+tab_new_makes_the_new_tab_current_by_default: test
+tab_new_with_a_middle_position_places_the_new_tab_there: test
+tab_new_with_a_position_past_the_end_and_no_focus_creates_nothing_and_restores_focus: test
+tab_new_with_a_position_past_the_end_behaves_like_tab_move_and_creates_nothing: test
+tab_new_with_no_focus_leaves_the_original_tab_current: test
+tab_new_with_no_focus_restores_a_current_tab_that_is_not_the_first: test
+tab_new_with_no_focus_restores_the_previous_current_tab: test
+tab_new_with_no_position_appends_at_the_end_as_before: test
+tab_new_with_position_one_places_the_new_tab_first: test
+tab_new_with_position_zero_is_refused_and_creates_nothing: test
+tab_show_and_tab_list_shown_status_follow_the_kernels_ranking_not_tab_order: test
+tab_show_returns_the_tabs_record: test
+tab_show_with_an_ambiguous_target_is_ambiguous_target: test
+tab_show_with_an_unknown_target_is_no_such_target: test
+unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given: test
+
+77 tests, 0 benchmarks
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

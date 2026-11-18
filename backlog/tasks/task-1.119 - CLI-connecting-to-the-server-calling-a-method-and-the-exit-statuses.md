@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:16:00Z'
+updated_date: '2026-11-18T03:17:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -638,6 +638,32 @@ test local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails ..
 test local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-sdk --lib -- call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare` exited 101 at 2026-11-18T03:17:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare ... FAILED
+
+failures:
+
+---- wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare stdout ----
+
+thread 'wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare' (57866557) panicked at crates/sdk/src/wire/connection.rs:266:47:
+should be unvalidated: ApiError { code: BadRequest, message: "api.call has no parameter direction", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 <!-- SECTION:NOTES:END -->
 

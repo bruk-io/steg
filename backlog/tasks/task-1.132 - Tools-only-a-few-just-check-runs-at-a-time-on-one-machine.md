@@ -5,11 +5,15 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:58:00Z'
+updated_date: '2026-11-18T03:39:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-3
 dependencies: []
+references:
+  - task-1.132-tools-only-a-few-just-check-runs-at-a
+  - https://github.com/bruk-io/steg/pull/75
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-3
@@ -17,6 +21,10 @@ asdlc_branch: task-1.132-tools-only-a-few-just-check-runs-at-a
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'd9a4c4cb7361'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -505,6 +513,222 @@ ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
 ```
+
+Check passed: `just test-tools` exited 0 at 2026-11-18T02:59:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 700bc6f420b7:
+
+```text
+ok      tool tests (22.4s)
+```
+
+Built per the approved, engineer-tightened plan. The limiter: each heavy cargo step (build/test/clippy) takes one of STEG_CHECK_SLOTS machine-wide slots (default 2; 0 = no limit, no lock touched at all; unset defaults to no limit under CI). A waiter races all slots at once (one daemon thread per slot, each a single blocking flock, no polling) so it gets whichever frees first, never a fixed one. A crashed or killed holder frees its slot with no cleanup code - the kernel drops the flock when the holder's own fd closes, since the slot is held only by the steg-quiet parent, never inherited into the cargo child. STEG_CHECK_SLOT_WAIT_S optionally bounds the wait, unset by default.
+
+Checks recorded on the task: an initial just test-tools baseline; the implementation's own unit/functional tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls, detail in the task's notes) covering lock acquisition, the SIGKILL release property, the first-to-free race, the no-limit path, heavy-step detection, and each of the five pure functions; a full just check recorded live against the real default lock directory while five other workers were building. CI on PR #75 failed once on an unrelated flaky server test (signal::tests::send_reaches_the_whole_process_group_not_only_the_leader, not in the named known-flakes list, not touched by this change) and passed clean on rerun - noted on the task, not investigated further.
+
+No departures from the approved plan.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command'` exited 1 at 2026-11-18T03:36:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes, last 40 of 42 lines:
+
+```text
+=================================== FAILURES ===================================
+________ test_a_bounded_wait_fails_cleanly_without_running_its_command _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-692/test_a_bounded_wait_fails_clea0')
+
+    def test_a_bounded_wait_fails_cleanly_without_running_its_command(tmp_path: Path) -> None:
+        """The plan's own step 7: STEG_CHECK_SLOT_WAIT_S expiring fails the step, rather than running it unslotted."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        holder_duration, bound = 8.0, 2.0
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=holder_duration, lock_dir=lock_dir, slots="1"
+        )
+        try:
+            _wait_for(holder_start)  # the one slot is now held for the next 8s
+    
+            started = time.monotonic()
+            waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+                tmp_path=tmp_path,
+                bin_dir=bin_dir,
+                label="waiter",
+                duration_s=0.1,
+                lock_dir=lock_dir,
+                slots="1",
+                wait_bound=str(bound),
+            )
+            output, _ = waiter.communicate(timeout=HARNESS_BOUND_S)
+            elapsed = time.monotonic() - started
+    
+>           assert waiter.returncode != 0, "a wait that crosses its own bound must fail the step"
+E           AssertionError: a wait that crosses its own bound must fail the step
+E           assert 0 != 0
+E            +  where 0 = <Popen: returncode: 0 args: ['/Users/brukhabtu/src/github.com/bruk-io/steg.w...>.returncode
+
+tools/tests/functional/test_quiet_slots.py:336: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command
+1 failed in 8.25s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_bounded_wait_fails_cleanly_without_running_its_command'` exited 0 at 2026-11-18T03:37:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpC7u3kh` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 2.16s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 1 at 2026-11-18T03:37:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpQcXx7a` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one _________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-695/test_a_waiter_gets_whichever_s0')
+
+    def test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one(tmp_path: Path) -> None:
+        """The fix for the convoy review found: a waiter must not be stuck behind one committed slot."""
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        long_duration, short_duration = 8.0, 2.0
+    
+        long_holder, long_start, long_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="long", duration_s=long_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(long_start)  # claims the first slot alone, so which slot is "long"'s is deterministic
+    
+        short_holder, short_start, short_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="short", duration_s=short_duration, lock_dir=lock_dir, slots="2"
+        )
+        _wait_for(short_start)  # both slots are now busy before the waiter is started
+    
+        waiter, waiter_start, _waiter_end, _ = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.1, lock_dir=lock_dir, slots="2"
+        )
+        waiter_output, _ = waiter.communicate(timeout=HARNESS_BOUND_S)
+        assert waiter_output is not None
+        assert short_holder.communicate(timeout=HARNESS_BOUND_S)[0] is not None
+        assert long_holder.communicate(timeout=HARNESS_BOUND_S)[0] is not None
+    
+        # Finding #3 (review of TASK-1.132): the wait line itself, not just its formatter, must be printed.
+>       assert "wait    waiter" in waiter_output
+E       AssertionError: assert 'wait    waiter' in 'ok      waiter (0.1s)\n'
+
+tools/tests/functional/test_quiet_slots.py:257: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one
+1 failed in 8.14s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one'` exited 0 at 2026-11-18T03:38:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpjhdOYG` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 8.12s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value" "tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback"'` exited 1 at 2026-11-18T03:38:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes, last 40 of 47 lines:
+
+```text
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: "STEG_CHECK_SLOTS must be a whole number, got 'abc'"
+E         Actual message: "invalid literal for int() with base 10: 'abc'"
+
+tools/tests/unit/test_quiet.py:96: AssertionError
+_______ test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback _______
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-698/test_a_non_numeric_slot_count_0')
+
+    def test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+        command = [
+            STEG_QUIET,
+            "a",
+            "--",
+            "cargo",
+            "test",
+            "0.1",
+            str(tmp_path / "s"),
+            str(tmp_path / "e"),
+            str(tmp_path / "p"),
+        ]
+        env = _env(bin_dir, STEG_CHECK_SLOTS="not-a-number", STEG_CHECK_SLOTS_DIR=str(lock_dir))
+    
+        result = subprocess.run(command, check=False, env=env, cwd=str(tmp_path), capture_output=True, text=True, timeout=HARNESS_BOUND_S)
+    
+        assert result.returncode != 0
+        assert "Traceback" not in result.stdout
+>       assert "STEG_CHECK_SLOTS" in result.stdout
+E       assert 'STEG_CHECK_SLOTS' in "FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n"
+E        +  where "FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n" = CompletedProcess(args=['/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132/tools/.venv/bin/steg-quiet',...ot_count_0/p'], returncode=1, stdout="FAILED  a (invalid literal for int() with base 10: 'not-a-number')\n", stderr='').stdout
+
+tools/tests/functional/test_quiet_slots.py:372: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback
+2 failed in 0.04s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value" "tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback"'` exited 0 at 2026-11-18T03:38:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpqXH9Cl` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed in 0.03s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value"'` exited 1 at 2026-11-18T03:39:02+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmphh0Dfw` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value ___
+
+    def test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value() -> None:
+>       with pytest.raises(ValueError, match=r"STEG_CHECK_SLOT_WAIT_S must be a number, got 'soon'"):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Regex pattern did not match.
+E         Expected regex: "STEG_CHECK_SLOT_WAIT_S must be a number, got 'soon'"
+E         Actual message: "could not convert string to float: 'soon'"
+
+tools/tests/unit/test_quiet.py:141: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value
+1 failed in 0.01s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value"'` exited 0 at 2026-11-18T03:39:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuJxgTb` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.01s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -516,6 +740,66 @@ created: 2026-11-18T02:31:00Z
 ---
 
 Plan approved by @bruk (d9a4c4cb7361, size-2): its worker may build it.
+
+---
+
+created: 2026-11-18T03:00:00Z
+
+---
+
+Built per the approved plan (per the engineer's own tightening of the plan's proof wording, reported earlier). Summary for the record:
+
+WHAT A WORKER SEES WHEN ITS CHECK WAITS: nothing extra on the fast path (at least one of STEG_CHECK_SLOTS slots free - the common case). Only when every slot is busy, one line, flushed before the real wait: "wait    <label> (N of N slots busy, STEG_CHECK_SLOTS=N) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet" (or, with the bound set, "told it may wait up to Xs (STEG_CHECK_SLOT_WAIT_S)" in place of "with no bound..."). That line is the only thing distinguishing "still waiting" from "broken" if a worker's own harness timeout cuts its output short mid-wait.
+
+THE TWO VARIABLES: STEG_CHECK_SLOTS sets how many heavy cargo steps (build/test/clippy) may run machine-wide at once - default 2, 0 means no limit and takes no lock at all, unset defaults to no limit under CI automatically (GitHub Actions sets CI=true; its own concurrency group already runs one check job per ref). STEG_CHECK_SLOT_WAIT_S optionally bounds how long a waiter will wait before failing the step outright with a clear message - unset by default (unbounded), so a worker's own command timeout is the only thing that currently cuts a long wait short, with no special message from this mechanism. Both documented in the justfile's own header comment and in quiet.py's module docstring.
+
+WHAT THIS DOES NOT FIX: CPU/disk contention from non-cargo work on the machine (another process entirely, a browser, an editor's own indexer) is invisible to this limiter - it only ever counts cargo build/test/clippy invocations against each other, so a machine busy with unrelated load can still make the timing-sensitive tests flaky even with every slot "free" by this mechanism's own count. It coordinates only processes on one machine sharing the same lock directory - a second machine, or a sandboxed environment with its own distinct $HOME/XDG_CACHE_HOME, is invisible to it and not meant to be (TASK-1.132's own scope is one machine). And it assumes a local, POSIX-flock-honouring filesystem under the lock directory; a network-mounted home directory would make flock's own guarantees unreliable across hosts, which is named as a known limitation in the plan with STEG_CHECK_SLOTS_DIR as the escape hatch to point at local disk if that's ever actually hit - nothing here detects or warns about that case automatically.
+
+Checks recorded: an initial just test-tools baseline before any change; the full implementation's own just test-tools and the new functional/unit tests passing; ten mechanism-removed-then-restored control pairs (20 record-check calls) covering lock acquisition (tests a, d), the SIGKILL release property (test c, via a scratch edit that made the slot's fd inheritable into the fake-cargo child - showing the slot is NOT freed without the deliberate close-on-exec/close_fds=True this task relies on), the first-to-free race (test e, via a scratch fallback to a fixed slot - showing the waiter gets stuck behind the long holder instead of the quick one), the no-limit path (test f), heavy-step detection (test g), and each of the five pure functions (heavy_cargo_command, effective_slot_count, lock_directory, wait_bound_seconds, wait_line) with their own unit tests. Tree was clean between every pair and at the end (git status, and ps checked for leftover processes after the SIGKILL and cheap-step tests, which deliberately kill or race real subprocesses). Finally, a full just check recorded with the limiter live for the first time, against the real default lock directory, while five other workers were building on this machine - completed clean in under 8 minutes with no wait needed that particular run (the other workers' heavy steps didn't happen to collide with mine at the moments that mattered, but the mechanism was live throughout).
+
+No departures from the approved plan.
+
+---
+
+created: 2026-11-18T03:19:00Z
+
+---
+
+CI sighting (not mine): the first CI run on PR #75 failed at test (steg-server) with signal::tests::send_reaches_the_whole_process_group_not_only_the_leader - "the backgrounded child, in the same process group, must be gone too." Not one of the three named known flakes (login_env grandchild, stuck-pane timing, terminal-scrolling), but the same flavour (process-group/signal timing). Unrelated to this task's own change (tools/ and the justfile comment only; nothing in crates/server touched). Reran the job once per the standing guidance; it passed clean on the rerun (CI itself runs on an isolated runner with no slot contention, since CI defaults to no limit). Noting the sighting for the record; not investigating further as it is not this task's own code.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T03:20:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.132: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T03:28:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 3 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] tools/tests/functional/test_quiet_slots.py:56-83 (plan step 7; quiet.py:180-184,373-375): `_spawn_heavy`'s `wait_bound` parameter is defined and wired into the subprocess env (lines 64,69-70) but no call site in the file ever passes it - grep confirms zero `wait_bound=` arguments across every `_spawn_heavy(` call. So the refusal branch the plan names explicitly ("the step fails ... rather than silently proceeding unslotted" when STEG_CHECK_SLOT_WAIT_S expires, i.e. `_race_all_slots`'s TimeoutError reaching `main`'s `except TimeoutError: print("FAILED ...")`) is never exercised by any test, and none of the notes' ten recorded control pairs covers it either - they cover `wait_bound_seconds` the parser, not the timeout-and-fail behaviour it feeds. A plan-named branch with no test reaching it is unmet per the Evidence pass even though the ordinary (unbounded) wait path is well covered.
+
+[Bugs, Nit] justfile:212: `cargo install cargo-deny --locked` runs through `steg-quiet` but `install` is not in `_HEAVY_CARGO_SUBCOMMANDS`, so this from-source compile never takes a slot. Low impact (idempotent, guarded by `command -v`, not part of `just check`/`just test`), but it is a cargo-through-steg-quiet invocation the detection misses, worth naming.
+
+[Evidence, Nit] tools/tests/functional/test_quiet_slots.py: no functional test captures stdout and asserts the wait line is actually printed when `held_slot` takes the slow path; only the pure `wait_line()` function is unit-tested (test_quiet.py:115-124). Tests (d) and (e) already drive the slow path and already capture output, so asserting the line appears there is nearly free and would close the gap between "the formatter is right" and "AC #2's one line is actually emitted."
+
+[Bugs, Nit] quiet.py:88,117: an empty or non-numeric STEG_CHECK_SLOTS or STEG_CHECK_SLOT_WAIT_S raises a raw, unformatted traceback (bare `int()`/`float()`), not the clear one-line failure the rest of the file gives elsewhere. It does fail loudly rather than silently run unlimited, so not Important, but inconsistent with the file's own style.
+
+Verified myself: read quiet.py, the justfile's full recipe list (every `cargo build/test/clippy` invocation in check/test/test-all/check-packages/lint/build/capture-gallery/test-openpty-race-control correctly classified heavy; cargo fmt --check and cargo deny check licenses correctly not), both test files in full, and the task's full plan/notes/checks history. Traced fd lifetimes for the fast path, the slow-path race, SIGKILL, the 900s step timeout, and KeyboardInterrupt - all release correctly; the scan fds and the racer fds are distinct open file descriptions on the same files, so no self-deadlock. The ten recorded control pairs are genuine mechanism-removed-then-restored controls (e.g. test c's control made the slot fd inheritable into the fake-cargo child to show close-on-exec is load-bearing), not just pre-implementation baselines.
+
+Control repeated myself (different from a pure function): scratch-edited `_race_all_slots` in the worktree to spawn only one thread, pinned to `paths[0]`, breaking the first-to-free race. Ran `uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_waiter_gets_whichever_slot_frees_first_not_a_fixed_one` directly (bounded, under 60s) - it failed exactly as expected, the waiter stuck behind the long holder instead of the short one ("the waiter should acquire the slot that freed quickly", assert 1794972279.37 <= 1794972276.69). Reverted with `git checkout --`, confirmed `git status --porcelain` empty and the diff against origin/main unchanged (still only justfile, quiet.py, the two test files).
+
+Did not check: did not independently stress-test the timing-margin assertions (SLACK_S=0.5s) for flakiness under this machine's current load beyond the one control above; did not re-run the SIGKILL or fd-inheritance controls myself, only read their recorded transcripts.
 
 ---
 <!-- COMMENTS:END -->

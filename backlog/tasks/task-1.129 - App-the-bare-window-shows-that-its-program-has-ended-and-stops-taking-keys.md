@@ -1,17 +1,21 @@
 ---
 id: TASK-1.129
 title: 'App: the bare window shows that its program has ended, and stops taking keys'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:51:00Z'
+updated_date: '2026-11-18T03:10:00Z'
 labels:
   - size-2
+  - review-passed
 milestone: m-4
 dependencies:
   - TASK-1.128
   - TASK-1.121
+references:
+  - task-1.129-app-the-bare-window-shows-that-its
+  - https://github.com/bruk-io/steg/pull/74
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -19,6 +23,10 @@ asdlc_branch: task-1.129-app-the-bare-window-shows-that-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '95871fc3dfbf'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=0,nit=3'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -771,6 +779,41 @@ ok      recipe names (0.0s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Built per the approved plan. Departures from the plan (its own wording):
+
+- None beyond what the plan's "Design decided by this plan" section
+  already named as findings from the two advisor reviews before any code
+  existed (Writer::disarm, not Writer::stop; stopping the receive loop
+  rather than guarding Disconnected; the render split keeping the
+  not-ended tree unchanged). Built exactly as planned.
+
+One honest note on the render split's own verification: the plan said to
+check it with a plain git diff showing the None branch's own lines as
+unchanged context. In the actual edit, wrapping the existing div chain in
+an if/else necessarily re-indents it, so git's own diff shows those lines
+as touched even though their content (same methods, same arguments, no
+flex wrapper) is unchanged - confirmed by reading the two branches side
+by side, not by the diff's own shape. Said so here rather than silently
+claiming the literal check passed as worded.
+
+Checks recorded via asdlc record-check against TASK-1.129:
+- describe_end's own two tests, failing (stub) then passing.
+- client.rs's three new tests (own client event; close_stream's own
+  effect; disarm's own no-op), each failing (its own mechanism disabled)
+  then passing.
+- startup.rs's existing, unmodified an_ended_panes_program_gets_a_fresh_
+  tab_in_the_same_session, failing (resolve_pane's own program_status
+  check scratch-disabled) then passing - AC #3's own control, recorded
+  on request even though this diff does not touch that mechanism.
+- just check, clean at the final pushed head (fbcf6702); one login_env
+  grandchild flake hit and reran clean, the known hazard.
+- CI green on the same commit (gh pr checks 74 --watch, 10m10s).
+
+AC #4's own two screenshots are pending your own live run - the PR body
+says exactly what to run and what to look for (program exit with a
+status; a forced close; typing after the message does nothing; the
+terminal's own size before the message appears is unchanged from main).
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -782,6 +825,48 @@ created: 2026-11-18T02:25:00Z
 ---
 
 Plan approved by @bruk (95871fc3dfbf, size-2): its worker may build it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:03:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.129: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:10:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): clean. It stays In Review for a person to merge.
+
+Findings: 0 Important, 3 nit. Cites: review. The diff does not match the plan.
+
+Verdict: clean (0 Important, 3 Nit). Diff touches only crates/app/{client,main,model}.rs, matching the plan's "files that change"; nothing in backlog/ or crates/sdk|server changed, matching "Nothing in crates/sdk/crates/server changes."
+
+Mechanics verified directly, not just read:
+- client.rs: ClientEvent::Ended is decoded by drain's Ok(ScreenUpdate::Ended { reason }) arm as its own event (continue'd), never falling into the Ok(update) => update / Update path, and never returning false (the Disconnected-producing protocol-surprise path). connection.close_stream(stream) is called before the event is sent, matching doc-14 "The end of a pane, on its stream."
+- Writer::disarm sets self.commands = None only - no shutdown(), no join(); try_send's existing `let Some(commands) = &self.commands else { return; }` makes every later send_input/declare_size silent with no report_disconnected call, confirmed by reading try_send. Writer::stop (called later by teardown on window close) still sets commands = None (idempotent), shuts the socket, and joins the thread - teardown calls both client.stop() and writer.stop() unconditionally, so both threads are joined within their bounds even after an earlier disarm.
+- Commands already enqueued in the bounded channel at the moment of disarm are drained by write_loop and do reach the socket (dropping the SyncSender only stops *future* commands.recv() calls from succeeding, per std::sync::mpsc semantics) - but these are bytes the user sent *before* Ended arrived, not "further input" sent after; disarm's own doc says "every *later* send_input/declare_size call," which does not overclaim. Not a finding.
+- main.rs: handle_client_event's Ended arm sets state.ended, calls disarm(), and returns true, which stops the receive task's while-loop for good (window.spawn's loop breaks on stop); nothing can reach handle_client_event again to let a later Disconnected overwrite the phase. All three guarded call sites (send_bytes - covering both on_key_down and replace_text_in_range/IME - the paste branch, and on_resize) check state.ended.is_none() before doing any work, matching the plan's "three guard sites are for clarity, disarm is the backstop" framing; grepped every writer.send_input/declare_size call site in main.rs and confirmed no fourth, unguarded path exists.
+- The late-attach catch-up ordering claim (Full then Ended from one read() batch, same sender, same thread) is sound: a single UnboundedSender's sends from one thread are FIFO-delivered, so the Full is necessarily applied before Ended stops the loop - not merely assumed.
+- model.rs: describe_end's two wordings match the approved plan exactly ("the program ended with status {exit_code}" / "the pane was closed"), taking EndReason by value (Copy) as planned; Model::apply's Ended arm is confirmed a no-op, re-commented as final design rather than placeholder.
+- Render tree equivalence for the not-ended window: ran `git diff -w origin/main...HEAD -- crates/app/src/main.rs` (whitespace-insensitive) myself. Under -w the entire `else` branch's div()...child(terminal_element::terminal(...)) chain shows as unchanged context, with zero added/removed lines - confirming the notes' claim that the plain `git diff`'s "rewritten" appearance is pure re-indentation from the if/else wrapper, not a real content change. The risk the plan's step 3 was checking for (a flex wrapper regressing the ordinary window) did not land.
+
+Evidence: re-ran writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either myself in a scratch edit (disarm() body replaced with a no-op comment, nothing else touched) - it failed with the identical message and byte count the worker's own recorded failing run shows ("nothing should reach the wire after disarm: Ok(21)"), confirming the control is real and reproducible. Reverted; `git status` on the review worktree was clean before and after. Head is fbcf6702, matching both the task's final recorded check and the PR's green CI commit. Checked `git diff --stat b8cb8ee027f1 fbcf6702 -- crates/`: empty, confirming the `just check` run recorded "at b8cb8ee027f1" is against code identical to the final head, despite the different hash (a later rewrite/push, not a code change). The earlier per-test controls were recorded against an uncommitted working tree on top of commit 2dd9f5117641; the only change to that code before commit was a cosmetic rustfmt re-wrap (visible in the recorded "just check" FAILED/passed pair for check-fmt), not a semantic edit to any test, and the subsequent full `just check` runs (both uncommitted and at b8cb8ee027f1) are green on the reformatted, final code.
+
+AC #4: PR #74's body discloses the two screenshots are pending, states exactly what to run (exit 3; steg pane close --force) and what to look for (the message text, no further input, terminal size unchanged), matching the policy's "disclosed and accepted, not a finding" carve-out; it does not claim more than was proven.
+
+Findings (all Nit; none Important):
+1. [Compliance, Nit] main.rs:522-571 (and plan "Order of work" step 3). The plan's literal verification method ("checked with a plain git diff... the None branch's own lines must appear as context") was not followed as worded - wrapping the chain in if/else necessarily re-indents it, so an ordinary `git diff` shows the else branch as rewritten. The worker disclosed this honestly in the notes ("One honest note...") and substituted reading the two branches side by side. I independently confirmed the substitution was sound (see above, `-w` diff), so the risk the check existed to catch did not occur - but it is still a departure from the plan's stated check, hence --plan-matched no per the policy's literal wording ("no for any departure, even one the notes explain").
+2. [Compliance, Nit] Implementation Notes: the "Departures from the plan" bullet says "None... Built exactly as planned," immediately followed by a separate paragraph disclosing finding #1 above as "One honest note." These two statements are in tension - the second is a real, if harmless, departure and arguably belongs under "Departures" rather than beside it.
+3. [Bugs/Design, Nit] main.rs's Some(reason) render branch gives the terminal a flex_1 child alongside a new flex_none text row, so the terminal area loses one row's height versus the not-ended tree at the same window size. This is within the plan's own scope and proof plan (live run only), but PR #74's body only asks the engineer to confirm the terminal's *pre*-ended size is unchanged from main - it does not ask them to check that the last line of the program's final screen is still visible once the message row appears. Worth adding to the live-run checklist.
+
+Not checked: did not launch the app, inject input, or capture the screen (out of scope for this review); did not re-run the other three negative controls myself (only disarm's, as instructed - "repeat ONE control"); did not review crates outside crates/app since the diff touches nothing else.
 
 ---
 <!-- COMMENTS:END -->

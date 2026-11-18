@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T02:48:00Z'
+updated_date: '2026-11-18T03:27:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -166,6 +166,333 @@ Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo 
 
 ```text
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
+```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-final-check.txt && echo '"'"'PROOF (b): 77/77 test names identical apart from module:: prefix'"'"''` exited 0 at 2026-11-18T03:01:28+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): 77/77 test names identical apart from module:: prefix
+```
+
+Check passed: `sh -c 'bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-proof-c.sh'` exited 0 at 2026-11-18T03:02:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+DIFF  fixtures: 6 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-fixtures.diff
+PASS  cross_cutting: byte-identical
+DIFF  session: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-session.diff
+DIFF  tab: 8 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-tab.diff
+DIFF  pane: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-pane.diff
+PASS  api: byte-identical
+PASS  setting: byte-identical
+---
+Known, disclosed non-identical modules (expected, see task notes):
+  fixtures: one doc-comment reworded (no longer true that helpers live in
+    'this file' once moved) - 2 lines changed, 0 lines of logic.
+  session: one blank line added at the seam where the span-noun test was
+    excised from the middle of the block.
+  tab: a 5-line explanatory comment added to pane_list_with_an_ambiguous_
+    target_is_ambiguous_target (why it lives in tab.rs, not pane.rs) - the
+    plan called for this.
+  pane/tab/fixtures/session/cross_cutting: a one-line, end-of-slice diff is
+    an artifact of the comparison's own line-range boundaries (the
+    original file's trailing blank before its next marker comment isn't
+    reproduced at a module file's own end) - not a body change.
+cross_cutting.rs, api.rs and setting.rs are byte-identical to their
+original slices.
+```
+
+Check FAILED: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt'` exited 1 at 2026-11-18T03:02:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23 with uncommitted changes:
+
+```text
+--- /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt	2026-11-17 22:02:05
++++ /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-control.txt	2026-11-17 22:02:31
+@@ -11,7 +11,7 @@
+         moment(0),
+     ));
+ 
+-    assert_eq!(value.as_array().unwrap().len(), api.methods.len());
++    assert_eq!(value.as_array().unwrap().len(), api.methods.len() + 0);
+ }
+ 
+ #[test]
+```
+
+Check passed: `sh -c 'sed -n '"'"'8,750p'"'"' crates/server/tests/dispatch/api.rs > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt; diff -u /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-base.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-api-reverted.txt && echo '"'"'PROOF (c) api.rs: byte-identical again after revert'"'"''` exited 0 at 2026-11-18T03:02:44+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+PROOF (c) api.rs: byte-identical again after revert
+```
+
+Check FAILED: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-control-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-control-check.txt'` exited 1 at 2026-11-18T03:03:01+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23 with uncommitted changes:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+24c24
+< pane_close_removes_the_pane: test
+---
+> pane_close_removes_the_pane_x: test
+```
+
+Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo test -p steg-server --test dispatch -- --list | grep -E '"'"': test$'"'"' | sed -E '"'"'s/^[a-z_]+:://'"'"' | sort > /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt; diff /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-baseline-names.txt /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-reverted2-check.txt && echo '"'"'PROOF (b): passes again after revert'"'"''` exited 0 at 2026-11-18T03:03:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+PROOF (b): passes again after revert
+```
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; time cargo test -p steg-server --no-run'` exited 0 at 2026-11-18T03:03:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+  Executable unittests src/lib.rs (target/debug/deps/steg_server-6d2f1d51fdd2e018)
+  Executable tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+  Executable tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
+  Executable tests/events.rs (target/debug/deps/events-798969a47da1bf7b)
+  Executable tests/handshake.rs (target/debug/deps/handshake-9dd8ae3de7443a80)
+  Executable tests/idle_stop.rs (target/debug/deps/idle_stop-d739ee3e9ba75ca2)
+  Executable tests/program.rs (target/debug/deps/program-f5767e65ccefb070)
+  Executable tests/real_pty.rs (target/debug/deps/real_pty-8cd47141942cd298)
+  Executable tests/routing.rs (target/debug/deps/routing-aec039aa3c8fee71)
+  Executable tests/runtime.rs (target/debug/deps/runtime-636749399b762beb)
+  Executable tests/shutdown.rs (target/debug/deps/shutdown-641947b6111d1ffd)
+  Executable tests/socket_mode.rs (target/debug/deps/socket_mode-e7b594c955bacef5)
+
+real	0m0.438s
+user	0m0.387s
+sys	0m2.166s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:07:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test typed_bytes_reach_a_real_program_in_order ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57610203) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (57610202) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 21 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 63.58s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:21:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... FAILED
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57930745) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck stdout ----
+
+thread 'pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck' (57930769) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+    pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck
+
+test result: FAILED. 21 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 149.48s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:24:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test declaring_a_size_of_zero_is_refused ... ok
+test input_clears_a_finished_status ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57998479) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 122.96s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:25:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (58040757) panicked at crates/server/tests/attach.rs:1793:6:
+pane.attach must answer within a bound
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (58040759) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (58040760) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+
+---- stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck stdout ----
+
+thread 'stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck' (58040789) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+    stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck
+
+test result: FAILED. 19 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.03s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo test -p steg-server --test attach'` exited 101 at 2026-11-18T03:27:36+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 55 lines:
+
+```text
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... FAILED
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (58062506) panicked at crates/server/tests/attach.rs:1793:6:
+pane.attach must answer within a bound
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (58062509) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (58062508) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 20 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.28s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
 ```
 <!-- SECTION:NOTES:END -->
 

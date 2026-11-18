@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T02:58:00Z'
+updated_date: '2026-11-18T03:29:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -274,6 +274,632 @@ Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates
  // --- status 130: interrupted ------------------------------------------------
 full output: .quiet/format-check.log
 error: recipe `check-fmt` failed on line 157 with exit code 1
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T02:59:09+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 4.2s)
+    Checking steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Checking steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/kernel)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/app)
+    Checking steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/server)
+    Checking steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+error: docs for function which may panic missing `# Panics` section
+  --> crates/steg/src/cli/api_call.rs:29:1
+   |
+29 | pub fn run(api: &Description, matches: &ArgMatches) -> i32 {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: first possible panic found here
+  --> crates/steg/src/cli/api_call.rs:30:23
+   |
+30 |       let method_name = matches
+   |  _______________________^
+31 | |         .get_one::<String>("method")
+32 | |         .expect("api.call's own target is required")
+   | |____________________________________________________^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#missing_panics_doc
+   = note: requested on the command line with `-D clippy::missing-panics-doc`
+
+error: wildcard match will also match any future added variants
+   --> crates/steg/src/cli/connect.rs:146:17
+    |
+146 |                 _ => continue,
+    |                 ^ help: try: `Incoming::Hello(_) | Incoming::Request { .. } | Incoming::Reply { .. } | Incoming::Event { .. } | Incoming::UnknownEvent { .. } | Incoming::StreamControl { .. } | Incoming::Data { .. } | Incoming::UnknownStream { .. }`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.98.0/index.html#wildcard_enum_match_arm
+    = note: requested on the command line with `-D clippy::wildcard-enum-match-arm`
+
+error: could not compile `steg` (lib) due to 2 previous errors
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `steg` (lib test) due to 2 previous errors
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:01:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 74 lines:
+
+```text
+test wire::frame::tests::a_declared_length_of_zero_is_malformed_fed_whole ... ok
+test screen::tests::a_screen_with_every_cell_style_round_trips ... ok
+test wire::frame::tests::a_frame_round_trips_through_encode_and_decode ... ok
+test wire::frame::tests::a_malformed_error_repeats_for_ever_until_the_caller_gives_up_on_the_connection ... ok
+test wire::frame::tests::an_oversized_declared_length_is_refused_before_anything_past_it_is_read ... ok
+test screen::tests::screen_update_full_round_trips ... ok
+test wire::frame::tests::an_unknown_kind_tag_is_malformed ... ok
+test wire::frame::tests::decode_waits_for_more_bytes_a_byte_at_a_time ... ok
+test wire::frame::tests::encode_refuses_a_payload_over_the_cap ... ok
+test wire::frame::tests::frame_constructors_set_the_expected_kind_and_stream ... ok
+test wire::frame::tests::two_frames_back_to_back_decode_in_order ... ok
+test wire::handshake::tests::a_client_newer_than_the_server_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_first_frame_that_is_not_json_is_malformed ... ok
+test wire::handshake::tests::a_matching_version_is_accepted ... ok
+test wire::handshake::tests::a_missing_required_field_is_malformed ... ok
+test wire::handshake::tests::a_server_newer_than_the_client_is_refused_naming_both_versions ... ok
+test wire::handshake::tests::a_wrong_magic_is_malformed_naming_the_server_version ... ok
+test wire::handshake::tests::an_unknown_field_is_ignored ... ok
+test wire::handshake::tests::kind_and_label_round_trip_through_the_hello ... ok
+test wire::handshake::tests::parse_server_hello_reads_an_accepted_hello ... ok
+test wire::handshake::tests::parse_server_hello_surfaces_a_refusals_message ... ok
+test screen::tests::pane_attached_round_trips_and_carries_both_fields_in_one_object ... ok
+
+failures:
+
+---- local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails stdout ----
+
+thread 'local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails' (57502416) panicked at crates/sdk/src/local_socket.rs:485:9:
+Err(Io(Os { code: 22, kind: InvalidInput, message: "Invalid argument" }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails
+
+test result: FAILED. 171 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+full output: .quiet/test-steg-sdk-local-socket.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:09:16+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 78 lines:
+
+```text
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test input_clears_a_finished_status ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57650973) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 145.37s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:11:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+     Running unittests src/main.rs (target/debug/deps/steg-b011cf352425d3e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-0e563f4919d1f569)
+
+running 2 tests
+test api_call_prints_json_with_no_json_flag_given ... ok
+test api_call_sends_stdin_params_flat_to_the_named_method ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-dad1de408ae26fb1)
+
+running 2 tests
+test the_hostile_listener_itself_accepts_and_closes_with_nothing_written ... ok
+test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding ... FAILED
+
+failures:
+
+---- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding stdout ----
+
+thread 'a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding' (57738862) panicked at crates/steg/tests/cli_connection_arbitration.rs:104:5:
+assertion `left == right` failed: stderr: steg: talking to the steg server failed: Invalid argument (os error 22)
+
+  left: Some(4)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:13:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 71 lines:
+
+```text
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... FAILED
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... FAILED
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (57786034) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (57786031) panicked at crates/server/tests/attach.rs:1793:6:
+pane.attach must answer within a bound
+
+---- stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck stdout ----
+
+thread 'stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck' (57786047) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (57786033) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+    stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck
+
+test result: FAILED. 19 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.22s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `cargo test -p steg --lib every_described_error_maps_to_its_own_exit_status` exited 101 at 2026-11-18T03:15:21+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... FAILED
+
+failures:
+
+---- cli::exit::tests::every_described_error_maps_to_its_own_exit_status stdout ----
+
+thread 'cli::exit::tests::every_described_error_maps_to_its_own_exit_status' (57830777) panicked at crates/steg/src/cli/exit.rs:75:13:
+assertion `left == right` failed: BadRequest should map to its own exit_status
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::exit::tests::every_described_error_maps_to_its_own_exit_status
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
+
+Check passed: `cargo test -p steg --lib every_described_error_maps_to_its_own_exit_status` exited 0 at 2026-11-18T03:15:35+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.33s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_described_error_maps_to_its_own_exit_status ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg --lib every_connect_error_maps_to_4` exited 101 at 2026-11-18T03:15:53+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_connect_error_maps_to_4 ... FAILED
+
+failures:
+
+---- cli::exit::tests::every_connect_error_maps_to_4 stdout ----
+
+thread 'cli::exit::tests::every_connect_error_maps_to_4' (57838932) panicked at crates/steg/src/cli/exit.rs:117:9:
+assertion `left == right` failed
+  left: 1
+ right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::exit::tests::every_connect_error_maps_to_4
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
+
+Check passed: `cargo test -p steg --lib every_connect_error_maps_to_4` exited 0 at 2026-11-18T03:16:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::exit::tests::every_connect_error_maps_to_4 ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 1 at 2026-11-18T03:16:25+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+error: unexpected argument 'a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts' found
+
+Usage: cargo test [OPTIONS] [TESTNAME] [-- [ARGS]...]
+
+For more information, try '--help'.
+```
+
+Check FAILED: `cargo test -p steg-sdk --lib --features local-socket -- eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 101 at 2026-11-18T03:16:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 2 tests
+test local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails ... FAILED
+test local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts ... FAILED
+
+failures:
+
+---- local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails stdout ----
+
+thread 'local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails' (57857876) panicked at crates/sdk/src/local_socket.rs:498:9:
+assertion `left == right` failed: exactly two connection attempts: the first EOF, then one retry - not one, not three or more
+  left: 1
+ right: 2
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts stdout ----
+
+thread 'local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts' (57857875) panicked at crates/sdk/src/local_socket.rs:524:40:
+the retry's own hello should succeed: ClosedBeforeHello
+
+
+failures:
+    local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts
+    local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Check passed: `cargo test -p steg-sdk --lib --features local-socket -- eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 0 at 2026-11-18T03:16:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 2 tests
+test local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails ... ok
+test local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-sdk --lib -- call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare` exited 101 at 2026-11-18T03:17:11+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare ... FAILED
+
+failures:
+
+---- wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare stdout ----
+
+thread 'wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare' (57866557) panicked at crates/sdk/src/wire/connection.rs:266:47:
+should be unvalidated: ApiError { code: BadRequest, message: "api.call has no parameter direction", candidates: [] }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-sdk --lib`
+```
+
+Check passed: `cargo test -p steg-sdk --lib -- call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare` exited 0 at 2026-11-18T03:17:22+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-0bbf186f1ea8fef3)
+
+running 1 test
+test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_method_does_not_declare ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg --lib -- no_autostart_is_read_whether_given_before_or_after_the_subcommand` exited 101 at 2026-11-18T03:17:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... FAILED
+
+failures:
+
+---- cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand stdout ----
+
+thread 'cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand' (57902305) panicked at /Users/brukhabtu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_builder-4.6.7/src/builder/debug_asserts.rs:244:13:
+Command session: Argument or group 'autostart__no' specified in 'overrides_with*' for 'autostart' does not exist
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
+
+Check passed: `cargo test -p steg --lib -- no_autostart_is_read_whether_given_before_or_after_the_subcommand` exited 0 at 2026-11-18T03:17:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg --test cli_exit_statuses --features fixtures -- without_json_a_successful_command_prints_nothing_on_stdout` exited 101 at 2026-11-18T03:18:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test without_json_a_successful_command_prints_nothing_on_stdout ... FAILED
+
+failures:
+
+---- without_json_a_successful_command_prints_nothing_on_stdout stdout ----
+
+thread 'without_json_a_successful_command_prints_nothing_on_stdout' (57916294) panicked at crates/steg/tests/cli_exit_statuses.rs:257:5:
+stdout: "[]\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    without_json_a_successful_command_prints_nothing_on_stdout
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
+
+error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
+```
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- without_json_a_successful_command_prints_nothing_on_stdout` exited 0 at 2026-11-18T03:18:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test without_json_a_successful_command_prints_nothing_on_stdout ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
+```
+
+Check FAILED: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_sends_stdin_params_flat_to_the_named_method` exited 101 at 2026-11-18T03:18:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+warning: variable does not need to be mutable
+  --> crates/steg/src/cli/api_call.rs:53:23
+   |
+53 |     let Value::Object(mut params) = parsed else {
+   |                       ----^^^^^^
+   |                       |
+   |                       help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg` (lib) generated 1 warning (run `cargo fix --lib -p steg` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_sends_stdin_params_flat_to_the_named_method ... FAILED
+
+failures:
+
+---- api_call_sends_stdin_params_flat_to_the_named_method stdout ----
+
+thread 'api_call_sends_stdin_params_flat_to_the_named_method' (57925415) panicked at crates/steg/tests/cli_api_call.rs:154:5:
+assertion `left == right` failed: stderr: steg: method: must be text
+
+  left: Some(2)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    api_call_sends_stdin_params_flat_to_the_named_method
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `-p steg --test cli_api_call`
+```
+
+Check passed: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_sends_stdin_params_flat_to_the_named_method` exited 0 at 2026-11-18T03:19:03+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.72s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_sends_stdin_params_flat_to_the_named_method ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:25:42+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 78 lines:
+
+```text
+test typed_bytes_reach_a_real_program_in_order ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test declaring_a_size_of_zero_is_refused ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test disconnecting_without_detaching_does_not_leak_or_block_a_later_attach ... ok
+test input_clears_a_finished_status ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (58013990) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 151.80s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/test-steg-server.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:29:38+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at f37ad8d991f0, last 40 of 71 lines:
+
+```text
+test detaching_a_pane_this_connection_never_attached_to_is_a_bad_request ... ok
+test a_frame_on_an_already_detached_stream_closes_the_connection ... ok
+test a_dropped_connection_releases_its_claim_the_same_way ... ok
+test detaching_a_pane_that_already_closed_still_releases_the_stream ... ok
+test attach_returns_the_real_screen_and_updates_follow_it ... ok
+test detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size ... ok
+test two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other ... ok
+test a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream ... ok
+test repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream ... ok
+test a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code ... ok
+test attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended ... ok
+test pane_close_force_reports_ended_closed_not_the_signals_own_exit_code ... ok
+test detach_ends_the_stream_even_though_the_program_keeps_producing_output ... ok
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... FAILED
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... ok
+test a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach ... ok
+
+failures:
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (58081958) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+
+test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 128.31s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

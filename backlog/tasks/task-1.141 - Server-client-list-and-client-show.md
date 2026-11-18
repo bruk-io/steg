@@ -1,14 +1,13 @@
 ---
 id: TASK-1.141
 title: 'Server: client list and client show'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T23:57:00Z'
+updated_date: '2026-11-18T23:58:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies: []
 references:
@@ -797,6 +796,23 @@ error: recipe `check-packages` failed with exit code 101
 ```
 
 Commits since the review: 0.
+
+Fix for review findings (@bruk.r2, changes requested: 1 Important, 3 nit):
+
+1. [Important - fixed] The three AC #4 controls had only been recorded at intermediate commit 18da1c97edb1 with uncommitted changes, before the fmt fix and three rebases - not at the final head. Re-run and recorded fresh, all with a clean `git status` (confirmed via `git diff --stat` before each recording) at the final pushed commit 191fbf53923515a0f4787e15c40cf0fe6d5bcc97 - no code changed, only these three mechanisms were temporarily mutated and reverted between each failing/passing pair:
+   - The generic client-model not-yet arm (covers all 8 dispatch-level tests): restored `("client", _) => Err(not_implemented_yet(...))` in dispatch/mod.rs, confirmed all 8 fail (NotImplementedYet), recorded; reverted, confirmed all 8 pass, recorded.
+   - The `--all`/kind filter, mutation A (`|_client| all || true`, always include regardless of kind): confirmed this breaks only client_list_returns_every_connected_client_by_default_except_cli (and does not break client_list_with_all_includes_cli_clients_too, checked directly), recorded failing then reverted and recorded passing.
+   - The `--all`/kind filter, mutation B (drop `all ||`, always exclude Cli regardless of the flag): confirmed this breaks only client_list_with_all_includes_cli_clients_too (and leaves its sibling unaffected, checked directly), recorded failing then reverted and recorded passing.
+
+2. [Nit - disclosed] Departure from the plan's step 5 list: tests/dispatch/client.rs has an 8th test, client_show_matches_exactly_the_fields_the_description_declares, not named in the plan - the show-side mirror of client_list_matches_exactly_the_fields_the_description_declares (the plan's own list only named the list-side version). Additive, same shape, no design change.
+
+3. [Nit - checked, no merge needed yet] Re-checked just now: PR #82 (TASK-1.88) is still open, not merged (`gh pr view 82 --json state,mergedAt` - state OPEN, mergedAt null). No merge of origin/main is needed for this round. When PR #82 lands, this branch's crates/sdk/src/lib.rs, dispatch/mod.rs and dispatch/outcome.rs will need an ordinary merge keeping both sides' entries (this task's client lines beside TASK-1.88's server lines) - flagging again for whoever merges next, per the plan's own risk note.
+
+4. [Nit - no code change] The missing dedicated --all-filter control for client_list_with_all_includes_cli_clients_too is now covered by mutation B above, with its own recorded failing+passing pair.
+
+Checks recorded on the board, all at final head 191fbf53: the three control pairs above (6 recordings); `just check` - green on the first run after the review's findings were addressed is not available verbatim: the run after fixing the controls hit a known cross-worktree flake (login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, a timing-sensitive test this task's diff never touches - confirmed via `git show --stat HEAD`, which names only target.rs/record.rs/lib.rs/client.rs/mod.rs/outcome.rs/cross_cutting.rs/main.rs), recorded failing, retried once more, same flake, recorded failing again; relying on CI green at this exact head instead, stated plainly: https://github.com/bruk-io/steg/actions/runs/44420282004/job/135211117386, pass, 13m36s, re-checked just now (gh pr checks 84) and still reporting pass - no new commits were made this round, so this is the same CI run against the same pushed head.
+
+No branch was pushed in this round (no code changed - only task notes and recorded checks).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

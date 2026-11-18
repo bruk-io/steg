@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T08:40:00Z'
+updated_date: '2026-11-18T08:41:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=1'
 asdlc_review_policies: ["review", "testing-rust"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1435,6 +1436,15 @@ Round 1's two Important findings and two nits are fixed and verified:
 Checked, no finding: connect() and the arbitration are untouched; the retry is exactly once; no stream is ever returned with a timeout still set; CI is green via `gh pr checks 77` and `gh pr view --json headRefOid` both against eab279c0, the diff's own head; the round-1 diff (5a456f3a..eab279c0, task's files only) touches exactly local_socket.rs, api_call.rs, cli_exit_statuses.rs, nothing else.
 
 Not checked: did not re-run cli_connection_arbitration.rs or cli_exit_statuses.rs's real-process suites beyond what CI/recorded checks already show; did not independently re-verify the EINVAL/errno claim's platform mechanism beyond reproducing the test's own pass/fail behaviour.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T08:41:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

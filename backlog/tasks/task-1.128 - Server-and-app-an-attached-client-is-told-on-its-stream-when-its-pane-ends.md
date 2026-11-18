@@ -1,14 +1,13 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T01:04:00Z'
+updated_date: '2026-11-18T01:17:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.125
@@ -1096,6 +1095,23 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 27, 26 without the Asdlc-Worker trailer.
+
+Fixed @bruk.r2's review findings (1 Important, 2 nits):
+
+1. [Important] Recorded a failing-then-passing control pair, against the final head, for each of the five new attach.rs socket-level tests - the gap the review found (the board's earlier evidence proved the mechanisms by other means, but never recorded these five tests actually failing against pre-fix code):
+   - pane_close_force_reports_ended_closed_not_the_signals_own_exit_code: disabled force_end's pass 0 (handle.mark_closing() -> a no-op) in runtime.rs. Failed as the reviewer's own control showed (left: ProgramExited { exit_code: 1 }, right: Closed). Reverted, passed.
+   - a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code and two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit: disabled flush_ended's own outbound.end_stream call in pane.rs. Both failed (no update arrived within 5s). Reverted, both passed.
+   - attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended (renamed, see finding 3): disabled the Arm handler's ended-branch body in pane.rs (if false && let Some(position) = ...). Failed (no update arrived within 5s). Reverted, passed.
+   - a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach: reverted finish_attach's armed == false branch to the pre-fix bare close_stream (no Ended) in connection.rs. Failed (no update arrived within 15s - the force-close grace window). Reverted, passed.
+   Every control run unrecorded first, confirmed it failed for the stated reason with nothing from the environment in its output, then recorded; tree clean (git status) between every pair and at the end. All five mechanisms are real - none could not be made to fail.
+
+2. [Nit] pane.rs's Arm handler: documented why the catch-up Full's seq: tracked_seq can safely be 0 (its own "no tick yet" sentinel) - no production reader (Model::apply, either test harness's apply_update) ever reads a Full's own seq, and Ended, right after, closes the stream for good, so there is no next call for it to matter to; terminal.screen() itself has no seq of its own to report instead (it is a raw read, not changes_since's own tracked point).
+
+3. [Nit] attach.rs: reworded the stale assertion message and renamed attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else to attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended, matching pane.rs's own equivalent test's name.
+
+Departures from the plan, in the plan's own terms: late attach to an already-ended pane sends one Full then Ended, where the plan's own first draft said Ended alone - found by a test flaking under load during the build (the first round of this task), fixed before the first review, and doc-14 already reflects it ("a fresh Full... then Ended").
+
+just check recorded clean at the final pushed head (14a11971); CI green on the same commit (gh pr checks 73 --watch, 12m5s).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

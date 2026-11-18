@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T14:15:00Z'
+updated_date: '2026-11-18T22:17:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -17,6 +17,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.88-server-server-show-server-stop-and-the
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'c42e82b251d6'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -233,3 +236,16 @@ Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the ser
 
 Plan checked against doc-2 sections 8 and 9, doc-8 R99 and the task's four criteria by @bruk.o: ok, subject to the engineer's answers. server show and server start are plain dispatch arms in a new dispatch/server.rs; only server stop is intercepted, because it needs the connection's outbound queue and the server's stopper. Its reply is written before the connection is torn down through a new acknowledged write on the control stream - a different need from TASK-1.128's end_stream, which defers a stream's own teardown and has no caller waiting - preceded by a probe of write-then-shutdown on a Unix socket. Everything after the signal to stop is the existing shutdown path the idle stop already drives: one mechanism. Two questions go to the engineer: signals (default: leave them unhandled for M1 and document what is left behind), and doc-2 section 9's wording against the second criterion. Orchestrator's caution on the signal alternative, for whoever takes it up: blocking signals for a sigwait thread changes the mask that pane programs inherit, so a shell in a pane could start with interrupt blocked unless the mask is reset at spawn; 'no unsafe, no dependency' needs that checked before it is believed.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T22:17:00Z
+
+---
+
+Plan approved by @bruk (c42e82b251d6, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

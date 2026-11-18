@@ -957,7 +957,10 @@ fn pane_methods() -> Vec<Method> {
             name: method("pane", "attach"),
             summary: "Opens a stream to the pane's screen".into(),
             details: "The reply is the stream's id and its opening snapshot; updates that \
-                      follow arrive on that stream, not as this call's own output. `steg pane \
+                      follow arrive on that stream, not as this call's own output. The last \
+                      update the stream ever carries is `Ended`, sent once the pane's program \
+                      exits or the pane itself is closed, after which the stream is closed on \
+                      both sides (doc-14, \"The end of a pane, on its stream\"). `steg pane \
                       attach` exists for completeness (R32) and for scripting through `api \
                       call` - it prints the id and the snapshot once and exits, the same as \
                       any other command; a program that wants the stream itself (the app, a \
@@ -976,8 +979,8 @@ fn pane_methods() -> Vec<Method> {
             follows: Follows::Attachment {
                 item: Returns::Nested {
                     of: "ScreenUpdate".into(),
-                    summary: "the rows that changed, or a whole screen when a client fell \
-                              behind"
+                    summary: "the rows that changed, a whole screen when a client fell \
+                              behind, or the pane ending"
                         .into(),
                 },
                 stream_id_field: "stream".into(),

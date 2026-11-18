@@ -18,7 +18,7 @@
 //! review twice flagged (the rejected `STEG_TEST_REPORT_OUTCOME_TO`, the
 //! always-built fixture binary).
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::io::Write;
 use std::sync::{Condvar, Mutex};
 use std::thread::{self, JoinHandle};
@@ -86,6 +86,16 @@ struct Queues {
     /// close (clamped back on close, below).
     cursor: usize,
     closed: bool,
+    /// Streams [`Outbound::end_stream`] has queued a final frame for and
+    /// marked for teardown (TASK-1.128; decision-2 §3's own addendum:
+    /// "queue the last frame before tearing the stream down, never the
+    /// reverse") - [`Queues::pop_next`] removes a stream from here, and
+    /// from `data`/`order`, the instant it pops that stream's own queue
+    /// empty, never before: [`Outbound::close_stream`] drops whatever is
+    /// still queued the moment it is called, which would silently drop
+    /// the very frame `end_stream` just queued if the two ran back to
+    /// back with no synchronisation.
+    closing: HashSet<u32>,
 }
 
 impl Queues {
@@ -96,6 +106,7 @@ impl Queues {
             order: Vec::new(),
             cursor: 0,
             closed: false,
+            closing: HashSet::new(),
         }
     }
 
@@ -105,6 +116,13 @@ impl Queues {
     /// with nothing queued is skipped, not given a turn that wastes it).
     /// `None` means nothing is queued right now, for any stream - the
     /// caller decides what that means (wait, or stop, if also `closed`).
+    ///
+    /// A stream marked `closing` (TASK-1.128) is torn down right here,
+    /// under the same lock, the instant the frame just popped from it
+    /// leaves its own queue empty - never before (a stream with more
+    /// still queued behind its own final frame keeps being served
+    /// normally, by every rule above, until that frame too is the one
+    /// popped).
     fn pop_next(&mut self) -> Option<Vec<u8>> {
         if let Some(bytes) = self.control.pop_front() {
             return Some(bytes);
@@ -116,10 +134,33 @@ impl Queues {
             if let Some(queue) = self.data.get_mut(&stream)
                 && let Some(bytes) = queue.pop_front()
             {
+                if queue.is_empty() && self.closing.contains(&stream) {
+                    self.remove_stream(stream);
+                }
                 return Some(bytes);
             }
         }
         None
+    }
+
+    /// Unregisters `stream` from every bookkeeping structure that names
+    /// it (`data`, `order`, `closing`), keeping `cursor` valid by
+    /// construction - the shared guts of [`Outbound::close_stream`] (an
+    /// immediate, unconditional teardown) and [`Queues::pop_next`]'s own
+    /// drained-and-closing teardown (deferred until the queue is actually
+    /// empty), so the two can never drift apart into two different ideas
+    /// of what "remove a stream" means.
+    fn remove_stream(&mut self, stream: u32) {
+        self.data.remove(&stream);
+        self.closing.remove(&stream);
+        if let Some(index) = self.order.iter().position(|&id| id == stream) {
+            self.order.remove(index);
+        }
+        if !self.order.is_empty() {
+            self.cursor %= self.order.len();
+        } else {
+            self.cursor = 0;
+        }
     }
 }
 
@@ -176,23 +217,20 @@ impl Outbound {
         }
     }
 
-    /// Unregisters a stream: no more frames are accepted for it, and
-    /// whatever was still queued for it is dropped. Keeps `cursor` valid by
-    /// construction - removing by position and taking `cursor` modulo the
-    /// new (possibly smaller) length, rather than leaving it pointing past
-    /// the end. Called by `connection.rs`'s own `pane.detach` handling
-    /// (TASK-1.47).
+    /// Unregisters a stream *right now*: no more frames are accepted for
+    /// it, and whatever was still queued for it is dropped unread -
+    /// called by `connection.rs`'s own `pane.detach` handling (TASK-1.47)
+    /// and by `finish_attach`'s `armed == false` branch (TASK-1.125),
+    /// neither of which ever has a frame still worth delivering on the
+    /// stream at the point it calls this. **Never call this right after
+    /// `enqueue_data`/`end_stream` on the same stream** - it would race
+    /// the writer thread for whether the frame just queued is ever
+    /// actually written, and this method does not wait to find out; it
+    /// drops whatever is there, synchronously, under its own lock, every
+    /// time. [`Outbound::end_stream`] is the primitive for "deliver this
+    /// one last frame, then tear the stream down."
     pub(crate) fn close_stream(&self, stream: u32) {
-        let mut queues = self.lock();
-        queues.data.remove(&stream);
-        if let Some(index) = queues.order.iter().position(|&id| id == stream) {
-            queues.order.remove(index);
-        }
-        if !queues.order.is_empty() {
-            queues.cursor %= queues.order.len();
-        } else {
-            queues.cursor = 0;
-        }
+        self.lock().remove_stream(stream);
     }
 
     /// Queues opaque bytes on an already-open data stream - called once per
@@ -209,6 +247,53 @@ impl Outbound {
             return Err(EnqueueDataError::Full);
         }
         queue.push_back(bytes);
+        self.ready.notify_one();
+        Ok(())
+    }
+
+    /// Queues `bytes` as a stream's own last frame, then marks it for
+    /// teardown once drained (TASK-1.128; decision-2 §3's own addendum:
+    /// "queue the last frame before tearing the stream down, never the
+    /// reverse") - the fix for a real bug [`Outbound::close_stream`]'s
+    /// own doc now names: calling that right after `enqueue_data` races
+    /// the writer thread for whether the just-queued frame is ever
+    /// actually written, since `close_stream` drops whatever is queued
+    /// the instant it runs. Here, [`Queues::pop_next`] is what removes
+    /// the stream - only once it has actually popped this frame off the
+    /// stream's own, now-empty queue, never before, so the frame is
+    /// guaranteed to reach the writer's own `write_all` (module doc) even
+    /// under contention.
+    ///
+    /// Never refuses for being full, past [`DATA_CAP`], the way `enqueue_
+    /// data` does: if the queue is already at its cap, the single oldest
+    /// frame in it is dropped first, to make room for exactly this one -
+    /// decision-2 §6 already treats a backlogged queue's own content as
+    /// disposable catch-up data, and unlike an ordinary screen update,
+    /// this frame has no "try again next tick" to fall back on if it were
+    /// dropped instead. Only ever the oldest one frame, never the whole
+    /// queue: a content update this same flush enqueued through `enqueue_
+    /// data` moments before calling this (`crate::pane::flush_ended`'s own
+    /// shape - AC #1's "after any screen update still owed") is the
+    /// *newest* thing queued, nowhere near `DATA_CAP` frames behind, and
+    /// must still reach the client, in order, ahead of `Ended` itself.
+    ///
+    /// # Errors
+    /// [`EnqueueDataError::NotOpen`]/[`EnqueueDataError::Closed`], the
+    /// same as `enqueue_data` - never [`EnqueueDataError::Full`], since
+    /// this makes room rather than refusing past the cap.
+    pub(crate) fn end_stream(&self, stream: u32, bytes: Vec<u8>) -> Result<(), EnqueueDataError> {
+        let mut queues = self.lock();
+        if queues.closed {
+            return Err(EnqueueDataError::Closed);
+        }
+        let Some(queue) = queues.data.get_mut(&stream) else {
+            return Err(EnqueueDataError::NotOpen);
+        };
+        if queue.len() >= DATA_CAP {
+            queue.pop_front();
+        }
+        queue.push_back(bytes);
+        queues.closing.insert(stream);
         self.ready.notify_one();
         Ok(())
     }
@@ -288,6 +373,7 @@ mod tests {
     use std::os::unix::net::UnixStream;
     use std::sync::Arc;
     use std::sync::Barrier;
+    use std::sync::mpsc;
     use std::time::{Duration, Instant};
 
     /// Reads exactly `len` bytes off `stream`, looping reads - a
@@ -555,6 +641,137 @@ mod tests {
             0,
             "nothing more was written: the one-too-many frame was really dropped"
         );
+        writer.join().unwrap();
+    }
+
+    // --- `Outbound::end_stream` (TASK-1.128) -----------------------------
+
+    /// Over a full queue, `end_stream` still delivers its own final frame -
+    /// it makes room by dropping only the single oldest frame, never the
+    /// whole queue (a content update enqueued moments before it, by the
+    /// same flush, is the *newest* thing queued, nowhere near `DATA_CAP`
+    /// frames behind, and must not be lost).
+    #[test]
+    fn end_stream_still_delivers_the_final_frame_when_the_queue_was_already_full() {
+        let outbound = Outbound::new();
+        outbound.open_stream(1);
+        for i in 0..DATA_CAP {
+            outbound
+                .enqueue_data(1, format!("frame-{i}").into_bytes())
+                .unwrap();
+        }
+
+        outbound.end_stream(1, b"the-end".to_vec()).unwrap();
+        outbound.close();
+
+        let (mut client, server) = UnixStream::pair().unwrap();
+        let writer = std::thread::spawn(move || run_writer(&outbound, server));
+
+        // The single oldest frame (frame-0) was dropped to make room -
+        // every other already-queued frame is still delivered, in order,
+        // ahead of the final one.
+        for i in 1..DATA_CAP {
+            assert_eq!(
+                read_exact_bytes(&mut client, format!("frame-{i}").len()),
+                format!("frame-{i}").into_bytes()
+            );
+        }
+        assert_eq!(read_exact_bytes(&mut client, b"the-end".len()), b"the-end");
+
+        let mut leftover = [0_u8; 1];
+        assert_eq!(
+            client.read(&mut leftover).unwrap(),
+            0,
+            "nothing arrives on the stream after its own final frame"
+        );
+        writer.join().unwrap();
+    }
+
+    /// A `Write` that forwards to a real socket, then blocks until the
+    /// test explicitly says to proceed - used to pin down, deterministically
+    /// rather than by timing, exactly when `run_writer` loops back to pop
+    /// its own next frame (the point `end_stream`'s own teardown happens,
+    /// inside `Queues::pop_next`, strictly before the popped frame's bytes
+    /// are written at all).
+    struct StepWriter {
+        inner: UnixStream,
+        proceed: mpsc::Receiver<()>,
+    }
+
+    impl Write for StepWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.inner.write_all(buf)?;
+            let _ = self.proceed.recv();
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            self.inner.flush()
+        }
+    }
+
+    /// The real two-thread proof behind `end_stream`'s own doc ("the
+    /// writer thread ... removes the stream - only once it has actually
+    /// popped this frame off the stream's own, now-empty queue, never
+    /// before"): a content update queued just ahead of the final frame
+    /// (the exact shape `crate::pane::flush_ended` produces) is written
+    /// first, and the stream is still registered while the writer thread
+    /// is genuinely paused between that write and popping the final
+    /// frame - this reaches into `Queues` directly (this test module is
+    /// nested inside the same file, so it can) because the public API has
+    /// no other way to observe "is this stream still registered" without
+    /// itself mutating something.
+    #[test]
+    fn end_stream_tears_the_stream_down_only_once_the_writer_actually_drains_it() {
+        let outbound = Arc::new(Outbound::new());
+        outbound.open_stream(2);
+        outbound.enqueue_data(2, b"content".to_vec()).unwrap();
+        outbound.end_stream(2, b"the-end".to_vec()).unwrap();
+        outbound.close();
+
+        let (mut client, server) = UnixStream::pair().unwrap();
+        let (proceed_tx, proceed_rx) = mpsc::channel();
+        let step = StepWriter {
+            inner: server,
+            proceed: proceed_rx,
+        };
+        let writer_outbound = Arc::clone(&outbound);
+        let writer = std::thread::spawn(move || run_writer(&writer_outbound, step));
+
+        // "content"'s bytes are on the wire - `StepWriter::write` forwards
+        // them before it ever blocks - but the writer thread itself is
+        // stuck inside that same call, so it has not looped back to pop
+        // "the-end" yet: stream 2 is still registered.
+        assert_eq!(read_exact_bytes(&mut client, b"content".len()), b"content");
+        assert!(
+            outbound
+                .queues
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .data
+                .contains_key(&2),
+            "the stream must still be registered before its own final frame has been popped"
+        );
+
+        // Lets the writer's own `write("content")` return; it loops back,
+        // pops "the-end" (emptying stream 2's own queue while it is marked
+        // closing - the teardown itself happens here, inside `pop_next`,
+        // under the lock, strictly before the write below even starts),
+        // then calls `write("the-end")`, which forwards its bytes before
+        // blocking again.
+        proceed_tx.send(()).unwrap();
+        assert_eq!(read_exact_bytes(&mut client, b"the-end".len()), b"the-end");
+        assert!(
+            !outbound
+                .queues
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .data
+                .contains_key(&2),
+            "the stream must be torn down the instant its own final frame is popped, not later"
+        );
+
+        proceed_tx.send(()).unwrap(); // lets `write("the-end")` itself return
         writer.join().unwrap();
     }
 

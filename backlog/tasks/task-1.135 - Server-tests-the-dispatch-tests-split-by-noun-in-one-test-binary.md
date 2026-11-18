@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T04:16:00Z'
+updated_date: '2026-11-18T04:39:00Z'
 labels:
   - size-2
   - changes-requested
@@ -651,6 +651,53 @@ Commits since the review: 74, 60 without the Asdlc-Worker trailer.
 Review fixes landed (commit 94d88814, after merging origin/main at 2ab6a7a6 - TASK-1.130 merged, touches crates/sdk and crates/app only, clean merge, nothing in crates/server/tests): routing.rs:418 now matches the plan's literal replacement text; dispatch/api.rs carries its own module doc comment naming the six cross-noun tests and why, matching tab.rs/cross_cutting.rs. Re-ran proof (c) at this head - fixing a stale hardcoded line range in the comparison script (api.rs grew by 8 lines from its own new doc comment) - and found api.rs is still byte-identical to its original slice: the new doc comment sits before this comparison's own body-start boundary, the same way cross_cutting.rs's own added marker comment does, so it's excluded as module-level scaffolding rather than counted as a body change. Re-recorded proof (b) (77/77) and `cargo clippy -p steg-server --all-targets --all-features -- -D warnings` (clean) at this same head.
 
 Local `just check` run once more with the machine quiet (uptime 2.65/3.39/4.04): full green, including crates/server's attach tests - confirms the five failures reported earlier really were this machine's concurrent-build load, not a regression. Pushed at 94d88814.
+
+Check FAILED: `just check` exited 101 at 2026-11-18T04:39:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 72a924a372a5, last 40 of 84 lines:
+
+```text
+test a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/server_start.rs (target/debug/deps/server_start-ab0ae1f7b0736962)
+
+running 15 tests
+test an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason ... FAILED
+test an_unrecognised_server_start_variant_exits_2 ... ok
+test server_start_help_prints_the_generated_help_and_starts_nothing ... ok
+test started_is_printed_only_after_the_socket_already_accepts ... ok
+test a_fresh_start_replaces_the_socket_of_a_server_killed_outright ... ok
+test four_simultaneous_starts_converge_on_one_server ... ok
+test on_demand_given_after_no_on_demand_wins ... ok
+test typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message ... ok
+test surviving_descriptor_exhaustion_still_serves_existing_connections_and_recovers ... ok
+test a_losing_racers_dropped_child_is_a_zombie_until_reaped ... ok
+test server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach ... ok
+test no_on_demand_given_after_on_demand_wins ... ok
+test explicit_start_stays_up_with_no_client_ever_connecting ... ok
+test the_clients_process_group_being_sighupd_does_not_end_the_server ... ok
+test the_client_being_sigkilled_does_not_end_the_server ... ok
+
+failures:
+
+---- an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason stdout ----
+
+thread 'an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason' (58708482) panicked at crates/steg/tests/server_start.rs:356:52:
+writing the plain file should succeed: Os { code: 102, kind: Unsupported, message: "Operation not supported on socket" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason
+
+test result: FAILED. 14 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.29s
+
+error: test failed, to rerun pass `-p steg --test server_start`
+full output: .quiet/test-steg-fixtures.log
+error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 18, 15 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

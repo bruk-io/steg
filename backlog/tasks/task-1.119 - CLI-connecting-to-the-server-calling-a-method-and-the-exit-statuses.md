@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T04:58:00Z'
+updated_date: '2026-11-18T05:04:00Z'
 labels:
   - size-2
   - changes-requested
@@ -1192,6 +1192,43 @@ test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/test-steg-server-pty-race-fixture.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T05:04:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (52.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (50.3s)
+ok      test (steg-server, race-fixture) (53.1s)
+ok      test (steg-server, pty-race-fixture) (60.6s)
+ok      test (steg-server, accept-backoff-fixture) (57.9s)
+ok      build (steg) (1.1s)
+ok      test (steg) (4.9s)
+ok      test (steg, fixtures) (11.9s)
+ok      build (steg-ui) (18.4s)
+ok      test (steg-ui) (1.6s)
+ok      build (steg-app) (1.4s)
+ok      test (steg-app) (2.1s)
+ok      tool tests (41.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.

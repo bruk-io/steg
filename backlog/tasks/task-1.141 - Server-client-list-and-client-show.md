@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:45:00Z'
+updated_date: '2026-11-18T22:46:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -134,6 +134,43 @@ ok      architecture (0.8s)
 ok      recipe names (0.1s)
 ok      ui levels (0.1s)
 ok      ui colours (0.1s)
+```
+
+Check passed: `sh -c 'cd crates/kernel && cargo test --lib target:: 2>&1 | tail -60'` exited 0 at 2026-11-18T22:46:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141 on task-1.141-server-client-list-and-client-show at 18da1c97edb1 with uncommitted changes:
+
+```text
+   Compiling ghostty-vt-sys v0.8.0+ghostty.1.4.0-main.83fb956
+   Compiling ghostty-vt v0.8.0+ghostty.1.4.0-main.83fb956 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/third_party/ghostty-vt-patched)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/crates/kernel)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 32.18s
+     Running unittests src/lib.rs (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.141/target/debug/deps/steg_kernel-e3b407e8fed5e9f0)
+
+running 23 tests
+test target::tests::split_path_rejects_an_empty_segment ... ok
+test target::tests::resolve_matches_a_full_identifier_before_any_other_kind ... ok
+test target::tests::tree_resolve_client_resolves_by_full_id ... ok
+test target::tests::session_resolve_tab_and_tab_resolve_pane_use_the_same_order ... ok
+test target::tests::resolve_matches_an_identifier_suffix_of_four_or_more_characters ... ok
+test target::tests::split_path_rejects_a_path_with_more_parts_than_the_maximum ... ok
+test target::tests::resolve_matches_a_label_case_insensitively_when_no_identifier_matches ... ok
+test target::tests::resolve_pane_path_rejects_a_path_with_the_wrong_number_of_segments ... ok
+test target::tests::resolve_never_tries_a_suffix_shorter_than_four_characters ... ok
+test target::tests::tree_resolve_client_resolves_by_one_based_position ... ok
+test target::tests::resolve_tab_path_uses_an_explicit_session_part_over_the_default ... ok
+test target::tests::resolve_matches_by_one_based_position_when_no_identifier_or_label_matches ... ok
+test target::tests::split_path_accepts_up_to_the_maximum_number_of_parts ... ok
+test target::tests::tree_resolve_client_resolves_by_label_ignoring_case ... ok
+test target::tests::resolve_stops_at_label_even_when_an_ambiguous_label_match_would_also_match_by_suffix ... ok
+test target::tests::resolve_tab_path_falls_back_to_the_default_session_when_the_session_part_is_left_out ... ok
+test target::tests::resolve_reports_ambiguous_with_only_the_matched_candidates_when_more_than_one_matches ... ok
+test target::tests::tree_resolve_client_resolves_by_identifier_suffix ... ok
+test target::tests::tree_resolve_session_resolves_by_label_and_errors_when_ambiguous ... ok
+test target::tests::resolve_reports_not_found_with_every_candidate_when_nothing_matches ... ok
+test target::tests::resolve_reports_ambiguous_when_the_suffix_kind_matches_more_than_one ... ok
+test target::tests::tree_resolve_client_errors_when_ambiguous_and_when_not_found ... ok
+test target::tests::resolve_pane_path_falls_back_to_the_given_defaults_when_parts_are_left_out ... ok
+
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 307 filtered out; finished in 0.00s
 ```
 <!-- SECTION:NOTES:END -->
 

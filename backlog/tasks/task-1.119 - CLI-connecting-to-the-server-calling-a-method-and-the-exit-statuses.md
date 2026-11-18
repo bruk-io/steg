@@ -745,6 +745,19 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; 
 
 error: test failed, to rerun pass `-p steg --test cli_exit_statuses`
 ```
+
+Check passed: `cargo test -p steg --test cli_exit_statuses --features fixtures -- without_json_a_successful_command_prints_nothing_on_stdout` exited 0 at 2026-11-18T03:18:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests/cli_exit_statuses.rs (target/debug/deps/cli_exit_statuses-a82fa623c139069d)
+
+running 1 test
+test without_json_a_successful_command_prints_nothing_on_stdout ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.35s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

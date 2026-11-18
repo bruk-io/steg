@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T22:26:00Z'
+updated_date: '2026-11-18T22:28:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -324,6 +324,51 @@ test cross_cutting::every_described_method_gets_a_response_with_no_panic ... ok
 test api::api_call_matches_a_direct_call_for_every_served_method_with_its_own_target_given ... ok
 
 test result: ok. 82 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+Check passed: `cargo test -p steg-server --lib runtime::` exited 0 at 2026-11-18T22:28:32+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.88 on task-1.88-server-server-show-server-stop-and-the at a44e55e51cd6 with uncommitted changes, last 40 of 59 lines:
+
+```text
+test runtime::login::tests::login_shell_default_is_a_fixed_zero_io_value ... ok
+test runtime::lifecycle::tests::stopper_is_none_until_set_then_some ... ok
+test runtime::login::tests::login_shell_resolve_identity_never_panics_and_is_never_empty ... ok
+test runtime::events::tests::a_slow_subscribers_connection_is_shut_down_once_its_queue_is_full ... ok
+test runtime::events::tests::a_real_exit_event_drives_the_same_cascade_apply_event_runs ... ok
+test runtime::tests::a_panic_while_holding_the_lock_does_not_poison_a_later_call ... ok
+test runtime::tests::runtime_new_does_not_panic_and_starts_empty ... ok
+test runtime::events::tests::a_mark_for_a_pane_the_tree_no_longer_holds_does_nothing_and_does_not_panic ... ok
+test runtime::events::tests::apply_event_on_a_pane_the_tree_no_longer_holds_removes_the_stale_handle_without_panicking ... ok
+test runtime::input::tests::apply_size_changed_resizes_only_the_panes_the_change_names ... ok
+test runtime::input::tests::apply_size_changed_lets_a_pane_go_under_the_floor_when_the_kernel_says_so ... ok
+test runtime::events::tests::a_command_panes_exit_reaches_pane_show_through_runtime_handle ... ok
+test runtime::attach::tests::arm_attachment_answers_false_once_the_pane_has_already_closed ... ok
+kill: 31365: No such process
+test runtime::lifecycle::stop_tests::stop_is_a_no_op_for_a_pane_whose_program_has_already_ended ... ok
+test runtime::lifecycle::tests::disconnect_client_reapplies_the_next_latest_declared_size ... ok
+test runtime::lifecycle::tests::session_count_tracks_sessions_created_and_closed_through_handle ... ok
+kill: 31366: No such process
+test runtime::close::tests::a_plain_close_of_an_already_ended_pane_removes_its_idle_handle ... ok
+test runtime::lifecycle::stop_tests::stop_ends_a_silent_program ... ok
+test runtime::events::tests::a_typed_command_still_running_stays_running_until_told_otherwise ... ok
+kill: 31364: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_producing_output ... ok
+test runtime::start::tests::steg_vars_and_term_always_win_over_a_conflicting_value_from_the_login_shells_own_base_env ... ok
+test runtime::start::tests::a_shell_pane_not_only_a_command_pane_gets_the_same_composed_environment ... ok
+test runtime::start::tests::pane_split_falls_back_to_home_when_the_inherited_live_cwd_no_longer_exists ... ok
+test runtime::start::tests::pane_split_inherits_the_live_cwd_of_the_pane_it_split_from_not_its_started_in_cwd ... ok
+test runtime::attach::tests::attach_pane_on_a_busy_panes_own_worker_does_not_stall_an_unrelated_requests_lock ... ok
+test runtime::events::tests::an_unfiltered_subscriber_receives_nothing ... ok
+test runtime::input::tests::the_general_sizing_step_reaches_every_pane_through_split_close_and_swap ... ok
+kill: 31368: No such process
+test runtime::lifecycle::stop_tests::stop_ends_a_program_that_traps_the_polite_signal ... ok
+test runtime::events::tests::a_mark_then_the_shells_own_real_exit_cascades_with_no_panic ... ok
+test runtime::events::tests::a_shell_with_no_marks_leaves_every_status_field_unchanged_until_one_arrives ... ok
+test runtime::events::tests::a_typed_command_that_fails_is_failed_with_its_exit_code ... ok
+test runtime::events::tests::a_typed_commands_status_reaches_pane_show_and_tab_show_through_runtime_handle ... ok
+test runtime::events::tests::a_typed_command_that_succeeds_is_running_then_finished_and_the_tab_shows_it ... ok
+test runtime::events::tests::a_command_panes_own_program_printing_marks_does_not_change_its_status ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 169 filtered out; finished in 0.63s
 ```
 <!-- SECTION:NOTES:END -->
 

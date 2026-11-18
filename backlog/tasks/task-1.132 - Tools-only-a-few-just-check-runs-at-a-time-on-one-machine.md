@@ -719,6 +719,16 @@ FAILED tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_val
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_wait_bound_rejects_a_non_numeric_value_naming_the_variable_and_value"'` exited 0 at 2026-11-18T03:39:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpuJxgTb` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+.                                                                        [100%]
+1 passed in 0.01s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

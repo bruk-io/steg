@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:38:00Z'
+updated_date: '2026-11-18T15:39:00Z'
 labels:
   - size-3
   - changes-requested
@@ -551,6 +551,37 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-18T15:39:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at c2de2432f940:
+
+```text
+FAILED  format check (exit 1, 0.3s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:487:
+             if let Incoming::StreamControl { stream: s, payload } = incoming
+                 && s == attachment_stream
+             {
+[31m-                let update: ScreenUpdate = serde_json::from_slice(&payload)
+(B[m[31m-                    .expect("a screen update always deserialises");
+(B[m[32m+                let update: ScreenUpdate =
+(B[m[32m+                    serde_json::from_slice(&payload).expect("a screen update always deserialises");
+(B[m                 apply_update(held, update);
+             }
+         }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:766:
+     let mut consumed = 0_usize;
+     for name in key_names() {
+         let expected_bytes = documented_bytes(&name);
+[31m-        let expected_hex: Vec<String> =
+(B[m[31m-            expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+(B[m[32m+        let expected_hex: Vec<String> = expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+(B[m 
+         let mut params = Map::new();
+         params.insert("target".to_string(), json!(pane));
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

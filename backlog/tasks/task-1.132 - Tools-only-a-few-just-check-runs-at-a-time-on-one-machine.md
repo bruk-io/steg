@@ -285,6 +285,37 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpnt4yga` does not 
 .                                                                        [100%]
 1 passed in 0.20s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots'` exited 1 at 2026-11-18T02:45:39+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmp4UZSVA` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots ________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-676/test_a_cheap_step_is_never_slo0')
+
+    def test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=3.0, lock_dir=lock_dir, slots="1"
+        )
+        try:
+            _wait_for(holder_start)  # the single slot is now held for the next 3s
+    
+>           assert not heavy_cargo_command([sys.executable, "-c", "print('ok')"])
+E           assert not True
+E            +  where True = heavy_cargo_command(['/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132/tools/.venv/bin/python', '-c', "print('ok')"])
+
+tools/tests/functional/test_quiet_slots.py:262: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_cheap_step_is_never_slowed_by_a_full_set_of_heavy_slots
+1 failed in 0.12s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

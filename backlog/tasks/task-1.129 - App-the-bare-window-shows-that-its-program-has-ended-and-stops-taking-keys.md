@@ -356,3 +356,9 @@ a word changed for this task - the wording this task adds is explicitly a
 plain-text stopgap doc-10 already defers to TASK-1.61, not part of the
 design system doc-10 describes.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (95871fc3dfbf) checked against doc-14's 'The end of a pane, on its stream', doc-10 and TASK-1.128/1.121 as merged by @bruk.o: ok. It builds only the window's reaction; Ended is its own client event; input stops by disarming the writer without touching the shared socket, so no disconnect follows; the not-ended render tree is unchanged. Three questions go to the engineer with the plan (nothing beyond the line and refusing keys; quit-on-last-window not addressed; the wording). For criterion 3 the orchestrator asks for the offered control on the existing resolve_pane test to be recorded. Criterion 4's images come from the engineer's own run: workers do not drive the app on this machine.
+<!-- SECTION:NOTES:END -->

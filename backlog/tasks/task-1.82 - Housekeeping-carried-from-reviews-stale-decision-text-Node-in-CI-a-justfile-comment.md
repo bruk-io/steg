@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-11-15T20:23:00Z'
-updated_date: '2026-11-18T04:11:00Z'
+updated_date: '2026-11-18T22:10:00Z'
 labels:
   - size-1
 milestone: m-0
@@ -48,6 +48,8 @@ Follow-up to decide (TASK-1.117 third review, 2026-11-16): the app keeps running
 Patches kept for follow-ups, 2026-11-16, in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/follow-up-patches-2026-11-16: task-1.47-arm-returns-armed.patch (the starting point for the drafted task on a pane closing between attach and arm; applies to f91a8f27), task-1.47-stronger-lock-test.patch (a stronger version of attach's lock test; applies to f91a8f27), task-1.117-startup-stop-variant.patch (holds a test that drives a genuinely stalled connect through the real run(); applies to f8967015).
 
 From TASK-1.132's second review (2026-11-18), two nits left because the task locked on passing: (1) tools/tests/functional/test_quiet_slots.py's docstring says widening ORDER_SLACK_S only ever makes the tests more lenient, but two assertions (second_start < first_end - ORDER_SLACK_S; waiter_started_at < long_ended_at - ORDER_SLACK_S) get stricter as it widens - correct the comment before anyone widens it; (2) a malformed STEG_CHECK_SLOT_WAIT_S now fails every step, including cheap ones and under CI where the limiter is off - fail-fast and defensible, but undocumented: say so in quiet.py's docstring.
+
+Follow-ups from TASK-1.123 and TASK-1.90 (merged 2026-11-18), noted by @bruk.o: (1) crates/server/tests/attach.rs repeats a 20 s deadline in three helpers (near lines 138, 251, 342) where one constant derived from DEFAULT_READ_TIMEOUT would do (review nit on TASK-1.123). (2) crates/server/tests/pane_send.rs (TASK-1.90) still carries its own pid+counter socket-path helper; move it onto support::ScopedTempDir with the rest.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

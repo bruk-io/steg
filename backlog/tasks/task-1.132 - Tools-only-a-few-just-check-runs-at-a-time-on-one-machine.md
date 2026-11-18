@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w8'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:26:00Z'
+updated_date: '2026-11-18T02:27:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -81,3 +81,9 @@ Mechanism: N slot lock files under one directory; a non-blocking scan on the fas
 
 12. NOT SPLITTING: the limiter, its wiring in quiet.py, and its tests are one coherent change; the one-line justfile comment documenting the variables is not a second change.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan (d9a4c4cb7361) checked against the task's criteria by @bruk.o: ok. A slot per heavy step, held by the steg-quiet parent through an advisory file lock so a killed run frees it with no cleanup; a waiter takes whichever slot frees first (one blocked thread per slot, late acquirers release at once), with no polling; two slots by default, 0 for no limit, CI unlimited; the wait is unbounded unless STEG_CHECK_SLOT_WAIT_S is set. The first plan queued every waiter on slot 0; revised at the orchestrator's request. What a worker does when a queued check exceeds its own ten-minute command limit is the orchestrator's to handle in briefs.
+<!-- SECTION:NOTES:END -->

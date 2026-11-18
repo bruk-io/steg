@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:26:00Z'
+updated_date: '2026-11-18T02:30:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -423,6 +423,51 @@ test model::tests::describe_end_names_the_pane_as_closed ... ok
 test model::tests::describe_end_names_the_programs_own_exit_status ... ok
 
 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-app -- an_ended_update_arrives` exited 101 at 2026-11-18T02:30:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes, last 40 of 44 lines:
+
+```text
+    |                                       ^^^^^^ help: try ignoring the field: `stream: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `Ended` is never constructed
+  --> crates/app/src/client.rs:32:5
+   |
+23 | pub enum ClientEvent {
+   |          ----------- variant in this enum
+...
+32 |     Ended(EndReason),
+   |     ^^^^^
+   |
+   = note: `ClientEvent` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected ... FAILED
+
+failures:
+
+---- client::tests::an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected stdout ----
+
+thread 'client::tests::an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected' (56623209) panicked at crates/app/src/client.rs:474:9:
+expected Ended, not Update or Disconnected: Some(Update(Ended { reason: ProgramExited { exit_code: 3 } }))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 <!-- SECTION:NOTES:END -->
 

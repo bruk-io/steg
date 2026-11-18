@@ -4,6 +4,12 @@
 # Output is quiet: a step that passes prints one line. A step that fails prints the end of its
 # output and the path of the full log. STEG_VERBOSE=1 shows everything.
 #
+# A heavy cargo step (build/test/clippy) takes one of a small number of machine-wide slots
+# before it runs, so several `just check`/`just test` runs on this machine don't starve each
+# other's timing-sensitive tests (TASK-1.132). STEG_CHECK_SLOTS sets how many (default 2; 0
+# means no limit). STEG_CHECK_SLOT_WAIT_S bounds how long a waiter will wait before failing the
+# step outright (default: unbounded) - see tools/src/steg_tools/quiet.py for the rest.
+#
 # Until the Rust workspace exists, each step says so and passes. Once Cargo.toml is there, a
 # step does its real work or fails; none passes by doing nothing.
 

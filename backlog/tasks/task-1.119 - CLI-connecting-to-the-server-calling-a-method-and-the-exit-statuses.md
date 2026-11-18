@@ -953,6 +953,21 @@ error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello` exited 0 at 2026-11-18T04:44:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.80s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 1 test
+test local_socket::tests::a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 172 filtered out; finished in 0.00s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

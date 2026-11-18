@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:01:00Z'
+updated_date: '2026-11-18T03:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -212,6 +212,16 @@ Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-s
 
 ```text
 proof (c), attributes: the set of attribute lines is identical before and after
+```
+
+Check passed: `sh -c 'cargo test -p steg-server --test attach an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane 2>&1 | tail -6'` exited 0 at 2026-11-18T03:15:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
+
+```text
+
+running 1 test
+test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 15.06s
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-18T14:10:00Z'
-updated_date: '2026-11-18T22:26:00Z'
+updated_date: '2026-11-18T22:27:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -91,3 +91,9 @@ Split from TASK-1.88 by its plan on 2026-11-18 (its fifth criterion). doc-2 sect
 - AC #4 (not-yet list/completeness test cover both methods; proved without a socket, each with a recorded failing control): `mod.rs`'s existing `every_described_method_has_exactly_one_handler` test (unchanged, now passing with `client` fully covered instead of falling into `NOT_YET_NOUNS`) and `cross_cutting.rs`'s existing `every_not_yet_scenario_answers_not_implemented_yet_and_changes_nothing` (with the two `client.*` cases removed from its list, since they no longer apply) plus `client_list_and_show_change_nothing_in_the_tree`; the failing control is step 5's own instruction - each new functional test run once at the final head with its own mechanism temporarily removed (fails, recorded), then with the removal reverted (passes, recorded) - not a control run earlier in the sequence against a still-incomplete tree.
 - `just check` at step 4, step 5, and once more at the end, each recorded with `asdlc record-check`.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Plan checked against doc-2 (section 8, client rows; section 5 --all) and decision-5 by @bruk.o: ok. The methods, the --all filter for command line clients, and the target errors match the spec; no description, error code or wire change. Its edits beside TASK-1.88 are on different list entries and match arms; whichever lands second rebases. For the engineer: last_active empty for M1 (recommended), and the consequence that a plain 'steg client list' does not list itself without --all.
+<!-- SECTION:NOTES:END -->

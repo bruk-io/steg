@@ -1,14 +1,13 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:46:00Z'
+updated_date: '2026-11-18T17:11:00Z'
 labels:
   - size-3
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -619,6 +618,18 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Review round 1 findings fixed (@bruk.r1, PR 80):
+
+1. [Important, key coverage] Added pane_send_delivers_each_named_key_with_its_documented_bytes (crates/server/tests/pane_send.rs), table-driven over steg_sdk::key_names() so a key added there is covered automatically. Each name is checked through the real pipeline (dispatch -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty) against an independently-stated hex byte sequence in the test (never derived from named_key_bytes itself, which would make a control vacuous). Sends one key at a time to a pane running 'stty -icanon -echo -icrnl min 1 time 0; printf READY; while :; do dd bs=1 count=1 | od -An -tx1; done', reading each byte back as its own hex-dump line; the pane's tab size is declared tall (80x1000) so 26 keys of output never scrolls past the active screen hex_lines reads. Recorded control: one key's byte sequence corrupted in crates/sdk/src/keys.rs (home -> wrong bytes) - recorded failing, naming 'home' and the wrong vs right hex; reverted; recorded passing.
+
+2. [Important, before/after screen reads] Both refusal tests now attach a second, observing connection and read the pane's screen before and after the call. pane_send_refuses_text_and_key_together's pane is running (echo_lines_program), so this is the real proof - checked before the error-code assertion, so a control that removes the both-given check fails on the screen actually changing (local echo of the delivered text), not only on the response shape. Recorded control: the both-given check removed in dispatch::pane::send - recorded failing on the screen assertion itself (left: 'hello...', right: unchanged); reverted; recorded passing. pane_send_refuses_a_pane_with_no_running_program's pane has already ended, so the test's own comment says plainly this is corroboration only: the attachment's stream is already Ended and closed on both sides either way, so an unchanged screen cannot tell 'refused' apart from 'silently accepted with nothing to show for it' - the error code is the real proof. Recorded control: any_pane_running inverted - recorded failing on the error-code assertion; reverted; recorded passing.
+
+3. [Nit] pane_send_refuses_a_pane_with_no_running_program now waits for the real exit through the pane's own attachment stream (TASK-1.128's Ended, via next_ended) instead of polling pane.show.
+
+Departure from the plan, found while building finding 1: a single long-running od buffers its own input and never flushes without end-of-file, which an open pty never sends (confirmed directly - nothing printed for minutes on a 3-byte write). Replaced with one dd+od pair per byte, each giving od the end-of-file it needs to flush immediately; also needed -icrnl (without it, a real \r read back as 0a, not 0d) and a tall declared tab size (the default 24-row screen scrolls hex lines out of the active screen partway through 26 keys, which hex_lines - reading only the active screen - would otherwise lose).
+
+Checks: just check green at the final head (92b0a149, merged with origin/main twice - board-only merges, no code conflicts). All five negative controls (the three original plus the two re-run/new ones above) recorded as failing-then-passing pairs against the tests as they stand at this head. gh pr checks 80 green (confirmed via gh run list: completed/success).
 <!-- SECTION:NOTES:END -->
 
 ## Comments

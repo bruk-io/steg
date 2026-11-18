@@ -148,6 +148,45 @@ warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmptVJ9ft` does not 
 ..                                                                       [100%]
 2 passed in 3.47s
 ```
+
+Check FAILED: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once'` exited 1 at 2026-11-18T02:43:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 27b3b2defb21 with uncommitted changes:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpsN50Mm` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________ test_a_sigkilled_holder_frees_its_slot_at_once ________________
+
+tmp_path = PosixPath('/private/var/folders/rf/f34xmczn4659gm98hrsprydc0000gn/T/pytest-of-brukhabtu/pytest-667/test_a_sigkilled_holder_frees_0')
+
+    def test_a_sigkilled_holder_frees_its_slot_at_once(tmp_path: Path) -> None:
+        bin_dir, lock_dir = tmp_path / "bin", tmp_path / "slots"
+        bin_dir.mkdir()
+        _fake_cargo(bin_dir)
+    
+        holder, holder_start, _, holder_pid = _spawn_heavy(
+            tmp_path=tmp_path, bin_dir=bin_dir, label="holder", duration_s=4.0, lock_dir=lock_dir, slots="1"
+        )
+        waiter_pid = tmp_path / "waiter.pid"
+        try:
+            _wait_for(holder_start)  # the holder has acquired the one slot and is now sleeping
+            os.kill(holder.pid, signal.SIGKILL)  # kill steg-quiet itself, not its fake-cargo child
+    
+            started = time.monotonic()
+            waiter, waiter_start, waiter_end, waiter_pid = _spawn_heavy(
+                tmp_path=tmp_path, bin_dir=bin_dir, label="waiter", duration_s=0.2, lock_dir=lock_dir, slots="1"
+            )
+            assert waiter.communicate(timeout=5)[0] is not None
+            elapsed = time.monotonic() - started
+>           assert elapsed < 2.0, "a slot held by a killed process must free at once, not after the 4s it was holding for"
+E           AssertionError: a slot held by a killed process must free at once, not after the 4s it was holding for
+E           assert 4.222133833973203 < 2.0
+
+tools/tests/functional/test_quiet_slots.py:178: AssertionError
+=========================== short test summary info ============================
+FAILED tools/tests/functional/test_quiet_slots.py::test_a_sigkilled_holder_frees_its_slot_at_once
+1 failed in 4.34s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

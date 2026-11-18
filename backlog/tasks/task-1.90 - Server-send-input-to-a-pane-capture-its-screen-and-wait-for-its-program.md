@@ -22,6 +22,8 @@ asdlc_branch: task-1.90-server-send-input-to-a-pane-capture-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -430,6 +432,15 @@ created: 2026-11-18T14:16:00Z
 ---
 
 Approved by @bruk with the plan (8826c78b9232): the new error code ProgramNotRunning with exit status 1; the named-key table moves from crates/app/src/keys.rs into the sdk with the app's function delegating to it; --key is a choice of that table's names; one --key per call for now; --text with --key is BadRequest. doc-2's section on refusals now says so (updated on the board by @bruk.o). Follow-up to draft later: list-valued flags in the API description, so --key can be given more than once as doc-2's flag table says.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T15:09:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -1,13 +1,14 @@
 ---
 id: TASK-1.90
 title: 'Server: send input to a pane, capture its screen, and wait for its program'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:09:00Z'
+updated_date: '2026-11-18T15:17:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.45
@@ -22,8 +23,10 @@ asdlc_branch: task-1.90-server-send-input-to-a-pane-capture-its
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '8826c78b9232'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r1
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=2,nit=1'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -441,6 +444,25 @@ created: 2026-11-18T15:09:00Z
 ---
 
 @bruk.r1 is reviewing TASK-1.90: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T15:17:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 2 Important, 1 nit. Cites: review. The diff does not match the plan.
+
+[Compliance, Important] crates/server/tests/pane_send.rs: the approved plan's section 4 calls for a test sending one of every named key in the accepted list over the real pty, each checked to land its documented byte sequence. Only "enter" is exercised end-to-end (inside pane_send_delivers_text_then_a_key_in_order_without_a_client_attached); the other 25 names (tab, backspace, escape, the arrows, home, end, pageup, pagedown, insert, delete, f1-f12) are proven only at the sdk unit-test level (crates/sdk/src/keys.rs), never through pane.send's real pipeline (dispatch -> Runtime::send_and_dispatch -> PaneHandle::send_input -> pty). The task's "Departure from the plan" note names only the socket-path helper change; it does not mention dropping this test.
+
+[Evidence/Compliance, Important] crates/server/tests/pane_send.rs:449-505: the plan requires both refusal tests to read the target pane's screen via a second, attached connection before and after the call, proving nothing was written to the pty ("nothing was written to a dead pty" / "nothing sent (screen unchanged...)"). Neither pane_send_refuses_a_pane_with_no_running_program nor pane_send_refuses_text_and_key_together attaches to the pane or reads its screen at all; each asserts only the returned error code. This is a proof step the plan calls for that no recorded run shows.
+
+[Nit] crates/server/tests/pane_send.rs:458-474: pane_send_refuses_a_pane_with_no_running_program waits for the program to end by polling pane.show every 20ms against a bounded deadline, where the plan said to wait via pane.attach's own Ended update. A reasonable substitute (bounded, no sleep-as-wait), but an undisclosed method change from the plan's own text.
+
+What I checked beyond the above: the named-key table move (crates/sdk/src/keys.rs's table is byte-for-byte the same as origin/main's crates/app/src/keys.rs match arms, including the shift-tab form; crates/app/src/keys.rs's own tests are untouched and its named_key_bytes is now a one-line delegation with the same signature); the new ErrorCode::ProgramNotRunning (exit status 1, consistent with doc-2 and ProgramRunning's own precedent) and the method/error-count tests honestly bumped from twelve to thirteen; key's ValueKind::Choice built from the same crate::keys::key_names() the implementation calls, so the description and implementation cannot drift; the lock in Runtime::send_and_dispatch is held continuously from the any_pane_running check through PaneHandle::send_input, so there is no race window between them; PaneHandle::send_input is a plain std::sync::mpsc (unbounded) Sender::send that never blocks, and the lock is never held across a wait on the pane's worker, so TASK-1.47's stall cannot reintroduce here; deliberately skipping Tree::note_input (and so R83/doc-11's status-clearing on a key press) for this unattached path is flagged explicitly in the design and not required by any cited requirement or this task's ACs, so I treat it as spec-silent, not a finding. I repeated one negative control myself (disabled the hand-off in Runtime::send_and_dispatch, ran pane_send_delivers_text_then_a_key_in_order_without_a_client_attached, confirmed it fails via a 15s timeout waiting for the echoed marker, then reverted completely - git status was clean afterward). Ran the full pane_send.rs file 20 times in a loop: 20/20 passed; load average at the time was 4.80/4.13/3.88. CI on PR 80 is green (14m46s) and the recorded checks' final head (2bc23c84) matches the branch's current head. I did not re-check the unbounded-channel memory-growth-under-flood question as a new finding: the channel and blocking-write behavior are pre-existing (shared with the already-shipped attached-input path), not introduced by this diff, so I note it here rather than fault this task for not documenting it.
 
 ---
 <!-- COMMENTS:END -->

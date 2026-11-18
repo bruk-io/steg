@@ -950,6 +950,20 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; fin
 ```
 
 Commits since the review: 0.
+
+Check passed: `cargo test -p steg-server --test attach -- two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit --exact` exited 0 at 2026-11-18T00:49:54+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.128 on task-1.128-server-and-app-an-attached-client-is at 2ca675d79c0e:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/attach.rs (target/debug/deps/attach-1c3f77caae0e73d3)
+
+running 1 test
+test two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.65s
+```
+
+Commits since the review: 0.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

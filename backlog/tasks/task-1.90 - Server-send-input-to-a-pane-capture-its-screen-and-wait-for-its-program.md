@@ -270,6 +270,21 @@ test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; 
 
 error: test failed, to rerun pass `-p steg-server --test pane_send`
 ```
+
+Check passed: `cargo test -p steg-server --test pane_send -- --exact pane_send_with_an_unknown_key_name_is_bad_request` exited 0 at 2026-11-18T14:38:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/sdk)
+   Compiling steg-kernel v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/kernel)
+   Compiling steg-server v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.17s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_with_an_unknown_key_name_is_bad_request ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.02s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

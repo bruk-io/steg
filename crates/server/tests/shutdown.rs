@@ -7,20 +7,15 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use steg_sdk::{ClientHello, ClientKind, Decoder, Frame, PROTOCOL_VERSION, encode_frame};
 use steg_server::{ConnectionEvent, ServeOutcome, ServerConfig, Stopper, serve};
 
-/// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
-/// (`crates/server/src/bind.rs`'s own doc comment found this matters).
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, scoped_socket_path};
 
 fn wait_until_accepting(path: &std::path::Path) {
     let deadline = Instant::now() + Duration::from_secs(5);
@@ -44,8 +39,14 @@ fn wait_until_accepting(path: &std::path::Path) {
 fn start_server(
     handshake_timeout: Duration,
     events: Option<mpsc::Sender<ConnectionEvent>>,
-) -> (PathBuf, ServerConfig, Stopper, std::thread::JoinHandle<()>) {
-    let socket_path = unique_socket_path();
+) -> (
+    ScopedTempDir,
+    PathBuf,
+    ServerConfig,
+    Stopper,
+    std::thread::JoinHandle<()>,
+) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout,
@@ -60,7 +61,7 @@ fn start_server(
         })
     };
     wait_until_accepting(&socket_path);
-    (socket_path, config, stop, server_thread)
+    (socket_dir, socket_path, config, stop, server_thread)
 }
 
 /// Starts a server exactly like `start_server`, then additionally
@@ -86,9 +87,9 @@ fn start_server(
 /// second time - which, with nothing else queued, can only be blocking.
 fn start_truly_idle_server(
     handshake_timeout: Duration,
-) -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
+) -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
     let (events_tx, events_rx) = mpsc::channel();
-    let socket_path = unique_socket_path();
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout,
@@ -109,7 +110,7 @@ fn start_truly_idle_server(
     events_rx
         .recv_timeout(Duration::from_secs(5))
         .expect("the startup probe's Disconnected event should arrive");
-    (socket_path, stop, server_thread)
+    (socket_dir, socket_path, stop, server_thread)
 }
 
 /// Joins `server_thread` within `bound`, failing the test rather than
@@ -165,7 +166,7 @@ fn complete_handshake(stream: &mut UnixStream) {
 
 #[test]
 fn stopping_closes_the_listener_removes_the_socket_and_releases_the_lock() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let lock_path = {
         let mut p = socket_path.as_os_str().to_owned();
         p.push(".lock");
@@ -249,7 +250,8 @@ fn stopping_closes_the_listener_removes_the_socket_and_releases_the_lock() {
 /// thread blocks forever in its hold-open read and `run` never returns.
 #[test]
 fn a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop() {
-    let (socket_path, _config, stop, server_thread) = start_server(Duration::from_secs(30), None);
+    let (_socket_dir, socket_path, _config, stop, server_thread) =
+        start_server(Duration::from_secs(30), None);
 
     let mut client = UnixStream::connect(&socket_path).unwrap();
     complete_handshake(&mut client);
@@ -299,7 +301,8 @@ fn a_completed_idle_connection_is_closed_and_run_returns_promptly_on_stop() {
 /// is never called at all.
 #[test]
 fn a_stalled_handshake_is_closed_and_run_returns_promptly_on_stop() {
-    let (socket_path, _config, stop, server_thread) = start_server(Duration::from_secs(30), None);
+    let (_socket_dir, socket_path, _config, stop, server_thread) =
+        start_server(Duration::from_secs(30), None);
 
     let client = UnixStream::connect(&socket_path).unwrap();
     // Sends nothing - this is deliberately the stalled-handshake case,
@@ -344,7 +347,7 @@ fn open_fd_count() -> usize {
 #[test]
 fn many_short_connections_do_not_grow_the_tracked_set() {
     let (events_tx, events_rx) = mpsc::channel();
-    let (socket_path, _config, stop, server_thread) =
+    let (_socket_dir, socket_path, _config, stop, server_thread) =
         start_server(Duration::from_secs(5), Some(events_tx));
 
     let before = open_fd_count();
@@ -404,7 +407,8 @@ fn many_short_connections_do_not_grow_the_tracked_set() {
 /// by anything but `stop()` itself waking the accept loop.
 #[test]
 fn stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound() {
-    let (socket_path, stop, server_thread) = start_truly_idle_server(Duration::from_secs(30));
+    let (_socket_dir, socket_path, stop, server_thread) =
+        start_truly_idle_server(Duration::from_secs(30));
 
     stop.stop();
     join_within(server_thread, Duration::from_secs(5));
@@ -424,7 +428,8 @@ fn stop_on_a_genuinely_idle_server_returns_from_run_within_a_bound() {
 /// not `start_server`, for the same reason as the test above.
 #[test]
 fn stop_called_twice_concurrently_on_an_idle_server_is_harmless() {
-    let (socket_path, stop, server_thread) = start_truly_idle_server(Duration::from_secs(30));
+    let (_socket_dir, socket_path, stop, server_thread) =
+        start_truly_idle_server(Duration::from_secs(30));
 
     let first = stop.clone();
     let second = stop.clone();
@@ -468,7 +473,7 @@ fn stop_called_twice_concurrently_on_an_idle_server_is_harmless() {
 fn stop_racing_a_client_connecting_still_returns_within_a_bound() {
     const ROUNDS: usize = 20;
     for round in 0..ROUNDS {
-        let (socket_path, _config, stop, server_thread) =
+        let (_socket_dir, socket_path, _config, stop, server_thread) =
             start_server(Duration::from_secs(30), None);
 
         let connect_path = socket_path.clone();
@@ -518,7 +523,7 @@ fn stopping_while_a_trickling_handshake_is_in_progress_still_returns_within_a_bo
     let (events_tx, events_rx) = mpsc::channel();
     // Long enough that the handshake's own deadline is not what ends
     // this test - only `stop()` is.
-    let (socket_path, _config, stop, server_thread) =
+    let (_socket_dir, socket_path, _config, stop, server_thread) =
         start_server(Duration::from_secs(30), Some(events_tx));
 
     let mut trickler = UnixStream::connect(&socket_path).unwrap();

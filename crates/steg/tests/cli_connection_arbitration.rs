@@ -16,15 +16,12 @@ use std::io::Read;
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-fn unique_socket_path(label: &str) -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{label}-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
@@ -93,7 +90,7 @@ impl Drop for ServerAtSocket {
 /// any success here is the retry path, not a fluke).
 #[test]
 fn a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding() {
-    let socket = unique_socket_path("arbitration");
+    let (_socket_dir, socket) = scoped_socket_path("arbitration.sock");
     let ready = spawn_hostile_listener(socket.clone());
     ready
         .recv_timeout(Duration::from_secs(2))
@@ -119,7 +116,7 @@ fn a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding() {
 /// the fixture never having worked.
 #[test]
 fn the_hostile_listener_itself_accepts_and_closes_with_nothing_written() {
-    let socket = unique_socket_path("arbitration-sanity");
+    let (_socket_dir, socket) = scoped_socket_path("arbitration-sanity.sock");
     let ready = spawn_hostile_listener(socket.clone());
     ready
         .recv_timeout(Duration::from_secs(2))

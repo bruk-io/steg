@@ -10,13 +10,10 @@
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 
-fn unique_socket_path(label: &str) -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{label}-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
@@ -90,7 +87,7 @@ impl Drop for ServerAtSocket {
 /// all and either fail outright or do nothing observable.
 #[test]
 fn api_call_sends_stdin_params_flat_to_the_named_method() {
-    let socket = unique_socket_path("api-call-effect");
+    let (_socket_dir, socket) = scoped_socket_path("api-call-effect.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let created = run_steg(
@@ -178,7 +175,7 @@ fn api_call_sends_stdin_params_flat_to_the_named_method() {
 /// JSON by its nature, with no `--json` given at all.
 #[test]
 fn api_call_prints_json_with_no_json_flag_given() {
-    let socket = unique_socket_path("api-call-exception");
+    let (_socket_dir, socket) = scoped_socket_path("api-call-exception.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let output = run_steg_with_stdin(&["api", "call", "session.list"], &socket, "{}");

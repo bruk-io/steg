@@ -6,7 +6,6 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
 use std::time::{Duration, Instant};
 
@@ -15,13 +14,9 @@ use steg_sdk::{
     ClientKind, Connection, Incoming, Response, WireRole as Role, description, parse_server_hello,
 };
 
-/// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
-/// (`crates/server/src/bind.rs`'s own doc comment found this matters).
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-s{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
@@ -266,7 +261,7 @@ fn read_one_line_bounded<R: Read + Send + 'static>(reader: R, timeout: Duration)
 /// than reading the code for it.
 #[test]
 fn explicit_start_stays_up_with_no_client_ever_connecting() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut server = KillOnDrop::new(spawn_steg_server_start(&socket_path, false));
     wait_for_socket(&socket_path, Duration::from_secs(5));
 
@@ -298,7 +293,7 @@ fn explicit_start_stays_up_with_no_client_ever_connecting() {
 /// if that ordering were ever reversed.
 #[test]
 fn started_is_printed_only_after_the_socket_already_accepts() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut server = KillOnDrop::new(spawn_steg_server_start_capturing_stdout(
         &socket_path,
         false,
@@ -325,7 +320,7 @@ fn started_is_printed_only_after_the_socket_already_accepts() {
 /// `steg server start` instead of the `race-attempt` fixture).
 #[test]
 fn a_fresh_start_replaces_the_socket_of_a_server_killed_outright() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut first = KillOnDrop::new(spawn_steg_server_start(&socket_path, false));
     wait_for_socket(&socket_path, Duration::from_secs(5));
     first.kill_now();
@@ -352,7 +347,7 @@ fn a_fresh_start_replaces_the_socket_of_a_server_killed_outright() {
 /// mechanism (just a plain file where a socket is expected).
 #[test]
 fn an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason() {
-    let not_a_socket = unique_socket_path();
+    let (_socket_dir, not_a_socket) = scoped_socket_path("s.sock");
     std::fs::write(&not_a_socket, b"not a socket").expect("writing the plain file should succeed");
 
     let output = Command::new(steg_binary())
@@ -540,7 +535,7 @@ fn surviving_descriptor_exhaustion_still_serves_existing_connections_and_recover
     const RLIMIT_NOFILE: u64 = 180;
     const HELD_CONNECTIONS: usize = 100;
 
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     // Same `sh -c 'ulimit -n N; exec ...'` wrapper the old test used, and
     // for the same reason: the lowered limit has to apply to the real
     // server process this `exec`s into, never to a subshell `sh` itself.
@@ -715,7 +710,7 @@ fn an_unrecognised_server_start_variant_exits_2() {
 /// cleanup either - TASK-1.86's).
 #[test]
 fn four_simultaneous_starts_converge_on_one_server() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(4));
     let mut handles = Vec::new();
     for _ in 0..4 {
@@ -779,7 +774,7 @@ fn four_simultaneous_starts_converge_on_one_server() {
 /// the pid entirely.
 #[test]
 fn a_losing_racers_dropped_child_is_a_zombie_until_reaped() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut winner = KillOnDrop::new(spawn_steg_server_start(&socket_path, true));
     wait_for_socket(&socket_path, Duration::from_secs(5));
 
@@ -831,7 +826,7 @@ fn a_losing_racers_dropped_child_is_a_zombie_until_reaped() {
 /// detaching.
 #[test]
 fn the_client_being_sigkilled_does_not_end_the_server() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     // Ends the server this test causes to be spawned indirectly, on every
     // path including a panic - declared before the client that causes it
     // to exist, so this guard's own `Drop` runs *after* `client`'s own
@@ -875,7 +870,7 @@ fn the_client_being_sigkilled_does_not_end_the_server() {
 fn the_clients_process_group_being_sighupd_does_not_end_the_server() {
     use std::os::unix::process::CommandExt;
 
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     // See the SIGKILL test's own comment on `_server_guard`'s declaration
     // order: this one matters even more here, since the whole point of
     // this test is that the server *survives* the SIGHUP - it is still
@@ -938,7 +933,7 @@ fn the_clients_process_group_being_sighupd_does_not_end_the_server() {
 /// via a safe `exec()` in place rather than guessing at it.
 #[test]
 fn typing_on_demand_at_a_shell_prompt_carries_on_attached_with_a_message() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut fixture = KillOnDrop::new(
         Command::new(PathBuf::from(env!("CARGO_BIN_EXE_already_a_group_leader")))
             .env("STEG_SOCKET_PATH", &socket_path)
@@ -1021,7 +1016,7 @@ fn assert_stream_stays_silent(stream: impl Read + Send + 'static, window: Durati
 /// detach" message either.
 #[test]
 fn server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to_detach() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut fixture = spawn_already_a_group_leader(&socket_path, &["--no-on-demand"]);
 
     let stderr = fixture.child.stderr.take().expect("stderr was piped");
@@ -1047,7 +1042,7 @@ fn server_start_no_on_demand_resolves_to_the_explicit_kind_and_never_attempts_to
 /// argv - can resolve correctly.
 #[test]
 fn on_demand_given_after_no_on_demand_wins() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut fixture =
         spawn_already_a_group_leader(&socket_path, &["--no-on-demand", "--on-demand"]);
 
@@ -1071,7 +1066,7 @@ fn on_demand_given_after_no_on_demand_wins() {
 /// same "last one wins" rule from the other starting order.
 #[test]
 fn no_on_demand_given_after_on_demand_wins() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut fixture =
         spawn_already_a_group_leader(&socket_path, &["--on-demand", "--no-on-demand"]);
 
@@ -1096,7 +1091,7 @@ fn no_on_demand_given_after_on_demand_wins() {
 /// behaviour, not only for the commands that stay on the placeholder.
 #[test]
 fn server_start_help_prints_the_generated_help_and_starts_nothing() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let output = Command::new(steg_binary())
         .args(["server", "start", "--help"])
         .env("STEG_SOCKET_PATH", &socket_path)

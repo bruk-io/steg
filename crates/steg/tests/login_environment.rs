@@ -92,20 +92,9 @@ use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-le{suffix}.sock", std::process::id()))
-}
-
-fn unique_output_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!(
-        "steg-login-env-e2e-{}-{suffix}.out",
-        std::process::id()
-    ))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::ScopedTempDir;
 
 fn fixture_server_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_fixture_server"))
@@ -248,9 +237,9 @@ fn wait_for_output(path: &std::path::Path, timeout: Duration) -> String {
 #[test]
 fn a_pane_started_by_a_real_on_demand_server_never_inherits_the_launching_clients_own_environment()
 {
-    let socket_path = unique_socket_path();
-    let output_path = unique_output_path();
-    let _ = std::fs::remove_file(&output_path);
+    let temp_dir = ScopedTempDir::new();
+    let socket_path = temp_dir.path("s.sock");
+    let output_path = temp_dir.path("o.out");
     // A throwaway home with its own `.zprofile` - unique to this test
     // run, read by nothing but the fixture server this test itself
     // causes to exist. The marker it exports and the `PATH` it adds are

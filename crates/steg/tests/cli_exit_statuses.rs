@@ -15,15 +15,12 @@ use std::io::{Read, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-fn unique_socket_path(label: &str) -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{label}-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 fn steg_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_steg"))
@@ -166,7 +163,7 @@ fn stdout_of(output: &Output) -> String {
 
 #[test]
 fn no_autostart_with_nothing_running_exits_4() {
-    let socket = unique_socket_path("no-autostart");
+    let (_socket_dir, socket) = scoped_socket_path("no-autostart.sock");
     let output = run_steg(&["session", "list", "--no-autostart"], &socket);
     assert_eq!(
         output.status.code(),
@@ -190,7 +187,7 @@ fn no_autostart_with_nothing_running_exits_4() {
 /// record created, with the API's own field names.
 #[test]
 fn a_real_round_trip_through_an_autostarted_server_prints_json_unchanged() {
-    let socket = unique_socket_path("autostart-json");
+    let (_socket_dir, socket) = scoped_socket_path("autostart-json.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let empty = run_steg(&["session", "list", "--json"], &socket);
@@ -244,7 +241,7 @@ fn a_real_round_trip_through_an_autostarted_server_prints_json_unchanged() {
 /// reused early here.
 #[test]
 fn without_json_a_successful_command_prints_nothing_on_stdout() {
-    let socket = unique_socket_path("no-json-success");
+    let (_socket_dir, socket) = scoped_socket_path("no-json-success.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let output = run_steg(&["session", "list"], &socket);
@@ -267,7 +264,7 @@ fn without_json_a_successful_command_prints_nothing_on_stdout() {
 /// mapped status, exactly as without `--json`.
 #[test]
 fn with_json_a_failed_command_still_prints_the_message_on_stderr_not_json() {
-    let socket = unique_socket_path("json-error");
+    let (_socket_dir, socket) = scoped_socket_path("json-error.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let output = run_steg(&["session", "show", "deadbeef00000000", "--json"], &socket);
@@ -285,7 +282,7 @@ fn with_json_a_failed_command_still_prints_the_message_on_stderr_not_json() {
 
 #[test]
 fn a_target_that_matches_nothing_exits_3() {
-    let socket = unique_socket_path("no-such-target");
+    let (_socket_dir, socket) = scoped_socket_path("no-such-target.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     let output = run_steg(&["session", "show", "deadbeef00000000"], &socket);
@@ -301,7 +298,7 @@ fn a_target_that_matches_nothing_exits_3() {
 
 #[test]
 fn a_value_outside_a_closed_set_exits_2_with_no_server_contacted() {
-    let socket = unique_socket_path("bad-usage");
+    let (_socket_dir, socket) = scoped_socket_path("bad-usage.sock");
     let listener = UnixListener::bind(&socket).expect("binding a throwaway listener");
 
     let output = run_steg(
@@ -330,7 +327,7 @@ fn a_value_outside_a_closed_set_exits_2_with_no_server_contacted() {
 
 #[test]
 fn malformed_stdin_on_api_call_exits_2() {
-    let socket = unique_socket_path("api-call-malformed");
+    let (_socket_dir, socket) = scoped_socket_path("api-call-malformed.sock");
     let output = run_steg_with_stdin(&["api", "call", "session.list"], &socket, "not json");
     assert_eq!(
         output.status.code(),
@@ -349,7 +346,7 @@ fn malformed_stdin_on_api_call_exits_2() {
 /// server is never actually reached.
 #[test]
 fn oversized_stdin_on_api_call_exits_2_without_panicking() {
-    let socket = unique_socket_path("api-call-oversized");
+    let (_socket_dir, socket) = scoped_socket_path("api-call-oversized.sock");
     // Valid JSON (so it is the *size* check that must catch this, not
     // the earlier "is this even JSON" one) and comfortably over
     // MAX_PAYLOAD (8 MiB less a 5-byte header) without hand-copying that
@@ -374,7 +371,7 @@ fn oversized_stdin_on_api_call_exits_2_without_panicking() {
 /// database, not this process's `HOME`.
 #[test]
 fn a_program_still_running_refuses_close_with_status_1() {
-    let socket = unique_socket_path("program-running");
+    let (_socket_dir, socket) = scoped_socket_path("program-running.sock");
     let _server_guard = ServerAtSocket(socket.clone());
 
     // `session.new -- /bin/cat` mints the session and starts the program
@@ -489,7 +486,7 @@ fn spawn_hello_then_silent_fixture(path: PathBuf) -> mpsc::Receiver<()> {
 /// fact rather than assumed: `ExitStatus::signal() == Some(libc::SIGINT)`.
 #[test]
 fn sigint_during_a_hung_call_ends_the_process_by_signal() {
-    let socket = unique_socket_path("sigint");
+    let (_socket_dir, socket) = scoped_socket_path("sigint.sock");
     let ready = spawn_hello_then_silent_fixture(socket.clone());
     ready
         .recv_timeout(Duration::from_secs(2))

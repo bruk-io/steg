@@ -17,7 +17,6 @@ use std::io::{Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -36,11 +35,9 @@ use steg_sdk::{
 };
 use steg_server::{ConnectionEvent, LoginShell, ServerConfig, Stopper, serve};
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-routing-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, scoped_socket_path};
 
 /// A working `PATH` is required (TASK-1.87): `RealLauncher::spawn`'s own
 /// `.env_clear()` means `LoginShell::default()`'s own empty `base_env`
@@ -65,8 +62,8 @@ fn test_login() -> LoginShell {
 /// Same shape as `handshake.rs`'s own `start_server`, with a generous,
 /// fixed handshake timeout - this file is about what happens *after* the
 /// handshake, not the handshake itself.
-fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
-    let socket_path = unique_socket_path();
+fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
@@ -89,7 +86,7 @@ fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
         assert!(Instant::now() < deadline, "server never started accepting");
         std::thread::sleep(Duration::from_millis(5));
     }
-    (socket_path, stop, handle)
+    (socket_dir, socket_path, stop, handle)
 }
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
@@ -220,7 +217,7 @@ fn assert_closes(stream: &mut UnixStream, bound: Duration) {
 
 #[test]
 fn a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let (id, response) =
@@ -242,7 +239,7 @@ fn a_request_on_the_control_stream_reaches_the_api_and_the_reply_matches_the_id(
 /// same id - not a hang, not a crash, not a silently-dropped frame.
 #[test]
 fn a_request_that_would_fail_client_side_validation_still_gets_a_matching_server_error() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let control = Control::Request {
@@ -286,7 +283,7 @@ fn a_request_that_would_fail_client_side_validation_still_gets_a_matching_server
 /// reply.
 #[test]
 fn two_requests_sharing_one_id_both_get_correctly_matched_independent_replies() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let first = Control::Request {
@@ -344,7 +341,7 @@ fn two_requests_sharing_one_id_both_get_correctly_matched_independent_replies() 
 /// drive directly for the priority claim itself.
 #[test]
 fn several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_replies() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let calls = ["session.list", "session.new", "session.list"];
@@ -388,7 +385,7 @@ fn several_pipelined_calls_on_one_connection_get_correctly_matched_in_order_repl
 /// refusal, not the client- or server-side `validate` check.
 #[test]
 fn a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_and_a_pane_method() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     for method in ["session.show", "tab.focus", "pane.show"] {
@@ -418,7 +415,7 @@ fn a_target_less_request_over_a_real_socket_is_bad_request_for_a_session_a_tab_a
 /// `dispatch/main.rs`'s own tests already cover.
 #[test]
 fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let (_, response) =
@@ -492,7 +489,7 @@ fn tab_list_tab_show_and_pane_list_answer_over_a_real_socket() {
 
 #[test]
 fn an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     let started = Instant::now();
@@ -510,7 +507,7 @@ fn an_oversized_frame_post_handshake_is_refused_promptly_and_closes_the_connecti
 
 #[test]
 fn an_unknown_kind_tag_post_handshake_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     let mut bytes = 5_u32.to_be_bytes().to_vec(); // header-only body
@@ -524,7 +521,7 @@ fn an_unknown_kind_tag_post_handshake_closes_the_connection() {
 
 #[test]
 fn a_non_json_control_payload_post_handshake_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     stream
@@ -539,7 +536,7 @@ fn a_non_json_control_payload_post_handshake_closes_the_connection() {
 
 #[test]
 fn a_reply_shaped_frame_from_the_client_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     let reply = Control::Reply {
@@ -558,7 +555,7 @@ fn a_reply_shaped_frame_from_the_client_closes_the_connection() {
 
 #[test]
 fn an_event_from_the_client_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     let event = Control::Event {
@@ -577,7 +574,7 @@ fn an_event_from_the_client_closes_the_connection() {
 
 #[test]
 fn a_second_hello_after_the_handshake_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     let hello = ClientHello::new("test-client", PROTOCOL_VERSION, ClientKind::Cli, None);
@@ -590,7 +587,7 @@ fn a_second_hello_after_the_handshake_closes_the_connection() {
 
 #[test]
 fn data_on_a_stream_never_opened_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     // No attach exists yet (TASK-1.47), so every non-zero stream is, by
@@ -614,7 +611,7 @@ fn data_on_a_stream_never_opened_closes_the_connection() {
 /// events channel, with nothing stuck.
 #[test]
 fn a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_promptly() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
@@ -676,7 +673,7 @@ fn a_client_that_vanishes_with_replies_still_queued_still_ends_the_connection_pr
 /// not about the size of any one reply.
 #[test]
 fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     // A write timeout, not just the read timeout `connect_and_handshake`
@@ -751,7 +748,7 @@ fn a_client_that_floods_requests_and_never_reads_any_reply_is_closed_not_hung() 
 /// window that is simply idle.
 #[test]
 fn a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     // A declared length well inside the accepted range, large enough
@@ -796,7 +793,7 @@ fn a_client_that_trickles_a_frame_post_handshake_forever_is_never_closed() {
 /// own above.
 #[test]
 fn the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitly_closed() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, _connection) = connect_and_handshake(&socket_path);
 
     stream
@@ -821,7 +818,7 @@ fn the_server_stops_promptly_after_a_hostile_connection_that_was_never_explicitl
 /// unblocks and joins everything.
 #[test]
 fn the_server_stops_promptly_with_a_connection_mid_request() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let (_, bytes) = connection.call("session.list", Map::new()).unwrap();
@@ -854,7 +851,7 @@ fn the_server_stops_promptly_with_a_connection_mid_request() {
 /// `Runtime::stop()` does in isolation.
 #[test]
 fn stopping_through_a_real_connection_ends_a_real_programs_process_and_frees_the_socket() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     // A real program that writes its own pid to a file, then sleeps -
@@ -957,7 +954,7 @@ fn process_exists(pid: u32) -> bool {
 /// (TASK-1.77) reads.
 #[test]
 fn a_hostile_post_handshake_close_still_reports_disconnected() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
@@ -1022,7 +1019,7 @@ fn a_hostile_post_handshake_close_still_reports_disconnected() {
 /// call.
 #[test]
 fn a_reply_delivered_one_byte_at_a_time_still_decodes_correctly() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let mut stream = UnixStream::connect(&socket_path).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(5)))
@@ -1181,7 +1178,7 @@ fn wait_until_bytes_available_plateaus(stream: &UnixStream, bound: Duration) -> 
 /// assertion below.
 #[test]
 fn a_writer_blocked_on_a_full_send_buffer_still_joins_when_this_connections_own_close_runs() {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),

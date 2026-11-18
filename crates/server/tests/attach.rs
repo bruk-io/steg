@@ -17,7 +17,6 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value, json};
@@ -27,11 +26,13 @@ use steg_sdk::{
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-attach-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, scoped_socket_path};
+
+/// This file's own connections' default read timeout (TASK-1.123) - see
+/// `connect_and_handshake`'s own doc for why 15s, not the 5s it replaces.
+const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// A working `PATH` is required (TASK-1.87), the same reasoning
 /// `routing.rs`'s own `test_login` gives - this file's own tests all
@@ -48,8 +49,8 @@ fn test_login() -> LoginShell {
     }
 }
 
-fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
-    let socket_path = unique_socket_path();
+fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
@@ -72,7 +73,7 @@ fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
         assert!(Instant::now() < deadline, "server never started accepting");
         std::thread::sleep(Duration::from_millis(5));
     }
-    (socket_path, stop, handle)
+    (socket_dir, socket_path, stop, handle)
 }
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
@@ -82,11 +83,21 @@ fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
 
 /// Same shape as `routing.rs`'s own `connect_and_handshake` - the real
 /// handshake, with the sdk's own `Connection`.
+///
+/// This connection's own "default" read timeout, `DEFAULT_READ_TIMEOUT`
+/// below, is set here once and relied on by every helper in this file
+/// that does not pass its own explicit bound (`call_and_read_reply`,
+/// `reply_within`'s own restore step) - 15s, not the 5s this was before
+/// TASK-1.123, which this file's own sighted flood-test starvation
+/// (this task's own notes) found was the tightest bound in the file:
+/// a liveness margin proving "answers at all" under this machine's own
+/// concurrent CPU contention, the same reasoning this file's own
+/// `an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_
+/// another_pane` already settled on for its own two "eventually drains"
+/// checks.
 fn connect_and_handshake(socket_path: &std::path::Path) -> (UnixStream, Connection) {
     let mut stream = UnixStream::connect(socket_path).unwrap();
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .unwrap();
+    stream.set_read_timeout(Some(DEFAULT_READ_TIMEOUT)).unwrap();
     let hello_bytes = Connection::send_hello("attach-test-client", ClientKind::Cli, None);
     stream.write_all(&hello_bytes).unwrap();
 
@@ -119,7 +130,7 @@ fn call_and_read_reply(
 ) -> Response {
     let (id, bytes) = connection.call(method, params).expect("a valid call");
     stream.write_all(&bytes).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
     loop {
         // Drains every already-decoded frame before reading more
         // (TASK-1.128: an attached call like `pane.close --force` can
@@ -237,7 +248,7 @@ fn attach(stream: &mut UnixStream, connection: &mut Connection, pane: &str) -> P
         .expect("a valid call");
     stream.write_all(&bytes).unwrap();
 
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
     let response = loop {
         match connection.poll() {
             Some(Incoming::Reply {
@@ -328,7 +339,7 @@ fn declare_size(
         .declare_size(Some(tab), columns, rows)
         .expect("a valid call");
     stream.write_all(&bytes).unwrap();
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(20); // TASK-1.123: above DEFAULT_READ_TIMEOUT (15s)
     loop {
         if let Some(Incoming::Reply {
             id: reply_id,
@@ -371,15 +382,13 @@ fn reply_within(
     timeout: Duration,
 ) -> Option<Response> {
     // Every other helper in this file assumes the connection's own
-    // 5-second default read timeout (`connect_and_handshake`'s own
-    // setting) - restored on every exit from this function, not left at
-    // whatever this function's own short, internal polling timeout last
-    // set it to, which would otherwise make the *next* helper's own
-    // blocking read fail with `WouldBlock` instead of really waiting.
+    // `DEFAULT_READ_TIMEOUT` (`connect_and_handshake`'s own setting) -
+    // restored on every exit from this function, not left at whatever
+    // this function's own short, internal polling timeout last set it
+    // to, which would otherwise make the *next* helper's own blocking
+    // read fail with `WouldBlock` instead of really waiting.
     let result = reply_within_with_leaky_timeout(stream, connection, id, timeout);
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .unwrap();
+    stream.set_read_timeout(Some(DEFAULT_READ_TIMEOUT)).unwrap();
     result
 }
 
@@ -541,7 +550,7 @@ fn assert_nothing_more_arrives_on(
 
 #[test]
 fn attach_returns_the_real_screen_and_updates_follow_it() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -579,7 +588,7 @@ fn attach_returns_the_real_screen_and_updates_follow_it() {
 
 #[test]
 fn detach_ends_the_stream_even_though_the_program_keeps_producing_output() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     // Steady, ongoing output - slow enough (50 lines/s) that this test's
@@ -668,7 +677,7 @@ fn detach_ends_the_stream_even_though_the_program_keeps_producing_output() {
 
 #[test]
 fn detaching_a_pane_this_connection_never_attached_to_is_a_bad_request() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -699,7 +708,7 @@ fn detaching_a_pane_this_connection_never_attached_to_is_a_bad_request() {
 /// own invariant, `unknown_stream_frames=0`).
 #[test]
 fn repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stream() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -730,7 +739,7 @@ fn repeated_attach_and_detach_against_a_flooding_pane_never_sees_an_unknown_stre
 /// anything, not by inspecting the worker's own attachment list directly.
 #[test]
 fn disconnecting_without_detaching_does_not_leak_or_block_a_later_attach() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
 
     let pane = {
         let (mut stream, mut connection) = connect_and_handshake(&socket_path);
@@ -770,7 +779,7 @@ fn disconnecting_without_detaching_does_not_leak_or_block_a_later_attach() {
 #[test]
 fn two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_does_not_touch_the_other()
  {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
 
     // Steady, paced output, continuously drained by both connections below
@@ -841,7 +850,7 @@ fn two_connections_attached_to_one_pane_each_get_their_own_updates_and_a_detach_
 /// the stream on both sides for the rest of the connection's life.
 #[test]
 fn detaching_a_pane_that_already_closed_still_releases_the_stream() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 0"]);
@@ -884,7 +893,7 @@ fn detaching_a_pane_that_already_closed_still_releases_the_stream() {
 /// `asdlc record-check` both ways.
 #[test]
 fn typed_bytes_reach_a_real_program_in_order() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(&mut stream, &mut connection, vec!["cat"]);
@@ -931,7 +940,7 @@ fn typed_bytes_reach_a_real_program_in_order() {
 /// clears - recorded both ways through `asdlc record-check`.
 #[test]
 fn input_clears_a_finished_status() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 0"]);
@@ -1003,7 +1012,7 @@ fn input_clears_a_finished_status() {
 /// this test - recorded through `asdlc record-check`, both ways.
 #[test]
 fn a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
 
@@ -1115,7 +1124,7 @@ fn a_declared_size_reaches_the_pty_and_is_reported_on_every_attached_stream() {
 /// reports the reapplied size - recorded through `asdlc record-check`.
 #[test]
 fn detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_size() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
 
@@ -1181,7 +1190,7 @@ fn detaching_releases_the_claim_and_the_survivor_returns_to_its_own_declared_siz
 /// control does.
 #[test]
 fn a_dropped_connection_releases_its_claim_the_same_way() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let (mut stream_b, mut connection_b) = connect_and_handshake(&socket_path);
 
@@ -1241,7 +1250,7 @@ fn a_dropped_connection_releases_its_claim_the_same_way() {
 /// -size` arm makes this test fail - recorded through `asdlc record-check`.
 #[test]
 fn declaring_a_size_of_zero_is_refused() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1278,7 +1287,7 @@ fn declaring_a_size_of_zero_is_refused() {
 /// would otherwise refuse to build this exact frame at all).
 #[test]
 fn a_frame_on_an_already_detached_stream_closes_the_connection() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1293,9 +1302,7 @@ fn a_frame_on_an_already_detached_stream_closes_the_connection() {
         .expect("a data frame for an id this test controls directly");
     stream.write_all(&frame).unwrap();
 
-    stream
-        .set_read_timeout(Some(Duration::from_secs(5)))
-        .unwrap();
+    stream.set_read_timeout(Some(DEFAULT_READ_TIMEOUT)).unwrap();
     let mut buf = [0_u8; 4096];
     match stream.read(&mut buf) {
         Ok(0) => {} // the connection closed - decision-2's "refused"
@@ -1337,6 +1344,95 @@ fn flood_stdin(stream: &mut UnixStream, connection: &Connection, attachment_stre
 /// unaffected: only the handful that actually flood take this lock.
 static FLOOD_TEST_LOCK: Mutex<()> = Mutex::new(());
 
+/// Where the flood tests' own cross-process lock file lives - outside
+/// every worktree, the same reasoning `tools/src/steg_tools/
+/// quiet.py::lock_directory` already uses for TASK-1.132's own slots:
+/// never `$TMPDIR`/`std::env::temp_dir()` (per-worktree-sandboxed, and
+/// the whole point here is to serialise *across* worktrees, the
+/// opposite of every other path in this file, which is deliberately
+/// unique per test) - `$XDG_CACHE_HOME/steg/test-locks`, else
+/// `$HOME/.cache/steg/test-locks`.
+fn flood_lock_path() -> PathBuf {
+    let base = std::env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| {
+            PathBuf::from(
+                std::env::var_os("HOME")
+                    .expect("HOME should be set on any machine this test suite runs on"),
+            )
+            .join(".cache")
+        });
+    base.join("steg")
+        .join("test-locks")
+        .join("attach-flood.lock")
+}
+
+/// Acquires the machine-wide, cross-process flood-test lock, bounded
+/// (TASK-1.123): a watchdog thread does the real, possibly-blocking
+/// `flock` (`nix::fcntl::Flock::lock`, `FlockArg::LockExclusive` - the
+/// same primitive `arbiter.rs` already uses for the arbiter's own lock,
+/// just blocking here instead of non-blocking), and this thread waits
+/// on it through a bounded channel receive (the same `run_bounded`
+/// shape `tests/support/mod.rs` already has) - a wait for the lock
+/// itself fails this test with a message naming what it waited for,
+/// rather than becoming the next unbounded wait this task was meant to
+/// remove.
+///
+/// Released by the OS the instant the returned guard's own fd closes,
+/// for any reason including this process being `SIGKILL`ed -
+/// `nix::fcntl::Flock`'s own `Drop` already unlocks explicitly on an
+/// ordinary exit, and the kernel does the identical thing regardless
+/// once the fd table is torn down
+/// (`tools/src/steg_tools/quiet.py::held_slot`'s own doc states the
+/// same guarantee, for the same reason: "the kernel drops the flock the
+/// instant this process's last reference to that fd closes... There is
+/// no lock, pid, or state file recording who holds a slot, so a killed
+/// run leaves nothing behind to clean up"). No stale-lock detection or
+/// cleanup code is written here because none is needed.
+///
+/// Does not deadlock with TASK-1.132's own two machine-wide cargo
+/// slots: a worktree that already holds one of those two slots never
+/// needs the *other* one to finish its own run, and never releases its
+/// held slot back mid-run for someone else to use - this lock is the
+/// only *additional* resource a flood test ever waits on beyond what it
+/// already, irrevocably holds, so at most one side of this lock is ever
+/// waiting, and the side holding it is never itself waiting on anything
+/// the waiter holds. A cycle needs two resources each side waits on in
+/// opposite order; the slot-then-lock ordering here (a slot is always
+/// acquired before this lock is ever requested, and released only after
+/// this lock already was) rules that out by construction.
+///
+/// # Panics
+/// If the lock could not be acquired within 60s, or failed for a
+/// reason other than contention.
+fn cross_process_flood_guard() -> nix::fcntl::Flock<std::fs::File> {
+    let path = flood_lock_path();
+    std::fs::create_dir_all(
+        path.parent()
+            .expect("flood_lock_path always returns a path with a parent"),
+    )
+    .expect("creating the flood lock's own directory should succeed");
+    let file =
+        std::fs::File::create(&path).expect("creating/opening the flood lock file should succeed");
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = nix::fcntl::Flock::lock(file, nix::fcntl::FlockArg::LockExclusive);
+        let _ = tx.send(result.map_err(|(_file, errno)| errno));
+    });
+    let bound = Duration::from_secs(60);
+    match rx.recv_timeout(bound) {
+        Ok(Ok(locked)) => locked,
+        Ok(Err(errno)) => {
+            panic!("could not lock the cross-process flood-test lock at {path:?}: {errno}")
+        }
+        Err(_) => panic!(
+            "timed out after {bound:?} waiting for the cross-process flood-test lock at {path:?} - \
+             another worktree's own flood test held it for longer than this bound allows"
+        ),
+    }
+}
+
 /// AC #1's own cost, proven directly (TASK-1.114's plan, §1 and proof
 /// item 9): flooding a program that never reads its stdin at all (`sleep`)
 /// makes that *one* pane's own worker thread stuck in a blocking
@@ -1354,7 +1450,8 @@ fn an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pan
     let _flood_guard = FLOOD_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let (socket_path, stop, handle) = start_server();
+    let _cross_process_guard = cross_process_flood_guard();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let stuck_pane = new_pane_running(
@@ -1495,7 +1592,8 @@ fn a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_a
     let _flood_guard = FLOOD_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let (socket_path, stop, handle) = start_server();
+    let _cross_process_guard = cross_process_flood_guard();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
 
     let stuck_pane = new_pane_running(
@@ -1592,7 +1690,8 @@ fn pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_
     let _flood_guard = FLOOD_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let (socket_path, stop, handle) = start_server();
+    let _cross_process_guard = cross_process_flood_guard();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1637,7 +1736,8 @@ fn stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stu
     let _flood_guard = FLOOD_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let (socket_path, stop, handle) = start_server();
+    let _cross_process_guard = cross_process_flood_guard();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1705,7 +1805,8 @@ fn a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_deta
     let _flood_guard = FLOOD_TEST_LOCK
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let (socket_path, stop, handle) = start_server();
+    let _cross_process_guard = cross_process_flood_guard();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_one, mut connection_one) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1901,7 +2002,7 @@ fn next_ended(
 /// afterward.
 #[test]
 fn a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(&mut stream, &mut connection, vec!["sh", "-c", "exit 7"]);
@@ -1938,7 +2039,7 @@ fn a_program_that_exits_on_its_own_sends_ended_with_its_real_exit_code() {
 /// the socket level).
 #[test]
 fn pane_close_force_reports_ended_closed_not_the_signals_own_exit_code() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let pane = new_pane_running(
@@ -1988,7 +2089,7 @@ fn pane_close_force_reports_ended_closed_not_the_signals_own_exit_code() {
 /// not only the one that happened to ask first.
 #[test]
 fn two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh", "-c", "exit 4"]);
     let attached_a = attach(&mut stream_a, &mut connection_a, &pane);
@@ -2043,7 +2144,7 @@ fn two_clients_attached_to_one_pane_both_get_ended_for_the_same_exit() {
 /// `attach`, below), then `Ended`, and nothing at all afterward.
 #[test]
 fn attaching_to_a_pane_whose_program_already_ended_gets_a_final_full_then_ended() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream_a, mut connection_a) = connect_and_handshake(&socket_path);
     let pane = new_pane_running(&mut stream_a, &mut connection_a, vec!["sh", "-c", "exit 0"]);
     let attached_a = attach(&mut stream_a, &mut connection_a, &pane);

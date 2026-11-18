@@ -8,24 +8,18 @@
 //! the one that proves the mode survives a *hostile* one.
 
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use nix::sys::stat::{Mode, umask};
 use steg_server::{Arbitration, ServerConfig, attempt};
 
-/// Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
-/// (`crates/server/src/bind.rs`'s own doc comment found this matters).
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 #[test]
 fn the_socket_is_0600_even_under_a_permissive_umask() {
     let previous = umask(Mode::empty());
-    let path = unique_socket_path();
+    let (_socket_dir, path) = scoped_socket_path("s.sock");
     let config = ServerConfig::default();
     let result = attempt(&config, &path);
     umask(previous); // restored before any assertion can early-return

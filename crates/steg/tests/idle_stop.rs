@@ -12,14 +12,11 @@
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-idle-stop-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 fn fixture_server_binary() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_fixture_server"))
@@ -88,7 +85,7 @@ const MARGIN: Duration = Duration::from_secs(5);
 #[test]
 fn an_on_demand_server_with_no_clients_stops_itself_and_a_fresh_connect_afterward_starts_a_new_one()
 {
-    let socket_path = unique_socket_path();
+    let (_socket_dir, socket_path) = scoped_socket_path("s.sock");
     let mut server = KillOnDrop::new(
         Command::new(fixture_server_binary())
             .env("STEG_SOCKET_PATH", &socket_path)

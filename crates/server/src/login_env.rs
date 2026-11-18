@@ -634,13 +634,19 @@ mod tests {
         // under real load, not assumed: a tighter bound flaked under a
         // concurrently busy machine, killing the group before the
         // grandchild had even been written down to find later.
+        // 15s, not 5s (TASK-1.123): this only has to prove
+        // `capture_login_environment` returns *at all*, close to its own
+        // 1s functional timeout, not race a tight deadline against this
+        // machine's own, unrelated CPU contention - the same "liveness
+        // bound, not a timing-precision one" reasoning `attach.rs`'s own
+        // bounds already settled on for the identical reason.
         let started = std::time::Instant::now();
         let capture = capture_login_environment(
             &test_identity(&fake.path, std::path::Path::new("/tmp")),
             Duration::from_secs(1),
         );
         assert!(
-            started.elapsed() < Duration::from_secs(5),
+            started.elapsed() < Duration::from_secs(15),
             "capture_login_environment must still return within a bound close to its own \
              timeout, not hang on the grandchild: took {:?}",
             started.elapsed()
@@ -650,6 +656,16 @@ mod tests {
             "expected a timeout fallback, got {capture:?}"
         );
 
+        // 30s from the same `started`, not 10s (TASK-1.123, the actual
+        // sighting this bound was widened for - found while building
+        // this task's own class (b) fix, not synthesised: this exact
+        // assertion failed once, organically, under this machine's own
+        // heavy concurrent test load, recorded on the task). This is a
+        // cross-process liveness poll with no in-process event to
+        // subscribe to instead - the fake shell's own fork-then-echo-
+        // then-write sequence is scheduled by the OS, not signalled to
+        // this test - so the fix here is a wider margin, not a
+        // different wait mechanism.
         let grandchild_pid = loop {
             if let Ok(text) = fs::read_to_string(&grandchild_pid_file)
                 && let Ok(pid) = text.trim().parse::<u32>()
@@ -657,7 +673,7 @@ mod tests {
                 break pid;
             }
             assert!(
-                started.elapsed() < Duration::from_secs(10),
+                started.elapsed() < Duration::from_secs(30),
                 "the backgrounded grandchild's own pid file never appeared"
             );
             std::thread::sleep(Duration::from_millis(10));

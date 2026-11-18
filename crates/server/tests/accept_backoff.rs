@@ -76,13 +76,17 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use nix::sys::resource::{Resource, getrlimit, setrlimit};
 use steg_server::{Arbitration, ServerConfig, attempt};
+
+#[path = "support/mod.rs"]
+mod support;
+use support::scoped_socket_path;
 
 /// Comfortably above what binding the socket and holding its lock cost on
 /// their own (confirmed empirically while building this task, not
@@ -101,17 +105,6 @@ fn raise_own_rlimit() {
         getrlimit(Resource::RLIMIT_NOFILE).expect("getrlimit should succeed on this platform");
     setrlimit(Resource::RLIMIT_NOFILE, hard, hard)
         .expect("raising this test's own soft limit to its own hard limit should succeed");
-}
-
-fn unique_socket_path(label: &str) -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    // Kept short against `sockaddr_un`'s 104-byte `sun_path` budget
-    // (`crates/server/src/bind.rs`'s own doc comment, and `race.rs`'s own
-    // `unique_socket_path` found this matters) - `label` stays out of the
-    // path itself for the same reason.
-    let _ = label;
-    std::env::temp_dir().join(format!("{}-ab{suffix}.sock", std::process::id()))
 }
 
 fn lock_path_for(socket_path: &std::path::Path) -> PathBuf {
@@ -431,7 +424,7 @@ fn accept_errors_back_off_instead_of_spinning() {
     const BOUND: u64 = 150;
 
     raise_own_rlimit();
-    let socket_path = unique_socket_path("backoff");
+    let (_socket_dir, socket_path) = scoped_socket_path("backoff.sock");
     let mut fixture = spawn_fixture(&socket_path, &[("ACCEPT_BACKOFF_MS", "20")]);
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
@@ -465,7 +458,7 @@ fn accept_errors_spin_without_a_backoff_negative_control() {
     const BOUND: u64 = 150;
 
     raise_own_rlimit();
-    let socket_path = unique_socket_path("spin");
+    let (_socket_dir, socket_path) = scoped_socket_path("spin.sock");
     let mut fixture = spawn_fixture(&socket_path, &[("ACCEPT_BACKOFF_MS", "0")]);
     wait_until_accepting(&socket_path, Instant::now() + Duration::from_secs(5));
 
@@ -507,7 +500,7 @@ fn accept_errors_spin_without_a_backoff_negative_control() {
 #[test]
 fn a_stop_asked_mid_exhaustion_ends_the_server_promptly() {
     raise_own_rlimit();
-    let socket_path = unique_socket_path("stop");
+    let (_socket_dir, socket_path) = scoped_socket_path("stop.sock");
     let mut fixture = spawn_fixture(
         &socket_path,
         &[("ACCEPT_BACKOFF_MS", "20"), ("STOP_AFTER_RETRIES", "1")],
@@ -552,7 +545,7 @@ fn a_stop_asked_mid_exhaustion_ends_the_server_promptly() {
 #[test]
 fn a_fatal_accept_error_ends_the_server_and_cleans_up() {
     raise_own_rlimit();
-    let socket_path = unique_socket_path("fatal");
+    let (_socket_dir, socket_path) = scoped_socket_path("fatal.sock");
     let mut fixture = spawn_fixture(
         &socket_path,
         &[("ACCEPT_BACKOFF_MS", "20"), ("DUP2_AFTER_RETRIES", "1")],

@@ -10,7 +10,6 @@
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
@@ -21,11 +20,9 @@ use steg_sdk::{
 };
 use steg_server::{LoginShell, ServerConfig, Stopper, serve};
 
-fn unique_socket_path() -> PathBuf {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let suffix = COUNTER.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{}-events-{suffix}.sock", std::process::id()))
-}
+#[path = "support/mod.rs"]
+mod support;
+use support::{ScopedTempDir, scoped_socket_path};
 
 /// Same reasoning as `routing.rs`'s own `test_login`: a working `PATH` is
 /// required (TASK-1.87) for any test here that starts a real program.
@@ -41,8 +38,8 @@ fn test_login() -> LoginShell {
     }
 }
 
-fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
-    let socket_path = unique_socket_path();
+fn start_server() -> (ScopedTempDir, PathBuf, Stopper, std::thread::JoinHandle<()>) {
+    let (socket_dir, socket_path) = scoped_socket_path("s.sock");
     let config = ServerConfig {
         socket_path: Some(socket_path.clone()),
         handshake_timeout: Duration::from_secs(5),
@@ -65,7 +62,7 @@ fn start_server() -> (PathBuf, Stopper, std::thread::JoinHandle<()>) {
         assert!(Instant::now() < deadline, "server never started accepting");
         std::thread::sleep(Duration::from_millis(5));
     }
-    (socket_path, stop, handle)
+    (socket_dir, socket_path, stop, handle)
 }
 
 fn stop_server(stop: &Stopper, handle: std::thread::JoinHandle<()>) {
@@ -190,7 +187,7 @@ fn ok_id(response: Response) -> String {
 
 #[test]
 fn subscribing_to_a_fresh_server_replies_with_an_empty_tree() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut stream, mut connection) = connect_and_handshake(&socket_path);
 
     let snapshot = subscribe(&mut stream, &mut connection, None, None, true);
@@ -203,7 +200,7 @@ fn subscribing_to_a_fresh_server_replies_with_an_empty_tree() {
 
 #[test]
 fn session_new_emits_session_created_tab_created_and_pane_created_in_order() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
     subscribe(&mut sub_stream, &mut sub_connection, None, None, true);
 
@@ -243,7 +240,7 @@ fn session_new_emits_session_created_tab_created_and_pane_created_in_order() {
 /// a session, tab or pane found the gap.
 #[test]
 fn pane_split_emits_pane_created_only() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -288,7 +285,7 @@ fn pane_split_emits_pane_created_only() {
 /// *across* tabs at all) - every pane closed, then its own tab, repeated
 /// per tab in the session's own order, then the session itself.
 fn session_close_emits_the_whole_cascade_innermost_first() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -386,7 +383,7 @@ fn session_close_emits_the_whole_cascade_innermost_first() {
 /// must not close, since another tab remains.
 #[test]
 fn pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_too() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -446,7 +443,7 @@ fn pane_close_on_the_last_pane_of_a_tab_that_is_not_the_last_tab_closes_the_tab_
 /// `close_pane` already reported the tab and the session closing too.
 #[test]
 fn pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_order() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -492,7 +489,7 @@ fn pane_close_on_the_last_pane_of_the_last_tab_closes_pane_tab_and_session_in_or
 /// then the tab, then the session, in that order.
 #[test]
 fn tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -553,7 +550,7 @@ fn tab_close_on_the_last_tab_closes_its_panes_then_the_tab_then_the_session() {
 /// does not cover (TASK-1.109's, see the notes).
 #[test]
 fn pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -616,7 +613,7 @@ fn pane_move_emptying_a_tab_that_is_not_the_sessions_last_closes_only_the_tab() 
 /// `session.closed`, innermost first, same rule as every close path.
 #[test]
 fn pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let source_session = ok_id(call(
         &mut client_stream,
@@ -669,7 +666,7 @@ fn pane_move_emptying_the_sessions_last_tab_closes_the_tab_then_the_session() {
 
 #[test]
 fn tab_focus_emits_tab_focused_with_the_whole_path() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -721,7 +718,7 @@ fn tab_focus_emits_tab_focused_with_the_whole_path() {
 
 #[test]
 fn a_filter_by_name_keeps_only_that_event() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,
@@ -766,7 +763,7 @@ fn a_filter_by_name_keeps_only_that_event() {
 
 #[test]
 fn a_filter_by_session_excludes_another_sessions_events() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let watched_session = ok_id(call(
         &mut client_stream,
@@ -855,7 +852,7 @@ fn assert_nothing_arrives_within(
 
 #[test]
 fn disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
 
     {
@@ -894,7 +891,7 @@ fn disconnecting_ends_a_subscription_with_no_panic_and_no_further_broadcast() {
 
 #[test]
 fn the_snapshots_reply_always_precedes_any_event_under_a_real_race() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
 
     for _ in 0..20 {
         let (mut sub_stream, mut sub_connection) = connect_and_handshake(&socket_path);
@@ -995,7 +992,7 @@ fn the_snapshots_reply_always_precedes_any_event_under_a_real_race() {
 
 #[test]
 fn a_quiet_window_produces_nothing_and_a_change_right_after_produces_exactly_one_event() {
-    let (socket_path, stop, handle) = start_server();
+    let (_socket_dir, socket_path, stop, handle) = start_server();
     let (mut client_stream, mut client_connection) = connect_and_handshake(&socket_path);
     let session_id = ok_id(call(
         &mut client_stream,

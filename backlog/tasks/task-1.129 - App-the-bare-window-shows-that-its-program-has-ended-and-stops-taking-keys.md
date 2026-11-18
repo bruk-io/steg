@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:30:00Z'
+updated_date: '2026-11-18T02:31:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -482,6 +482,34 @@ running 1 test
 test client::tests::an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+```
+
+Check FAILED: `cargo test -p steg-app -- ended_closes_this_connections` exited 101 at 2026-11-18T02:31:15+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.129 on task-1.129-app-the-bare-window-shows-that-its at 2dd9f5117641 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_stream_is_unknown ... FAILED
+
+failures:
+
+---- client::tests::ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_stream_is_unknown stdout ----
+
+thread 'client::tests::ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_stream_is_unknown' (56647047) panicked at crates/app/src/client.rs:518:9:
+a frame on a stream this connection already closed its own side of must decode as a protocol surprise, not an ordinary update: Some(Update(Unchanged))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_stream_is_unknown
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 72 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
 ```
 <!-- SECTION:NOTES:END -->
 

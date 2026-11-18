@@ -726,6 +726,8 @@ test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```
 
 Commits since the review: 18, 15 without the Asdlc-Worker trailer.
+
+Sighting (not this task's own): merged origin/main (782a7ae5, TASK-1.132's limiter - tools/justfile only, clean, nothing in crates/server/tests) to 72a924a3. One `just check` run at that head (uptime 3.07/3.30/3.52, quiet) failed in check-packages on crates/steg's own tests: `an_untrusted_existing_file_refuses_with_status_4_and_names_the_reason` could not write a plain file where a socket already existed at the same temporary path - a collision with another worktree (TASK-1.119's) running crates/steg's tests at the same moment, per the engineer; not this task's own class of flake, and crates/steg is a file this task never touches. Reran the same test alone, then the whole server_start.rs file (15 tests) right after: both passed clean (recorded on this task). Per the engineer, this collision is already logged elsewhere for housekeeping.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

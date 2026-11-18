@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T14:01:00Z'
+updated_date: '2026-11-18T14:03:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -27,8 +27,7 @@ Split from TASK-1.113 by its plan on 2026-11-16, under the engineer's standing d
 <!-- AC:BEGIN -->
 - [ ] #1 Every wait on a thread, a channel, a child process or a socket in the tests of crates/server and crates/steg has a bound, through the shared helpers, and a wait that passes its bound fails the test with a message naming what it waited for
 - [ ] #2 A check in tools fails just check when a test file in those crates calls join, recv, a child wait or a blocking socket read with no bound, with a message saying which helper to use and why; it has its own tests
-- [ ] #3 No test waits by sleeping in a loop where an event can be waited on; each remaining poll is listed in the notes with the reason no event exists
-- [ ] #4 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
+- [ ] #3 A line in the repository's Rust testing rule says a test must not rely on a dropped socket end failing its peer at once on macOS, with the reason
 <!-- AC:END -->
 
 ## Implementation Plan

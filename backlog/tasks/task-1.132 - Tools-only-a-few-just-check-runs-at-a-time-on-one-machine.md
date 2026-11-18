@@ -686,6 +686,16 @@ FAILED tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count
 ```
 
 Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `sh -c 'STEG_CHECK_SLOTS=0 uv run --project tools pytest -q "tools/tests/unit/test_quiet.py::test_slot_count_rejects_a_non_numeric_value_naming_the_variable_and_value" "tools/tests/functional/test_quiet_slots.py::test_a_non_numeric_slot_count_fails_cleanly_not_with_a_traceback"'` exited 0 at 2026-11-18T03:38:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.132 on task-1.132-tools-only-a-few-just-check-runs-at-a at 94dcbe45a851:
+
+```text
+warning: `VIRTUAL_ENV=/Users/brukhabtu/.cache/uv/builds-v0/.tmpqXH9Cl` does not match the project environment path `tools/.venv` and will be ignored; use `--active` to target the active environment instead
+..                                                                       [100%]
+2 passed in 0.03s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

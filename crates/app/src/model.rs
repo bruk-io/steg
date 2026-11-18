@@ -16,7 +16,7 @@
 //! Plain data: no `gpui::Window`/`Context` parameter anywhere in this file, which is what
 //! lets it be tested without a window (TASK-1.117's plan, §4).
 
-use steg_sdk::{Cursor, Row, Screen, ScreenUpdate, Size, Wide};
+use steg_sdk::{Cursor, EndReason, Row, Screen, ScreenUpdate, Size, Wide};
 use unicode_segmentation::UnicodeSegmentation;
 
 /// How many columns one run's own text spans: one cell per grapheme cluster it covers,
@@ -103,13 +103,30 @@ impl Model {
                 self.grid = screen.rows;
                 self.cursor = screen.cursor;
             }
-            // A no-op for now: the window's own reaction to a pane ending
-            // (keeping the last screen, showing that it ended, refusing
-            // further input) is a separate, later task's job, not this
-            // one's - this arm exists only so the model compiles against
-            // the new variant.
+            // A no-op, by design, not a placeholder (TASK-1.129): "ended"
+            // is connection-lifecycle state, not terminal-grid state - it
+            // belongs on the window's own `AttachedState`
+            // (`crates/app/src/main.rs`), not here. This is what keeps
+            // the last screen exactly as it was (AC #1's own "keeps the
+            // last screen").
             ScreenUpdate::Ended { .. } => {}
         }
+    }
+}
+
+/// The exact words shown for each reason a pane ended (TASK-1.129, AC #1:
+/// "the wording comes from one function with its own tests for both
+/// reasons") - plain statements of fact, with no success/failure
+/// judgement by exit code: that drawn-state choice belongs to TASK-1.61
+/// (doc-10 already defers every drawn state of an ended program to it),
+/// and this bare window's own text is a stopgap, not a first draft of it.
+#[must_use]
+pub(crate) fn describe_end(reason: EndReason) -> String {
+    match reason {
+        EndReason::ProgramExited { exit_code } => {
+            format!("the program ended with status {exit_code}")
+        }
+        EndReason::Closed => "the pane was closed".to_owned(),
     }
 }
 
@@ -118,6 +135,19 @@ mod tests {
     use steg_sdk::{CellStyle, CursorShape, Run, Size, Underline};
 
     use super::*;
+
+    #[test]
+    fn describe_end_names_the_programs_own_exit_status() {
+        assert_eq!(
+            describe_end(EndReason::ProgramExited { exit_code: 3 }),
+            "the program ended with status 3"
+        );
+    }
+
+    #[test]
+    fn describe_end_names_the_pane_as_closed() {
+        assert_eq!(describe_end(EndReason::Closed), "the pane was closed");
+    }
 
     fn style() -> CellStyle {
         CellStyle {

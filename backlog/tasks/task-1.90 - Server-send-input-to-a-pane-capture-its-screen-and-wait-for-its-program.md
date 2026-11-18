@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:37:00Z'
+updated_date: '2026-11-18T15:38:00Z'
 labels:
   - size-3
   - changes-requested
@@ -503,6 +503,36 @@ running 1 test
 test pane_send_refuses_a_pane_with_no_running_program ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.03s
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_refuses_text_and_key_together` exited 101 at 2026-11-18T15:38:33+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 2bc23c84edcb with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_refuses_text_and_key_together ... FAILED
+
+failures:
+
+---- pane_send_refuses_text_and_key_together stdout ----
+
+thread 'pane_send_refuses_text_and_key_together' (60884599) panicked at crates/server/tests/pane_send.rs:919:5:
+assertion `left == right` failed: text and key given together must deliver nothing at all, not one or the other
+  left: "hello\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+ right: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_refuses_text_and_key_together
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.53s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
 ```
 
 Commits since the review: 0.

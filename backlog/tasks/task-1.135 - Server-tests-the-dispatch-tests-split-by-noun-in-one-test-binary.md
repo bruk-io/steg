@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T03:01:00Z'
+updated_date: '2026-11-18T03:02:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -175,6 +175,33 @@ Check passed: `sh -c 'export ZIG=$(mise which zig 2>/dev/null || true); cargo te
     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
      Running tests/dispatch/main.rs (target/debug/deps/dispatch-f4a35a1a67d34c92)
 PROOF (b): 77/77 test names identical apart from module:: prefix
+```
+
+Check passed: `sh -c 'bash /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-proof-c.sh'` exited 0 at 2026-11-18T03:02:05+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at f3053c6eae23:
+
+```text
+DIFF  fixtures: 6 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-fixtures.diff
+PASS  cross_cutting: byte-identical
+DIFF  session: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-session.diff
+DIFF  tab: 8 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-tab.diff
+DIFF  pane: 3 changed lines - see /private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1135-c-pane.diff
+PASS  api: byte-identical
+PASS  setting: byte-identical
+---
+Known, disclosed non-identical modules (expected, see task notes):
+  fixtures: one doc-comment reworded (no longer true that helpers live in
+    'this file' once moved) - 2 lines changed, 0 lines of logic.
+  session: one blank line added at the seam where the span-noun test was
+    excised from the middle of the block.
+  tab: a 5-line explanatory comment added to pane_list_with_an_ambiguous_
+    target_is_ambiguous_target (why it lives in tab.rs, not pane.rs) - the
+    plan called for this.
+  pane/tab/fixtures/session/cross_cutting: a one-line, end-of-slice diff is
+    an artifact of the comparison's own line-range boundaries (the
+    original file's trailing blank before its next marker comment isn't
+    reproduced at a module file's own end) - not a body change.
+cross_cutting.rs, api.rs and setting.rs are byte-identical to their
+original slices.
 ```
 <!-- SECTION:NOTES:END -->
 

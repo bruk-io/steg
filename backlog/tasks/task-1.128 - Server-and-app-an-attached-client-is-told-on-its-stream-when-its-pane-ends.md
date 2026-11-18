@@ -1,13 +1,14 @@
 ---
 id: TASK-1.128
 title: 'Server and app: an attached client is told on its stream when its pane ends'
-status: In Review
+status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T03:51:00Z'
-updated_date: '2026-11-18T00:36:00Z'
+updated_date: '2026-11-18T00:45:00Z'
 labels:
   - size-3
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.125
@@ -23,8 +24,10 @@ asdlc_branch: task-1.128-server-and-app-an-attached-client-is
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'ffc63839f742'
 asdlc_plan_approved_size: size-3
-asdlc_reviewer: bruk.r2
 asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=1,nit=2'
+asdlc_review_policies: ["review"]
+asdlc_plan_matched: yes
 ---
 
 ## Description
@@ -836,6 +839,27 @@ created: 2026-11-18T00:36:00Z
 ---
 
 @bruk.r2 is reviewing TASK-1.128: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T00:45:00Z
+
+---
+
+Review by @bruk.r2 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 1 Important, 2 nit. Cites: review. The diff matches the plan.
+
+[Evidence, Important] AC #4's own text ("each with a recorded failing control and passing run") and the plan's Proof section promise a recorded failing-before/passing-after run for each of the five new attach.rs socket-level tests, including the forced-close test that is the only proof of force_end's new pass-0 ordering. The task's recorded `just check` history (implementation notes) shows failing runs only at the pane.rs unit-test level (e.g. "Ended must arrive after any screen update still owed") and for unrelated flakes (login_env, lint/fmt); no recorded run ever shows an attach.rs socket-level test (e.g. pane_close_force_reports_ended_closed_not_the_signals_own_exit_code) failing against the pre-fix code. I repeated this control myself: disabled force_end's pass 0 in runtime.rs (replaced handle.mark_closing() with a no-op) and ran `cargo test -p steg-server --test attach pane_close_force_reports_ended_closed_not_the_signals_own_exit_code -- --exact`; it failed exactly as claimed (left: ProgramExited { exit_code: 1 }, right: Closed), confirming the mechanism itself is real and correct. I then reverted the edit (git checkout -- crates/server/src/runtime.rs) and confirmed git status is clean. The mechanism works, but the board's own recorded evidence for AC #4's socket-level proof step is missing.
+
+[Bugs, Nit] crates/server/src/pane.rs, the Arm handler's late-end branch (~line 1154-1171): the Full sent before Ended is tagged seq: tracked_seq, which stays at its initial sentinel value 0 when the pane ends before any attachment ever existed (run_tick's any_work gate never fires in that case, so tracked_seq is never advanced). Harmless today since this attachment is torn down immediately by the following Ended, but worth a doc note so a future reader doesn't mistake this for a real sequence number.
+
+[Compliance, Nit] crates/server/tests/attach.rs, attaching_to_a_pane_whose_program_already_ended_gets_ended_and_nothing_else: the assertion message "the first and only update on a late attach to an already-ended pane must be Ended" contradicts the test's own doc comment three lines above, which correctly notes a Full arrives first. Minor wording fix only.
+
+What I checked: full diff against origin/main (excluding backlog/) across sdk/screen.rs+lib.rs+description/methods.rs, kernel/terminal.rs, app/model.rs, server/outbound.rs, server/pane.rs, server/runtime.rs, server/connection.rs, server/tests/attach.rs; doc-14 and decision-2 section 3 (including its 2026-11-17 addendum, already landed on main, matching the wire shape in code); the approved plan (ffc63839f742) and its departures section; every exhaustive ScreenUpdate match (all have named arms, no wildcards); Outbound::end_stream/pop_next's deferred-teardown logic and its real two-thread test; MarkClosing's ordering via a live negative control (above); the TASK-1.125 race fix in finish_attach; the call_and_read_reply drain-before-block fix (does not swallow or weaken any existing assertion - it only changes what happens after a non-matching poll(), matching reply_within's established shape). Confirmed the final recorded clean check (at local commit 493786d3aec6) has an identical code tree to pushed HEAD 2ca675d7 (git diff shows only backlog/ task-file differences), so the recorded evidence is against the right code modulo the AC #4 gap above. The three reported flakes (login_env grandchild test timing out on its pid file; a stuck-pane timing test coinciding with a concurrent just check from TASK-1.121; a terminal-scrolling timing assertion failing on CI's first run and passing on rerun) match what the worker described and are not findings.
+
+What I did not check: a real SSH channel (out of scope per decision-2), the app's own future reaction to Ended (explicitly out of scope, moved to a draft task), and I did not re-run the full CI suite myself (trusted the claim that CI is green on 2ca675d7 after the reported rerun).
 
 ---
 <!-- COMMENTS:END -->

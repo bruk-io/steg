@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T00:27:00Z'
+updated_date: '2026-11-18T00:30:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2374,6 +2374,18 @@ Proof (all four recorded on this task, failing run unrecorded first, then record
 Also resolved the Cmd-V paste question from the approved plan's "For the engineer" §3: built it, not dropped. is_paste_keystroke in main.rs recognises plain Cmd-V only (not Cmd-Shift-V/Cmd-Option-V); on it, reads the clipboard, normalises line endings the same way a committed IME composition already is, and sends the bytes through the new writer - with its own unit tests and a recorded failing-then-passing control. Not a departure: this matches what the plan named, just not wired until now.
 
 Clippy/fmt/the app crate's full test suite (63 tests) all pass at this head. just check running next; live run and PR update to follow.
+
+---
+
+created: 2026-11-18T00:30:00Z
+
+---
+
+Status: findings 1-3 fixed and Cmd-V built, pushed to origin at 78de7a12 (branch task-1.121-app-typing-and-resizing-in-the-bare). just check recorded clean at that head.
+
+Also fixed two gaps a second pass found in the finding-1 writer: (1) Writer's own doc claimed Disconnected is reported once, but try_send had no guard against reporting it again on every further failed send - added a shared Arc<AtomicBool> guard, with a recorded failing-then-passing control. (2) WRITER_QUEUE_CAPACITY's justification claimed detection "well within a second" of continued typing, which doesn't hold arithmetically (single-byte keystrokes take minutes to exhaust the kernel's own 8 KiB buffer first); lowered the bound to 64 and reworded the justification to say what it actually bounds (the backlog after a single oversized command, like a large paste, has already exceeded the kernel buffer - not a detection-speed guarantee for ordinary typing).
+
+Holding before the interactive live run: with two steg-app processes running under the same name (mine, and the one I must never touch), macOS accessibility queries (osascript/System Events) conflate the two by name, returning the wrong window's position for either. Fixed the capture side with pid-scoped CGWindowID (CGWindowListCopyWindowInfo + screencapture -l), confirmed working and confirmed the other process's window is unaffected throughout. But bringing my own window to the front for keystroke injection keeps losing focus to a long-running terminal process whose CPU time is actively increasing - genuine concurrent live use of this desktop, not an idle leftover. Posting synthetic keystrokes goes wherever real OS focus is at that instant, so I stopped rather than risk sending them into someone else's live session. Reported to team-lead with options, holding for direction. My own throwaway server/app processes are stopped and cleaned up; nothing of mine still running.
 
 ---
 <!-- COMMENTS:END -->

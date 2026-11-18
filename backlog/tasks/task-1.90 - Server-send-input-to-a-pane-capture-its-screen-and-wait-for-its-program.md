@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T15:38:00Z'
+updated_date: '2026-11-18T15:46:00Z'
 labels:
   - size-3
   - changes-requested
@@ -551,6 +551,74 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; fini
 ```
 
 Commits since the review: 0.
+
+Check FAILED: `just check` exited 1 at 2026-11-18T15:39:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at c2de2432f940:
+
+```text
+FAILED  format check (exit 1, 0.3s)
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:487:
+             if let Incoming::StreamControl { stream: s, payload } = incoming
+                 && s == attachment_stream
+             {
+[31m-                let update: ScreenUpdate = serde_json::from_slice(&payload)
+(B[m[31m-                    .expect("a screen update always deserialises");
+(B[m[32m+                let update: ScreenUpdate =
+(B[m[32m+                    serde_json::from_slice(&payload).expect("a screen update always deserialises");
+(B[m                 apply_update(held, update);
+             }
+         }
+Diff in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90/crates/server/tests/pane_send.rs:766:
+     let mut consumed = 0_usize;
+     for name in key_names() {
+         let expected_bytes = documented_bytes(&name);
+[31m-        let expected_hex: Vec<String> =
+(B[m[31m-            expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+(B[m[32m+        let expected_hex: Vec<String> = expected_bytes.iter().map(|b| format!("{b:02x}")).collect();
+(B[m 
+         let mut params = Map::new();
+         params.insert("target".to_string(), json!(pane));
+full output: .quiet/format-check.log
+error: recipe `check-fmt` failed on line 163 with exit code 1
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T15:46:43+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at c2de2432f940 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (4.8s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (68.7s)
+ok      build (steg-sdk) (0.6s)
+ok      test (steg-sdk) (2.0s)
+ok      test (steg-sdk, local-socket) (2.6s)
+ok      build (steg-kernel) (0.4s)
+ok      test (steg-kernel) (1.0s)
+ok      build (steg-server) (29.0s)
+ok      test (steg-server) (57.4s)
+ok      test (steg-server, race-fixture) (58.0s)
+ok      test (steg-server, pty-race-fixture) (65.2s)
+ok      test (steg-server, accept-backoff-fixture) (58.1s)
+ok      build (steg) (1.6s)
+ok      test (steg) (4.9s)
+ok      test (steg, fixtures) (12.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.8s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.7s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 11, 10 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

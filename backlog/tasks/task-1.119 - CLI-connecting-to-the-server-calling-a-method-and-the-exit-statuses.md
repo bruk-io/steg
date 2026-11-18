@@ -1,14 +1,13 @@
 ---
 id: TASK-1.119
 title: 'CLI: connecting to the server, calling a method, and the exit statuses'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T06:11:00Z'
+updated_date: '2026-11-18T08:40:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-3
 dependencies:
   - TASK-1.49
@@ -1330,6 +1329,31 @@ ok      ui colours (0.1s)
 ```
 
 Commits since the review: 30, 30 without the Asdlc-Worker trailer.
+
+Second review round fixed (back to In Review). Head 38e853d9; CI green on this head (confirmed by the engineer).
+
+CORRECTION to the Departure paragraph recorded earlier (the round-2 Nit): that paragraph said "every I/O failure in the handshake window... is now folded into the EOF-before-hello retry," which stopped being true once round 1's fix landed. The accurate statement, replacing it: every failure of the handshake's own write/read/timeout calls BEFORE a complete hello frame is decoded is folded into the EOF-before-hello retry (Ok(None)), with each side's own explicit timeout the one exception (ConnectError::Timeout). From the moment a complete hello IS decoded, the handshake has already succeeded: a failure after that point (this function's own trailing timeout-clear) is never folded into the retry - it ends the call with a genuine ConnectError::Io. This is now also the precise wording in local_socket.rs's own doc comments (handshake_over and connect_handshaken).
+
+[Important] The round-1 fix's only proof, a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello, depended on an unsynchronised OS race (a real UnixStream, peer closes immediately after sending a real hello). The reviewer ran the correct code 100 times and saw 3 failures - the race simply didn't land on those runs.
+
+Fixed by introducing a deterministic seam: extracted everything one_handshake_attempt does from the moment it has a connected stream (set write timeout, write the hello, set read timeout, read/decode the loop, clear both timeouts on a decoded hello) into a new function, handshake_over<S: HandshakeSocket>(stream: &mut S, hello: &[u8], connect_timeout: Duration) -> Result<Option<Vec<u8>>, ConnectError>, generic over a new, crate-private HandshakeSocket trait covering exactly the four operations it performs (send, recv, set_read_timeout, set_write_timeout). UnixStream implements the trait as a thin delegation to its own real methods. one_handshake_attempt is now: connect(options)? to get a real stream, then handshake_over(&mut stream, &hello, options.connect_timeout). Production behaviour is unchanged (same operations, same order, same error mapping, just routed through the trait); connect() itself is untouched; nothing public changes - HandshakeSocket, handshake_over and FakeSocket (below) are all private to local_socket.rs.
+
+A FakeSocket test double implements HandshakeSocket with every outcome chosen by the test (a queue of canned recv results, and a separate configurable Result for send and for each of the four timeout calls - the two timeout-setting calls and the two timeout-clearing calls are tracked separately, read by whether the call passed Some or None) - no sleep, no OS, no timing anywhere in either test:
+
+- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello: queues one recv() returning a real, well-formed server hello (built the same way the existing real-socket fixture already does, via Connection::accept_or_refuse), then forces the read-timeout-clear call to fail. Asserts Err(ConnectError::Io(_)) - deterministically, on every run, since nothing about the outcome depends on timing.
+- a_failure_before_any_hello_is_decoded_is_still_folded_into_the_retry_signal: forces the write-timeout-SET call (the very first operation) to fail, before anything else runs. Asserts Ok(None) - the same EOF-before-hello retry signal the real-socket Mode A test already proves deterministically (dropping a connection outright is a guaranteed OS-level EOF, not a race).
+
+Control recorded: restored the old, buggy fold-into-retry behaviour in handshake_over's own hello-decoded branch; cargo test -p steg-sdk --lib --features local-socket -- a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello failed with "Ok(None)" instead of the expected Io error - recorded failing; reverted; recorded passing.
+
+Both new deterministic tests then run 200 times in a loop (cargo test -p steg-sdk --lib --features local-socket -- <both test names>, --test-threads=1, one process per iteration): 200/200 passed. No OS race is involved in either test at all, so this was to confirm rather than to hope.
+
+What happened to the real-socket "closes immediately" fixture (Behaviour::CooperativeClosedImmediately): kept, but only as corroboration, renamed (a_hello_sent_then_closed_immediately_never_reports_closed_before_hello) and its assertion loosened to the one thing that holds no matter which way that run's own OS race falls: the call returns within its bound and is either a real success or the genuine ConnectError::Io - never ClosedBeforeHello (which would mean a hello that genuinely arrived got mistaken for no server at all). It no longer asserts a specific outcome, so it can never be the flaky test again.
+
+Audit of this task's other new tests for the same flaw (a sleep or a timing window used to avoid or reach a race), as asked:
+- a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts (local_socket.rs, Behaviour::CooperativeHeldOpen): still sleeps 100ms before closing, to hold the connection open past the same timeout-clear race. This is the same general shape (a timing margin, not a guarantee) but with much stronger empirical backing than the original 0ms case: a standalone probe (built while diagnosing round 1) showed the clear failing in 1999/2000 trials at 0ms delay and never once across dozens of runs at 100ms. This test's own job - proving connect_handshaken's outer retry-after-EOF wrapper succeeds on a real second attempt - needs a real UnixStream end to end (the same reason connect() itself isn't behind the new seam), so it cannot be made deterministic the same way without also abstracting connect()'s own real socket arbitration, which is out of this round's scope. Judged safe to leave as is: the exact logic it would be exercising if the race ever did land is now separately, deterministically proven by the two new tests above, so even an astronomically unlikely failure here would be a loud, visible test failure (an assertion that a success happened when an Io error did instead), never a silently wrong pass. Flagged for the engineer rather than decided unilaterally - happy to extract a second seam around connect() itself if that is wanted.
+- Every other new test in this task (cli_exit_statuses.rs, cli_connection_arbitration.rs, cli_api_call.rs, and the two local_socket.rs tests for the write-timeout/oversized-stdin fixes) synchronises only through real process exits (a command simply runs to completion) or mpsc channels (ready_rx.recv_timeout for "the listener is bound"), never a sleep used to avoid or reach a specific race window - checked by rereading each one specifically for this. sigint_during_a_hung_call_ends_the_process_by_signal's own 300ms sleep is not a race-avoidance window: the fixture structurally cannot finish within it (it never answers the real request at all), so the process is guaranteed still running regardless of how slowly the earlier connect/handshake steps run.
+
+Local just check was green end to end at this head on the first attempt. CI is green on 38e853d9.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

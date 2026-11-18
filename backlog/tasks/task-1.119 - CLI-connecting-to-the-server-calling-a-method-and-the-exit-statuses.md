@@ -678,6 +678,32 @@ test wire::connection::tests::call_unvalidated_sends_keys_the_descriptions_own_m
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 168 filtered out; finished in 0.00s
 ```
+
+Check FAILED: `cargo test -p steg --lib -- no_autostart_is_read_whether_given_before_or_after_the_subcommand` exited 101 at 2026-11-18T03:17:46+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/steg-a2a09eaf6a06f7de)
+
+running 1 test
+test cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand ... FAILED
+
+failures:
+
+---- cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand stdout ----
+
+thread 'cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand' (57902305) panicked at /Users/brukhabtu/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clap_builder-4.6.7/src/builder/debug_asserts.rs:244:13:
+Command session: Argument or group 'autostart__no' specified in 'overrides_with*' for 'autostart' does not exist
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    cli::tree::tests::no_autostart_is_read_whether_given_before_or_after_the_subcommand
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg --lib`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

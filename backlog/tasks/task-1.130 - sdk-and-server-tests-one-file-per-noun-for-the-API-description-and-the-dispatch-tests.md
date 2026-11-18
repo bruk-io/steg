@@ -7,7 +7,7 @@ status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:57:00Z'
+updated_date: '2026-11-18T03:59:00Z'
 labels:
   - size-3
   - review-passed
@@ -203,6 +203,14 @@ Findings (both Nit, policy: review):
 Everything else checked clean: AC #1 (byte-identical description, recorded comparison) and AC #2 (no public item added/removed/renamed, no function/test body change beyond imports and visibility) hold under my own independent re-derivation, not just the worker's. AC #3: CI's just check passed clean on the exact PR head (91048c62); local just check's documented failure is unrelated to this task's files and honestly recorded as failing. Plan: 12 commits match the plan's 12 steps and order exactly (verified via git log and the first commit's 100%-similarity pure rename); plan-matched recorded as "no" because the notes are explicitly headed "Departures" (the proof (c) mechanism swap and the 18-vs-22 test count correction), per policy's "no for any departure, even one the notes explain" - neither departure is itself a finding, since both are disclosed with why.
 
 Did not check: crates/server or any file outside crates/sdk/src/description/methods* (out of scope - confirmed via diffstat that nothing else changed); did not re-verify the TASK-1.123 sighting's host-load claims (load averages, "6 users") beyond reading them, since that sighting is informational for a different task, not this one's acceptance criteria.
+
+---
+
+created: 2026-11-18T03:59:00Z
+
+---
+
+Note by @bruk.o after the review (2026-11-18): one recorded check on this task is labelled 'passed, exited 0' although its captured output shows the attach.rs timing test failing - the command ended in a pipe to tail, so the recorded status is tail's. It was a sighting of the known clash between worktrees running the attach tests at once, not evidence for any criterion; the notes and PR body state plainly that local just check was not green and that CI's run on 91048c62 is the clean check. Also corrected here: methods/tests.rs is 576 lines, not the 'roughly 230' the notes give.
 
 ---
 <!-- COMMENTS:END -->

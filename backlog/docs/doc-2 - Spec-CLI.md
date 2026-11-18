@@ -3,7 +3,7 @@ id: doc-2
 title: 'Spec: CLI'
 type: specification
 created_date: '2026-11-14T01:18:00Z'
-updated_date: '2026-11-16T16:43:00Z'
+updated_date: '2026-11-18T14:16:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -309,6 +309,7 @@ Decided by Bruk on 2026-11-13:
 
 - **A program to run is given after `--`.** `steg pane split -- htop -d 5`, and the same on `session new` and `tab new`. It is the one exception to a single positional, and follows `env`, `ssh` and `sudo`.
 - **`close` and `server stop` refuse while programs are still running,** with status 1 and a message naming `--force`. With `--force` they go ahead.
+- **`pane send` refuses a pane with no running program,** with status 1: the API's `ProgramNotRunning`, the mirror of the refusal above. `--key` takes one of a fixed list of names (enter, tab, backspace, escape, the arrows, home, end, pageup, pagedown, insert, delete, f1 to f12) and an unknown name is bad usage, status 2; so is `--text` together with `--key`. In M1 a call sends one key: `--key` given more than once waits on list-valued flags in the API description.
 - **A target's parts are separated by `/`,** as in `work/2/logs`.
 
 Decided by Bruk on 2026-11-15. The rule: steg keeps its own grammar and words, and wherever this document had not decided, steg does what Rex does. decision-4 has each question in full.

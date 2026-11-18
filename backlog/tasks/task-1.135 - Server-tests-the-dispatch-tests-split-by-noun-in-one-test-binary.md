@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T03:24:00Z'
+updated_date: '2026-11-18T03:25:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -399,6 +399,51 @@ failures:
     an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
 
 test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 122.96s
+
+error: test failed, to rerun pass `-p steg-server --test attach`
+full output: .quiet/tests-p-steg-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:25:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at e527e603670a, last 40 of 71 lines:
+
+```text
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck has been running for over 60 seconds
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck has been running for over 60 seconds
+test pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck ... ok
+test stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck ... FAILED
+
+failures:
+
+---- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach stdout ----
+
+thread 'a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach' (58040757) panicked at crates/server/tests/attach.rs:1793:6:
+pane.attach must answer within a bound
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach stdout ----
+
+thread 'a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach' (58040759) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+---- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane stdout ----
+
+thread 'an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane' (58040760) panicked at crates/server/tests/attach.rs:1427:6:
+pane.show must answer within a bound, even with the other pane stuck
+
+---- stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck stdout ----
+
+thread 'stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck' (58040789) panicked at crates/server/tests/attach.rs:149:39:
+reading the reply: Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }
+
+
+failures:
+    a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach
+    a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach
+    an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane
+    stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck
+
+test result: FAILED. 19 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 66.03s
 
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/tests-p-steg-p-steg-server.log

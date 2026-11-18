@@ -3,15 +3,18 @@ id: TASK-1.130
 title: >-
   sdk and server tests: one file per noun for the API description and the
   dispatch tests
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:43:00Z'
+updated_date: '2026-11-18T03:44:00Z'
 labels:
   - size-3
 milestone: m-3
 dependencies: []
+references:
+  - task-1.130-sdk-and-server-tests-one-file-per-noun
+  - https://github.com/bruk-io/steg/pull/78
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -138,6 +141,8 @@ Departures:
 - Proof (c)'s mechanism: the plan's sorted-normalised-line-sha256 pipeline hit a real bug on this machine's sed (macOS/BSD sed's -E does not support \s or \b, so the plan's own sed -E 's/^\s+//' was a silent no-op on this sed). Replaced it with an ordered per-file diff against the exact original line range (located by grep on the pre-task file's own section banners, not guessed), modulo only the pub(super) qualifier AC #2 allows - stricter than a sorted hash, since it preserves order and so cannot hide a reorder-and-collide false pass. Also ran the plan's own attribute-lines-only comparison as an extra. All four proofs (a, b, c, and the attribute extra) recorded with their own control: control recorded failing (scratch edit in place), reverted, then the real proof recorded passing, at the final head.
 
 Sighting for TASK-1.123: just check's test step failed 4 times across this build (2026-11-18, ~22:05 through ~22:26 UTC-5), every time in crates/server/tests/attach.rs - a file outside this task's scope (crates/sdk/src/description/methods/ only). The specific test(s) varied: an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane failed all 4 times; stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck and a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach each failed once more alongside it. Failure modes seen: a bound-timeout panic ('pane.show/pane.attach must answer within a bound, even with the other pane stuck') on three runs, and once a genuine OS-level error reading a reply socket (Os { code: 35, kind: WouldBlock, message: "Resource temporarily unavailable" }) - the clearest sign this is real host contention, not a race in the test or the code: the kernel itself refused a read because the machine was out of some resource (likely fds or scheduler time) under load. 22:29  up 4 days,  7:31, 6 users, load averages: 4.14 5.85 7.37 during the build: load averages 9.18/7.80/8.65 (6 users) on the failing runs, 4.93/6.10/7.50 after. Every one of these tests passes cleanly in isolation (confirmed 3 times, ~2-22s each); the only run where an isolated pair also flaked once was itself under the same heavy load. Recorded: the 4th just check run as an honest failing record (exit 101, only crates/server/tests/attach.rs affected, unrecorded first to confirm no environment data in the output), and the isolated passing rerun of both of that run's failing tests. CI's run on the pushed commit is the clean just check for this head, on an unloaded machine.
+
+Built: crates/sdk/src/description/methods.rs split into methods/ by noun (shared.rs, errors.rs, session/tab/pane/server/event/client/setting/api.rs, tests.rs), 12 commits, one per step. Checked at every step with cargo check/clippy/fmt/test. Four proofs recorded with their own control each (control failing, reverted, pass recorded): (a) description() byte-for-byte dump identical, (b) sdk test-name list identical and #[ignore] stays 0, (c) ordered per-file diff against the exact pre-task source range (departed from the plan's sorted-hash script, which hit a BSD-sed \s bug on this machine; this replacement is stricter, since it preserves order), (c extra) attribute-lines-only comparison. Local just check failed 4 times, every time only on crates/server/tests/attach.rs's own timing-bound tests (outside this task's files), under heavy concurrent-worker load (uptime load averages up to 9.18/7.80/8.65); crates/sdk's own tests and all recorded proofs passed every single time. Sighting recorded on the task notes for TASK-1.123. CI's just check on PR #78's head (91048c62) passed clean (12m46s) on an unloaded machine - that is the clean just check for this change. PR: https://github.com/bruk-io/steg/pull/78
 <!-- SECTION:NOTES:END -->
 
 ## Comments

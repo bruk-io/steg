@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T19:12:00Z'
+updated_date: '2026-11-18T19:21:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -391,6 +391,27 @@ From TASK-1.119's third review (2026-11-18), two test nits left because the task
 Narrowed and split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the cross-worktree clashes and the tightest bounds, which cost three tasks their local checks on 2026-11-18, plus the rule line (the criterion kept from before). The mechanical bounding of the remaining waits and the tools check that enforces it moved to two draft tasks. Orchestrator's answers to the plan's questions: the terminal-scrolling sighting (class c) is accepted as unlocated - TASK-1.128's worker reported it from one CI run without naming the test; the temporary-directory helper is to be built on the standard library (create_dir fails if the name exists, so a name from process id, a counter and the clock can be retried) so no dependency or package boundary changes - tempfile stays the named alternative if the engineer prefers it.
 
 Plan checked against the task's four criteria by @bruk.o: ok. Each of the four clashes gets a forced reproduction recorded failing first (two copies of the attach test binary at once; the login_env test under induced load; a naming function called twice with the same process id and counter), then the fix recorded passing; for signal's process-group test the plan states it will say plainly if the failure cannot be forced, and record no control it does not have. Fixes: a machine-wide advisory lock for the five flood tests, outside any worktree, acquired with a bound and released by the operating system if the test is killed, with the argument for why it cannot deadlock against TASK-1.132's two cargo slots; liveness bounds of 15 seconds; a bounded poll in the signal test; one standard-library temporary-directory helper replacing the duplicated unique-path helpers in sixteen test files across crates/server and crates/steg, with a compact name and a length assertion because a socket path has about 104 bytes. Its touch on attach.rs is the lock and one bound.
+
+Check passed: `cargo test -p steg-server --features race-fixture --test race` exited 0 at 2026-11-18T19:21:13+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.123 on task-1.123-server-tests-bound-the-remaining-waits at c9289ac47d97 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests/race.rs (target/debug/deps/race-d9220f423a0e57f7)
+
+running 10 tests
+test support::tests::the_old_pid_and_counter_only_scheme_collides_when_two_processes_share_a_pid ... ok
+test support::tests::candidate_name_does_not_collide_under_the_same_forced_pid_and_counter ... ok
+test support::tests::scoped_temp_dir_exists_after_new_and_is_gone_after_drop ... ok
+test support::tests::path_panics_rather_than_hand_back_something_over_the_sun_path_budget - should panic ... ok
+test support::tests::two_scoped_temp_dirs_made_back_to_back_are_different ... ok
+test support::tests::create_unique_dir_skips_a_name_that_already_exists ... ok
+test attempt_times_out_when_the_lock_stays_contended_and_nothing_answers ... ok
+test a_socket_file_left_by_a_real_dead_process_is_replaced ... ok
+test eight_simultaneous_starts_leave_exactly_one_server ... ok
+test support::tests::wait_child_bounded_kills_and_reaps_a_child_that_outlives_the_bound ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -28,7 +28,7 @@ use steg_ui::foundations::{self, Appearance, Theme};
 use crate::client::{Client, ClientEvent, Writer};
 use crate::ime::ImeState;
 use crate::metrics::CellMetrics;
-use crate::model::Model;
+use crate::model::{Model, describe_end};
 use crate::size::GridSize;
 use crate::startup::{Attached, ShutdownSlot, StartupError};
 use crate::terminal_element::RowCache;
@@ -48,6 +48,12 @@ struct AttachedState {
     declared_size: Cell<GridSize>,
     last_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     _resize_subscription: Subscription,
+    /// `Some` once the pane has ended (TASK-1.129) - `None` for the whole
+    /// of this attachment's ordinary life. Keeps the last screen and the
+    /// reason, never cleared: a pane does not spontaneously un-end, and
+    /// nothing in this app's own design ever re-attaches this state to a
+    /// different pane.
+    ended: Option<steg_sdk::EndReason>,
 }
 
 /// What the window shows right now (TASK-1.117's plan §3/§6).
@@ -214,6 +220,7 @@ impl AppWindow {
             last_bounds: Rc::new(Cell::new(None)),
             _resize_subscription: resize_subscription,
             _receive_task: receive_task,
+            ended: None,
         }));
         cx.notify();
     }
@@ -233,6 +240,30 @@ impl AppWindow {
                     cx.notify();
                 }
                 false
+            }
+            ClientEvent::Ended(reason) => {
+                if let Phase::Attached(state) = &mut self.phase {
+                    state.ended = Some(reason);
+                    // The backstop against sending anything further
+                    // (TASK-1.129) - `Writer::disarm`, never `Writer::
+                    // stop` (that method's own doc has the full
+                    // reasoning: `stop` would also end the reader's own
+                    // read, turning "the pane ended" into "the
+                    // connection ended" right here).
+                    state.writer.disarm();
+                }
+                cx.notify();
+                // Stops this receive loop for good, rather than guarding
+                // the `Disconnected` arm above against a later, stray
+                // frame too (`client.rs`'s own `drain` already closes
+                // this connection's side of the stream, so any further
+                // frame on it decodes as a protocol surprise and would
+                // otherwise reach `Disconnected`, overwriting this exact
+                // phase change): nothing can reach this function again
+                // to undo it. The reader thread itself is left running,
+                // parked in its own blocking read, harmless until the
+                // window closes (`teardown`'s own job, unchanged).
+                true
             }
             ClientEvent::Disconnected => {
                 self.phase = Phase::Disconnected("the server closed the connection".into());
@@ -269,6 +300,13 @@ impl AppWindow {
         let Phase::Attached(state) = &mut self.phase else {
             return;
         };
+        // No point declaring a size nothing will ever read again
+        // (TASK-1.129) - `Writer::disarm` already makes the wire call
+        // itself a no-op once `ended` is set, this just skips the
+        // computation that would lead to one.
+        if state.ended.is_some() {
+            return;
+        }
         let viewport = window.viewport_size();
         let computed = size::grid_size(
             f32::from(viewport.width),
@@ -283,9 +321,16 @@ impl AppWindow {
     }
 
     /// Sends `bytes` as input, if attached - a no-op otherwise (there is no writer before
-    /// `Phase::Attached`, and nowhere for a keystroke typed before then to go).
+    /// `Phase::Attached`, and nowhere for a keystroke typed before then to go), and also
+    /// a no-op once the pane has ended (TASK-1.129, AC #2's "sends no further input") -
+    /// covers both `on_key_down`'s own raw key path and the IME's committed-text path
+    /// (`replace_text_in_range`), the two callers that funnel through here. `Writer::
+    /// disarm` is what actually guarantees nothing reaches the wire either way; this is
+    /// for clarity, not load-bearing on its own.
     fn send_bytes(&mut self, bytes: Vec<u8>) {
-        if let Phase::Attached(state) = &mut self.phase {
+        if let Phase::Attached(state) = &mut self.phase
+            && state.ended.is_none()
+        {
             state.writer.send_input(bytes);
         }
     }
@@ -304,7 +349,12 @@ impl AppWindow {
             // gesture, even when the clipboard holds nothing - never falls through to
             // `key_to_bytes` (which would return `None` for it regardless, `keys.rs`'s
             // own `modifiers.platform` check) or to the IME path.
-            if let Phase::Attached(state) = &mut self.phase {
+            // Skips even reading the real clipboard once the pane has ended (TASK-1.129) -
+            // `Writer::disarm` already makes the send itself a no-op; there is simply
+            // nothing left to paste into.
+            if let Phase::Attached(state) = &mut self.phase
+                && state.ended.is_none()
+            {
                 let clipboard_text = cx.read_from_clipboard().and_then(|item| item.text());
                 send_pasted_text(&mut state.writer, clipboard_text.as_deref());
             }
@@ -472,19 +522,52 @@ impl Render for AppWindow {
                     Appearance::Dark => foundations::steg_dark(theme.session()),
                     Appearance::Light => foundations::steg_light(theme.session()),
                 };
-                div()
-                    .size_full()
-                    .track_focus(&self.focus_handle)
-                    .on_key_down(cx.listener(Self::on_key_down))
-                    .child(terminal_element::terminal(
-                        Rc::clone(&state.model),
-                        state.metrics.clone(),
-                        terminal_theme,
-                        Rc::clone(&state.row_cache),
-                        self.focus_handle.clone(),
-                        cx.entity(),
-                        Rc::clone(&state.last_bounds),
-                    ))
+                // TASK-1.129: when `ended` is `None` (the ordinary case, for the whole
+                // of this attachment's life until its pane ends, if ever), this branch
+                // is unchanged from before this task - same chain, same arguments, no
+                // wrapping flex container - on purpose: an advisor review of this
+                // task's own plan named the risk of a flex-column wrapper shrinking the
+                // terminal by a row's worth of space on *every* window, ended or not,
+                // which neither this task's own tests nor a live run it is not allowed
+                // to perform would catch.
+                if let Some(reason) = state.ended {
+                    div()
+                        .size_full()
+                        .flex()
+                        .flex_col()
+                        .track_focus(&self.focus_handle)
+                        .on_key_down(cx.listener(Self::on_key_down))
+                        .child(div().flex_1().child(terminal_element::terminal(
+                            Rc::clone(&state.model),
+                            state.metrics.clone(),
+                            terminal_theme,
+                            Rc::clone(&state.row_cache),
+                            self.focus_handle.clone(),
+                            cx.entity(),
+                            Rc::clone(&state.last_bounds),
+                        )))
+                        .child(
+                            div()
+                                .flex_none()
+                                .bg(theme.surface_ground())
+                                .text_color(theme.text())
+                                .child(describe_end(reason)),
+                        )
+                } else {
+                    div()
+                        .size_full()
+                        .track_focus(&self.focus_handle)
+                        .on_key_down(cx.listener(Self::on_key_down))
+                        .child(terminal_element::terminal(
+                            Rc::clone(&state.model),
+                            state.metrics.clone(),
+                            terminal_theme,
+                            Rc::clone(&state.row_cache),
+                            self.focus_handle.clone(),
+                            cx.entity(),
+                            Rc::clone(&state.last_bounds),
+                        ))
+                }
             }
         }
     }

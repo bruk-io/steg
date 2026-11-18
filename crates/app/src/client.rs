@@ -13,7 +13,7 @@ use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 use std::thread::{self, JoinHandle};
 
 use futures::channel::mpsc::UnboundedSender;
-use steg_sdk::{Connection, Incoming, ScreenUpdate};
+use steg_sdk::{Connection, EndReason, Incoming, ScreenUpdate};
 
 /// What the reader thread, and now the writer thread too, hand the foreground task - one
 /// shared channel, so either side reporting the connection lost reaches the window through
@@ -22,6 +22,14 @@ use steg_sdk::{Connection, Incoming, ScreenUpdate};
 #[derive(Debug)]
 pub enum ClientEvent {
     Update(ScreenUpdate),
+    /// The pane has ended (TASK-1.129; doc-14, "The end of a pane, on its stream") - its
+    /// own, final `ScreenUpdate`, decoded by `drain` into its own event rather than folded
+    /// into `Update`, since the window's own reaction (keep the last screen, show why, stop
+    /// sending) is not an ordinary screen update. Never followed by `Disconnected` for this
+    /// same attachment: `drain` closes this connection's own side of the stream the moment
+    /// it decodes this (`Connection::close_stream`), and `crates/app/src/main.rs`'s own
+    /// handler stops reading further events once it has this one.
+    Ended(EndReason),
     /// The connection ended - a clean EOF, a write that failed, this task's own writer
     /// queue filling up behind a peer that never reads (`Writer`'s own module doc), or a
     /// frame this read-only app's own design does not expect after startup (TASK-1.117's
@@ -181,6 +189,27 @@ impl Writer {
         self.try_send(WriterCommand::DeclareSize { columns, rows });
     }
 
+    /// Makes every later `send_input`/`declare_size` call a silent no-op, with no
+    /// `Disconnected` either - the backstop `crates/app/src/main.rs`'s own `Ended`
+    /// handler uses (TASK-1.129), never [`Writer::stop`]. `stop` also shuts the socket
+    /// down, "the identical POSIX guarantee" [`Client::stop`]'s own doc already states
+    /// for the reader - and that socket is the *same* one the reader thread blocks its
+    /// own `read()` on (`crates/app/src/startup.rs`'s own `Attached::write_handle`: "a
+    /// clone of the connected socket"). Calling `stop` once a pane has ended would
+    /// therefore also end the reader's own read with `Ok(0)`, producing a `Disconnected`
+    /// right behind `Ended` that overwrites the window's own last screen and message with
+    /// "disconnected" - found by an advisor review of this task's own plan, before any
+    /// code existed, not by a test.
+    ///
+    /// Only drops the command sender - no `shutdown()`, no `join()`. `try_send`'s own
+    /// `None` branch, just below, already makes every later send harmless; the writer
+    /// thread itself ends on its own, the next time `write_loop`'s own `commands.recv()`
+    /// sees the sender gone, and [`Writer::stop`] (called later, by `teardown`, on window
+    /// close) still joins it then, same as always.
+    pub(crate) fn disarm(&mut self) {
+        self.commands = None;
+    }
+
     fn try_send(&mut self, command: WriterCommand) {
         let Some(commands) = &self.commands else {
             return;
@@ -291,8 +320,25 @@ fn read_loop(
 fn drain(connection: &mut Connection, sender: &UnboundedSender<ClientEvent>) -> bool {
     while let Some(incoming) = connection.poll() {
         let update = match incoming {
-            Incoming::StreamControl { payload, .. } => {
+            Incoming::StreamControl { stream, payload } => {
                 match serde_json::from_slice::<ScreenUpdate>(&payload) {
+                    // TASK-1.129: the pane's own final update - its own event, not an
+                    // ordinary `Update`, and not the protocol-level surprise that would
+                    // stop this loop (`return false`, below): this is the stream's own
+                    // last, expected frame, and `read_loop`'s own cleanup line sends
+                    // `Disconnected` unconditionally once this loop breaks, which must
+                    // never fire for this reason and race `main.rs`'s own handling of
+                    // `Ended`. `close_stream` is this connection's own half of "closed on
+                    // both sides" (decision-2 §3; doc-14, "The end of a pane, on its
+                    // stream") - the server's own half already happened before this frame
+                    // was ever sent.
+                    Ok(ScreenUpdate::Ended { reason }) => {
+                        connection.close_stream(stream);
+                        if sender.unbounded_send(ClientEvent::Ended(reason)).is_err() {
+                            return false;
+                        }
+                        continue;
+                    }
                     Ok(update) => update,
                     Err(_) => return false,
                 }
@@ -413,6 +459,71 @@ mod tests {
         assert!(matches!(event, Some(ClientEvent::Disconnected)));
     }
 
+    // --- TASK-1.129: the pane ending, as its own client event ------------------------
+
+    fn sample_ended(reason: EndReason) -> ScreenUpdate {
+        ScreenUpdate::Ended { reason }
+    }
+
+    #[test]
+    fn an_ended_update_arrives_as_its_own_client_event_not_update_or_disconnected() {
+        let (mut server_side, _client, mut receiver) = start_client();
+        server_side
+            .write_all(&encode_update(
+                7,
+                &sample_ended(EndReason::ProgramExited { exit_code: 3 }),
+            ))
+            .expect("write to the server side");
+
+        let event =
+            bounded(move || futures::executor::block_on(futures::StreamExt::next(&mut receiver)));
+        assert!(
+            matches!(
+                event,
+                Some(ClientEvent::Ended(EndReason::ProgramExited {
+                    exit_code: 3
+                }))
+            ),
+            "expected Ended, not Update or Disconnected: {event:?}"
+        );
+    }
+
+    /// `drain`'s own `connection.close_stream(stream)` call (TASK-1.129; AC #2's "the
+    /// client closes its own side of the stream") - proven here in isolation, at the
+    /// `Connection`/`drain` level, by what happens if one more frame ever arrived on the
+    /// same stream afterward: it decodes as a protocol surprise, not an ordinary update.
+    /// In the real, wired-up app this is never actually reached - `main.rs`'s own `Ended`
+    /// handler stops the receive task for good the moment it sees this event, so nothing
+    /// is left to read a frame that follows it - this test exercises the lower-level
+    /// mechanism on its own, not a path the running app ever takes.
+    #[test]
+    fn ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_stream_is_unknown() {
+        let (mut server_side, _client, mut receiver) = start_client();
+        server_side
+            .write_all(&encode_update(7, &sample_ended(EndReason::Closed)))
+            .expect("write the Ended frame");
+        server_side
+            .write_all(&encode_update(7, &sample_update()))
+            .expect("write a frame on the same stream, afterward");
+
+        let (first, second) = bounded(move || {
+            futures::executor::block_on(async {
+                let first = futures::StreamExt::next(&mut receiver).await;
+                let second = futures::StreamExt::next(&mut receiver).await;
+                (first, second)
+            })
+        });
+        assert!(
+            matches!(first, Some(ClientEvent::Ended(EndReason::Closed))),
+            "expected Ended first: {first:?}"
+        );
+        assert!(
+            matches!(second, Some(ClientEvent::Disconnected)),
+            "a frame on a stream this connection already closed its own side of must \
+             decode as a protocol surprise, not an ordinary update: {second:?}"
+        );
+    }
+
     #[test]
     fn stop_unblocks_and_joins_the_reader_thread_within_the_tests_own_bound() {
         let (_server_side, mut client, _receiver) = start_client();
@@ -525,6 +636,51 @@ mod tests {
         assert!(
             matches!(&third, Incoming::Data { bytes, .. } if bytes == b"b"),
             "expected the second input, got {third:?}"
+        );
+    }
+
+    /// `Writer::disarm` (TASK-1.129): the backstop `main.rs`'s own `Ended` handler uses
+    /// instead of `Writer::stop` (that method's own doc has the full reasoning for why).
+    /// Proves both halves of "a silent no-op": nothing reaches the wire, and no
+    /// `Disconnected` fires either (unlike a full queue or a dead socket, which both
+    /// report the connection lost - `disarm` is not that; the writer thread just quietly
+    /// has nothing left to do).
+    #[test]
+    fn writer_disarm_makes_every_later_send_a_silent_no_op_with_no_disconnected_either() {
+        let (mut server_side, _server_connection, mut writer, mut events) = start_writer(7);
+        server_side
+            .set_read_timeout(Some(Duration::from_millis(200)))
+            .expect("set a short read timeout");
+
+        writer.disarm();
+        writer.send_input(b"after disarm".to_vec());
+        writer.declare_size(80, 24);
+
+        let mut buf = [0_u8; 64];
+        let read = server_side.read(&mut buf);
+        assert!(
+            matches!(
+                read.as_ref(),
+                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut
+            ),
+            "nothing should reach the wire after disarm: {read:?}"
+        );
+
+        // Polled, not checked once: the writer thread still needs a moment to notice its
+        // own sender is gone and end - this gives it a real, bounded window to report
+        // `Disconnected` if it ever wrongly did, rather than checking before it could.
+        let deadline = Instant::now() + Duration::from_millis(200);
+        let mut saw_event = None;
+        while Instant::now() < deadline {
+            if let Ok(event) = events.try_recv() {
+                saw_event = Some(event);
+                break;
+            }
+        }
+        assert!(
+            saw_event.is_none(),
+            "no event, Disconnected included, should ever fire after disarm: {saw_event:?}"
         );
     }
 

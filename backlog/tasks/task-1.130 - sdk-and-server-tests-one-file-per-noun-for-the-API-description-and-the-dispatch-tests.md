@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T03:29:00Z'
+updated_date: '2026-11-18T03:43:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -149,6 +149,14 @@ created: 2026-11-18T02:30:00Z
 ---
 
 Plan approved by @bruk (dc8b72722100, size-3): its worker may build it.
+
+---
+
+created: 2026-11-18T03:43:00Z
+
+---
+
+CI's just check on PR #78's head (91048c62) passed clean (COMPLETED/SUCCESS, 12m46s): https://github.com/bruk-io/steg/actions/runs/44230938709/job/134555512244. That is the clean just check for this change, on an unloaded machine, per the engineer's instruction - local just check on this machine was not green at the final head (see the sighting in the notes: crates/server/tests/attach.rs's own timing tests flaking under 5 other concurrent workers' load, uptime up to 9.18/7.80/8.65, a file this task never touches); crates/sdk's own tests and all four recorded proofs passed every time.
 
 ---
 <!-- COMMENTS:END -->

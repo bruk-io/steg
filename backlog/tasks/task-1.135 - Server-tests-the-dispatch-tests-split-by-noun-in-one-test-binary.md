@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T05:16:00Z'
+updated_date: '2026-11-18T05:17:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -24,6 +24,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=1,nit=4'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: no
+asdlc_reviewer: bruk.r2
 ---
 
 ## Description
@@ -821,6 +822,15 @@ Findings: 1 Important, 4 nit. Cites: review. The diff does not match the plan.
 What I independently verified, not relying on the worker's own proofs: test name sets at origin/main and at HEAD are set-identical (77/77, module:: prefix only, 0 ignored both sides) via my own `--list` runs in separate worktrees; the binary is still named `dispatch`; crates/server/Cargo.toml is unchanged; a git diff --color-moved=zebra scan of dispatch.rs vs dispatch/*.rs classified every line outside mod/use/doc-comment/pub(super)/blank/marker-comment-removal as moved (no unexplained non-moved code line); clippy -D warnings on -p steg-server --test dispatch is clean with no new #[allow]/#[expect] anywhere outside the one crate-root #![expect] in main.rs; the comments-only files (runtime.rs, events.rs, routing.rs) change only comments/reason strings; the six cross-noun api.rs tests and the one cross-noun tab.rs test are each explained in-code; CI (gh pr checks 76) is green on exactly e527e603, matching the PR's headRefOid, and the PR body's own account of the local just-check attach.rs failures matches the recorded check logs. Control, run for real: diffed origin/main (two-dot, so it sees the working tree) after changing `before + 1` to `before + 2` in one assertion inside a moved test in dispatch/session.rs - my moved-line scan correctly flagged that exact line (and only that line) as a non-moved red/green pair; reverted with `git checkout --`, confirmed `git status` clean again. (Note: my first attempt used `origin/main...HEAD`, a fixed commit range that doesn't see uncommitted edits, and showed nothing - re-running against `origin/main` directly is what surfaced it.)
 
 What I did not check: TASK-1's linked parent intent/contract documents - for a test-file move with no behaviour or API-surface change, I judged this low-risk, but did not read them. I did not re-run the full `just check` or the attach test suite (per instructions, given machine load).
+
+---
+
+author: @bruk.r2
+created: 2026-11-18T05:17:00Z
+
+---
+
+@bruk.r2 is reviewing TASK-1.135: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T00:01:00Z'
-updated_date: '2026-11-18T14:14:00Z'
+updated_date: '2026-11-18T14:15:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -230,4 +230,6 @@ The client noun's two methods had no owner either (dispatch answers NotImplement
 From the independent read of TASK-1.78's merge (2026-11-15): the forced close's grace period (FORCE_GRACE_DEFAULT, 2s) is a constant read directly in listen.rs and is not a field of ServerConfig beside handshake_timeout and arbitration_timeout. server stop uses that mechanism: put the grace period in ServerConfig here, with its default, so it can be set like the other timeouts.
 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the server noun (show, stop, start on a running server, and what a signal does); client list and client show moved to a draft task. The two share only additive edits to dispatch/mod.rs's lists and the record and outcome variant lists. The plan's three questions go to the engineer with the rewritten plan: signals left unhandled for M1; last_active (the client half's); and doc-2 section 9's wording against this task's second criterion.
+
+Plan checked against doc-2 sections 8 and 9, doc-8 R99 and the task's four criteria by @bruk.o: ok, subject to the engineer's answers. server show and server start are plain dispatch arms in a new dispatch/server.rs; only server stop is intercepted, because it needs the connection's outbound queue and the server's stopper. Its reply is written before the connection is torn down through a new acknowledged write on the control stream - a different need from TASK-1.128's end_stream, which defers a stream's own teardown and has no caller waiting - preceded by a probe of write-then-shutdown on a Unix socket. Everything after the signal to stop is the existing shutdown path the idle stop already drives: one mechanism. Two questions go to the engineer: signals (default: leave them unhandled for M1 and document what is left behind), and doc-2 section 9's wording against the second criterion. Orchestrator's caution on the signal alternative, for whoever takes it up: blocking signals for a sigwait thread changes the mask that pane programs inherit, so a shell in a pane could start with interrupt blocked unless the mask is reset at spawn; 'no unsafe, no dependency' needs that checked before it is believed.
 <!-- SECTION:NOTES:END -->

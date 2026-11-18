@@ -341,6 +341,30 @@ fn malformed_stdin_on_api_call_exits_2() {
     assert!(stdout_of(&output).is_empty());
 }
 
+/// A review finding on this task: stdin over the frame's own cap used
+/// to reach `Connection::call_unvalidated`'s own `encode_frame(...)
+/// .expect(...)` and panic (exit 101) instead of this command's own
+/// documented bad-usage status. Oversized, never valid JSON either way
+/// (irrelevant - the size check runs first, before any parsing), so the
+/// server is never actually reached.
+#[test]
+fn oversized_stdin_on_api_call_exits_2_without_panicking() {
+    let socket = unique_socket_path("api-call-oversized");
+    // Valid JSON (so it is the *size* check that must catch this, not
+    // the earlier "is this even JSON" one) and comfortably over
+    // MAX_PAYLOAD (8 MiB less a 5-byte header) without hand-copying that
+    // constant here a second time.
+    let oversized = format!(r#"{{"padding": "{}"}}"#, "x".repeat(9 * 1024 * 1024));
+    let output = run_steg_with_stdin(&["api", "call", "session.list"], &socket, &oversized);
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "stderr: {}",
+        stderr_of(&output)
+    );
+    assert!(stdout_of(&output).is_empty());
+}
+
 // --- status 1: the command ran and failed, through real dispatch ----------
 
 /// `ProgramRunning`, through real dispatch (not a stub that could land

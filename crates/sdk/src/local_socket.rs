@@ -84,10 +84,14 @@ pub enum ConnectError {
     /// `connect()`) once on its own and this variant is never seen by a
     /// caller; it is returned only once that retry also ends this way.
     ClosedBeforeHello,
-    /// [`connect_handshaken`] only: writing the hello, or reading for its
-    /// reply, failed outright (not a clean EOF - see
-    /// [`ConnectError::ClosedBeforeHello`] for that) once a connection was
-    /// already in hand.
+    /// A genuine I/O failure once there is no longer an EOF-before-hello
+    /// condition to confuse it with - see [`ConnectError::ClosedBeforeHello`]
+    /// for that case instead. [`connect_handshaken`] returns this only
+    /// for its own trailing housekeeping once a complete hello has
+    /// already been decoded (the handshake itself already succeeded, so
+    /// this is never folded into a retry); a caller is free to construct
+    /// it for its own, later I/O too, once past the handshake (the real
+    /// request/reply).
     Io(std::io::Error),
 }
 
@@ -218,8 +222,12 @@ pub fn connect(options: &ConnectOptions) -> Result<UnixStream, ConnectError> {
 /// # Errors
 /// Anything [`connect`] itself can return; [`ConnectError::ClosedBeforeHello`]
 /// when the connection closed with no hello twice in a row;
-/// [`ConnectError::Io`] when writing the hello or reading for its reply
-/// failed outright, once a connection was already in hand.
+/// [`ConnectError::Timeout`] when a connection answered nothing at all
+/// within `connect_timeout`; [`ConnectError::Io`] when a complete hello
+/// *was* decoded but this function's own trailing housekeeping (clearing
+/// the read timeout it set to wait for it) then failed - never for a
+/// failure before the hello, which is the EOF-before-hello condition
+/// above, not a reason to fail the whole call.
 pub fn connect_handshaken(
     options: &ConnectOptions,
     client: &str,
@@ -236,9 +244,39 @@ pub fn connect_handshaken(
 }
 
 /// One `connect()` plus one hello round trip. `Ok(None)` is the
-/// EOF-before-hello condition [`connect_handshaken`] retries once; every
-/// other outcome (success, or a real error) is returned as is and ends
-/// the whole call.
+/// EOF-before-hello condition [`connect_handshaken`] retries once.
+///
+/// **Which failures are folded into that retry, and which are not, drawn
+/// precisely (a review of this task's first pass found the boundary
+/// drawn one step too far - see the last paragraph):** every failure of
+/// `set_write_timeout`/`write_all`/`set_read_timeout`/`read` *before* a
+/// complete hello frame is decoded is folded into `Ok(None)`, with each
+/// side's own explicit timeout the one exception on that side
+/// (`ConnectError::Timeout` - the server is there but silent or stuck,
+/// not gone). From the moment a complete `Hello` frame is decoded, the
+/// handshake has already succeeded: nothing after that point is folded
+/// into the retry, regardless of its own errno, because there is no
+/// longer an "EOF-before-hello" left to confuse it with - see the match
+/// arm below for what that failure becomes instead.
+///
+/// The write timeout (the same `connect_timeout` the read uses) is what
+/// makes "about twice `connect_timeout`, worst case" ([`connect_handshaken`]'s
+/// own doc) actually true rather than merely likely: without one, a
+/// peer that accepts but never reads could block the write past that
+/// bound - unlikely given the hello's small size against an ordinary
+/// socket buffer, but not a reason to leave it unbounded.
+///
+/// Why every *earlier* error reads the same way: every operation up to
+/// that point is on a stream this function just connected itself, with
+/// a fixed, well-formed buffer and a valid timeout - there is no genuine
+/// bug this code could have that would make any of them fail; the only
+/// real-world cause is a connection closed the instant it was accepted
+/// (TASK-1.77's own race). Found by this module's own test, not
+/// assumed: which precise errno the OS reports for that depends on
+/// exactly when the peer's close is noticed relative to which call,
+/// which neither side controls - a broken pipe, "not connected", and
+/// even "invalid argument" have all been seen for the identical
+/// fixture.
 fn one_handshake_attempt(
     options: &ConnectOptions,
     client: &str,
@@ -248,24 +286,35 @@ fn one_handshake_attempt(
     let mut stream = connect(options)?;
     let hello = Connection::send_hello(client, kind, label);
 
-    // From here on, every operation is on a stream this function just
-    // connected itself, with a fixed, well-formed buffer and a valid
-    // timeout - there is no genuine bug this code could have that would
-    // make any of `write_all`/`set_read_timeout`/`read` fail; the only
-    // real-world cause is a connection closed the instant it was
-    // accepted (TASK-1.77's own race). Found by this module's own test,
-    // not assumed: which precise errno the OS reports for that depends
-    // on exactly when the peer's close is noticed relative to which
-    // call, which neither side controls - a broken pipe, "not
-    // connected", and even "invalid argument" (`set_read_timeout` on a
-    // socket whose peer has already gone, observed directly on this
-    // platform under enough concurrent load to land in a narrower
-    // window) have all been seen for the identical fixture. So every
-    // error below but the read's own explicit timeout is read the same
-    // way: `Ok(None)`, the same EOF-before-hello signal as a zero-byte
-    // read.
-    if stream.write_all(&hello).is_err() {
+    // A write timeout is this function's own bound for the opposite
+    // direction (a nit from this task's own review: the hello is small
+    // enough that a blocked write is not a realistic concern against an
+    // ordinary socket buffer, but "about twice `connect_timeout`" should
+    // be true because this function makes it true, not because the
+    // write happens to never be the one that blocks). Folding a
+    // `set_write_timeout` failure itself into `Ok(None)` is the same
+    // reasoning as every other pre-hello setup call.
+    if stream
+        .set_write_timeout(Some(options.connect_timeout))
+        .is_err()
+    {
         return Ok(None);
+    }
+    match stream.write_all(&hello) {
+        Ok(()) => {}
+        // The write's own explicit way of saying "nothing could be sent
+        // within `connect_timeout`" - treated exactly like the read's
+        // own explicit timeout below: the server is there but stuck, not
+        // gone, so this is not folded into the retry.
+        Err(err)
+            if matches!(
+                err.kind(),
+                std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+            ) =>
+        {
+            return Err(ConnectError::Timeout);
+        }
+        Err(_) => return Ok(None),
     }
 
     // A timeout on this read is a bound, not polling (the same reasoning
@@ -285,9 +334,17 @@ fn one_handshake_attempt(
     loop {
         match decoder.next_frame() {
             Ok(Some(frame)) if frame.kind == Kind::Hello => {
-                if stream.set_read_timeout(None).is_err() {
-                    return Ok(None);
-                }
+                // The handshake has already succeeded - a real hello was
+                // decoded. A failure here is this function's own
+                // housekeeping (clearing both bounds before handing the
+                // stream back), not a sign the peer is gone, so it is
+                // never folded into `Ok(None)` and never retried: it
+                // ends the whole call with a genuine `ConnectError::Io`,
+                // rather than silently handing back a stream that still
+                // carries this attempt's own read or write timeout with
+                // nothing said about it.
+                stream.set_read_timeout(None).map_err(ConnectError::Io)?;
+                stream.set_write_timeout(None).map_err(ConnectError::Io)?;
                 return Ok(Some((stream, frame.payload)));
             }
             // A frame that is not the hello, arriving before it ever
@@ -411,23 +468,42 @@ mod tests {
         }
     }
 
+    /// One accept's own behaviour, for [`spawn_listener`].
+    #[derive(Clone, Copy)]
+    enum Behaviour {
+        /// Drops the connection immediately with nothing written at all -
+        /// TASK-1.77's own race (EOF before any hello).
+        Hostile,
+        /// Sends a real hello, then holds the connection open briefly so
+        /// the client's own read of the reply never itself races this
+        /// thread's own teardown of the connection.
+        CooperativeHeldOpen,
+        /// Sends a real hello, then closes immediately with no pause at
+        /// all - a *different* race from `Hostile` (a real hello is
+        /// decoded this time), confirmed directly against a real socket
+        /// (not assumed) to reliably make this connection's own
+        /// subsequent `set_read_timeout(None)` fail with `EINVAL` on this
+        /// platform, once the peer has already gone: a review of this
+        /// task's first pass found the client treating that the same as
+        /// `Hostile`'s own EOF-before-hello, discarding a hello it had
+        /// already decoded.
+        CooperativeClosedImmediately,
+    }
+
     /// Binds a real `UnixListener` at `path` on its own thread and accepts
-    /// exactly `behaviours.len()` connections, one behaviour per accept -
-    /// `true` reads the client's real hello and answers with a real
-    /// server one (`Connection::accept_or_refuse`); `false` drops the
-    /// connection immediately with nothing written at all, reproducing
-    /// TASK-1.77's own race. Returns the shared accept counter (every
-    /// increment happens strictly before that accept's own behaviour runs,
-    /// so by the time `connect_handshaken` returns - synchronously, after
-    /// observing either a reply or an EOF for its *last* attempt - every
-    /// accept that led to that outcome has already been counted: no wait
-    /// is needed after the call returns) and a receiver that fires once
-    /// the bind has completed, so a test can synchronise on "the listener
-    /// is ready" without spending one of its own accepts on a throwaway
+    /// exactly `behaviours.len()` connections, one [`Behaviour`] per
+    /// accept. Returns the shared accept counter (every increment happens
+    /// strictly before that accept's own behaviour runs, so by the time
+    /// `connect_handshaken` returns - synchronously, after observing
+    /// either a reply or an EOF for its *last* attempt - every accept
+    /// that led to that outcome has already been counted: no wait is
+    /// needed after the call returns) and a receiver that fires once the
+    /// bind has completed, so a test can synchronise on "the listener is
+    /// ready" without spending one of its own accepts on a throwaway
     /// probe connection.
     fn spawn_listener(
         path: std::path::PathBuf,
-        behaviours: Vec<bool>,
+        behaviours: Vec<Behaviour>,
     ) -> (Arc<AtomicU32>, mpsc::Receiver<()>) {
         let counter = Arc::new(AtomicU32::new(0));
         let counter_for_thread = Arc::clone(&counter);
@@ -435,27 +511,32 @@ mod tests {
         std::thread::spawn(move || {
             let listener = UnixListener::bind(&path).expect("binding the test listener");
             ready_tx.send(()).expect("the test is still waiting");
-            for cooperative in behaviours {
+            for behaviour in behaviours {
                 let Ok((mut stream, _)) = listener.accept() else {
                     return;
                 };
                 counter_for_thread.fetch_add(1, Ordering::SeqCst);
-                if cooperative {
-                    let payload = read_one_hello(&mut stream);
-                    let (_, bytes) = Connection::accept_or_refuse(
-                        &payload,
-                        "steg-test-server",
-                        "1.0",
-                        ClientId::from_raw(1),
-                    );
-                    let _ = stream.write_all(&bytes);
-                    // Held open briefly so the client's own read of this
-                    // reply never itself races this thread's own teardown
-                    // of the connection.
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+                match behaviour {
+                    Behaviour::Hostile => {
+                        // `stream` drops here, closing the connection with
+                        // nothing ever written to it.
+                    }
+                    Behaviour::CooperativeHeldOpen | Behaviour::CooperativeClosedImmediately => {
+                        let payload = read_one_hello(&mut stream);
+                        let (_, bytes) = Connection::accept_or_refuse(
+                            &payload,
+                            "steg-test-server",
+                            "1.0",
+                            ClientId::from_raw(1),
+                        );
+                        let _ = stream.write_all(&bytes);
+                        if matches!(behaviour, Behaviour::CooperativeHeldOpen) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                        }
+                        // `CooperativeClosedImmediately`: `stream` drops
+                        // here, right after the write, with no pause.
+                    }
                 }
-                // `cooperative == false`: `stream` drops here, closing the
-                // connection with nothing ever written to it.
             }
         });
         (counter, ready_rx)
@@ -481,7 +562,7 @@ mod tests {
     #[test]
     fn eof_before_hello_is_retried_exactly_once_then_fails() {
         let path = unique_test_socket_path("mode-a");
-        let (counter, ready) = spawn_listener(path.clone(), vec![false, false]);
+        let (counter, ready) = spawn_listener(path.clone(), vec![Behaviour::Hostile; 2]);
         ready
             .recv_timeout(std::time::Duration::from_secs(2))
             .expect("the test listener should bind within the bound");
@@ -511,7 +592,10 @@ mod tests {
     #[test]
     fn a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts() {
         let path = unique_test_socket_path("mode-b");
-        let (counter, ready) = spawn_listener(path.clone(), vec![false, true]);
+        let (counter, ready) = spawn_listener(
+            path.clone(),
+            vec![Behaviour::Hostile, Behaviour::CooperativeHeldOpen],
+        );
         ready
             .recv_timeout(std::time::Duration::from_secs(2))
             .expect("the test listener should bind within the bound");
@@ -533,6 +617,58 @@ mod tests {
             "exactly two connection attempts: the first EOF, then the retry that succeeded"
         );
         drop(stream);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// A review finding on this task's first pass: a complete hello
+    /// *was* decoded (the handshake genuinely succeeded), and the
+    /// connection then died on this function's own trailing
+    /// housekeeping (clearing the read timeout it set to wait for the
+    /// hello) - confirmed directly to reproduce reliably on this
+    /// platform (`Behaviour::CooperativeClosedImmediately`'s own doc),
+    /// not a rare timing accident this test merely hopes to hit. This
+    /// must **not** be folded into the EOF-before-hello retry: a server
+    /// that genuinely answered is not "no server", and reporting
+    /// `ClosedBeforeHello` (or retrying at all) would be exactly that
+    /// misreporting.
+    ///
+    /// Two cooperative accepts are queued so that the *old*, buggy
+    /// behaviour (discard the decoded hello and retry) has a second
+    /// attempt to also consume - under the fix, only the first is ever
+    /// reached at all, since the whole call ends on its own first
+    /// genuine error rather than retrying; the counter assertion below
+    /// is itself part of this test's own proof, not incidental.
+    #[test]
+    fn a_hello_decoded_then_a_failed_timeout_clear_is_a_genuine_error_not_closed_before_hello() {
+        let path = unique_test_socket_path("mode-c");
+        let (counter, ready) = spawn_listener(
+            path.clone(),
+            vec![Behaviour::CooperativeClosedImmediately; 2],
+        );
+        ready
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .expect("the test listener should bind within the bound");
+
+        let result = connect_handshaken(
+            &options_for(path.clone()),
+            "steg-test",
+            ClientKind::Cli,
+            None,
+        );
+
+        assert!(
+            matches!(result, Err(ConnectError::Io(_))),
+            "a hello that was actually decoded must surface as a genuine error, never as \
+             ClosedBeforeHello (which would claim no server ever answered) and never as a \
+             success (which would hand back a stream whose own state is now unknown): {result:?}"
+        );
+        assert_eq!(
+            counter.load(Ordering::SeqCst),
+            1,
+            "a genuine post-hello error ends the whole call on the first attempt - it is not \
+             retried the way EOF-before-hello is, since there is no \"no server\" condition \
+             here to retry past"
+        );
         let _ = std::fs::remove_file(&path);
     }
 }

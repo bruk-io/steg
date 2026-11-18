@@ -11,11 +11,24 @@ use std::io::Write as _;
 
 use clap::ArgMatches;
 use serde_json::Value;
-use steg_sdk::{ConnectError, Description, Response};
+use steg_sdk::{ConnectError, Description, MAX_PAYLOAD, Response};
 
 use super::connect::{block_until_reply, connect_and_handshake};
 use super::exit::{api_error_status, connect_error_status, malformed_api_call_input_status};
 use super::tree::autostart_flag;
+
+/// How much of [`MAX_PAYLOAD`] standard input may use, leaving the rest as
+/// margin for the frame's own wrapper around it (the `Control::Request`
+/// envelope: `id`, the method name, the JSON structure itself, none of
+/// which this crate names a second time; a few hundred bytes at most, so
+/// 4 KiB is a generous, simple bound rather than a measured exact one).
+///
+/// A review finding on this task: oversized stdin used to reach
+/// `Connection::call_unvalidated`'s own `encode_frame(...).expect(...)`
+/// and panic (exit 101) instead of this command's own documented bad
+/// usage status, 2. Checked before anything is parsed, so a pathological
+/// input costs nothing beyond reading it.
+const STDIN_MARGIN: usize = 4096;
 
 /// `api` is the compiled-in [`Description`], used only for its `errors`
 /// table (`api_error_status`) - `api.call`'s own request is never
@@ -41,6 +54,13 @@ pub fn run(api: &Description, matches: &ArgMatches) -> i32 {
     let mut input = String::new();
     if let Err(err) = std::io::stdin().read_to_string(&mut input) {
         eprintln!("steg: reading standard input: {err}");
+        return malformed_api_call_input_status();
+    }
+    if input.len() > MAX_PAYLOAD.saturating_sub(STDIN_MARGIN) {
+        eprintln!(
+            "steg: standard input is too large ({} bytes, over the frame's own cap)",
+            input.len()
+        );
         return malformed_api_call_input_status();
     }
     let parsed: Value = match serde_json::from_str(&input) {

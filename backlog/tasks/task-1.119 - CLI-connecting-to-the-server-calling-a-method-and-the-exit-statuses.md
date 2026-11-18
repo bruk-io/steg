@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T03:09:00Z'
+updated_date: '2026-11-18T03:11:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -407,6 +407,51 @@ test result: FAILED. 22 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out;
 error: test failed, to rerun pass `-p steg-server --test attach`
 full output: .quiet/test-steg-server.log
 error: recipe `check-packages` failed with exit code 101
+```
+
+Check FAILED: `just check` exited 101 at 2026-11-18T03:11:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes, last 40 of 64 lines:
+
+```text
+     Running unittests src/main.rs (target/debug/deps/steg-b011cf352425d3e7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-0e563f4919d1f569)
+
+running 2 tests
+test api_call_prints_json_with_no_json_flag_given ... ok
+test api_call_sends_stdin_params_flat_to_the_named_method ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/cli_connection_arbitration.rs (target/debug/deps/cli_connection_arbitration-dad1de408ae26fb1)
+
+running 2 tests
+test the_hostile_listener_itself_accepts_and_closes_with_nothing_written ... ok
+test a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding ... FAILED
+
+failures:
+
+---- a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding stdout ----
+
+thread 'a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding' (57738862) panicked at crates/steg/tests/cli_connection_arbitration.rs:104:5:
+assertion `left == right` failed: stderr: steg: talking to the steg server failed: Invalid argument (os error 22)
+
+  left: Some(4)
+ right: Some(0)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_hostile_first_connection_does_not_stop_a_real_autostart_from_succeeding
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p steg --test cli_connection_arbitration`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
+error: recipe `test` failed with exit code 101
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -125,104 +125,19 @@ Control: before trusting a "match", make one real edit to one function/test body
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion). methods/tests.rs stays the one place every method-adding task still collides - this split shrinks the file that collision happens in from 2,122 lines to roughly 230 (the size of the current #[cfg(test)] mod tests block), it does not remove the collision itself. Follow-up, not this task: if method-adding tasks keep colliding on methods/tests.rs once this lands, split it along the same seams its own assertions already group by (the doc-2 section 8 pairs/targets tables, the events/errors counts, the nested-type allow-list) - not attempted here, since all 22 of its tests are whole-description invariants, none noun-scoped, and deciding how to split an invariant test without changing what it asserts is a separate, smaller design question from this move-only task.
+After this lands, a new API method touches: the one noun file under crates/sdk/src/description/methods/ it belongs to, plus methods/tests.rs (both doc_2_section_8() and doc_2_section_8_targets(), and the "== N methods" count assertion). methods/tests.rs stays the one place every method-adding task still collides - this split shrinks the file that collision happens in from 2,122 lines to roughly 230 (the size of the current #[cfg(test)] mod tests block), it does not remove the collision itself. Follow-up, not this task: if method-adding tasks keep colliding on methods/tests.rs once this lands, split it along the same seams its own assertions already group by (the doc-2 section 8 pairs/targets tables, the events/errors counts, the nested-type allow-list) - not attempted here, since all 18 of its tests (not 22, corrected below) are whole-description invariants, none noun-scoped, and deciding how to split an invariant test without changing what it asserts is a separate, smaller design question from this move-only task.
 
 Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk description (crates/sdk/src/description/methods.rs into methods/ by noun); the server dispatch tests moved to a draft task, 'Server tests: the dispatch tests split by noun, in one test binary'. The title still names both halves; the criteria are the scope.
 
 Plan checked against the task's three criteria by @bruk.o: ok. Move only: methods.rs becomes methods/ with a file per noun plus shared.rs, errors.rs and tests.rs; one commit per noun after the rename. Three mechanical proofs, each with a control: the description's serialised form byte for byte, the sdk's test list, and a normalised-line hash of the bodies. The byte-for-byte dump uses a scratch, uncommitted test file calling the real description(); the reviewer is to repeat it. methods/tests.rs remains the one file every new method still touches, named as a follow-up.
 
-Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-before.json'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-control.json'"'"''` exited 1 at 2026-11-18T02:57:59+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+Build notes:
 
-```text
-12c12
-<       "summary": "Every session on the host",
----
->       "summary": "Every session on the hostX",
-```
+Departure #1: the tests.rs block has 18 tests, not 22 as the plan said - a count error in planning, not a code difference; the plan's "22" elsewhere in this task's history is wrong, 18 is what the task actually has, confirmed by cargo test -p steg-sdk --lib -- --list both before and after this task's commits.
 
-Check passed: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-before.json'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-description-final.json'"'"' && echo '"'"'proof (a): description() is byte-for-byte identical before and after'"'"''` exited 0 at 2026-11-18T02:58:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
+Departure #2 (proof (c)'s mechanism): the plan's sorted-normalised-line-sha256 pipeline hit a real bug on this machine's sed (BSD/macOS sed's -E does not support \s or \b, so the plan's own sed -E 's/^\s+//' was a silent no-op) and, once fixed, still left one unexplained stray line from reformatting noise I could not pin down cheaply. Rather than debug a hash further, I replaced it with a stronger, more legible check: a script (scratchpad/task-1130-prove-c.sh) that diffs each new file's real content against the *exact* line range it was mechanically extracted from in the pristine pre-task methods.rs (located by grep on the file's own section banners, not guessed), modulo only the pub(super) qualifier AC #2 explicitly allows. It is stricter than the planned hash (an exact ordered diff per file, not a sorted bag of lines) and its control (one character changed in one method's summary in pane.rs) correctly fails before passing clean. I also ran the plan's own attribute-lines-only comparison (sorted, before/after) as an extra, both recorded with their control, confirming no #[...]/#![...] line changed anywhere in scope - this was the one thing the stricter per-file diff could in principle miss if it had still been sort-based; it is not, but the extra check is recorded anyway.
 
-```text
-proof (a): description() is byte-for-byte identical before and after
-```
-
-Check FAILED: `sh -c 'diff '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-before.txt'"'"' '"'"'/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-testlist-control.txt'"'"''` exited 1 at 2026-11-18T02:58:47+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
-
-```text
-23c23
-< description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pairs: test
----
-> description::methods::tests::the_method_set_is_exactly_doc_2_section_8s_45_pair: test
-```
-
-Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-b.sh` exited 0 at 2026-11-18T02:59:48+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
-
-```text
-proof (b): the sdk's test-name list is identical before and after, and no test is ignored
-```
-
-Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-c.sh` exited 1 at 2026-11-18T03:00:08+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
-
-```text
-ok: shared.rs
-ok: shared.rs
-ok: session.rs
-ok: tab.rs
-MISMATCH: pane.rs (before 600,1014 vs after 7,421)
-84c84
-<             summary: "Split a pane and run a program in the new one".into(),
----
->             summary: "Split a pane and run a program in the new oneX".into(),
-ok: server.rs
-ok: event.rs
-ok: client.rs
-ok: setting.rs
-ok: api.rs
-ok: errors.rs
-ok: tests.rs
-FAIL
-```
-
-Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-c.sh` exited 0 at 2026-11-18T03:00:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
-
-```text
-ok: shared.rs
-ok: shared.rs
-ok: session.rs
-ok: tab.rs
-ok: pane.rs
-ok: server.rs
-ok: event.rs
-ok: client.rs
-ok: setting.rs
-ok: api.rs
-ok: errors.rs
-ok: tests.rs
-PASS: every extracted file's real content matches its exact pre-task source range, unchanged but for the pub(super) visibility this split adds
-```
-
-Check FAILED: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 1 at 2026-11-18T03:01:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca with uncommitted changes:
-
-```text
-0a1
-> #[allow(dead_code)]
-```
-
-Check passed: `/private/tmp/claude-501/-Users-brukhabtu-src-github-com-bruk-io-steg/a318fbf0-a659-4ad6-9bfc-86a79ba9cc76/scratchpad/task-1130-prove-attrs.sh` exited 0 at 2026-11-18T03:01:14+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
-
-```text
-proof (c), attributes: the set of attribute lines is identical before and after
-```
-
-Check passed: `sh -c 'cargo test -p steg-server --test attach an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane 2>&1 | tail -6'` exited 0 at 2026-11-18T03:15:31+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.130 on task-1.130-sdk-and-server-tests-one-file-per-noun at c4792d40daca:
-
-```text
-
-running 1 test
-test an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane ... ok
-
-test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 15.06s
-```
+Sighting: just check's test step failed twice in a row (2026-11-18, ~22:05 and ~22:09 UTC-5) on crates/server/tests/attach.rs's own an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane - 'pane.show must answer within a bound, even with the other pane stuck'. This file is outside this task's scope (crates/sdk/src/description/methods/ only); run alone it passes in ~2-15s both times I tried, consistent with the known stuck-pane timing test flaking under this machine's concurrent worker load, not with this task's change. Recorded the isolated passing run as evidence. Have not yet recorded a fully clean just check; asking the engineer how to proceed (retry again, or accept the isolated confirmation) before finishing.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

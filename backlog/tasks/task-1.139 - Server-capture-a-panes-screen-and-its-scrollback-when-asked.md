@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-18T14:09:00Z'
-updated_date: '2026-11-18T23:05:00Z'
+updated_date: '2026-11-18T23:16:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -178,6 +178,51 @@ test result: FAILED. 206 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out
 error: test failed, to rerun pass `-p steg-server --lib`
 full output: .quiet/tests-p-steg-p-steg-app-p-steg-kernel-p-steg-sdk-p-steg-server.log
 error: recipe `test` failed with exit code 101
+```
+
+Check passed: `just check` exited 0 at 2026-11-18T23:16:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.139 on task-1.139-server-capture-a-pane-s-screen-and-its at 633ca1b9d4a8 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+wait    lint (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+wait    tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (87.2s)
+wait    build (steg-sdk) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg-sdk) (0.7s)
+wait    test (steg-sdk) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-sdk) (1.8s)
+wait    test (steg-sdk, local-socket) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-sdk, local-socket) (2.0s)
+wait    build (steg-kernel) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg-kernel) (0.4s)
+wait    test (steg-kernel) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-kernel) (0.9s)
+wait    build (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      build (steg-server) (0.1s)
+wait    test (steg-server) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server) (61.1s)
+wait    test (steg-server, race-fixture) (2 of 2 slots busy, STEG_CHECK_SLOTS=2) - waiting for a slot to free with no bound (STEG_CHECK_SLOT_WAIT_S is unset); this step's own STEG_QUIET_TIMEOUT_S bound has not started yet
+ok      test (steg-server, race-fixture) (78.1s)
+ok      test (steg-server, pty-race-fixture) (69.8s)
+ok      test (steg-server, accept-backoff-fixture) (65.7s)
+ok      build (steg) (1.9s)
+ok      test (steg) (3.7s)
+ok      test (steg, fixtures) (11.0s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (1.6s)
+ok      tool tests (39.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
 ```
 <!-- SECTION:NOTES:END -->
 

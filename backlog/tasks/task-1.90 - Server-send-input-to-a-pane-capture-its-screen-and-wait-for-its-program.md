@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w7'
 created_date: '2026-11-16T00:34:00Z'
-updated_date: '2026-11-18T17:29:00Z'
+updated_date: '2026-11-18T17:36:00Z'
 labels:
   - size-3
   - changes-requested
@@ -671,6 +671,43 @@ running 1 test
 test pane_send_refuses_a_pane_with_no_running_program ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.04s
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-18T17:36:57+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at 92b0a1494a67 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (3.9s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-kernel -p steg-sdk -p steg-server) (66.4s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.1s)
+ok      test (steg-sdk, local-socket) (1.4s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.5s)
+ok      build (steg-server) (28.8s)
+ok      test (steg-server) (58.8s)
+ok      test (steg-server, race-fixture) (61.2s)
+ok      test (steg-server, pty-race-fixture) (68.4s)
+ok      test (steg-server, accept-backoff-fixture) (59.8s)
+ok      build (steg) (1.0s)
+ok      test (steg) (5.8s)
+ok      test (steg, fixtures) (12.7s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (6.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.8s)
+ok      tool tests (40.1s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
 ```
 
 Commits since the review: 0.

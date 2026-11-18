@@ -1,14 +1,13 @@
 ---
 id: TASK-1.121
 title: 'App: typing and resizing in the bare window'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-18T01:51:00Z'
+updated_date: '2026-11-18T02:01:00Z'
 labels:
   - size-2
-  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
@@ -2399,6 +2398,18 @@ ok      ui colours (0.0s)
 ```
 
 Commits since the review: 16, 12 without the Asdlc-Worker trailer.
+
+Second review's finding fixed: the Cmd-V paste mechanism had no test of its own. Pulled it into send_pasted_text(writer, clipboard_text) - a plain function taking the clipboard's own text (Option<&str>) and the writer, so on_key_down is one line that reads the real clipboard and passes the text in. Chose the injected-text shape, not gpui's test-support in-memory clipboard, per TASK-1.126's prior finding on that feature's footprint.
+
+Tested against a real socket (client.rs's own Writer-test pattern): CRLF and bare LF both normalise to a single \r; a paste between two ordinary inputs arrives as exactly one send, in order with them; no clipboard text, or an empty string, sends nothing at all. Recorded failing-then-passing control: removed send_pasted_text's own body (the reviewer's exact regression) - two of the four new tests failed as expected, the other two (empty/no-text-sends-nothing) correctly still passed on their own. Also fixed the test harness's own missing read timeout, found by the control hanging instead of failing cleanly.
+
+What remains untested: the one line in on_key_down that calls cx.read_from_clipboard() itself - reading the real clipboard is exactly what must not be exercised by a test or a live run.
+
+Also merged origin/main (TASK-1.128, PR 73) in since: kept main's ScreenUpdate::Ended no-op arm in model.rs exactly as it merged; confirmed no other exhaustive match on ScreenUpdate needed an arm for it. connection.rs's merge left a reorder-only difference from main (the event.watch arm's position, already flagged as not a real change in the first review) - replaced it with main's exact file. No test files of mine were touched by the merge, so every earlier control stands unchanged.
+
+Checks: just check recorded clean (exit 0) at the final head (d67e61bf, clean tree) - needed two retries first, both failing on crates/server's login_env::tests::capture_login_environment_kills_a_backgrounded_grandchild_that_held_the_pipe_open, a known flake unrelated to anything I've touched (confirmed passing in isolation both times; machine load was 6.17 with 867 processes at the time). gh pr checks 71 --watch passed (10m15s).
+
+No app launch, no synthetic input, no screen capture, no clipboard access at any point this round.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w4'
 created_date: '2026-11-17T22:39:00Z'
-updated_date: '2026-11-18T02:10:00Z'
+updated_date: '2026-11-18T02:20:00Z'
 labels:
   - size-2
 milestone: m-4
@@ -94,3 +94,248 @@ The app section of TASK-1.128 first plan (hash fb44af323f0f), kept here as a sta
 - [ ] #3 Running the app again after its program has ended makes a new tab, as it does today
 - [ ] #4 The pull request carries an image of the window after a program exits with a status and after a forced close, from a live run with nothing personal on screen
 <!-- AC:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+## Design decided by this plan (one advisor review found a real bug in the
+first draft - see "The backstop" below - fixed before writing this)
+
+### `ClientEvent` gains `Ended`, decoded in `drain`, not folded into `Update`
+
+`crates/app/src/client.rs`: `ClientEvent::Ended(steg_sdk::EndReason)`
+beside `Update`/`Disconnected`. `drain`'s `Incoming::StreamControl { stream,
+payload }` arm (captures `stream`, no longer `..`) decodes the payload;
+`ScreenUpdate::Ended { reason }` becomes `connection.close_stream(stream)`
+(the client's own half of "closed on both sides" - decision-2/doc-14) then
+`ClientEvent::Ended(reason)`, `continue`d - not returned `false`: this is
+not a protocol surprise, it is this stream's own last, expected frame, and
+`read_loop`'s own cleanup line sends `Disconnected` unconditionally once
+the loop breaks, which would overwrite whatever `main.rs` does with
+`Ended` a moment later if `drain` ever stopped here.
+
+### The backstop for "sends no further input": `Writer::disarm`, never
+`Writer::stop` - the bug an advisor review found in this plan's own first
+draft
+
+`Writer::stop`'s own doc says it shuts the socket down, "the identical
+POSIX guarantee" `Client::stop`'s doc already states for the reader -
+because `Attached::write_handle` (`startup.rs`) is documented as "a clone
+of the connected socket," the *same* socket the reader thread blocks its
+own `read()` on. Calling `stop` from `handle_client_event` on `Ended`
+would therefore also unblock the reader's `read()` with `Ok(0)`,
+producing a `ClientEvent::Disconnected` right behind `Ended` - which
+overwrites `Phase::Attached` with `Phase::Disconnected`, losing the last
+screen and the message AC #1 exists to show. Caught before any code was
+written, by an advisor review of this exact plan.
+
+`crates/app/src/client.rs` gains `Writer::disarm(&mut self) { self.commands
+= None; }` - no `shutdown()`, no `join()`. `try_send`'s own existing `let
+Some(commands) = &self.commands else { return; }` already makes every
+later `send_input`/`declare_size` a silent no-op with no `Disconnected`
+either; the writer thread itself ends on its own, the next time `commands
+.recv()` sees the sender dropped, and `Writer::stop` (called later, by
+`teardown`, on window close) still joins it then, same as always.
+
+### A later `Disconnected` must not overwrite `Ended` - stopping the
+receive loop, not guarding the arm, is what makes that true
+
+Once `Ended` arrives, `drain`'s own `close_stream` means a later frame on
+that stream (there should never be one; decision-2's server-side half
+already guarantees it) decodes as `UnknownStream`, which `drain` still
+treats as a protocol surprise (`return false`), and `read_loop` sends
+`Disconnected` regardless of why the loop broke. Rather than add a second,
+explicit guard on the `Disconnected` arm (checking "is `ended` already
+set" there too - a second place that has to agree with the first),
+`handle_client_event`'s own `Ended` arm returns `true`: the receive task
+stops reading the channel at all, so nothing - a stray `Disconnected`, a
+server stop, anything else - can ever reach `handle_client_event` again to
+overwrite the phase. The reader thread itself is left running, parked in
+its own `read()`, harmless until the window closes (`teardown`'s own job,
+unchanged) - only the *task that forwards its events to the window* stops.
+
+### The window opens already on an ended pane - handled, not special-cased
+
+Late attach (TASK-1.128) sends a catch-up `Full` then `Ended` on the same
+stream; `resolve_pane`'s own `program_status != "running"` check
+(`startup.rs`, confirmed unchanged - `an_ended_panes_program_gets_a_fresh_
+tab_in_the_same_session` is still there and still passes) already avoids
+attaching to a pane already known dead at the moment it is read, but a
+pane can still end in the tiny window between that read and the real
+`pane.attach` moments later - the same race TASK-1.128's own late-attach
+fix exists for. `apply_startup_result` builds `Phase::Attached` with
+`ended: None` from the attach reply's own snapshot exactly as it does
+today; the `Full` (if any) and `Ended` that follow moments later go
+through the ordinary `ClientEvent` path above, with no special case -
+confirmed by reasoning through the code, not assumed, and the same client
+.rs test that proves `Ended` arrives as its own event also covers it
+arriving as the very first frame on the stream (no prior `Update` sent at
+all in that test), which is exactly this scenario's own shape.
+
+### `describe_end`, and the render tree - identical to today when not ended
+
+`crates/app/src/model.rs`: `pub(crate) fn describe_end(reason: steg_sdk::
+EndReason) -> String` (`EndReason` is `Copy` - by value, no borrow to
+thread through the render path) - `ProgramExited { exit_code }` -> "the
+program ended with status {exit_code}"; `Closed` -> "the pane was closed".
+`Model::apply`'s own `ScreenUpdate::Ended` arm stays a no-op (re-worded:
+this is now the *final* design, not a placeholder - "ended" is connection
+-lifecycle state, not terminal-grid state, so it belongs on `AttachedState`
+, not `Model`).
+
+`crates/app/src/main.rs`'s `Render` for `Phase::Attached`: when `state.
+ended` is `None`, the element tree stays byte-for-byte what it is today
+(`div().size_full().track_focus(...).on_key_down(...).child(terminal)`) -
+an advisor review named the risk directly: wrapping every window in a new
+flex-column container, even when not ended, would shrink the terminal by
+one row's worth of space on every ordinary window, a regression `size.rs`
+'s own `grid_size`/`declare_size` (TASK-1.121) and the paint budget
+(TASK-1.122) would both silently inherit, and nothing in this task's own
+reach (no window, no screenshot) would catch. Only the `Some(reason)`
+branch builds the taller tree (terminal in a `flex_1` child, `describe_
+end`'s own text in a `flex_none` row below, reusing `Theme`'s own tokens -
+no new design-system component, per this task's own scope).
+
+## Open for the engineer (my own recommended default first, then the
+alternatives - not decided here)
+
+- **Does the window do anything beyond showing the line and refusing
+  keys?** Default: no - it keeps the last screen, shows the one line, and
+  stops accepting input, nothing else (no self-close, no restart
+  affordance). Alternatives: close the window automatically (rejected as
+  the default - it would make the very state this task exists to show
+  invisible); offer a restart (TASK-1.61's own job, once there is a
+  restart API to call at all - none exists yet).
+- **Quit-on-last-window-closed:** not addressed by this task - `main()`
+  opens exactly one window, once, with no multi-window support anywhere
+  in this crate yet, so "last window" is not yet a real question this
+  app's own code can act on.
+- **The exact wording:** default "the program ended with status {exit_
+  code}" / "the pane was closed" - plain statements of fact, no judgement
+  about whether a given status counts as success. Alternative considered
+  and not chosen: wording success/failure differently by exit code (e.g.
+  "finished" vs "failed") - that is exactly the kind of drawn-state
+  judgement TASK-1.61 owns, and doc-10 explicitly defers every drawn state
+  of an ended program to it; this task's own plain text is a stopgap, not
+  a first draft of that design.
+
+## Files that change
+
+- `crates/app/src/client.rs`: `ClientEvent::Ended`; `drain`'s `StreamControl`
+  arm split (above); `Writer::disarm`. Three new tests (Proof, below).
+- `crates/app/src/model.rs`: `describe_end` and its own two tests; the
+  `Ended` arm's comment reworded (no behaviour change there).
+- `crates/app/src/main.rs`: `AttachedState.ended: Option<steg_sdk::
+  EndReason>` (`None` at attach); `handle_client_event`'s new `Ended` arm
+  (sets `ended`, calls `state.writer.disarm()`, notifies, returns `true`);
+  `send_bytes` and `on_key_down`'s paste branch each skip their own send
+  when `ended.is_some()` (clarity/avoiding a pointless clipboard read -
+  `disarm` is what actually guarantees nothing reaches the wire, these are
+  not load-bearing on their own); `on_resize` skips declaring a size the
+  same way, for the same reason (team's own question: "should an ended
+  window still declare sizes" - no); `Render`'s `Phase::Attached` arm
+  split into the unchanged tree (`ended: None`) and the taller one
+  (`Some(reason)`, above).
+- Nothing in `crates/sdk`/`crates/server` changes - this task is entirely
+  `crates/app`.
+
+## Order of work
+
+1. `model.rs`: `describe_end`, both tests - written failing first (a stub
+   returning `String::new()`), recorded failing, then the real
+   implementation, recorded passing.
+2. `client.rs`: `ClientEvent::Ended`, `drain`'s split, `Writer::disarm`,
+   and the three new tests, each with its own failing-then-passing
+   control (Proof, below). Compiles and tests green with `main.rs`
+   untouched (its own placeholder arm still compiles against the new
+   variant it already had).
+3. `main.rs`: the field, the arm, the three guard sites, the render split
+   - the `ended: None` branch verified byte-identical to today's own tree
+   by inspection (and, once built, by `cargo expand`-free review: the
+   exact same chain of calls, nothing added or reordered).
+4. `just check` at a clean tree.
+5. Hand off to the engineer for AC #4's two screenshots - a live run
+   this task does not perform (workers do not inject input, capture the
+   screen, or touch the clipboard on this machine).
+
+## Risks
+
+- **A render regression for the ordinary, not-ended window** (named above)
+  - mitigated by keeping that branch's own element tree unchanged, and by
+  asking the engineer's own live run (already planned for AC #4) to also
+  confirm the terminal's own size looks unchanged from before this task,
+  not only that the ended state renders.
+- **Three separate guard sites in `main.rs`** (`send_bytes`, the paste
+  branch, `on_resize`) could be missed by a future edit - mitigated by
+  `Writer::disarm` being the one, correctness-bearing backstop none of the
+  three actually depend on; a missed guard wastes a clipboard read or a
+  size computation, never reaches the wire.
+- **`main.rs`'s own wiring (which `ClientEvent` sets what state, and what
+  actually renders) has no automated test** - `crates/app/src/terminal_
+  element.rs:711-727` already states this crate's own precedent for
+  exactly this gap (gpui's `test-support` feature deliberately not
+  enabled - new dependencies and licence surface for one test; a hand
+  -built `ShapedLine`/`GlyphId` not constructible from outside gpui
+  either) and its own chosen fallback, a live run. This task follows the
+  same precedent rather than reopening that question: `describe_end`'s own
+  wording and `client.rs`'s own event/disarm mechanisms are proven by
+  real tests; the glue between them and the screen is proven only by the
+  engineer's own live run (AC #4).
+- **The "window opens already ended" race** (above) is handled by the
+  existing mechanisms with nothing special to add - named so a reviewer
+  does not read its absence from "files that change" as an oversight.
+
+## Proof, one path per acceptance criterion
+
+- **AC #1** (last screen kept; wording from one function, tested for both
+  reasons): `describe_end`'s own two unit tests, each recorded failing
+  (stub) then passing (real text). The render wiring itself - that `Some
+  (reason)` really appends this exact line, under the last screen, in the
+  real window - is proven only by the engineer's own live run (the
+  `terminal_element.rs` precedent above); no automated test claims more
+  than that.
+- **AC #2** (own client event, not an update or a disconnect; no further
+  input; closes its own side):
+  - `an_ended_update_arrives_as_its_own_client_event_not_update_or_
+    disconnected`: real encoded `Ended` bytes through a real socket pair
+    into `drain`, asserting `ClientEvent::Ended(reason)` specifically.
+    Control: temporarily let the `Ended` payload fall through to the
+    ordinary `Update` path: fails, decoded as `Update`, not `Ended`.
+    Reverted, passes.
+  - `ended_closes_this_connections_own_side_so_a_later_frame_on_the_same_
+    stream_is_unknown`: feeds `Ended` then one more, ordinary frame on the
+    same stream; asserts the second decodes as a protocol surprise (this
+    test's own comment names explicitly that in the real, wired-up app no
+    later frame is ever processed this way at all, since the receive task
+    has already stopped by then - this proves the lower-level `Connection`
+    mechanism in isolation, not a reachable production path). Control:
+    skip the `close_stream` call: fails, the second frame instead decodes
+    as an ordinary `Update`. Reverted, passes.
+  - `writer_disarm_makes_every_later_send_a_silent_no_op_with_no_
+    disconnected_either`: `disarm()`, then `send_input`/`declare_size`;
+    asserts nothing arrives on the server side within a bound and no
+    `Disconnected` fires either. Control: skip calling `disarm`: fails,
+    the send does arrive. Reverted, passes.
+  - "No further input actually leaves `main.rs`'s own three call sites" -
+    not separately tested (the same `terminal_element.rs` gap as AC #1):
+    proven by `disarm`'s own test above plus the engineer's own live run
+    (typing after the message shows produces no visible effect).
+- **AC #3** (relaunch makes a new tab): nothing in this diff touches
+  `resolve_pane` or `pane.list`'s own `program_status` check - no new
+  control, since there is no new mechanism to prove. The existing,
+  unmodified `startup.rs` test (`an_ended_panes_program_gets_a_fresh_tab_
+  in_the_same_session`) continues to pass under `just test`. Offered,
+  not assumed: if recorded evidence is wanted anyway, I can temporarily
+  break `resolve_pane`'s own check and record that existing test failing
+  then passing as a control for *that* mechanism - say so if you want it;
+  otherwise this criterion's own proof is "unchanged and still green."
+- **AC #4** (the PR carries two images): no automated test. The engineer
+  supplies both screenshots from their own live run (program exit with a
+  status; a forced close) - this task does not drive the app, capture the
+  screen, or touch the clipboard.
+
+No contract-change request: nothing in `doc-10`/`doc-14`/decision-2 needs
+a word changed for this task - the wording this task adds is explicitly a
+plain-text stopgap doc-10 already defers to TASK-1.61, not part of the
+design system doc-10 describes.
+<!-- SECTION:PLAN:END -->

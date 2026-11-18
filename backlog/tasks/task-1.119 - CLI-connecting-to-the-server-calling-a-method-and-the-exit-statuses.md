@@ -996,6 +996,21 @@ error: test failed, to rerun pass `-p steg --test cli_api_call`
 ```
 
 Commits since the review: 19, 16 without the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg --test cli_api_call --features fixtures -- api_call_prints_json_with_no_json_flag_given` exited 0 at 2026-11-18T04:45:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 433d6a693f9e with uncommitted changes:
+
+```text
+   Compiling steg v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/steg)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.77s
+     Running tests/cli_api_call.rs (target/debug/deps/cli_api_call-c9922192cf592a61)
+
+running 1 test
+test api_call_prints_json_with_no_json_flag_given ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.37s
+```
+
+Commits since the review: 19, 16 without the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

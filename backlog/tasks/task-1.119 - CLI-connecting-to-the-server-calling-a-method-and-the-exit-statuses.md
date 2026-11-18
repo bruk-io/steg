@@ -5,7 +5,7 @@ status: In Review
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-16T13:35:00Z'
-updated_date: '2026-11-18T05:50:00Z'
+updated_date: '2026-11-18T05:51:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -25,6 +25,7 @@ asdlc_review_kind: same-machine
 asdlc_review_findings: 'important=2,nit=2'
 asdlc_review_policies: ["review"]
 asdlc_plan_matched: yes
+asdlc_reviewer: bruk.r3
 ---
 
 ## Description
@@ -1294,6 +1295,15 @@ Control run myself: removed connect_handshaken's retry (local_socket.rs) in a sc
 Checked and consistent with the claim: diff touches only crates/sdk (lib.rs, local_socket.rs, wire/connection.rs) and crates/steg (cli/*, main.rs, tests/*) - no boundaries.toml, Cargo.toml, crates/app, crates/server/src, or crates/sdk/src/description/ changes. Plan approval present (b60acf121e04, size-2) and matches the built diff's files and order of work. CI is green on exactly 5a456f3a (bruk-io/steg#77, confirmed via `gh pr checks`/`gh pr view --json headRefOid`); the disclosed local `just check` failures are the known, unrelated crates/server/tests/attach.rs timing flake, accurately described. The required single-server guarantee holds: connect_handshaken's retry only re-invokes the unmodified connect(), whose own direct-connect-then-spawn arbitration is untouched, so a retry after a dead listener's socket disappears entirely (as cli_connection_arbitration.rs's fixture does) is the only case that reaches autostart again, and a still-live listener is simply reconnected to, not duplicated.
 
 Not checked: did not independently re-run the full real-process test suites (cli_exit_statuses.rs, cli_connection_arbitration.rs) end to end beyond the one scratch control above, relying on the recorded check log and the green CI run for those; did not verify architecture/LikeC4 model validation beyond confirming no boundaries.toml/Cargo.toml diff.
+
+---
+
+author: @bruk.r3
+created: 2026-11-18T05:51:00Z
+
+---
+
+@bruk.r3 is reviewing TASK-1.119: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

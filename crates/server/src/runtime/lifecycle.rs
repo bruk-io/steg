@@ -7,7 +7,8 @@ use std::sync::mpsc::Sender;
 
 use steg_sdk::{ClientId, ClientKind};
 
-use super::{FORCE_JOIN_TIMEOUT, Runtime, apply_size_changed_locked, force_end};
+use super::close::force_end;
+use super::{FORCE_JOIN_TIMEOUT, Runtime, apply_size_changed_locked};
 use crate::connection::ConnectionEvent;
 
 impl Runtime {

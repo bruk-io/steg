@@ -146,7 +146,7 @@ pub(super) fn apply_event_locked(state: &mut State, event: PaneEvent) {
                             scope,
                         );
                         if let ExitOutcome::Closed(closed) = &outcome {
-                            super::emit_close_cascade(state, closed, scope);
+                            super::close::emit_close_cascade(state, closed, scope);
                         }
                     }
                     if let ExitOutcome::Closed(closed) = outcome {
@@ -339,7 +339,8 @@ mod tests {
     use crate::runtime::testing::{
         TEST_GRACE, TEST_TICK, fresh_state_with_one_pane, test_base_env, test_state,
     };
-    use crate::runtime::{Filter, LoginShell, Runtime, Subscriber, force_end};
+    use crate::runtime::close::force_end;
+    use crate::runtime::{Filter, LoginShell, Runtime, Subscriber};
 
     /// Registers a subscriber in `state` with a real writer thread
     /// actually draining its queue onto a real, paired `UnixStream` - so

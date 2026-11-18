@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w5'
 created_date: '2026-11-17T01:33:00Z'
-updated_date: '2026-11-18T14:09:00Z'
+updated_date: '2026-11-18T19:12:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -15,6 +15,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.123-server-tests-bound-the-remaining-waits
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'a21307bb73f5'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -389,3 +392,16 @@ Narrowed and split by @bruk.o on 2026-11-18, as the plan recommended: this task 
 
 Plan checked against the task's four criteria by @bruk.o: ok. Each of the four clashes gets a forced reproduction recorded failing first (two copies of the attach test binary at once; the login_env test under induced load; a naming function called twice with the same process id and counter), then the fix recorded passing; for signal's process-group test the plan states it will say plainly if the failure cannot be forced, and record no control it does not have. Fixes: a machine-wide advisory lock for the five flood tests, outside any worktree, acquired with a bound and released by the operating system if the test is killed, with the argument for why it cannot deadlock against TASK-1.132's two cargo slots; liveness bounds of 15 seconds; a bounded poll in the signal test; one standard-library temporary-directory helper replacing the duplicated unique-path helpers in sixteen test files across crates/server and crates/steg, with a compact name and a length assertion because a socket path has about 104 bytes. Its touch on attach.rs is the lock and one bound.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T19:12:00Z
+
+---
+
+Plan approved by @bruk (a21307bb73f5, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

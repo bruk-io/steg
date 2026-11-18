@@ -5,13 +5,17 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T02:46:00Z'
+updated_date: '2026-11-18T00:21:00Z'
 labels:
   - size-2
+  - changes-requested
 milestone: m-4
 dependencies:
   - TASK-1.117
   - TASK-1.114
+references:
+  - task-1.121-app-typing-and-resizing-in-the-bare
+  - https://github.com/bruk-io/steg/pull/71
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-2
@@ -19,6 +23,10 @@ asdlc_branch: task-1.121-app-typing-and-resizing-in-the-bare
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: '344be7f33227'
 asdlc_plan_approved_size: size-2
+asdlc_review_kind: same-machine
+asdlc_review_findings: 'important=3,nit=0'
+asdlc_review_policies: ["review", "app"]
+asdlc_plan_matched: no
 ---
 
 ## Description
@@ -1491,6 +1499,631 @@ ok      recipe names (0.1s)
 ok      ui levels (0.0s)
 ok      ui colours (0.0s)
 ```
+
+Check passed: `just check` exited 0 at 2026-11-17T22:32:26+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 7ba220a481d3 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (11.2s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (every crate) (93.7s)
+ok      build (steg-sdk) (0.8s)
+ok      test (steg-sdk) (2.4s)
+ok      test (steg-sdk, local-socket) (3.0s)
+ok      build (steg-kernel) (1.2s)
+ok      test (steg-kernel) (1.2s)
+ok      build (steg-server) (1.3s)
+ok      test (steg-server) (57.7s)
+ok      test (steg-server, race-fixture) (60.1s)
+ok      test (steg-server, pty-race-fixture) (66.0s)
+ok      test (steg-server, accept-backoff-fixture) (60.7s)
+ok      build (steg) (1.9s)
+ok      test (steg) (3.7s)
+ok      test (steg, fixtures) (10.9s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.1s)
+ok      build (steg-app) (1.3s)
+ok      test (steg-app) (1.4s)
+ok      tool tests (13.6s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Check passed: `just check` exited 0 at 2026-11-17T22:38:23+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.6s)
+ok      tests (-p steg -p steg-app -p steg-server) (52.6s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.5s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.2s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (51.6s)
+ok      test (steg-server, race-fixture) (55.5s)
+ok      test (steg-server, pty-race-fixture) (56.6s)
+ok      test (steg-server, accept-backoff-fixture) (52.6s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.2s)
+ok      test (steg, fixtures) (4.1s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.4s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.2s)
+ok      tool tests (13.4s)
+ok      architecture (0.7s)
+ok      recipe names (0.0s)
+ok      ui levels (0.0s)
+ok      ui colours (0.0s)
+```
+
+Built: the writer (a second, encode-only Connection), a minimal EntityInputHandler for composed text, focus plumbing, and declared size on open/resize, re-threaded twice onto upstream's own startup/teardown and painting rewrites as they landed (TASK-1.117's Slot-based fix, then origin/main's PR 65/66/68/69/70). key_to_bytes is a pure, table-driven function; the resize coalescer and ImeState are pure too.
+
+Checks recorded: pure-function tests (keys/size/ime) each with a failing-then-passing control; real-socket Writer tests for declare_size/send_input, including one proving a reply is observable on a live connection and one proving the exact silent-failure shape of a dead one (found via this task's own live verification, not invented after the fact); Model's Full-update-changes-size behaviour. just check: exit 0, recorded against the final merge commit (2c127d4f) with a clean tree.
+
+Found and reported (not fixed here, not mine to fix): TASK-1.117's own stop_startup was shutting down a connection right after a successful attach - diagnosed with a scratch cargo test replaying the app's own startup sequence against a real server, confirmed live with a temporary reverted patch, then confirmed again once 1.117's own real fix landed and was merged in.
+
+Live run against the final merged head, throwaway socket, no local patch: prompt draws, stays connected 15s idle, typed command echoes with its output drawn, a resize is followed (stty size reports the new dimensions), close-and-relaunch shows the earlier scrollback. All yes.
+
+Honest note on the live run's own environment: the socket was genuinely isolated (a fresh one every run), but the shell's own environment was not - steg server start's real path resolves a pane's shell identity through the real password database, not the HOME env var the server process itself was launched with, so the prompt shown is the real account's own real theme, not a throwaway one. Nothing personal was on screen because that theme shows no path/hostname/username and every typed command was a generic demo - not because of a throwaway HOME reaching the shell, which it did not.
+
+Images/recording held by the orchestrator in /Users/brukhabtu/.claude/projects/-Users-brukhabtu-src-github-com-bruk-io-steg/pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov), described in the PR body as checked here, awaiting the engineer's own upload.
+
+PR 71's CI is green on 2c127d4f.
+
+Check FAILED: `just test` exited 101 at 2026-11-17T23:12:49+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test client::tests::a_frame_on_a_stream_never_opened_ends_the_connection ... ok
+test client::tests::send_input_writes_a_data_frame_on_the_attachments_own_stream_not_stream_0 ... ok
+test startup::tests::teardown_while_the_server_is_silent_mid_handshake_ends_quickly ... ok
+test client::tests::a_control_frame_on_the_open_stream_arrives_as_an_update ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test client::tests::once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test startup::tests::a_successful_attach_survives_interrupt_called_right_after ... ok
+
+failures:
+
+---- ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length stdout ----
+
+thread 'ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length' (54597871) panicked at crates/app/src/ime.rs:146:9:
+assertion `left == right` failed
+  left: Some(0..0)
+ right: Some(0..2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero stdout ----
+
+thread 'ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero' (54597872) panicked at crates/app/src/ime.rs:134:9:
+assertion `left == right` failed
+  left: Some(0..0)
+ right: Some(0..1)
+
+
+failures:
+    ime::tests::marking_a_multi_character_composition_reports_its_real_utf16_length
+    ime::tests::marking_a_single_unit_composition_reports_its_own_length_not_a_fixed_zero
+
+test result: FAILED. 53 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just test` exited 0 at 2026-11-17T23:13:58+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-server) (59.1s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just test` exited 101 at 2026-11-17T23:16:00+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes, last 40 of 64 lines:
+
+```text
+test terminal_element::tests::the_cell_after_an_eighty_character_line_sits_at_column_eighty ... ok
+test client::tests::once_the_connection_is_already_shut_down_declare_size_neither_panics_nor_is_a_reply_ever_seen ... ok
+test terminal_element::tests::two_runs_differing_only_in_underline_colour_get_different_keys ... ok
+test terminal_element::tests::two_runs_with_the_same_underline_colour_share_a_key ... ok
+test startup::tests::a_labelled_session_is_returned_with_no_session_new_call ... ok
+test client::tests::declare_size_writes_a_tab_declare_size_request_naming_the_tab_and_the_size ... ok
+test startup::tests::no_labelled_session_calls_session_new ... ok
+test client::tests::declare_sizes_own_reply_is_observable_over_the_connection_when_it_is_alive ... ok
+test startup::tests::teardown_while_the_server_is_silent_mid_handshake_ends_quickly ... ok
+test startup::tests::a_running_pane_from_a_real_reply_is_returned_unchanged ... ok
+test startup::tests::an_ended_panes_program_gets_a_fresh_tab_in_the_same_session ... ok
+test startup::tests::a_successful_attach_survives_interrupt_called_right_after ... ok
+
+failures:
+
+---- keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does stdout ----
+
+thread 'keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does' (54635410) panicked at crates/app/src/keys.rs:523:13:
+assertion `left == right` failed: named_key_bytes("f6", false).is_some() = false, but the table's own claim that it is mapped = true - these must agree
+  left: false
+ right: true
+
+---- keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says stdout ----
+
+thread 'keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says' (54635411) panicked at crates/app/src/keys.rs:483:13:
+assertion `left == right` failed: row "f6": key="f6" key_char=None modifiers=Modifiers { control: false, alt: false, shift: false, platform: false, function: false }
+  left: None
+ right: Some([27, 91, 49, 55, 126])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keys::tests::every_key_named_key_bytes_maps_has_a_row_proving_it_and_no_other_key_does
+    keys::tests::every_row_in_the_plans_own_table_maps_as_the_plan_says
+
+test result: FAILED. 53 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+full output: .quiet/tests-p-steg-p-steg-app-p-steg-server.log
+error: recipe `test` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just test` exited 0 at 2026-11-17T23:17:04+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      tests (-p steg -p steg-app -p steg-server) (53.4s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `just check` exited 101 at 2026-11-17T23:17:24+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+FAILED  lint (exit 101, 9.0s)
+    Checking steg-app v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121/crates/app)
+error: method `is_composing` is never used
+  --> crates/app/src/ime.rs:48:19
+   |
+23 | impl ImeState {
+   | ------------- method in this implementation
+...
+48 |     pub(crate) fn is_composing(&self) -> bool {
+   |                   ^^^^^^^^^^^^
+   |
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `steg-app` (bin "steg-app") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+full output: .quiet/lint.log
+error: recipe `lint` failed with exit code 101
+```
+
+Commits since the review: 0.
+
+Check passed: `just check` exited 0 at 2026-11-17T23:24:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 2c127d4f1376 with uncommitted changes:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.7s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.1s)
+ok      licences (0.8s)
+ok      tests (-p steg -p steg-app -p steg-server) (61.2s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (1.3s)
+ok      test (steg-sdk, local-socket) (1.7s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (1.4s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (52.9s)
+ok      test (steg-server, race-fixture) (147.3s)
+ok      test (steg-server, pty-race-fixture) (59.6s)
+ok      test (steg-server, accept-backoff-fixture) (53.0s)
+ok      build (steg) (0.1s)
+ok      test (steg) (2.4s)
+ok      test (steg, fixtures) (7.2s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (1.0s)
+ok      build (steg-app) (1.0s)
+ok      test (steg-app) (0.3s)
+ok      tool tests (13.7s)
+ok      architecture (0.7s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 0.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app control_old_writer_blocks_the_caller` exited 101 at 2026-11-17T23:37:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::control_old_writer_blocks_the_caller_when_the_peer_never_reads ... FAILED
+
+failures:
+
+---- client::tests::control_old_writer_blocks_the_caller_when_the_peer_never_reads stdout ----
+
+thread 'client::tests::control_old_writer_blocks_the_caller_when_the_peer_never_reads' (54883408) panicked at crates/app/src/client.rs:504:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::control_old_writer_blocks_the_caller_when_the_peer_never_reads
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 55 filtered out; finished in 5.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app send_input_returns_promptly_even_when_the_peer_never_reads` exited 0 at 2026-11-17T23:37:30+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::send_input_returns_promptly_even_when_the_peer_never_reads ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app input_and_declared_sizes_arrive_on_the_wire_in_the_order` exited 101 at 2026-11-17T23:38:45+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+warning: variant `DeclareSize` is never constructed
+  --> crates/app/src/client.rs:84:5
+   |
+82 | enum WriterCommand {
+   |      ------------- variant in this enum
+83 |     Input(Vec<u8>),
+84 |     DeclareSize { columns: u16, rows: u16 },
+   |     ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them ... FAILED
+
+failures:
+
+---- client::tests::input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them stdout ----
+
+thread 'client::tests::input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them' (54905016) panicked at crates/app/src/client.rs:518:9:
+expected the first input, got Request { id: 1, request: Request { method: "tab.declare-size", params: {"columns": Number(80), "rows": Number(24)} } }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app input_and_declared_sizes_arrive_on_the_wire_in_the_order` exited 0 at 2026-11-17T23:39:12+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::input_and_declared_sizes_arrive_on_the_wire_in_the_order_the_ui_issued_them ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app once_the_queue_is_full_behind_a_stalled_peer` exited 101 at 2026-11-17T23:39:37+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes, last 40 of 43 lines:
+
+```text
+10 | use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+   |                                             ^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `events` is never read
+   --> crates/app/src/client.rs:118:5
+    |
+105 | pub(crate) struct Writer {
+    |                   ------ field in this struct
+...
+118 |     events: UnboundedSender<ClientEvent>,
+    |     ^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 2 warnings (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost ... FAILED
+
+failures:
+
+---- client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost stdout ----
+
+thread 'client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost' (54920361) panicked at crates/app/src/client.rs:364:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app once_the_queue_is_full_behind_a_stalled_peer` exited 0 at 2026-11-17T23:39:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::once_the_queue_is_full_behind_a_stalled_peer_the_connection_is_treated_as_lost ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app stop_joins_the_writer_within_its_bound` exited 101 at 2026-11-17T23:40:20+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+warning: field `shutdown_handle` is never read
+   --> crates/app/src/client.rs:112:5
+    |
+105 | pub(crate) struct Writer {
+    |                   ------ field in this struct
+...
+112 |     shutdown_handle: UnixStream,
+    |     ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write ... FAILED
+
+failures:
+
+---- client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write stdout ----
+
+thread 'client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write' (54934361) panicked at crates/app/src/client.rs:368:14:
+did not finish within the test's own bound: Timeout
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 58 filtered out; finished in 2.01s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app stop_joins_the_writer_within_its_bound` exited 0 at 2026-11-17T23:40:41+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::stop_joins_the_writer_within_its_bound_even_while_it_is_blocked_in_a_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app cmd_v_with_another_modifier` exited 101 at 2026-11-17T23:41:40+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke ... FAILED
+
+failures:
+
+---- paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke stdout ----
+
+thread 'paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke' (54982418) panicked at crates/app/src/main.rs:398:13:
+assertion failed: !is_paste_keystroke(&keystroke("v", modifiers))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app paste_keystroke` exited 0 at 2026-11-17T23:41:55+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 26f06705bc35 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 4 tests
+test paste_keystroke_tests::a_different_key_with_the_command_key_is_not_the_paste_keystroke ... ok
+test paste_keystroke_tests::a_plain_cmd_v_is_the_paste_keystroke ... ok
+test paste_keystroke_tests::cmd_v_with_another_modifier_held_too_is_not_the_paste_keystroke ... ok
+test paste_keystroke_tests::v_with_no_command_key_is_not_the_paste_keystroke ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+```
+
+Commits since the review: 1, all with the Asdlc-Worker trailer.
+
+Check passed: `just check` exited 0 at 2026-11-18T00:08:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880:
+
+```text
+ok      format check (0.3s)
+ok      lint (0.4s)
+ok      boundaries (0.1s)
+ok      foundations (0.1s)
+ok      foundations public surface (0.0s)
+ok      design pages (0.0s)
+ok      licences (0.7s)
+ok      tests (-p steg -p steg-app -p steg-server) (48.9s)
+ok      build (steg-sdk) (0.1s)
+ok      test (steg-sdk) (0.3s)
+ok      test (steg-sdk, local-socket) (0.6s)
+ok      build (steg-kernel) (0.1s)
+ok      test (steg-kernel) (0.3s)
+ok      build (steg-server) (0.1s)
+ok      test (steg-server) (51.4s)
+ok      test (steg-server, race-fixture) (51.6s)
+ok      test (steg-server, pty-race-fixture) (56.8s)
+ok      test (steg-server, accept-backoff-fixture) (155.8s)
+ok      build (steg) (0.1s)
+ok      test (steg) (1.1s)
+ok      test (steg, fixtures) (4.3s)
+ok      build (steg-ui) (0.3s)
+ok      test (steg-ui) (0.6s)
+ok      build (steg-app) (0.3s)
+ok      test (steg-app) (0.4s)
+ok      tool tests (13.4s)
+ok      architecture (0.8s)
+ok      recipe names (0.1s)
+ok      ui levels (0.1s)
+ok      ui colours (0.1s)
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check FAILED: `cargo test -p steg-app --bin steg-app a_full_queue_reports_disconnected_exactly_once` exited 101 at 2026-11-18T00:20:51+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880 with uncommitted changes:
+
+```text
+warning: unused import: `Ordering`
+  --> crates/app/src/client.rs:11:37
+   |
+11 | use std::sync::atomic::{AtomicBool, Ordering};
+   |                                     ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: `steg-app` (bin "steg-app" test) generated 1 warning (run `cargo fix --bin "steg-app" -p steg-app --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls ... FAILED
+
+failures:
+
+---- client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls stdout ----
+
+thread 'client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls' (55724114) panicked at crates/app/src/client.rs:755:9:
+assertion `left == right` failed: a full queue must report the connection lost exactly once, not once per failed try_send
+  left: 719
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
+
+error: test failed, to rerun pass `-p steg-app --bin steg-app`
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
+
+Check passed: `cargo test -p steg-app --bin steg-app a_full_queue_reports_disconnected_exactly_once` exited 0 at 2026-11-18T00:21:07+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.121 on task-1.121-app-typing-and-resizing-in-the-bare at 9c7f5b6ba880 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6, proc-macro-error2 v2.0.1
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests src/main.rs (target/debug/deps/steg_app-edc2b453f94d193e)
+
+running 1 test
+test client::tests::a_full_queue_reports_disconnected_exactly_once_even_across_many_further_calls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 63 filtered out; finished in 0.50s
+```
+
+Commits since the review: 2, all with the Asdlc-Worker trailer.
 <!-- SECTION:NOTES:END -->
 
 ## Comments
@@ -1578,6 +2211,132 @@ created: 2026-11-17T02:46:00Z
 ---
 
 Merged origin/task-1.117-app-a-bare-window-with-one-terminal-you at f8967015 (merge commit 7ba220a4, pushed to origin). Conflicts in main.rs/startup.rs (re-threaded this task's writer/focus/declared-size/IME additions through 1.117's new Slot-based startup/teardown, unchanged) and five server-side files (pane_streams/tab.declare-size/AttachmentId-shaped additive conflicts, both sides kept). just check: exit 0. Live run against committed code only, no local patch: prompt draws, stays connected 10s, typed command echoes and its output draws, a resize is followed (stty size), close-and-relaunch shows the earlier output - all yes.
+
+---
+
+created: 2026-11-17T22:38:00Z
+
+---
+
+Merged origin/main (merge commit 2c127d4f) once PRs 65/66/68/69/70 all landed there - no local patch, no waiting needed per your second message (confirmed the two protected processes, pid 63012/67229, were never touched or signalled).
+
+Conflicts and how resolved:
+- crates/app/src/main.rs: one conflict, in render()'s Attached branch - kept this task's own .track_focus/.on_key_down/extra terminal() params, took main's state.metrics.clone() (CellMetrics is no longer Copy, PR 70). Also fixed one other now-broken move (EntityInputHandler::bounds_for_range's own `let metrics = state.metrics;` -> `&state.metrics`), caught by the compiler, not the merge itself.
+- crates/app/src/model.rs: one conflict, in a test fixture (snapshot/snapshot_with_size) - kept this task's own two-function split (used throughout this file's own later tests), dropped main's single-function version. Separately, updated the module's own doc comments: what I had called "a known gap, to close at the next re-merge" (Delta carrying no size) turns out to be the final, settled design once PR 66 landed (doc-14's own reworded Size section: "a delta never carries a size; a size-stale attachment gets a full screen") - reworded three comments to say so plainly, not restate a gap that closed on its own.
+- crates/app/src/terminal_element.rs: one conflict, an import list (PR 126's new Point import vs this task's own ElementInputHandler/Entity/FocusHandle) - combined both lists; nothing else needed changing, this task's own terminal()/paint_grid wiring (focus_handle/entity/last_bounds params, the handle_input call) auto-merged cleanly against PR 126's own rewrite underneath it.
+- crates/app/src/startup.rs: one conflict, a test fixture comment (same Screen.size shape, worded two ways) - kept main's wording.
+- crates/server/src/connection.rs, dispatch/mod.rs, pane.rs: additive conflicts (PR 68's finish_attach/armed-check, event.watch's own position) - combined, nothing dropped on either side, same shape as the last two merges.
+- crates/server/tests/attach.rs: replaced wholesale with main's version - confirmed first that main's file is a strict superset (all of this task's own existing tests present unchanged, plus three new ones from PR 68/69), so there was nothing of this task's own to preserve separately.
+
+Re-verification: checked whether any of this task's own recorded controls rest on something this merge actually changed. None do - the SDK's Connection::declare_size/send_data (this task's own Writer tests) are untouched between the last merge and this one (confirmed by diff); keys.rs/size.rs/ime.rs are pure and untouched; model.rs's own Delta/Full size behaviour is unchanged code, only the comment describing it. So no control needed a fresh failing-then-passing cycle - the full just check (recorded above, exit 0, against this merge commit) re-exercises every one of them regardless. just check: exit 0.
+
+Known cost, not fixed here (for TASK-1.122): my own resize coalescer (size::declare_if_changed) declares once per distinct cell-size boundary a drag crosses, not once per pixel-level resize event - but since PR 66, every size change that actually changes the tab's size now sends a full screen to every attached viewer, not a bare field. A drag crossing many cell boundaries in one gesture therefore sends one full-screen resync per boundary crossed, to every viewer, not just the one resizing. Flagging for whoever picks up the latency/flood-bounding work.
+
+---
+
+created: 2026-11-17T22:57:00Z
+
+---
+
+Correction to the live-run notes, for accuracy: the prompt shown in the images/recording (an arrow and a bare "~") is not the PROMPT='%# ' I set out to force, and tracing why matters more than it looks.
+
+What each live run actually used: a fresh mktemp -d directory for HOME and a fresh mktemp -d/steg.sock for STEG_SOCKET_PATH, passed as env vars to both the server and app processes - every run, including the final one for the images. STEG_SOCKET_PATH genuinely isolated each run onto its own socket, never the engineer's or any other real one.
+
+HOME did not: steg server start's own real path (not the test fixture path) resolves the pane's own shell identity through LoginShell::resolve_identity -> login_env::resolve_login_identity, which reads the real password database for the account actually running the server process, not the HOME environment variable I set when launching it - confirmed by reading crates/server/src/login_env.rs and runtime.rs directly, not guessed. So the shell each pane ran was spawned with the real account's own real home directory and its own real dotfiles, and whatever prompt theme those dotfiles set is what the arrow-and-~ actually is - this task's own throwaway HOME never reached that point at all. My own PROMPT='%#' env var, set only on the server process I launched, was never going to override a theme sourced from the real account's own rc files either, for the same reason.
+
+What this means for "nothing personal on screen": held, but not because of the throwaway HOME - it held because the prompt theme itself shows no path, hostname or username (just a generic arrow and a bare tilde), and because every command I typed into it was a generic demo (echo/stty), never anything that would surface a real path or other real content. I did not use, read, or write to the engineer's own session or socket at any point - that part of the isolation was real.
+
+Separately: PR 71 is green on 2c127d4f, controls and just check already recorded against this exact head (clean tree, confirmed above), the three files in pr-images/ (task-1121-typing.png, task-1121-resize.png, task-1121-typing-resize-demo.mov) are described in the PR body as checked by the orchestrator and awaiting the engineer's own upload. Calling asdlc finish now.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T22:58:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.121: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
+
+---
+
+author: @bruk.r1
+created: 2026-11-17T23:08:00Z
+
+---
+
+Review by @bruk.r1 (same-machine): changes requested. Back to In Progress for the author's worker.
+
+Findings: 3 Important, 0 nit. Cites: review, app. The diff does not match the plan.
+
+[Bugs, Important] crates/app/src/client.rs:111-115,123-130 (Writer::send_input/declare_size): every call does a synchronous, blocking `write_all` on the window's own socket handle directly from the GPUI main/UI thread (on_key_down and replace_text_in_range in main.rs both call into this with no await, no channel, no timeout, and no set_nonblocking anywhere in this crate - confirmed by grep). If the server-side read for this connection ever stalls - the task's own plan names a related freeze ("a pane whose program never reads its input freezes that pane's own screen until the program reads, ends, or is force-closed", §"For the engineer" point 5) - or a large Cmd-V paste (§"For the engineer" point 3, sent as one send_input call with no size cap) exceeds the kernel's own socket send buffer while the peer is slow to drain it, this write blocks forever and freezes the whole app's render/input thread, not just one pane's screen. Nothing in the notes discusses this risk and no test exercises a slow/stalled peer on this path (only a clean write and an already-shut-down socket are tested). Needs either a bounded write (SO_SNDTIMEO/set_write_timeout), a dedicated writer thread fed by a channel, or a documented, tested bound on how much can ever be in flight before send_input is called.
+
+[Compliance, Important] crates/app/src/main.rs:325-335 (EntityInputHandler::marked_text_range): returns `Some(0..0)` for every open composition, regardless of the marked text's own length, departing from the plan's own specified expression (§2: `self.marked.as_ref().map(|s| 0..s.encode_utf16().count())`) with no mention of the change in the notes or comments. This value is not cosmetic - GPUI's pinned 0.2.2 macOS backend (platform/mac/window.rs:2177-2182) hands it straight to AppKit as `NSTextInputClient.markedRange`, which AppKit uses to compute the `replacement_range` it passes into the next `setMarkedText:`/`replace_and_mark_text_in_range` call. Always reporting a zero-width range is only safe for a single-unit dead-key composition (the only case this PR's own tests exercise, ime.rs); a multi-character composition (Pinyin/Hangul assembly, a longer emoji-picker candidate) would have AppKit believe nothing is marked yet, risking duplicated or garbled composition content - untested in both directions. This is also exactly the kind of thing the repository's own app.md rule asks to be a plain, tested function ("what can be decided without a window is a plain function tested without one") - the plan's own formula was such a function; what shipped is a hardcoded constant in main.rs instead.
+
+[Compliance/Evidence, Important] crates/app/src/keys.rs:412-461 (the_table_covers_every_named_key_this_module_maps): the plan's own §6 proof step for this test was "a second assertion per printable/control row that the table has no row this test doesn't cover, so a row added to the plan's own prose without a matching assertion fails the build, not just a missed case." What shipped instead is a fixed, hardcoded list of 18 key-name strings asserted against the test's own `table()` fixture, never against `named_key_bytes`'s own match arms - adding, removing or renaming a row in `named_key_bytes` would not fail this test or the build either way. It also only names 4 of the module's 8 function-key rows (f1, f4, f5, f12; f2/f3/f6-f11 absent). The notes and comments say nothing about this proof step being built differently from the plan.
+
+Verified the keys.rs control myself: reverted a scratch edit removing the `"tab" if shift => b"\x1b[Z"` arm (making Tab and Shift-Tab share a byte, the exact example the plan's own §6 names) and `cargo test -p steg-app --bin steg-app keys::tests::` failed `every_row_in_the_plans_own_table_maps_as_the_plan_says` exactly as the worker's recorded control claims; reverted immediately, `git status` on the review worktree confirmed clean afterward. That control is sound - my finding above is about the second, coverage-completeness test next to it, not this one.
+
+Recorded checks are against 2c127d4f, matching the branch's current head; PR 71's CI is green on the same commit. The two PNGs held off-PR (task-1121-typing.png, task-1121-resize.png) do show what the PR and notes claim: typing.png shows `echo final-check` with its output and a fresh prompt; resize.png shows the same scrollback in a visibly wider window with `stty size` reporting `32 141`, consistent with a resize having been declared and drawn. I could not open the .mov with my own tools - not checked. The PR body accurately states the images/recording are held by the orchestrator pending the engineer's own upload (AC #4's first clause is therefore not yet met on the PR itself, but this is the disclosed, expected state per the claim, not a new finding). Merge history reviewed in full (comments #2, #8, #9): confirmed nothing from TASK-1.126 (font-family resolution tests, cell_origin, per-glyph safety checks, run_key hashing) or TASK-1.117 (the three-state startup slot's own tests) was lost - all still present and passing. The crates/server/src/connection.rs change is a pure match-arm reorder from a merge, no semantic change.
+
+Not checked: the .mov recording's contents; whether the plan-approval hash still matches the plan as shipped beyond what the notes already state; any machine other than this one.
+
+---
+
+created: 2026-11-17T23:20:00Z
+
+---
+
+Decision by @bruk (2026-11-17, relayed by @bruk.o) on review finding 1: fix it in this task. Input and declared sizes must not be written to the socket on the UI thread; a key press never waits on the socket. This overrides the approved plan's section 3 ('directly on the main thread - no channel, no lock'); the change is an engineer-approved departure, to be recorded in the notes' Departures list.
+
+---
+
+created: 2026-11-17T23:27:00Z
+
+---
+
+Findings 2 and 3 fixed (commit 26f06705).
+
+Finding 2: marked_text_range returned a fixed Some(0..0) instead of the plan's own formula - an undisclosed departure, not deliberate; I found no reason the real form was hard to build once I looked. Built ImeState::marked_range_utf16 exactly as planned (0..s.encode_utf16().count()), with two new pure tests (single-unit and multi-character compositions each reporting their own real length) and a recorded failing-then-passing control (reverted to the old 0..0 shape; both new tests failed exactly as expected, restored, both pass). Removed is_composing, now redundant and otherwise dead code.
+
+Finding 3: the coverage test compared a hardcoded list against its own fixture, never against named_key_bytes - and only named 4 of 8 function-key rows. Added the missing rows (f2/f3/f6-f11) and rewrote the test to ask named_key_bytes itself, per candidate key, whether it answers Some, asserting that agrees with whether the table has a row proving it (expected: Some(_), not merely naming the key - the existing "f13 (dropped)" row proves the negative case and must not count as positive coverage). Recorded failing-then-passing: removed the f6 arm from named_key_bytes, both this test and the existing per-row test failed exactly as expected, restored, both pass.
+
+just check: exit 0 after both fixes.
+
+Facts for finding 1 (holding, not fixing, per your instruction) - sent to you directly as well:
+
+Under what conditions the write can block: Writer::send_input/declare_size's write_all blocks when the kernel's own Unix-domain-socket send buffer fills and the server's own connection-read loop isn't draining it. Read crates/server/src/connection.rs's own read loop and Runtime::send_input/PaneHandle::send_input directly: input is enqueued onto an unbounded std::sync::mpsc::channel (pane.rs:833), never a bounded one, so a pane's program not reading its own stdin backs up only that in-process channel, never the socket - the connection's read loop keeps draining the kernel buffer regardless of pane backpressure. For the write to actually block, the server's own connection-handling thread would have to stop reading from the socket for some other reason (the process itself unresponsive, not scheduled, or stuck elsewhere) - not because a pane's program refuses its input, which this task's own plan already named as an accepted, different limit (one pane's screen freezing, not the server's read loop stalling).
+
+How big the socket buffer is in practice: measured on this machine, not guessed - sysctl net.local.stream.sendspace and net.local.stream.recvspace both report 8192 bytes, the macOS default for Unix domain stream sockets; steg sets neither explicitly.
+
+Whether a single large paste alone can do it against a healthy server: Cmd-V paste is not implemented in this task's own shipped code at all - grepped crates/app/src for clipboard/paste, nothing calls it; keys.rs/ime.rs's own comments cite the plan's "For the engineer" point 3 as a future item, not something built. The only paths that call send_input today are on_key_down (one keystroke, a handful of bytes at most) and replace_text_in_range (a resolved IME composition, realistically short). So this specific risk is accurate as a future one, once paste is built, not one this PR's own shipped code can trigger today.
+
+How large the smallest honest fix is: a dedicated writer thread owning the UnixStream write handle, fed by an mpsc channel Writer::send_input/declare_size send onto instead of writing directly - the same shape this task already built for the reader thread (client.rs's own Client/read_loop), blocking on recv() with no polling, writing on receipt, looping. Ordering between input and declared sizes is preserved by construction if both go through the same channel and thread (a single FIFO queue, one consumer) - not two separate ones. On disconnect, the same shutdown mechanism the reader thread already uses (a cloned handle's own shutdown() call from teardown(), unblocking a stuck write) extends naturally, since the infrastructure already exists in this file for the read side. Estimate: comparable in size to the reader thread already built here - a few hours, not a redesign.
+
+---
+
+created: 2026-11-18T00:01:00Z
+
+---
+
+Departures: review finding 1, engineer-approved, overriding the approved plan's section 3 ("directly on the main thread - no channel, no lock").
+
+Writer::send_input/declare_size no longer touch the socket on the UI thread. A dedicated writer thread (crates/app/src/client.rs) now owns the write half, fed by one std::sync::mpsc::sync_channel(256) carrying both WriterCommand::Input and WriterCommand::DeclareSize, in the order the UI issued them - one queue, one consuming thread, so nothing reorders them. send_input/declare_size call try_send (never blocking) and return at once.
+
+Bound: 256 commands. Generous for interactive use (typing, or one resize's own coalesced declarations, comes nowhere near this many a second), small enough that a genuinely stalled peer is noticed well within a second once the kernel's own 8 KiB socket buffer is also full (measured via sysctl on this machine).
+
+Behaviour at the bound: try_send's Full or Disconnected is treated as the connection lost, reported once through the same ClientEvent::Disconnected path a reader-side disconnect already uses (one shared event channel now, so either thread's own disconnect reaches the window identically) - never a silently dropped keystroke with no consequence.
+
+teardown: Writer::stop drops the queue's sender (unblocks a writer thread idle in recv(), since nothing further can ever arrive) and shuts down a cloned handle to the same socket (unblocks a writer thread stuck inside its own write_all - the same mechanism Client::stop already uses for the reader). Both run unconditionally, so stop never joins a thread that could still be running for an unbounded reason.
+
+Proof (all four recorded on this task, failing run unrecorded first, then recorded, then the passing run recorded):
+(a) send_input returns promptly against a peer that never reads - control was a real revert to the old client.rs (git show 26f06705), which hangs past the test's own bound; the new code returns in well under the bound.
+(b) input and declared sizes arrive on the wire in the order issued - control temporarily bypassed the one queue for declare_size (direct, synchronous write) with a deterministic delay on the queued input path, which reorders them; the real single-queue code keeps them in order.
+(c) the stated behaviour at the bound - control temporarily made try_send's Full/Disconnected arm a no-op (the old silent shape); the queue-full test then never observes a Disconnected event and times out. Restored, it is observed.
+(d) stop joins the writer within its bound even while blocked in a write - control temporarily dropped the shutdown_handle.shutdown() call from Writer::stop, leaving only the sender drop; a writer stuck in write_all then never unblocks and the test times out. Restored, stop returns within bound.
+
+Also resolved the Cmd-V paste question from the approved plan's "For the engineer" §3: built it, not dropped. is_paste_keystroke in main.rs recognises plain Cmd-V only (not Cmd-Shift-V/Cmd-Option-V); on it, reads the clipboard, normalises line endings the same way a committed IME composition already is, and sends the bytes through the new writer - with its own unit tests and a recorded failing-then-passing control. Not a departure: this matches what the plan named, just not wired until now.
+
+Clippy/fmt/the app crate's full test suite (63 tests) all pass at this head. just check running next; live run and PR update to follow.
 
 ---
 <!-- COMMENTS:END -->

@@ -3,7 +3,7 @@ id: doc-14
 title: 'Spec: wire protocol'
 type: specification
 created_date: '2026-11-15T01:13:00Z'
-updated_date: '2026-11-17T16:18:00Z'
+updated_date: '2026-11-17T22:51:00Z'
 ---
 - Intent: TASK-1, "A terminal like Rex, built in Rust and GPUI and extendable through Python".
 - One of steg's specs. doc-1 is the overview: it has the vocabulary, the release table and the list of specs. Requirement numbers are steg-wide and never reused, so R19 means the same thing in every document.
@@ -78,6 +78,24 @@ decides it.
   the terminal's is sent a full screen at the new size on its next update, even when nothing else
   changed; a delta never carries a size. The server tracks this per attachment, so one that arms
   just after a resize is still told. A client draws at that size, top left, padded or cropped (R91).
+
+### The end of a pane, on its stream
+
+- An update's third form is `Ended`: the pane has ended and nothing more will ever follow on this
+  stream. It carries one of two reasons: `ProgramExited`, with the program's own exit code, when
+  nothing closed the pane; or `Closed`, with no exit code, whenever the pane itself was closed.
+  `Ended` is sent once, after any update still owed, and the stream is then closed on both sides;
+  no frame ever arrives on it afterward. On the wire:
+  `{"Ended":{"reason":{"ProgramExited":{"exit_code":3}}}}` and `{"Ended":{"reason":"Closed"}}`.
+- Attaching to a pane whose program has already ended answers with its last snapshot, and `Ended`
+  is the first and only update on that stream. A pane that closes between attach and arm is told
+  the same way, with `Closed`.
+- The server queues the last frame before it tears the stream down, never the reverse
+  (decision-2, section 3).
+- When the server itself stops, connections are already closing; `Ended` is best effort there and
+  a client may see only the disconnect.
+- The protocol version does not change for this (decision-2, section 7): a client that does not
+  know `Ended` fails to decode that one update and must treat it as an error, not crash.
 
 ### Status
 

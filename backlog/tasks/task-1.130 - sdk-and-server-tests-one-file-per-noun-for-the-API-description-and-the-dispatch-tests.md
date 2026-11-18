@@ -7,7 +7,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-18T02:09:00Z'
-updated_date: '2026-11-18T02:27:00Z'
+updated_date: '2026-11-18T02:30:00Z'
 labels:
   - size-3
 milestone: m-3
@@ -16,6 +16,9 @@ parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
 asdlc_branch: task-1.130-sdk-and-server-tests-one-file-per-noun
+asdlc_plan_approved_by: bruk
+asdlc_plan_approved_hash: 'dc8b72722100'
+asdlc_plan_approved_size: size-3
 ---
 
 ## Description
@@ -128,3 +131,16 @@ Split by @bruk.o on 2026-11-18, as the plan recommended: this task keeps the sdk
 
 Plan checked against the task's three criteria by @bruk.o: ok. Move only: methods.rs becomes methods/ with a file per noun plus shared.rs, errors.rs and tests.rs; one commit per noun after the rename. Three mechanical proofs, each with a control: the description's serialised form byte for byte, the sdk's test list, and a normalised-line hash of the bodies. The byte-for-byte dump uses a scratch, uncommitted test file calling the real description(); the reviewer is to repeat it. methods/tests.rs remains the one file every new method still touches, named as a follow-up.
 <!-- SECTION:NOTES:END -->
+
+## Comments
+
+<!-- COMMENTS:BEGIN -->
+author: @bruk
+created: 2026-11-18T02:30:00Z
+
+---
+
+Plan approved by @bruk (dc8b72722100, size-3): its worker may build it.
+
+---
+<!-- COMMENTS:END -->

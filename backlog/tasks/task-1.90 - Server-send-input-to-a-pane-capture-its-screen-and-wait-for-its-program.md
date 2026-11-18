@@ -244,6 +244,32 @@ test pane_send_delivers_text_then_a_key_in_order_without_a_client_attached ... o
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.04s
 ```
+
+Check FAILED: `cargo test -p steg-server --test pane_send -- --exact pane_send_with_an_unknown_key_name_is_bad_request` exited 101 at 2026-11-18T14:38:18+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.90 on task-1.90-server-send-input-to-a-pane-capture-its at a51a1325d021 with uncommitted changes:
+
+```text
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/pane_send.rs (target/debug/deps/pane_send-d15aaaf16e9f4c29)
+
+running 1 test
+test pane_send_with_an_unknown_key_name_is_bad_request ... FAILED
+
+failures:
+
+---- pane_send_with_an_unknown_key_name_is_bad_request stdout ----
+
+thread 'pane_send_with_an_unknown_key_name_is_bad_request' (60521347) panicked at crates/server/tests/pane_send.rs:511:9:
+expected pane.send to refuse an unknown key name, got Ok(Null)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    pane_send_with_an_unknown_key_name_is_bad_request
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p steg-server --test pane_send`
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments

@@ -1,15 +1,17 @@
 ---
 id: TASK-1.135
 title: 'Server tests: the dispatch tests split by noun, in one test binary'
-status: In Progress
+status: In Review
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T03:27:00Z'
+updated_date: '2026-11-18T03:48:00Z'
 labels:
   - size-2
 milestone: m-3
 dependencies: []
+references:
+  - task-1.135-server-tests-the-dispatch-tests-split-by
 parent_task_id: TASK-1
 project: bruk-io-steg
 asdlc_accepted_from: DRAFT-1
@@ -494,6 +496,32 @@ test result: FAILED. 20 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out;
 
 error: test failed, to rerun pass `-p steg-server --test attach`
 ```
+
+Built per the approved plan, with one discovery and the already-reported out-of-plan comments-only commit.
+
+Commits (10, in order): git mv dispatch.rs -> dispatch/main.rs (alone); extract fixtures.rs; extract session.rs; extract cross_cutting.rs; extract tab.rs; extract pane.rs; extract api.rs; extract setting.rs; fix five stale "dispatch.rs" references in crates/server/tests/{runtime,events,routing}.rs (comments only); merge origin/main.
+
+Checks recorded on this task (each via asdlc record-check): the test listing immediately after the git-mv commit (byte-identical bare names, proving the move alone changes nothing); the lint gate after the first noun extraction (session.rs) - confirms the one crate-root #![expect(clippy::unwrap_used)] in main.rs still covers every child module, the load-bearing assumption behind one binary not eight; clippy -D warnings after every extraction commit (all clean); the full test listing at the final head (77/77, 0 ignored); the per-module sequence-diff script (proof c) at the final head; both proofs' controls recorded failing then passing (rename a test; a one-character body edit) against the real worktree, reverted with git checkout before the next commit each time; a representative touch-then-relink timing sample; six just-check/attach-alone runs (five full just check, one standalone cargo test -p steg-server --test attach), the last one confirmed to carry nothing from the environment before being left as the recorded failing run; a final just check could not be made green on this machine - see below.
+
+Departures from the plan:
+1. Discovered while extracting session.rs: unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given loops session/tab/pane in one test body - a span-noun test the plan's marker-comment cuts didn't single out (it sits inside the "// --- session ---" block, between session_set_and_unset_change_and_clear_the_label and session_show_with_an_unknown_target_is_no_such_target). Moved to dispatch/cross_cutting.rs per the plan's own rule for tests that cross a noun boundary, not to session.rs.
+2. fixtures.rs - moment's own doc comment reworded from "Most of this file's calls pass moment(0)" to "Most calls across this binary pass moment(0)", since fixtures.rs itself makes no calls to dispatch once the file split - the original wording stopped being accurate. Two /// lines changed; confirmed comment-only, no code line touched.
+3. session.rs - one blank line added between session_set_and_unset_change_and_clear_the_label's closing brace and session_show_with_an_unknown_target_is_no_such_target's #[test] attribute: the seam left behind once the span-noun unset_label test (originally between these two) was excised to cross_cutting.rs. One blank line; confirmed whitespace-only, no code line touched.
+4. tab.rs - a 5-line /// doc-comment addition on pane_list_with_an_ambiguous_target_is_ambiguous_target, explaining why it lives in tab.rs and not pane.rs (shares tab_mut_for_test and a local lookup stand-in with two tab tests directly above it) - called for by the plan itself ("a one-line comment ... explaining why it lives here"). Five /// lines added; confirmed comment-only, no code line touched.
+5. pane.rs - the comparison script's one-line diff here is not a change to pane.rs's own content: the baseline slice includes the original file's trailing blank separator line (the whitespace before "// --- api ---"'s marker comment in the pre-move file), which a standalone module file naturally doesn't reproduce at its own end-of-file. An artifact of where the comparison's slice boundary was drawn, not a line added or removed from this file.
+None of the five touches a code line - each is checkable against the diffs recorded on this task and quoted in the PR body.
+
+Local `just check` was not green at the final head (e527e603) on this machine, and not because of anything in dispatch: on every one of six runs (five full just check, one standalone `cargo test -p steg-server --test attach`), the dispatch binary passed 77/77. The failures were confined every time to crates/server/tests/attach.rs's stuck-pane/bound timing tests - a file this task does not touch - under the load of several other builds running on this machine at once (load average seen ranged roughly 3.4 to 19.4 across the six runs; even the standalone attach-alone run, at load ~4-8, still failed 3 of 5). A different subset failed each run:
+- a_pane_that_closes_between_a_queued_attach_and_its_arm_leaves_nothing_to_detach - panicked "pane.attach must answer within a bound" (attach.rs:1793): its own bounded wait for the reply timed out.
+- an_unresponsive_panes_own_commands_do_not_stall_the_connection_or_another_pane - panicked "pane.show must answer within a bound, even with the other pane stuck" (attach.rs:1427): the same bounded-wait timeout shape.
+- a_second_connections_control_call_is_not_blocked_by_a_stuck_panes_lock_held_attach - panicked reading the reply with Os { code: 35, kind: WouldBlock } (attach.rs:149): a non-blocking socket read came back WouldBlock instead of the reply inside the test's own bound.
+- pane_close_force_returns_within_its_bound_even_while_the_panes_own_worker_is_stuck - the same WouldBlock failure, in at least one run.
+- stopping_the_server_returns_within_its_bound_even_while_a_panes_worker_is_stuck - the same WouldBlock failure, in at least one run.
+The last just-check run was recorded on this task as it ran (exit 101), confirmed beforehand to carry nothing from the environment in its output. CI's run on PR 76's head (e527e603) is the clean check for this change, confirmed green both by my own foregrounded `gh pr checks --watch` and by the engineer directly.
+
+PR: https://github.com/bruk-io/steg/pull/76 (head e527e603) - the body carries the same local-check/CI-is-clean statement, the five test names, and the Departures list.
+
+Where a later task's new dispatch test goes: for an existing noun, in dispatch/<noun>.rs (session.rs/tab.rs/pane.rs/api.rs/setting.rs). One that tests api.call's own forwarding or targeting for that noun goes in dispatch/api.rs regardless of which noun it names. One that crosses several nouns in one call sequence, or exercises dispatch's own completeness/shape guarantees rather than one noun's behaviour, goes in dispatch/cross_cutting.rs. A genuinely new noun gets its own new dispatch/<noun>.rs, declared with one more mod line in dispatch/main.rs.
 <!-- SECTION:NOTES:END -->
 
 ## Comments

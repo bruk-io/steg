@@ -22,6 +22,8 @@ asdlc_branch: task-1.130-sdk-and-server-tests-one-file-per-noun
 asdlc_plan_approved_by: bruk
 asdlc_plan_approved_hash: 'dc8b72722100'
 asdlc_plan_approved_size: size-3
+asdlc_reviewer: bruk.r1
+asdlc_review_kind: same-machine
 ---
 
 ## Description
@@ -162,6 +164,15 @@ created: 2026-11-18T03:43:00Z
 ---
 
 CI's just check on PR #78's head (91048c62) passed clean (COMPLETED/SUCCESS, 12m46s): https://github.com/bruk-io/steg/actions/runs/44230938709/job/134555512244. That is the clean just check for this change, on an unloaded machine, per the engineer's instruction - local just check on this machine was not green at the final head (see the sighting in the notes: crates/server/tests/attach.rs's own timing tests flaking under 5 other concurrent workers' load, uptime up to 9.18/7.80/8.65, a file this task never touches); crates/sdk's own tests and all four recorded proofs passed every time.
+
+---
+
+author: @bruk.r1
+created: 2026-11-18T03:44:00Z
+
+---
+
+@bruk.r1 is reviewing TASK-1.130: a same-machine review: it waited 0m with no other engineer's reviewer, longer than review_fallback_after (0m), so a fresh reviewer on its author's machine takes it.
 
 ---
 <!-- COMMENTS:END -->

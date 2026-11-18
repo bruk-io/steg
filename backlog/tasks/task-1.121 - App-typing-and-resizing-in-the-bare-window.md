@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w6'
 created_date: '2026-11-16T15:26:00Z'
-updated_date: '2026-11-17T23:41:00Z'
+updated_date: '2026-11-18T00:01:00Z'
 labels:
   - size-2
   - changes-requested
@@ -2217,6 +2217,32 @@ How big the socket buffer is in practice: measured on this machine, not guessed 
 Whether a single large paste alone can do it against a healthy server: Cmd-V paste is not implemented in this task's own shipped code at all - grepped crates/app/src for clipboard/paste, nothing calls it; keys.rs/ime.rs's own comments cite the plan's "For the engineer" point 3 as a future item, not something built. The only paths that call send_input today are on_key_down (one keystroke, a handful of bytes at most) and replace_text_in_range (a resolved IME composition, realistically short). So this specific risk is accurate as a future one, once paste is built, not one this PR's own shipped code can trigger today.
 
 How large the smallest honest fix is: a dedicated writer thread owning the UnixStream write handle, fed by an mpsc channel Writer::send_input/declare_size send onto instead of writing directly - the same shape this task already built for the reader thread (client.rs's own Client/read_loop), blocking on recv() with no polling, writing on receipt, looping. Ordering between input and declared sizes is preserved by construction if both go through the same channel and thread (a single FIFO queue, one consumer) - not two separate ones. On disconnect, the same shutdown mechanism the reader thread already uses (a cloned handle's own shutdown() call from teardown(), unblocking a stuck write) extends naturally, since the infrastructure already exists in this file for the read side. Estimate: comparable in size to the reader thread already built here - a few hours, not a redesign.
+
+---
+
+created: 2026-11-18T00:01:00Z
+
+---
+
+Departures: review finding 1, engineer-approved, overriding the approved plan's section 3 ("directly on the main thread - no channel, no lock").
+
+Writer::send_input/declare_size no longer touch the socket on the UI thread. A dedicated writer thread (crates/app/src/client.rs) now owns the write half, fed by one std::sync::mpsc::sync_channel(256) carrying both WriterCommand::Input and WriterCommand::DeclareSize, in the order the UI issued them - one queue, one consuming thread, so nothing reorders them. send_input/declare_size call try_send (never blocking) and return at once.
+
+Bound: 256 commands. Generous for interactive use (typing, or one resize's own coalesced declarations, comes nowhere near this many a second), small enough that a genuinely stalled peer is noticed well within a second once the kernel's own 8 KiB socket buffer is also full (measured via sysctl on this machine).
+
+Behaviour at the bound: try_send's Full or Disconnected is treated as the connection lost, reported once through the same ClientEvent::Disconnected path a reader-side disconnect already uses (one shared event channel now, so either thread's own disconnect reaches the window identically) - never a silently dropped keystroke with no consequence.
+
+teardown: Writer::stop drops the queue's sender (unblocks a writer thread idle in recv(), since nothing further can ever arrive) and shuts down a cloned handle to the same socket (unblocks a writer thread stuck inside its own write_all - the same mechanism Client::stop already uses for the reader). Both run unconditionally, so stop never joins a thread that could still be running for an unbounded reason.
+
+Proof (all four recorded on this task, failing run unrecorded first, then recorded, then the passing run recorded):
+(a) send_input returns promptly against a peer that never reads - control was a real revert to the old client.rs (git show 26f06705), which hangs past the test's own bound; the new code returns in well under the bound.
+(b) input and declared sizes arrive on the wire in the order issued - control temporarily bypassed the one queue for declare_size (direct, synchronous write) with a deterministic delay on the queued input path, which reorders them; the real single-queue code keeps them in order.
+(c) the stated behaviour at the bound - control temporarily made try_send's Full/Disconnected arm a no-op (the old silent shape); the queue-full test then never observes a Disconnected event and times out. Restored, it is observed.
+(d) stop joins the writer within its bound even while blocked in a write - control temporarily dropped the shutdown_handle.shutdown() call from Writer::stop, leaving only the sender drop; a writer stuck in write_all then never unblocks and the test times out. Restored, stop returns within bound.
+
+Also resolved the Cmd-V paste question from the approved plan's "For the engineer" §3: built it, not dropped. is_paste_keystroke in main.rs recognises plain Cmd-V only (not Cmd-Shift-V/Cmd-Option-V); on it, reads the clipboard, normalises line endings the same way a committed IME composition already is, and sends the bytes through the new writer - with its own unit tests and a recorded failing-then-passing control. Not a departure: this matches what the plan named, just not wired until now.
+
+Clippy/fmt/the app crate's full test suite (63 tests) all pass at this head. just check running next; live run and PR update to follow.
 
 ---
 <!-- COMMENTS:END -->

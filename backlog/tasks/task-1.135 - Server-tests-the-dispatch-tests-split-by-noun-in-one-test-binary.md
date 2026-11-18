@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@bruk.w9'
 created_date: '2026-11-18T02:25:00Z'
-updated_date: '2026-11-18T02:45:00Z'
+updated_date: '2026-11-18T02:48:00Z'
 labels:
   - size-2
 milestone: m-3
@@ -160,6 +160,12 @@ tab_show_with_an_unknown_target_is_no_such_target: test
 unset_label_clears_on_either_switch_value_and_leaves_it_alone_when_not_given: test
 
 77 tests, 0 benchmarks
+```
+
+Check passed: `sh -c 'export ZIG="$(mise which zig 2>/dev/null || true)"; cargo clippy -p steg-server --test dispatch --all-features -- -D warnings'` exited 0 at 2026-11-18T02:48:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.135 on task-1.135-server-tests-the-dispatch-tests-split-by at 0eb92c1e2403:
+
+```text
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.16s
 ```
 <!-- SECTION:NOTES:END -->
 

@@ -625,6 +625,20 @@ test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 170 filtered out
 
 error: test failed, to rerun pass `-p steg-sdk --lib`
 ```
+
+Check passed: `cargo test -p steg-sdk --lib --features local-socket -- eof_before_hello_is_retried_exactly_once_then_fails a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts` exited 0 at 2026-11-18T03:16:52+00:00 in /Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119 on task-1.119-cli-connecting-to-the-server-calling-a at 46d0e643287c with uncommitted changes:
+
+```text
+   Compiling steg-sdk v0.1.0 (/Users/brukhabtu/src/github.com/bruk-io/steg.worktrees/task-1.119/crates/sdk)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running unittests src/lib.rs (target/debug/deps/steg_sdk-2f782de52c6eac3e)
+
+running 2 tests
+test local_socket::tests::eof_before_hello_is_retried_exactly_once_then_fails ... ok
+test local_socket::tests::a_hello_completed_on_the_retry_succeeds_after_exactly_two_attempts ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 170 filtered out; finished in 0.00s
+```
 <!-- SECTION:NOTES:END -->
 
 ## Comments
